@@ -9,39 +9,42 @@ All colors MUST be HSL.
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --foreground: 0 0% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 0 0% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --popover-foreground: 0 0% 10%;
 
-    --primary: 14 100% 57%;
+    /* Fabrik Terracota - RGB(164, 82, 72) */
+    --primary: 7 49% 46%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
+    /* Cinza Grafite */
+    --secondary: 0 0% 35%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 330 81% 60%;
+    /* Accent neutro */
+    --accent: 0 0% 20%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 14 100% 57%;
+    --border: 0 0% 90%;
+    --input: 0 0% 95%;
+    --ring: 7 49% 46%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
     
-    --gradient-primary: linear-gradient(135deg, hsl(14 100% 57%), hsl(330 81% 60%));
-    --gradient-card: linear-gradient(135deg, hsl(14 100% 57% / 0.1), hsl(330 81% 60% / 0.1));
-    --shadow-primary: 0 10px 40px -10px hsl(14 100% 57% / 0.3);
-    --shadow-card: 0 4px 20px -2px hsl(240 10% 3.9% / 0.08);
+    --gradient-primary: linear-gradient(135deg, hsl(7 49% 46%), hsl(0 0% 20%));
+    --gradient-card: linear-gradient(135deg, hsl(7 49% 46% / 0.08), hsl(0 0% 20% / 0.05));
+    --shadow-primary: 0 8px 24px -4px hsl(7 49% 46% / 0.25);
+    --shadow-card: 0 2px 12px -2px hsl(0 0% 10% / 0.06);
 
     --sidebar-background: 0 0% 98%;
 
@@ -61,38 +64,40 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --background: 240 10% 3.9%;
+    --background: 0 0% 10%;
     --foreground: 0 0% 98%;
 
-    --card: 240 5.9% 10%;
+    --card: 0 0% 15%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 240 5.9% 10%;
+    --popover: 0 0% 15%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 14 100% 57%;
+    /* Fabrik Terracota - mais vibrante no dark */
+    --primary: 7 55% 52%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 3.7% 15.9%;
+    /* Cinza Grafite claro */
+    --secondary: 0 0% 25%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 330 81% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 0 0% 30%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 14 100% 57%;
+    --border: 0 0% 25%;
+    --input: 0 0% 20%;
+    --ring: 7 55% 52%;
     
-    --gradient-primary: linear-gradient(135deg, hsl(14 100% 57%), hsl(330 81% 60%));
-    --gradient-card: linear-gradient(135deg, hsl(14 100% 57% / 0.15), hsl(330 81% 60% / 0.15));
-    --shadow-primary: 0 10px 40px -10px hsl(14 100% 57% / 0.4);
-    --shadow-card: 0 4px 20px -2px hsl(0 0% 100% / 0.1);
+    --gradient-primary: linear-gradient(135deg, hsl(7 55% 52%), hsl(0 0% 30%));
+    --gradient-card: linear-gradient(135deg, hsl(7 55% 52% / 0.12), hsl(0 0% 30% / 0.08));
+    --shadow-primary: 0 8px 24px -4px hsl(7 55% 52% / 0.3);
+    --shadow-card: 0 2px 12px -2px hsl(0 0% 100% / 0.08);
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;

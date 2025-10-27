@@ -3,26 +3,29 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Dumbbell, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Dumbbell, X, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Exercise {
-  name: string;
-  sets: number;
+  exercise: string;
+  load: string;
   reps: number;
-  weight: number;
+  observations: string;
 }
 
 const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) => {
   const [open, setOpen] = useState(false);
-  const [workoutName, setWorkoutName] = useState("");
+  const [studentName, setStudentName] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
   const [exercises, setExercises] = useState<Exercise[]>([
-    { name: "", sets: 3, reps: 10, weight: 0 }
+    { exercise: "", load: "", reps: 0, observations: "" }
   ]);
   const { toast } = useToast();
 
   const addExercise = () => {
-    setExercises([...exercises, { name: "", sets: 3, reps: 10, weight: 0 }]);
+    setExercises([...exercises, { exercise: "", load: "", reps: 0, observations: "" }]);
   };
 
   const removeExercise = (index: number) => {
@@ -38,23 +41,25 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!workoutName.trim() || exercises.some(ex => !ex.name.trim())) {
+    if (!studentName.trim() || exercises.some(ex => !ex.exercise.trim())) {
       toast({
         title: "Campos obrigatórios",
-        description: "Preencha o nome do treino e dos exercícios",
+        description: "Preencha o nome do aluno e dos exercícios",
         variant: "destructive",
       });
       return;
     }
 
-    // Aqui você salvaria no backend/localStorage
+    // Aqui você salvaria no backend/Lovable Cloud
     toast({
-      title: "Treino adicionado! 💪",
-      description: `${workoutName} com ${exercises.length} exercícios`,
+      title: "Sessão registrada",
+      description: `${studentName} - ${exercises.length} exercícios`,
     });
     
-    setWorkoutName("");
-    setExercises([{ name: "", sets: 3, reps: 10, weight: 0 }]);
+    setStudentName("");
+    setDate(new Date().toISOString().split('T')[0]);
+    setTime(new Date().toTimeString().slice(0, 5));
+    setExercises([{ exercise: "", load: "", reps: 0, observations: "" }]);
     setOpen(false);
     onWorkoutAdded();
   };
@@ -64,28 +69,51 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
       <DialogTrigger asChild>
         <Button variant="gradient" size="lg" className="gap-2">
           <Plus className="h-5 w-5" />
-          Novo Treino
+          Registrar Sessão
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2">
             <Dumbbell className="h-6 w-6 text-primary" />
-            Adicionar Treino
+            Registrar Sessão de Treino
           </DialogTitle>
           <DialogDescription>
-            Registre seus exercícios, séries, repetições e peso
+            Padrão Fabrik Performance - registre apenas a maior carga de cada exercício
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="workout-name">Nome do Treino</Label>
-            <Input
-              id="workout-name"
-              placeholder="Ex: Treino A - Peito e Tríceps"
-              value={workoutName}
-              onChange={(e) => setWorkoutName(e.target.value)}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="student-name">Nome do Aluno</Label>
+              <Input
+                id="student-name"
+                placeholder="Nome completo"
+                value={studentName}
+                onChange={(e) => setStudentName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="date">Data</Label>
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="time" className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Horário
+              </Label>
+              <Input
+                id="time"
+                type="time"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -98,7 +126,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
             </div>
 
             {exercises.map((exercise, index) => (
-              <div key={index} className="p-4 border rounded-lg space-y-3 relative bg-secondary/30">
+              <div key={index} className="p-4 border rounded-lg space-y-3 relative bg-muted/30">
                 {exercises.length > 1 && (
                   <Button
                     type="button"
@@ -111,46 +139,52 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
                   </Button>
                 )}
                 
-                <div>
-                  <Label htmlFor={`exercise-${index}`} className="text-xs">Exercício</Label>
-                  <Input
-                    id={`exercise-${index}`}
-                    placeholder="Ex: Supino reto"
-                    value={exercise.name}
-                    onChange={(e) => updateExercise(index, "name", e.target.value)}
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <Label htmlFor={`sets-${index}`} className="text-xs">Séries</Label>
+                    <Label htmlFor={`exercise-${index}`} className="text-xs font-medium">
+                      Exercício
+                    </Label>
                     <Input
-                      id={`sets-${index}`}
-                      type="number"
-                      min="1"
-                      value={exercise.sets}
-                      onChange={(e) => updateExercise(index, "sets", parseInt(e.target.value) || 1)}
+                      id={`exercise-${index}`}
+                      placeholder="Ex: Afundo (pegada taça)"
+                      value={exercise.exercise}
+                      onChange={(e) => updateExercise(index, "exercise", e.target.value)}
                     />
                   </div>
                   <div>
-                    <Label htmlFor={`reps-${index}`} className="text-xs">Reps</Label>
+                    <Label htmlFor={`load-${index}`} className="text-xs font-medium">
+                      Carga (kg) - Maior da sessão
+                    </Label>
+                    <Input
+                      id={`load-${index}`}
+                      placeholder="Ex: (10kg + 10kg) + barra 15kg = 35,0kg"
+                      value={exercise.load}
+                      onChange={(e) => updateExercise(index, "load", e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor={`reps-${index}`} className="text-xs font-medium">Nº Repetições</Label>
                     <Input
                       id={`reps-${index}`}
                       type="number"
                       min="1"
-                      value={exercise.reps}
-                      onChange={(e) => updateExercise(index, "reps", parseInt(e.target.value) || 1)}
+                      placeholder="Ex: 10"
+                      value={exercise.reps || ""}
+                      onChange={(e) => updateExercise(index, "reps", parseInt(e.target.value) || 0)}
                     />
                   </div>
                   <div>
-                    <Label htmlFor={`weight-${index}`} className="text-xs">Peso (kg)</Label>
+                    <Label htmlFor={`observations-${index}`} className="text-xs font-medium">
+                      Observações
+                    </Label>
                     <Input
-                      id={`weight-${index}`}
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={exercise.weight}
-                      onChange={(e) => updateExercise(index, "weight", parseFloat(e.target.value) || 0)}
+                      id={`observations-${index}`}
+                      placeholder="Ex: carga submáxima, boa execução"
+                      value={exercise.observations}
+                      onChange={(e) => updateExercise(index, "observations", e.target.value)}
                     />
                   </div>
                 </div>
@@ -159,7 +193,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
           </div>
 
           <Button type="submit" variant="gradient" className="w-full" size="lg">
-            Salvar Treino
+            Registrar Sessão
           </Button>
         </form>
       </DialogContent>

@@ -2,24 +2,24 @@ import { useState } from "react";
 import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
-import { Dumbbell, TrendingUp, Calendar, Flame } from "lucide-react";
+import { Dumbbell, TrendingUp, Calendar, Users } from "lucide-react";
 
 const Index = () => {
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Dados mockados - em produção viriam de um backend
+  // Dados mockados - em produção viriam do Lovable Cloud
   const stats = {
-    totalWorkouts: 24,
-    thisWeek: 5,
-    totalVolume: 12450,
-    streak: 7,
+    totalSessions: 156,
+    thisMonth: 18,
+    activeStudents: 12,
+    avgLoad: 245,
   };
 
   const recentWorkouts = [
-    { id: 1, name: "Treino A - Peito e Tríceps", exercises: 6, date: "2025-10-27", totalVolume: 2400 },
-    { id: 2, name: "Treino B - Costas e Bíceps", exercises: 5, date: "2025-10-26", totalVolume: 2100 },
-    { id: 3, name: "Treino C - Pernas", exercises: 7, date: "2025-10-24", totalVolume: 3200 },
-    { id: 4, name: "Treino A - Peito e Tríceps", exercises: 6, date: "2025-10-23", totalVolume: 2350 },
+    { id: 1, name: "João Silva", exercises: 6, date: "2025-10-27", totalVolume: 420 },
+    { id: 2, name: "Maria Santos", exercises: 5, date: "2025-10-27", totalVolume: 315 },
+    { id: 3, name: "Pedro Costa", exercises: 7, date: "2025-10-26", totalVolume: 540 },
+    { id: 4, name: "Ana Lima", exercises: 4, date: "2025-10-26", totalVolume: 280 },
   ];
 
   const handleWorkoutAdded = () => {
@@ -27,55 +27,55 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
-        <header className="mb-12">
+        <header className="mb-10 pb-6 border-b border-border">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Meus Treinos
+              <h1 className="text-3xl md:text-4xl font-bold mb-1 text-primary tracking-tight">
+                Fabrik Performance
               </h1>
-              <p className="text-muted-foreground text-lg">Acompanhe seu progresso e evolua! 💪</p>
+              <p className="text-muted-foreground">Sistema de Registro e Acompanhamento</p>
             </div>
             <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
           </div>
         </header>
 
         {/* Stats Grid */}
-        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           <StatCard
-            title="Total de Treinos"
-            value={stats.totalWorkouts}
+            title="Sessões Registradas"
+            value={stats.totalSessions}
             icon={Dumbbell}
-            subtitle="Desde o início"
+            subtitle="Total consolidado"
             gradient
           />
           <StatCard
-            title="Esta Semana"
-            value={stats.thisWeek}
+            title="Este Mês"
+            value={stats.thisMonth}
             icon={Calendar}
-            subtitle="Treinos realizados"
+            subtitle="Sessões em outubro"
           />
           <StatCard
-            title="Volume Total"
-            value={`${(stats.totalVolume / 1000).toFixed(1)}t`}
+            title="Alunos Ativos"
+            value={stats.activeStudents}
+            icon={Users}
+            subtitle="Com treinos regulares"
+          />
+          <StatCard
+            title="Carga Média"
+            value={`${stats.avgLoad}kg`}
             icon={TrendingUp}
-            subtitle="Peso levantado"
-          />
-          <StatCard
-            title="Sequência"
-            value={`${stats.streak} dias`}
-            icon={Flame}
-            subtitle="Continue assim!"
+            subtitle="Por sessão"
           />
         </section>
 
         {/* Recent Workouts */}
         <section>
-          <div className="flex items-center gap-2 mb-6">
-            <div className="h-8 w-1 bg-gradient-to-b from-primary to-accent rounded-full" />
-            <h2 className="text-2xl font-bold">Treinos Recentes</h2>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-1 w-12 bg-primary rounded-full" />
+            <h2 className="text-xl font-bold text-foreground">Sessões Recentes</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
