@@ -138,6 +138,32 @@ export const useDeleteExercise = () => {
 
   return useMutation({
     mutationFn: async (id: string) => {
+      // Check if exercise is used in prescriptions
+      const { data: prescriptionExercises, error: checkError } = await supabase
+        .from("prescription_exercises")
+        .select("id")
+        .eq("exercise_library_id", id)
+        .limit(1);
+
+      if (checkError) throw checkError;
+
+      if (prescriptionExercises && prescriptionExercises.length > 0) {
+        throw new Error("Este exercício está sendo usado em uma ou mais prescrições e não pode ser excluído. Remova-o das prescrições primeiro.");
+      }
+
+      // Check if exercise is used in exercise adaptations
+      const { data: adaptations, error: adaptError } = await supabase
+        .from("exercise_adaptations")
+        .select("id")
+        .eq("exercise_library_id", id)
+        .limit(1);
+
+      if (adaptError) throw adaptError;
+
+      if (adaptations && adaptations.length > 0) {
+        throw new Error("Este exercício está sendo usado em adaptações de prescrições e não pode ser excluído. Remova-o das adaptações primeiro.");
+      }
+
       const { error } = await supabase
         .from("exercises_library")
         .delete()
