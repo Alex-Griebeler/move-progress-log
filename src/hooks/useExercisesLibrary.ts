@@ -86,6 +86,12 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
       if (filters?.movement_plane) {
         query = query.eq("movement_plane", filters.movement_plane);
       }
+      if (filters?.contraction_type) {
+        query = query.eq("contraction_type", filters.contraction_type);
+      }
+      if (filters?.level) {
+        query = query.eq("level", filters.level);
+      }
 
       const { data, error } = await query;
 

@@ -230,10 +230,9 @@ export default function ExercisesLibraryPage() {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Todos" />
+                <SelectValue placeholder="Selecione o nível" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
                 {Object.entries(LEVEL_OPTIONS).map(([key, label]) => (
                   <SelectItem key={key} value={key}>
                     {label}
