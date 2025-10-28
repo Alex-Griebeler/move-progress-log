@@ -32,8 +32,31 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
     setExercises(exercises.filter((_, i) => i !== index));
   };
 
+  // Conversão automática de lb para kg (1 lb = 0.45 kg)
+  const convertLoadToKg = (loadString: string): string => {
+    // Detecta padrões como "15 lb", "15lb", "15 lbs"
+    const lbPattern = /(\d+(?:\.\d+)?)\s*lbs?/gi;
+    
+    let converted = loadString;
+    let match;
+    
+    while ((match = lbPattern.exec(loadString)) !== null) {
+      const lbValue = parseFloat(match[1]);
+      const kgValue = (lbValue * 0.45).toFixed(1);
+      converted = converted.replace(match[0], `${kgValue} kg`);
+    }
+    
+    return converted;
+  };
+
   const updateExercise = (index: number, field: keyof Exercise, value: string | number) => {
     const updated = [...exercises];
+    
+    // Se for o campo de carga e for string, aplicar conversão automática
+    if (field === 'load' && typeof value === 'string') {
+      value = convertLoadToKg(value);
+    }
+    
     updated[index] = { ...updated[index], [field]: value };
     setExercises(updated);
   };
@@ -157,10 +180,13 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
                     </Label>
                     <Input
                       id={`load-${index}`}
-                      placeholder="Ex: (10kg + 10kg) + barra 15kg = 35,0kg"
+                      placeholder="Ex: 15 lb + 2 kg ou (10kg + 10kg) + barra 15kg"
                       value={exercise.load}
                       onChange={(e) => updateExercise(index, "load", e.target.value)}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      💡 Digite "lb" que converto automaticamente para kg (1 lb = 0,45 kg)
+                    </p>
                   </div>
                 </div>
 
