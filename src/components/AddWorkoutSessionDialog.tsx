@@ -7,9 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Info } from "lucide-react";
 import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
+import { VoiceSessionRecorder } from "./VoiceSessionRecorder";
 
 interface AddWorkoutSessionDialogProps {
   open: boolean;
@@ -46,6 +48,34 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
     },
   });
 
+  const handleVoiceData = (voiceData: any) => {
+    console.log("Voice data received:", voiceData);
+    
+    // Find student by name
+    const student = assignments?.find(a => 
+      a.student_name?.toLowerCase().includes(voiceData.student_name.toLowerCase())
+    );
+    
+    if (student) {
+      form.setValue("student_id", student.student_id);
+    }
+    
+    form.setValue("date", voiceData.date);
+    form.setValue("time", voiceData.time);
+    
+    // Map voice exercises to form format
+    const mappedExercises = voiceData.exercises.map((ex: any) => ({
+      exercise_name: ex.name,
+      reps: ex.reps,
+      load_kg: ex.load_kg,
+      load_breakdown: ex.load_breakdown || "",
+      observations: ex.observations || "",
+    }));
+    
+    form.setValue("exercises", mappedExercises);
+    setExerciseCount(mappedExercises.length);
+  };
+
   const onSubmit = async (data: SessionFormData) => {
     await createSession.mutateAsync({
       student_id: data.student_id,
@@ -60,7 +90,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
 
   const addExercise = () => {
     const currentExercises = form.getValues("exercises");
-    form.setValue("exercises", [...currentExercises, { exercise_name: "" }]);
+    form.setValue("exercises", [...currentExercises, { exercise_name: "", load_breakdown: "" }]);
     setExerciseCount(prev => prev + 1);
   };
 
@@ -72,7 +102,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Adicionar Sessão de Treino</DialogTitle>
           <DialogDescription>
@@ -80,204 +110,63 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="student_id"
-              rules={{ required: "Selecione um aluno" }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Aluno</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o aluno" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {assignments?.map((assignment) => (
-                        <SelectItem key={assignment.student_id} value={assignment.student_id}>
-                          {assignment.student_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <Tabs defaultValue="manual" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual">Manual</TabsTrigger>
+            <TabsTrigger value="voice">Por Voz</TabsTrigger>
+          </TabsList>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="date"
-                rules={{ required: "Data é obrigatória" }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Data</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="time"
-                rules={{ required: "Horário é obrigatório" }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Horário</FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Exercícios Realizados</h4>
-                <Button type="button" variant="outline" size="sm" onClick={addExercise}>
-                  Adicionar Exercício
+          <TabsContent value="voice" className="mt-4">
+            <VoiceSessionRecorder onSessionData={handleVoiceData} />
+            
+            {form.watch("exercises").length > 0 && form.watch("exercises")[0].exercise_name && (
+              <div className="mt-4">
+                <Button onClick={() => document.getElementById("manual-tab")?.click()}>
+                  Ver e Editar Dados
                 </Button>
               </div>
+            )}
+          </TabsContent>
 
-              {Array.from({ length: exerciseCount }).map((_, index) => (
-                <div key={index} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm">Exercício {index + 1}</span>
-                    {exerciseCount > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeExercise(index)}
-                      >
-                        Remover
-                      </Button>
-                    )}
-                  </div>
-
-                  <FormField
-                    control={form.control}
-                    name={`exercises.${index}.exercise_name`}
-                    rules={{ required: "Nome do exercício é obrigatório" }}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Nome do Exercício</FormLabel>
+          <TabsContent value="manual" id="manual-tab" className="mt-4">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="student_id"
+                  rules={{ required: "Selecione um aluno" }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Aluno</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <Input placeholder="Ex: Supino reto" {...field} />
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o aluno" />
+                          </SelectTrigger>
                         </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                        <SelectContent>
+                          {assignments?.map((assignment) => (
+                            <SelectItem key={assignment.student_id} value={assignment.student_id}>
+                              {assignment.student_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      control={form.control}
-                      name={`exercises.${index}.sets`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Séries</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="Ex: 3"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`exercises.${index}.reps`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Repetições</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="Ex: 12"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      control={form.control}
-                      name={`exercises.${index}.load_kg`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            Carga Total (kg)
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Info className="h-3 w-3 text-muted-foreground cursor-help" />
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  <p className="text-xs">
-                                    {form.watch(`exercises.${index}.load_breakdown`) || 
-                                    "Use o campo 'Composição da Carga' abaixo para detalhar a montagem"}
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              placeholder="Ex: 60.0"
-                              {...field}
-                              onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name={`exercises.${index}.load_description`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Descrição da Carga</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Ex: Barra olímpica" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name={`exercises.${index}.load_breakdown`}
+                    name="date"
+                    rules={{ required: "Data é obrigatória" }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Composição da Carga (detalhada)</FormLabel>
+                        <FormLabel>Data</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: 20kg barra + 15kg cada lado + 2,5kg anilha" {...field} />
+                          <Input type="date" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -286,31 +175,193 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
 
                   <FormField
                     control={form.control}
-                    name={`exercises.${index}.observations`}
+                    name="time"
+                    rules={{ required: "Horário é obrigatório" }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Observações</FormLabel>
+                        <FormLabel>Horário</FormLabel>
                         <FormControl>
-                          <Textarea placeholder="Observações sobre a execução" {...field} />
+                          <Input type="time" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
-              ))}
-            </div>
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={createSession.isPending}>
-                {createSession.isPending ? "Salvando..." : "Salvar Sessão"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">Exercícios Realizados</h4>
+                    <Button type="button" variant="outline" size="sm" onClick={addExercise}>
+                      Adicionar Exercício
+                    </Button>
+                  </div>
+
+                  {Array.from({ length: exerciseCount }).map((_, index) => (
+                    <div key={index} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">Exercício {index + 1}</span>
+                        {exerciseCount > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeExercise(index)}
+                          >
+                            Remover
+                          </Button>
+                        )}
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name={`exercises.${index}.exercise_name`}
+                        rules={{ required: "Nome do exercício é obrigatório" }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome do Exercício</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: Supino reto" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <FormField
+                          control={form.control}
+                          name={`exercises.${index}.sets`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Séries</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  placeholder="Ex: 3"
+                                  {...field}
+                                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`exercises.${index}.reps`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Repetições</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  placeholder="Ex: 12"
+                                  {...field}
+                                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <FormField
+                          control={form.control}
+                          name={`exercises.${index}.load_kg`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-2">
+                                Carga Total (kg)
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                      <p className="text-xs">
+                                        {form.watch(`exercises.${index}.load_breakdown`) || 
+                                        "Use o campo 'Composição da Carga' abaixo para detalhar a montagem"}
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  placeholder="Ex: 60.0"
+                                  {...field}
+                                  onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`exercises.${index}.load_description`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Descrição da Carga</FormLabel>
+                              <FormControl>
+                                <Input placeholder="Ex: Barra olímpica" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <FormField
+                        control={form.control}
+                        name={`exercises.${index}.load_breakdown`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Composição da Carga (detalhada)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: 20kg barra + 15kg cada lado + 2,5kg anilha" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`exercises.${index}.observations`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Observações</FormLabel>
+                            <FormControl>
+                              <Textarea placeholder="Observações sobre a execução" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={createSession.isPending}>
+                    {createSession.isPending ? "Salvando..." : "Salvar Sessão"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
