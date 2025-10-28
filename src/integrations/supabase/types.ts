@@ -249,6 +249,7 @@ export type Database = {
       }
       students: {
         Row: {
+          avatar_url: string | null
           birth_date: string | null
           created_at: string
           fitness_level: string | null
@@ -263,6 +264,7 @@ export type Database = {
           weekly_sessions_proposed: number | null
         }
         Insert: {
+          avatar_url?: string | null
           birth_date?: string | null
           created_at?: string
           fitness_level?: string | null
@@ -277,6 +279,7 @@ export type Database = {
           weekly_sessions_proposed?: number | null
         }
         Update: {
+          avatar_url?: string | null
           birth_date?: string | null
           created_at?: string
           fitness_level?: string | null

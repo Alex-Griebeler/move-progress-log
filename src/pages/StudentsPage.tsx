@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
@@ -79,8 +80,11 @@ const StudentsPage = () => {
             {students.map((student) => (
               <Card key={student.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
+                  <CardTitle className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={student.avatar_url || undefined} />
+                      <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
                     {student.name}
                   </CardTitle>
                   <CardDescription className="space-y-1">

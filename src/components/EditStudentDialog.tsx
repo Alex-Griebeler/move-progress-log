@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -22,9 +22,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 import { useUpdateStudent } from "@/hooks/useStudents";
 import type { Student } from "@/hooks/useStudents";
+import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome completo é obrigatório"),
@@ -48,6 +50,9 @@ interface EditStudentDialogProps {
 
 export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDialogProps) => {
   const updateStudent = useUpdateStudent();
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -77,19 +82,67 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
         injury_history: student.injury_history || "",
         fitness_level: student.fitness_level,
       });
+      setAvatarPreview(student.avatar_url || null);
+      setAvatarFile(null);
     }
   }, [student, form]);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Arquivo muito grande. Máximo 5MB.");
+        return;
+      }
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
+  };
 
   const onSubmit = async (data: FormData) => {
     if (!student) return;
 
     try {
+      setIsUploadingAvatar(true);
+
       // Auto-calcular frequência cardíaca máxima se não informada e tiver data de nascimento
       let maxHeartRate = data.max_heart_rate;
       if (!maxHeartRate && data.birth_date) {
         const birthYear = new Date(data.birth_date).getFullYear();
         const age = new Date().getFullYear() - birthYear;
         maxHeartRate = 220 - age;
+      }
+
+      let avatarUrl = student.avatar_url;
+
+      // Upload avatar if changed
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${student.id}-${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError, data: uploadData } = await supabase.storage
+          .from('student-avatars')
+          .upload(fileName, avatarFile, { upsert: true });
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('student-avatars')
+          .getPublicUrl(fileName);
+
+        avatarUrl = publicUrl;
+      } else if (avatarPreview === null && student.avatar_url) {
+        // Remove avatar if cleared
+        avatarUrl = null;
       }
 
       await updateStudent.mutateAsync({
@@ -103,11 +156,14 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
         max_heart_rate: maxHeartRate,
         injury_history: data.injury_history || null,
         fitness_level: data.fitness_level || null,
+        avatar_url: avatarUrl,
       });
       toast.success("Aluno atualizado com sucesso");
       onOpenChange(false);
     } catch (error: any) {
       toast.error(error.message || "Erro ao atualizar aluno");
+    } finally {
+      setIsUploadingAvatar(false);
     }
   };
 
@@ -122,6 +178,41 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+            <div className="flex flex-col items-center gap-4 pb-4">
+              <Avatar className="h-24 w-24">
+                <AvatarImage src={avatarPreview || undefined} />
+                <AvatarFallback>{student?.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('avatar-upload')?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {avatarPreview ? 'Alterar Foto' : 'Adicionar Foto'}
+                </Button>
+                {avatarPreview && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={removeAvatar}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/jpg"
+                className="hidden"
+                onChange={handleAvatarChange}
+              />
+            </div>
+
             <FormField
               control={form.control}
               name="name"
@@ -292,9 +383,9 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
                 type="submit"
                 variant="gradient"
                 className="flex-1"
-                disabled={updateStudent.isPending}
+                disabled={updateStudent.isPending || isUploadingAvatar}
               >
-                {updateStudent.isPending ? (
+                {updateStudent.isPending || isUploadingAvatar ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Salvando...

@@ -12,6 +12,7 @@ export interface Student {
   max_heart_rate: number | null;
   injury_history: string | null;
   fitness_level: 'iniciante' | 'intermediario' | 'avancado' | null;
+  avatar_url: string | null;
   created_at: string;
   updated_at: string;
 }

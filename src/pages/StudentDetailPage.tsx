@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Calendar, Activity, FileText, TrendingUp } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import WorkoutCard from "@/components/WorkoutCard";
 import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
 import TrainingZonesCard from "@/components/TrainingZonesCard";
@@ -57,6 +58,10 @@ const StudentDetailPage = () => {
         <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
+        <Avatar className="h-16 w-16">
+          <AvatarImage src={student.avatar_url || undefined} />
+          <AvatarFallback className="text-2xl">{student.name.charAt(0)}</AvatarFallback>
+        </Avatar>
         <div>
           <h1 className="text-3xl font-bold">{student.name}</h1>
           <p className="text-muted-foreground">
