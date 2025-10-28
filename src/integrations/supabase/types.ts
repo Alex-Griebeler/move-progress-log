@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      exercise_adaptations: {
+        Row: {
+          adaptation_type: string
+          created_at: string
+          exercise_library_id: string
+          id: string
+          interval_seconds: number | null
+          observations: string | null
+          prescription_exercise_id: string
+          pse: string | null
+          reps: string | null
+          sets: string | null
+        }
+        Insert: {
+          adaptation_type: string
+          created_at?: string
+          exercise_library_id: string
+          id?: string
+          interval_seconds?: number | null
+          observations?: string | null
+          prescription_exercise_id: string
+          pse?: string | null
+          reps?: string | null
+          sets?: string | null
+        }
+        Update: {
+          adaptation_type?: string
+          created_at?: string
+          exercise_library_id?: string
+          id?: string
+          interval_seconds?: number | null
+          observations?: string | null
+          prescription_exercise_id?: string
+          pse?: string | null
+          reps?: string | null
+          sets?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exercise_adaptations_exercise_library_id_fkey"
+            columns: ["exercise_library_id"]
+            isOneToOne: false
+            referencedRelation: "exercises_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "exercise_adaptations_prescription_exercise_id_fkey"
+            columns: ["prescription_exercise_id"]
+            isOneToOne: false
+            referencedRelation: "prescription_exercises"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       exercises: {
         Row: {
           created_at: string
@@ -88,6 +142,108 @@ export type Database = {
         }
         Relationships: []
       }
+      prescription_assignments: {
+        Row: {
+          created_at: string
+          custom_adaptations: Json | null
+          end_date: string | null
+          id: string
+          prescription_id: string
+          start_date: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_adaptations?: Json | null
+          end_date?: string | null
+          id?: string
+          prescription_id: string
+          start_date: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_adaptations?: Json | null
+          end_date?: string | null
+          id?: string
+          prescription_id?: string
+          start_date?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescription_assignments_prescription_id_fkey"
+            columns: ["prescription_id"]
+            isOneToOne: false
+            referencedRelation: "workout_prescriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescription_assignments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prescription_exercises: {
+        Row: {
+          created_at: string
+          exercise_library_id: string
+          id: string
+          interval_seconds: number | null
+          observations: string | null
+          order_index: number
+          prescription_id: string
+          pse: string | null
+          reps: string
+          sets: string
+          training_method: string | null
+        }
+        Insert: {
+          created_at?: string
+          exercise_library_id: string
+          id?: string
+          interval_seconds?: number | null
+          observations?: string | null
+          order_index: number
+          prescription_id: string
+          pse?: string | null
+          reps: string
+          sets: string
+          training_method?: string | null
+        }
+        Update: {
+          created_at?: string
+          exercise_library_id?: string
+          id?: string
+          interval_seconds?: number | null
+          observations?: string | null
+          order_index?: number
+          prescription_id?: string
+          pse?: string | null
+          reps?: string
+          sets?: string
+          training_method?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prescription_exercises_exercise_library_id_fkey"
+            columns: ["exercise_library_id"]
+            isOneToOne: false
+            referencedRelation: "exercises_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prescription_exercises_prescription_id_fkey"
+            columns: ["prescription_id"]
+            isOneToOne: false
+            referencedRelation: "workout_prescriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           created_at: string
@@ -109,6 +265,30 @@ export type Database = {
           name?: string
           updated_at?: string
           weekly_sessions_proposed?: number | null
+        }
+        Relationships: []
+      }
+      workout_prescriptions: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          objective: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          objective?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          objective?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
