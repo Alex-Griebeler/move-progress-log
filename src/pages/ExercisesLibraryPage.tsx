@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AppHeader } from "@/components/AppHeader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,15 +57,11 @@ export default function ExercisesLibraryPage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Biblioteca de Exercícios</h1>
-          <p className="text-muted-foreground">
-            Gerencie exercícios com classificações por padrões de movimento
-          </p>
-        </div>
-        <AddExerciseDialog />
-      </div>
+      <AppHeader
+        title="Biblioteca de Exercícios"
+        subtitle="Gerencie exercícios com classificações por padrões de movimento"
+        actions={<AddExerciseDialog />}
+      />
 
       {/* Filters */}
       <Card>

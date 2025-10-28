@@ -8,6 +8,7 @@ import { ArrowLeft, Users, Edit, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import type { Student } from "@/hooks/useStudents";
+import { AppHeader } from "@/components/AppHeader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,25 +37,19 @@ const StudentsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <AppHeader
+          title="Gestão de Alunos"
+          subtitle="Gerencie os dados dos seus alunos"
+          actions={
             <Link to="/">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             </Link>
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                Gestão de Alunos
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                Gerencie os dados dos seus alunos
-              </p>
-            </div>
-          </div>
-        </div>
+          }
+        />
 
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

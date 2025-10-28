@@ -7,6 +7,7 @@ import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText } from "lucide
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";
+import { AppHeader } from "@/components/AppHeader";
 
 const Index = () => {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -22,15 +23,9 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
-        <header className="mb-10 pb-6 border-b border-border">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold mb-1 text-primary tracking-tight">
-                Fabrik Performance
-              </h1>
-              <p className="text-muted-foreground">Sistema de Registro e Acompanhamento</p>
-            </div>
-            <div className="flex gap-2">
+        <AppHeader
+          actions={
+            <>
               <Link to="/alunos">
                 <Button variant="outline">
                   <Users className="h-4 w-4 mr-2" />
@@ -50,9 +45,9 @@ const Index = () => {
                 </Button>
               </Link>
               <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
-            </div>
-          </div>
-        </header>
+            </>
+          }
+        />
 
         {/* Stats Grid */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">

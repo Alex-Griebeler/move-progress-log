@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { AppHeader } from "@/components/AppHeader";
 
 export default function PrescriptionsPage() {
   const { data: prescriptions, isLoading } = usePrescriptions();
@@ -47,26 +48,22 @@ export default function PrescriptionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Prescrições de Treino
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Crie e gerencie prescrições de treino para seus alunos
-            </p>
-          </div>
-          <Button
-            onClick={() => setCreateDialogOpen(true)}
-            className="gap-2"
-            size="lg"
-          >
-            <Plus className="h-5 w-5" />
-            Nova Prescrição
-          </Button>
-        </div>
+        <AppHeader
+          title="Prescrições de Treino"
+          subtitle="Crie e gerencie prescrições de treino para seus alunos"
+          actions={
+            <Button
+              onClick={() => setCreateDialogOpen(true)}
+              className="gap-2"
+              size="lg"
+            >
+              <Plus className="h-5 w-5" />
+              Nova Prescrição
+            </Button>
+          }
+        />
 
         {isLoading ? (
           <div className="text-center text-muted-foreground py-12">
