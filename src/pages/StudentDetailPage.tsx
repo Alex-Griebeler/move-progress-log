@@ -65,7 +65,10 @@ const StudentDetailPage = () => {
         <div>
           <h1 className="text-3xl font-bold">{student.name}</h1>
           <p className="text-muted-foreground">
-            {student.birth_date && `Nascimento: ${new Date(student.birth_date).toLocaleDateString('pt-BR')}`}
+            {student.birth_date && (() => {
+              const [year, month, day] = student.birth_date.split('-');
+              return `Nascimento: ${day}/${month}/${year}`;
+            })()}
           </p>
         </div>
       </div>
