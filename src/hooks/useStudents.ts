@@ -5,6 +5,13 @@ export interface Student {
   id: string;
   name: string;
   weekly_sessions_proposed: number;
+  birth_date: string | null;
+  objectives: string | null;
+  limitations: string | null;
+  preferences: string | null;
+  max_heart_rate: number | null;
+  injury_history: string | null;
+  fitness_level: 'iniciante' | 'intermediario' | 'avancado' | null;
   created_at: string;
   updated_at: string;
 }
@@ -78,10 +85,11 @@ export const useUpdateStudent = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, name, weekly_sessions_proposed }: { id: string; name: string; weekly_sessions_proposed: number }) => {
+    mutationFn: async (student: Partial<Student> & { id: string }) => {
+      const { id, ...updateData } = student;
       const { data, error } = await supabase
         .from("students")
-        .update({ name, weekly_sessions_proposed })
+        .update(updateData)
         .eq("id", id)
         .select()
         .single();

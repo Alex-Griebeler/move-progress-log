@@ -246,23 +246,44 @@ export type Database = {
       }
       students: {
         Row: {
+          birth_date: string | null
           created_at: string
+          fitness_level: string | null
           id: string
+          injury_history: string | null
+          limitations: string | null
+          max_heart_rate: number | null
           name: string
+          objectives: string | null
+          preferences: string | null
           updated_at: string
           weekly_sessions_proposed: number | null
         }
         Insert: {
+          birth_date?: string | null
           created_at?: string
+          fitness_level?: string | null
           id?: string
+          injury_history?: string | null
+          limitations?: string | null
+          max_heart_rate?: number | null
           name: string
+          objectives?: string | null
+          preferences?: string | null
           updated_at?: string
           weekly_sessions_proposed?: number | null
         }
         Update: {
+          birth_date?: string | null
           created_at?: string
+          fitness_level?: string | null
           id?: string
+          injury_history?: string | null
+          limitations?: string | null
+          max_heart_rate?: number | null
           name?: string
+          objectives?: string | null
+          preferences?: string | null
           updated_at?: string
           weekly_sessions_proposed?: number | null
         }

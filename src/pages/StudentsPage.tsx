@@ -74,8 +74,18 @@ const StudentsPage = () => {
                     <Users className="h-5 w-5 text-primary" />
                     {student.name}
                   </CardTitle>
-                  <CardDescription>
-                    {student.weekly_sessions_proposed} sessões/semana propostas
+                  <CardDescription className="space-y-1">
+                    <div>{student.weekly_sessions_proposed} sessões/semana propostas</div>
+                    {student.birth_date && (
+                      <div className="text-xs">
+                        Idade: {new Date().getFullYear() - new Date(student.birth_date).getFullYear()} anos
+                      </div>
+                    )}
+                    {student.fitness_level && (
+                      <div className="text-xs capitalize">
+                        Nível: {student.fitness_level}
+                      </div>
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
