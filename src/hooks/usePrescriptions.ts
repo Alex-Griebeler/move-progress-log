@@ -268,6 +268,127 @@ export const useAssignPrescription = () => {
   });
 };
 
+export const useUpdatePrescription = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      id: string;
+      name: string;
+      objective?: string;
+      exercises: Array<{
+        exercise_library_id: string;
+        sets: string;
+        reps: string;
+        interval_seconds?: number;
+        pse?: string;
+        training_method?: string;
+        observations?: string;
+        adaptations?: Array<{
+          type: "regression_1" | "regression_2" | "regression_3";
+          exercise_library_id: string;
+          sets?: string;
+          reps?: string;
+          interval_seconds?: number;
+          pse?: string;
+          observations?: string;
+        }>;
+      }>;
+    }) => {
+      // Update prescription basic info
+      const { error: updateError } = await supabase
+        .from("workout_prescriptions")
+        .update({
+          name: data.name,
+          objective: data.objective || null,
+        })
+        .eq("id", data.id);
+
+      if (updateError) throw updateError;
+
+      // Delete existing exercises and their adaptations
+      const { data: existingExercises } = await supabase
+        .from("prescription_exercises")
+        .select("id")
+        .eq("prescription_id", data.id);
+
+      if (existingExercises && existingExercises.length > 0) {
+        const exerciseIds = existingExercises.map((ex) => ex.id);
+        
+        // Delete adaptations first (foreign key constraint)
+        await supabase
+          .from("exercise_adaptations")
+          .delete()
+          .in("prescription_exercise_id", exerciseIds);
+
+        // Delete exercises
+        await supabase
+          .from("prescription_exercises")
+          .delete()
+          .eq("prescription_id", data.id);
+      }
+
+      // Insert new exercises
+      for (let i = 0; i < data.exercises.length; i++) {
+        const ex = data.exercises[i];
+        const { data: exercise, error: exError } = await supabase
+          .from("prescription_exercises")
+          .insert({
+            prescription_id: data.id,
+            exercise_library_id: ex.exercise_library_id,
+            order_index: i,
+            sets: ex.sets,
+            reps: ex.reps,
+            interval_seconds: ex.interval_seconds || null,
+            pse: ex.pse || null,
+            training_method: ex.training_method || null,
+            observations: ex.observations || null,
+          })
+          .select()
+          .single();
+
+        if (exError) throw exError;
+
+        if (ex.adaptations && ex.adaptations.length > 0) {
+          const adaptationsToInsert = ex.adaptations.map((adapt) => ({
+            prescription_exercise_id: exercise.id,
+            adaptation_type: adapt.type,
+            exercise_library_id: adapt.exercise_library_id,
+            sets: adapt.sets || null,
+            reps: adapt.reps || null,
+            interval_seconds: adapt.interval_seconds || null,
+            pse: adapt.pse || null,
+            observations: adapt.observations || null,
+          }));
+
+          const { error: adaptError } = await supabase
+            .from("exercise_adaptations")
+            .insert(adaptationsToInsert);
+
+          if (adaptError) throw adaptError;
+        }
+      }
+
+      return data.id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["prescription"] });
+      toast({
+        title: "Prescrição atualizada",
+        description: "A prescrição foi atualizada com sucesso.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao atualizar prescrição",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+};
+
 export const usePrescriptionAssignments = (prescriptionId: string | null) => {
   return useQuery({
     queryKey: ["assignments", prescriptionId],

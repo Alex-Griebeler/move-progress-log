@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Calendar, ClipboardList } from "lucide-react";
+import { Plus, Users, Calendar, ClipboardList, Pencil } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePrescriptions } from "@/hooks/usePrescriptions";
 import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog";
+import { EditPrescriptionDialog } from "@/components/EditPrescriptionDialog";
 import { AssignPrescriptionDialog } from "@/components/AssignPrescriptionDialog";
 import { AddWorkoutSessionDialog } from "@/components/AddWorkoutSessionDialog";
 import { Badge } from "@/components/ui/badge";
@@ -15,9 +16,15 @@ import { AppHeader } from "@/components/AppHeader";
 export default function PrescriptionsPage() {
   const { data: prescriptions, isLoading } = usePrescriptions();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
+
+  const handleEdit = (prescriptionId: string) => {
+    setSelectedPrescriptionId(prescriptionId);
+    setEditDialogOpen(true);
+  };
 
   const handleAssign = (prescriptionId: string) => {
     setSelectedPrescriptionId(prescriptionId);
@@ -101,26 +108,37 @@ export default function PrescriptionsPage() {
                     </span>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 gap-2"
-                      onClick={() => handleAssign(prescription.id)}
+                      className="gap-2"
+                      onClick={() => handleEdit(prescription.id)}
                     >
-                      <Users className="h-4 w-4" />
-                      {prescription.assigned_students_count === 0 ? "Atribuir" : "Gerenciar"}
+                      <Pencil className="h-4 w-4" />
+                      Editar
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 gap-2"
-                      onClick={() => handleAddSession(prescription.id)}
-                      disabled={prescription.assigned_students_count === 0}
-                    >
-                      <ClipboardList className="h-4 w-4" />
-                      Registrar Sessão
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-2"
+                        onClick={() => handleAssign(prescription.id)}
+                      >
+                        <Users className="h-4 w-4" />
+                        {prescription.assigned_students_count === 0 ? "Atribuir" : "Gerenciar"}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-2"
+                        onClick={() => handleAddSession(prescription.id)}
+                        disabled={prescription.assigned_students_count === 0}
+                      >
+                        <ClipboardList className="h-4 w-4" />
+                        Registrar Sessão
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -148,6 +166,12 @@ export default function PrescriptionsPage() {
       <CreatePrescriptionDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+      />
+
+      <EditPrescriptionDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        prescriptionId={selectedPrescriptionId}
       />
 
       <AssignPrescriptionDialog
