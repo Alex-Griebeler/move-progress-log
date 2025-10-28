@@ -9,6 +9,7 @@ import { ArrowLeft, Calendar, Activity, FileText, TrendingUp } from "lucide-reac
 import { Skeleton } from "@/components/ui/skeleton";
 import WorkoutCard from "@/components/WorkoutCard";
 import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
+import TrainingZonesCard from "@/components/TrainingZonesCard";
 import { useState } from "react";
 
 const StudentDetailPage = () => {
@@ -144,6 +145,8 @@ const StudentDetailPage = () => {
               </CardContent>
             </Card>
           </div>
+
+          <TrainingZonesCard maxHeartRate={student.max_heart_rate} />
         </TabsContent>
 
         <TabsContent value="sessions" className="space-y-4">
