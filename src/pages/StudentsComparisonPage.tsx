@@ -9,8 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppHeader } from "@/components/AppHeader";
-import { ArrowLeft, Users, TrendingUp, Calendar, Dumbbell } from "lucide-react";
+import { ArrowLeft, Users, TrendingUp, Calendar, Dumbbell, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface StudentStats {
   studentId: string;
@@ -23,33 +28,108 @@ interface StudentStats {
 
 const StudentsComparisonPage = () => {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [startDate, setStartDate] = useState<Date | undefined>();
+  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [selectedExercise, setSelectedExercise] = useState<string>("all");
+  const [selectedPrescription, setSelectedPrescription] = useState<string>("all");
+  
   const { data: students, isLoading: studentsLoading } = useStudents();
 
+  // Fetch available exercises
+  const { data: exercises } = useQuery({
+    queryKey: ["exercises-library"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("exercises_library")
+        .select("id, name")
+        .order("name");
+      return data || [];
+    },
+  });
+
+  // Fetch available prescriptions
+  const { data: prescriptions } = useQuery({
+    queryKey: ["prescriptions-list"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("workout_prescriptions")
+        .select("id, name")
+        .order("name");
+      return data || [];
+    },
+  });
+
   const { data: studentsStats, isLoading: statsLoading } = useQuery({
-    queryKey: ["students-comparison-stats", selectedStudents],
+    queryKey: ["students-comparison-stats", selectedStudents, startDate, endDate, selectedExercise, selectedPrescription],
     enabled: selectedStudents.length > 0,
     queryFn: async () => {
       const stats = await Promise.all(
         selectedStudents.map(async (studentId) => {
-          // Get sessions count and stats
-          const { data: sessions } = await supabase
+          // Build sessions query with filters
+          let sessionsQuery = supabase
             .from("workout_sessions")
             .select("id, date")
-            .eq("student_id", studentId)
-            .order("date", { ascending: false });
+            .eq("student_id", studentId);
 
-          // Get exercises and calculate total volume
-          const { data: exercises } = await supabase
+          if (startDate) {
+            sessionsQuery = sessionsQuery.gte("date", format(startDate, "yyyy-MM-dd"));
+          }
+          if (endDate) {
+            sessionsQuery = sessionsQuery.lte("date", format(endDate, "yyyy-MM-dd"));
+          }
+
+          const { data: sessions } = await sessionsQuery.order("date", { ascending: false });
+
+          // Filter by prescription if selected
+          let filteredSessions = sessions || [];
+          if (selectedPrescription !== "all") {
+            const { data: assignments } = await supabase
+              .from("prescription_assignments")
+              .select("start_date, end_date")
+              .eq("student_id", studentId)
+              .eq("prescription_id", selectedPrescription);
+
+            if (assignments && assignments.length > 0) {
+              filteredSessions = filteredSessions.filter((session) => {
+                return assignments.some((assignment) => {
+                  const sessionDate = new Date(session.date);
+                  const startDate = new Date(assignment.start_date);
+                  const endDate = assignment.end_date ? new Date(assignment.end_date) : new Date();
+                  return sessionDate >= startDate && sessionDate <= endDate;
+                });
+              });
+            }
+          }
+
+          if (filteredSessions.length === 0) {
+            return {
+              studentId,
+              totalSessions: 0,
+              totalVolume: 0,
+              lastSessionDate: null,
+              activePrescription: null,
+              avgLoad: 0,
+            } as StudentStats;
+          }
+
+          // Build exercises query with filters
+          let exercisesQuery = supabase
             .from("exercises")
-            .select("load_kg, reps, session_id")
-            .in("session_id", sessions?.map(s => s.id) || []);
+            .select("load_kg, reps, session_id, exercise_name")
+            .in("session_id", filteredSessions.map(s => s.id));
 
-          const totalVolume = exercises?.reduce((sum, ex) => {
+          if (selectedExercise !== "all") {
+            exercisesQuery = exercisesQuery.eq("exercise_name", selectedExercise);
+          }
+
+          const { data: exercisesData } = await exercisesQuery;
+
+          const totalVolume = exercisesData?.reduce((sum, ex) => {
             return sum + ((ex.load_kg || 0) * (ex.reps || 0));
           }, 0) || 0;
 
-          const avgLoad = exercises && exercises.length > 0
-            ? exercises.reduce((sum, ex) => sum + (ex.load_kg || 0), 0) / exercises.length
+          const avgLoad = exercisesData && exercisesData.length > 0
+            ? exercisesData.reduce((sum, ex) => sum + (ex.load_kg || 0), 0) / exercisesData.length
             : 0;
 
           // Get active prescription
@@ -63,9 +143,9 @@ const StudentsComparisonPage = () => {
 
           return {
             studentId,
-            totalSessions: sessions?.length || 0,
+            totalSessions: filteredSessions.length,
             totalVolume: Math.round(totalVolume),
-            lastSessionDate: sessions?.[0]?.date || null,
+            lastSessionDate: filteredSessions[0]?.date || null,
             activePrescription: prescription?.prescription?.name || null,
             avgLoad: Math.round(avgLoad * 10) / 10,
           } as StudentStats;
@@ -104,6 +184,130 @@ const StudentsComparisonPage = () => {
             </Link>
           }
         />
+
+        {/* Filters Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filtros
+            </CardTitle>
+            <CardDescription>
+              Refine a visualização dos dados
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {/* Date Range Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Data Inicial</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "dd/MM/yyyy") : "Selecionar"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Data Final</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "dd/MM/yyyy") : "Selecionar"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Exercise Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Exercício</label>
+                <Select value={selectedExercise} onValueChange={setSelectedExercise}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os exercícios" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os exercícios</SelectItem>
+                    {exercises?.map((exercise) => (
+                      <SelectItem key={exercise.id} value={exercise.name}>
+                        {exercise.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Prescription Filter */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Prescrição</label>
+                <Select value={selectedPrescription} onValueChange={setSelectedPrescription}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todas as prescrições" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as prescrições</SelectItem>
+                    {prescriptions?.map((prescription) => (
+                      <SelectItem key={prescription.id} value={prescription.id}>
+                        {prescription.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Clear Filters Button */}
+            {(startDate || endDate || selectedExercise !== "all" || selectedPrescription !== "all") && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => {
+                  setStartDate(undefined);
+                  setEndDate(undefined);
+                  setSelectedExercise("all");
+                  setSelectedPrescription("all");
+                }}
+              >
+                Limpar Filtros
+              </Button>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid lg:grid-cols-[300px_1fr] gap-6">
           {/* Sidebar - Student Selection */}
