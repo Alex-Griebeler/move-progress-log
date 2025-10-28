@@ -8,10 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { TRAINING_METHODS, PSE_OPTIONS } from "@/constants/trainingMethods";
-import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface Exercise {
   exercise_library_id: string;
@@ -49,6 +51,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       showAdaptations: false,
     },
   ]);
+  const [loadingRegressions, setLoadingRegressions] = useState<number | null>(null);
 
   const { data: exercisesLibrary } = useExercisesLibrary();
   const createPrescription = useCreatePrescription();
@@ -121,6 +124,58 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     updateExercise(exerciseIndex, "adaptations", updated);
   };
 
+  const suggestRegressions = async (exerciseIndex: number) => {
+    const exercise = exercises[exerciseIndex];
+    if (!exercise.exercise_library_id || !exercisesLibrary) return;
+
+    const selectedExercise = exercisesLibrary.find((ex) => ex.id === exercise.exercise_library_id);
+    if (!selectedExercise) return;
+
+    setLoadingRegressions(exerciseIndex);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("suggest-regressions", {
+        body: {
+          exerciseId: selectedExercise.id,
+          exerciseName: selectedExercise.name,
+          movementPattern: selectedExercise.movement_pattern,
+          movementPlane: selectedExercise.movement_plane,
+          laterality: selectedExercise.laterality,
+          availableExercises: exercisesLibrary.map((ex) => ({
+            id: ex.id,
+            name: ex.name,
+            movement_pattern: ex.movement_pattern,
+            movement_plane: ex.movement_plane,
+            laterality: ex.laterality,
+          })),
+        },
+      });
+
+      if (error) throw error;
+
+      const suggestions = data.regressions.map((r: any, i: number) => ({
+        type: i === 0 ? "regression_1" : i === 1 ? "regression_2" : "regression_3",
+        exercise_library_id: r.exercise_id,
+      }));
+
+      updateExercise(exerciseIndex, "adaptations", suggestions);
+      updateExercise(exerciseIndex, "showAdaptations", true);
+
+      toast({
+        title: "Regressões sugeridas",
+        description: "A IA sugeriu 3 exercícios de regressão baseados no padrão de movimento.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sugerir regressões",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingRegressions(null);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!name.trim()) {
       return;
@@ -172,7 +227,8 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           <DialogTitle>Criar Nova Prescrição</DialogTitle>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
+        <TooltipProvider>
+          <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
           <div className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
@@ -338,19 +394,38 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
                   </div>
 
                   <div className="space-y-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleAdaptations(index)}
-                      className="gap-2 w-full"
-                    >
-                      {exercise.showAdaptations ? (
-                        <ChevronUp className="h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4" />
-                      )}
-                      Regressões ({exercise.adaptations.length}/3)
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleAdaptations(index)}
+                        className="gap-2 flex-1"
+                      >
+                        {exercise.showAdaptations ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                        Regressões ({exercise.adaptations.length}/3)
+                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => suggestRegressions(index)}
+                            disabled={!exercise.exercise_library_id || loadingRegressions === index}
+                            className="gap-2"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                            {loadingRegressions === index ? "..." : "IA"}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Sugerir regressões com IA</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
 
                     {exercise.showAdaptations && (
                       <div className="space-y-2 pl-4 border-l-2">
@@ -415,6 +490,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
             {createPrescription.isPending ? "Criando..." : "Criar Prescrição"}
           </Button>
         </div>
+        </TooltipProvider>
       </DialogContent>
     </Dialog>
   );
