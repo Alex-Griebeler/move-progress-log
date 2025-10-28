@@ -79,10 +79,7 @@ const getAssignmentBadge = (count: number) => {
 
 const formatInterval = (seconds: number | null) => {
   if (!seconds) return "-";
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return remainingSeconds > 0 ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+  return `${seconds}s`;
 };
 
 export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession }: PrescriptionCardProps) {
@@ -178,10 +175,11 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                         <TableRow 
                           key={exercise.id} 
                           className={`hover:bg-muted/30 ${
-                            group.isGroup ? 'border-l-4 border-l-primary/40' : ''
-                          } ${
                             group.isGroup && !isLastInGroup ? 'border-b-0' : ''
                           }`}
+                          style={group.isGroup ? {
+                            borderLeft: '4px solid hsl(var(--primary) / 0.6)'
+                          } : undefined}
                         >
                           <TableCell className="font-medium text-muted-foreground text-center">
                             {exerciseCounter}
@@ -200,7 +198,7 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                           </TableCell>
                           <TableCell className="text-center">
                             {exercise.pse ? (
-                              <Badge variant="outline" className="text-xs">
+                              <Badge variant="outline" className="text-xs whitespace-nowrap">
                                 {exercise.pse}
                               </Badge>
                             ) : (
@@ -208,10 +206,9 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                             )}
                           </TableCell>
                           <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-1 text-sm">
-                              <Clock className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm font-medium">
                               {formatInterval(exercise.interval_seconds)}
-                            </div>
+                            </span>
                           </TableCell>
                           {!(group.isGroup && !isFirstInGroup) && (
                             <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
