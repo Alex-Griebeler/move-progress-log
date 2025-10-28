@@ -28,7 +28,7 @@ import {
   useDeleteExercise,
   ExerciseLibrary,
   MOVEMENT_PATTERNS,
-  BASE_TYPE_OPTIONS,
+  LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
   ExerciseFilters,
 } from "@/hooks/useExercisesLibrary";
@@ -199,7 +199,7 @@ export default function ExercisesLibraryPage() {
                       </Badge>
                       {exercise.laterality && (
                         <Badge variant="outline" className="ml-2">
-                          {BASE_TYPE_OPTIONS[exercise.laterality as keyof typeof BASE_TYPE_OPTIONS]}
+                          {LATERALITY_OPTIONS[exercise.laterality as keyof typeof LATERALITY_OPTIONS]}
                         </Badge>
                       )}
                       {exercise.movement_plane && (

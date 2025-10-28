@@ -20,7 +20,7 @@ import {
   useUpdateExercise,
   useDeleteExercise,
   MOVEMENT_PATTERNS,
-  BASE_TYPE_OPTIONS,
+  LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
   ExerciseLibrary,
 } from "@/hooks/useExercisesLibrary";
@@ -106,14 +106,14 @@ export const EditExerciseLibraryDialog = ({
           </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-laterality">Tipo de Base</Label>
+              <Label htmlFor="edit-laterality">Lateralidade</Label>
               <Select value={laterality} onValueChange={setLaterality}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhum</SelectItem>
-                  {Object.entries(BASE_TYPE_OPTIONS).map(([key, label]) => (
+                  {Object.entries(LATERALITY_OPTIONS).map(([key, label]) => (
                     <SelectItem key={key} value={key}>
                       {label}
                     </SelectItem>
