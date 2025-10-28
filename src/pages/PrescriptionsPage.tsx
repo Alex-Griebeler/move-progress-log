@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Calendar } from "lucide-react";
+import { Plus, Users, Calendar, ClipboardList } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePrescriptions } from "@/hooks/usePrescriptions";
 import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog";
 import { AssignPrescriptionDialog } from "@/components/AssignPrescriptionDialog";
+import { AddWorkoutSessionDialog } from "@/components/AddWorkoutSessionDialog";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -15,11 +16,17 @@ export default function PrescriptionsPage() {
   const { data: prescriptions, isLoading } = usePrescriptions();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
 
   const handleAssign = (prescriptionId: string) => {
     setSelectedPrescriptionId(prescriptionId);
     setAssignDialogOpen(true);
+  };
+
+  const handleAddSession = (prescriptionId: string) => {
+    setSelectedPrescriptionId(prescriptionId);
+    setSessionDialogOpen(true);
   };
 
   const getAssignmentBadge = (count: number) => {
@@ -104,6 +111,16 @@ export default function PrescriptionsPage() {
                       <Users className="h-4 w-4" />
                       {prescription.assigned_students_count === 0 ? "Atribuir" : "Gerenciar"}
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 gap-2"
+                      onClick={() => handleAddSession(prescription.id)}
+                      disabled={prescription.assigned_students_count === 0}
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      Registrar Sessão
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -136,6 +153,12 @@ export default function PrescriptionsPage() {
       <AssignPrescriptionDialog
         open={assignDialogOpen}
         onOpenChange={setAssignDialogOpen}
+        prescriptionId={selectedPrescriptionId}
+      />
+
+      <AddWorkoutSessionDialog
+        open={sessionDialogOpen}
+        onOpenChange={setSessionDialogOpen}
         prescriptionId={selectedPrescriptionId}
       />
     </div>
