@@ -1,17 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Calendar, ClipboardList, Pencil } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { usePrescriptions } from "@/hooks/usePrescriptions";
 import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog";
 import { EditPrescriptionDialog } from "@/components/EditPrescriptionDialog";
 import { AssignPrescriptionDialog } from "@/components/AssignPrescriptionDialog";
 import { AddWorkoutSessionDialog } from "@/components/AddWorkoutSessionDialog";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { cn } from "@/lib/utils";
 import { AppHeader } from "@/components/AppHeader";
+import { PrescriptionCard } from "@/components/PrescriptionCard";
 
 export default function PrescriptionsPage() {
   const { data: prescriptions, isLoading } = usePrescriptions();
@@ -34,31 +31,6 @@ export default function PrescriptionsPage() {
   const handleAddSession = (prescriptionId: string) => {
     setSelectedPrescriptionId(prescriptionId);
     setSessionDialogOpen(true);
-  };
-
-  const getAssignmentBadge = (count: number) => {
-    if (count === 0) {
-      return (
-        <Badge variant="outline" className="gap-1.5 border-destructive/50 text-destructive">
-          <div className="h-2 w-2 rounded-full bg-destructive" />
-          Não atribuída
-        </Badge>
-      );
-    }
-    if (count === 1) {
-      return (
-        <Badge variant="outline" className="gap-1.5 border-yellow-500/50 text-yellow-600 dark:text-yellow-500">
-          <div className="h-2 w-2 rounded-full bg-yellow-500" />
-          1 aluno
-        </Badge>
-      );
-    }
-    return (
-      <Badge variant="outline" className="gap-1.5 border-green-500/50 text-green-600 dark:text-green-500">
-        <div className="h-2 w-2 rounded-full bg-green-500" />
-        {count} alunos
-      </Badge>
-    );
   };
 
   return (
@@ -84,64 +56,15 @@ export default function PrescriptionsPage() {
             Carregando prescrições...
           </div>
         ) : prescriptions && prescriptions.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-6">
             {prescriptions.map((prescription) => (
-              <Card key={prescription.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-xl truncate">{prescription.name}</CardTitle>
-                      {prescription.objective && (
-                        <CardDescription className="mt-2 line-clamp-2">
-                          {prescription.objective}
-                        </CardDescription>
-                      )}
-                    </div>
-                    {getAssignmentBadge(prescription.assigned_students_count || 0)}
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span>
-                      Criada em {format(new Date(prescription.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                    </span>
-                  </div>
-                  
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                      onClick={() => handleEdit(prescription.id)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      Editar
-                    </Button>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 gap-2"
-                        onClick={() => handleAssign(prescription.id)}
-                      >
-                        <Users className="h-4 w-4" />
-                        {prescription.assigned_students_count === 0 ? "Atribuir" : "Gerenciar"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 gap-2"
-                        onClick={() => handleAddSession(prescription.id)}
-                        disabled={prescription.assigned_students_count === 0}
-                      >
-                        <ClipboardList className="h-4 w-4" />
-                        Registrar Sessão
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <PrescriptionCard
+                key={prescription.id}
+                prescription={prescription}
+                onEdit={handleEdit}
+                onAssign={handleAssign}
+                onAddSession={handleAddSession}
+              />
             ))}
           </div>
         ) : (
