@@ -55,6 +55,39 @@ export type Database = {
           },
         ]
       }
+      exercises_library: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          laterality: string | null
+          movement_pattern: string
+          movement_plane: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          laterality?: string | null
+          movement_pattern: string
+          movement_plane?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          laterality?: string | null
+          movement_pattern?: string
+          movement_plane?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       students: {
         Row: {
           created_at: string

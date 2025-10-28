@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
-import { Dumbbell, TrendingUp, Calendar, Users } from "lucide-react";
+import { Dumbbell, TrendingUp, Calendar, Users, Library } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,12 @@ const Index = () => {
                 <Button variant="outline">
                   <Users className="h-4 w-4 mr-2" />
                   Gerenciar Alunos
+                </Button>
+              </Link>
+              <Link to="/exercicios">
+                <Button variant="outline">
+                  <Library className="h-4 w-4 mr-2" />
+                  Biblioteca de Exercícios
                 </Button>
               </Link>
               <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
