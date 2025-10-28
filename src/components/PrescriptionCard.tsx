@@ -2,11 +2,66 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { usePrescriptionDetails, WorkoutPrescription } from "@/hooks/usePrescriptions";
+import { usePrescriptionDetails, WorkoutPrescription, PrescriptionExercise } from "@/hooks/usePrescriptions";
 import { Calendar, Users, ClipboardList, Pencil, Clock, Dumbbell } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
+
+// Métodos que agrupam exercícios
+const GROUPING_METHODS = ["Superset", "Triset", "Circuito", "Pré-Exaustão", "Pós-Exaustão", "Contraste"];
+
+const shouldGroup = (method: string | null) => {
+  return method && GROUPING_METHODS.includes(method);
+};
+
+// Agrupa exercícios consecutivos com o mesmo método de agrupamento
+const groupExercises = (exercises: PrescriptionExercise[]) => {
+  const groups: Array<{ exercises: PrescriptionExercise[]; isGroup: boolean; method: string | null }> = [];
+  let currentGroup: PrescriptionExercise[] = [];
+  let currentMethod: string | null = null;
+
+  exercises.forEach((exercise, index) => {
+    const exerciseMethod = exercise.training_method;
+    
+    if (shouldGroup(exerciseMethod)) {
+      if (exerciseMethod === currentMethod) {
+        currentGroup.push(exercise);
+      } else {
+        if (currentGroup.length > 0) {
+          groups.push({ 
+            exercises: currentGroup, 
+            isGroup: currentGroup.length > 1, 
+            method: currentMethod 
+          });
+        }
+        currentGroup = [exercise];
+        currentMethod = exerciseMethod;
+      }
+    } else {
+      if (currentGroup.length > 0) {
+        groups.push({ 
+          exercises: currentGroup, 
+          isGroup: currentGroup.length > 1, 
+          method: currentMethod 
+        });
+        currentGroup = [];
+        currentMethod = null;
+      }
+      groups.push({ exercises: [exercise], isGroup: false, method: null });
+    }
+  });
+
+  if (currentGroup.length > 0) {
+    groups.push({ 
+      exercises: currentGroup, 
+      isGroup: currentGroup.length > 1, 
+      method: currentMethod 
+    });
+  }
+
+  return groups;
+};
 
 interface PrescriptionCardProps {
   prescription: WorkoutPrescription;
@@ -127,52 +182,92 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {details.exercises.map((exercise, index) => (
-                  <TableRow key={exercise.id} className="hover:bg-muted/30">
-                    <TableCell className="font-medium text-muted-foreground">
-                      {index + 1}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <Dumbbell className="h-4 w-4 text-muted-foreground" />
-                        {exercise.exercise_name}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center font-semibold">
-                      {exercise.sets}
-                    </TableCell>
-                    <TableCell className="text-center font-semibold">
-                      {exercise.reps}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {exercise.training_method ? (
-                        <Badge variant="secondary" className="text-xs">
-                          {exercise.training_method}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {exercise.pse ? (
-                        <Badge variant="outline" className="text-xs">
-                          {exercise.pse}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-sm">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        {formatInterval(exercise.interval_seconds)}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
-                      {exercise.observations || "-"}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {(() => {
+                  const groups = groupExercises(details.exercises);
+                  let exerciseCounter = 0;
+                  
+                  return groups.map((group, groupIndex) => {
+                    const groupNumber = exerciseCounter + 1;
+                    exerciseCounter += group.exercises.length;
+                    
+                    return group.exercises.map((exercise, exIndex) => {
+                      const isFirstInGroup = exIndex === 0;
+                      const isLastInGroup = exIndex === group.exercises.length - 1;
+                      
+                      return (
+                        <TableRow 
+                          key={exercise.id} 
+                          className={`hover:bg-muted/30 ${
+                            group.isGroup ? 'border-l-4 border-l-primary/40' : ''
+                          } ${
+                            group.isGroup && !isLastInGroup ? 'border-b-0' : ''
+                          }`}
+                        >
+                          <TableCell className="font-medium text-muted-foreground">
+                            {isFirstInGroup && (
+                              <div className="flex items-center gap-1">
+                                {groupNumber}
+                                {group.isGroup && (
+                                  <span className="text-xs">
+                                    ({String.fromCharCode(97 + exIndex)})
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            {!isFirstInGroup && group.isGroup && (
+                              <span className="text-xs pl-4">
+                                ({String.fromCharCode(97 + exIndex)})
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <Dumbbell className="h-4 w-4 text-muted-foreground" />
+                              {exercise.exercise_name}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center font-semibold">
+                            {exercise.sets}
+                          </TableCell>
+                          <TableCell className="text-center font-semibold">
+                            {exercise.reps}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {exercise.training_method && isFirstInGroup ? (
+                              <Badge variant="secondary" className="text-xs">
+                                {exercise.training_method}
+                              </Badge>
+                            ) : exercise.training_method && !isFirstInGroup && !group.isGroup ? (
+                              <Badge variant="secondary" className="text-xs">
+                                {exercise.training_method}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {exercise.pse ? (
+                              <Badge variant="outline" className="text-xs">
+                                {exercise.pse}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1 text-sm">
+                              <Clock className="h-3 w-3 text-muted-foreground" />
+                              {formatInterval(exercise.interval_seconds)}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                            {exercise.observations || "-"}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  });
+                })()}
               </TableBody>
             </Table>
           </div>
