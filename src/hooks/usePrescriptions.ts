@@ -255,10 +255,13 @@ export const useAssignPrescription = () => {
         description: "A prescrição foi atribuída com sucesso aos alunos.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      const isAlreadyAssigned = error.code === "23505" || error.message?.includes("duplicate key");
       toast({
         title: "Erro ao atribuir prescrição",
-        description: error.message,
+        description: isAlreadyAssigned 
+          ? "Este aluno já tem esta prescrição atribuída com a mesma data de início."
+          : error.message,
         variant: "destructive",
       });
     },
