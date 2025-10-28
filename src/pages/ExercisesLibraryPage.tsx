@@ -31,6 +31,8 @@ import {
   MOVEMENT_PATTERNS,
   LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
+  CONTRACTION_TYPES,
+  LEVEL_OPTIONS,
   ExerciseFilters,
 } from "@/hooks/useExercisesLibrary";
 import { populateExercisesLibrary } from "@/utils/populateExercises";
@@ -238,6 +240,16 @@ export default function ExercisesLibraryPage() {
                       {exercise.movement_plane && (
                         <Badge variant="outline" className="ml-2">
                           {MOVEMENT_PLANES[exercise.movement_plane as keyof typeof MOVEMENT_PLANES]}
+                        </Badge>
+                      )}
+                      {exercise.contraction_type && (
+                        <Badge variant="outline" className="ml-2">
+                          {CONTRACTION_TYPES[exercise.contraction_type as keyof typeof CONTRACTION_TYPES]}
+                        </Badge>
+                      )}
+                      {exercise.level && (
+                        <Badge variant="outline" className="ml-2">
+                          {LEVEL_OPTIONS[exercise.level as keyof typeof LEVEL_OPTIONS]}
                         </Badge>
                       )}
                     </CardDescription>

@@ -53,6 +53,8 @@ export const EditExerciseLibraryDialog = ({
     setMovementPattern(exercise.movement_pattern);
     setLaterality(exercise.laterality || "");
     setMovementPlane(exercise.movement_plane || "");
+    setContractionType(exercise.contraction_type || "");
+    setLevel(exercise.level || "");
     setDescription(exercise.description || "");
   }, [exercise]);
 
@@ -137,6 +139,40 @@ export const EditExerciseLibraryDialog = ({
               <SelectContent>
                 <SelectItem value="none">Nenhum</SelectItem>
                 {Object.entries(MOVEMENT_PLANES).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-contraction-type">Tipo de Contração</Label>
+            <Select value={contractionType} onValueChange={setContractionType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum</SelectItem>
+                {Object.entries(CONTRACTION_TYPES).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-level">Nível</Label>
+            <Select value={level} onValueChange={setLevel}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum</SelectItem>
+                {Object.entries(LEVEL_OPTIONS).map(([key, label]) => (
                   <SelectItem key={key} value={key}>
                     {label}
                   </SelectItem>
