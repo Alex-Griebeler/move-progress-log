@@ -155,11 +155,16 @@ export const useCreatePrescription = () => {
         }>;
       }>;
     }) => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
       const { data: prescription, error: prescError } = await supabase
         .from("workout_prescriptions")
         .insert({
           name: data.name,
           objective: data.objective || null,
+          trainer_id: user.id,
         })
         .select()
         .single();

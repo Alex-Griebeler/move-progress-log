@@ -1,4 +1,8 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import logoFabrik from "@/assets/logo-fabrik.webp";
 
 interface AppHeaderProps {
@@ -12,6 +16,22 @@ export const AppHeader = ({
   subtitle = "Sistema de Registro e Acompanhamento",
   actions 
 }: AppHeaderProps) => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleSignOut = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast({
+        title: "Erro ao sair",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      navigate("/auth");
+    }
+  };
+
   return (
     <header className="mb-10 pb-6 border-b border-border">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -28,7 +48,18 @@ export const AppHeader = ({
             <p className="text-muted-foreground text-sm">{subtitle}</p>
           </div>
         </Link>
-        {actions && <div className="flex gap-2 flex-wrap">{actions}</div>}
+        <div className="flex gap-2 items-center flex-wrap">
+          {actions}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
+            className="gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Sair
+          </Button>
+        </div>
       </div>
     </header>
   );

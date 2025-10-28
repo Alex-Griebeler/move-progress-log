@@ -3,12 +3,14 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import StudentsPage from "./pages/StudentsPage";
 import StudentDetailPage from "./pages/StudentDetailPage";
 import StudentsComparisonPage from "./pages/StudentsComparisonPage";
 import ExercisesLibraryPage from "./pages/ExercisesLibraryPage";
 import PrescriptionsPage from "./pages/PrescriptionsPage";
+import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,12 +22,13 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/alunos" element={<StudentsPage />} />
-          <Route path="/alunos/:id" element={<StudentDetailPage />} />
-          <Route path="/alunos-comparacao" element={<StudentsComparisonPage />} />
-          <Route path="/exercicios" element={<ExercisesLibraryPage />} />
-          <Route path="/prescricoes" element={<PrescriptionsPage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+          <Route path="/alunos" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
+          <Route path="/alunos/:id" element={<ProtectedRoute><StudentDetailPage /></ProtectedRoute>} />
+          <Route path="/alunos-comparacao" element={<ProtectedRoute><StudentsComparisonPage /></ProtectedRoute>} />
+          <Route path="/exercicios" element={<ProtectedRoute><ExercisesLibraryPage /></ProtectedRoute>} />
+          <Route path="/prescricoes" element={<ProtectedRoute><PrescriptionsPage /></ProtectedRoute>} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

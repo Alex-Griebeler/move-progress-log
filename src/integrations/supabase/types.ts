@@ -270,6 +270,7 @@ export type Database = {
           name: string
           objectives: string | null
           preferences: string | null
+          trainer_id: string | null
           updated_at: string
           weekly_sessions_proposed: number | null
           weight_kg: number | null
@@ -287,6 +288,7 @@ export type Database = {
           name: string
           objectives?: string | null
           preferences?: string | null
+          trainer_id?: string | null
           updated_at?: string
           weekly_sessions_proposed?: number | null
           weight_kg?: number | null
@@ -304,9 +306,31 @@ export type Database = {
           name?: string
           objectives?: string | null
           preferences?: string | null
+          trainer_id?: string | null
           updated_at?: string
           weekly_sessions_proposed?: number | null
           weight_kg?: number | null
+        }
+        Relationships: []
+      }
+      trainer_profiles: {
+        Row: {
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -316,6 +340,7 @@ export type Database = {
           id: string
           name: string
           objective: string | null
+          trainer_id: string | null
           updated_at: string
         }
         Insert: {
@@ -323,6 +348,7 @@ export type Database = {
           id?: string
           name: string
           objective?: string | null
+          trainer_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -330,6 +356,7 @@ export type Database = {
           id?: string
           name?: string
           objective?: string | null
+          trainer_id?: string | null
           updated_at?: string
         }
         Relationships: []
