@@ -8,6 +8,7 @@ export interface WorkoutPrescription {
   objective: string | null;
   created_at: string;
   updated_at: string;
+  assigned_students_count?: number;
 }
 
 export interface PrescriptionExercise {
@@ -54,11 +55,18 @@ export const usePrescriptions = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workout_prescriptions")
-        .select("*")
+        .select(`
+          *,
+          prescription_assignments(student_id)
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as WorkoutPrescription[];
+      
+      return data.map((p: any) => ({
+        ...p,
+        assigned_students_count: p.prescription_assignments?.length || 0,
+      }));
     },
   });
 };
