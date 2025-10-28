@@ -6,6 +6,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 
@@ -25,6 +27,7 @@ interface SessionFormData {
     reps?: number;
     load_kg?: number;
     load_description?: string;
+    load_breakdown?: string;
     observations?: string;
   }>;
 }
@@ -222,12 +225,27 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                       name={`exercises.${index}.load_kg`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Carga (kg)</FormLabel>
+                          <FormLabel className="flex items-center gap-2">
+                            Carga Total (kg)
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs">
+                                    {form.watch(`exercises.${index}.load_breakdown`) || 
+                                    "Use o campo 'Composição da Carga' abaixo para detalhar a montagem"}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </FormLabel>
                           <FormControl>
                             <Input
                               type="number"
                               step="0.1"
-                              placeholder="Ex: 60"
+                              placeholder="Ex: 60.0"
                               {...field}
                               onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                             />
@@ -244,13 +262,27 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                         <FormItem>
                           <FormLabel>Descrição da Carga</FormLabel>
                           <FormControl>
-                            <Input placeholder="Ex: Peso corporal" {...field} />
+                            <Input placeholder="Ex: Barra olímpica" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
+
+                  <FormField
+                    control={form.control}
+                    name={`exercises.${index}.load_breakdown`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Composição da Carga (detalhada)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex: 20kg barra + 15kg cada lado + 2,5kg anilha" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <FormField
                     control={form.control}

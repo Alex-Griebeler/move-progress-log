@@ -19,6 +19,7 @@ export interface Exercise {
   reps?: number;
   load_kg?: number;
   load_description?: string;
+  load_breakdown?: string;
   observations?: string;
   created_at: string;
 }
@@ -78,6 +79,7 @@ export const useCreateWorkoutSession = () => {
         reps?: number;
         load_kg?: number;
         load_description?: string;
+        load_breakdown?: string;
         observations?: string;
       }>;
     }) => {
@@ -101,6 +103,7 @@ export const useCreateWorkoutSession = () => {
           reps: ex.reps || null,
           load_kg: ex.load_kg || null,
           load_description: ex.load_description || null,
+          load_breakdown: ex.load_breakdown || null,
           observations: ex.observations || null,
         }));
 

@@ -73,6 +73,7 @@ export type Database = {
           created_at: string
           exercise_name: string
           id: string
+          load_breakdown: string | null
           load_description: string | null
           load_kg: number | null
           observations: string | null
@@ -83,6 +84,7 @@ export type Database = {
           created_at?: string
           exercise_name: string
           id?: string
+          load_breakdown?: string | null
           load_description?: string | null
           load_kg?: number | null
           observations?: string | null
@@ -93,6 +95,7 @@ export type Database = {
           created_at?: string
           exercise_name?: string
           id?: string
+          load_breakdown?: string | null
           load_description?: string | null
           load_kg?: number | null
           observations?: string | null
