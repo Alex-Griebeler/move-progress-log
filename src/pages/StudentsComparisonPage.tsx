@@ -16,6 +16,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface StudentStats {
   studentId: string;
@@ -24,6 +26,13 @@ interface StudentStats {
   lastSessionDate: string | null;
   activePrescription: string | null;
   avgLoad: number;
+  exerciseDetails: Array<{
+    exerciseName: string;
+    load: number;
+    reps: number;
+    date: string;
+    prescription: string | null;
+  }>;
 }
 
 const StudentsComparisonPage = () => {
@@ -109,10 +118,11 @@ const StudentsComparisonPage = () => {
               lastSessionDate: null,
               activePrescription: null,
               avgLoad: 0,
+              exerciseDetails: [],
             } as StudentStats;
           }
 
-          // Build exercises query with filters
+          // Build exercises query with filters and get detailed info
           let exercisesQuery = supabase
             .from("exercises")
             .select("load_kg, reps, session_id, exercise_name")
@@ -123,6 +133,30 @@ const StudentsComparisonPage = () => {
           }
 
           const { data: exercisesData } = await exercisesQuery;
+
+          // Get prescription for each session to build detailed view
+          const exerciseDetails = await Promise.all(
+            (exercisesData || []).map(async (exercise) => {
+              const session = filteredSessions.find(s => s.id === exercise.session_id);
+              
+              // Get prescription assignment for this session
+              const { data: assignment } = await supabase
+                .from("prescription_assignments")
+                .select("prescription:workout_prescriptions(name)")
+                .eq("student_id", studentId)
+                .lte("start_date", session?.date || "")
+                .or(`end_date.gte.${session?.date},end_date.is.null`)
+                .maybeSingle();
+
+              return {
+                exerciseName: exercise.exercise_name,
+                load: exercise.load_kg || 0,
+                reps: exercise.reps || 0,
+                date: session?.date || "",
+                prescription: assignment?.prescription?.name || "Sem prescrição",
+              };
+            })
+          );
 
           const totalVolume = exercisesData?.reduce((sum, ex) => {
             return sum + ((ex.load_kg || 0) * (ex.reps || 0));
@@ -139,7 +173,7 @@ const StudentsComparisonPage = () => {
             .eq("student_id", studentId)
             .order("start_date", { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
           return {
             studentId,
@@ -148,6 +182,9 @@ const StudentsComparisonPage = () => {
             lastSessionDate: filteredSessions[0]?.date || null,
             activePrescription: prescription?.prescription?.name || null,
             avgLoad: Math.round(avgLoad * 10) / 10,
+            exerciseDetails: exerciseDetails.sort((a, b) => 
+              new Date(b.date).getTime() - new Date(a.date).getTime()
+            ),
           } as StudentStats;
         })
       );
@@ -370,96 +407,121 @@ const StudentsComparisonPage = () => {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="space-y-4">
                 {selectedStudentsData.map((student) => {
                   const stats = studentsStats?.find((s) => s.studentId === student.id);
                   return (
-                    <Card key={student.id} className="hover:shadow-lg transition-shadow">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 text-lg">
-                          <Users className="h-5 w-5 text-primary" />
-                          {student.name}
-                        </CardTitle>
-                        <CardDescription className="space-y-1">
-                          {student.birth_date && (
-                            <div className="text-xs">
-                              {new Date().getFullYear() - new Date(student.birth_date).getFullYear()} anos
-                            </div>
-                          )}
-                          {student.fitness_level && (
-                            <Badge variant="outline" className="text-xs">
-                              {student.fitness_level}
-                            </Badge>
-                          )}
-                        </CardDescription>
+                    <Card key={student.id}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-5 w-5 text-primary" />
+                            <CardTitle className="text-lg">{student.name}</CardTitle>
+                          </div>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/alunos/${student.id}`}>Ver Perfil</Link>
+                          </Button>
+                        </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
+                      <CardContent>
                         {statsLoading ? (
                           <div className="space-y-3">
                             <Skeleton className="h-12 w-full" />
-                            <Skeleton className="h-12 w-full" />
-                            <Skeleton className="h-12 w-full" />
+                            <Skeleton className="h-32 w-full" />
                           </div>
                         ) : (
-                          <>
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                              <Dumbbell className="h-5 w-5 text-primary" />
-                              <div className="flex-1">
-                                <p className="text-xs text-muted-foreground">Sessões</p>
-                                <p className="text-lg font-bold">{stats?.totalSessions || 0}</p>
-                              </div>
-                            </div>
+                          <Tabs defaultValue="summary" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                              <TabsTrigger value="summary">Resumo</TabsTrigger>
+                              <TabsTrigger value="details">Detalhes</TabsTrigger>
+                            </TabsList>
+                            
+                            <TabsContent value="summary" className="space-y-3 mt-4">
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                  <Dumbbell className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Sessões</p>
+                                    <p className="text-lg font-bold">{stats?.totalSessions || 0}</p>
+                                  </div>
+                                </div>
 
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                              <TrendingUp className="h-5 w-5 text-primary" />
-                              <div className="flex-1">
-                                <p className="text-xs text-muted-foreground">Volume Total</p>
-                                <p className="text-lg font-bold">{stats?.totalVolume || 0} kg</p>
-                              </div>
-                            </div>
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                  <TrendingUp className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Volume Total</p>
+                                    <p className="text-lg font-bold">{stats?.totalVolume || 0} kg</p>
+                                  </div>
+                                </div>
 
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                              <TrendingUp className="h-5 w-5 text-primary" />
-                              <div className="flex-1">
-                                <p className="text-xs text-muted-foreground">Carga Média</p>
-                                <p className="text-lg font-bold">{stats?.avgLoad || 0} kg</p>
-                              </div>
-                            </div>
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                  <TrendingUp className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Carga Média</p>
+                                    <p className="text-lg font-bold">{stats?.avgLoad || 0} kg</p>
+                                  </div>
+                                </div>
 
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                              <Calendar className="h-5 w-5 text-primary" />
-                              <div className="flex-1">
-                                <p className="text-xs text-muted-foreground">Última Sessão</p>
-                                <p className="text-sm font-semibold">
-                                  {stats?.lastSessionDate
-                                    ? new Date(stats.lastSessionDate).toLocaleDateString('pt-BR')
-                                    : "Nenhuma"}
-                                </p>
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                  <Calendar className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">Última Sessão</p>
+                                    <p className="text-sm font-semibold">
+                                      {stats?.lastSessionDate
+                                        ? new Date(stats.lastSessionDate).toLocaleDateString('pt-BR')
+                                        : "Nenhuma"}
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
 
-                            {stats?.activePrescription && (
-                              <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-                                <p className="text-xs text-muted-foreground mb-1">
-                                  Prescrição Ativa
-                                </p>
-                                <p className="text-sm font-semibold text-primary">
-                                  {stats.activePrescription}
-                                </p>
-                              </div>
-                            )}
+                              {stats?.activePrescription && (
+                                <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                                  <p className="text-xs text-muted-foreground mb-1">Prescrição Ativa</p>
+                                  <p className="text-sm font-semibold text-primary">
+                                    {stats.activePrescription}
+                                  </p>
+                                </div>
+                              )}
+                            </TabsContent>
 
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full"
-                              asChild
-                            >
-                              <Link to={`/alunos/${student.id}`}>
-                                Ver Detalhes Completos
-                              </Link>
-                            </Button>
-                          </>
+                            <TabsContent value="details" className="mt-4">
+                              {stats?.exerciseDetails && stats.exerciseDetails.length > 0 ? (
+                                <div className="rounded-md border">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>Data</TableHead>
+                                        <TableHead>Exercício</TableHead>
+                                        <TableHead>Carga</TableHead>
+                                        <TableHead>Reps</TableHead>
+                                        <TableHead>Treino</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {stats.exerciseDetails.map((detail, idx) => (
+                                        <TableRow key={idx}>
+                                          <TableCell className="font-medium">
+                                            {new Date(detail.date).toLocaleDateString('pt-BR')}
+                                          </TableCell>
+                                          <TableCell>{detail.exerciseName}</TableCell>
+                                          <TableCell>{detail.load} kg</TableCell>
+                                          <TableCell>{detail.reps}</TableCell>
+                                          <TableCell>
+                                            <Badge variant="outline">{detail.prescription}</Badge>
+                                          </TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              ) : (
+                                <div className="text-center py-8 text-muted-foreground">
+                                  Nenhum dado disponível com os filtros selecionados
+                                </div>
+                              )}
+                            </TabsContent>
+                          </Tabs>
                         )}
                       </CardContent>
                     </Card>
