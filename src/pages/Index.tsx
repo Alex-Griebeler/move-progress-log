@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
 import { Dumbbell, TrendingUp, Calendar, Users } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -28,7 +30,15 @@ const Index = () => {
               </h1>
               <p className="text-muted-foreground">Sistema de Registro e Acompanhamento</p>
             </div>
-            <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
+            <div className="flex gap-2">
+              <Link to="/alunos">
+                <Button variant="outline">
+                  <Users className="h-4 w-4 mr-2" />
+                  Gerenciar Alunos
+                </Button>
+              </Link>
+              <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
+            </div>
           </div>
         </header>
 

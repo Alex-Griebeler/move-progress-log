@@ -73,3 +73,42 @@ export const useGetOrCreateStudent = () => {
     },
   });
 };
+
+export const useUpdateStudent = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, name, weekly_sessions_proposed }: { id: string; name: string; weekly_sessions_proposed: number }) => {
+      const { data, error } = await supabase
+        .from("students")
+        .update({ name, weekly_sessions_proposed })
+        .eq("id", id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data as Student;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+};
+
+export const useDeleteStudent = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("students")
+        .delete()
+        .eq("id", id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+};
