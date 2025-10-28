@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Dumbbell, X, Clock } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { useGetOrCreateStudent } from "@/hooks/useStudents";
+import { useCreateWorkout } from "@/hooks/useWorkouts";
 
 interface Exercise {
   exercise: string;
@@ -22,7 +24,9 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
   const [exercises, setExercises] = useState<Exercise[]>([
     { exercise: "", load: "", reps: 0, observations: "" }
   ]);
-  const { toast } = useToast();
+  
+  const getOrCreateStudent = useGetOrCreateStudent();
+  const createWorkout = useCreateWorkout();
 
   const addExercise = () => {
     setExercises([...exercises, { exercise: "", load: "", reps: 0, observations: "" }]);
@@ -61,30 +65,45 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
     setExercises(updated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!studentName.trim() || exercises.some(ex => !ex.exercise.trim())) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha o nome do aluno e dos exercícios",
-        variant: "destructive",
-      });
+    if (!studentName.trim()) {
+      toast.error("Por favor, preencha o nome do aluno");
       return;
     }
 
-    // Aqui você salvaria no backend/Lovable Cloud
-    toast({
-      title: "Sessão registrada",
-      description: `${studentName} - ${exercises.length} exercícios`,
-    });
-    
-    setStudentName("");
-    setDate(new Date().toISOString().split('T')[0]);
-    setTime(new Date().toTimeString().slice(0, 5));
-    setExercises([{ exercise: "", load: "", reps: 0, observations: "" }]);
-    setOpen(false);
-    onWorkoutAdded();
+    const validExercises = exercises.filter(ex => ex.exercise.trim() && ex.load.trim());
+    if (validExercises.length === 0) {
+      toast.error("Adicione pelo menos um exercício completo com carga");
+      return;
+    }
+
+    try {
+      // Buscar ou criar aluno
+      const student = await getOrCreateStudent.mutateAsync(studentName);
+      
+      // Criar sessão e exercícios
+      await createWorkout.mutateAsync({
+        studentId: student.id,
+        date,
+        time,
+        exercises: validExercises,
+      });
+      
+      toast.success(`Sessão registrada com sucesso! ${validExercises.length} exercícios salvos`);
+      
+      // Reset form
+      setStudentName("");
+      setDate(new Date().toISOString().split('T')[0]);
+      setTime(new Date().toTimeString().slice(0, 5));
+      setExercises([{ exercise: "", load: "", reps: 0, observations: "" }]);
+      setOpen(false);
+      onWorkoutAdded();
+    } catch (error: any) {
+      console.error("Erro ao registrar sessão:", error);
+      toast.error(error.message || "Erro ao registrar sessão");
+    }
   };
 
   return (

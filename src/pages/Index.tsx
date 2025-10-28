@@ -3,24 +3,14 @@ import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
 import { Dumbbell, TrendingUp, Calendar, Users } from "lucide-react";
+import { useStats } from "@/hooks/useStats";
+import { useWorkouts } from "@/hooks/useWorkouts";
 
 const Index = () => {
   const [refreshKey, setRefreshKey] = useState(0);
-
-  // Dados mockados - em produção viriam do Lovable Cloud
-  const stats = {
-    totalSessions: 156,
-    thisMonth: 18,
-    activeStudents: 12,
-    avgLoad: 245,
-  };
-
-  const recentWorkouts = [
-    { id: 1, name: "João Silva", exercises: 6, date: "2025-10-27", totalVolume: 420 },
-    { id: 2, name: "Maria Santos", exercises: 5, date: "2025-10-27", totalVolume: 315 },
-    { id: 3, name: "Pedro Costa", exercises: 7, date: "2025-10-26", totalVolume: 540 },
-    { id: 4, name: "Ana Lima", exercises: 4, date: "2025-10-26", totalVolume: 280 },
-  ];
+  
+  const { data: stats, isLoading: statsLoading } = useStats();
+  const { data: recentWorkouts, isLoading: workoutsLoading } = useWorkouts();
 
   const handleWorkoutAdded = () => {
     setRefreshKey(prev => prev + 1);
@@ -46,26 +36,26 @@ const Index = () => {
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           <StatCard
             title="Sessões Registradas"
-            value={stats.totalSessions}
+            value={statsLoading ? "..." : stats?.totalSessions || 0}
             icon={Dumbbell}
             subtitle="Total consolidado"
             gradient
           />
           <StatCard
             title="Este Mês"
-            value={stats.thisMonth}
+            value={statsLoading ? "..." : stats?.thisMonth || 0}
             icon={Calendar}
             subtitle="Sessões em outubro"
           />
           <StatCard
             title="Alunos Ativos"
-            value={stats.activeStudents}
+            value={statsLoading ? "..." : stats?.activeStudents || 0}
             icon={Users}
             subtitle="Com treinos regulares"
           />
           <StatCard
             title="Carga Média"
-            value={`${stats.avgLoad}kg`}
+            value={statsLoading ? "..." : `${stats?.avgLoad || 0}kg`}
             icon={TrendingUp}
             subtitle="Por sessão"
           />
@@ -79,15 +69,25 @@ const Index = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {recentWorkouts.map((workout) => (
-              <WorkoutCard
-                key={workout.id}
-                name={workout.name}
-                exercises={workout.exercises}
-                date={workout.date}
-                totalVolume={workout.totalVolume}
-              />
-            ))}
+            {workoutsLoading ? (
+              <p className="text-muted-foreground col-span-full text-center py-8">
+                Carregando sessões...
+              </p>
+            ) : recentWorkouts && recentWorkouts.length > 0 ? (
+              recentWorkouts.map((workout) => (
+                <WorkoutCard
+                  key={workout.id}
+                  name={workout.student_name}
+                  exercises={workout.total_exercises}
+                  date={workout.date}
+                  totalVolume={workout.total_volume}
+                />
+              ))
+            ) : (
+              <p className="text-muted-foreground col-span-full text-center py-8">
+                Nenhuma sessão registrada ainda. Clique em "Registrar Sessão" para começar!
+              </p>
+            )}
           </div>
         </section>
       </div>
