@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Edit, Trash2, Eye } from "lucide-react";
+import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import type { Student } from "@/hooks/useStudents";
@@ -44,11 +44,19 @@ const StudentsPage = () => {
           title="Gestão de Alunos"
           subtitle="Gerencie os dados dos seus alunos"
           actions={
-            <Link to="/">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
+            <>
+              <Link to="/alunos-comparacao">
+                <Button variant="outline">
+                  <GitCompare className="h-4 w-4 mr-2" />
+                  Comparar Alunos
+                </Button>
+              </Link>
+              <Link to="/">
+                <Button variant="ghost" size="icon">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+            </>
           }
         />
 

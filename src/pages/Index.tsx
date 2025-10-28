@@ -32,6 +32,12 @@ const Index = () => {
                   Gerenciar Alunos
                 </Button>
               </Link>
+              <Link to="/alunos-comparacao">
+                <Button variant="outline">
+                  <Users className="h-4 w-4 mr-2" />
+                  Comparar Alunos
+                </Button>
+              </Link>
               <Link to="/exercicios">
                 <Button variant="outline">
                   <Library className="h-4 w-4 mr-2" />
