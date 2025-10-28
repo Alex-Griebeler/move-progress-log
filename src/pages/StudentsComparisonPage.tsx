@@ -44,7 +44,6 @@ const StudentsComparisonPage = () => {
   
   const { data: students, isLoading: studentsLoading } = useStudents();
 
-  // Fetch available exercises
   const { data: exercises } = useQuery({
     queryKey: ["exercises-library"],
     queryFn: async () => {
@@ -56,7 +55,6 @@ const StudentsComparisonPage = () => {
     },
   });
 
-  // Fetch available prescriptions
   const { data: prescriptions } = useQuery({
     queryKey: ["prescriptions-list"],
     queryFn: async () => {
@@ -74,7 +72,6 @@ const StudentsComparisonPage = () => {
     queryFn: async () => {
       const stats = await Promise.all(
         selectedStudents.map(async (studentId) => {
-          // Build sessions query with filters
           let sessionsQuery = supabase
             .from("workout_sessions")
             .select("id, date")
@@ -89,7 +86,6 @@ const StudentsComparisonPage = () => {
 
           const { data: sessions } = await sessionsQuery.order("date", { ascending: false });
 
-          // Filter by prescription if selected
           let filteredSessions = sessions || [];
           if (selectedPrescription !== "all") {
             const { data: assignments } = await supabase
@@ -122,7 +118,6 @@ const StudentsComparisonPage = () => {
             } as StudentStats;
           }
 
-          // Build exercises query with filters and get detailed info
           let exercisesQuery = supabase
             .from("exercises")
             .select("load_kg, reps, session_id, exercise_name")
@@ -134,12 +129,10 @@ const StudentsComparisonPage = () => {
 
           const { data: exercisesData } = await exercisesQuery;
 
-          // Get prescription for each session to build detailed view
           const exerciseDetails = await Promise.all(
             (exercisesData || []).map(async (exercise) => {
               const session = filteredSessions.find(s => s.id === exercise.session_id);
               
-              // Get prescription assignment for this session
               const { data: assignment } = await supabase
                 .from("prescription_assignments")
                 .select("prescription:workout_prescriptions(name)")
@@ -166,7 +159,6 @@ const StudentsComparisonPage = () => {
             ? exercisesData.reduce((sum, ex) => sum + (ex.load_kg || 0), 0) / exercisesData.length
             : 0;
 
-          // Get active prescription
           const { data: prescription } = await supabase
             .from("prescription_assignments")
             .select("prescription:workout_prescriptions(name)")
@@ -222,7 +214,6 @@ const StudentsComparisonPage = () => {
           }
         />
 
-        {/* Filters Section */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -235,7 +226,6 @@ const StudentsComparisonPage = () => {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {/* Date Range Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Data Inicial</label>
                 <Popover>
@@ -290,7 +280,6 @@ const StudentsComparisonPage = () => {
                 </Popover>
               </div>
 
-              {/* Exercise Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Exercício</label>
                 <Select value={selectedExercise} onValueChange={setSelectedExercise}>
@@ -308,7 +297,6 @@ const StudentsComparisonPage = () => {
                 </Select>
               </div>
 
-              {/* Prescription Filter */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Prescrição</label>
                 <Select value={selectedPrescription} onValueChange={setSelectedPrescription}>
@@ -327,7 +315,6 @@ const StudentsComparisonPage = () => {
               </div>
             </div>
 
-            {/* Clear Filters Button */}
             {(startDate || endDate || selectedExercise !== "all" || selectedPrescription !== "all") && (
               <Button
                 variant="outline"
@@ -347,7 +334,6 @@ const StudentsComparisonPage = () => {
         </Card>
 
         <div className="grid lg:grid-cols-[300px_1fr] gap-6">
-          {/* Sidebar - Student Selection */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Selecionar Alunos</CardTitle>
@@ -392,7 +378,6 @@ const StudentsComparisonPage = () => {
             </CardContent>
           </Card>
 
-          {/* Main Content - Comparison View */}
           <div>
             {selectedStudents.length === 0 ? (
               <Card className="h-full">
