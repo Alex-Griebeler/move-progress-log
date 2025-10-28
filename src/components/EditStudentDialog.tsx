@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { STUDENT_OBJECTIVES } from "@/constants/objectives";
 import {
   Dialog,
   DialogContent,
@@ -356,13 +357,20 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Objetivos</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Ex: Hipertrofia, emagrecimento, condicionamento..."
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} value={field.value || undefined}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o objetivo principal" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {STUDENT_OBJECTIVES.map((objective) => (
+                        <SelectItem key={objective.value} value={objective.value}>
+                          {objective.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
