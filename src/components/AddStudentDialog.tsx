@@ -291,7 +291,7 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Nível de Condicionamento</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || undefined}>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o nível" />
@@ -334,7 +334,7 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Objetivos</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || undefined}>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o objetivo principal" />
