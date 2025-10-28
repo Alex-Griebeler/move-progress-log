@@ -157,9 +157,9 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                   <TableHead className="font-semibold">Exercício</TableHead>
                   <TableHead className="font-semibold text-center">Séries</TableHead>
                   <TableHead className="font-semibold text-center">Reps</TableHead>
-                  <TableHead className="font-semibold text-center">Método</TableHead>
-                  <TableHead className="font-semibold text-center">PSE</TableHead>
+                  <TableHead className="font-semibold text-center">Carga</TableHead>
                   <TableHead className="font-semibold text-center">Intervalo</TableHead>
+                  <TableHead className="font-semibold text-center">Método</TableHead>
                   <TableHead className="font-semibold">Observações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -198,17 +198,6 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                           <TableCell className="text-center font-semibold">
                             {exercise.reps}
                           </TableCell>
-                          {!(group.isGroup && !isFirstInGroup) && (
-                            <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
-                              {exercise.training_method ? (
-                                <Badge variant="secondary" className="text-xs">
-                                  {exercise.training_method}
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                          )}
                           <TableCell className="text-center">
                             {exercise.pse ? (
                               <Badge variant="outline" className="text-xs">
@@ -224,6 +213,17 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                               {formatInterval(exercise.interval_seconds)}
                             </div>
                           </TableCell>
+                          {!(group.isGroup && !isFirstInGroup) && (
+                            <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
+                              {exercise.training_method ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  {exercise.training_method}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          )}
                           <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                             {exercise.observations || "-"}
                           </TableCell>
