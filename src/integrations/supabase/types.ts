@@ -259,6 +259,7 @@ export type Database = {
           birth_date: string | null
           created_at: string
           fitness_level: string | null
+          height_cm: number | null
           id: string
           injury_history: string | null
           limitations: string | null
@@ -268,12 +269,14 @@ export type Database = {
           preferences: string | null
           updated_at: string
           weekly_sessions_proposed: number | null
+          weight_kg: number | null
         }
         Insert: {
           avatar_url?: string | null
           birth_date?: string | null
           created_at?: string
           fitness_level?: string | null
+          height_cm?: number | null
           id?: string
           injury_history?: string | null
           limitations?: string | null
@@ -283,12 +286,14 @@ export type Database = {
           preferences?: string | null
           updated_at?: string
           weekly_sessions_proposed?: number | null
+          weight_kg?: number | null
         }
         Update: {
           avatar_url?: string | null
           birth_date?: string | null
           created_at?: string
           fitness_level?: string | null
+          height_cm?: number | null
           id?: string
           injury_history?: string | null
           limitations?: string | null
@@ -298,6 +303,7 @@ export type Database = {
           preferences?: string | null
           updated_at?: string
           weekly_sessions_proposed?: number | null
+          weight_kg?: number | null
         }
         Relationships: []
       }

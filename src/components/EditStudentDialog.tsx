@@ -38,6 +38,8 @@ const formSchema = z.object({
   max_heart_rate: z.coerce.number().optional().nullable(),
   injury_history: z.string().optional(),
   fitness_level: z.enum(['iniciante', 'intermediario', 'avancado']).optional().nullable(),
+  weight_kg: z.coerce.number().optional().nullable(),
+  height_cm: z.coerce.number().optional().nullable(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -66,6 +68,8 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
       max_heart_rate: null,
       injury_history: "",
       fitness_level: null,
+      weight_kg: null,
+      height_cm: null,
     },
   });
 
@@ -81,6 +85,8 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
         max_heart_rate: student.max_heart_rate,
         injury_history: student.injury_history || "",
         fitness_level: student.fitness_level,
+        weight_kg: student.weight_kg,
+        height_cm: student.height_cm,
       });
       setAvatarPreview(student.avatar_url || null);
       setAvatarFile(null);
@@ -157,6 +163,8 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
         injury_history: data.injury_history || null,
         fitness_level: data.fitness_level || null,
         avatar_url: avatarUrl,
+        weight_kg: data.weight_kg,
+        height_cm: data.height_cm,
       });
       toast.success("Aluno atualizado com sucesso");
       onOpenChange(false);
@@ -180,7 +188,7 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
             <div className="flex flex-col items-center gap-4 pb-4">
               <Avatar className="h-24 w-24">
-                <AvatarImage src={avatarPreview || undefined} />
+                <AvatarImage src={avatarPreview || undefined} className="object-cover" />
                 <AvatarFallback>{student?.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex gap-2">
@@ -249,6 +257,49 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
                     <FormLabel>Sessões/semana</FormLabel>
                     <FormControl>
                       <Input type="number" min="1" max="7" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="weight_kg"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Peso (kg)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.1"
+                        placeholder="Ex: 70.5" 
+                        {...field} 
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="height_cm"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Altura (cm)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        step="0.1"
+                        placeholder="Ex: 175" 
+                        {...field} 
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

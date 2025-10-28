@@ -59,7 +59,7 @@ const StudentDetailPage = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <Avatar className="h-16 w-16">
-          <AvatarImage src={student.avatar_url || undefined} />
+          <AvatarImage src={student.avatar_url || undefined} className="object-cover" />
           <AvatarFallback className="text-2xl">{student.name.charAt(0)}</AvatarFallback>
         </Avatar>
         <div>
@@ -91,6 +91,22 @@ const StudentDetailPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {(student.weight_kg || student.height_cm) && (
+                  <div className="flex gap-4">
+                    {student.weight_kg && (
+                      <div>
+                        <span className="font-semibold">Peso:</span>{" "}
+                        <span className="text-muted-foreground">{student.weight_kg} kg</span>
+                      </div>
+                    )}
+                    {student.height_cm && (
+                      <div>
+                        <span className="font-semibold">Altura:</span>{" "}
+                        <span className="text-muted-foreground">{student.height_cm} cm</span>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {student.fitness_level && (
                   <div>
                     <span className="font-semibold">Nível:</span>{" "}
