@@ -38,14 +38,14 @@ export const useCreateStudent = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async (studentData: Omit<Student, 'id' | 'created_at' | 'updated_at' | 'trainer_id'>) => {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
       const { data, error } = await supabase
         .from("students")
-        .insert({ name, trainer_id: user.id })
+        .insert({ ...studentData, trainer_id: user.id })
         .select()
         .single();
       

@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare } from "lucide-react";
+import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
+import { AddStudentDialog } from "@/components/AddStudentDialog";
 import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
 import {
@@ -27,6 +28,7 @@ const StudentsPage = () => {
   const deleteStudent = useDeleteStudent();
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
   const handleDelete = async (id: string) => {
     try {
@@ -46,6 +48,10 @@ const StudentsPage = () => {
           subtitle="Gerencie os dados dos seus alunos"
           actions={
             <>
+              <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Aluno
+              </Button>
               <Link to="/alunos-comparacao">
                 <Button variant="outline">
                   <GitCompare className="h-4 w-4 mr-2" />
@@ -145,6 +151,11 @@ const StudentsPage = () => {
           </Card>
         )}
       </div>
+
+      <AddStudentDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+      />
 
       <EditStudentDialog
         student={editingStudent}
