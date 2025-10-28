@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Dumbbell, X, Clock } from "lucide-react";
+import { Plus, Dumbbell, X, Clock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useGetOrCreateStudent } from "@/hooks/useStudents";
 import { useCreateWorkout } from "@/hooks/useWorkouts";
@@ -102,7 +102,13 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
       onWorkoutAdded();
     } catch (error: any) {
       console.error("Erro ao registrar sessão:", error);
-      toast.error(error.message || "Erro ao registrar sessão");
+      
+      // Detectar erro de duplicata
+      if (error.message?.includes('duplicate key') || error.code === '23505') {
+        toast.error("Já existe uma sessão registrada para este aluno neste horário");
+      } else {
+        toast.error(error.message || "Erro ao registrar sessão");
+      }
     }
   };
 
@@ -237,8 +243,21 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
             ))}
           </div>
 
-          <Button type="submit" variant="gradient" className="w-full" size="lg">
-            Registrar Sessão
+          <Button 
+            type="submit" 
+            variant="gradient" 
+            className="w-full" 
+            size="lg"
+            disabled={getOrCreateStudent.isPending || createWorkout.isPending}
+          >
+            {(getOrCreateStudent.isPending || createWorkout.isPending) ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Registrando...
+              </>
+            ) : (
+              'Registrar Sessão'
+            )}
           </Button>
         </form>
       </DialogContent>
