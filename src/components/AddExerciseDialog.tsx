@@ -21,7 +21,7 @@ import { Plus } from "lucide-react";
 import {
   useCreateExercise,
   MOVEMENT_PATTERNS,
-  LATERALITY_OPTIONS,
+  BASE_TYPE_OPTIONS,
   MOVEMENT_PLANES,
 } from "@/hooks/useExercisesLibrary";
 
@@ -100,14 +100,14 @@ export const AddExerciseDialog = () => {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="laterality">Lateralidade</Label>
+            <Label htmlFor="laterality">Tipo de Base</Label>
             <Select value={laterality} onValueChange={setLaterality}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione (opcional)" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Nenhum</SelectItem>
-                {Object.entries(LATERALITY_OPTIONS).map(([key, label]) => (
+                {Object.entries(BASE_TYPE_OPTIONS).map(([key, label]) => (
                   <SelectItem key={key} value={key}>
                     {label}
                   </SelectItem>

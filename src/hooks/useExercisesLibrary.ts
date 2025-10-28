@@ -28,9 +28,10 @@ export const MOVEMENT_PATTERNS = {
   carry: "Carregar",
 };
 
-export const LATERALITY_OPTIONS = {
+export const BASE_TYPE_OPTIONS = {
   bilateral: "Bilateral",
   unilateral: "Unilateral",
+  asymmetric: "Assimétrica",
 };
 
 export const MOVEMENT_PLANES = {

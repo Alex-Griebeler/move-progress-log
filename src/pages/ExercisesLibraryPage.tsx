@@ -28,7 +28,7 @@ import {
   useDeleteExercise,
   ExerciseLibrary,
   MOVEMENT_PATTERNS,
-  LATERALITY_OPTIONS,
+  BASE_TYPE_OPTIONS,
   MOVEMENT_PLANES,
   ExerciseFilters,
 } from "@/hooks/useExercisesLibrary";
@@ -109,7 +109,7 @@ export default function ExercisesLibraryPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Lateralidade</label>
+            <label className="text-sm font-medium">Tipo de Base</label>
             <Select
               value={filters.laterality || "all"}
               onValueChange={(value) =>
@@ -124,7 +124,7 @@ export default function ExercisesLibraryPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
-                {Object.entries(LATERALITY_OPTIONS).map(([key, label]) => (
+                {Object.entries(BASE_TYPE_OPTIONS).map(([key, label]) => (
                   <SelectItem key={key} value={key}>
                     {label}
                   </SelectItem>
@@ -199,7 +199,7 @@ export default function ExercisesLibraryPage() {
                       </Badge>
                       {exercise.laterality && (
                         <Badge variant="outline" className="ml-2">
-                          {LATERALITY_OPTIONS[exercise.laterality as keyof typeof LATERALITY_OPTIONS]}
+                          {BASE_TYPE_OPTIONS[exercise.laterality as keyof typeof BASE_TYPE_OPTIONS]}
                         </Badge>
                       )}
                       {exercise.movement_plane && (

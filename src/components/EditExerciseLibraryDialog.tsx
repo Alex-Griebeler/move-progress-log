@@ -18,8 +18,9 @@ import {
 } from "@/components/ui/select";
 import {
   useUpdateExercise,
+  useDeleteExercise,
   MOVEMENT_PATTERNS,
-  LATERALITY_OPTIONS,
+  BASE_TYPE_OPTIONS,
   MOVEMENT_PLANES,
   ExerciseLibrary,
 } from "@/hooks/useExercisesLibrary";
@@ -104,22 +105,22 @@ export const EditExerciseLibraryDialog = ({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="edit-laterality">Lateralidade</Label>
-            <Select value={laterality} onValueChange={setLaterality}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione (opcional)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Nenhum</SelectItem>
-                {Object.entries(LATERALITY_OPTIONS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-laterality">Tipo de Base</Label>
+              <Select value={laterality} onValueChange={setLaterality}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  {Object.entries(BASE_TYPE_OPTIONS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
           <div className="space-y-2">
             <Label htmlFor="edit-movement-plane">Plano de Movimento</Label>
