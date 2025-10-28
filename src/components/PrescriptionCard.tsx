@@ -221,19 +221,17 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                           <TableCell className="text-center font-semibold">
                             {exercise.reps}
                           </TableCell>
-                          <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
-                            {isFirstInGroup && exercise.training_method ? (
-                              <Badge variant="secondary" className="text-xs">
-                                {exercise.training_method}
-                              </Badge>
-                            ) : !group.isGroup && exercise.training_method ? (
-                              <Badge variant="secondary" className="text-xs">
-                                {exercise.training_method}
-                              </Badge>
-                            ) : !group.isGroup ? (
-                              <span className="text-muted-foreground">-</span>
-                            ) : null}
-                          </TableCell>
+                          {!(group.isGroup && !isFirstInGroup) && (
+                            <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
+                              {exercise.training_method ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  {exercise.training_method}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          )}
                           <TableCell className="text-center">
                             {exercise.pse ? (
                               <Badge variant="outline" className="text-xs">
