@@ -22,6 +22,7 @@ export interface PrescriptionExercise {
   pse: string | null;
   training_method: string | null;
   observations: string | null;
+  group_with_previous: boolean;
   exercise_name?: string;
   adaptations?: ExerciseAdaptation[];
 }
@@ -142,6 +143,7 @@ export const useCreatePrescription = () => {
         pse?: string;
         training_method?: string;
         observations?: string;
+        group_with_previous?: boolean;
         adaptations?: Array<{
           type: "regression_1" | "regression_2" | "regression_3";
           exercise_library_id: string;
@@ -178,6 +180,7 @@ export const useCreatePrescription = () => {
             pse: ex.pse || null,
             training_method: ex.training_method || null,
             observations: ex.observations || null,
+            group_with_previous: ex.group_with_previous || false,
           })
           .select()
           .single();
@@ -284,6 +287,7 @@ export const useUpdatePrescription = () => {
         pse?: string;
         training_method?: string;
         observations?: string;
+        group_with_previous?: boolean;
         adaptations?: Array<{
           type: "regression_1" | "regression_2" | "regression_3";
           exercise_library_id: string;
@@ -343,6 +347,7 @@ export const useUpdatePrescription = () => {
             pse: ex.pse || null,
             training_method: ex.training_method || null,
             observations: ex.observations || null,
+            group_with_previous: ex.group_with_previous || false,
           })
           .select()
           .single();

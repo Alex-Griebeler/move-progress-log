@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpdatePrescription, usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
@@ -23,6 +24,7 @@ interface Exercise {
   pse: string;
   training_method: string;
   observations: string;
+  group_with_previous: boolean;
   adaptations: Array<{
     type: "regression_1" | "regression_2" | "regression_3";
     exercise_library_id: string;
@@ -48,6 +50,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       pse: "",
       training_method: "",
       observations: "",
+      group_with_previous: false,
       adaptations: [],
       showAdaptations: false,
     },
@@ -74,6 +77,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             pse: ex.pse || "",
             training_method: ex.training_method || "",
             observations: ex.observations || "",
+            group_with_previous: ex.group_with_previous || false,
             adaptations: (ex.adaptations || []).map((adapt: any) => ({
               type: adapt.adaptation_type,
               exercise_library_id: adapt.exercise_library_id,
@@ -96,6 +100,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
         pse: "",
         training_method: "",
         observations: "",
+        group_with_previous: false,
         adaptations: [],
         showAdaptations: false,
       },
@@ -220,7 +225,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       id: prescriptionId,
       name,
       objective,
-      exercises: validExercises.map((ex) => ({
+      exercises: validExercises.map((ex, index) => ({
         exercise_library_id: ex.exercise_library_id,
         sets: ex.sets,
         reps: ex.reps,
@@ -228,6 +233,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
         pse: ex.pse || undefined,
         training_method: ex.training_method || undefined,
         observations: ex.observations || undefined,
+        group_with_previous: index > 0 ? ex.group_with_previous : false,
         adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
       })),
     });
@@ -282,9 +288,28 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
               {exercises.map((exercise, index) => (
                 <div key={index} className="space-y-4 p-4 border rounded-lg bg-muted/30">
                   <div className="flex items-start justify-between">
-                    <span className="text-sm font-medium text-muted-foreground">
-                      Exercício {index + 1}
-                    </span>
+                    <div className="flex flex-col gap-3">
+                      <span className="text-sm font-medium text-muted-foreground">
+                        Exercício {index + 1}
+                      </span>
+                      {index > 0 && (
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id={`group-${index}`}
+                            checked={exercise.group_with_previous}
+                            onCheckedChange={(checked) =>
+                              updateExercise(index, "group_with_previous", checked === true)
+                            }
+                          />
+                          <Label
+                            htmlFor={`group-${index}`}
+                            className="text-sm font-normal cursor-pointer"
+                          >
+                            Agrupar com exercício anterior
+                          </Label>
+                        </div>
+                      )}
+                    </div>
                     {exercises.length > 1 && (
                       <Button
                         variant="ghost"

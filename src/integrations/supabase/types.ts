@@ -200,6 +200,7 @@ export type Database = {
         Row: {
           created_at: string
           exercise_library_id: string
+          group_with_previous: boolean
           id: string
           interval_seconds: number | null
           observations: string | null
@@ -213,6 +214,7 @@ export type Database = {
         Insert: {
           created_at?: string
           exercise_library_id: string
+          group_with_previous?: boolean
           id?: string
           interval_seconds?: number | null
           observations?: string | null
@@ -226,6 +228,7 @@ export type Database = {
         Update: {
           created_at?: string
           exercise_library_id?: string
+          group_with_previous?: boolean
           id?: string
           interval_seconds?: number | null
           observations?: string | null

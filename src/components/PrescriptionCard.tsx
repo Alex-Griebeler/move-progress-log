@@ -8,60 +8,37 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Métodos que agrupam exercícios
-const GROUPING_METHODS = ["Superset", "Triset", "Circuito", "Pré-Exaustão", "Pós-Exaustão", "Contraste"];
-
-const shouldGroup = (method: string | null) => {
-  if (!method) return false;
-  // Normaliza comparação (banco usa nomes exatos das constantes)
-  const normalizedMethod = method.toLowerCase().replace(/-/g, '').replace(/\s/g, '');
-  return GROUPING_METHODS.some(m => 
-    m.toLowerCase().replace(/-/g, '').replace(/\s/g, '') === normalizedMethod
-  );
-};
-
-// Agrupa exercícios consecutivos com o mesmo método de agrupamento
+// Agrupa exercícios baseado no campo group_with_previous
 const groupExercises = (exercises: PrescriptionExercise[]) => {
   const groups: Array<{ exercises: PrescriptionExercise[]; isGroup: boolean; method: string | null }> = [];
   let currentGroup: PrescriptionExercise[] = [];
-  let currentMethod: string | null = null;
 
   exercises.forEach((exercise, index) => {
-    const exerciseMethod = exercise.training_method;
-    
-    if (shouldGroup(exerciseMethod)) {
-      if (exerciseMethod === currentMethod) {
-        currentGroup.push(exercise);
-      } else {
-        if (currentGroup.length > 0) {
-          groups.push({ 
-            exercises: currentGroup, 
-            isGroup: currentGroup.length > 1, 
-            method: currentMethod 
-          });
-        }
-        currentGroup = [exercise];
-        currentMethod = exerciseMethod;
-      }
+    if (index === 0) {
+      // Primeiro exercício sempre inicia um novo grupo
+      currentGroup = [exercise];
+    } else if (exercise.group_with_previous) {
+      // Se deve agrupar com o anterior, adiciona ao grupo atual
+      currentGroup.push(exercise);
     } else {
+      // Se não deve agrupar, fecha o grupo anterior e inicia novo
       if (currentGroup.length > 0) {
         groups.push({ 
           exercises: currentGroup, 
-          isGroup: currentGroup.length > 1, 
-          method: currentMethod 
+          isGroup: currentGroup.length > 1,
+          method: currentGroup[0].training_method
         });
-        currentGroup = [];
-        currentMethod = null;
       }
-      groups.push({ exercises: [exercise], isGroup: false, method: null });
+      currentGroup = [exercise];
     }
   });
 
+  // Adiciona o último grupo
   if (currentGroup.length > 0) {
     groups.push({ 
       exercises: currentGroup, 
-      isGroup: currentGroup.length > 1, 
-      method: currentMethod 
+      isGroup: currentGroup.length > 1,
+      method: currentGroup[0].training_method
     });
   }
 
