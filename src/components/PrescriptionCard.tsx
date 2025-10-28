@@ -12,7 +12,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 const GROUPING_METHODS = ["Superset", "Triset", "Circuito", "Pré-Exaustão", "Pós-Exaustão", "Contraste"];
 
 const shouldGroup = (method: string | null) => {
-  return method && GROUPING_METHODS.includes(method);
+  if (!method) return false;
+  // Normaliza comparação (banco usa nomes exatos das constantes)
+  const normalizedMethod = method.toLowerCase().replace(/-/g, '').replace(/\s/g, '');
+  return GROUPING_METHODS.some(m => 
+    m.toLowerCase().replace(/-/g, '').replace(/\s/g, '') === normalizedMethod
+  );
 };
 
 // Agrupa exercícios consecutivos com o mesmo método de agrupamento
