@@ -22,6 +22,8 @@ import {
   MOVEMENT_PATTERNS,
   LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
+  CONTRACTION_TYPES,
+  LEVEL_OPTIONS,
   ExerciseLibrary,
 } from "@/hooks/useExercisesLibrary";
 
@@ -40,6 +42,8 @@ export const EditExerciseLibraryDialog = ({
   const [movementPattern, setMovementPattern] = useState(exercise.movement_pattern);
   const [laterality, setLaterality] = useState(exercise.laterality || "");
   const [movementPlane, setMovementPlane] = useState(exercise.movement_plane || "");
+  const [contractionType, setContractionType] = useState(exercise.contraction_type || "");
+  const [level, setLevel] = useState(exercise.level || "");
   const [description, setDescription] = useState(exercise.description || "");
 
   const updateExercise = useUpdateExercise();
@@ -65,6 +69,8 @@ export const EditExerciseLibraryDialog = ({
       movement_pattern: movementPattern,
       laterality: laterality || null,
       movement_plane: movementPlane || null,
+      contraction_type: contractionType || null,
+      level: level || null,
       description: description.trim() || null,
     });
 

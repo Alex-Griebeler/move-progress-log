@@ -23,6 +23,8 @@ import {
   MOVEMENT_PATTERNS,
   LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
+  CONTRACTION_TYPES,
+  LEVEL_OPTIONS,
 } from "@/hooks/useExercisesLibrary";
 
 export const AddExerciseDialog = () => {
@@ -31,6 +33,8 @@ export const AddExerciseDialog = () => {
   const [movementPattern, setMovementPattern] = useState("");
   const [laterality, setLaterality] = useState("");
   const [movementPlane, setMovementPlane] = useState("");
+  const [contractionType, setContractionType] = useState("");
+  const [level, setLevel] = useState("");
   const [description, setDescription] = useState("");
 
   const createExercise = useCreateExercise();
@@ -47,6 +51,8 @@ export const AddExerciseDialog = () => {
       movement_pattern: movementPattern,
       laterality: laterality || null,
       movement_plane: movementPlane || null,
+      contraction_type: contractionType || null,
+      level: level || null,
       description: description.trim() || null,
     });
 
@@ -55,6 +61,8 @@ export const AddExerciseDialog = () => {
     setMovementPattern("");
     setLaterality("");
     setMovementPlane("");
+    setContractionType("");
+    setLevel("");
     setDescription("");
     setOpen(false);
   };
@@ -125,6 +133,40 @@ export const AddExerciseDialog = () => {
               <SelectContent>
                 <SelectItem value="none">Nenhum</SelectItem>
                 {Object.entries(MOVEMENT_PLANES).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="contraction-type">Tipo de Contração</Label>
+            <Select value={contractionType} onValueChange={setContractionType}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum</SelectItem>
+                {Object.entries(CONTRACTION_TYPES).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="level">Nível</Label>
+            <Select value={level} onValueChange={setLevel}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione (opcional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum</SelectItem>
+                {Object.entries(LEVEL_OPTIONS).map(([key, label]) => (
                   <SelectItem key={key} value={key}>
                     {label}
                   </SelectItem>

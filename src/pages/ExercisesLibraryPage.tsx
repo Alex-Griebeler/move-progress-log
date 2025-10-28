@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Trash2, Filter, X } from "lucide-react";
+import { Pencil, Trash2, Filter, X, Database } from "lucide-react";
 import { AddExerciseDialog } from "@/components/AddExerciseDialog";
 import { EditExerciseLibraryDialog } from "@/components/EditExerciseLibraryDialog";
 import {
@@ -33,14 +33,38 @@ import {
   MOVEMENT_PLANES,
   ExerciseFilters,
 } from "@/hooks/useExercisesLibrary";
+import { populateExercisesLibrary } from "@/utils/populateExercises";
+import { toast } from "sonner";
 
 export default function ExercisesLibraryPage() {
   const [filters, setFilters] = useState<ExerciseFilters>({});
   const [editingExercise, setEditingExercise] = useState<ExerciseLibrary | null>(null);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
+  const [isPopulating, setIsPopulating] = useState(false);
 
-  const { data: exercises, isLoading } = useExercisesLibrary(filters);
+  const { data: exercises, isLoading, refetch } = useExercisesLibrary(filters);
   const deleteExercise = useDeleteExercise();
+
+  const handlePopulateDatabase = async () => {
+    setIsPopulating(true);
+    try {
+      const result = await populateExercisesLibrary();
+      
+      if (result.success) {
+        toast.success(
+          `${result.added} exercícios adicionados com sucesso! ${result.skipped} já existiam.`
+        );
+        refetch();
+      } else {
+        toast.error("Erro ao popular banco de dados");
+      }
+    } catch (error) {
+      console.error("Erro ao popular banco:", error);
+      toast.error("Erro ao popular banco de dados");
+    } finally {
+      setIsPopulating(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (deletingExerciseId) {
@@ -60,7 +84,19 @@ export default function ExercisesLibraryPage() {
       <AppHeader
         title="Biblioteca de Exercícios"
         subtitle="Gerencie exercícios com classificações por padrões de movimento"
-        actions={<AddExerciseDialog />}
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handlePopulateDatabase}
+              disabled={isPopulating}
+            >
+              <Database className="h-4 w-4 mr-2" />
+              {isPopulating ? "Importando..." : "Importar Exercícios"}
+            </Button>
+            <AddExerciseDialog />
+          </div>
+        }
       />
 
       {/* Filters */}

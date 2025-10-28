@@ -114,30 +114,36 @@ export type Database = {
       }
       exercises_library: {
         Row: {
+          contraction_type: string | null
           created_at: string
           description: string | null
           id: string
           laterality: string | null
+          level: string | null
           movement_pattern: string
           movement_plane: string | null
           name: string
           updated_at: string
         }
         Insert: {
+          contraction_type?: string | null
           created_at?: string
           description?: string | null
           id?: string
           laterality?: string | null
+          level?: string | null
           movement_pattern: string
           movement_plane?: string | null
           name: string
           updated_at?: string
         }
         Update: {
+          contraction_type?: string | null
           created_at?: string
           description?: string | null
           id?: string
           laterality?: string | null
+          level?: string | null
           movement_pattern?: string
           movement_plane?: string | null
           name?: string

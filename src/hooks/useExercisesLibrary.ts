@@ -9,6 +9,8 @@ export interface ExerciseLibrary {
   laterality: string | null;
   movement_plane: string | null;
   description: string | null;
+  contraction_type: string | null;
+  level: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -17,27 +19,53 @@ export interface ExerciseFilters {
   movement_pattern?: string;
   laterality?: string;
   movement_plane?: string;
+  contraction_type?: string;
+  level?: string;
 }
 
 export const MOVEMENT_PATTERNS = {
-  knee_dominant: "Dominância de Joelho",
-  hip_dominant: "Dominância de Quadril",
-  push: "Empurrar",
-  pull: "Puxar",
-  core: "Core/Abdômen",
-  carry: "Carregar",
+  "Dominância de joelho": "Dominância de joelho",
+  "Dominância de quadril": "Dominância de quadril",
+  "Empurrar horizontal": "Empurrar horizontal",
+  "Empurrar vertical": "Empurrar vertical",
+  "Puxar horizontal": "Puxar horizontal",
+  "Puxar vertical": "Puxar vertical",
+  "Dominância de joelho unilateral": "Dominância de joelho unilateral",
+  "Carry": "Carry",
+  "Mobilidade": "Mobilidade",
+  "Core - Anti-extensão": "Core - Anti-extensão",
+  "Core - Anti-rotação": "Core - Anti-rotação",
+  "Core - Anti-flexão lateral": "Core - Anti-flexão lateral",
+  "Ativação": "Ativação",
 };
 
 export const LATERALITY_OPTIONS = {
   bilateral: "Bilateral",
   unilateral: "Unilateral",
-  asymmetric: "Assimétrica",
+  "base assimétrica": "Base Assimétrica",
 };
 
 export const MOVEMENT_PLANES = {
   sagittal: "Sagital",
   frontal: "Frontal",
   transverse: "Transverso",
+};
+
+export const CONTRACTION_TYPES = {
+  "Dinâmica controlada": "Dinâmica controlada",
+  "Dinâmica controlada (ênfase excêntrica)": "Dinâmica controlada (ênfase excêntrica)",
+  "Excêntrica controlada": "Excêntrica controlada",
+  "Dinâmica explosiva": "Dinâmica explosiva",
+  "Isométrica": "Isométrica",
+};
+
+export const LEVEL_OPTIONS = {
+  "Iniciante": "Iniciante",
+  "Iniciante/Intermediário": "Iniciante/Intermediário",
+  "Intermediário": "Intermediário",
+  "Intermediário/Avançado": "Intermediário/Avançado",
+  "Avançado": "Avançado",
+  "Todos os níveis": "Todos os níveis",
 };
 
 export const useExercisesLibrary = (filters?: ExerciseFilters) => {
