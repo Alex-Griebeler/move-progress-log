@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Edit, Trash2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowLeft, Users, Edit, Trash2, Eye } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const StudentsPage = () => {
+  const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();
   const deleteStudent = useDeleteStudent();
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -91,22 +92,27 @@ const StudentsPage = () => {
                 <CardContent>
                   <div className="flex gap-2">
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
                       className="flex-1"
+                      onClick={() => navigate(`/alunos/${student.id}`)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Detalhes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => setEditingStudent(student)}
                     >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar
+                      <Edit className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="flex-1"
                       onClick={() => setDeletingStudentId(student.id)}
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Excluir
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardContent>
