@@ -192,12 +192,10 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                   let exerciseCounter = 0;
                   
                   return groups.map((group, groupIndex) => {
-                    const groupNumber = exerciseCounter + 1;
-                    exerciseCounter += group.exercises.length;
-                    
                     return group.exercises.map((exercise, exIndex) => {
                       const isFirstInGroup = exIndex === 0;
                       const isLastInGroup = exIndex === group.exercises.length - 1;
+                      exerciseCounter += 1;
                       
                       return (
                         <TableRow 
@@ -208,22 +206,8 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                             group.isGroup && !isLastInGroup ? 'border-b-0' : ''
                           }`}
                         >
-                          <TableCell className="font-medium text-muted-foreground">
-                            {isFirstInGroup && (
-                              <div className="flex items-center gap-1">
-                                {groupNumber}
-                                {group.isGroup && (
-                                  <span className="text-xs">
-                                    ({String.fromCharCode(97 + exIndex)})
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                            {!isFirstInGroup && group.isGroup && (
-                              <span className="text-xs pl-4">
-                                ({String.fromCharCode(97 + exIndex)})
-                              </span>
-                            )}
+                          <TableCell className="font-medium text-muted-foreground text-center">
+                            {exerciseCounter}
                           </TableCell>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
@@ -237,18 +221,18 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
                           <TableCell className="text-center font-semibold">
                             {exercise.reps}
                           </TableCell>
-                          <TableCell className="text-center">
-                            {exercise.training_method && isFirstInGroup ? (
+                          <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
+                            {isFirstInGroup && exercise.training_method ? (
                               <Badge variant="secondary" className="text-xs">
                                 {exercise.training_method}
                               </Badge>
-                            ) : exercise.training_method && !isFirstInGroup && !group.isGroup ? (
+                            ) : !group.isGroup && exercise.training_method ? (
                               <Badge variant="secondary" className="text-xs">
                                 {exercise.training_method}
                               </Badge>
-                            ) : (
+                            ) : !group.isGroup ? (
                               <span className="text-muted-foreground">-</span>
-                            )}
+                            ) : null}
                           </TableCell>
                           <TableCell className="text-center">
                             {exercise.pse ? (
