@@ -1,1 +1,4 @@
 project_id = "zrgfrdmywxlemcuiqtqg"
+
+[functions.suggest-regressions]
+verify_jwt = false
