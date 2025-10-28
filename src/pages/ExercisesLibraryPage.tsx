@@ -109,7 +109,7 @@ export default function ExercisesLibraryPage() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Tipo de Base</label>
+            <label className="text-sm font-medium">Lateralidade</label>
             <Select
               value={filters.laterality || "all"}
               onValueChange={(value) =>
@@ -124,7 +124,7 @@ export default function ExercisesLibraryPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
-                {Object.entries(BASE_TYPE_OPTIONS).map(([key, label]) => (
+                {Object.entries(LATERALITY_OPTIONS).map(([key, label]) => (
                   <SelectItem key={key} value={key}>
                     {label}
                   </SelectItem>
