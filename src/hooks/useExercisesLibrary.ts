@@ -26,17 +26,10 @@ export interface ExerciseFilters {
 export const MOVEMENT_PATTERNS = {
   "Dominância de joelho": "Dominância de joelho",
   "Dominância de quadril": "Dominância de quadril",
-  "Empurrar horizontal": "Empurrar horizontal",
-  "Empurrar vertical": "Empurrar vertical",
-  "Puxar horizontal": "Puxar horizontal",
-  "Puxar vertical": "Puxar vertical",
-  "Dominância de joelho unilateral": "Dominância de joelho unilateral",
-  "Carry": "Carry",
-  "Mobilidade": "Mobilidade",
-  "Core - Anti-extensão": "Core - Anti-extensão",
-  "Core - Anti-rotação": "Core - Anti-rotação",
-  "Core - Anti-flexão lateral": "Core - Anti-flexão lateral",
-  "Ativação": "Ativação",
+  "Puxar": "Puxar",
+  "Empurrar": "Empurrar",
+  "Carregar": "Carregar",
+  "Core/Ativação": "Core/Ativação",
 };
 
 export const LATERALITY_OPTIONS = {
