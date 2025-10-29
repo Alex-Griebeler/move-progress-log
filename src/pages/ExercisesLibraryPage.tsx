@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Trash2, Filter, X, Database } from "lucide-react";
+import { Pencil, Trash2, Filter, X, Database, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { AddExerciseDialog } from "@/components/AddExerciseDialog";
 import { EditExerciseLibraryDialog } from "@/components/EditExerciseLibraryDialog";
 import {
@@ -40,6 +41,7 @@ import { toast } from "sonner";
 
 export default function ExercisesLibraryPage() {
   const [filters, setFilters] = useState<ExerciseFilters>({});
+  const [searchTerm, setSearchTerm] = useState("");
   const [editingExercise, setEditingExercise] = useState<ExerciseLibrary | null>(null);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
   const [isPopulating, setIsPopulating] = useState(false);
@@ -77,9 +79,14 @@ export default function ExercisesLibraryPage() {
 
   const clearFilters = () => {
     setFilters({});
+    setSearchTerm("");
   };
 
-  const hasActiveFilters = Object.values(filters).some((v) => v);
+  const hasActiveFilters = Object.values(filters).some((v) => v) || searchTerm;
+
+  const filteredExercises = exercises?.filter((exercise) =>
+    exercise.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -117,7 +124,17 @@ export default function ExercisesLibraryPage() {
             )}
           </div>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar exercícios por nome..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Padrão de Movimento</label>
             <Select
@@ -242,6 +259,7 @@ export default function ExercisesLibraryPage() {
               </SelectContent>
             </Select>
           </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -260,7 +278,7 @@ export default function ExercisesLibraryPage() {
             </Card>
           ))}
         </div>
-      ) : !exercises || exercises.length === 0 ? (
+      ) : !filteredExercises || filteredExercises.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">
@@ -272,7 +290,7 @@ export default function ExercisesLibraryPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {exercises.map((exercise) => (
+          {filteredExercises.map((exercise) => (
             <Card key={exercise.id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
