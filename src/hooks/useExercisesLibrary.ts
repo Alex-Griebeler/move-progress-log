@@ -45,11 +45,11 @@ export const MOVEMENT_PLANES = {
 };
 
 export const CONTRACTION_TYPES = {
-  "Concêntrica": "Concêntrica: encurtamento muscular (fase de força)",
-  "Excêntrica": "Excêntrica: alongamento sob tensão (fase de controle)",
-  "Isométrica": "Isométrica: tensão sem movimento (fase estática)",
-  "Pliométrica / Potência": "Pliométrica / Potência: ciclo rápido de alongamento-encurtamento (CAE). Força rápida",
-  "Mista": "Mista: combinação de duas ou mais fases (ex.: controle + explosão)",
+  "Concêntrica": "Concêntrica",
+  "Excêntrica": "Excêntrica",
+  "Isométrica": "Isométrica",
+  "Pliométrica / Potência": "Pliométrica / Potência",
+  "Mista": "Mista",
 };
 
 export const LEVEL_OPTIONS = {
