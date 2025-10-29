@@ -10,6 +10,7 @@ import { useUpdatePrescription, usePrescriptionDetails } from "@/hooks/usePrescr
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { TRAINING_METHODS } from "@/constants/trainingMethods";
 import { Plus, Trash2, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -325,23 +326,12 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Exercício *</Label>
-                      <Select
+                      <ExerciseCombobox
+                        exercises={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
                         value={exercise.exercise_library_id}
-                        onValueChange={(value) =>
-                          updateExercise(index, "exercise_library_id", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione o exercício" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {exercisesLibrary?.map((ex) => (
-                            <SelectItem key={ex.id} value={ex.id}>
-                              {ex.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onValueChange={(value) => updateExercise(index, "exercise_library_id", value)}
+                        placeholder="Digite para buscar..."
+                      />
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
@@ -462,23 +452,12 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                             <span className="text-sm text-muted-foreground min-w-[100px]">
                               Regressão {adaptIndex + 1}
                             </span>
-                            <Select
+                            <ExerciseCombobox
+                              exercises={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
                               value={adaptation.exercise_library_id}
-                              onValueChange={(value) =>
-                                updateAdaptation(index, adaptIndex, value)
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Selecione exercício" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {exercisesLibrary?.map((ex) => (
-                                  <SelectItem key={ex.id} value={ex.id}>
-                                    {ex.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              onValueChange={(value) => updateAdaptation(index, adaptIndex, value)}
+                              placeholder="Digite para buscar..."
+                            />
                             <Button
                               variant="ghost"
                               size="sm"
