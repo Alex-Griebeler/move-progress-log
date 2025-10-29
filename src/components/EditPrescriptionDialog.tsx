@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useUpdatePrescription, usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { TRAINING_METHODS } from "@/constants/trainingMethods";
-import { Plus, Trash2, ChevronDown, ChevronUp, Sparkles, Zap } from "lucide-react";
+import { Plus, Trash2, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -156,40 +156,6 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     const updated = [...exercise.adaptations];
     updated[adaptIndex] = { ...updated[adaptIndex], exercise_library_id: exerciseId };
     updateExercise(exerciseIndex, "adaptations", updated);
-  };
-
-  const suggestInterval = (exerciseIndex: number) => {
-    const exercise = exercises[exerciseIndex];
-    if (!exercise.training_method) return;
-
-    // Intervalos sugeridos baseados no método de treino
-    const intervalMap: Record<string, number> = {
-      TRADICIONAL: 90,
-      CIRCUITO: 30,
-      SUPERSET: 60,
-      TRISET: 60,
-      DROPSET: 120,
-      PIRAMIDE_CRESCENTE: 120,
-      PIRAMIDE_DECRESCENTE: 90,
-      REST_PAUSE: 180,
-      CLUSTER: 150,
-      AMRAP: 180,
-      EMOM: 0,
-      E2MOM: 0,
-      E3MOM: 0,
-      FOR_TIME: 0,
-      CONTRASTE: 180,
-      PRE_EXAUSTAO: 60,
-      POS_EXAUSTAO: 90,
-    };
-
-    const suggestedInterval = intervalMap[exercise.training_method] || 90;
-    updateExercise(exerciseIndex, "interval_seconds", suggestedInterval.toString());
-    
-    toast({
-      title: "Intervalo sugerido",
-      description: `${suggestedInterval}s baseado no método ${TRAINING_METHODS[exercise.training_method as keyof typeof TRAINING_METHODS]?.name}`,
-    });
   };
 
   const suggestRegressions = async (exerciseIndex: number) => {
@@ -397,33 +363,14 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                       </div>
                       <div className="space-y-2">
                         <Label>Int (s)</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            type="number"
-                            value={exercise.interval_seconds}
-                            onChange={(e) =>
-                              updateExercise(index, "interval_seconds", e.target.value)
-                            }
-                            placeholder="60"
-                          />
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => suggestInterval(index)}
-                                disabled={!exercise.training_method}
-                                className="px-2"
-                              >
-                                <Zap className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Sugerir intervalo baseado no método</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
+                        <Input
+                          type="number"
+                          value={exercise.interval_seconds}
+                          onChange={(e) =>
+                            updateExercise(index, "interval_seconds", e.target.value)
+                          }
+                          placeholder="60"
+                        />
                       </div>
                     </div>
 
