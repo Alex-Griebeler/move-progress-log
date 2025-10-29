@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
-import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText } from "lucide-react";
+import { ImportSessionsDialog } from "@/components/ImportSessionsDialog";
+import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { AppHeader } from "@/components/AppHeader";
 
 const Index = () => {
   const [refreshKey, setRefreshKey] = useState(0);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   
   const { data: stats, isLoading: statsLoading } = useStats();
   const { data: recentWorkouts, isLoading: workoutsLoading } = useWorkouts();
@@ -50,6 +52,10 @@ const Index = () => {
                   Prescrições
                 </Button>
               </Link>
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Importar Excel
+              </Button>
               <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
             </>
           }
@@ -114,6 +120,11 @@ const Index = () => {
           </div>
         </section>
       </div>
+
+      <ImportSessionsDialog 
+        open={importDialogOpen} 
+        onOpenChange={setImportDialogOpen}
+      />
     </div>
   );
 };
