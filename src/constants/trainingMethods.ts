@@ -76,13 +76,4 @@ export const TRAINING_METHODS = {
   }
 } as const;
 
-export const PSE_OPTIONS = [
-  { value: "0RR", label: "0RR (Falha)" },
-  { value: "1-2RR", label: "1-2RR" },
-  { value: "2-3RR", label: "2-3RR" },
-  { value: "3-4RR", label: "3-4RR" },
-  { value: "4-5RR", label: "4-5RR" }
-] as const;
-
 export type TrainingMethodKey = keyof typeof TRAINING_METHODS;
-export type PSEValue = typeof PSE_OPTIONS[number]["value"];

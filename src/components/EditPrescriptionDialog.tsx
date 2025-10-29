@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpdatePrescription, usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
-import { TRAINING_METHODS, PSE_OPTIONS } from "@/constants/trainingMethods";
+import { TRAINING_METHODS } from "@/constants/trainingMethods";
 import { Plus, Trash2, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -375,22 +375,12 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                     </div>
 
                     <div className="space-y-2">
-                      <Label>PSE (RR)</Label>
-                      <Select
+                      <Label>Carga</Label>
+                      <Input
                         value={exercise.pse}
-                        onValueChange={(value) => updateExercise(index, "pse", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione PSE" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PSE_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={(e) => updateExercise(index, "pse", e.target.value)}
+                        placeholder="Ex: 2RR, 80kg, ~85%"
+                      />
                     </div>
 
                     <div className="space-y-2">
