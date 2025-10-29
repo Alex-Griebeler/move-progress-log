@@ -78,7 +78,7 @@ const getAssignmentBadge = (count: number) => {
 };
 
 const formatInterval = (seconds: number | null) => {
-  if (!seconds) return "autosugerido";
+  if (!seconds) return "-";
   return `${seconds}s`;
 };
 

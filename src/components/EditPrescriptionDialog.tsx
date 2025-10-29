@@ -46,7 +46,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       exercise_library_id: "",
       sets: "",
       reps: "",
-      interval_seconds: "autosugerido",
+      interval_seconds: "",
       pse: "",
       training_method: "",
       observations: "",
@@ -96,7 +96,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
         exercise_library_id: "",
         sets: "",
         reps: "",
-        interval_seconds: "autosugerido",
+        interval_seconds: "",
         pse: "",
         training_method: "",
         observations: "",
@@ -399,11 +399,12 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                         <Label>Int (s)</Label>
                         <div className="flex gap-2">
                           <Input
+                            type="number"
                             value={exercise.interval_seconds}
                             onChange={(e) =>
                               updateExercise(index, "interval_seconds", e.target.value)
                             }
-                            placeholder="autosugerido"
+                            placeholder="60"
                           />
                           <Tooltip>
                             <TooltipTrigger asChild>
