@@ -45,7 +45,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       exercise_library_id: "",
       sets: "",
       reps: "",
-      interval_seconds: "",
+      interval_seconds: "autosugerido",
       pse: "",
       training_method: "",
       observations: "",
@@ -66,7 +66,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         exercise_library_id: "",
         sets: "",
         reps: "",
-        interval_seconds: "",
+        interval_seconds: "autosugerido",
         pse: "",
         training_method: "",
         observations: "",
@@ -248,7 +248,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         exercise_library_id: "",
         sets: "",
         reps: "",
-        interval_seconds: "",
+        interval_seconds: "autosugerido",
         pse: "",
         training_method: "",
         observations: "",
@@ -384,12 +384,11 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
                         <Label>Int (s)</Label>
                         <div className="flex gap-2">
                           <Input
-                            type="number"
                             value={exercise.interval_seconds}
                             onChange={(e) =>
                               updateExercise(index, "interval_seconds", e.target.value)
                             }
-                            placeholder="60"
+                            placeholder="autosugerido"
                           />
                           <Tooltip>
                             <TooltipTrigger asChild>
