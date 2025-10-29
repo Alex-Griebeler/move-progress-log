@@ -54,6 +54,16 @@ export const TRAINING_METHODS = {
     indication: "Condicionamento e consistência",
     description: "Every Minute On the Minute - executar trabalho definido a cada minuto. Tempo restante é descanso. Treina gestão de fadiga e ritmo de trabalho."
   },
+  E2MOM: {
+    name: "E2MOM",
+    indication: "Volume com recuperação controlada",
+    description: "Every 2 Minutes On the Minute - executar trabalho definido a cada 2 minutos. Permite maior volume ou intensidade com recuperação adequada entre rounds."
+  },
+  E3MOM: {
+    name: "E3MOM",
+    indication: "Força e potência com recuperação completa",
+    description: "Every 3 Minutes On the Minute - executar trabalho definido a cada 3 minutos. Ideal para trabalhos de força e potência que exigem recuperação mais longa."
+  },
   FOR_TIME: {
     name: "For Time",
     indication: "Condicionamento metabólico",
