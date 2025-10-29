@@ -1,9 +1,113 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, upgrade',
+};
+
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+
+interface SessionContext {
+  prescriptionId: string;
+  students: Array<{
+    id: string;
+    name: string;
+    weight_kg?: number;
+  }>;
+  prescriptionExercises: Array<{
+    id: string;
+    exercise_name: string;
+    sets: string;
+    reps: string;
+    order_index: number;
+  }>;
+  date: string;
+  time: string;
+}
+
+let sessionContext: SessionContext | null = null;
+
+const buildInstructions = (context: SessionContext): string => {
+  const studentsInfo = context.students
+    .map(s => `  - ${s.name}${s.weight_kg ? ` (peso: ${s.weight_kg} kg)` : ' (peso não cadastrado)'}`)
+    .join('\n');
+  
+  const exercisesInfo = context.prescriptionExercises
+    .map(ex => `  ${ex.order_index + 1}. ${ex.exercise_name}: ${ex.sets} séries × ${ex.reps} reps`)
+    .join('\n');
+  
+  return `Você é um assistente especializado em registrar sessões de treino EM GRUPO.
+
+CONTEXTO DA SESSÃO:
+📅 Data: ${context.date}
+⏰ Hora: ${context.time}
+
+👥 ALUNOS PRESENTES:
+${studentsInfo}
+
+💪 EXERCÍCIOS PRESCRITOS:
+${exercisesInfo}
+
+INSTRUÇÕES:
+1. Extraia dados de MÚLTIPLOS alunos do áudio
+2. O treinador falará de forma NATURAL/MISTA
+3. Identifique sempre o nome do aluno para cada exercício
+4. Repetições são OBRIGATÓRIAS - pergunte se não foram mencionadas
+5. Séries: NULL se não mencionado (usará prescrito)
+6. Peso corporal: se aluno tem peso, use o valor; senão NULL
+7. Converta libras para kg (1 lb = 0.453592 kg)
+8. Detecte adaptações: "X substituindo Y"
+9. Confirme TODOS os dados antes de chamar a function tool`;
+};
+
+const buildTools = (context: SessionContext) => {
+  return [
+    {
+      type: "function",
+      name: "record_group_session",
+      description: "Registra sessão de treino em grupo após confirmação",
+      parameters: {
+        type: "object",
+        properties: {
+          sessions: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                student_name: {
+                  type: "string",
+                  description: `Nome do aluno: ${context.students.map(s => s.name).join(", ")}`
+                },
+                exercises: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      prescribed_exercise_name: { type: "string", nullable: true },
+                      executed_exercise_name: { type: "string" },
+                      sets: { type: "number", nullable: true },
+                      reps: { type: "number" },
+                      load_kg: { type: "number", nullable: true },
+                      load_breakdown: { type: "string" },
+                      observations: { type: "string", nullable: true },
+                      is_best_set: { type: "boolean", default: true }
+                    },
+                    required: ["executed_exercise_name", "reps", "load_breakdown"]
+                  }
+                }
+              },
+              required: ["student_name", "exercises"]
+            }
+          }
+        },
+        required: ["sessions"]
+      }
+    }
+  ];
 };
 
 serve(async (req) => {
@@ -18,24 +122,19 @@ serve(async (req) => {
     return new Response("Expected WebSocket connection", { status: 400 });
   }
 
-  console.log("Starting WebSocket connection to OpenAI Realtime API");
-
   const { socket, response } = Deno.upgradeWebSocket(req);
   let openAISocket: WebSocket | null = null;
 
   socket.onopen = async () => {
-    console.log("Client WebSocket opened");
+    console.log("Client connected");
     
     const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     if (!OPENAI_API_KEY) {
-      console.error('OPENAI_API_KEY not found');
       socket.close(1008, 'API key not configured');
       return;
     }
 
     try {
-      // Get ephemeral token from OpenAI
-      console.log("Requesting ephemeral token from OpenAI");
       const tokenResponse = await fetch("https://api.openai.com/v1/realtime/sessions", {
         method: "POST",
         headers: {
@@ -45,71 +144,13 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "gpt-4o-realtime-preview-2024-12-17",
           voice: "alloy",
-          instructions: `Você é um assistente especializado em registrar sessões de treino. 
-          
-Quando o usuário falar sobre uma sessão de treino, extraia as seguintes informações:
-- Nome do aluno
-- Data do treino (formato: YYYY-MM-DD)
-- Hora do treino (formato: HH:MM)
-- Lista de exercícios com:
-  - Nome do exercício
-  - Repetições realizadas
-  - Carga total em kg (converta libras para kg se necessário: 1 lb = 0.453592 kg)
-  - Composição detalhada da carga (ex: "35 lbs de cada lado + barra de 15 kg")
-  - Observações se houver
-
-IMPORTANTE: 
-- Sempre confirme os dados extraídos com o usuário antes de finalizar
-- Se faltar alguma informação, pergunte ao usuário
-- Converta todas as cargas para kg
-- Use formato de data YYYY-MM-DD e hora HH:MM
-- Seja preciso com os números`,
-          tools: [
-            {
-              type: "function",
-              name: "create_workout_session",
-              description: "Cria uma nova sessão de treino com os dados extraídos da fala do usuário",
-              parameters: {
-                type: "object",
-                properties: {
-                  student_name: {
-                    type: "string",
-                    description: "Nome do aluno"
-                  },
-                  date: {
-                    type: "string",
-                    description: "Data do treino no formato YYYY-MM-DD"
-                  },
-                  time: {
-                    type: "string",
-                    description: "Hora do treino no formato HH:MM"
-                  },
-                  exercises: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string" },
-                        reps: { type: "number" },
-                        load_kg: { type: "number" },
-                        load_breakdown: { type: "string" },
-                        observations: { type: "string" }
-                      },
-                      required: ["name", "reps", "load_kg"]
-                    }
-                  }
-                },
-                required: ["student_name", "date", "time", "exercises"]
-              }
-            }
-          ]
+          instructions: "Aguardando contexto da sessão...",
+          tools: []
         }),
       });
 
       if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text();
-        console.error("Failed to get ephemeral token:", errorText);
-        socket.close(1008, 'Failed to authenticate with OpenAI');
+        socket.close(1008, 'Failed to authenticate');
         return;
       }
 
@@ -117,14 +158,10 @@ IMPORTANTE:
       const ephemeralKey = tokenData.client_secret?.value;
 
       if (!ephemeralKey) {
-        console.error("No ephemeral key in response");
-        socket.close(1008, 'No ephemeral key received');
+        socket.close(1008, 'No ephemeral key');
         return;
       }
 
-      console.log("Ephemeral token received, connecting to Realtime API");
-
-      // Connect to OpenAI Realtime API with ephemeral token
       const url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
       openAISocket = new WebSocket(url, [
         "realtime",
@@ -133,59 +170,86 @@ IMPORTANTE:
       ]);
 
       openAISocket.onopen = () => {
-        console.log("Connected to OpenAI Realtime API");
+        console.log("Connected to OpenAI");
       };
 
       openAISocket.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          console.log("OpenAI message type:", message.type);
-
-          // Forward all messages to client
-          socket.send(event.data);
-        } catch (error) {
-          console.error("Error processing OpenAI message:", error);
-        }
+        socket.send(event.data);
       };
 
       openAISocket.onerror = (error) => {
-        console.error("OpenAI WebSocket error:", error);
-        socket.send(JSON.stringify({
-          type: "error",
-          error: "Connection to OpenAI failed"
-        }));
+        console.error("OpenAI error:", error);
+        socket.send(JSON.stringify({ type: "error", error: "OpenAI connection failed" }));
       };
 
       openAISocket.onclose = () => {
-        console.log("OpenAI WebSocket closed");
         socket.close();
       };
 
     } catch (error) {
-      console.error("Error connecting to OpenAI:", error);
-      socket.close(1011, 'Internal server error');
+      console.error("Error:", error);
+      socket.close(1011, 'Internal error');
     }
   };
 
-  socket.onmessage = (event) => {
+  socket.onmessage = async (event) => {
     try {
-      // Forward client messages to OpenAI
+      const message = JSON.parse(event.data);
+      
+      if (message.type === 'session.context') {
+        console.log("Received context:", message.context);
+        
+        const { data: prescription, error } = await supabaseClient
+          .from('workout_prescriptions')
+          .select(`*, prescription_exercises (id, sets, reps, order_index, exercises_library (name))`)
+          .eq('id', message.context.prescriptionId)
+          .single();
+        
+        if (error) {
+          socket.send(JSON.stringify({ type: 'error', error: 'Erro ao buscar prescrição' }));
+          return;
+        }
+        
+        sessionContext = {
+          prescriptionId: message.context.prescriptionId,
+          students: message.context.students,
+          prescriptionExercises: prescription.prescription_exercises.map((ex: any) => ({
+            id: ex.id,
+            exercise_name: ex.exercises_library.name,
+            sets: ex.sets,
+            reps: ex.reps,
+            order_index: ex.order_index
+          })),
+          date: message.context.date,
+          time: message.context.time
+        };
+        
+        if (openAISocket?.readyState === WebSocket.OPEN) {
+          openAISocket.send(JSON.stringify({
+            type: 'session.update',
+            session: {
+              instructions: buildInstructions(sessionContext),
+              tools: buildTools(sessionContext)
+            }
+          }));
+        }
+        
+        socket.send(JSON.stringify({ type: 'session.context_received' }));
+        return;
+      }
+      
       if (openAISocket?.readyState === WebSocket.OPEN) {
         openAISocket.send(event.data);
       }
     } catch (error) {
-      console.error("Error forwarding message to OpenAI:", error);
+      console.error("Error:", error);
     }
   };
 
   socket.onclose = () => {
-    console.log("Client WebSocket closed");
+    console.log("Client disconnected");
     openAISocket?.close();
-  };
-
-  socket.onerror = (error) => {
-    console.error("Client WebSocket error:", error);
-    openAISocket?.close();
+    sessionContext = null;
   };
 
   return response;

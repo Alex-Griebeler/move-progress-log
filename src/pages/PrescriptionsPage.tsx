@@ -7,6 +7,7 @@ import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog"
 import { EditPrescriptionDialog } from "@/components/EditPrescriptionDialog";
 import { AssignPrescriptionDialog } from "@/components/AssignPrescriptionDialog";
 import { AddWorkoutSessionDialog } from "@/components/AddWorkoutSessionDialog";
+import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
 import { AppHeader } from "@/components/AppHeader";
 import { PrescriptionCard } from "@/components/PrescriptionCard";
 
@@ -16,6 +17,7 @@ export default function PrescriptionsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
+  const [recordGroupDialogOpen, setRecordGroupDialogOpen] = useState(false);
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
 
   const handleEdit = (prescriptionId: string) => {
@@ -30,7 +32,7 @@ export default function PrescriptionsPage() {
 
   const handleAddSession = (prescriptionId: string) => {
     setSelectedPrescriptionId(prescriptionId);
-    setSessionDialogOpen(true);
+    setRecordGroupDialogOpen(true);
   };
 
   return (
@@ -106,6 +108,12 @@ export default function PrescriptionsPage() {
       <AddWorkoutSessionDialog
         open={sessionDialogOpen}
         onOpenChange={setSessionDialogOpen}
+        prescriptionId={selectedPrescriptionId}
+      />
+
+      <RecordGroupSessionDialog
+        open={recordGroupDialogOpen}
+        onOpenChange={setRecordGroupDialogOpen}
         prescriptionId={selectedPrescriptionId}
       />
     </div>

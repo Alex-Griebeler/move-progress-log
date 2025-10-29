@@ -73,34 +73,40 @@ export type Database = {
           created_at: string
           exercise_name: string
           id: string
+          is_best_set: boolean | null
           load_breakdown: string | null
           load_description: string | null
           load_kg: number | null
           observations: string | null
           reps: number | null
           session_id: string
+          sets: number | null
         }
         Insert: {
           created_at?: string
           exercise_name: string
           id?: string
+          is_best_set?: boolean | null
           load_breakdown?: string | null
           load_description?: string | null
           load_kg?: number | null
           observations?: string | null
           reps?: number | null
           session_id: string
+          sets?: number | null
         }
         Update: {
           created_at?: string
           exercise_name?: string
           id?: string
+          is_best_set?: boolean | null
           load_breakdown?: string | null
           load_description?: string | null
           load_kg?: number | null
           observations?: string | null
           reps?: number | null
           session_id?: string
+          sets?: number | null
         }
         Relationships: [
           {
@@ -366,6 +372,7 @@ export type Database = {
           created_at: string
           date: string
           id: string
+          prescription_id: string | null
           student_id: string
           time: string
           updated_at: string
@@ -374,6 +381,7 @@ export type Database = {
           created_at?: string
           date: string
           id?: string
+          prescription_id?: string | null
           student_id: string
           time: string
           updated_at?: string
@@ -382,11 +390,19 @@ export type Database = {
           created_at?: string
           date?: string
           id?: string
+          prescription_id?: string | null
           student_id?: string
           time?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "workout_sessions_prescription_id_fkey"
+            columns: ["prescription_id"]
+            isOneToOne: false
+            referencedRelation: "workout_prescriptions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "workout_sessions_student_id_fkey"
             columns: ["student_id"]

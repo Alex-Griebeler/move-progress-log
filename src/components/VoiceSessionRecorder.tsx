@@ -6,10 +6,26 @@ import { useToast } from "@/hooks/use-toast";
 import { AudioRecorder, encodeAudioForAPI, playAudioData } from "@/utils/VoiceRecorder";
 
 interface VoiceSessionRecorderProps {
+  prescriptionId?: string;
+  selectedStudents?: Array<{
+    id: string;
+    name: string;
+    weight_kg?: number;
+  }>;
+  date?: string;
+  time?: string;
   onSessionData: (data: any) => void;
+  onError?: (error: string) => void;
 }
 
-export function VoiceSessionRecorder({ onSessionData }: VoiceSessionRecorderProps) {
+export function VoiceSessionRecorder({ 
+  prescriptionId,
+  selectedStudents,
+  date,
+  time,
+  onSessionData,
+  onError
+}: VoiceSessionRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -49,6 +65,21 @@ export function VoiceSessionRecorder({ onSessionData }: VoiceSessionRecorderProp
 
       ws.onopen = async () => {
         console.log("WebSocket connected");
+        
+        // Se for sessão em grupo, enviar contexto primeiro
+        if (prescriptionId && selectedStudents && date && time) {
+          console.log("Sending session context");
+          ws.send(JSON.stringify({
+            type: 'session.context',
+            context: {
+              prescriptionId,
+              students: selectedStudents,
+              date,
+              time
+            }
+          }));
+        }
+        
         setIsConnecting(false);
         setIsRecording(true);
 
@@ -76,52 +107,63 @@ export function VoiceSessionRecorder({ onSessionData }: VoiceSessionRecorderProp
           const message = JSON.parse(event.data);
           console.log("Message type:", message.type);
 
-          // Handle audio response
-          if (message.type === 'response.audio.delta' && message.delta) {
-            const binaryString = atob(message.delta);
-            const bytes = new Uint8Array(binaryString.length);
-            for (let i = 0; i < binaryString.length; i++) {
-              bytes[i] = binaryString.charCodeAt(i);
-            }
-            if (audioContextRef.current) {
-              await playAudioData(audioContextRef.current, bytes);
-            }
-          }
+          switch (message.type) {
+            case 'session.context_received':
+              console.log("Server confirmed context receipt");
+              setTranscript(prev => prev + "\n✅ Contexto da sessão enviado\n");
+              break;
 
-          // Handle transcript
-          if (message.type === 'conversation.item.input_audio_transcription.completed') {
-            setTranscript(prev => prev + " " + message.transcript);
-          }
+            case 'response.audio.delta':
+              if (message.delta) {
+                const binaryString = atob(message.delta);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                  bytes[i] = binaryString.charCodeAt(i);
+                }
+                if (audioContextRef.current) {
+                  await playAudioData(audioContextRef.current, bytes);
+                }
+              }
+              break;
 
-          // Handle AI text response
-          if (message.type === 'response.text.delta') {
-            setAiResponse(prev => prev + message.delta);
-          }
+            case 'conversation.item.input_audio_transcription.completed':
+              setTranscript(prev => prev + " " + message.transcript);
+              break;
 
-          // Handle function call (session data extraction)
-          if (message.type === 'response.function_call_arguments.done') {
-            console.log("Function call completed:", message.arguments);
-            try {
-              const sessionData = JSON.parse(message.arguments);
-              onSessionData(sessionData);
-              
+            case 'response.text.delta':
+              setAiResponse(prev => prev + message.delta);
+              break;
+
+            case 'response.function_call_arguments.done':
+              console.log("Function call completed:", message.arguments);
+              try {
+                const sessionData = JSON.parse(message.arguments);
+                onSessionData(sessionData);
+                
+                toast({
+                  title: "Dados extraídos",
+                  description: "Sessão pronta para ser registrada",
+                });
+              } catch (e) {
+                console.error("Error parsing session data:", e);
+                if (onError) {
+                  onError("Erro ao processar dados da sessão");
+                }
+              }
+              break;
+
+            case 'error':
+              console.error("OpenAI error:", message.error);
+              const errorMsg = message.error?.message || "Erro na comunicação";
               toast({
-                title: "Dados extraídos",
-                description: "Sessão pronta para ser registrada",
+                title: "Erro",
+                description: errorMsg,
+                variant: "destructive",
               });
-            } catch (e) {
-              console.error("Error parsing session data:", e);
-            }
-          }
-
-          // Handle errors
-          if (message.type === 'error') {
-            console.error("OpenAI error:", message.error);
-            toast({
-              title: "Erro",
-              description: message.error?.message || "Erro na comunicação",
-              variant: "destructive",
-            });
+              if (onError) {
+                onError(errorMsg);
+              }
+              break;
           }
         } catch (error) {
           console.error("Error processing message:", error);
@@ -130,11 +172,15 @@ export function VoiceSessionRecorder({ onSessionData }: VoiceSessionRecorderProp
 
       ws.onerror = (error) => {
         console.error("WebSocket error:", error);
+        const errorMsg = "Não foi possível conectar ao servidor";
         toast({
           title: "Erro de conexão",
-          description: "Não foi possível conectar ao servidor",
+          description: errorMsg,
           variant: "destructive",
         });
+        if (onError) {
+          onError(errorMsg);
+        }
         setIsConnecting(false);
         setIsRecording(false);
       };
@@ -147,11 +193,15 @@ export function VoiceSessionRecorder({ onSessionData }: VoiceSessionRecorderProp
 
     } catch (error) {
       console.error("Error starting recording:", error);
+      const errorMsg = "Não foi possível iniciar a gravação";
       toast({
         title: "Erro",
-        description: "Não foi possível iniciar a gravação",
+        description: errorMsg,
         variant: "destructive",
       });
+      if (onError) {
+        onError(errorMsg);
+      }
       setIsConnecting(false);
     }
   };
