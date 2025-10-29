@@ -4,20 +4,33 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
-import { TRAINING_METHODS } from "@/constants/trainingMethods";
-import { Plus, Trash2, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
-import { ExerciseCombobox } from "@/components/ExerciseCombobox";
+import { Plus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { SortableExerciseItem } from "@/components/SortableExerciseItem";
 
 interface Exercise {
+  id: string;
   exercise_library_id: string;
   sets: string;
   reps: string;
@@ -43,6 +56,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
   const [objective, setObjective] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([
     {
+      id: crypto.randomUUID(),
       exercise_library_id: "",
       sets: "",
       reps: "",
@@ -60,10 +74,30 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
   const { data: exercisesLibrary } = useExercisesLibrary();
   const createPrescription = useCreatePrescription();
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setExercises((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
   const addExercise = () => {
     setExercises([
       ...exercises,
       {
+        id: crypto.randomUUID(),
         exercise_library_id: "",
         sets: "",
         reps: "",
@@ -212,6 +246,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     setObjective("");
     setExercises([
       {
+        id: crypto.randomUUID(),
         exercise_library_id: "",
         sets: "",
         reps: "",
@@ -271,207 +306,34 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
                 </Button>
               </div>
 
-              {exercises.map((exercise, index) => (
-                <div key={index} className="space-y-4 p-4 border rounded-lg bg-muted/30">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col gap-3">
-                      <span className="text-sm font-medium text-muted-foreground">
-                        Exercício {index + 1}
-                      </span>
-                      {index > 0 && (
-                        <div className="flex items-center gap-2">
-                          <Checkbox
-                            id={`group-${index}`}
-                            checked={exercise.group_with_previous}
-                            onCheckedChange={(checked) =>
-                              updateExercise(index, "group_with_previous", checked === true)
-                            }
-                          />
-                          <Label
-                            htmlFor={`group-${index}`}
-                            className="text-sm font-normal cursor-pointer"
-                          >
-                            Agrupar com exercício anterior
-                          </Label>
-                        </div>
-                      )}
-                    </div>
-                    {exercises.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeExercise(index)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Exercício *</Label>
-                      <ExerciseCombobox
-                        exercises={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
-                        value={exercise.exercise_library_id}
-                        onValueChange={(value) => updateExercise(index, "exercise_library_id", value)}
-                        placeholder="Digite para buscar..."
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="space-y-2">
-                        <Label>Sets *</Label>
-                        <Input
-                          value={exercise.sets}
-                          onChange={(e) => updateExercise(index, "sets", e.target.value)}
-                          placeholder="4"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Reps *</Label>
-                        <Input
-                          value={exercise.reps}
-                          onChange={(e) => updateExercise(index, "reps", e.target.value)}
-                          placeholder="10-8"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Int (s)</Label>
-                        <Input
-                          type="number"
-                          value={exercise.interval_seconds}
-                          onChange={(e) =>
-                            updateExercise(index, "interval_seconds", e.target.value)
-                          }
-                          placeholder="60"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Carga</Label>
-                      <Input
-                        value={exercise.pse}
-                        onChange={(e) => updateExercise(index, "pse", e.target.value)}
-                        placeholder="Ex: 2RR, 80kg, ~85%"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Método</Label>
-                      <TooltipProvider>
-                        <Select
-                          value={exercise.training_method}
-                          onValueChange={(value) =>
-                            updateExercise(index, "training_method", value)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione método" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(TRAINING_METHODS).map(([key, method]) => (
-                              <Tooltip key={key}>
-                                <TooltipTrigger asChild>
-                                  <SelectItem value={key}>{method.name}</SelectItem>
-                                </TooltipTrigger>
-                                <TooltipContent side="left" className="max-w-sm">
-                                  <p className="font-semibold">{method.indication}</p>
-                                  <p className="text-xs mt-1">{method.description}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </TooltipProvider>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Observações</Label>
-                    <Textarea
-                      value={exercise.observations}
-                      onChange={(e) => updateExercise(index, "observations", e.target.value)}
-                      placeholder="Controle da pelve, carga leve..."
-                      rows={2}
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={exercises.map((ex) => ex.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {exercises.map((exercise, index) => (
+                    <SortableExerciseItem
+                      key={exercise.id}
+                      exercise={exercise}
+                      index={index}
+                      total={exercises.length}
+                      exercisesLibrary={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
+                      onUpdate={(field, value) => updateExercise(index, field, value)}
+                      onRemove={() => removeExercise(index)}
+                      onToggleAdaptations={() => toggleAdaptations(index)}
+                      onAddAdaptation={() => addAdaptation(index)}
+                      onRemoveAdaptation={(adaptIndex) => removeAdaptation(index, adaptIndex)}
+                      onUpdateAdaptation={(adaptIndex, exerciseId) => updateAdaptation(index, adaptIndex, exerciseId)}
+                      onSuggestRegressions={() => suggestRegressions(index)}
+                      loadingRegressions={loadingRegressions === index}
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => toggleAdaptations(index)}
-                        className="gap-2 flex-1"
-                      >
-                        {exercise.showAdaptations ? (
-                          <ChevronUp className="h-4 w-4" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4" />
-                        )}
-                        Regressões ({exercise.adaptations.length}/3)
-                      </Button>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => suggestRegressions(index)}
-                            disabled={!exercise.exercise_library_id || loadingRegressions === index}
-                            className="gap-2"
-                          >
-                            <Sparkles className="h-4 w-4" />
-                            {loadingRegressions === index ? "..." : "IA"}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Sugerir regressões com IA</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-
-                    {exercise.showAdaptations && (
-                      <div className="space-y-2 pl-4 border-l-2">
-                        {exercise.adaptations.map((adaptation, adaptIndex) => (
-                          <div key={adaptIndex} className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground min-w-[100px]">
-                              Regressão {adaptIndex + 1}
-                            </span>
-                            <ExerciseCombobox
-                              exercises={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
-                              value={adaptation.exercise_library_id}
-                              onValueChange={(value) => updateAdaptation(index, adaptIndex, value)}
-                              placeholder="Digite para buscar..."
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeAdaptation(index, adaptIndex)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-
-                        {exercise.adaptations.length < 3 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => addAdaptation(index)}
-                            className="gap-2"
-                          >
-                            <Plus className="h-4 w-4" />
-                            Adicionar Regressão
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+                  ))}
+                </SortableContext>
+              </DndContext>
             </div>
           </div>
         </ScrollArea>
