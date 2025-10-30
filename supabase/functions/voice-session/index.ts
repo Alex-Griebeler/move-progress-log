@@ -194,9 +194,11 @@ serve(async (req) => {
   socket.onmessage = async (event) => {
     try {
       const message = JSON.parse(event.data);
+      console.log("📨 Received message type:", message.type);
       
       if (message.type === 'session.context') {
-        console.log("Received context, initializing OpenAI session...");
+        console.log("✅ Received context, initializing OpenAI session...");
+        console.log("Context data:", JSON.stringify(message.context));
         
         const { data: prescription, error } = await supabaseClient
           .from('workout_prescriptions')
