@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mic, MicOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { AudioRecorder, encodeAudioForAPI, playAudioData } from "@/utils/VoiceRecorder";
 import { supabase } from "@/integrations/supabase/client";
 
 interface VoiceSessionRecorderProps {
@@ -29,263 +28,117 @@ export function VoiceSessionRecorder({
   onError,
   autoStart = false
 }: VoiceSessionRecorderProps) {
-  const [isInitializing, setIsInitializing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [aiResponse, setAiResponse] = useState("");
   const { toast } = useToast();
   
-  const wsRef = useRef<WebSocket | null>(null);
-  const recorderRef = useRef<AudioRecorder | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-
-  const projectId = "zrgfrdmywxlemcuiqtqg";
-
-  useEffect(() => {
-    audioContextRef.current = new AudioContext({ sampleRate: 24000 });
-    
-    return () => {
-      stopRecording();
-      audioContextRef.current?.close();
-    };
-  }, []);
-
-  // Auto-start recording if autoStart is true
-  useEffect(() => {
-    if (autoStart && !isRecording && !isInitializing && !isConnecting && !isRequestingPermission) {
-      console.log("🚀 Auto-starting recording...");
-      startRecording();
-    }
-  }, [autoStart]);
-
-  const resetAllStates = () => {
-    console.log("🔄 Resetting all states");
-    setIsInitializing(false);
-    setIsRequestingPermission(false);
-    setIsConnecting(false);
-    setIsRecording(false);
-    
-    if (recorderRef.current) {
-      recorderRef.current.stop();
-      recorderRef.current = null;
-    }
-    
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-  };
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const startRecording = async () => {
-    // Prevenir cliques múltiplos
-    if (isInitializing || isRecording || isConnecting || isRequestingPermission) {
-      console.log("⚠️ Already initializing, ignoring click");
+    if (isRecording || isProcessing) {
+      console.log("⚠️ Already recording or processing");
       return;
     }
 
-    console.log("🎬 Starting recording process...");
-    setIsInitializing(true);
-
     try {
-      console.log("1️⃣ Clearing previous state...");
+      console.log("🎤 Starting audio recording...");
       setTranscript("");
-      setAiResponse("");
-
-      // 1️⃣ PRIMEIRO: Solicitar permissão do microfone
-      console.log("2️⃣ Requesting microphone permission...");
-      setIsRequestingPermission(true);
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log("✅ Microphone permission granted");
-        stream.getTracks().forEach(track => track.stop());
-      } catch (micError) {
-        console.error("❌ Microphone permission denied:", micError);
-        throw new Error("Permissão de microfone necessária para gravar");
-      } finally {
-        setIsRequestingPermission(false);
-      }
-
-      // 2️⃣ SEGUNDO: Verificar autenticação
-      console.log("3️⃣ Checking authentication...");
-      setIsConnecting(true);
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      if (sessionError || !session) {
-        console.error("❌ Authentication failed:", sessionError);
-        throw new Error("Você precisa estar autenticado para gravar");
-      }
-      console.log("✅ Authentication verified");
-
-      // 3️⃣ TERCEIRO: Criar WebSocket (agora que tudo está confirmado)
-      console.log("4️⃣ Creating WebSocket connection...");
-      const wsUrl = `wss://${projectId}.supabase.co/functions/v1/voice-session?token=${session.access_token}`;
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+        } 
+      });
       
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
 
-      let connectionTimeout: NodeJS.Timeout;
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
 
-      ws.onopen = async () => {
-        clearTimeout(connectionTimeout);
-        console.log("✅ WebSocket connected successfully");
+      mediaRecorder.onstop = async () => {
+        console.log("🔄 Processing audio...");
+        setIsProcessing(true);
+        setIsRecording(false);
         
-        // Se for sessão em grupo, enviar contexto primeiro
-        if (prescriptionId && selectedStudents && date && time) {
-          console.log("📤 Sending session context...");
-          ws.send(JSON.stringify({
-            type: 'session.context',
-            context: {
+        try {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          
+          // Converter para base64
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          
+          await new Promise((resolve, reject) => {
+            reader.onloadend = resolve;
+            reader.onerror = reject;
+          });
+          
+          const base64Audio = (reader.result as string).split(',')[1];
+          
+          // Enviar para processamento
+          const { data, error } = await supabase.functions.invoke('process-voice-session', {
+            body: {
+              audio: base64Audio,
               prescriptionId,
               students: selectedStudents,
               date,
               time
             }
-          }));
-        }
-        
-        setIsConnecting(false);
-        setIsInitializing(false);
-        setIsRecording(true);
+          });
 
-        // Start audio recording
-        console.log("🎤 Starting audio recording...");
-        recorderRef.current = new AudioRecorder((audioData) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            const encoded = encodeAudioForAPI(audioData);
-            ws.send(JSON.stringify({
-              type: 'input_audio_buffer.append',
-              audio: encoded
-            }));
+          if (error) {
+            throw error;
           }
-        });
 
-        await recorderRef.current.start();
-        console.log("✅ Recording started successfully");
-        
-        toast({
-          title: "Gravação iniciada",
-          description: "Fale sobre a sessão de treino",
-        });
-      };
-
-      // Timeout de 10 segundos
-      connectionTimeout = setTimeout(() => {
-        if (ws.readyState !== WebSocket.OPEN) {
-          console.error("❌ WebSocket connection timeout");
-          ws.close();
-          resetAllStates();
+          console.log("✅ Processing completed:", data);
+          
+          if (data.success) {
+            setTranscript(data.transcription);
+            onSessionData(data.data);
+            
+            toast({
+              title: "Gravação processada",
+              description: "Revise os dados e confirme para salvar",
+            });
+          } else {
+            throw new Error(data.error || 'Erro ao processar gravação');
+          }
+        } catch (error) {
+          console.error("❌ Error processing:", error);
+          const errorMsg = error instanceof Error ? error.message : "Erro ao processar gravação";
           toast({
-            title: "Timeout",
-            description: "Não foi possível conectar ao servidor",
+            title: "Erro",
+            description: errorMsg,
             variant: "destructive",
           });
           if (onError) {
-            onError("Timeout na conexão");
+            onError(errorMsg);
           }
-        }
-      }, 10000);
-
-      ws.onmessage = async (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          console.log("Message type:", message.type);
-
-          switch (message.type) {
-            case 'session.context_received':
-              console.log("Server confirmed context receipt");
-              setTranscript(prev => prev + "\n✅ Contexto da sessão enviado\n");
-              break;
-
-            case 'response.audio.delta':
-              if (message.delta) {
-                const binaryString = atob(message.delta);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) {
-                  bytes[i] = binaryString.charCodeAt(i);
-                }
-                if (audioContextRef.current) {
-                  await playAudioData(audioContextRef.current, bytes);
-                }
-              }
-              break;
-
-            case 'conversation.item.input_audio_transcription.completed':
-              setTranscript(prev => prev + " " + message.transcript);
-              break;
-
-            case 'response.text.delta':
-              setAiResponse(prev => prev + message.delta);
-              break;
-
-            case 'session.data_extracted':
-              console.log("Session data extracted:", message.data);
-              try {
-                onSessionData({ sessions: message.data });
-                
-                toast({
-                  title: "Dados extraídos",
-                  description: "Revise os dados e confirme para salvar",
-                });
-              } catch (e) {
-                console.error("Error processing session data:", e);
-                if (onError) {
-                  onError("Erro ao processar dados da sessão");
-                }
-              }
-              break;
-
-            case 'response.function_call_arguments.done':
-              console.log("Function call completed:", message.arguments);
-              // Fallback para compatibilidade
-              break;
-
-            case 'error':
-              console.error("OpenAI error:", message.error);
-              const errorMsg = message.error?.message || "Erro na comunicação";
-              toast({
-                title: "Erro",
-                description: errorMsg,
-                variant: "destructive",
-              });
-              if (onError) {
-                onError(errorMsg);
-              }
-              break;
-          }
-        } catch (error) {
-          console.error("Error processing message:", error);
+        } finally {
+          setIsProcessing(false);
+          stream.getTracks().forEach(track => track.stop());
         }
       };
 
-      ws.onerror = (error) => {
-        clearTimeout(connectionTimeout);
-        console.error("❌ WebSocket error:", error);
-        resetAllStates();
-        
-        const errorMsg = "Não foi possível conectar ao servidor";
-        toast({
-          title: "Erro de conexão",
-          description: errorMsg,
-          variant: "destructive",
-        });
-        if (onError) {
-          onError(errorMsg);
-        }
-      };
-
-      ws.onclose = () => {
-        clearTimeout(connectionTimeout);
-        console.log("🔌 WebSocket closed");
-        resetAllStates();
-      };
-
-    } catch (error) {
-      console.error("❌ Error in startRecording:", error);
-      resetAllStates();
+      mediaRecorder.start();
+      setIsRecording(true);
       
+      toast({
+        title: "Gravação iniciada",
+        description: "Fale sobre a sessão de treino. Clique em 'Parar' quando terminar.",
+      });
+      
+    } catch (error) {
+      console.error("❌ Error starting recording:", error);
       const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
       toast({
         title: "Erro",
@@ -299,20 +152,9 @@ export function VoiceSessionRecorder({
   };
 
   const stopRecording = () => {
-    recorderRef.current?.stop();
-    recorderRef.current = null;
-    
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.close();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
     }
-    wsRef.current = null;
-    
-    setIsRecording(false);
-    
-    toast({
-      title: "Gravação finalizada",
-      description: "Processando dados...",
-    });
   };
 
   return (
@@ -325,20 +167,15 @@ export function VoiceSessionRecorder({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex justify-center">
-          {!isRecording && !isConnecting && !isRequestingPermission && !isInitializing ? (
+          {!isRecording && !isProcessing ? (
             <Button onClick={startRecording} size="lg" className="gap-2">
               <Mic className="h-5 w-5" />
               Iniciar Gravação
             </Button>
-          ) : isRequestingPermission ? (
+          ) : isProcessing ? (
             <Button disabled size="lg" className="gap-2">
               <Loader2 className="h-5 w-5 animate-spin" />
-              Aguardando permissão do microfone...
-            </Button>
-          ) : isConnecting ? (
-            <Button disabled size="lg" className="gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Conectando...
+              Processando gravação...
             </Button>
           ) : (
             <Button onClick={stopRecording} variant="destructive" size="lg" className="gap-2">
@@ -357,14 +194,7 @@ export function VoiceSessionRecorder({
         {transcript && (
           <div className="space-y-2">
             <h4 className="font-semibold text-sm">Transcrição:</h4>
-            <p className="text-sm bg-muted p-3 rounded-md">{transcript}</p>
-          </div>
-        )}
-
-        {aiResponse && (
-          <div className="space-y-2">
-            <h4 className="font-semibold text-sm">Assistente:</h4>
-            <p className="text-sm bg-primary/10 p-3 rounded-md">{aiResponse}</p>
+            <p className="text-sm bg-muted p-3 rounded-md whitespace-pre-wrap">{transcript}</p>
           </div>
         )}
       </CardContent>
