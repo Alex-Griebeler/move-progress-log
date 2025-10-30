@@ -4,6 +4,7 @@ import RecoveryProtocolCard from "@/components/RecoveryProtocolCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AppHeader } from "@/components/AppHeader";
 import { Heart, Sparkles } from "lucide-react";
 
 const RecoveryProtocolsPage = () => {
@@ -17,21 +18,14 @@ const RecoveryProtocolsPage = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            Protocolos de Recuperação
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Biblioteca completa de protocolos baseados em evidências científicas
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-primary">
-          <Heart className="h-8 w-8" />
-          <Sparkles className="h-6 w-6" />
-        </div>
-      </div>
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <AppHeader
+          title="Protocolos de Recuperação"
+          subtitle="Biblioteca completa baseada em evidências científicas"
+        />
+
+        <div className="space-y-6">
 
       {isLoading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -91,6 +85,8 @@ const RecoveryProtocolsPage = () => {
           ))}
         </Tabs>
       )}
+        </div>
+      </div>
     </div>
   );
 };
