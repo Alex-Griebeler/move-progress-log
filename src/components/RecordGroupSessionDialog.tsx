@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 interface RecordGroupSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  prescriptionId: string | null;
+  prescriptionId?: string | null;
 }
 
 type DialogState = 'selecting' | 'recording' | 'processing' | 'preview';

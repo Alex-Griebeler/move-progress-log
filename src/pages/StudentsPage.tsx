@@ -4,12 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2 } from "lucide-react";
+import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import { AddStudentDialog } from "@/components/AddStudentDialog";
 import { GenerateInviteLinkDialog } from "@/components/GenerateInviteLinkDialog";
+import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
+import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
 import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
 import {
@@ -31,6 +33,9 @@ const StudentsPage = () => {
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [recordingStudentId, setRecordingStudentId] = useState<string | null>(null);
+  const [recordingStudentName, setRecordingStudentName] = useState<string>("");
+  const [isGroupSessionDialogOpen, setIsGroupSessionDialogOpen] = useState(false);
 
   const handleDelete = async (id: string) => {
     try {
@@ -53,6 +58,10 @@ const StudentsPage = () => {
               <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Aluno
+              </Button>
+              <Button variant="default" onClick={() => setIsGroupSessionDialogOpen(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Sessão em Grupo
               </Button>
               <Button variant="outline" onClick={() => setIsInviteDialogOpen(true)}>
                 <Link2 className="h-4 w-4 mr-2" />
@@ -125,6 +134,16 @@ const StudentsPage = () => {
                       Detalhes
                     </Button>
                     <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setRecordingStudentId(student.id);
+                        setRecordingStudentName(student.name);
+                      }}
+                    >
+                      <Mic className="h-4 w-4" />
+                    </Button>
+                    <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setEditingStudent(student)}
@@ -172,6 +191,24 @@ const StudentsPage = () => {
       <GenerateInviteLinkDialog
         open={isInviteDialogOpen}
         onOpenChange={setIsInviteDialogOpen}
+      />
+
+      <RecordIndividualSessionDialog
+        open={!!recordingStudentId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRecordingStudentId(null);
+            setRecordingStudentName("");
+          }
+        }}
+        studentId={recordingStudentId || ""}
+        studentName={recordingStudentName}
+      />
+
+      <RecordGroupSessionDialog
+        open={isGroupSessionDialogOpen}
+        onOpenChange={setIsGroupSessionDialogOpen}
+        prescriptionId={null}
       />
 
       <AlertDialog open={!!deletingStudentId} onOpenChange={(open) => !open && setDeletingStudentId(null)}>
