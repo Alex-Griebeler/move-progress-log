@@ -102,36 +102,79 @@ Deno.serve(async (req) => {
       max_heart_rate = 220 - age;
     }
 
-    // Create student
-    const { data: student, error: studentError } = await supabaseClient
+    // Check if student already exists for this trainer
+    const { data: existingStudent } = await supabaseClient
       .from('students')
-      .insert({
-        trainer_id: invite.trainer_id,
-        name: student_data.name,
-        birth_date: student_data.birth_date || null,
-        weight_kg: student_data.weight_kg || null,
-        height_cm: student_data.height_cm || null,
-        fitness_level: student_data.fitness_level || null,
-        objectives: student_data.objectives || null,
-        limitations: student_data.limitations || null,
-        injury_history: student_data.injury_history || null,
-        preferences: student_data.preferences || null,
-        weekly_sessions_proposed: student_data.weekly_sessions_proposed || 2,
-        avatar_url,
-        max_heart_rate,
-      })
-      .select()
-      .single();
+      .select('id, avatar_url')
+      .eq('trainer_id', invite.trainer_id)
+      .ilike('name', student_data.name.trim())
+      .maybeSingle();
 
-    if (studentError) {
-      console.error('Student creation error:', studentError);
-      return new Response(
-        JSON.stringify({ error: studentError.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+    let student;
+    if (existingStudent) {
+      // Update existing student
+      console.log(`Updating existing student: ${existingStudent.id}`);
+      const { data: updatedStudent, error: updateError } = await supabaseClient
+        .from('students')
+        .update({
+          birth_date: student_data.birth_date || null,
+          weight_kg: student_data.weight_kg || null,
+          height_cm: student_data.height_cm || null,
+          fitness_level: student_data.fitness_level || null,
+          objectives: student_data.objectives || null,
+          limitations: student_data.limitations || null,
+          injury_history: student_data.injury_history || null,
+          preferences: student_data.preferences || null,
+          weekly_sessions_proposed: student_data.weekly_sessions_proposed || 2,
+          avatar_url: avatar_url || existingStudent.avatar_url,
+          max_heart_rate,
+        })
+        .eq('id', existingStudent.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Student update error:', updateError);
+        return new Response(
+          JSON.stringify({ error: updateError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+      student = updatedStudent;
+      console.log(`Student updated: ${student.id}`);
+    } else {
+      // Create new student
+      console.log(`Creating new student`);
+      const { data: newStudent, error: studentError } = await supabaseClient
+        .from('students')
+        .insert({
+          trainer_id: invite.trainer_id,
+          name: student_data.name,
+          birth_date: student_data.birth_date || null,
+          weight_kg: student_data.weight_kg || null,
+          height_cm: student_data.height_cm || null,
+          fitness_level: student_data.fitness_level || null,
+          objectives: student_data.objectives || null,
+          limitations: student_data.limitations || null,
+          injury_history: student_data.injury_history || null,
+          preferences: student_data.preferences || null,
+          weekly_sessions_proposed: student_data.weekly_sessions_proposed || 2,
+          avatar_url,
+          max_heart_rate,
+        })
+        .select()
+        .single();
+
+      if (studentError) {
+        console.error('Student creation error:', studentError);
+        return new Response(
+          JSON.stringify({ error: studentError.message }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+      student = newStudent;
+      console.log(`Student created: ${student.id}`);
     }
-
-    console.log(`Student created: ${student.id}`);
 
     // Mark invite as used
     await supabaseClient
