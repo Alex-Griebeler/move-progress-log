@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Dumbbell, X, Clock, Loader2 } from "lucide-react";
+import { Plus, Dumbbell, X, Clock, Loader2, FileEdit } from "lucide-react";
 import { toast } from "sonner";
 import { useGetOrCreateStudent } from "@/hooks/useStudents";
 import { useCreateWorkout } from "@/hooks/useWorkouts";
@@ -126,8 +126,8 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="gradient" size="lg" className="gap-2">
-          <Plus className="h-5 w-5" />
-          Registrar Sessão
+          <FileEdit className="h-5 w-5" />
+          Registrar Manualmente
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
