@@ -29,6 +29,7 @@ export function VoiceSessionRecorder({
 }: VoiceSessionRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isRequestingPermission, setIsRequestingPermission] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const { toast } = useToast();
@@ -50,34 +51,42 @@ export function VoiceSessionRecorder({
 
   const startRecording = async () => {
     try {
-      setIsConnecting(true);
       setTranscript("");
       setAiResponse("");
 
-      // Get authentication token
+      // 1️⃣ PRIMEIRO: Solicitar permissão do microfone
+      setIsRequestingPermission(true);
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Parar o stream imediatamente (só queremos confirmar permissão)
+        stream.getTracks().forEach(track => track.stop());
+      } catch (micError) {
+        throw new Error("Permissão de microfone necessária para gravar");
+      } finally {
+        setIsRequestingPermission(false);
+      }
+
+      // 2️⃣ SEGUNDO: Verificar autenticação
+      setIsConnecting(true);
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
       if (sessionError || !session) {
-        toast({
-          title: "Erro de autenticação",
-          description: "Você precisa estar autenticado para gravar",
-          variant: "destructive",
-        });
-        setIsConnecting(false);
-        return;
+        throw new Error("Você precisa estar autenticado para gravar");
       }
 
-      // Request microphone permission first
-      await navigator.mediaDevices.getUserMedia({ audio: true });
-
-      // Connect to WebSocket with authentication token as query parameter
+      // 3️⃣ TERCEIRO: Criar WebSocket (agora que tudo está confirmado)
       const wsUrl = `wss://${projectId}.supabase.co/functions/v1/voice-session?token=${session.access_token}`;
       console.log("Connecting to WebSocket...");
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
+      // Adicionar timeout de 5 segundos
+      let connectionTimeout: NodeJS.Timeout;
+
       ws.onopen = async () => {
+        clearTimeout(connectionTimeout); // Cancelar timeout se conectou
         console.log("WebSocket connected");
         
         // Se for sessão em grupo, enviar contexto primeiro
@@ -115,6 +124,23 @@ export function VoiceSessionRecorder({
           description: "Fale sobre a sessão de treino",
         });
       };
+
+      // Adicionar timeout de 5 segundos
+      connectionTimeout = setTimeout(() => {
+        if (ws.readyState !== WebSocket.OPEN) {
+          ws.close();
+          setIsConnecting(false);
+          setIsRecording(false);
+          toast({
+            title: "Timeout",
+            description: "Não foi possível conectar ao servidor",
+            variant: "destructive",
+          });
+          if (onError) {
+            onError("Timeout na conexão");
+          }
+        }
+      }, 5000);
 
       ws.onmessage = async (event) => {
         try {
@@ -185,7 +211,19 @@ export function VoiceSessionRecorder({
       };
 
       ws.onerror = (error) => {
+        clearTimeout(connectionTimeout); // Limpar timeout se houver erro
         console.error("WebSocket error:", error);
+        
+        // Reset COMPLETO do estado
+        setIsConnecting(false);
+        setIsRecording(false);
+        
+        // Parar gravação se existir
+        if (recorderRef.current) {
+          recorderRef.current.stop();
+          recorderRef.current = null;
+        }
+        
         const errorMsg = "Não foi possível conectar ao servidor";
         toast({
           title: "Erro de conexão",
@@ -195,19 +233,31 @@ export function VoiceSessionRecorder({
         if (onError) {
           onError(errorMsg);
         }
-        setIsConnecting(false);
-        setIsRecording(false);
       };
 
       ws.onclose = () => {
+        clearTimeout(connectionTimeout); // Limpar timeout ao fechar
         console.log("WebSocket closed");
+        
+        // Reset COMPLETO do estado
         setIsRecording(false);
         setIsConnecting(false);
+        
+        if (recorderRef.current) {
+          recorderRef.current.stop();
+          recorderRef.current = null;
+        }
       };
 
     } catch (error) {
       console.error("Error starting recording:", error);
-      const errorMsg = "Não foi possível iniciar a gravação";
+      
+      // Reset completo do estado em QUALQUER erro
+      setIsRequestingPermission(false);
+      setIsConnecting(false);
+      setIsRecording(false);
+      
+      const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
       toast({
         title: "Erro",
         description: errorMsg,
@@ -216,7 +266,6 @@ export function VoiceSessionRecorder({
       if (onError) {
         onError(errorMsg);
       }
-      setIsConnecting(false);
     }
   };
 
@@ -247,10 +296,15 @@ export function VoiceSessionRecorder({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex justify-center">
-          {!isRecording && !isConnecting ? (
+          {!isRecording && !isConnecting && !isRequestingPermission ? (
             <Button onClick={startRecording} size="lg" className="gap-2">
               <Mic className="h-5 w-5" />
               Iniciar Gravação
+            </Button>
+          ) : isRequestingPermission ? (
+            <Button disabled size="lg" className="gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Aguardando permissão do microfone...
             </Button>
           ) : isConnecting ? (
             <Button disabled size="lg" className="gap-2">
