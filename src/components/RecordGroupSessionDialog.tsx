@@ -427,7 +427,7 @@ export function RecordGroupSessionDialog({
       const currentWeekday = weekdayMap[currentDate.getDay()];
       const currentTime = currentDate.toTimeString().slice(0, 5);
       
-      // Encontrar atribuições para hoje e horário próximo (±30 min)
+      // Encontrar atribuições para hoje e horário próximo (±5 min)
       const relevantAssignments = assignments.filter(assignment => {
         const customAdaptations = assignment.custom_adaptations as any;
         if (!customAdaptations) return false;
@@ -436,14 +436,14 @@ export function RecordGroupSessionDialog({
         const hasWeekday = customAdaptations.weekdays?.includes(currentWeekday);
         if (!hasWeekday) return false;
         
-        // Verificar se o horário está próximo (±30 minutos)
+        // Verificar se o horário está próximo (±5 minutos)
         if (customAdaptations.time) {
           const [assignedHour, assignedMin] = customAdaptations.time.split(':').map(Number);
           const [currentHour, currentMin] = currentTime.split(':').map(Number);
           const assignedMinutes = assignedHour * 60 + assignedMin;
           const currentMinutes = currentHour * 60 + currentMin;
           const diffMinutes = Math.abs(assignedMinutes - currentMinutes);
-          return diffMinutes <= 30;
+          return diffMinutes <= 5;
         }
         
         return true;
