@@ -16,14 +16,49 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const getErrorMessage = (error: any): string => {
+    const message = error.message.toLowerCase();
+    
+    if (message.includes('email') && message.includes('already')) {
+      return "Este email já está cadastrado. Tente fazer login ou use outro email.";
+    }
+    if (message.includes('invalid email')) {
+      return "Email inválido. Verifique o formato do email.";
+    }
+    if (message.includes('password') && message.includes('short')) {
+      return "A senha deve ter pelo menos 6 caracteres.";
+    }
+    if (message.includes('invalid login credentials')) {
+      return "Email ou senha incorretos. Verifique seus dados e tente novamente.";
+    }
+    if (message.includes('email not confirmed')) {
+      return "Email não confirmado. Verifique sua caixa de entrada.";
+    }
+    if (message.includes('too many requests')) {
+      return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+    }
+    
+    return error.message;
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     if (!email || !password || !fullName) {
       toast({
-        title: "Erro",
-        description: "Por favor, preencha todos os campos.",
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha todos os campos para continuar.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: "Senha muito curta",
+        description: "A senha deve ter pelo menos 6 caracteres.",
         variant: "destructive",
       });
       setLoading(false);
@@ -46,13 +81,13 @@ export default function AuthPage() {
     if (error) {
       toast({
         title: "Erro no cadastro",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Cadastro realizado!",
-        description: "Você já pode fazer login.",
+        title: "✅ Cadastro realizado com sucesso!",
+        description: "Você já pode fazer login e começar a usar o sistema.",
       });
       setEmail("");
       setPassword("");
@@ -66,8 +101,8 @@ export default function AuthPage() {
 
     if (!email || !password) {
       toast({
-        title: "Erro",
-        description: "Por favor, preencha email e senha.",
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha email e senha para continuar.",
         variant: "destructive",
       });
       setLoading(false);
@@ -84,13 +119,13 @@ export default function AuthPage() {
     if (error) {
       toast({
         title: "Erro no login",
-        description: error.message,
+        description: getErrorMessage(error),
         variant: "destructive",
       });
     } else {
       toast({
-        title: "Login realizado!",
-        description: "Bem-vindo de volta.",
+        title: "✅ Login realizado com sucesso!",
+        description: "Redirecionando para o sistema...",
       });
       navigate("/");
     }

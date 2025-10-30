@@ -91,7 +91,9 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
         exercises: validExercises,
       });
       
-      toast.success(`Sessão registrada com sucesso! ${validExercises.length} exercícios salvos`);
+      toast.success(`✅ Sessão registrada com sucesso!`, {
+        description: `${validExercises.length} exercícios foram salvos para ${studentName}.`
+      });
       
       // Reset form
       setStudentName("");
@@ -105,9 +107,17 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
       
       // Detectar erro de duplicata
       if (error.message?.includes('duplicate key') || error.code === '23505') {
-        toast.error("Já existe uma sessão registrada para este aluno neste horário");
+        toast.error("Sessão duplicada", {
+          description: "Já existe uma sessão registrada para este aluno neste horário. Altere a data/hora ou edite a sessão existente."
+        });
+      } else if (error.message?.includes('network')) {
+        toast.error("Erro de conexão", {
+          description: "Verifique sua internet e tente novamente."
+        });
       } else {
-        toast.error(error.message || "Erro ao registrar sessão");
+        toast.error("Erro ao registrar sessão", {
+          description: error.message || "Tente novamente ou contate o suporte."
+        });
       }
     }
   };

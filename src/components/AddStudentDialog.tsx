@@ -141,13 +141,25 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
         height_cm: data.height_cm,
       });
       
-      toast.success("Aluno cadastrado com sucesso");
+      toast.success(`✅ ${data.name} foi cadastrado com sucesso!`, {
+        description: "Agora você pode criar treinos e prescrições para este aluno."
+      });
       form.reset();
       setAvatarFile(null);
       setAvatarPreview(null);
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "Erro ao cadastrar aluno");
+      const errorMessage = error.message?.includes('duplicate') 
+        ? "Este aluno já está cadastrado no sistema."
+        : error.message?.includes('network')
+        ? "Erro de conexão. Verifique sua internet e tente novamente."
+        : "Não foi possível cadastrar o aluno. Tente novamente.";
+      
+      toast.error(errorMessage, {
+        description: error.message && !errorMessage.includes(error.message) 
+          ? `Detalhes: ${error.message}` 
+          : undefined
+      });
     } finally {
       setIsUploadingAvatar(false);
     }
