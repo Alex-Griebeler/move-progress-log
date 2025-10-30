@@ -667,6 +667,77 @@ export type Database = {
           },
         ]
       }
+      student_observations: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          exercise_id: string | null
+          id: string
+          is_resolved: boolean | null
+          observation_text: string
+          resolved_at: string | null
+          session_id: string | null
+          severity: string | null
+          student_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          exercise_id?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          observation_text: string
+          resolved_at?: string | null
+          session_id?: string | null
+          severity?: string | null
+          student_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          exercise_id?: string | null
+          id?: string
+          is_resolved?: boolean | null
+          observation_text?: string
+          resolved_at?: string | null
+          session_id?: string | null
+          severity?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_observations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "trainer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_observations_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_observations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "workout_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_observations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           avatar_url: string | null

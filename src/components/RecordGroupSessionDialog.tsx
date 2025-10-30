@@ -36,6 +36,11 @@ interface SessionData {
   sessions: Array<{
     student_name: string;
     auto_added?: boolean;
+    clinical_observations?: Array<{
+      observation_text: string;
+      category: 'dor' | 'mobilidade' | 'força' | 'técnica' | 'geral';
+      severity: 'baixa' | 'média' | 'alta';
+    }>;
     exercises: Array<{
       prescribed_exercise_name?: string | null;
       executed_exercise_name: string;
@@ -225,6 +230,52 @@ export function RecordGroupSessionDialog({
       time,
       sessions: sessionsToSave as any
     });
+
+    // Salvar observações clínicas
+    for (const session of extractedData.sessions) {
+      if (session.clinical_observations && session.clinical_observations.length > 0) {
+        const student = selectedStudents.find(
+          s => s.name.toLowerCase() === session.student_name.toLowerCase()
+        );
+        
+        if (student) {
+          // Buscar o session_id recém-criado
+          const { data: sessionData } = await supabase
+            .from('workout_sessions')
+            .select('id')
+            .eq('student_id', student.id)
+            .eq('date', date)
+            .eq('time', time)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+          
+          if (sessionData) {
+            const observationsToInsert = session.clinical_observations.map(obs => ({
+              student_id: student.id,
+              observation_text: obs.observation_text,
+              category: obs.category,
+              severity: obs.severity,
+              session_id: sessionData.id,
+              is_resolved: false
+            }));
+            
+            const { error } = await supabase
+              .from('student_observations')
+              .insert(observationsToInsert);
+              
+            if (error) {
+              console.error('Error saving clinical observations:', error);
+              toast({
+                title: "Aviso",
+                description: `Observações clínicas de ${student.name} não foram salvas`,
+                variant: "destructive"
+              });
+            }
+          }
+        }
+      }
+    }
 
     // Reset e fechar
     setSelectedStudents([]);

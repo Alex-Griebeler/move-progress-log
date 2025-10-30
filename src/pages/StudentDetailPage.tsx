@@ -21,6 +21,7 @@ import { OuraStressCard } from "@/components/OuraStressCard";
 import { OuraWorkoutsCard } from "@/components/OuraWorkoutsCard";
 import { OuraAdvancedMetricsCard } from "@/components/OuraAdvancedMetricsCard";
 import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecommendationDialog";
+import { StudentObservationsCard } from "@/components/StudentObservationsCard";
 import { useOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState } from "react";
@@ -97,6 +98,8 @@ const StudentDetailPage = () => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          <StudentObservationsCard studentId={id!} />
+          
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>

@@ -61,7 +61,21 @@ INSTRUÇÕES:
 6. Peso corporal: se aluno tem peso, use o valor; senão NULL
 7. Converta libras para kg (1 lb = 0.453592 kg)
 8. Detecte adaptações: "X substituindo Y"
-9. Confirme TODOS os dados antes de chamar a function tool`;
+9. Confirme TODOS os dados antes de chamar a function tool
+
+10. **OBSERVAÇÕES CLÍNICAS IMPORTANTES**: 
+    - Se o treinador mencionar DOR, DESCONFORTO, LIMITAÇÃO DE MOVIMENTO, 
+      DÉFICIT DE MOBILIDADE, ASSIMETRIAS, HIPERATIVAÇÃO MUSCULAR, ou qualquer questão 
+      relacionada à saúde/biomecânica do aluno
+    - Extraia essas observações separadamente no campo "clinical_observations"
+    - Categorize como: "dor", "mobilidade", "força", "técnica" ou "geral"
+    - Classifique severidade: "baixa", "média" ou "alta"
+    
+    Exemplos:
+    - "sentiu dor no joelho esquerdo" → categoria: "dor", severidade: "média"
+    - "déficit de mobilidade no quadril" → categoria: "mobilidade", severidade: "média"
+    - "hiperativação dos flexores do quadril" → categoria: "técnica", severidade: "média"
+    - "dificuldade para agachar até embaixo" → categoria: "mobilidade", severidade: "baixa"`;
 };
 
 const buildTools = (context: SessionContext) => {
@@ -81,6 +95,30 @@ const buildTools = (context: SessionContext) => {
                 student_name: {
                   type: "string",
                   description: `Nome do aluno: ${context.students.map(s => s.name).join(", ")}`
+                },
+                clinical_observations: {
+                  type: "array",
+                  description: "Observações clínicas importantes (dores, limitações, déficits)",
+                  items: {
+                    type: "object",
+                    properties: {
+                      observation_text: { 
+                        type: "string",
+                        description: "Descrição da observação clínica"
+                      },
+                      category: { 
+                        type: "string",
+                        enum: ["dor", "mobilidade", "força", "técnica", "geral"],
+                        description: "Categoria da observação"
+                      },
+                      severity: {
+                        type: "string",
+                        enum: ["baixa", "média", "alta"],
+                        description: "Severidade/importância da observação"
+                      }
+                    },
+                    required: ["observation_text", "category", "severity"]
+                  }
                 },
                 exercises: {
                   type: "array",
