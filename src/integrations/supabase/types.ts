@@ -751,7 +751,7 @@ export type Database = {
           id: string
           name: string
           objective: string | null
-          trainer_id: string | null
+          trainer_id: string
           updated_at: string
         }
         Insert: {
@@ -759,7 +759,7 @@ export type Database = {
           id?: string
           name: string
           objective?: string | null
-          trainer_id?: string | null
+          trainer_id: string
           updated_at?: string
         }
         Update: {
@@ -767,7 +767,7 @@ export type Database = {
           id?: string
           name?: string
           objective?: string | null
-          trainer_id?: string | null
+          trainer_id?: string
           updated_at?: string
         }
         Relationships: []

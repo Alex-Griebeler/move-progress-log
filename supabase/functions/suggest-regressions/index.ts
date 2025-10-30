@@ -1,15 +1,59 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const requestSchema = z.object({
+  exerciseId: z.string().uuid('ID de exercício inválido'),
+  exerciseName: z.string().min(1).max(200),
+  movementPattern: z.string().min(1).max(100),
+  movementPlane: z.string().max(100).optional(),
+  laterality: z.string().max(100).optional(),
+  availableExercises: z.array(z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    movement_pattern: z.string(),
+    movement_plane: z.string().nullable(),
+    laterality: z.string().nullable()
+  })).max(1000)
+});
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { exerciseId, exerciseName, movementPattern, movementPlane, laterality, availableExercises } = await req.json();
+    // Validate authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Autenticação obrigatória' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Token inválido' }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate and parse request body
+    const body = await req.json();
+    const validated = requestSchema.parse(body);
+    const { exerciseId, exerciseName, movementPattern, movementPlane, laterality, availableExercises } = validated;
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -112,6 +156,15 @@ Retorne APENAS os 3 IDs dos exercícios sugeridos como regressões, ordenados do
     });
   } catch (e) {
     console.error("suggest-regressions error:", e);
+    
+    // Handle Zod validation errors
+    if (e instanceof z.ZodError) {
+      return new Response(
+        JSON.stringify({ error: 'Dados inválidos', details: e.errors }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

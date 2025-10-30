@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mic, MicOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AudioRecorder, encodeAudioForAPI, playAudioData } from "@/utils/VoiceRecorder";
+import { supabase } from "@/integrations/supabase/client";
 
 interface VoiceSessionRecorderProps {
   prescriptionId?: string;
@@ -53,12 +54,25 @@ export function VoiceSessionRecorder({
       setTranscript("");
       setAiResponse("");
 
+      // Get authentication token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Você precisa estar autenticado para gravar",
+          variant: "destructive",
+        });
+        setIsConnecting(false);
+        return;
+      }
+
       // Request microphone permission first
       await navigator.mediaDevices.getUserMedia({ audio: true });
 
-      // Connect to WebSocket
-      const wsUrl = `wss://${projectId}.supabase.co/functions/v1/voice-session`;
-      console.log("Connecting to:", wsUrl);
+      // Connect to WebSocket with authentication token as query parameter
+      const wsUrl = `wss://${projectId}.supabase.co/functions/v1/voice-session?token=${session.access_token}`;
+      console.log("Connecting to WebSocket...");
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;

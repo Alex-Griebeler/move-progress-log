@@ -115,6 +115,35 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Validate authentication - check for token in Authorization header or query parameter
+  const url = new URL(req.url);
+  const tokenFromQuery = url.searchParams.get('token');
+  const authHeader = req.headers.get('Authorization');
+  const token = authHeader?.replace('Bearer ', '') || tokenFromQuery;
+
+  if (!token) {
+    return new Response('Autenticação obrigatória', { 
+      status: 401, 
+      headers: corsHeaders 
+    });
+  }
+
+  const authClient = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    { global: { headers: { Authorization: `Bearer ${token}` } } }
+  );
+
+  const { data: { user }, error: authError } = await authClient.auth.getUser();
+
+  if (authError || !user) {
+    console.error('Authentication error:', authError);
+    return new Response('Token inválido', { 
+      status: 401, 
+      headers: corsHeaders 
+    });
+  }
+
   const { headers } = req;
   const upgradeHeader = headers.get("upgrade") || "";
 
