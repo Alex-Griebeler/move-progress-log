@@ -42,11 +42,19 @@ export function VoiceSessionRecorder({
       return;
     }
 
+    // Set recording state immediately to prevent double clicks
+    setIsRecording(true);
+
     try {
       console.log("🎤 Starting audio recording...");
       setTranscript("");
       
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      toast({
+        title: "Solicitando permissões",
+        description: "Aguardando acesso ao microfone...",
+      });
+      
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,
           channelCount: 1,
@@ -130,7 +138,6 @@ export function VoiceSessionRecorder({
       };
 
       mediaRecorder.start();
-      setIsRecording(true);
       
       toast({
         title: "Gravação iniciada",
@@ -139,6 +146,8 @@ export function VoiceSessionRecorder({
       
     } catch (error) {
       console.error("❌ Error starting recording:", error);
+      setIsRecording(false); // Reset state on error
+      
       const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
       toast({
         title: "Erro",
