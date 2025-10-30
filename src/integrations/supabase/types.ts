@@ -190,6 +190,47 @@ export type Database = {
         }
         Relationships: []
       }
+      oura_connections: {
+        Row: {
+          access_token: string
+          connected_at: string | null
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          refresh_token: string
+          student_id: string
+          token_expires_at: string
+        }
+        Insert: {
+          access_token: string
+          connected_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          refresh_token: string
+          student_id: string
+          token_expires_at: string
+        }
+        Update: {
+          access_token?: string
+          connected_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          refresh_token?: string
+          student_id?: string
+          token_expires_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oura_connections_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oura_metrics: {
         Row: {
           activity_balance: number | null
@@ -434,6 +475,57 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      student_invites: {
+        Row: {
+          created_at: string | null
+          created_student_id: string | null
+          email: string | null
+          expires_at: string
+          id: string
+          invite_token: string
+          is_used: boolean | null
+          trainer_id: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_student_id?: string | null
+          email?: string | null
+          expires_at: string
+          id?: string
+          invite_token: string
+          is_used?: boolean | null
+          trainer_id: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_student_id?: string | null
+          email?: string | null
+          expires_at?: string
+          id?: string
+          invite_token?: string
+          is_used?: boolean | null
+          trainer_id?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_invites_created_student_id_fkey"
+            columns: ["created_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_invites_trainer_id_fkey"
+            columns: ["trainer_id"]
+            isOneToOne: false
+            referencedRelation: "trainer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       students: {
         Row: {

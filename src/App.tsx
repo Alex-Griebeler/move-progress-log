@@ -12,6 +12,8 @@ import ExercisesLibraryPage from "./pages/ExercisesLibraryPage";
 import PrescriptionsPage from "./pages/PrescriptionsPage";
 import RecoveryProtocolsPage from "./pages/RecoveryProtocolsPage";
 import AuthPage from "./pages/AuthPage";
+import StudentOnboardingPage from "./pages/StudentOnboardingPage";
+import OnboardingSuccessPage from "./pages/OnboardingSuccessPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +26,8 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
+          <Route path="/onboarding/success" element={<OnboardingSuccessPage />} />
           <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
           <Route path="/alunos" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
           <Route path="/alunos/:id" element={<ProtectedRoute><StudentDetailPage /></ProtectedRoute>} />

@@ -2,3 +2,12 @@ project_id = "zrgfrdmywxlemcuiqtqg"
 
 [functions.generate-protocol-recommendations]
 verify_jwt = false
+
+[functions.validate-student-invite]
+verify_jwt = false
+
+[functions.create-student-from-invite]
+verify_jwt = false
+
+[functions.oura-callback]
+verify_jwt = false

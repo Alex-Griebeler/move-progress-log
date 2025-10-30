@@ -13,6 +13,7 @@ import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
 import TrainingZonesCard from "@/components/TrainingZonesCard";
 import ProtocolRecommendationsCard from "@/components/ProtocolRecommendationsCard";
 import OuraMetricsCard from "@/components/OuraMetricsCard";
+import { OuraConnectionCard } from "@/components/OuraConnectionCard";
 import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecommendationDialog";
 import { useOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useState } from "react";
@@ -306,6 +307,8 @@ const StudentDetailPage = () => {
             </div>
             <ManualProtocolRecommendationDialog studentId={id!} />
           </div>
+
+          <OuraConnectionCard studentId={id!} />
 
           {loadingOuraMetrics ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

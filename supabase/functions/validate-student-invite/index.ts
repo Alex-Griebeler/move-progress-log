@@ -1,0 +1,83 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const url = new URL(req.url);
+    const token = url.searchParams.get('token');
+
+    if (!token) {
+      return new Response(
+        JSON.stringify({ valid: false, error: 'Token não fornecido' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    console.log(`Validating invite token: ${token}`);
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Fetch invite
+    const { data: invite, error: inviteError } = await supabaseClient
+      .from('student_invites')
+      .select('*, trainer_profiles!inner(full_name)')
+      .eq('invite_token', token)
+      .single();
+
+    if (inviteError || !invite) {
+      console.log('Invite not found:', inviteError);
+      return new Response(
+        JSON.stringify({ valid: false, error: 'Convite não encontrado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if expired
+    const now = new Date();
+    const expiresAt = new Date(invite.expires_at);
+    if (now > expiresAt) {
+      console.log('Invite expired');
+      return new Response(
+        JSON.stringify({ valid: false, error: 'Convite expirado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check if already used
+    if (invite.is_used) {
+      console.log('Invite already used');
+      return new Response(
+        JSON.stringify({ valid: false, error: 'Convite já foi utilizado' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Invite is valid');
+
+    return new Response(
+      JSON.stringify({
+        valid: true,
+        trainer_name: invite.trainer_profiles?.full_name || 'Seu treinador',
+        expires_at: invite.expires_at,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Error in validate-student-invite:', error);
+    return new Response(
+      JSON.stringify({ valid: false, error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
+  }
+});

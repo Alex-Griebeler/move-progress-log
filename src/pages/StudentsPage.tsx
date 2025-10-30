@@ -4,11 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus } from "lucide-react";
+import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import { AddStudentDialog } from "@/components/AddStudentDialog";
+import { GenerateInviteLinkDialog } from "@/components/GenerateInviteLinkDialog";
 import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
 import {
@@ -29,6 +30,7 @@ const StudentsPage = () => {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
 
   const handleDelete = async (id: string) => {
     try {
@@ -51,6 +53,10 @@ const StudentsPage = () => {
               <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Aluno
+              </Button>
+              <Button variant="outline" onClick={() => setIsInviteDialogOpen(true)}>
+                <Link2 className="h-4 w-4 mr-2" />
+                Gerar Link de Convite
               </Button>
               <Link to="/alunos-comparacao">
                 <Button variant="outline">
@@ -161,6 +167,11 @@ const StudentsPage = () => {
         student={editingStudent}
         open={!!editingStudent}
         onOpenChange={(open) => !open && setEditingStudent(null)}
+      />
+
+      <GenerateInviteLinkDialog
+        open={isInviteDialogOpen}
+        onOpenChange={setIsInviteDialogOpen}
       />
 
       <AlertDialog open={!!deletingStudentId} onOpenChange={(open) => !open && setDeletingStudentId(null)}>
