@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mic, MicOff, Loader2 } from "lucide-react";
@@ -36,6 +36,14 @@ export function VoiceSessionRecorder({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const isStartingRef = useRef(false);
+
+  // Auto-start quando autoStart=true
+  useEffect(() => {
+    if (autoStart && !isRecording && !isProcessing && !isStartingRef.current) {
+      console.log("🚀 Auto-starting recording...");
+      startRecording();
+    }
+  }, []); // Empty deps = só executa uma vez na montagem
 
   const startRecording = async () => {
     console.log("🔍 startRecording called, checking state...");
