@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Input validation schema
+interface RequestBody {
+  student_id: string;
+}
+
 interface OuraMetrics {
   id: string;
   student_id: string;
@@ -41,17 +46,79 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { student_id } = await req.json();
-
-    if (!student_id) {
-      throw new Error('student_id is required');
+    // Validate authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log('Generating recommendations for student:', student_id);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    // Create client with user's auth token for getUser
+    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Verify user authentication
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse and validate request body
+    const { student_id } = await req.json() as RequestBody;
+
+    if (!student_id) {
+      return new Response(
+        JSON.stringify({ error: 'student_id is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(student_id)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid student_id format' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Generating recommendations for student:', student_id, 'by user:', user.id);
+
+    // Create service client for data operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify trainer owns the student
+    const { data: student, error: studentError } = await supabase
+      .from('students')
+      .select('trainer_id')
+      .eq('id', student_id)
+      .single();
+
+    if (studentError || !student) {
+      console.error('Student not found:', studentError);
+      return new Response(
+        JSON.stringify({ error: 'Student not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (student.trainer_id !== user.id) {
+      console.error('Unauthorized access attempt:', user.id, 'to student:', student_id);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized access to student data' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get latest Oura metrics for the student
     const { data: latestMetrics, error: metricsError } = await supabase

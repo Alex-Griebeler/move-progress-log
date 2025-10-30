@@ -53,10 +53,93 @@ serve(async (req) => {
   try {
     console.log("📥 Received request to process voice session");
     
+    // Validate authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create Supabase client with user's auth token
+    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Verify user authentication
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error('❌ Authentication error:', authError);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { audio, prescriptionId, students, date, time } = await req.json();
     
-    if (!audio || !prescriptionId || !students || !date || !time) {
-      throw new Error('Parâmetros obrigatórios faltando');
+    // Validate required fields
+    if (!audio || !prescriptionId || !students || !Array.isArray(students) || students.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: audio, prescriptionId, or students' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!date || !time) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: date or time' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`👤 User ${user.id} processing session for prescription ${prescriptionId}`);
+
+    // Verify trainer owns the prescription
+    const { data: prescription, error: prescriptionError } = await supabaseClient
+      .from('workout_prescriptions')
+      .select('trainer_id')
+      .eq('id', prescriptionId)
+      .single();
+
+    if (prescriptionError || !prescription) {
+      console.error('❌ Prescription not found:', prescriptionError);
+      return new Response(
+        JSON.stringify({ error: 'Prescription not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (prescription.trainer_id !== user.id) {
+      console.error('❌ Unauthorized access attempt:', user.id, 'to prescription:', prescriptionId);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized access to prescription data' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify trainer owns all students
+    const { data: studentRecords, error: studentsError } = await supabaseClient
+      .from('students')
+      .select('id, trainer_id')
+      .in('id', students.map((s: any) => s.id));
+
+    if (studentsError || !studentRecords) {
+      console.error('❌ Error fetching students:', studentsError);
+      return new Response(
+        JSON.stringify({ error: 'Error validating students' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const unauthorizedStudents = studentRecords.filter(s => s.trainer_id !== user.id);
+    if (unauthorizedStudents.length > 0) {
+      console.error('❌ Unauthorized student access attempt:', unauthorizedStudents.map(s => s.id));
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized access to one or more students' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log("🎤 Processing audio with Gemini...");
@@ -90,23 +173,23 @@ serve(async (req) => {
     const transcription = transcriptionResult.response.text();
     console.log("✅ Transcription completed:", transcription.substring(0, 100) + "...");
 
-    // 2️⃣ Buscar detalhes da prescrição
-    const { data: prescription, error: prescError } = await supabaseClient
+    // 2️⃣ Buscar detalhes completos da prescrição (já validamos que o trainer é dono)
+    const { data: prescriptionDetails, error: prescDetailsError } = await supabaseClient
       .from('workout_prescriptions')
       .select(`*, prescription_exercises (id, sets, reps, order_index, exercises_library (name))`)
       .eq('id', prescriptionId)
       .single();
     
-    if (prescError) {
-      console.error('Error fetching prescription:', prescError);
-      throw new Error('Erro ao buscar prescrição');
+    if (prescDetailsError || !prescriptionDetails) {
+      console.error('❌ Error fetching prescription details:', prescDetailsError);
+      throw new Error('Erro ao buscar detalhes da prescrição');
     }
 
     const studentsInfo = students
       .map((s: any) => `  - ${s.name}${s.weight_kg ? ` (peso: ${s.weight_kg} kg)` : ' (peso não cadastrado)'}`)
       .join('\n');
     
-    const exercisesInfo = prescription.prescription_exercises
+    const exercisesInfo = prescriptionDetails.prescription_exercises
       .map((ex: any) => `  ${ex.order_index + 1}. ${ex.exercises_library.name}: ${ex.sets} séries × ${ex.reps} reps`)
       .join('\n');
 

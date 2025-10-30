@@ -1,7 +1,7 @@
 project_id = "zrgfrdmywxlemcuiqtqg"
 
 [functions.generate-protocol-recommendations]
-verify_jwt = false
+verify_jwt = true
 
 [functions.validate-student-invite]
 verify_jwt = false
@@ -16,7 +16,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.voice-session]
-verify_jwt = false
+verify_jwt = true
 
 [functions.process-voice-session]
 verify_jwt = true
