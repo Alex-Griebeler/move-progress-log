@@ -61,7 +61,7 @@ export function AssignPrescriptionDialog({
   };
 
   const handleSubmit = async () => {
-    if (!prescriptionId || selectedStudents.length === 0 || !dateRange?.from || !time) {
+    if (!prescriptionId || selectedStudents.length === 0 || !dateRange?.from) {
       return;
     }
 
@@ -180,7 +180,7 @@ export function AssignPrescriptionDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="time">Horário do Treino *</Label>
+            <Label htmlFor="time">Horário do Treino (opcional)</Label>
             <Input
               id="time"
               type="time"
@@ -189,7 +189,7 @@ export function AssignPrescriptionDialog({
               placeholder="Ex: 08:00"
             />
             <p className="text-xs text-muted-foreground">
-              Horário em que este grupo fará o treino
+              Defina um horário específico ou deixe vazio para treinos em múltiplos horários
             </p>
           </div>
         </div>
@@ -203,8 +203,7 @@ export function AssignPrescriptionDialog({
             disabled={
               assignPrescription.isPending ||
               selectedStudents.length === 0 ||
-              !dateRange?.from ||
-              !time
+              !dateRange?.from
             }
           >
             {assignPrescription.isPending ? "Atribuindo..." : "Atribuir"}
