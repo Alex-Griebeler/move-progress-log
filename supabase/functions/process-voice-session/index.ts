@@ -157,7 +157,7 @@ serve(async (req) => {
     audioBase64 = btoa(audioBase64);
 
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash" 
+      model: "gemini-2.5-flash" 
     });
 
     const transcriptionResult = await model.generateContent([
@@ -248,7 +248,7 @@ Retorne um JSON válido com esta estrutura EXATA:
 }`;
 
     const extractionModel = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       generationConfig: {
         responseMimeType: "application/json"
       }
