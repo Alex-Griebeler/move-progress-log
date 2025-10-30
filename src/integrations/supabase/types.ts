@@ -541,7 +541,7 @@ export type Database = {
           name: string
           objectives: string | null
           preferences: string | null
-          trainer_id: string | null
+          trainer_id: string
           updated_at: string
           weekly_sessions_proposed: number | null
           weight_kg: number | null
@@ -559,7 +559,7 @@ export type Database = {
           name: string
           objectives?: string | null
           preferences?: string | null
-          trainer_id?: string | null
+          trainer_id: string
           updated_at?: string
           weekly_sessions_proposed?: number | null
           weight_kg?: number | null
@@ -577,7 +577,7 @@ export type Database = {
           name?: string
           objectives?: string | null
           preferences?: string | null
-          trainer_id?: string | null
+          trainer_id?: string
           updated_at?: string
           weekly_sessions_proposed?: number | null
           weight_kg?: number | null

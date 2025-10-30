@@ -110,13 +110,34 @@ Deno.serve(async (req) => {
       .ilike('name', student_data.name.trim())
       .maybeSingle();
 
+    // If not found, check for orphaned students (should not happen after migration, but kept as safety net)
+    let orphanStudent = null;
+    if (!existingStudent) {
+      const { data: orphan } = await supabaseClient
+        .from('students')
+        .select('id, avatar_url')
+        .is('trainer_id', null)
+        .ilike('name', student_data.name.trim())
+        .maybeSingle();
+      
+      if (orphan) {
+        console.log(`Found orphaned student to adopt: ${orphan.id}`);
+        orphanStudent = orphan;
+      }
+    }
+
+    const studentToUpdate = existingStudent || orphanStudent;
+
     let student;
-    if (existingStudent) {
-      // Update existing student
-      console.log(`Updating existing student: ${existingStudent.id}`);
+    if (studentToUpdate) {
+      // Update existing student OR adopt orphan
+      const isOrphan = !existingStudent && orphanStudent;
+      console.log(isOrphan ? `Adopting orphaned student: ${studentToUpdate.id}` : `Updating existing student: ${studentToUpdate.id}`);
+      
       const { data: updatedStudent, error: updateError } = await supabaseClient
         .from('students')
         .update({
+          trainer_id: invite.trainer_id, // Important: assigns trainer to orphan
           birth_date: student_data.birth_date || null,
           weight_kg: student_data.weight_kg || null,
           height_cm: student_data.height_cm || null,
@@ -126,10 +147,10 @@ Deno.serve(async (req) => {
           injury_history: student_data.injury_history || null,
           preferences: student_data.preferences || null,
           weekly_sessions_proposed: student_data.weekly_sessions_proposed || 2,
-          avatar_url: avatar_url || existingStudent.avatar_url,
+          avatar_url: avatar_url || studentToUpdate.avatar_url,
           max_heart_rate,
         })
-        .eq('id', existingStudent.id)
+        .eq('id', studentToUpdate.id)
         .select()
         .single();
 
@@ -141,7 +162,7 @@ Deno.serve(async (req) => {
         );
       }
       student = updatedStudent;
-      console.log(`Student updated: ${student.id}`);
+      console.log(isOrphan ? `Orphan adopted: ${student.id}` : `Student updated: ${student.id}`);
     } else {
       // Create new student
       console.log(`Creating new student`);
