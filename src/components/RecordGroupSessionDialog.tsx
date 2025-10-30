@@ -54,6 +54,34 @@ interface SessionData {
   }>;
 }
 
+interface AccumulatedRecording {
+  recordingNumber: number;
+  timestamp: string;
+  data: SessionData;
+}
+
+interface MergedStudent {
+  student_name: string;
+  recording_numbers: number[];
+  clinical_observations: Array<{
+    observation_text: string;
+    category: 'dor' | 'mobilidade' | 'força' | 'técnica' | 'geral';
+    severity: 'baixa' | 'média' | 'alta';
+  }>;
+  exercises: Array<{
+    prescribed_exercise_name?: string | null;
+    executed_exercise_name: string;
+    sets?: number | null;
+    reps: number;
+    load_kg?: number | null;
+    load_breakdown: string;
+    observations?: string | null;
+    is_best_set: boolean;
+  }>;
+}
+
+const MAX_RECORDINGS = 10;
+
 export function RecordGroupSessionDialog({
   open,
   onOpenChange,
@@ -63,7 +91,9 @@ export function RecordGroupSessionDialog({
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
-  const [extractedData, setExtractedData] = useState<SessionData | null>(null);
+  const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording[]>([]);
+  const [currentRecordingNumber, setCurrentRecordingNumber] = useState(1);
+  const [mergedStudents, setMergedStudents] = useState<MergedStudent[]>([]);
   const [validationIssues, setValidationIssues] = useState<{
     errors: string[];
     warnings: string[];
@@ -93,24 +123,95 @@ export function RecordGroupSessionDialog({
     );
   };
 
-  const validateSelectedStudents = (data: SessionData) => {
+  const areSimilarObservations = (obs1: string, obs2: string): boolean => {
+    const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
+    const n1 = normalize(obs1);
+    const n2 = normalize(obs2);
+    
+    if (n1 === n2) return true;
+    
+    const shorter = n1.length < n2.length ? n1 : n2;
+    const longer = n1.length >= n2.length ? n1 : n2;
+    
+    return longer.includes(shorter) && (shorter.length / longer.length) > 0.8;
+  };
+
+  const mergeAllRecordings = (recordings: AccumulatedRecording[]): MergedStudent[] => {
+    const studentMap = new Map<string, MergedStudent>();
+
+    recordings.forEach((recording) => {
+      recording.data.sessions.forEach((session) => {
+        const key = session.student_name.toLowerCase();
+        
+        if (!studentMap.has(key)) {
+          studentMap.set(key, {
+            student_name: session.student_name,
+            recording_numbers: [],
+            clinical_observations: [],
+            exercises: []
+          });
+        }
+        
+        const merged = studentMap.get(key)!;
+        
+        if (!merged.recording_numbers.includes(recording.recordingNumber)) {
+          merged.recording_numbers.push(recording.recordingNumber);
+        }
+        
+        if (session.clinical_observations) {
+          session.clinical_observations.forEach(newObs => {
+            const isDuplicate = merged.clinical_observations.some(
+              existingObs => areSimilarObservations(existingObs.observation_text, newObs.observation_text)
+            );
+            if (!isDuplicate) {
+              merged.clinical_observations.push(newObs);
+            }
+          });
+        }
+        
+        merged.exercises.push(...session.exercises);
+      });
+    });
+
+    return Array.from(studentMap.values()).sort((a, b) => 
+      a.student_name.localeCompare(b.student_name)
+    );
+  };
+
+  const validateMergedData = (merged: MergedStudent[]) => {
     const warnings: string[] = [];
+    const errors: string[] = [];
+    
+    merged.forEach(student => {
+      if (student.exercises.length === 0) {
+        errors.push(`❌ ${student.student_name} foi mencionado mas não tem exercícios registrados`);
+      }
+      
+      if (student.recording_numbers.length === 1 && accumulatedRecordings.length > 1) {
+        warnings.push(`⚠️ ${student.student_name} só aparece na gravação ${student.recording_numbers[0]}`);
+      }
+      
+      student.exercises.forEach((ex, idx) => {
+        if (!ex.reps || ex.reps <= 0) {
+          errors.push(`❌ ${student.student_name} - ${ex.executed_exercise_name || `Exercício ${idx + 1}`}: faltam repetições`);
+        }
+      });
+    });
     
     selectedStudents.forEach(student => {
-      const found = data.sessions?.find(
-        (s) => s.student_name.toLowerCase() === student.name.toLowerCase()
+      const found = merged.find(
+        m => m.student_name.toLowerCase() === student.name.toLowerCase()
       );
       if (!found) {
-        warnings.push(`⚠️ ${student.name} não foi mencionado no áudio`);
+        warnings.push(`⚠️ ${student.name} não foi mencionado em nenhuma gravação`);
       }
     });
     
-    return warnings;
+    return { errors, warnings };
   };
 
   const handleAutoAddStudents = async (data: SessionData) => {
     const newStudents: Student[] = [];
-    const updatedSessions = [...data.sessions];
     
     for (let i = 0; i < data.sessions.length; i++) {
       const session = data.sessions[i];
@@ -119,7 +220,6 @@ export function RecordGroupSessionDialog({
       );
       
       if (!existingStudent) {
-        // Buscar aluno no banco
         const { data: studentData } = await supabase
           .from('students')
           .select('*')
@@ -133,14 +233,13 @@ export function RecordGroupSessionDialog({
             weight_kg: studentData.weight_kg,
             has_active_prescription: false
           });
-          updatedSessions[i].auto_added = true;
+          data.sessions[i].auto_added = true;
         }
       }
     }
     
     if (newStudents.length > 0) {
       setSelectedStudents(prev => [...prev, ...newStudents]);
-      setExtractedData({ sessions: updatedSessions });
       toast({
         title: "Alunos adicionados automaticamente",
         description: `${newStudents.map(s => s.name).join(", ")} foram adicionados à sessão`,
@@ -167,17 +266,25 @@ export function RecordGroupSessionDialog({
   };
 
   const handleSessionData = async (data: SessionData) => {
-    console.log("Received session data:", data);
+    console.log("Received session data from recording", currentRecordingNumber, ":", data);
     
-    // Auto-adicionar alunos mencionados não selecionados
     await handleAutoAddStudents(data);
     
-    // Validar dados
-    const warnings = validateSelectedStudents(data);
-    const errors = validateExerciseData(data);
+    const newRecording: AccumulatedRecording = {
+      recordingNumber: currentRecordingNumber,
+      timestamp: new Date().toISOString(),
+      data
+    };
     
-    setValidationIssues({ errors, warnings });
-    setExtractedData(data);
+    const updatedRecordings = [...accumulatedRecordings, newRecording];
+    setAccumulatedRecordings(updatedRecordings);
+    
+    const merged = mergeAllRecordings(updatedRecordings);
+    setMergedStudents(merged);
+    
+    const validation = validateMergedData(merged);
+    setValidationIssues(validation);
+    
     setDialogState('preview');
   };
 
@@ -191,21 +298,19 @@ export function RecordGroupSessionDialog({
   };
 
   const handleSave = async () => {
-    if (!extractedData || !prescriptionId) return;
+    if (mergedStudents.length === 0 || !prescriptionId) return;
 
-    // Mapear dados para formato do hook
-    const sessionsToSave = extractedData.sessions.map(session => {
+    const sessionsToSave = mergedStudents.map(merged => {
       const student = selectedStudents.find(
-        s => s.name.toLowerCase() === session.student_name.toLowerCase()
+        s => s.name.toLowerCase() === merged.student_name.toLowerCase()
       );
       
       if (!student) {
-        console.error(`Student not found: ${session.student_name}`);
+        console.error(`Student not found: ${merged.student_name}`);
         return null;
       }
 
-      // Buscar sets prescritos para cada exercício
-      const exercisesWithPrescribedSets = session.exercises.map(ex => {
+      const exercisesWithPrescribedSets = merged.exercises.map(ex => {
         const prescribedExercise = prescriptionDetails?.exercises?.find(
           pe => pe.exercises_library?.name.toLowerCase() === 
                 (ex.prescribed_exercise_name || ex.executed_exercise_name).toLowerCase()
@@ -231,15 +336,13 @@ export function RecordGroupSessionDialog({
       sessions: sessionsToSave as any
     });
 
-    // Salvar observações clínicas
-    for (const session of extractedData.sessions) {
-      if (session.clinical_observations && session.clinical_observations.length > 0) {
+    for (const merged of mergedStudents) {
+      if (merged.clinical_observations && merged.clinical_observations.length > 0) {
         const student = selectedStudents.find(
-          s => s.name.toLowerCase() === session.student_name.toLowerCase()
+          s => s.name.toLowerCase() === merged.student_name.toLowerCase()
         );
         
         if (student) {
-          // Buscar o session_id recém-criado
           const { data: sessionData } = await supabase
             .from('workout_sessions')
             .select('id')
@@ -251,7 +354,7 @@ export function RecordGroupSessionDialog({
             .single();
           
           if (sessionData) {
-            const observationsToInsert = session.clinical_observations.map(obs => ({
+            const observationsToInsert = merged.clinical_observations.map(obs => ({
               student_id: student.id,
               observation_text: obs.observation_text,
               category: obs.category,
@@ -277,17 +380,34 @@ export function RecordGroupSessionDialog({
       }
     }
 
-    // Reset e fechar
     setSelectedStudents([]);
-    setExtractedData(null);
+    setAccumulatedRecordings([]);
+    setCurrentRecordingNumber(1);
+    setMergedStudents([]);
     setValidationIssues({ errors: [], warnings: [] });
     setDialogState('selecting');
     onOpenChange(false);
   };
 
+  const handleAddAnotherRecording = () => {
+    if (accumulatedRecordings.length >= MAX_RECORDINGS) {
+      toast({
+        title: "Limite atingido",
+        description: `Máximo de ${MAX_RECORDINGS} gravações por sessão`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setCurrentRecordingNumber(prev => prev + 1);
+    setDialogState('recording');
+  };
+
   const handleBack = () => {
     setDialogState('selecting');
-    setExtractedData(null);
+    setAccumulatedRecordings([]);
+    setCurrentRecordingNumber(1);
+    setMergedStudents([]);
     setValidationIssues({ errors: [], warnings: [] });
   };
 
@@ -295,7 +415,9 @@ export function RecordGroupSessionDialog({
     if (!open) {
       setDialogState('selecting');
       setSelectedStudents([]);
-      setExtractedData(null);
+      setAccumulatedRecordings([]);
+      setCurrentRecordingNumber(1);
+      setMergedStudents([]);
       setValidationIssues({ errors: [], warnings: [] });
       setDate(new Date().toISOString().split('T')[0]);
       setTime(new Date().toTimeString().slice(0, 5));
@@ -308,7 +430,7 @@ export function RecordGroupSessionDialog({
         <DialogHeader>
           <DialogTitle>
             {dialogState === 'selecting' && 'Registrar Sessão em Grupo'}
-            {dialogState === 'recording' && 'Gravando...'}
+            {dialogState === 'recording' && `Gravação ${currentRecordingNumber}`}
             {dialogState === 'processing' && 'Processando...'}
             {dialogState === 'preview' && 'Preview da Sessão'}
           </DialogTitle>
@@ -382,8 +504,14 @@ export function RecordGroupSessionDialog({
           />
         )}
 
-        {dialogState === 'preview' && extractedData && (
+        {dialogState === 'preview' && mergedStudents.length > 0 && (
           <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-base">
+                {accumulatedRecordings.length} gravação(ões) realizada(s)
+              </Badge>
+            </div>
+
             {validationIssues.warnings.length > 0 && (
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
@@ -409,60 +537,98 @@ export function RecordGroupSessionDialog({
             )}
 
             <ScrollArea className="max-h-[500px]">
-              {extractedData.sessions.map((session, sessionIdx) => (
-                <Card key={sessionIdx} className="mb-4">
+              {mergedStudents.map((student, idx) => (
+                <Card key={idx} className="mb-4">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 flex-wrap">
                       <User className="h-5 w-5" />
-                      {session.student_name}
-                      {session.auto_added && (
-                        <Badge variant="secondary">Adicionado automaticamente</Badge>
-                      )}
+                      {student.student_name}
+                      <Badge variant="outline" className="text-xs">
+                        Gravações: {student.recording_numbers.join(', ')}
+                      </Badge>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    {session.exercises.map((ex, idx) => (
-                      <div key={idx} className="mb-3 p-3 bg-muted/50 rounded-lg">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <p className="font-semibold">{ex.executed_exercise_name}</p>
-                            {ex.prescribed_exercise_name && ex.prescribed_exercise_name !== ex.executed_exercise_name && (
-                              <p className="text-xs text-muted-foreground">
-                                Substituindo: {ex.prescribed_exercise_name}
+                  <CardContent className="space-y-4">
+                    {student.clinical_observations.length > 0 && (
+                      <div>
+                        <p className="font-semibold text-sm mb-2">
+                          🩺 {student.clinical_observations.length} Observação(ões) Clínica(s)
+                        </p>
+                        <div className="space-y-2">
+                          {student.clinical_observations.map((obs, obsIdx) => (
+                            <div key={obsIdx} className="p-2 bg-muted/50 rounded-lg">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant={
+                                  obs.severity === 'alta' ? 'destructive' : 
+                                  obs.severity === 'média' ? 'default' : 
+                                  'secondary'
+                                }>
+                                  {obs.severity}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  {obs.category}
+                                </Badge>
+                              </div>
+                              <p className="text-sm">{obs.observation_text}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <p className="font-semibold text-sm mb-2">
+                        💪 {student.exercises.length} Exercício(s)
+                      </p>
+                      <div className="space-y-2">
+                        {student.exercises.map((ex, exIdx) => (
+                          <div key={exIdx} className="p-3 bg-muted/50 rounded-lg">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <p className="font-semibold">{ex.executed_exercise_name}</p>
+                                {ex.prescribed_exercise_name && 
+                                 ex.prescribed_exercise_name !== ex.executed_exercise_name && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Substituindo: {ex.prescribed_exercise_name}
+                                  </p>
+                                )}
+                              </div>
+                              {ex.is_best_set && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Melhor série
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="grid grid-cols-3 gap-2 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Séries: </span>
+                                <span className="font-semibold">
+                                  {ex.sets !== null && ex.sets !== undefined ? 
+                                    ex.sets : 
+                                    <Badge variant="outline" className="text-xs">Prescrito</Badge>
+                                  }
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Reps: </span>
+                                <span className="font-semibold">{ex.reps}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Carga: </span>
+                                <span className="font-semibold">{ex.load_breakdown}</span>
+                              </div>
+                            </div>
+                            
+                            {ex.observations && (
+                              <p className="text-xs text-muted-foreground mt-2">
+                                {ex.observations}
                               </p>
                             )}
                           </div>
-                          {ex.is_best_set && (
-                            <Badge variant="secondary" className="text-xs">
-                              Melhor série
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="text-muted-foreground">Séries: </span>
-                            <span className="font-semibold">
-                              {ex.sets !== null && ex.sets !== undefined ? ex.sets : <Badge variant="outline" className="text-xs">Prescrito</Badge>}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Reps: </span>
-                            <span className="font-semibold">{ex.reps}</span>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">Carga: </span>
-                            <span className="font-semibold">{ex.load_breakdown}</span>
-                          </div>
-                        </div>
-                        
-                        {ex.observations && (
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {ex.observations}
-                          </p>
-                        )}
+                        ))}
                       </div>
-                    ))}
+                    </div>
                   </CardContent>
                 </Card>
               ))}

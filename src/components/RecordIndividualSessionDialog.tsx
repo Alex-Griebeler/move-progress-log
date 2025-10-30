@@ -45,6 +45,32 @@ interface SessionData {
   }>;
 }
 
+interface AccumulatedRecording {
+  recordingNumber: number;
+  timestamp: string;
+  data: SessionData;
+}
+
+interface MergedData {
+  clinical_observations: Array<{
+    observation_text: string;
+    category: 'dor' | 'mobilidade' | 'força' | 'técnica' | 'geral';
+    severity: 'baixa' | 'média' | 'alta';
+  }>;
+  exercises: Array<{
+    prescribed_exercise_name?: string | null;
+    executed_exercise_name: string;
+    sets?: number | null;
+    reps: number;
+    load_kg?: number | null;
+    load_breakdown: string;
+    observations?: string | null;
+    is_best_set: boolean;
+  }>;
+}
+
+const MAX_RECORDINGS = 10;
+
 export function RecordIndividualSessionDialog({
   open,
   onOpenChange,
@@ -55,7 +81,9 @@ export function RecordIndividualSessionDialog({
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
-  const [extractedData, setExtractedData] = useState<SessionData | null>(null);
+  const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording[]>([]);
+  const [currentRecordingNumber, setCurrentRecordingNumber] = useState(1);
+  const [mergedData, setMergedData] = useState<MergedData | null>(null);
 
   const { data: assignments } = usePrescriptionAssignments(studentId);
   const createSession = useCreateWorkoutSession();
@@ -87,19 +115,78 @@ export function RecordIndividualSessionDialog({
     })) || [])
   ];
 
+  const areSimilarObservations = (obs1: string, obs2: string): boolean => {
+    const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
+    const n1 = normalize(obs1);
+    const n2 = normalize(obs2);
+    
+    if (n1 === n2) return true;
+    
+    const shorter = n1.length < n2.length ? n1 : n2;
+    const longer = n1.length >= n2.length ? n1 : n2;
+    
+    return longer.includes(shorter) && (shorter.length / longer.length) > 0.8;
+  };
+
+  const mergeAllRecordings = (recordings: AccumulatedRecording[]): MergedData => {
+    const allObservations: Array<{
+      observation_text: string;
+      category: 'dor' | 'mobilidade' | 'força' | 'técnica' | 'geral';
+      severity: 'baixa' | 'média' | 'alta';
+    }> = [];
+    const allExercises: Array<any> = [];
+
+    recordings.forEach(recording => {
+      const session = recording.data.sessions[0];
+      if (!session) return;
+
+      if (session.clinical_observations) {
+        session.clinical_observations.forEach(newObs => {
+          const isDuplicate = allObservations.some(
+            existingObs => areSimilarObservations(existingObs.observation_text, newObs.observation_text)
+          );
+          if (!isDuplicate) {
+            allObservations.push(newObs);
+          }
+        });
+      }
+
+      allExercises.push(...session.exercises);
+    });
+
+    return {
+      clinical_observations: allObservations,
+      exercises: allExercises
+    };
+  };
+
   useEffect(() => {
     if (!open) {
       setDialogState('setup');
       setSelectedPrescriptionId(null);
       setDate(new Date().toISOString().split('T')[0]);
       setTime(new Date().toTimeString().slice(0, 5));
-      setExtractedData(null);
+      setAccumulatedRecordings([]);
+      setCurrentRecordingNumber(1);
+      setMergedData(null);
     }
   }, [open]);
 
   const handleSessionData = (data: SessionData) => {
-    console.log('Received session data:', data);
-    setExtractedData(data);
+    console.log('Received session data from recording', currentRecordingNumber, ':', data);
+    
+    const newRecording: AccumulatedRecording = {
+      recordingNumber: currentRecordingNumber,
+      timestamp: new Date().toISOString(),
+      data
+    };
+    
+    const updatedRecordings = [...accumulatedRecordings, newRecording];
+    setAccumulatedRecordings(updatedRecordings);
+    
+    const merged = mergeAllRecordings(updatedRecordings);
+    setMergedData(merged);
+    
     setDialogState('preview');
   };
 
@@ -113,12 +200,9 @@ export function RecordIndividualSessionDialog({
   };
 
   const handleSave = async () => {
-    if (!extractedData || !extractedData.sessions?.[0]) return;
-
-    const sessionData = extractedData.sessions[0];
+    if (!mergedData) return;
 
     try {
-      // Criar sessão de treino
       const workoutSession = {
         student_id: studentId,
         prescription_id: selectedPrescriptionId,
@@ -134,8 +218,7 @@ export function RecordIndividualSessionDialog({
 
       if (sessionError) throw sessionError;
 
-      // Criar exercícios
-      const exercises = sessionData.exercises.map(ex => ({
+      const exercises = mergedData.exercises.map(ex => ({
         session_id: session.id,
         exercise_name: ex.executed_exercise_name,
         sets: ex.sets,
@@ -152,9 +235,8 @@ export function RecordIndividualSessionDialog({
 
       if (exercisesError) throw exercisesError;
 
-      // Criar observações clínicas
-      if (sessionData.clinical_observations && sessionData.clinical_observations.length > 0) {
-        const observations = sessionData.clinical_observations.map(obs => ({
+      if (mergedData.clinical_observations && mergedData.clinical_observations.length > 0) {
+        const observations = mergedData.clinical_observations.map(obs => ({
           student_id: studentId,
           session_id: session.id,
           observation_text: obs.observation_text,
@@ -171,7 +253,7 @@ export function RecordIndividualSessionDialog({
 
       toast({
         title: "Sessão registrada",
-        description: `Sessão de ${studentName} salva com sucesso`,
+        description: `${accumulatedRecordings.length} gravação(ões) processada(s) com sucesso`,
       });
 
       onOpenChange(false);
@@ -185,9 +267,25 @@ export function RecordIndividualSessionDialog({
     }
   };
 
+  const handleAddAnotherRecording = () => {
+    if (accumulatedRecordings.length >= MAX_RECORDINGS) {
+      toast({
+        title: "Limite atingido",
+        description: `Máximo de ${MAX_RECORDINGS} gravações por sessão`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setCurrentRecordingNumber(prev => prev + 1);
+    setDialogState('recording');
+  };
+
   const handleBack = () => {
     setDialogState('setup');
-    setExtractedData(null);
+    setAccumulatedRecordings([]);
+    setCurrentRecordingNumber(1);
+    setMergedData(null);
   };
 
   return (
@@ -196,7 +294,9 @@ export function RecordIndividualSessionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mic className="h-5 w-5" />
-            Registrar Sessão Individual - {studentName}
+            {dialogState === 'setup' && `Registrar Sessão Individual - ${studentName}`}
+            {dialogState === 'recording' && `Gravação ${currentRecordingNumber} - ${studentName}`}
+            {dialogState === 'preview' && `Preview da Sessão - ${studentName}`}
           </DialogTitle>
         </DialogHeader>
 
@@ -255,36 +355,43 @@ export function RecordIndividualSessionDialog({
           />
         )}
 
-        {dialogState === 'preview' && extractedData && (
+        {dialogState === 'preview' && mergedData && (
           <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-base">
+                {accumulatedRecordings.length} gravação(ões) realizada(s)
+              </Badge>
+            </div>
+
             <Alert>
               <AlertDescription>
-                Revise os dados extraídos da gravação antes de salvar
+                Revise os dados consolidados antes de salvar
               </AlertDescription>
             </Alert>
 
-            {extractedData.sessions[0]?.clinical_observations && 
-             extractedData.sessions[0].clinical_observations.length > 0 && (
+            {mergedData.clinical_observations && mergedData.clinical_observations.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">Observações Clínicas</CardTitle>
+                  <CardTitle className="text-sm">
+                    🩺 Observações Clínicas ({mergedData.clinical_observations.length})
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {extractedData.sessions[0].clinical_observations.map((obs, idx) => (
-                    <div key={idx} className="flex items-start gap-2 p-2 bg-muted rounded-lg">
-                      <Badge variant={
-                        obs.severity === 'alta' ? 'destructive' : 
-                        obs.severity === 'média' ? 'default' : 
-                        'secondary'
-                      }>
-                        {obs.category}
-                      </Badge>
-                      <div className="flex-1">
-                        <p className="text-sm">{obs.observation_text}</p>
-                        <Badge variant="outline" className="text-xs mt-1">
+                  {mergedData.clinical_observations.map((obs, idx) => (
+                    <div key={idx} className="p-2 bg-muted/50 rounded-lg">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant={
+                          obs.severity === 'alta' ? 'destructive' : 
+                          obs.severity === 'média' ? 'default' : 
+                          'secondary'
+                        }>
                           {obs.severity}
                         </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {obs.category}
+                        </Badge>
                       </div>
+                      <p className="text-sm">{obs.observation_text}</p>
                     </div>
                   ))}
                 </CardContent>
@@ -293,22 +400,44 @@ export function RecordIndividualSessionDialog({
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">Exercícios Executados</CardTitle>
+                <CardTitle className="text-sm">
+                  💪 Exercícios Executados ({mergedData.exercises.length})
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {extractedData.sessions[0]?.exercises.map((ex, idx) => (
-                    <div key={idx} className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{ex.executed_exercise_name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {ex.sets && `${ex.sets}x`}{ex.reps} reps • {ex.load_breakdown}
-                          {ex.is_best_set && ' • 🏆 Melhor série'}
-                        </p>
-                        {ex.observations && (
-                          <p className="text-xs text-muted-foreground mt-1">{ex.observations}</p>
+                  {mergedData.exercises.map((ex, idx) => (
+                    <div key={idx} className="p-3 bg-muted/50 rounded-lg">
+                      <div className="flex items-start justify-between mb-1">
+                        <p className="font-medium text-sm flex-1">{ex.executed_exercise_name}</p>
+                        {ex.is_best_set && (
+                          <Badge variant="secondary" className="text-xs">
+                            🏆 Melhor série
+                          </Badge>
                         )}
                       </div>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Séries: </span>
+                          <span className="font-semibold">
+                            {ex.sets !== null && ex.sets !== undefined ? 
+                              ex.sets : 
+                              <Badge variant="outline" className="text-xs">Prescrito</Badge>
+                            }
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Reps: </span>
+                          <span className="font-semibold">{ex.reps}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Carga: </span>
+                          <span className="font-semibold">{ex.load_breakdown}</span>
+                        </div>
+                      </div>
+                      {ex.observations && (
+                        <p className="text-xs text-muted-foreground mt-2">{ex.observations}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -333,11 +462,19 @@ export function RecordIndividualSessionDialog({
           {dialogState === 'preview' && (
             <>
               <Button variant="outline" onClick={handleBack}>
-                Voltar
+                ← Voltar
+              </Button>
+              <Button 
+                variant="secondary"
+                onClick={handleAddAnotherRecording}
+                disabled={!mergedData || accumulatedRecordings.length >= MAX_RECORDINGS}
+              >
+                <Mic className="h-4 w-4 mr-2" />
+                Adicionar Gravação
               </Button>
               <Button onClick={handleSave}>
                 <Save className="h-4 w-4 mr-2" />
-                Salvar Sessão
+                Finalizar e Salvar
               </Button>
             </>
           )}
