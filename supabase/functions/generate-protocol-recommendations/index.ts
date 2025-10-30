@@ -1,0 +1,190 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.1";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+interface OuraMetrics {
+  id: string;
+  student_id: string;
+  date: string;
+  readiness_score: number | null;
+  sleep_score: number | null;
+  hrv_balance: number | null;
+  resting_heart_rate: number | null;
+  temperature_deviation: number | null;
+  activity_balance: number | null;
+}
+
+interface AdaptationRule {
+  id: string;
+  metric_name: string;
+  condition: string;
+  threshold_value: number;
+  action_type: string;
+  severity: string;
+  description: string;
+}
+
+interface Protocol {
+  id: string;
+  name: string;
+  category: string;
+  subcategory: string | null;
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { student_id } = await req.json();
+
+    if (!student_id) {
+      throw new Error('student_id is required');
+    }
+
+    console.log('Generating recommendations for student:', student_id);
+
+    // Get latest Oura metrics for the student
+    const { data: latestMetrics, error: metricsError } = await supabase
+      .from('oura_metrics')
+      .select('*')
+      .eq('student_id', student_id)
+      .order('date', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (metricsError || !latestMetrics) {
+      console.log('No Oura metrics found for student:', student_id);
+      return new Response(
+        JSON.stringify({ message: 'No Oura metrics available for this student' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Latest metrics:', latestMetrics);
+
+    // Get all adaptation rules
+    const { data: rules, error: rulesError } = await supabase
+      .from('adaptation_rules')
+      .select('*');
+
+    if (rulesError) throw rulesError;
+
+    console.log('Loaded adaptation rules:', rules?.length);
+
+    // Get all protocols
+    const { data: protocols, error: protocolsError } = await supabase
+      .from('recovery_protocols')
+      .select('id, name, category, subcategory');
+
+    if (protocolsError) throw protocolsError;
+
+    // Analyze metrics and generate recommendations
+    const recommendations: Array<{
+      student_id: string;
+      protocol_id: string;
+      recommended_date: string;
+      reason: string;
+      priority: string;
+    }> = [];
+
+    const metrics = latestMetrics as OuraMetrics;
+    const today = new Date().toISOString().split('T')[0];
+
+    // Check each rule against metrics
+    for (const rule of rules as AdaptationRule[]) {
+      const metricValue = metrics[rule.metric_name as keyof OuraMetrics] as number | null;
+      
+      if (metricValue === null || metricValue === undefined) continue;
+
+      let triggered = false;
+
+      // Check condition
+      if (rule.condition === 'below' && metricValue < rule.threshold_value) {
+        triggered = true;
+      } else if (rule.condition === 'above' && metricValue > rule.threshold_value) {
+        triggered = true;
+      }
+
+      if (triggered) {
+        console.log(`Rule triggered: ${rule.metric_name} ${rule.condition} ${rule.threshold_value}, value: ${metricValue}`);
+
+        // Generate protocol recommendations based on the rule
+        const recommendedProtocols = getProtocolsForAction(rule.action_type, protocols as Protocol[]);
+
+        for (const protocol of recommendedProtocols) {
+          recommendations.push({
+            student_id: student_id,
+            protocol_id: protocol.id,
+            recommended_date: today,
+            reason: `${rule.description}. ${rule.metric_name}: ${metricValue}`,
+            priority: rule.severity,
+          });
+        }
+      }
+    }
+
+    console.log(`Generated ${recommendations.length} recommendations`);
+
+    // Delete old recommendations for today (to avoid duplicates)
+    await supabase
+      .from('protocol_recommendations')
+      .delete()
+      .eq('student_id', student_id)
+      .eq('recommended_date', today);
+
+    // Insert new recommendations
+    if (recommendations.length > 0) {
+      const { error: insertError } = await supabase
+        .from('protocol_recommendations')
+        .insert(recommendations);
+
+      if (insertError) throw insertError;
+    }
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        recommendations_count: recommendations.length,
+        metrics: {
+          readiness_score: metrics.readiness_score,
+          sleep_score: metrics.sleep_score,
+          hrv_balance: metrics.hrv_balance,
+        }
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Error generating recommendations:', error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
+});
+
+function getProtocolsForAction(actionType: string, protocols: Protocol[]): Protocol[] {
+  const protocolMap: Record<string, string[]> = {
+    'suggest_light_activity': ['Cardio Zona 2', 'Caminhada Recuperativa', 'Yoga Flow'],
+    'suggest_full_rest': ['Mindfulness Meditation', 'Body Scan Mindfulness', 'Coerência Cardíaca'],
+    'avoid_intense_training': ['Sauna Seca', 'Sauna a Vapor', 'Box Breathing', 'Mindfulness Meditation'],
+    'reduce_intensity': ['Coerência Cardíaca', 'Yoga Flow', 'Caminhada Recuperativa'],
+    'monitor_stress': ['Box Breathing', 'Coerência Cardíaca', 'Mindfulness Meditation', 'Sauna a Vapor'],
+  };
+
+  const protocolNames = protocolMap[actionType] || [];
+  return protocols.filter(p => protocolNames.includes(p.name));
+}

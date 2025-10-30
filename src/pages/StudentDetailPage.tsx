@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import WorkoutCard from "@/components/WorkoutCard";
 import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
 import TrainingZonesCard from "@/components/TrainingZonesCard";
+import ProtocolRecommendationsCard from "@/components/ProtocolRecommendationsCard";
 import { useState } from "react";
 
 const StudentDetailPage = () => {
@@ -170,7 +171,10 @@ const StudentDetailPage = () => {
             </Card>
           </div>
 
-          <TrainingZonesCard maxHeartRate={student.max_heart_rate} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TrainingZonesCard maxHeartRate={student.max_heart_rate} />
+            <ProtocolRecommendationsCard studentId={id!} />
+          </div>
         </TabsContent>
 
         <TabsContent value="sessions" className="space-y-4">
