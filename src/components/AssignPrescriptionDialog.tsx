@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useAssignPrescription } from "@/hooks/usePrescriptions";
 import { useStudents } from "@/hooks/useStudents";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,6 +29,7 @@ export function AssignPrescriptionDialog({
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
+  const [time, setTime] = useState("");
 
   const weekdays = [
     { value: "monday", label: "Seg" },
@@ -59,8 +61,16 @@ export function AssignPrescriptionDialog({
   };
 
   const handleSubmit = async () => {
-    if (!prescriptionId || selectedStudents.length === 0 || !dateRange?.from) {
+    if (!prescriptionId || selectedStudents.length === 0 || !dateRange?.from || !time) {
       return;
+    }
+
+    const customAdaptations: any = {};
+    if (selectedWeekdays.length > 0) {
+      customAdaptations.weekdays = selectedWeekdays;
+    }
+    if (time) {
+      customAdaptations.time = time;
     }
 
     await assignPrescription.mutateAsync({
@@ -68,12 +78,13 @@ export function AssignPrescriptionDialog({
       student_ids: selectedStudents,
       start_date: format(dateRange.from, "yyyy-MM-dd"),
       end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
-      custom_adaptations: selectedWeekdays.length > 0 ? { weekdays: selectedWeekdays } : undefined,
+      custom_adaptations: Object.keys(customAdaptations).length > 0 ? customAdaptations : undefined,
     });
 
     setSelectedStudents([]);
     setDateRange(undefined);
     setSelectedWeekdays([]);
+    setTime("");
     onOpenChange(false);
   };
 
@@ -167,6 +178,20 @@ export function AssignPrescriptionDialog({
               Selecione os dias em que o treino será realizado
             </p>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="time">Horário do Treino *</Label>
+            <Input
+              id="time"
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              placeholder="Ex: 08:00"
+            />
+            <p className="text-xs text-muted-foreground">
+              Horário em que este grupo fará o treino
+            </p>
+          </div>
         </div>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
@@ -178,7 +203,8 @@ export function AssignPrescriptionDialog({
             disabled={
               assignPrescription.isPending ||
               selectedStudents.length === 0 ||
-              !dateRange?.from
+              !dateRange?.from ||
+              !time
             }
           >
             {assignPrescription.isPending ? "Atribuindo..." : "Atribuir"}
