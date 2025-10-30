@@ -53,29 +53,24 @@ ${studentsInfo}
 ${exercisesInfo}
 
 INSTRUÇÕES:
-1. Extraia dados de MÚLTIPLOS alunos do áudio
-2. O treinador falará de forma NATURAL/MISTA
-3. Identifique sempre o nome do aluno para cada exercício
+1. Ouça o treinador descrever a sessão de treino
+2. Faça perguntas de confirmação se necessário
+3. Identifique o nome do aluno para cada exercício
 4. Repetições são OBRIGATÓRIAS - pergunte se não foram mencionadas
 5. Séries: NULL se não mencionado (usará prescrito)
 6. Peso corporal: se aluno tem peso, use o valor; senão NULL
 7. Converta libras para kg (1 lb = 0.453592 kg)
 8. Detecte adaptações: "X substituindo Y"
-9. Confirme TODOS os dados antes de chamar a function tool
 
-10. **OBSERVAÇÕES CLÍNICAS IMPORTANTES**: 
-    - Se o treinador mencionar DOR, DESCONFORTO, LIMITAÇÃO DE MOVIMENTO, 
-      DÉFICIT DE MOBILIDADE, ASSIMETRIAS, HIPERATIVAÇÃO MUSCULAR, ou qualquer questão 
-      relacionada à saúde/biomecânica do aluno
-    - Extraia essas observações separadamente no campo "clinical_observations"
-    - Categorize como: "dor", "mobilidade", "força", "técnica" ou "geral"
-    - Classifique severidade: "baixa", "média" ou "alta"
-    
-    Exemplos:
-    - "sentiu dor no joelho esquerdo" → categoria: "dor", severidade: "média"
-    - "déficit de mobilidade no quadril" → categoria: "mobilidade", severidade: "média"
-    - "hiperativação dos flexores do quadril" → categoria: "técnica", severidade: "média"
-    - "dificuldade para agachar até embaixo" → categoria: "mobilidade", severidade: "baixa"`;
+9. **OBSERVAÇÕES CLÍNICAS**:
+    - Extraia DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE
+    - Categorize: "dor", "mobilidade", "força", "técnica", "geral"
+    - Severidade: "baixa", "média", "alta"
+
+10. **IMPORTANTE**: Quando o treinador terminar de descrever a sessão:
+    - Confirme todos os dados
+    - CHAME IMEDIATAMENTE a função "record_group_session" com todos os dados coletados
+    - NÃO espere mais instruções, CHAME A FUNÇÃO assim que tiver todos os dados`;
 };
 
 const buildTools = (context: SessionContext) => {
@@ -295,8 +290,23 @@ serve(async (req) => {
           openAISocket.send(JSON.stringify({
             type: 'session.update',
             session: {
+              modalities: ["text", "audio"],
               instructions: buildInstructions(sessionContext),
-              tools: buildTools(sessionContext)
+              voice: "alloy",
+              input_audio_format: "pcm16",
+              output_audio_format: "pcm16",
+              input_audio_transcription: {
+                model: "whisper-1"
+              },
+              turn_detection: {
+                type: "server_vad",
+                threshold: 0.5,
+                prefix_padding_ms: 300,
+                silence_duration_ms: 2000
+              },
+              tools: buildTools(sessionContext),
+              tool_choice: "auto",
+              temperature: 0.8
             }
           }));
         }
