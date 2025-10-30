@@ -188,70 +188,7 @@ serve(async (req) => {
   let openAISocket: WebSocket | null = null;
 
   socket.onopen = async () => {
-    console.log("Client connected");
-    
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-    if (!OPENAI_API_KEY) {
-      socket.close(1008, 'API key not configured');
-      return;
-    }
-
-    try {
-      const tokenResponse = await fetch("https://api.openai.com/v1/realtime/sessions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-realtime-preview-2024-12-17",
-          voice: "alloy",
-          instructions: "Aguardando contexto da sessão...",
-          tools: []
-        }),
-      });
-
-      if (!tokenResponse.ok) {
-        socket.close(1008, 'Failed to authenticate');
-        return;
-      }
-
-      const tokenData = await tokenResponse.json();
-      const ephemeralKey = tokenData.client_secret?.value;
-
-      if (!ephemeralKey) {
-        socket.close(1008, 'No ephemeral key');
-        return;
-      }
-
-      const url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
-      openAISocket = new WebSocket(url, [
-        "realtime",
-        `openai-insecure-api-key.${ephemeralKey}`,
-        "openai-beta.realtime-v1"
-      ]);
-
-      openAISocket.onopen = () => {
-        console.log("Connected to OpenAI");
-      };
-
-      openAISocket.onmessage = (event) => {
-        socket.send(event.data);
-      };
-
-      openAISocket.onerror = (error) => {
-        console.error("OpenAI error:", error);
-        socket.send(JSON.stringify({ type: "error", error: "OpenAI connection failed" }));
-      };
-
-      openAISocket.onclose = () => {
-        socket.close();
-      };
-
-    } catch (error) {
-      console.error("Error:", error);
-      socket.close(1011, 'Internal error');
-    }
+    console.log("Client connected - waiting for session context...");
   };
 
   socket.onmessage = async (event) => {
@@ -259,7 +196,7 @@ serve(async (req) => {
       const message = JSON.parse(event.data);
       
       if (message.type === 'session.context') {
-        console.log("Received context:", message.context);
+        console.log("Received context, initializing OpenAI session...");
         
         const { data: prescription, error } = await supabaseClient
           .from('workout_prescriptions')
@@ -285,33 +222,83 @@ serve(async (req) => {
           date: message.context.date,
           time: message.context.time
         };
-        
-        if (openAISocket?.readyState === WebSocket.OPEN) {
-          openAISocket.send(JSON.stringify({
-            type: 'session.update',
-            session: {
-              modalities: ["text", "audio"],
-              instructions: buildInstructions(sessionContext),
-              voice: "alloy",
-              input_audio_format: "pcm16",
-              output_audio_format: "pcm16",
-              input_audio_transcription: {
-                model: "whisper-1"
-              },
-              turn_detection: {
-                type: "server_vad",
-                threshold: 0.5,
-                prefix_padding_ms: 300,
-                silence_duration_ms: 2000
-              },
-              tools: buildTools(sessionContext),
-              tool_choice: "auto",
-              temperature: 0.8
-            }
-          }));
+
+        // NOW initialize OpenAI with full configuration
+        const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+        if (!OPENAI_API_KEY) {
+          socket.close(1008, 'API key not configured');
+          return;
         }
+
+        const instructions = buildInstructions(sessionContext);
+        const tools = buildTools(sessionContext);
+
+        const tokenResponse = await fetch("https://api.openai.com/v1/realtime/sessions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-realtime-preview-2024-12-17",
+            voice: "alloy",
+            modalities: ["text", "audio"],
+            instructions,
+            input_audio_format: "pcm16",
+            output_audio_format: "pcm16",
+            input_audio_transcription: {
+              model: "whisper-1"
+            },
+            turn_detection: {
+              type: "server_vad",
+              threshold: 0.5,
+              prefix_padding_ms: 300,
+              silence_duration_ms: 2000
+            },
+            tools,
+            tool_choice: "auto",
+            temperature: 0.8
+          }),
+        });
+
+        if (!tokenResponse.ok) {
+          socket.close(1008, 'Failed to create session');
+          return;
+        }
+
+        const tokenData = await tokenResponse.json();
+        const ephemeralKey = tokenData.client_secret?.value;
+
+        if (!ephemeralKey) {
+          socket.close(1008, 'No ephemeral key');
+          return;
+        }
+
+        const url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-12-17";
+        openAISocket = new WebSocket(url, [
+          "realtime",
+          `openai-insecure-api-key.${ephemeralKey}`,
+          "openai-beta.realtime-v1"
+        ]);
+
+        openAISocket.onopen = () => {
+          console.log("Connected to OpenAI with full configuration");
+          socket.send(JSON.stringify({ type: 'session.context_received' }));
+        };
+
+        openAISocket.onmessage = (event) => {
+          socket.send(event.data);
+        };
+
+        openAISocket.onerror = (error) => {
+          console.error("OpenAI error:", error);
+          socket.send(JSON.stringify({ type: "error", error: "OpenAI connection failed" }));
+        };
+
+        openAISocket.onclose = () => {
+          socket.close();
+        };
         
-        socket.send(JSON.stringify({ type: 'session.context_received' }));
         return;
       }
       
