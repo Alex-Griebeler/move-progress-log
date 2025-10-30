@@ -352,6 +352,7 @@ export function RecordIndividualSessionDialog({
             time={time}
             onSessionData={handleSessionData}
             onError={handleError}
+            autoStart={true}
           />
         )}
 

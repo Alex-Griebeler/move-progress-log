@@ -17,6 +17,7 @@ interface VoiceSessionRecorderProps {
   time?: string;
   onSessionData: (data: any) => void;
   onError?: (error: string) => void;
+  autoStart?: boolean;
 }
 
 export function VoiceSessionRecorder({ 
@@ -25,7 +26,8 @@ export function VoiceSessionRecorder({
   date,
   time,
   onSessionData,
-  onError
+  onError,
+  autoStart = false
 }: VoiceSessionRecorderProps) {
   const [isInitializing, setIsInitializing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -49,6 +51,14 @@ export function VoiceSessionRecorder({
       audioContextRef.current?.close();
     };
   }, []);
+
+  // Auto-start recording if autoStart is true
+  useEffect(() => {
+    if (autoStart && !isRecording && !isInitializing && !isConnecting && !isRequestingPermission) {
+      console.log("🚀 Auto-starting recording...");
+      startRecording();
+    }
+  }, [autoStart]);
 
   const resetAllStates = () => {
     console.log("🔄 Resetting all states");

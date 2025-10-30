@@ -502,6 +502,7 @@ export function RecordGroupSessionDialog({
             time={time}
             onSessionData={handleSessionData}
             onError={handleError}
+            autoStart={true}
           />
         )}
 
