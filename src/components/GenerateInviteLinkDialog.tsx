@@ -49,21 +49,10 @@ export const GenerateInviteLinkDialog = ({
   const handleWhatsApp = () => {
     if (generatedUrl) {
       const message = `Olá! Complete seu cadastro através deste link: ${generatedUrl}`;
-      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-      
-      // Detect if mobile to use different approach
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      if (isMobile) {
-        // On mobile, navigate directly
-        window.location.href = whatsappUrl;
-      } else {
-        // On desktop, try to open in new window
-        const newWindow = window.open(whatsappUrl, "_blank");
-        if (!newWindow) {
-          toast.info("Por favor, copie o link e compartilhe manualmente no WhatsApp");
-        }
-      }
+      navigator.clipboard.writeText(message);
+      toast.success("Mensagem copiada! Cole no WhatsApp do aluno.", {
+        description: "A mensagem com o link já está na sua área de transferência"
+      });
     }
   };
 
@@ -132,7 +121,7 @@ export const GenerateInviteLinkDialog = ({
 
             <div className="flex gap-2">
               <Button onClick={handleWhatsApp} variant="outline" className="flex-1">
-                Compartilhar no WhatsApp
+                Copiar Mensagem WhatsApp
               </Button>
               <Button onClick={handleClose} className="flex-1">
                 Fechar
