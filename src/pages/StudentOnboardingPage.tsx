@@ -51,8 +51,14 @@ export default function StudentOnboardingPage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
+  console.log('StudentOnboardingPage loaded with token:', token);
+  console.log('Current URL:', window.location.href);
+
   const { data: validationData, isLoading: isValidating, error: validationError } = useValidateInvite(token || "");
   const createStudent = useCreateStudentFromInvite();
+
+  console.log('Validation data:', validationData);
+  console.log('Validation error:', validationError);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),

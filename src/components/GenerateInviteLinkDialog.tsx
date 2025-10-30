@@ -49,7 +49,21 @@ export const GenerateInviteLinkDialog = ({
   const handleWhatsApp = () => {
     if (generatedUrl) {
       const message = `Olá! Complete seu cadastro através deste link: ${generatedUrl}`;
-      window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank");
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      
+      // Detect if mobile to use different approach
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // On mobile, navigate directly
+        window.location.href = whatsappUrl;
+      } else {
+        // On desktop, try to open in new window
+        const newWindow = window.open(whatsappUrl, "_blank");
+        if (!newWindow) {
+          toast.info("Por favor, copie o link e compartilhe manualmente no WhatsApp");
+        }
+      }
     }
   };
 

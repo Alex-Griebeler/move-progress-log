@@ -68,7 +68,11 @@ Deno.serve(async (req) => {
 
     // Build invite URL using request origin
     const origin = req.headers.get('origin') || req.headers.get('referer');
+    console.log('Request headers - Origin:', origin);
+    console.log('Request headers - Referer:', req.headers.get('referer'));
+    
     const baseUrl = origin ? new URL(origin).origin : 'http://localhost:5173';
+    console.log('Base URL determined:', baseUrl);
     
     const invite_url = `${baseUrl}/onboarding/${invite_token}`;
 
