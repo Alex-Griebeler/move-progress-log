@@ -157,7 +157,7 @@ serve(async (req) => {
     audioBase64 = btoa(audioBase64);
 
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash" 
+      model: "gemini-2.0-flash-exp" 
     });
 
     const transcriptionResult = await model.generateContent([
@@ -248,7 +248,7 @@ Retorne um JSON válido com esta estrutura EXATA:
 }`;
 
     const extractionModel = genAI.getGenerativeModel({ 
-      model: "gemini-2.5-flash",
+      model: "gemini-2.0-flash-exp",
       generationConfig: {
         responseMimeType: "application/json"
       }
@@ -261,13 +261,18 @@ Retorne um JSON válido com esta estrutura EXATA:
 
     const extractedData = JSON.parse(extractionResult.response.text());
     console.log("✅ Structured data extraction completed");
+    console.log("📊 Extracted data:", JSON.stringify(extractedData, null, 2));
+
+    const response = {
+      success: true,
+      transcription,
+      data: extractedData
+    };
+    
+    console.log("📤 Sending response:", JSON.stringify(response, null, 2));
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        transcription,
-        data: extractedData
-      }),
+      JSON.stringify(response),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
