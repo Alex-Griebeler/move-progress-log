@@ -669,7 +669,7 @@ export type Database = {
       }
       student_observations: {
         Row: {
-          category: string | null
+          categories: string[] | null
           created_at: string | null
           created_by: string | null
           exercise_id: string | null
@@ -682,7 +682,7 @@ export type Database = {
           student_id: string
         }
         Insert: {
-          category?: string | null
+          categories?: string[] | null
           created_at?: string | null
           created_by?: string | null
           exercise_id?: string | null
@@ -695,7 +695,7 @@ export type Database = {
           student_id: string
         }
         Update: {
-          category?: string | null
+          categories?: string[] | null
           created_at?: string | null
           created_by?: string | null
           exercise_id?: string | null

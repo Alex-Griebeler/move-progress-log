@@ -117,13 +117,16 @@ export function StudentObservationsCard({ studentId }: StudentObservationsCardPr
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <Badge 
-                        variant={getSeverityVariant(obs.severity)}
-                        className="text-xs"
-                      >
-                        <span className="mr-1">{getCategoryIcon(obs.category)}</span>
-                        {obs.category}
-                      </Badge>
+                      {obs.categories?.map((cat, idx) => (
+                        <Badge 
+                          key={idx}
+                          variant={getSeverityVariant(obs.severity)}
+                          className="text-xs"
+                        >
+                          <span className="mr-1">{getCategoryIcon(cat)}</span>
+                          {cat}
+                        </Badge>
+                      ))}
                       <Badge variant="outline" className="text-xs">
                         {obs.severity}
                       </Badge>

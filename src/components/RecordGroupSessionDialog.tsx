@@ -38,7 +38,7 @@ interface SessionData {
     auto_added?: boolean;
     clinical_observations?: Array<{
       observation_text: string;
-      category: 'dor' | 'mobilidade' | 'força' | 'técnica' | 'geral';
+      categories: string[];
       severity: 'baixa' | 'média' | 'alta';
     }>;
     exercises: Array<{
@@ -65,7 +65,7 @@ interface MergedStudent {
   recording_numbers: number[];
   clinical_observations: Array<{
     observation_text: string;
-    category: 'dor' | 'mobilidade' | 'força' | 'técnica' | 'geral';
+    categories: string[];
     severity: 'baixa' | 'média' | 'alta';
   }>;
   exercises: Array<{
@@ -143,6 +143,19 @@ export function RecordGroupSessionDialog({
     const longer = n1.length >= n2.length ? n1 : n2;
     
     return longer.includes(shorter) && (shorter.length / longer.length) > 0.8;
+  };
+
+  const getSeverityVariant = (severity: string): "destructive" | "default" | "secondary" => {
+    switch (severity) {
+      case 'alta': return 'destructive';
+      case 'média': return 'default';
+      case 'baixa': return 'secondary';
+      default: return 'secondary';
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    return category.charAt(0).toUpperCase();
   };
 
   const mergeAllRecordings = (recordings: AccumulatedRecording[]): MergedStudent[] => {
@@ -387,7 +400,7 @@ export function RecordGroupSessionDialog({
             const observationsToInsert = merged.clinical_observations.map(obs => ({
               student_id: student.id,
               observation_text: obs.observation_text,
-              category: obs.category,
+              categories: obs.categories,
               severity: obs.severity,
               session_id: sessionData.id,
               is_resolved: false
@@ -587,6 +600,11 @@ export function RecordGroupSessionDialog({
 
         {dialogState === 'preview' && mergedStudents.length > 0 && (
           <div className="space-y-4">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+              <span>📅 {new Date(date).toLocaleDateString('pt-BR')}</span>
+              <span>🕐 {time}</span>
+            </div>
+            
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="text-base">
                 {accumulatedRecordings.length} gravação(ões) realizada(s)
@@ -638,17 +656,16 @@ export function RecordGroupSessionDialog({
                         <div className="space-y-2">
                           {student.clinical_observations.map((obs, obsIdx) => (
                             <div key={obsIdx} className="p-2 bg-muted/50 rounded-lg">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Badge variant={
-                                  obs.severity === 'alta' ? 'destructive' : 
-                                  obs.severity === 'média' ? 'default' : 
-                                  'secondary'
-                                }>
+                              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                <Badge variant={getSeverityVariant(obs.severity)}>
                                   {obs.severity}
                                 </Badge>
-                                <Badge variant="outline" className="text-xs">
-                                  {obs.category}
-                                </Badge>
+                                {obs.categories?.map((cat, catIdx) => (
+                                  <Badge key={catIdx} variant="outline" className="text-xs">
+                                    <span className="mr-1">{getCategoryIcon(cat)}</span>
+                                    {cat}
+                                  </Badge>
+                                ))}
                               </div>
                               <p className="text-sm">{obs.observation_text}</p>
                             </div>

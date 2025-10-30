@@ -229,21 +229,26 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
 
 4. **Conversão de Libras (PADRÃO FABRIK)**:
    - **1 lb = 0.45 kg** (usar este valor, não o técnico)
-   - Exemplo 1: "25 kg"
-     * load_breakdown: "25 kg"
-     * load_kg: 25.0
+   - **ATENÇÃO: "de cada lado" significa multiplicar por 2**
    
-   - Exemplo 2: "(25 lb × 2 + 2 kg) + barra 10 kg"
-     * 25 lb × 2 = 50 lb = 22.5 kg (50 × 0.45)
-     * Total: 22.5 + 2 + 10 = 34.5 kg
-     * load_breakdown: "(25 lb × 2 + 2 kg) + barra 10 kg"
-     * load_kg: 34.5
+   Exemplos:
    
-   - Exemplo 3: "(15 lb + 2 kg) + barra 10 kg"
-     * 15 lb = 6.8 kg (15 × 0.45 = 6.75 → arredonda para 6.8)
-     * Total: 6.8 + 2 + 10 = 18.8 kg
-     * load_breakdown: "(15 lb + 2 kg) + barra 10 kg"
-     * load_kg: 18.8
+   a) "25 kg"
+      * load_breakdown: "25 kg"
+      * load_kg: 25.0
+   
+   b) "25 lb de cada lado + barra 10 kg"
+      * "de cada lado" = 25 lb × 2 = 50 lb
+      * 50 lb = 22.5 kg (50 × 0.45)
+      * Total: 22.5 + 10 = 32.5 kg
+      * load_breakdown: "(25 lb × 2) + barra 10 kg"
+      * load_kg: 32.5
+   
+   c) "15 lb + 2 kg de cada lado + barra 10 kg"
+      * (15 lb + 2 kg) × 2 = (6.8 kg + 2 kg) × 2 = 17.6 kg
+      * Total: 17.6 + 10 = 27.6 kg
+      * load_breakdown: "(15 lb + 2 kg) de cada lado + barra 10 kg"
+      * load_kg: 27.6
 
 5. **Nome do Exercício**:
    - Incluir tipo de pegada quando mencionado
@@ -258,8 +263,20 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
 
 8. **Observações Clínicas** (campo separado clinical_observations):
    - Extraia: DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE
-   - Categorize: "dor", "mobilidade", "força", "técnica", "geral"
+   - UMA observação pode ter MÚLTIPLAS categorias
+   - Exemplo: "dor no joelho esquerdo e dificuldade de mobilidade"
+     * categories: ["dor", "mobilidade"]
+   - Categorias possíveis: "dor", "mobilidade", "força", "técnica", "geral"
    - Severidade: "baixa", "média", "alta"
+
+9. **prescribed_exercise_name** (IMPORTANTE):
+   - Tente SEMPRE associar o exercício executado com um dos exercícios prescritos
+   - Compare o nome executado com a lista de exercícios prescritos
+   - Se houver correspondência (mesmo que parcial), use o nome prescrito
+   - Exemplos:
+     * Executado: "Agachamento taça" → Prescrito: "Agachamento goblet"
+     * Executado: "Remada halter" → Prescrito: "Remada unilateral"
+   - Se não houver correspondência clara: null
 
 FORMATO DE SAÍDA:
 {
@@ -269,18 +286,18 @@ FORMATO DE SAÍDA:
       "clinical_observations": [
         {
           "observation_text": "descrição da observação",
-          "category": "dor|mobilidade|força|técnica|geral",
+          "categories": ["dor", "mobilidade"],
           "severity": "baixa|média|alta"
         }
       ],
       "exercises": [
         {
-          "prescribed_exercise_name": "nome prescrito ou null",
-          "executed_exercise_name": "nome executado (com tipo de pegada se mencionado)",
+          "prescribed_exercise_name": "nome do exercício prescrito (ou null)",
+          "executed_exercise_name": "nome executado (com pegada)",
           "sets": número ou null,
           "reps": número obrigatório,
-          "load_kg": número com 1 casa decimal ou null,
-          "load_breakdown": "descrição EXATA da montagem ou null",
+          "load_kg": número com 1 casa decimal (ex: 25.0) ou null,
+          "load_breakdown": "descrição EXATA ou null",
           "observations": "observações técnicas ou null",
           "is_best_set": true
         }
@@ -302,6 +319,16 @@ FORMATO DE SAÍDA:
     ]);
 
     const extractedData = JSON.parse(extractionResult.response.text());
+    
+    // Garantir que load_kg sempre tenha 1 casa decimal
+    extractedData.sessions?.forEach((session: any) => {
+      session.exercises?.forEach((ex: any) => {
+        if (ex.load_kg !== null && ex.load_kg !== undefined) {
+          ex.load_kg = parseFloat(ex.load_kg.toFixed(1));
+        }
+      });
+    });
+    
     console.log("✅ Structured data extraction completed");
     console.log("📊 Extracted data:", JSON.stringify(extractedData, null, 2));
 
