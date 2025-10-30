@@ -130,7 +130,6 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
               size="sm"
               className="gap-2"
               onClick={() => onAddSession(prescription.id)}
-              disabled={prescription.assigned_students_count === 0}
             >
               <ClipboardList className="h-4 w-4" />
               Registrar Sessão
