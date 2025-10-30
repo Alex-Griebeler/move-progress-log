@@ -66,10 +66,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build invite URL
-    const baseUrl = Deno.env.get('VITE_SUPABASE_URL')?.includes('supabase.co')
-      ? 'https://fabrik-performance.lovable.app'
-      : 'http://localhost:5173';
+    // Build invite URL using request origin
+    const origin = req.headers.get('origin') || req.headers.get('referer');
+    const baseUrl = origin ? new URL(origin).origin : 'http://localhost:5173';
     
     const invite_url = `${baseUrl}/onboarding/${invite_token}`;
 
@@ -83,7 +82,7 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in generate-student-invite:', error);
     return new Response(
       JSON.stringify({ error: error.message }),

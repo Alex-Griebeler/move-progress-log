@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ success: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in oura-disconnect:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
