@@ -105,6 +105,15 @@ export function RecordGroupSessionDialog({
   const createGroupSessions = useCreateGroupWorkoutSessions();
   const { toast } = useToast();
 
+  // 🔍 DEBUG: Monitorar mudanças de estado
+  useEffect(() => {
+    console.log("🔄 Dialog State mudou para:", dialogState);
+  }, [dialogState]);
+
+  useEffect(() => {
+    console.log("📊 Merged Students atualizado:", mergedStudents.length, "alunos");
+  }, [mergedStudents]);
+
   // Enriquecer lista de alunos com informação de prescrição ativa
   const enrichedStudents = students?.map((student) => ({
     ...student,
@@ -211,39 +220,48 @@ export function RecordGroupSessionDialog({
   };
 
   const handleAutoAddStudents = async (data: SessionData) => {
-    const newStudents: Student[] = [];
-    
-    for (let i = 0; i < data.sessions.length; i++) {
-      const session = data.sessions[i];
-      const existingStudent = selectedStudents.find(
-        s => s.name.toLowerCase() === session.student_name.toLowerCase()
-      );
+    try {
+      const newStudents: Student[] = [];
       
-      if (!existingStudent) {
-        const { data: studentData } = await supabase
-          .from('students')
-          .select('*')
-          .ilike('name', session.student_name)
-          .single();
+      for (let i = 0; i < data.sessions.length; i++) {
+        const session = data.sessions[i];
+        const existingStudent = selectedStudents.find(
+          s => s.name.toLowerCase() === session.student_name.toLowerCase()
+        );
         
-        if (studentData) {
-          newStudents.push({
-            id: studentData.id,
-            name: studentData.name,
-            weight_kg: studentData.weight_kg,
-            has_active_prescription: false
-          });
-          data.sessions[i].auto_added = true;
+        if (!existingStudent) {
+          const { data: studentData, error } = await supabase
+            .from('students')
+            .select('*')
+            .ilike('name', session.student_name)
+            .single();
+          
+          if (error) {
+            console.error(`⚠️ Aluno "${session.student_name}" não encontrado:`, error);
+            continue;
+          }
+          
+          if (studentData) {
+            newStudents.push({
+              id: studentData.id,
+              name: studentData.name,
+              weight_kg: studentData.weight_kg,
+              has_active_prescription: false
+            });
+            data.sessions[i].auto_added = true;
+          }
         }
       }
-    }
-    
-    if (newStudents.length > 0) {
-      setSelectedStudents(prev => [...prev, ...newStudents]);
-      toast({
-        title: "Alunos adicionados automaticamente",
-        description: `${newStudents.map(s => s.name).join(", ")} foram adicionados à sessão`,
-      });
+      
+      if (newStudents.length > 0) {
+        setSelectedStudents(prev => [...prev, ...newStudents]);
+        toast({
+          title: "Alunos adicionados automaticamente",
+          description: `${newStudents.map(s => s.name).join(", ")} foram adicionados à sessão`,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Erro em handleAutoAddStudents:", error);
     }
   };
 
@@ -266,26 +284,38 @@ export function RecordGroupSessionDialog({
   };
 
   const handleSessionData = async (data: SessionData) => {
-    console.log("Received session data from recording", currentRecordingNumber, ":", data);
+    console.log("📥 Dados recebidos da gravação", currentRecordingNumber, ":", data);
     
-    await handleAutoAddStudents(data);
-    
-    const newRecording: AccumulatedRecording = {
-      recordingNumber: currentRecordingNumber,
-      timestamp: new Date().toISOString(),
-      data
-    };
-    
-    const updatedRecordings = [...accumulatedRecordings, newRecording];
-    setAccumulatedRecordings(updatedRecordings);
-    
-    const merged = mergeAllRecordings(updatedRecordings);
-    setMergedStudents(merged);
-    
-    const validation = validateMergedData(merged);
-    setValidationIssues(validation);
-    
-    setDialogState('preview');
+    try {
+      await handleAutoAddStudents(data);
+      
+      const newRecording: AccumulatedRecording = {
+        recordingNumber: currentRecordingNumber,
+        timestamp: new Date().toISOString(),
+        data
+      };
+      
+      const updatedRecordings = [...accumulatedRecordings, newRecording];
+      setAccumulatedRecordings(updatedRecordings);
+      
+      const merged = mergeAllRecordings(updatedRecordings);
+      setMergedStudents(merged);
+      
+      const validation = validateMergedData(merged);
+      setValidationIssues(validation);
+      
+      console.log("✅ Dados processados, transitando para preview...");
+      
+      // Garantir que React processe todos os setStates antes de mudar dialogState
+      setTimeout(() => {
+        setDialogState('preview');
+        console.log("🎯 Estado mudou para preview");
+      }, 100);
+      
+    } catch (error) {
+      console.error("❌ Erro em handleSessionData:", error);
+      handleError(error instanceof Error ? error.message : "Erro ao processar dados");
+    }
   };
 
   const handleError = (error: string) => {

@@ -196,7 +196,7 @@ serve(async (req) => {
     // 3️⃣ Processar com Gemini para extrair dados estruturados
     console.log("🤖 Processing structured data with Gemini...");
     
-    const systemPrompt = `Você é um assistente especializado em extrair dados estruturados de sessões de treino EM GRUPO.
+    const systemPrompt = `Você é um assistente especializado em extrair dados estruturados de sessões de treino EM GRUPO seguindo o padrão Fabrik Time Efficient.
 
 CONTEXTO DA SESSÃO:
 📅 Data: ${date}
@@ -208,18 +208,60 @@ ${studentsInfo}
 💪 EXERCÍCIOS PRESCRITOS:
 ${exercisesInfo}
 
-INSTRUÇÕES:
-1. Extraia TODOS os exercícios mencionados para CADA aluno
-2. Repetições são OBRIGATÓRIAS
-3. Séries: use null se não mencionado (usará prescrito)
-4. Peso corporal: se aluno tem peso cadastrado, use o valor; senão null
-5. Converta libras para kg (1 lb = 0.453592 kg)
-6. Detecte adaptações: "X substituindo Y"
-7. Extraia observações clínicas: DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE
-8. Categorize observações: "dor", "mobilidade", "força", "técnica", "geral"
-9. Severidade: "baixa", "média", "alta"
+INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
 
-Retorne um JSON válido com esta estrutura EXATA:
+1. **Repetições**: OBRIGATÓRIAS para cada exercício
+
+2. **Séries**: Use null se não mencionado (usará valor prescrito)
+
+3. **Carga - Dois campos obrigatórios**:
+   
+   a) **load_breakdown** (descrição completa da montagem):
+      - Se carga foi mencionada: registre EXATAMENTE como foi dito
+      - Formato: "(peso1 + peso2) + barra X kg"
+      - Exemplo: "(15 lb + 2 kg) + barra 10 kg"
+      - Se não mencionado: null
+   
+   b) **load_kg** (total convertido, 1 casa decimal):
+      - Se carga foi mencionada: calcule o total em kg
+      - ARREDONDE para 1 CASA DECIMAL
+      - Se não mencionado: null
+
+4. **Conversão de Libras (PADRÃO FABRIK)**:
+   - **1 lb = 0.45 kg** (usar este valor, não o técnico)
+   - Exemplo 1: "25 kg"
+     * load_breakdown: "25 kg"
+     * load_kg: 25.0
+   
+   - Exemplo 2: "(25 lb × 2 + 2 kg) + barra 10 kg"
+     * 25 lb × 2 = 50 lb = 22.5 kg (50 × 0.45)
+     * Total: 22.5 + 2 + 10 = 34.5 kg
+     * load_breakdown: "(25 lb × 2 + 2 kg) + barra 10 kg"
+     * load_kg: 34.5
+   
+   - Exemplo 3: "(15 lb + 2 kg) + barra 10 kg"
+     * 15 lb = 6.8 kg (15 × 0.45 = 6.75 → arredonda para 6.8)
+     * Total: 6.8 + 2 + 10 = 18.8 kg
+     * load_breakdown: "(15 lb + 2 kg) + barra 10 kg"
+     * load_kg: 18.8
+
+5. **Nome do Exercício**:
+   - Incluir tipo de pegada quando mencionado
+   - Exemplos: "Afundo (pegada taça)", "Remada unilateral (halter)"
+
+6. **is_best_set**:
+   - Sempre true (registramos apenas a maior carga da sessão)
+
+7. **Observações Técnicas** (campo observations):
+   - Incluir: "carga submáxima", "dificuldade perna X", "boa execução"
+   - Incluir qualquer comentário técnico relevante
+
+8. **Observações Clínicas** (campo separado clinical_observations):
+   - Extraia: DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE
+   - Categorize: "dor", "mobilidade", "força", "técnica", "geral"
+   - Severidade: "baixa", "média", "alta"
+
+FORMATO DE SAÍDA:
 {
   "sessions": [
     {
@@ -234,12 +276,12 @@ Retorne um JSON válido com esta estrutura EXATA:
       "exercises": [
         {
           "prescribed_exercise_name": "nome prescrito ou null",
-          "executed_exercise_name": "nome executado",
+          "executed_exercise_name": "nome executado (com tipo de pegada se mencionado)",
           "sets": número ou null,
           "reps": número obrigatório,
-          "load_kg": número ou null,
-          "load_breakdown": "descrição da carga",
-          "observations": "observações ou null",
+          "load_kg": número com 1 casa decimal ou null,
+          "load_breakdown": "descrição EXATA da montagem ou null",
+          "observations": "observações técnicas ou null",
           "is_best_set": true
         }
       ]
