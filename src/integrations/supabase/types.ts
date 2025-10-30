@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      adaptation_rules: {
+        Row: {
+          action_type: string
+          condition: string
+          created_at: string | null
+          description: string | null
+          id: string
+          metric_name: string
+          severity: string
+          threshold_value: number
+        }
+        Insert: {
+          action_type: string
+          condition: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metric_name: string
+          severity: string
+          threshold_value: number
+        }
+        Update: {
+          action_type?: string
+          condition?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metric_name?: string
+          severity?: string
+          threshold_value?: number
+        }
+        Relationships: []
+      }
       exercise_adaptations: {
         Row: {
           adaptation_type: string
@@ -157,6 +190,53 @@ export type Database = {
         }
         Relationships: []
       }
+      oura_metrics: {
+        Row: {
+          activity_balance: number | null
+          created_at: string | null
+          date: string
+          hrv_balance: number | null
+          id: string
+          readiness_score: number | null
+          resting_heart_rate: number | null
+          sleep_score: number | null
+          student_id: string
+          temperature_deviation: number | null
+        }
+        Insert: {
+          activity_balance?: number | null
+          created_at?: string | null
+          date: string
+          hrv_balance?: number | null
+          id?: string
+          readiness_score?: number | null
+          resting_heart_rate?: number | null
+          sleep_score?: number | null
+          student_id: string
+          temperature_deviation?: number | null
+        }
+        Update: {
+          activity_balance?: number | null
+          created_at?: string | null
+          date?: string
+          hrv_balance?: number | null
+          id?: string
+          readiness_score?: number | null
+          resting_heart_rate?: number | null
+          sleep_score?: number | null
+          student_id?: string
+          temperature_deviation?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oura_metrics_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prescription_assignments: {
         Row: {
           created_at: string
@@ -261,6 +341,99 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      protocol_recommendations: {
+        Row: {
+          applied: boolean | null
+          created_at: string | null
+          id: string
+          priority: string
+          protocol_id: string
+          reason: string
+          recommended_date: string
+          student_id: string
+          trainer_notes: string | null
+        }
+        Insert: {
+          applied?: boolean | null
+          created_at?: string | null
+          id?: string
+          priority: string
+          protocol_id: string
+          reason: string
+          recommended_date?: string
+          student_id: string
+          trainer_notes?: string | null
+        }
+        Update: {
+          applied?: boolean | null
+          created_at?: string | null
+          id?: string
+          priority?: string
+          protocol_id?: string
+          reason?: string
+          recommended_date?: string
+          student_id?: string
+          trainer_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_recommendations_protocol_id_fkey"
+            columns: ["protocol_id"]
+            isOneToOne: false
+            referencedRelation: "recovery_protocols"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_recommendations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recovery_protocols: {
+        Row: {
+          benefits: Json | null
+          category: string
+          contraindications: string | null
+          created_at: string | null
+          duration_minutes: number
+          id: string
+          instructions: string
+          name: string
+          scientific_references: string | null
+          subcategory: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          benefits?: Json | null
+          category: string
+          contraindications?: string | null
+          created_at?: string | null
+          duration_minutes: number
+          id?: string
+          instructions: string
+          name: string
+          scientific_references?: string | null
+          subcategory?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          benefits?: Json | null
+          category?: string
+          contraindications?: string | null
+          created_at?: string | null
+          duration_minutes?: number
+          id?: string
+          instructions?: string
+          name?: string
+          scientific_references?: string | null
+          subcategory?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       students: {
         Row: {
