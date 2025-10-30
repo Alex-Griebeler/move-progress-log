@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, Activity, FileText, TrendingUp } from "lucide-react";
+import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import WorkoutCard from "@/components/WorkoutCard";
 import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
 import TrainingZonesCard from "@/components/TrainingZonesCard";
@@ -16,6 +17,7 @@ import OuraMetricsCard from "@/components/OuraMetricsCard";
 import { OuraConnectionCard } from "@/components/OuraConnectionCard";
 import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecommendationDialog";
 import { useOuraMetrics } from "@/hooks/useOuraMetrics";
+import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState } from "react";
 
 const StudentDetailPage = () => {
@@ -25,6 +27,7 @@ const StudentDetailPage = () => {
   const { data: sessions, isLoading: loadingSessions } = useSessionsWithExercises(id!);
   const { data: assignments, isLoading: loadingAssignments } = useStudentPrescriptions(id!);
   const { data: ouraMetrics, isLoading: loadingOuraMetrics } = useOuraMetrics(id!, 30);
+  const { data: ouraConnection } = useOuraConnection(id!);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
 
   const student = students?.find((s) => s.id === id);
@@ -332,10 +335,25 @@ const StudentDetailPage = () => {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Activity className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Nenhuma métrica do Oura Ring disponível</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Conecte o Oura Ring do aluno para visualizar dados de recuperação
-                </p>
+                {ouraConnection ? (
+                  <>
+                    <Alert className="mb-4">
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        Oura Ring conectado, mas ainda não há dados disponíveis.
+                        Os dados são processados pelo Oura após você acordar e sincronizar seu anel.
+                        Use o botão "Sincronizar" acima para buscar novos dados.
+                      </AlertDescription>
+                    </Alert>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-muted-foreground">Nenhuma métrica do Oura Ring disponível</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Conecte o Oura Ring do aluno para visualizar dados de recuperação
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}

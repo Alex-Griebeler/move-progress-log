@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { RefreshCw, Unlink, Link2 } from "lucide-react";
+import { RefreshCw, Unlink, Link2, Info } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +19,7 @@ import {
   useSyncOura,
   useDisconnectOura,
 } from "@/hooks/useOuraConnection";
+import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -29,6 +31,7 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
 
   const { data: connection, isLoading } = useOuraConnection(studentId);
+  const { data: latestMetrics } = useLatestOuraMetrics(studentId);
   const syncOura = useSyncOura();
   const disconnectOura = useDisconnectOura();
 
@@ -86,6 +89,16 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
             </div>
           ) : (
             <div className="space-y-3">
+              {!latestMetrics && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Oura Ring conectado! Aguardando sincronização de dados...
+                    Os dados são processados pelo Oura após você acordar e sincronizar seu anel.
+                    Tente sincronizar novamente mais tarde.
+                  </AlertDescription>
+                </Alert>
+              )}
               {connection.last_sync_at && (
                 <p className="text-sm text-muted-foreground">
                   Última sincronização:{" "}

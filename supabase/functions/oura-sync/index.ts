@@ -108,6 +108,21 @@ Deno.serve(async (req) => {
     const heartrateData = heartrateRes.ok ? await heartrateRes.json() : null;
 
     console.log('Oura API responses received');
+    console.log('Readiness response:', {
+      status: readinessRes.status,
+      dataCount: readinessData?.data?.length || 0,
+      firstItem: readinessData?.data?.[0] || 'none'
+    });
+    console.log('Sleep response:', {
+      status: sleepRes.status,
+      dataCount: sleepData?.data?.length || 0,
+      firstItem: sleepData?.data?.[0] || 'none'
+    });
+    console.log('Heartrate response:', {
+      status: heartrateRes.status,
+      dataCount: heartrateData?.data?.length || 0,
+      sampleCount: heartrateData?.data?.length || 0
+    });
 
     // Extract metrics
     const readiness = readinessData?.data?.[0];
@@ -131,6 +146,26 @@ Deno.serve(async (req) => {
       temperature_deviation: readiness?.contributors?.temperature_deviation || null,
       activity_balance: readiness?.contributors?.activity_balance || null,
     };
+
+    console.log('Extracted metrics:', metrics);
+
+    // Check if all values are null (no data available)
+    const hasData = metrics.readiness_score !== null || 
+                    metrics.sleep_score !== null || 
+                    metrics.hrv_balance !== null || 
+                    metrics.resting_heart_rate !== null;
+
+    if (!hasData) {
+      console.log('No Oura data available for this date. Skipping save.');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Sem dados disponíveis do Oura Ring para esta data. Os dados são processados após você acordar e sincronizar seu anel.',
+          synced_metrics: null,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Upsert metrics
     const { error: upsertError } = await supabaseClient

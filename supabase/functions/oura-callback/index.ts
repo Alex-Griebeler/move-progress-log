@@ -89,17 +89,33 @@ Deno.serve(async (req) => {
 
     console.log(`Oura connection saved for student ${student_id}`);
 
-    // Sync initial data
+    // Sync initial data for the last 7 days
     try {
-      await fetch(`${supabaseUrl}/functions/v1/oura-sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-        },
-        body: JSON.stringify({ student_id }),
-      });
-      console.log('Initial Oura sync triggered');
+      const syncDate = new Date();
+      syncDate.setDate(syncDate.getDate() - 7);
+      const startDate = syncDate.toISOString().split('T')[0];
+      
+      // Sync multiple days to increase chances of getting data
+      const syncPromises = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        syncPromises.push(
+          fetch(`${supabaseUrl}/functions/v1/oura-sync`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            },
+            body: JSON.stringify({ student_id, date: dateStr }),
+          })
+        );
+      }
+      
+      await Promise.all(syncPromises);
+      console.log('Initial Oura sync triggered for last 7 days');
     } catch (syncError) {
       console.warn('Failed to trigger initial sync:', syncError);
     }
