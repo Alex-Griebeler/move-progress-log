@@ -125,26 +125,34 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
         </div>
 
         {/* Sleep Quality Indicators */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium">Indicadores de Qualidade</p>
-          <div className="flex flex-wrap gap-2">
-            {metrics.sleep_efficiency && (
-              <Badge variant={metrics.sleep_efficiency >= 85 ? "default" : "secondary"}>
-                Eficiência: {metrics.sleep_efficiency.toFixed(0)}%
-              </Badge>
-            )}
-            {metrics.deep_sleep_duration && (
-              <Badge variant={metrics.deep_sleep_duration >= 3600 ? "default" : "secondary"}>
-                Sono Profundo: {formatDuration(metrics.deep_sleep_duration)}
-              </Badge>
-            )}
-            {metrics.rem_sleep_duration && (
-              <Badge variant={metrics.rem_sleep_duration >= 5400 ? "default" : "secondary"}>
-                Sono REM: {formatDuration(metrics.rem_sleep_duration)}
-              </Badge>
-            )}
+        {(metrics.sleep_efficiency || metrics.deep_sleep_duration || metrics.rem_sleep_duration) ? (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Indicadores de Qualidade</p>
+            <div className="flex flex-wrap gap-2">
+              {metrics.sleep_efficiency && (
+                <Badge variant={metrics.sleep_efficiency >= 85 ? "default" : "secondary"}>
+                  Eficiência: {metrics.sleep_efficiency.toFixed(0)}%
+                </Badge>
+              )}
+              {metrics.deep_sleep_duration && (
+                <Badge variant={metrics.deep_sleep_duration >= 3600 ? "default" : "secondary"}>
+                  Sono Profundo: {formatDuration(metrics.deep_sleep_duration)}
+                </Badge>
+              )}
+              {metrics.rem_sleep_duration && (
+                <Badge variant={metrics.rem_sleep_duration >= 5400 ? "default" : "secondary"}>
+                  Sono REM: {formatDuration(metrics.rem_sleep_duration)}
+                </Badge>
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="p-4 rounded-lg bg-muted/50 border border-dashed">
+            <p className="text-sm text-muted-foreground text-center">
+              💤 Os indicadores de qualidade do sono estarão disponíveis após a próxima sincronização do Oura Ring
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
