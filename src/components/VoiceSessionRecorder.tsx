@@ -35,14 +35,24 @@ export function VoiceSessionRecorder({
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const isStartingRef = useRef(false);
 
   const startRecording = async () => {
-    if (isRecording || isProcessing) {
-      console.log("⚠️ Already recording or processing");
+    console.log("🔍 startRecording called, checking state...");
+    console.log("  isRecording:", isRecording);
+    console.log("  isProcessing:", isProcessing);
+    console.log("  isStartingRef.current:", isStartingRef.current);
+    
+    if (isRecording || isProcessing || isStartingRef.current) {
+      console.log("⚠️ Blocked: Already recording, processing, or starting");
       return;
     }
 
-    // Set recording state immediately to prevent double clicks
+    // Set lock immediately (synchronous)
+    isStartingRef.current = true;
+    console.log("✅ Lock acquired, isStartingRef set to true");
+
+    // Set UI state (asynchronous)
     setIsRecording(true);
 
     try {
@@ -139,6 +149,10 @@ export function VoiceSessionRecorder({
 
       mediaRecorder.start();
       
+      // Release lock after MediaRecorder starts successfully
+      isStartingRef.current = false;
+      console.log("✅ Recording started successfully, lock released");
+      
       toast({
         title: "Gravação iniciada",
         description: "Fale sobre a sessão de treino. Clique em 'Parar' quando terminar.",
@@ -146,7 +160,11 @@ export function VoiceSessionRecorder({
       
     } catch (error) {
       console.error("❌ Error starting recording:", error);
-      setIsRecording(false); // Reset state on error
+      
+      // Reset lock and state on error
+      isStartingRef.current = false;
+      setIsRecording(false);
+      console.log("❌ Error occurred, lock and state reset");
       
       const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
       toast({
