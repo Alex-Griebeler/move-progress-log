@@ -4,7 +4,7 @@ import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
 import { ImportSessionsDialog } from "@/components/ImportSessionsDialog";
-import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload } from "lucide-react";
+import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";
@@ -50,6 +50,12 @@ const Index = () => {
                 <Button variant="outline">
                   <FileText className="h-4 w-4 mr-2" />
                   Prescrições
+                </Button>
+              </Link>
+              <Link to="/protocolos">
+                <Button variant="outline">
+                  <Heart className="h-4 w-4 mr-2" />
+                  Protocolos de Recuperação
                 </Button>
               </Link>
               <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
