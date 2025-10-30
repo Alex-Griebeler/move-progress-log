@@ -12,6 +12,9 @@ import WorkoutCard from "@/components/WorkoutCard";
 import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
 import TrainingZonesCard from "@/components/TrainingZonesCard";
 import ProtocolRecommendationsCard from "@/components/ProtocolRecommendationsCard";
+import OuraMetricsCard from "@/components/OuraMetricsCard";
+import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecommendationDialog";
+import { useOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useState } from "react";
 
 const StudentDetailPage = () => {
@@ -20,6 +23,7 @@ const StudentDetailPage = () => {
   const { data: students, isLoading: loadingStudents } = useStudents();
   const { data: sessions, isLoading: loadingSessions } = useSessionsWithExercises(id!);
   const { data: assignments, isLoading: loadingAssignments } = useStudentPrescriptions(id!);
+  const { data: ouraMetrics, isLoading: loadingOuraMetrics } = useOuraMetrics(id!, 30);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
 
   const student = students?.find((s) => s.id === id);
@@ -75,11 +79,12 @@ const StudentDetailPage = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="sessions">Sessões</TabsTrigger>
           <TabsTrigger value="exercises">Exercícios</TabsTrigger>
           <TabsTrigger value="prescriptions">Prescrições</TabsTrigger>
+          <TabsTrigger value="oura">Métricas Oura</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -288,6 +293,46 @@ const StudentDetailPage = () => {
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <FileText className="h-12 w-12 text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">Nenhuma prescrição atribuída</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="oura" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-2xl font-bold">Métricas do Oura Ring</h3>
+              <p className="text-muted-foreground">Dados de recuperação e prontidão</p>
+            </div>
+            <ManualProtocolRecommendationDialog studentId={id!} />
+          </div>
+
+          {loadingOuraMetrics ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3].map((i) => (
+                <Card key={i}>
+                  <CardContent className="p-6 space-y-4">
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-20 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : ouraMetrics && ouraMetrics.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {ouraMetrics.map((metrics) => (
+                <OuraMetricsCard key={metrics.id} metrics={metrics} />
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Activity className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">Nenhuma métrica do Oura Ring disponível</p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Conecte o Oura Ring do aluno para visualizar dados de recuperação
+                </p>
               </CardContent>
             </Card>
           )}
