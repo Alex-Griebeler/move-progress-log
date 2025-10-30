@@ -294,8 +294,8 @@ export function RecordIndividualSessionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mic className="h-5 w-5" />
-            {dialogState === 'setup' && `Registrar Sessão Individual - ${studentName}`}
-            {dialogState === 'recording' && `Gravação ${currentRecordingNumber} - ${studentName}`}
+            {dialogState === 'setup' && `Registrar Sessão Individual (Voz) - ${studentName}`}
+            {dialogState === 'recording' && `🎤 Gravação ${currentRecordingNumber} - ${studentName}`}
             {dialogState === 'preview' && `Preview da Sessão - ${studentName}`}
           </DialogTitle>
         </DialogHeader>

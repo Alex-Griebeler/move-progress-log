@@ -134,7 +134,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
         <DialogHeader>
           <DialogTitle className="text-2xl flex items-center gap-2">
             <Dumbbell className="h-6 w-6 text-primary" />
-            Registrar Sessão de Treino
+            Registrar Sessão de Treino (Manual)
           </DialogTitle>
           <DialogDescription>
             Padrão Fabrik Performance - registre apenas a maior carga de cada exercício
@@ -263,10 +263,10 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
             {(getOrCreateStudent.isPending || createWorkout.isPending) ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Registrando...
+                Salvando...
               </>
             ) : (
-              'Registrar Sessão'
+              'Salvar Sessão'
             )}
           </Button>
         </form>

@@ -4,7 +4,7 @@ import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
 import { ImportSessionsDialog } from "@/components/ImportSessionsDialog";
-import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart } from "lucide-react";
+import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";

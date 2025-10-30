@@ -428,9 +428,10 @@ export function RecordGroupSessionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {dialogState === 'selecting' && 'Registrar Sessão em Grupo'}
-            {dialogState === 'recording' && `Gravação ${currentRecordingNumber}`}
+          <DialogTitle className="flex items-center gap-2">
+            <Mic className="h-5 w-5" />
+            {dialogState === 'selecting' && 'Registrar Sessão em Grupo (Voz)'}
+            {dialogState === 'recording' && `🎤 Gravação ${currentRecordingNumber}`}
             {dialogState === 'processing' && 'Processando...'}
             {dialogState === 'preview' && 'Preview da Sessão'}
           </DialogTitle>
