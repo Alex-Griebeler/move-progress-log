@@ -411,6 +411,55 @@ export function RecordGroupSessionDialog({
     setValidationIssues({ errors: [], warnings: [] });
   };
 
+  // Auto-selecionar alunos agendados para este dia/horário
+  useEffect(() => {
+    if (open && assignments && enrichedStudents) {
+      const currentDate = new Date();
+      const weekdayMap: { [key: number]: string } = {
+        0: 'sunday',
+        1: 'monday',
+        2: 'tuesday',
+        3: 'wednesday',
+        4: 'thursday',
+        5: 'friday',
+        6: 'saturday'
+      };
+      const currentWeekday = weekdayMap[currentDate.getDay()];
+      const currentTime = currentDate.toTimeString().slice(0, 5);
+      
+      // Encontrar atribuições para hoje e horário próximo (±30 min)
+      const relevantAssignments = assignments.filter(assignment => {
+        const customAdaptations = assignment.custom_adaptations as any;
+        if (!customAdaptations) return false;
+        
+        // Verificar se o dia da semana está incluído
+        const hasWeekday = customAdaptations.weekdays?.includes(currentWeekday);
+        if (!hasWeekday) return false;
+        
+        // Verificar se o horário está próximo (±30 minutos)
+        if (customAdaptations.time) {
+          const [assignedHour, assignedMin] = customAdaptations.time.split(':').map(Number);
+          const [currentHour, currentMin] = currentTime.split(':').map(Number);
+          const assignedMinutes = assignedHour * 60 + assignedMin;
+          const currentMinutes = currentHour * 60 + currentMin;
+          const diffMinutes = Math.abs(assignedMinutes - currentMinutes);
+          return diffMinutes <= 30;
+        }
+        
+        return true;
+      });
+      
+      // Auto-selecionar os alunos das atribuições relevantes
+      const studentsToSelect = enrichedStudents.filter(student =>
+        relevantAssignments.some(assignment => assignment.student_id === student.id)
+      );
+      
+      if (studentsToSelect.length > 0) {
+        setSelectedStudents(studentsToSelect);
+      }
+    }
+  }, [open, assignments, enrichedStudents]);
+
   useEffect(() => {
     if (!open) {
       setDialogState('selecting');
