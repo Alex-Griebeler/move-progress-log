@@ -69,16 +69,16 @@ INSTRUÇÕES:
 
 10. **IMPORTANTE**: Quando o treinador terminar de descrever a sessão:
     - Confirme todos os dados
-    - CHAME IMEDIATAMENTE a função "record_group_session" com todos os dados coletados
-    - NÃO espere mais instruções, CHAME A FUNÇÃO assim que tiver todos os dados`;
+    - CHAME a função "extract_session_data" com todos os dados coletados
+    - Os dados serão enviados para revisão antes de salvar`;
 };
 
 const buildTools = (context: SessionContext) => {
   return [
     {
       type: "function",
-      name: "record_group_session",
-      description: "Registra sessão de treino em grupo após confirmação",
+      name: "extract_session_data",
+      description: "Extrai dados da sessão para revisão (NÃO salva ainda)",
       parameters: {
         type: "object",
         properties: {
@@ -287,6 +287,34 @@ serve(async (req) => {
         };
 
         openAISocket.onmessage = (event) => {
+          const data = JSON.parse(event.data);
+          
+          // Se for uma chamada de função completa, enviar os dados extraídos
+          if (data.type === 'response.function_call_arguments.done') {
+            try {
+              const functionArgs = JSON.parse(data.arguments);
+              console.log('Dados extraídos:', functionArgs);
+              
+              // Enviar os dados estruturados para o frontend
+              socket.send(JSON.stringify({
+                type: 'session.data_extracted',
+                data: functionArgs.sessions
+              }));
+              
+              // Enviar output da função para o OpenAI continuar
+              socket.send(JSON.stringify({
+                type: 'conversation.item.create',
+                item: {
+                  type: 'function_call_output',
+                  call_id: data.call_id,
+                  output: JSON.stringify({ success: true, message: 'Dados recebidos para revisão' })
+                }
+              }));
+            } catch (e) {
+              console.error('Erro ao processar function call:', e);
+            }
+          }
+          
           socket.send(event.data);
         };
 

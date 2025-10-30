@@ -220,22 +220,26 @@ export function VoiceSessionRecorder({
               setAiResponse(prev => prev + message.delta);
               break;
 
-            case 'response.function_call_arguments.done':
-              console.log("Function call completed:", message.arguments);
+            case 'session.data_extracted':
+              console.log("Session data extracted:", message.data);
               try {
-                const sessionData = JSON.parse(message.arguments);
-                onSessionData(sessionData);
+                onSessionData({ sessions: message.data });
                 
                 toast({
                   title: "Dados extraídos",
-                  description: "Sessão pronta para ser registrada",
+                  description: "Revise os dados e confirme para salvar",
                 });
               } catch (e) {
-                console.error("Error parsing session data:", e);
+                console.error("Error processing session data:", e);
                 if (onError) {
                   onError("Erro ao processar dados da sessão");
                 }
               }
+              break;
+
+            case 'response.function_call_arguments.done':
+              console.log("Function call completed:", message.arguments);
+              // Fallback para compatibilidade
               break;
 
             case 'error':
