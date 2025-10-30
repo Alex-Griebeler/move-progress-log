@@ -15,6 +15,11 @@ import TrainingZonesCard from "@/components/TrainingZonesCard";
 import ProtocolRecommendationsCard from "@/components/ProtocolRecommendationsCard";
 import OuraMetricsCard from "@/components/OuraMetricsCard";
 import { OuraConnectionCard } from "@/components/OuraConnectionCard";
+import { OuraActivityCard } from "@/components/OuraActivityCard";
+import { OuraSleepDetailCard } from "@/components/OuraSleepDetailCard";
+import { OuraStressCard } from "@/components/OuraStressCard";
+import { OuraWorkoutsCard } from "@/components/OuraWorkoutsCard";
+import { OuraAdvancedMetricsCard } from "@/components/OuraAdvancedMetricsCard";
 import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecommendationDialog";
 import { useOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
@@ -306,7 +311,7 @@ const StudentDetailPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold">Métricas do Oura Ring</h3>
-              <p className="text-muted-foreground">Dados de recuperação e prontidão</p>
+              <p className="text-muted-foreground">Dados completos de recuperação, atividade e sono</p>
             </div>
             <ManualProtocolRecommendationDialog studentId={id!} />
           </div>
@@ -326,11 +331,84 @@ const StudentDetailPage = () => {
               ))}
             </div>
           ) : ouraMetrics && ouraMetrics.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {ouraMetrics.map((metrics) => (
-                <OuraMetricsCard key={metrics.id} metrics={metrics} />
-              ))}
-            </div>
+            <Tabs defaultValue="overview" className="w-full">
+              <TabsList className="grid w-full grid-cols-6">
+                <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+                <TabsTrigger value="activity">Atividade</TabsTrigger>
+                <TabsTrigger value="sleep">Sono</TabsTrigger>
+                <TabsTrigger value="stress">Estresse</TabsTrigger>
+                <TabsTrigger value="workouts">Treinos</TabsTrigger>
+                <TabsTrigger value="advanced">Avançado</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="overview" className="space-y-4 mt-6">
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {ouraMetrics.slice(0, 7).map((metrics) => (
+                    <OuraMetricsCard key={metrics.id} metrics={metrics} />
+                  ))}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="activity" className="space-y-4 mt-6">
+                {ouraMetrics[0] && <OuraActivityCard metrics={ouraMetrics[0]} />}
+                {ouraMetrics.length > 1 && (
+                  <div className="mt-4">
+                    <h4 className="text-lg font-semibold mb-4">Histórico de Atividade</h4>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {ouraMetrics.slice(1, 7).map((metrics) => (
+                        <OuraActivityCard key={metrics.id} metrics={metrics} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="sleep" className="space-y-4 mt-6">
+                {ouraMetrics[0] && <OuraSleepDetailCard metrics={ouraMetrics[0]} />}
+                {ouraMetrics.length > 1 && (
+                  <div className="mt-4">
+                    <h4 className="text-lg font-semibold mb-4">Histórico de Sono</h4>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {ouraMetrics.slice(1, 7).map((metrics) => (
+                        <OuraSleepDetailCard key={metrics.id} metrics={metrics} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="stress" className="space-y-4 mt-6">
+                {ouraMetrics[0] && <OuraStressCard metrics={ouraMetrics[0]} />}
+                {ouraMetrics.length > 1 && (
+                  <div className="mt-4">
+                    <h4 className="text-lg font-semibold mb-4">Histórico de Estresse</h4>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {ouraMetrics.slice(1, 7).map((metrics) => (
+                        <OuraStressCard key={metrics.id} metrics={metrics} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="workouts" className="space-y-4 mt-6">
+                <OuraWorkoutsCard studentId={id!} limit={20} />
+              </TabsContent>
+
+              <TabsContent value="advanced" className="space-y-4 mt-6">
+                {ouraMetrics[0] && <OuraAdvancedMetricsCard metrics={ouraMetrics[0]} />}
+                {ouraMetrics.length > 1 && (
+                  <div className="mt-4">
+                    <h4 className="text-lg font-semibold mb-4">Histórico de Métricas Avançadas</h4>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {ouraMetrics.slice(1, 7).map((metrics) => (
+                        <OuraAdvancedMetricsCard key={metrics.id} metrics={metrics} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">

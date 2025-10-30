@@ -6,12 +6,55 @@ export interface OuraMetrics {
   id: string;
   student_id: string;
   date: string;
+  
+  // Existing metrics
   readiness_score: number | null;
   sleep_score: number | null;
   hrv_balance: number | null;
   resting_heart_rate: number | null;
   temperature_deviation: number | null;
   activity_balance: number | null;
+  
+  // Activity metrics
+  activity_score: number | null;
+  steps: number | null;
+  active_calories: number | null;
+  total_calories: number | null;
+  met_minutes: number | null;
+  high_activity_time: number | null;
+  medium_activity_time: number | null;
+  low_activity_time: number | null;
+  sedentary_time: number | null;
+  training_volume: number | null;
+  training_frequency: number | null;
+  
+  // Sleep detailed metrics
+  total_sleep_duration: number | null;
+  deep_sleep_duration: number | null;
+  rem_sleep_duration: number | null;
+  light_sleep_duration: number | null;
+  awake_time: number | null;
+  sleep_efficiency: number | null;
+  sleep_latency: number | null;
+  lowest_heart_rate: number | null;
+  average_sleep_hrv: number | null;
+  average_breath: number | null;
+  
+  // Stress metrics
+  stress_high_time: number | null;
+  recovery_high_time: number | null;
+  day_summary: string | null;
+  
+  // SpO2 metrics
+  spo2_average: number | null;
+  breathing_disturbance_index: number | null;
+  
+  // VO2 Max
+  vo2_max: number | null;
+  
+  // Resilience
+  resilience_level: string | null;
+  
   created_at: string;
 }
 

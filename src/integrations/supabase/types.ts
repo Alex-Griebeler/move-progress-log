@@ -233,44 +233,184 @@ export type Database = {
       }
       oura_metrics: {
         Row: {
+          active_calories: number | null
           activity_balance: number | null
+          activity_score: number | null
+          average_breath: number | null
+          average_sleep_hrv: number | null
+          awake_time: number | null
+          breathing_disturbance_index: number | null
           created_at: string | null
           date: string
+          day_summary: string | null
+          deep_sleep_duration: number | null
+          high_activity_time: number | null
           hrv_balance: number | null
           id: string
+          light_sleep_duration: number | null
+          low_activity_time: number | null
+          lowest_heart_rate: number | null
+          medium_activity_time: number | null
+          met_minutes: number | null
           readiness_score: number | null
+          recovery_high_time: number | null
+          rem_sleep_duration: number | null
+          resilience_level: string | null
           resting_heart_rate: number | null
+          sedentary_time: number | null
+          sleep_efficiency: number | null
+          sleep_latency: number | null
           sleep_score: number | null
+          spo2_average: number | null
+          steps: number | null
+          stress_high_time: number | null
           student_id: string
           temperature_deviation: number | null
+          total_calories: number | null
+          total_sleep_duration: number | null
+          training_frequency: number | null
+          training_volume: number | null
+          vo2_max: number | null
         }
         Insert: {
+          active_calories?: number | null
           activity_balance?: number | null
+          activity_score?: number | null
+          average_breath?: number | null
+          average_sleep_hrv?: number | null
+          awake_time?: number | null
+          breathing_disturbance_index?: number | null
           created_at?: string | null
           date: string
+          day_summary?: string | null
+          deep_sleep_duration?: number | null
+          high_activity_time?: number | null
           hrv_balance?: number | null
           id?: string
+          light_sleep_duration?: number | null
+          low_activity_time?: number | null
+          lowest_heart_rate?: number | null
+          medium_activity_time?: number | null
+          met_minutes?: number | null
           readiness_score?: number | null
+          recovery_high_time?: number | null
+          rem_sleep_duration?: number | null
+          resilience_level?: string | null
           resting_heart_rate?: number | null
+          sedentary_time?: number | null
+          sleep_efficiency?: number | null
+          sleep_latency?: number | null
           sleep_score?: number | null
+          spo2_average?: number | null
+          steps?: number | null
+          stress_high_time?: number | null
           student_id: string
           temperature_deviation?: number | null
+          total_calories?: number | null
+          total_sleep_duration?: number | null
+          training_frequency?: number | null
+          training_volume?: number | null
+          vo2_max?: number | null
         }
         Update: {
+          active_calories?: number | null
           activity_balance?: number | null
+          activity_score?: number | null
+          average_breath?: number | null
+          average_sleep_hrv?: number | null
+          awake_time?: number | null
+          breathing_disturbance_index?: number | null
           created_at?: string | null
           date?: string
+          day_summary?: string | null
+          deep_sleep_duration?: number | null
+          high_activity_time?: number | null
           hrv_balance?: number | null
           id?: string
+          light_sleep_duration?: number | null
+          low_activity_time?: number | null
+          lowest_heart_rate?: number | null
+          medium_activity_time?: number | null
+          met_minutes?: number | null
           readiness_score?: number | null
+          recovery_high_time?: number | null
+          rem_sleep_duration?: number | null
+          resilience_level?: string | null
           resting_heart_rate?: number | null
+          sedentary_time?: number | null
+          sleep_efficiency?: number | null
+          sleep_latency?: number | null
           sleep_score?: number | null
+          spo2_average?: number | null
+          steps?: number | null
+          stress_high_time?: number | null
           student_id?: string
           temperature_deviation?: number | null
+          total_calories?: number | null
+          total_sleep_duration?: number | null
+          training_frequency?: number | null
+          training_volume?: number | null
+          vo2_max?: number | null
         }
         Relationships: [
           {
             foreignKeyName: "oura_metrics_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oura_workouts: {
+        Row: {
+          activity: string
+          average_heart_rate: number | null
+          calories: number | null
+          created_at: string | null
+          distance: number | null
+          end_datetime: string
+          id: string
+          intensity: string | null
+          max_heart_rate: number | null
+          oura_workout_id: string
+          source: string | null
+          start_datetime: string
+          student_id: string
+        }
+        Insert: {
+          activity: string
+          average_heart_rate?: number | null
+          calories?: number | null
+          created_at?: string | null
+          distance?: number | null
+          end_datetime: string
+          id?: string
+          intensity?: string | null
+          max_heart_rate?: number | null
+          oura_workout_id: string
+          source?: string | null
+          start_datetime: string
+          student_id: string
+        }
+        Update: {
+          activity?: string
+          average_heart_rate?: number | null
+          calories?: number | null
+          created_at?: string | null
+          distance?: number | null
+          end_datetime?: string
+          id?: string
+          intensity?: string | null
+          max_heart_rate?: number | null
+          oura_workout_id?: string
+          source?: string | null
+          start_datetime?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oura_workouts_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"

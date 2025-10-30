@@ -97,15 +97,27 @@ Deno.serve(async (req) => {
       Authorization: `Bearer ${accessToken}`,
     };
 
-    const [readinessRes, sleepRes, heartrateRes] = await Promise.all([
+    const [readinessRes, sleepRes, heartrateRes, activityRes, workoutsRes, stressRes, spo2Res, vo2Res, resilienceRes] = await Promise.all([
       fetch(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
       fetch(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
       fetch(`https://api.ouraring.com/v2/usercollection/heartrate?start_datetime=${syncDate}T00:00:00&end_datetime=${syncDate}T23:59:59`, { headers }),
+      fetch(`https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
+      fetch(`https://api.ouraring.com/v2/usercollection/workout?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
+      fetch(`https://api.ouraring.com/v2/usercollection/daily_stress?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
+      fetch(`https://api.ouraring.com/v2/usercollection/daily_spo2?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
+      fetch(`https://api.ouraring.com/v2/usercollection/vO2_max?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
+      fetch(`https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
     ]);
 
     const readinessData = readinessRes.ok ? await readinessRes.json() : null;
     const sleepData = sleepRes.ok ? await sleepRes.json() : null;
     const heartrateData = heartrateRes.ok ? await heartrateRes.json() : null;
+    const activityData = activityRes.ok ? await activityRes.json() : null;
+    const workoutsData = workoutsRes.ok ? await workoutsRes.json() : null;
+    const stressData = stressRes.ok ? await stressRes.json() : null;
+    const spo2Data = spo2Res.ok ? await spo2Res.json() : null;
+    const vo2Data = vo2Res.ok ? await vo2Res.json() : null;
+    const resilienceData = resilienceRes.ok ? await resilienceRes.json() : null;
 
     console.log('Oura API responses received');
     console.log('Readiness response:', {
@@ -127,6 +139,11 @@ Deno.serve(async (req) => {
     // Extract metrics
     const readiness = readinessData?.data?.[0];
     const sleep = sleepData?.data?.[0];
+    const activity = activityData?.data?.[0];
+    const stress = stressData?.data?.[0];
+    const spo2 = spo2Data?.data?.[0];
+    const vo2 = vo2Data?.data?.[0];
+    const resilience = resilienceData?.data?.[0];
 
     let restingHeartRate = null;
     if (heartrateData?.data && heartrateData.data.length > 0) {
@@ -139,12 +156,54 @@ Deno.serve(async (req) => {
     const metrics = {
       student_id,
       date: syncDate,
+      
+      // Existing metrics
       readiness_score: readiness?.score || null,
       sleep_score: sleep?.score || null,
       hrv_balance: readiness?.contributors?.hrv_balance || null,
       resting_heart_rate: restingHeartRate,
       temperature_deviation: readiness?.contributors?.temperature_deviation || null,
       activity_balance: readiness?.contributors?.activity_balance || null,
+      
+      // Activity metrics
+      activity_score: activity?.score || null,
+      steps: activity?.steps || null,
+      active_calories: activity?.active_calories || null,
+      total_calories: activity?.total_calories || null,
+      met_minutes: activity?.met?.interval || null,
+      high_activity_time: activity?.high_activity_time || null,
+      medium_activity_time: activity?.medium_activity_time || null,
+      low_activity_time: activity?.low_activity_time || null,
+      sedentary_time: activity?.sedentary_time || null,
+      training_volume: activity?.contributors?.training_volume || null,
+      training_frequency: activity?.contributors?.training_frequency || null,
+      
+      // Sleep detailed metrics
+      total_sleep_duration: sleep?.contributors?.total_sleep || null,
+      deep_sleep_duration: sleep?.contributors?.deep_sleep || null,
+      rem_sleep_duration: sleep?.contributors?.rem_sleep || null,
+      light_sleep_duration: sleep?.contributors?.light_sleep || null,
+      awake_time: sleep?.contributors?.awake_time || null,
+      sleep_efficiency: sleep?.contributors?.efficiency || null,
+      sleep_latency: sleep?.contributors?.latency || null,
+      lowest_heart_rate: sleep?.lowest_heart_rate || null,
+      average_sleep_hrv: sleep?.average_hrv || null,
+      average_breath: sleep?.average_breath || null,
+      
+      // Stress metrics
+      stress_high_time: stress?.stress_high || null,
+      recovery_high_time: stress?.recovery_high || null,
+      day_summary: stress?.day_summary || null,
+      
+      // SpO2 metrics
+      spo2_average: spo2?.spo2_percentage?.average || null,
+      breathing_disturbance_index: spo2?.breathing_disturbance_index || null,
+      
+      // VO2 Max
+      vo2_max: vo2?.vo2_max || null,
+      
+      // Resilience
+      resilience_level: resilience?.level || null,
     };
 
     console.log('Extracted metrics:', metrics);
@@ -178,6 +237,33 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: upsertError.message }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
+    }
+
+    // Save workouts
+    if (workoutsData?.data && workoutsData.data.length > 0) {
+      const workouts = workoutsData.data.map((w: any) => ({
+        student_id,
+        oura_workout_id: w.id,
+        activity: w.activity,
+        start_datetime: w.start_datetime,
+        end_datetime: w.end_datetime,
+        calories: w.calories || null,
+        distance: w.distance || null,
+        intensity: w.intensity || null,
+        average_heart_rate: w.heart_rate?.average || null,
+        max_heart_rate: w.heart_rate?.max || null,
+        source: w.source || null,
+      }));
+
+      const { error: workoutsError } = await supabaseClient
+        .from('oura_workouts')
+        .upsert(workouts, { onConflict: 'student_id,oura_workout_id' });
+
+      if (workoutsError) {
+        console.error('Failed to save workouts:', workoutsError);
+      } else {
+        console.log(`Saved ${workouts.length} workouts`);
+      }
     }
 
     // Update last_sync_at
