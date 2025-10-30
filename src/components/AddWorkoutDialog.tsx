@@ -127,7 +127,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
       <DialogTrigger asChild>
         <Button variant="gradient" size="lg" className="gap-2">
           <FileEdit className="h-5 w-5" />
-          Registrar Manualmente
+          Registrar Sessão
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
