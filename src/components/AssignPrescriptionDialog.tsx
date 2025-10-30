@@ -12,6 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import type { DateRange } from "react-day-picker";
 
 interface AssignPrescriptionDialogProps {
   open: boolean;
@@ -25,8 +26,7 @@ export function AssignPrescriptionDialog({
   prescriptionId,
 }: AssignPrescriptionDialogProps) {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
 
   const weekdays = [
@@ -59,21 +59,20 @@ export function AssignPrescriptionDialog({
   };
 
   const handleSubmit = async () => {
-    if (!prescriptionId || selectedStudents.length === 0 || !startDate) {
+    if (!prescriptionId || selectedStudents.length === 0 || !dateRange?.from) {
       return;
     }
 
     await assignPrescription.mutateAsync({
       prescription_id: prescriptionId,
       student_ids: selectedStudents,
-      start_date: startDate ? format(startDate, "yyyy-MM-dd") : "",
-      end_date: endDate ? format(endDate, "yyyy-MM-dd") : undefined,
+      start_date: format(dateRange.from, "yyyy-MM-dd"),
+      end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
       custom_adaptations: selectedWeekdays.length > 0 ? { weekdays: selectedWeekdays } : undefined,
     });
 
     setSelectedStudents([]);
-    setStartDate(undefined);
-    setEndDate(undefined);
+    setDateRange(undefined);
     setSelectedWeekdays([]);
     onOpenChange(false);
   };
@@ -109,60 +108,42 @@ export function AssignPrescriptionDialog({
             </ScrollArea>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Data de Início *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "PPP") : <span>Selecione a data</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Data de Fim</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "PPP") : <span>Selecione a data</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+          <div className="space-y-2">
+            <Label>Período da Prescrição *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !dateRange && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "dd/MM/yyyy")} - {format(dateRange.to, "dd/MM/yyyy")}
+                      </>
+                    ) : (
+                      format(dateRange.from, "dd/MM/yyyy")
+                    )
+                  ) : (
+                    <span>Selecione o período</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
@@ -197,7 +178,7 @@ export function AssignPrescriptionDialog({
             disabled={
               assignPrescription.isPending ||
               selectedStudents.length === 0 ||
-              !startDate
+              !dateRange?.from
             }
           >
             {assignPrescription.isPending ? "Atribuindo..." : "Atribuir"}
