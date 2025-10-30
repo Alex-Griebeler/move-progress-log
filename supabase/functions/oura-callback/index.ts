@@ -34,18 +34,24 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
 
+    console.log('Token exchange attempt:', {
+      redirectUri,
+      clientIdPresent: !!ouraClientId,
+      clientSecretPresent: !!ouraClientSecret,
+    });
+
     const tokenResponse = await fetch('https://api.ouraring.com/oauth/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
+      body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
         redirect_uri: redirectUri,
-        client_id: ouraClientId,
-        client_secret: ouraClientSecret,
-      }),
+        client_id: ouraClientId || '',
+        client_secret: ouraClientSecret || '',
+      }).toString(),
     });
 
     if (!tokenResponse.ok) {
