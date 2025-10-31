@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import { AddStudentDialog } from "@/components/AddStudentDialog";
 import { GenerateInviteLinkDialog } from "@/components/GenerateInviteLinkDialog";
@@ -76,23 +75,7 @@ const StudentsPage = () => {
                 <AvatarImage src={student.avatar_url || undefined} />
                 <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
               </Avatar>
-              <div className="flex-1">
-                {student.name}
-                {student.birth_date && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-2 text-xs text-muted-foreground cursor-help">
-                          ({new Date().getFullYear() - new Date(student.birth_date).getFullYear()}a)
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Idade do aluno</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
+              <span className="flex-1">{student.name}</span>
             </CardTitle>
             
             <CardDescription className="space-y-2">
