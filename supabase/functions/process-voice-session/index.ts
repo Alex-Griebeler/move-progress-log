@@ -230,6 +230,7 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
 
 1. **Repetições (reps)**: 
    - **REGRA CRÍTICA**: Se o áudio mencionar o exercício mas NÃO especificar reps, você DEVE marcar como null
+   - **NUNCA USE 0 (ZERO)**: Use sempre null quando não mencionado
    - Exemplo: "fez 3 séries de agachamento" → reps: null (não especificou quantas repetições)
    - Exemplo: "agachamento, 8 repetições" → reps: 8
    - **NUNCA invente valores de reps que não foram mencionados**
@@ -244,9 +245,16 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
       - ❌ ERRADO: "(25 lb) de cada lado + 2 kg + barra 10 kg"
       - ❌ ERRADO: "(10 lb) de cada lado + 1 kg + barra 10 kg"
       
+      **KETTLEBELLS DUPLOS (CRÍTICO)**:
+      - "duplo kettlebell de 32 kg" → load_breakdown: "2 kettlebells de 32 kg", load_kg: 64.0
+      - "kettlebell duplo de 24 kg" → load_breakdown: "2 kettlebells de 24 kg", load_kg: 48.0
+      - "2 kettlebells de 28 kg" → load_breakdown: "2 kettlebells de 28 kg", load_kg: 56.0
+      - "dois halteres de 15 kg" → load_breakdown: "2 halteres de 15 kg", load_kg: 30.0
+      
       **Exemplos válidos:**
       - "(10 lb + 5 kg) de cada lado + barra 20 kg"
       - "15 kg" (peso único, sem barra)
+      - "2 kettlebells de 32 kg" (peso duplo, SEM barra)
       - "Peso corporal" (exercícios sem carga externa)
       
       - Se não mencionado: null
@@ -369,29 +377,55 @@ FORMATO DE SAÍDA:
     function calculateLoadFromBreakdown(breakdown: string): number | null {
       try {
         let total = 0;
+        let processedEachSide = false;
         
-        // Extrair carga de cada lado e multiplicar por 2
+        // 1. DETECTAR "DE CADA LADO" (multiplicar por 2)
         const eachSideMatch = breakdown.match(/\((.*?)\)\s*de cada lado/i);
         if (eachSideMatch) {
           const content = eachSideMatch[1];
+          processedEachSide = true;
           
-          // Kg matches
-          const kgMatches = content.match(/(\d+(?:\.\d+)?)\s*kg/gi);
-          kgMatches?.forEach(m => {
-            total += parseFloat(m) * 2;
-          });
+          // Kg matches dentro do parêntese
+          const kgMatches = content.matchAll(/(\d+(?:\.\d+)?)\s*kg/gi);
+          for (const m of kgMatches) {
+            total += parseFloat(m[1]) * 2;
+          }
           
-          // Lb matches (converter para kg)
-          const lbMatches = content.match(/(\d+(?:\.\d+)?)\s*lb/gi);
-          lbMatches?.forEach(m => {
-            total += parseFloat(m) * 0.45 * 2;
-          });
+          // Lb matches dentro do parêntese (converter para kg)
+          const lbMatches = content.matchAll(/(\d+(?:\.\d+)?)\s*lb/gi);
+          for (const m of lbMatches) {
+            total += parseFloat(m[1]) * 0.45 * 2;
+          }
         }
         
-        // Extrair peso da barra
+        // 2. DETECTAR KETTLEBELLS DUPLOS (multiplicar por 2)
+        const multiKbMatch = breakdown.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:\.\d+)?)\s*(kg|lb)/i);
+        if (multiKbMatch && !processedEachSide) {
+          const value = parseFloat(multiKbMatch[2]);
+          const unit = multiKbMatch[3].toLowerCase();
+          total += (unit === 'lb' ? value * 0.45 : value) * 2;
+        }
+        
+        // 3. EXTRAIR PESO DA BARRA (sempre adicionar)
         const barraMatch = breakdown.match(/barra\s*(\d+(?:\.\d+)?)\s*kg/i);
         if (barraMatch) {
           total += parseFloat(barraMatch[1]);
+        }
+        
+        // 4. SE NÃO TEM "de cada lado" NEM "duplo", somar pesos normais
+        if (!processedEachSide && !multiKbMatch) {
+          const kgMatches = breakdown.matchAll(/(\d+(?:\.\d+)?)\s*kg/gi);
+          for (const m of kgMatches) {
+            // Não contar se já contou na barra
+            if (!breakdown.substring(m.index!).startsWith('barra')) {
+              total += parseFloat(m[1]);
+            }
+          }
+          
+          const lbMatches = breakdown.matchAll(/(\d+(?:\.\d+)?)\s*lb/gi);
+          for (const m of lbMatches) {
+            total += parseFloat(m[1]) * 0.45;
+          }
         }
         
         return total > 0 ? Math.round(total * 10) / 10 : null;

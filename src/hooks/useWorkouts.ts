@@ -113,28 +113,61 @@ export const useCreateWorkout = () => {
   });
 };
 
-// Função para calcular carga total em kg
+// Função para calcular carga total em kg (mesma lógica do edge function)
 function calculateLoadKg(loadDescription: string): number | null {
   try {
-    // Remove espaços extras
-    let text = loadDescription.trim();
-    
-    // Padrão: "(10kg + 10kg) + barra 15kg"
-    // Extrair todos os números seguidos de kg ou lb
-    const kgPattern = /(\d+(?:\.\d+)?)\s*kg/gi;
-    const lbPattern = /(\d+(?:\.\d+)?)\s*lbs?/gi;
-    
     let total = 0;
+    let processedEachSide = false;
     
-    // Somar todos os kg
-    let match;
-    while ((match = kgPattern.exec(text)) !== null) {
-      total += parseFloat(match[1]);
+    // 1. DETECTAR "DE CADA LADO" (multiplicar por 2)
+    const eachSideMatch = loadDescription.match(/\((.*?)\)\s*de cada lado/i);
+    if (eachSideMatch) {
+      const content = eachSideMatch[1];
+      processedEachSide = true;
+      
+      // Kg matches dentro do parêntese
+      const kgMatches = content.matchAll(/(\d+(?:\.\d+)?)\s*kg/gi);
+      for (const m of kgMatches) {
+        total += parseFloat(m[1]) * 2;
+      }
+      
+      // Lb matches dentro do parêntese (converter para kg)
+      const lbMatches = content.matchAll(/(\d+(?:\.\d+)?)\s*lbs?/gi);
+      for (const m of lbMatches) {
+        total += parseFloat(m[1]) * 0.45 * 2;
+      }
     }
     
-    // Converter e somar todos os lb (1 lb = 0.45 kg)
-    while ((match = lbPattern.exec(text)) !== null) {
-      total += parseFloat(match[1]) * 0.45;
+    // 2. DETECTAR KETTLEBELLS DUPLOS (multiplicar por 2)
+    const multiKbMatch = loadDescription.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:\.\d+)?)\s*(kg|lbs?)/i);
+    if (multiKbMatch && !processedEachSide) {
+      const value = parseFloat(multiKbMatch[2]);
+      const unit = multiKbMatch[3].toLowerCase();
+      total += (unit.startsWith('lb') ? value * 0.45 : value) * 2;
+    }
+    
+    // 3. EXTRAIR PESO DA BARRA (sempre adicionar)
+    const barraMatch = loadDescription.match(/barra\s*(\d+(?:\.\d+)?)\s*kg/i);
+    if (barraMatch) {
+      total += parseFloat(barraMatch[1]);
+    }
+    
+    // 4. SE NÃO TEM "de cada lado" NEM "duplo", somar pesos normais
+    if (!processedEachSide && !multiKbMatch) {
+      const kgMatches = loadDescription.matchAll(/(\d+(?:\.\d+)?)\s*kg/gi);
+      for (const m of kgMatches) {
+        // Não contar se já contou na barra
+        const matchIndex = loadDescription.indexOf(m[0], m.index);
+        const beforeMatch = loadDescription.substring(Math.max(0, matchIndex - 6), matchIndex);
+        if (!beforeMatch.includes('barra')) {
+          total += parseFloat(m[1]);
+        }
+      }
+      
+      const lbMatches = loadDescription.matchAll(/(\d+(?:\.\d+)?)\s*lbs?/gi);
+      for (const m of lbMatches) {
+        total += parseFloat(m[1]) * 0.45;
+      }
     }
     
     return total > 0 ? Math.round(total * 10) / 10 : null;
