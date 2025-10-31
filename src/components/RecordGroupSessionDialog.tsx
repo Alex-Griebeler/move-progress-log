@@ -98,6 +98,7 @@ export function RecordGroupSessionDialog({
     errors: string[];
     warnings: string[];
   }>({ errors: [], warnings: [] });
+  const [hasAutoSelected, setHasAutoSelected] = useState(false);
 
   const { data: students } = useStudents();
   const { data: assignments } = usePrescriptionAssignments(prescriptionId);
@@ -454,9 +455,9 @@ export function RecordGroupSessionDialog({
     setValidationIssues({ errors: [], warnings: [] });
   };
 
-  // Auto-selecionar alunos agendados para este dia/horário
+  // Auto-selecionar alunos agendados para este dia/horário (apenas na primeira vez)
   useEffect(() => {
-    if (open && assignments && enrichedStudents) {
+    if (open && assignments && enrichedStudents && !hasAutoSelected) {
       const currentDate = new Date();
       const weekdayMap: { [key: number]: string } = {
         0: 'sunday',
@@ -499,9 +500,10 @@ export function RecordGroupSessionDialog({
       
       if (studentsToSelect.length > 0) {
         setSelectedStudents(studentsToSelect);
+        setHasAutoSelected(true);
       }
     }
-  }, [open, assignments, enrichedStudents]);
+  }, [open, assignments, enrichedStudents, hasAutoSelected]);
 
   useEffect(() => {
     if (!open) {
@@ -513,6 +515,7 @@ export function RecordGroupSessionDialog({
       setValidationIssues({ errors: [], warnings: [] });
       setDate(new Date().toISOString().split('T')[0]);
       setTime(new Date().toTimeString().slice(0, 5));
+      setHasAutoSelected(false);
     }
   }, [open]);
 
