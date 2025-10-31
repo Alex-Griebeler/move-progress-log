@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -22,7 +23,7 @@ interface RecordIndividualSessionDialogProps {
   studentName: string;
 }
 
-type DialogState = 'setup' | 'recording' | 'processing' | 'preview';
+type DialogState = 'setup' | 'recording' | 'processing' | 'preview' | 'edit';
 
 interface SessionData {
   sessions: Array<{
@@ -84,6 +85,8 @@ export function RecordIndividualSessionDialog({
   const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording[]>([]);
   const [currentRecordingNumber, setCurrentRecordingNumber] = useState(1);
   const [mergedData, setMergedData] = useState<MergedData | null>(null);
+  const [editableObservations, setEditableObservations] = useState<MergedData['clinical_observations']>([]);
+  const [editableExercises, setEditableExercises] = useState<MergedData['exercises']>([]);
 
   const { data: assignments } = usePrescriptionAssignments(studentId);
   const createSession = useCreateWorkoutSession();
@@ -186,6 +189,8 @@ export function RecordIndividualSessionDialog({
     
     const merged = mergeAllRecordings(updatedRecordings);
     setMergedData(merged);
+    setEditableObservations(merged.clinical_observations);
+    setEditableExercises(merged.exercises);
     
     setDialogState('preview');
   };
@@ -218,7 +223,7 @@ export function RecordIndividualSessionDialog({
 
       if (sessionError) throw sessionError;
 
-      const exercises = mergedData.exercises.map(ex => ({
+      const exercises = editableExercises.map(ex => ({
         session_id: session.id,
         exercise_name: ex.executed_exercise_name,
         sets: ex.sets,
@@ -235,8 +240,8 @@ export function RecordIndividualSessionDialog({
 
       if (exercisesError) throw exercisesError;
 
-      if (mergedData.clinical_observations && mergedData.clinical_observations.length > 0) {
-        const observations = mergedData.clinical_observations.map(obs => ({
+      if (editableObservations && editableObservations.length > 0) {
+        const observations = editableObservations.map(obs => ({
           student_id: studentId,
           session_id: session.id,
           observation_text: obs.observation_text,
@@ -447,6 +452,229 @@ export function RecordIndividualSessionDialog({
           </div>
         )}
 
+        {dialogState === 'edit' && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center justify-between">
+                  🩺 Observações Clínicas
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      setEditableObservations([...editableObservations, {
+                        observation_text: '',
+                        category: 'geral',
+                        severity: 'baixa'
+                      }]);
+                    }}
+                  >
+                    + Adicionar
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {editableObservations.map((obs, idx) => (
+                  <div key={idx} className="p-3 border rounded-lg space-y-2">
+                    <Textarea
+                      value={obs.observation_text}
+                      onChange={(e) => {
+                        const updated = [...editableObservations];
+                        updated[idx].observation_text = e.target.value;
+                        setEditableObservations(updated);
+                      }}
+                      placeholder="Descrição da observação..."
+                    />
+                    <div className="flex gap-2">
+                      <Select
+                        value={obs.category}
+                        onValueChange={(value) => {
+                          const updated = [...editableObservations];
+                          updated[idx].category = value as any;
+                          setEditableObservations(updated);
+                        }}
+                      >
+                        <SelectTrigger className="w-[140px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="dor">Dor</SelectItem>
+                          <SelectItem value="mobilidade">Mobilidade</SelectItem>
+                          <SelectItem value="força">Força</SelectItem>
+                          <SelectItem value="técnica">Técnica</SelectItem>
+                          <SelectItem value="geral">Geral</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      <Select
+                        value={obs.severity}
+                        onValueChange={(value) => {
+                          const updated = [...editableObservations];
+                          updated[idx].severity = value as any;
+                          setEditableObservations(updated);
+                        }}
+                      >
+                        <SelectTrigger className="w-[110px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="baixa">Baixa</SelectItem>
+                          <SelectItem value="média">Média</SelectItem>
+                          <SelectItem value="alta">Alta</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          setEditableObservations(editableObservations.filter((_, i) => i !== idx));
+                        }}
+                      >
+                        🗑️
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center justify-between">
+                  💪 Exercícios Executados
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => {
+                      setEditableExercises([...editableExercises, {
+                        executed_exercise_name: '',
+                        sets: null,
+                        reps: 0,
+                        load_kg: null,
+                        load_breakdown: '',
+                        observations: null,
+                        is_best_set: true
+                      }]);
+                    }}
+                  >
+                    + Adicionar
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {editableExercises.map((ex, idx) => (
+                  <div key={idx} className="p-3 border rounded-lg space-y-2">
+                    <Input
+                      value={ex.executed_exercise_name}
+                      onChange={(e) => {
+                        const updated = [...editableExercises];
+                        updated[idx].executed_exercise_name = e.target.value;
+                        setEditableExercises(updated);
+                      }}
+                      placeholder="Nome do exercício..."
+                    />
+                    
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label className="text-xs">Séries</Label>
+                        <Input
+                          type="number"
+                          value={ex.sets ?? ''}
+                          onChange={(e) => {
+                            const updated = [...editableExercises];
+                            updated[idx].sets = e.target.value ? parseInt(e.target.value) : null;
+                            setEditableExercises(updated);
+                          }}
+                          placeholder="Auto"
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Reps</Label>
+                        <Input
+                          type="number"
+                          value={ex.reps}
+                          onChange={(e) => {
+                            const updated = [...editableExercises];
+                            updated[idx].reps = parseInt(e.target.value) || 0;
+                            setEditableExercises(updated);
+                          }}
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label className="text-xs">Carga (kg)</Label>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={ex.load_kg ?? ''}
+                          onChange={(e) => {
+                            const updated = [...editableExercises];
+                            updated[idx].load_kg = e.target.value ? parseFloat(e.target.value) : null;
+                            setEditableExercises(updated);
+                          }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <Label className="text-xs">Descrição da Carga</Label>
+                      <Input
+                        value={ex.load_breakdown}
+                        onChange={(e) => {
+                          const updated = [...editableExercises];
+                          updated[idx].load_breakdown = e.target.value;
+                          setEditableExercises(updated);
+                        }}
+                        placeholder="Ex: (15 lb × 2) + barra 10 kg"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="text-xs">Observações</Label>
+                      <Input
+                        value={ex.observations ?? ''}
+                        onChange={(e) => {
+                          const updated = [...editableExercises];
+                          updated[idx].observations = e.target.value || null;
+                          setEditableExercises(updated);
+                        }}
+                        placeholder="Observações técnicas..."
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={ex.is_best_set}
+                          onChange={(e) => {
+                            const updated = [...editableExercises];
+                            updated[idx].is_best_set = e.target.checked;
+                            setEditableExercises(updated);
+                          }}
+                        />
+                        <Label className="text-xs">Melhor série</Label>
+                      </div>
+                      
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          setEditableExercises(editableExercises.filter((_, i) => i !== idx));
+                        }}
+                      >
+                        🗑️
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         <DialogFooter>
           {dialogState === 'setup' && (
             <>
@@ -467,6 +695,12 @@ export function RecordIndividualSessionDialog({
               </Button>
               <Button 
                 variant="secondary"
+                onClick={() => setDialogState('edit')}
+              >
+                ✏️ Editar Dados
+              </Button>
+              <Button 
+                variant="secondary"
                 onClick={handleAddAnotherRecording}
                 disabled={!mergedData || accumulatedRecordings.length >= MAX_RECORDINGS}
               >
@@ -476,6 +710,40 @@ export function RecordIndividualSessionDialog({
               <Button onClick={handleSave}>
                 <Save className="h-4 w-4 mr-2" />
                 Finalizar e Salvar
+              </Button>
+            </>
+          )}
+
+          {dialogState === 'edit' && (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  if (mergedData) {
+                    setEditableObservations(mergedData.clinical_observations);
+                    setEditableExercises(mergedData.exercises);
+                  }
+                  setDialogState('preview');
+                }}
+              >
+                ← Cancelar Edição
+              </Button>
+              <Button 
+                onClick={() => {
+                  if (mergedData) {
+                    setMergedData({
+                      clinical_observations: editableObservations,
+                      exercises: editableExercises
+                    });
+                  }
+                  setDialogState('preview');
+                  toast({
+                    title: "Edições aplicadas",
+                    description: "Revise os dados antes de salvar",
+                  });
+                }}
+              >
+                ✅ Aplicar Edições
               </Button>
             </>
           )}

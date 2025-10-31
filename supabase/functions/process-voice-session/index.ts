@@ -169,7 +169,15 @@ serve(async (req) => {
           data: audioBase64
         }
       },
-      "Transcreva este áudio em português brasileiro. Retorne APENAS a transcrição exata, sem adicionar comentários ou formatação."
+      `Transcreva este áudio em português brasileiro sobre treino físico. 
+  
+CORREÇÕES OBRIGATÓRIAS:
+- "alteres" → "halteres"
+- "querobel", "ketobel", "quetobell", "quetobel" → "kettlebell"
+- "supino" (manter assim)
+- "agachamento" (manter assim)
+
+Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     ]);
 
     const transcription = transcriptionResult.response.text();
