@@ -3,15 +3,20 @@ import { useStudents, useDeleteStudent } from "@/hooks/useStudents";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus } from "lucide-react";
+import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import { AddStudentDialog } from "@/components/AddStudentDialog";
 import { GenerateInviteLinkDialog } from "@/components/GenerateInviteLinkDialog";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
+import { StudentObservationsDialog } from "@/components/StudentObservationsDialog";
+import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
+import { useStudentImportantObservations } from "@/hooks/useStudentImportantObservations";
 import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
 import {
@@ -45,6 +50,140 @@ const StudentsPage = () => {
     } catch (error: any) {
       toast.error(error.message || "Erro ao excluir aluno");
     }
+  };
+
+  const StudentCard = ({ student }: { student: Student }) => {
+    const { data: ouraMetrics } = useLatestOuraMetrics(student.id);
+    const { data: importantObservations } = useStudentImportantObservations(student.id);
+    const [showObservationsDialog, setShowObservationsDialog] = useState(false);
+    
+    const readinessScore = ouraMetrics?.readiness_score;
+    const hasImportantObservations = importantObservations && importantObservations.length > 0;
+    
+    const getReadinessColor = (score: number | null | undefined) => {
+      if (!score) return 'text-muted-foreground';
+      if (score >= 85) return 'text-green-500';
+      if (score >= 70) return 'text-yellow-500';
+      return 'text-red-500';
+    };
+
+    return (
+      <>
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={student.avatar_url || undefined} />
+                <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                {student.name}
+                {student.birth_date && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="ml-2 text-xs text-muted-foreground cursor-help">
+                          ({new Date().getFullYear() - new Date(student.birth_date).getFullYear()}a)
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Idade do aluno</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+            </CardTitle>
+            
+            <CardDescription className="space-y-2">
+              {/* Nível de Fitness */}
+              {student.fitness_level && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium">Nível:</span>
+                  <Badge variant="outline" className="capitalize">
+                    {student.fitness_level}
+                  </Badge>
+                </div>
+              )}
+              
+              {/* Readiness Oura Ring */}
+              {readinessScore && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="font-medium">Readiness:</span>
+                  <span className={`font-bold ${getReadinessColor(readinessScore)}`}>
+                    {readinessScore}%
+                  </span>
+                </div>
+              )}
+              
+              {/* Observações Importantes */}
+              {hasImportantObservations && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                    onClick={() => setShowObservationsDialog(true)}
+                  >
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    <span className="text-xs font-medium">
+                      {importantObservations.length} {importantObservations.length === 1 ? 'observação' : 'observações'} importante(s)
+                    </span>
+                    <Info className="h-3 w-3 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <div className="flex gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                className="flex-1"
+                onClick={() => navigate(`/alunos/${student.id}`)}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Detalhes
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setRecordingStudentId(student.id);
+                  setRecordingStudentName(student.name);
+                }}
+              >
+                <Mic className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingStudent(student)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setDeletingStudentId(student.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Dialog de Observações */}
+        <StudentObservationsDialog
+          open={showObservationsDialog}
+          onOpenChange={setShowObservationsDialog}
+          studentName={student.name}
+          observations={importantObservations || []}
+        />
+      </>
+    );
   };
 
   return (
@@ -99,67 +238,7 @@ const StudentsPage = () => {
         ) : students && students.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {students.map((student) => (
-              <Card key={student.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={student.avatar_url || undefined} />
-                      <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    {student.name}
-                  </CardTitle>
-                  <CardDescription className="space-y-1">
-                    <div>{student.weekly_sessions_proposed} sessões/semana propostas</div>
-                    {student.birth_date && (
-                      <div className="text-xs">
-                        Idade: {new Date().getFullYear() - new Date(student.birth_date).getFullYear()} anos
-                      </div>
-                    )}
-                    {student.fitness_level && (
-                      <div className="text-xs capitalize">
-                        Nível: {student.fitness_level}
-                      </div>
-                    )}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => navigate(`/alunos/${student.id}`)}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      Detalhes
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setRecordingStudentId(student.id);
-                        setRecordingStudentName(student.name);
-                      }}
-                    >
-                      <Mic className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingStudent(student)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setDeletingStudentId(student.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <StudentCard key={student.id} student={student} />
             ))}
           </div>
         ) : (

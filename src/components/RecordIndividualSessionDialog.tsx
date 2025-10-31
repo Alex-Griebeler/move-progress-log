@@ -88,6 +88,10 @@ export function RecordIndividualSessionDialog({
   const [editableObservations, setEditableObservations] = useState<MergedData['clinical_observations']>([]);
   const [editableExercises, setEditableExercises] = useState<MergedData['exercises']>([]);
 
+  // Validation states
+  const [showValidationDialog, setShowValidationDialog] = useState(false);
+  const [exercisesNeedingValidation, setExercisesNeedingValidation] = useState<number[]>([]);
+
   const { data: assignments } = usePrescriptionAssignments(studentId);
   const createSession = useCreateWorkoutSession();
   const { toast } = useToast();
@@ -291,6 +295,38 @@ export function RecordIndividualSessionDialog({
     setAccumulatedRecordings([]);
     setCurrentRecordingNumber(1);
     setMergedData(null);
+    setShowValidationDialog(false);
+    setExercisesNeedingValidation([]);
+  };
+
+  const validateExercisesBeforeSave = () => {
+    const invalidExercises: number[] = [];
+    
+    editableExercises.forEach((ex, idx) => {
+      // Validar campos obrigatórios
+      if (!ex.executed_exercise_name.trim()) {
+        invalidExercises.push(idx);
+        return;
+      }
+      
+      // Para treinos livres (sem prescrição), número de séries é obrigatório
+      if (!selectedPrescriptionId && (ex.sets === null || ex.sets === 0)) {
+        invalidExercises.push(idx);
+      }
+      
+      // Reps sempre obrigatório
+      if (ex.reps === 0 || ex.reps === null) {
+        invalidExercises.push(idx);
+      }
+    });
+    
+    if (invalidExercises.length > 0) {
+      setExercisesNeedingValidation(invalidExercises);
+      setShowValidationDialog(true);
+      return false;
+    }
+    
+    return true;
   };
 
   return (
@@ -576,30 +612,49 @@ export function RecordIndividualSessionDialog({
                     />
                     
                     <div className="grid grid-cols-3 gap-2">
-                      <div>
-                        <Label className="text-xs">Séries</Label>
-                        <Input
-                          type="number"
-                          value={ex.sets ?? ''}
-                          onChange={(e) => {
-                            const updated = [...editableExercises];
-                            updated[idx].sets = e.target.value ? parseInt(e.target.value) : null;
-                            setEditableExercises(updated);
-                          }}
-                          placeholder="Auto"
-                        />
-                      </div>
+                <div>
+                  <Label className="text-xs flex items-center gap-1">
+                    Séries
+                    {!selectedPrescriptionId && (
+                      <span className="text-destructive">*</span>
+                    )}
+                  </Label>
+                  <Input
+                    type="number"
+                    value={ex.sets ?? ''}
+                    onChange={(e) => {
+                      const updated = [...editableExercises];
+                      updated[idx].sets = e.target.value ? parseInt(e.target.value) : null;
+                      setEditableExercises(updated);
+                    }}
+                    placeholder={selectedPrescriptionId ? "Auto" : "Obrigatório"}
+                    className={
+                      !selectedPrescriptionId && (ex.sets === null || ex.sets === 0)
+                        ? "border-destructive focus:border-destructive"
+                        : ""
+                    }
+                  />
+                </div>
                       
                       <div>
-                        <Label className="text-xs">Reps</Label>
+                        <Label className="text-xs flex items-center gap-1">
+                          Reps
+                          <span className="text-destructive">*</span>
+                        </Label>
                         <Input
                           type="number"
-                          value={ex.reps}
+                          value={ex.reps ?? ''}
                           onChange={(e) => {
                             const updated = [...editableExercises];
-                            updated[idx].reps = parseInt(e.target.value) || 0;
+                            updated[idx].reps = e.target.value ? parseInt(e.target.value) : null;
                             setEditableExercises(updated);
                           }}
+                          placeholder="Obrigatório"
+                          className={
+                            ex.reps === 0 || ex.reps === null
+                              ? "border-destructive focus:border-destructive"
+                              : ""
+                          }
                         />
                       </div>
                       
@@ -707,7 +762,13 @@ export function RecordIndividualSessionDialog({
                 <Mic className="h-4 w-4 mr-2" />
                 Adicionar Gravação
               </Button>
-              <Button onClick={handleSave}>
+              <Button 
+                onClick={() => {
+                  if (validateExercisesBeforeSave()) {
+                    handleSave();
+                  }
+                }}
+              >
                 <Save className="h-4 w-4 mr-2" />
                 Finalizar e Salvar
               </Button>
@@ -748,6 +809,67 @@ export function RecordIndividualSessionDialog({
             </>
           )}
         </DialogFooter>
+
+        {/* Dialog de Validação de Campos */}
+        {showValidationDialog && (
+          <Alert className="mt-4 border-amber-500 bg-amber-50 dark:bg-amber-950 dark:border-amber-700">
+            <AlertDescription>
+              <div className="space-y-3">
+                <p className="font-semibold text-amber-900 dark:text-amber-100">
+                  ⚠️ Campos obrigatórios não preenchidos
+                </p>
+                <div className="space-y-2">
+                  {exercisesNeedingValidation.map(idx => {
+                    const ex = editableExercises[idx];
+                    const issues = [];
+                    
+                    if (!ex.executed_exercise_name.trim()) issues.push("Nome do exercício");
+                    if (!selectedPrescriptionId && (ex.sets === null || ex.sets === 0)) {
+                      issues.push("Número de séries (obrigatório em treinos livres)");
+                    }
+                    if (ex.reps === 0 || ex.reps === null) issues.push("Repetições");
+                    
+                    return (
+                      <div key={idx} className="text-sm text-amber-800 dark:text-amber-200 bg-white dark:bg-amber-900/50 p-2 rounded border border-amber-200 dark:border-amber-700">
+                        <strong>Exercício #{idx + 1}:</strong> {ex.executed_exercise_name || '(sem nome)'}
+                        <ul className="list-disc list-inside ml-4 mt-1">
+                          {issues.map((issue, i) => (
+                            <li key={i}>{issue}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setShowValidationDialog(false);
+                      setExercisesNeedingValidation([]);
+                    }}
+                  >
+                    Revisar Depois
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setShowValidationDialog(false);
+                      setDialogState('edit');
+                      toast({
+                        title: "Preencha os campos obrigatórios",
+                        description: "Complete os dados antes de salvar",
+                      });
+                    }}
+                  >
+                    ✏️ Ir para Edição
+                  </Button>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
       </DialogContent>
     </Dialog>
   );
