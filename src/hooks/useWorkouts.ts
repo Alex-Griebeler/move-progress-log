@@ -49,7 +49,7 @@ export const useWorkouts = () => {
         student_id: workout.student_id,
         date: workout.date,
         time: workout.time,
-        student_name: workout.students.name,
+        student_name: workout.students.name?.trim() || 'Sem nome',
         total_exercises: workout.exercises.length,
         total_volume: workout.exercises.reduce((sum: number, ex: any) => sum + (ex.load_kg || 0), 0),
         created_at: workout.created_at,

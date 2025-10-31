@@ -10,6 +10,8 @@ interface WorkoutCardProps {
 }
 
 const WorkoutCard = ({ name, exercises, date, totalVolume }: WorkoutCardProps) => {
+  const displayName = name?.trim() || 'Aluno Desconhecido';
+  
   return (
     <Card className="hover:shadow-lg transition-all duration-300 border-border/50 backdrop-blur-sm">
       <CardHeader className="pb-3">
@@ -18,7 +20,7 @@ const WorkoutCard = ({ name, exercises, date, totalVolume }: WorkoutCardProps) =
             <div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20">
               <Dumbbell className="h-5 w-5 text-primary" />
             </div>
-            <CardTitle className="text-lg">{name}</CardTitle>
+            <CardTitle className="text-lg">{displayName}</CardTitle>
           </div>
           <Badge variant="secondary" className="text-xs">
             {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
