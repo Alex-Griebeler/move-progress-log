@@ -91,6 +91,10 @@ export function RecordIndividualSessionDialog({
   // Validation states
   const [showValidationDialog, setShowValidationDialog] = useState(false);
   const [exercisesNeedingValidation, setExercisesNeedingValidation] = useState<number[]>([]);
+  
+  // Warning states (for missing load/reps)
+  const [showWarningDialog, setShowWarningDialog] = useState(false);
+  const [exerciseWarnings, setExerciseWarnings] = useState<Array<{ idx: number; reason: string }>>([]);
 
   const { data: assignments } = usePrescriptionAssignments(studentId);
   const createSession = useCreateWorkoutSession();
@@ -326,32 +330,59 @@ export function RecordIndividualSessionDialog({
 
   const validateExercisesBeforeSave = () => {
     const invalidExercises: number[] = [];
+    const warningExercises: Array<{ idx: number; reason: string }> = [];
     
     console.log('🔍 VALIDAÇÃO - Exercícios:', editableExercises);
     
     editableExercises.forEach((ex, idx) => {
-      const issues = [];
+      // ❌ ERROS CRÍTICOS (bloqueiam o save)
+      const criticalIssues = [];
       
       if (!ex.executed_exercise_name.trim()) {
-        issues.push('Nome vazio');
+        criticalIssues.push('Nome vazio');
         invalidExercises.push(idx);
       }
       
       if (!selectedPrescriptionId && (ex.sets === null || ex.sets === 0)) {
-        issues.push('Séries obrigatórias (treino livre)');
+        criticalIssues.push('Séries obrigatórias (treino livre)');
         invalidExercises.push(idx);
       }
       
-      if (ex.reps === 0 || ex.reps === null) {
-        issues.push('Reps obrigatórias');
-        invalidExercises.push(idx);
+      // ⚠️ AVISOS (load OU reps omitidos)
+      const missingLoad = !ex.load_breakdown || ex.load_kg === null || ex.load_kg === 0;
+      const missingReps = ex.reps === null || ex.reps === 0;
+      
+      if (missingLoad && missingReps) {
+        warningExercises.push({ 
+          idx, 
+          reason: "Carga E reps não informadas" 
+        });
+      } else if (missingLoad) {
+        warningExercises.push({ 
+          idx, 
+          reason: "Carga não informada" 
+        });
+      } else if (missingReps) {
+        warningExercises.push({ 
+          idx, 
+          reason: "Reps não informadas" 
+        });
       }
       
-      if (issues.length > 0) {
-        console.log(`❌ Exercício #${idx + 1} (${ex.executed_exercise_name || 'SEM NOME'}):`, issues);
+      if (criticalIssues.length > 0) {
+        console.log(`❌ Exercício #${idx + 1} (${ex.executed_exercise_name || 'SEM NOME'}):`, criticalIssues);
       }
     });
     
+    // Mostrar avisos primeiro (se houver)
+    if (warningExercises.length > 0) {
+      console.log('⚠️ AVISOS - Exercícios com dados incompletos:', warningExercises.length);
+      setExerciseWarnings(warningExercises);
+      setShowWarningDialog(true);
+      return false;
+    }
+    
+    // Depois mostrar erros críticos (se houver)
     if (invalidExercises.length > 0) {
       console.log('❌ VALIDAÇÃO FALHOU. Total de exercícios inválidos:', invalidExercises.length);
       setExercisesNeedingValidation(invalidExercises);
@@ -680,7 +711,7 @@ export function RecordIndividualSessionDialog({
                       <div>
                         <Label className="text-xs flex items-center gap-1">
                           Reps
-                          <span className="text-destructive">*</span>
+                          <span className="text-amber-500">⚠</span>
                         </Label>
                         <Input
                           type="number"
@@ -691,15 +722,16 @@ export function RecordIndividualSessionDialog({
                             updated[idx].reps = value;
                             setEditableExercises(updated);
                             
-                            // Remover da lista de inválidos se corrigiu
+                            // Remover da lista de inválidos/warnings se corrigiu
                             if (value && value > 0) {
                               setExercisesNeedingValidation(prev => prev.filter(i => i !== idx));
+                              setExerciseWarnings(prev => prev.filter(w => w.idx !== idx));
                             }
                           }}
                           placeholder="Obrigatório"
                           className={
                             ex.reps === 0 || ex.reps === null
-                              ? "border-red-400 focus:border-red-500 bg-red-50"
+                              ? "border-amber-400 focus:border-amber-500 bg-amber-50"
                               : "border-green-400 bg-green-50"
                           }
                         />
@@ -725,7 +757,11 @@ export function RecordIndividualSessionDialog({
                             setEditableExercises(updated);
                           }}
                           placeholder="Ex: (25 lb + 2 kg) de cada lado + barra 10 kg"
-                          className="text-sm"
+                          className={
+                            (!ex.load_breakdown || ex.load_kg === null || ex.load_kg === 0)
+                              ? "text-sm border-amber-400 bg-amber-50 focus:border-amber-500"
+                              : "text-sm border-green-400 bg-green-50"
+                          }
                         />
                       </div>
                       
@@ -864,13 +900,72 @@ export function RecordIndividualSessionDialog({
           )}
         </DialogFooter>
 
-        {/* Dialog de Validação de Campos */}
-        {showValidationDialog && (
+        {/* Dialog de Avisos (Load/Reps Omitidos) */}
+        {showWarningDialog && (
           <Alert className="mt-4 border-amber-500 bg-amber-50 dark:bg-amber-950 dark:border-amber-700">
             <AlertDescription>
               <div className="space-y-3">
-                <p className="font-semibold text-amber-900 dark:text-amber-100">
-                  ⚠️ Campos obrigatórios não preenchidos
+                <p className="font-semibold text-amber-900 dark:text-amber-100 flex items-center gap-2">
+                  ⚠️ Avisos de Validação
+                </p>
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Os seguintes exercícios possuem informações incompletas:
+                </p>
+                <div className="space-y-2">
+                  {exerciseWarnings.map(({ idx, reason }) => (
+                    <Alert key={idx} variant="default" className="border-amber-200 bg-white dark:bg-amber-900/50">
+                      <AlertDescription className="flex items-start gap-2">
+                        <span className="text-amber-600 dark:text-amber-400">⚠️</span>
+                        <div>
+                          <strong className="text-amber-900 dark:text-amber-100">
+                            {editableExercises[idx].executed_exercise_name || `Exercício #${idx + 1}`}
+                          </strong>
+                          <br />
+                          <span className="text-sm text-amber-700 dark:text-amber-300">{reason}</span>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  ))}
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setShowWarningDialog(false);
+                      setDialogState('edit');
+                      toast({
+                        title: "Revise os exercícios",
+                        description: "Preencha as informações faltantes",
+                      });
+                    }}
+                  >
+                    ✏️ Revisar Exercícios
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      setShowWarningDialog(false);
+                      setExerciseWarnings([]);
+                      handleSave();
+                    }}
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    Salvar Mesmo Assim
+                  </Button>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Dialog de Validação de Campos Críticos */}
+        {showValidationDialog && (
+          <Alert className="mt-4 border-red-500 bg-red-50 dark:bg-red-950 dark:border-red-700">
+            <AlertDescription>
+              <div className="space-y-3">
+                <p className="font-semibold text-red-900 dark:text-red-100">
+                  ❌ Campos obrigatórios não preenchidos
                 </p>
                 <div className="space-y-2">
                   {exercisesNeedingValidation.map(idx => {
@@ -881,10 +976,9 @@ export function RecordIndividualSessionDialog({
                     if (!selectedPrescriptionId && (ex.sets === null || ex.sets === 0)) {
                       issues.push("Número de séries (obrigatório em treinos livres)");
                     }
-                    if (ex.reps === 0 || ex.reps === null) issues.push("Repetições");
                     
                     return (
-                      <div key={idx} className="text-sm text-amber-800 dark:text-amber-200 bg-white dark:bg-amber-900/50 p-2 rounded border border-amber-200 dark:border-amber-700">
+                      <div key={idx} className="text-sm text-red-800 dark:text-red-200 bg-white dark:bg-red-900/50 p-2 rounded border border-red-200 dark:border-red-700">
                         <strong>Exercício #{idx + 1}:</strong> {ex.executed_exercise_name || '(sem nome)'}
                         <ul className="list-disc list-inside ml-4 mt-1">
                           {issues.map((issue, i) => (
@@ -916,6 +1010,7 @@ export function RecordIndividualSessionDialog({
                         description: "Complete os dados antes de salvar",
                       });
                     }}
+                    className="bg-red-500 hover:bg-red-600 text-white"
                   >
                     ✏️ Ir para Edição
                   </Button>

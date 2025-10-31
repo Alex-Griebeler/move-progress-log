@@ -228,16 +228,27 @@ ${exercisesInfo}
 
 INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
 
-1. **Repetições**: OBRIGATÓRIAS para cada exercício
+1. **Repetições (reps)**: 
+   - **REGRA CRÍTICA**: Se o áudio mencionar o exercício mas NÃO especificar reps, você DEVE marcar como null
+   - Exemplo: "fez 3 séries de agachamento" → reps: null (não especificou quantas repetições)
+   - Exemplo: "agachamento, 8 repetições" → reps: 8
+   - **NUNCA invente valores de reps que não foram mencionados**
 
 2. **Séries**: Use null se não mencionado (usará valor prescrito)
 
-3. **Carga - Dois campos obrigatórios**:
+3. **Carga - FORMATO OBRIGATÓRIO DE load_breakdown**:
    
    a) **load_breakdown** (descrição completa da montagem):
-      - Se carga foi mencionada: registre EXATAMENTE como foi dito
-      - Formato: "(peso1 + peso2) + barra X kg"
-      - Exemplo: "(15 lb + 2 kg) + barra 10 kg"
+      - **REGRA CRÍTICA**: Quando houver múltiplos pesos de cada lado, TODOS devem estar DENTRO do parêntese
+      - ✅ CORRETO: "(25 lb + 2 kg + 1 kg) de cada lado + barra 10 kg"
+      - ❌ ERRADO: "(25 lb) de cada lado + 2 kg + barra 10 kg"
+      - ❌ ERRADO: "(10 lb) de cada lado + 1 kg + barra 10 kg"
+      
+      **Exemplos válidos:**
+      - "(10 lb + 5 kg) de cada lado + barra 20 kg"
+      - "15 kg" (peso único, sem barra)
+      - "Peso corporal" (exercícios sem carga externa)
+      
       - Se não mencionado: null
    
    b) **load_kg** (total convertido, 1 casa decimal):
