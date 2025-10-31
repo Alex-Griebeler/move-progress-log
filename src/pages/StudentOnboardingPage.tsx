@@ -114,7 +114,14 @@ export default function StudentOnboardingPage() {
       });
 
       if (result.redirect_to_oura && result.oura_auth_url) {
-        window.location.href = result.oura_auth_url;
+        toast.info("Conectando ao Oura Ring", {
+          description: "Você será redirecionado para autorizar o acesso aos seus dados",
+          duration: 2000,
+        });
+        
+        setTimeout(() => {
+          window.location.href = result.oura_auth_url;
+        }, 2000);
       } else {
         navigate("/onboarding/success");
       }
@@ -406,11 +413,51 @@ export default function StudentOnboardingPage() {
                   </div>
                 </div>
 
+                <div className="text-center text-sm text-muted-foreground space-y-2">
+                  <p>
+                    Ao finalizar o cadastro, você concorda com nossos{" "}
+                    <a 
+                      href="#" 
+                      className="text-primary hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toast.info("Em breve", {
+                          description: "Página de Termos de Uso em desenvolvimento"
+                        });
+                      }}
+                    >
+                      Termos de Uso
+                    </a>
+                    {" "}e{" "}
+                    <a 
+                      href="#" 
+                      className="text-primary hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toast.info("Em breve", {
+                          description: "Página de Política de Privacidade em desenvolvimento"
+                        });
+                      }}
+                    >
+                      Política de Privacidade
+                    </a>
+                    .
+                  </p>
+                  
+                  {hasOuraRing && form.watch("accepts_oura_sharing") && (
+                    <p className="text-xs">
+                      Os dados do Oura Ring serão usados apenas para otimizar seu treinamento e não serão compartilhados com terceiros.
+                    </p>
+                  )}
+                </div>
+
                 <Button type="submit" className="w-full" disabled={createStudent.isPending}>
                   {createStudent.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Finalizando cadastro...
+                      {hasOuraRing && form.watch("accepts_oura_sharing") 
+                        ? "Redirecionando para Oura..." 
+                        : "Finalizando cadastro..."}
                     </>
                   ) : (
                     "Finalizar Cadastro"

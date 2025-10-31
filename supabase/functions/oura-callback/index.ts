@@ -57,7 +57,15 @@ Deno.serve(async (req) => {
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
       console.error('Oura token exchange failed:', errorText);
-      return new Response('Failed to exchange authorization code', { status: 400 });
+      
+      const baseUrl = supabaseUrl?.includes('supabase.co')
+        ? 'https://fabrik-performance.lovable.app'
+        : 'http://localhost:5173';
+      
+      return Response.redirect(
+        `${baseUrl}/onboarding/oura-error?student_id=${student_id}&reason=token_exchange`,
+        302
+      );
     }
 
     const tokenData = await tokenResponse.json();
@@ -84,7 +92,15 @@ Deno.serve(async (req) => {
 
     if (insertError) {
       console.error('Failed to save Oura connection:', insertError);
-      return new Response('Failed to save connection', { status: 500 });
+      
+      const baseUrl = supabaseUrl?.includes('supabase.co')
+        ? 'https://fabrik-performance.lovable.app'
+        : 'http://localhost:5173';
+      
+      return Response.redirect(
+        `${baseUrl}/onboarding/oura-error?student_id=${student_id}&reason=database`,
+        302
+      );
     }
 
     console.log(`Oura connection saved for student ${student_id}`);
