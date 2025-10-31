@@ -80,9 +80,9 @@ serve(async (req) => {
     const { audio, prescriptionId, students, date, time } = await req.json();
     
     // Validate required fields
-    if (!audio || !prescriptionId || !students || !Array.isArray(students) || students.length === 0) {
+    if (!audio || !students || !Array.isArray(students) || students.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: audio, prescriptionId, or students' }),
+        JSON.stringify({ error: 'Missing required fields: audio or students' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -94,29 +94,31 @@ serve(async (req) => {
       );
     }
 
-    console.log(`👤 User ${user.id} processing session for prescription ${prescriptionId}`);
+    console.log(`👤 User ${user.id} processing session${prescriptionId ? ` for prescription ${prescriptionId}` : ' (free session)'}`);
 
-    // Verify trainer owns the prescription
-    const { data: prescription, error: prescriptionError } = await supabaseClient
-      .from('workout_prescriptions')
-      .select('trainer_id')
-      .eq('id', prescriptionId)
-      .single();
+    // Verify trainer owns the prescription (only if prescriptionId is provided)
+    if (prescriptionId) {
+      const { data: prescription, error: prescriptionError } = await supabaseClient
+        .from('workout_prescriptions')
+        .select('trainer_id')
+        .eq('id', prescriptionId)
+        .single();
 
-    if (prescriptionError || !prescription) {
-      console.error('❌ Prescription not found:', prescriptionError);
-      return new Response(
-        JSON.stringify({ error: 'Prescription not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      if (prescriptionError || !prescription) {
+        console.error('❌ Prescription not found:', prescriptionError);
+        return new Response(
+          JSON.stringify({ error: 'Prescription not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
-    if (prescription.trainer_id !== user.id) {
-      console.error('❌ Unauthorized access attempt:', user.id, 'to prescription:', prescriptionId);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized access to prescription data' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (prescription.trainer_id !== user.id) {
+        console.error('❌ Unauthorized access attempt:', user.id, 'to prescription:', prescriptionId);
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized access to prescription data' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Verify trainer owns all students
@@ -173,25 +175,33 @@ serve(async (req) => {
     const transcription = transcriptionResult.response.text();
     console.log("✅ Transcription completed:", transcription.substring(0, 100) + "...");
 
-    // 2️⃣ Buscar detalhes completos da prescrição (já validamos que o trainer é dono)
-    const { data: prescriptionDetails, error: prescDetailsError } = await supabaseClient
-      .from('workout_prescriptions')
-      .select(`*, prescription_exercises (id, sets, reps, order_index, exercises_library (name))`)
-      .eq('id', prescriptionId)
-      .single();
+    // 2️⃣ Buscar detalhes completos da prescrição (se fornecida)
+    let prescriptionDetails = null;
     
-    if (prescDetailsError || !prescriptionDetails) {
-      console.error('❌ Error fetching prescription details:', prescDetailsError);
-      throw new Error('Erro ao buscar detalhes da prescrição');
+    if (prescriptionId) {
+      const { data: prescDetailsData, error: prescDetailsError } = await supabaseClient
+        .from('workout_prescriptions')
+        .select(`*, prescription_exercises (id, sets, reps, order_index, exercises_library (name))`)
+        .eq('id', prescriptionId)
+        .single();
+      
+      if (prescDetailsError || !prescDetailsData) {
+        console.error('❌ Error fetching prescription details:', prescDetailsError);
+        throw new Error('Erro ao buscar detalhes da prescrição');
+      }
+      
+      prescriptionDetails = prescDetailsData;
     }
 
     const studentsInfo = students
       .map((s: any) => `  - ${s.name}${s.weight_kg ? ` (peso: ${s.weight_kg} kg)` : ' (peso não cadastrado)'}`)
       .join('\n');
     
-    const exercisesInfo = prescriptionDetails.prescription_exercises
-      .map((ex: any) => `  ${ex.order_index + 1}. ${ex.exercises_library.name}: ${ex.sets} séries × ${ex.reps} reps`)
-      .join('\n');
+    const exercisesInfo = prescriptionDetails 
+      ? prescriptionDetails.prescription_exercises
+          .map((ex: any) => `  ${ex.order_index + 1}. ${ex.exercises_library.name}: ${ex.sets} séries × ${ex.reps} reps`)
+          .join('\n')
+      : '  (Sessão livre - sem prescrição definida)';
 
     // 3️⃣ Processar com Gemini para extrair dados estruturados
     console.log("🤖 Processing structured data with Gemini...");
