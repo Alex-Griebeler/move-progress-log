@@ -1,23 +1,34 @@
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { CheckCircle2, Activity, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
+import { toast } from "sonner";
 
 export default function OnboardingSuccessPage() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const studentId = searchParams.get("student_id");
 
   const { data: ouraMetrics, isLoading: metricsLoading } = useOuraMetrics(studentId || "", 7);
   const { data: ouraConnection, isLoading: connectionLoading } = useOuraConnection(studentId || "");
 
-  const handleAccessProfile = () => {
-    if (studentId) {
-      navigate(`/alunos/${studentId}`);
-    }
+  const handleClose = () => {
+    // Tentar fechar a janela (funciona se foi aberta via window.open)
+    window.close();
+    
+    // Fallback: se não conseguir fechar (navegação normal)
+    // Verificar após 100ms se a janela ainda está aberta
+    setTimeout(() => {
+      if (!window.closed) {
+        // Mostrar mensagem de que pode fechar manualmente
+        toast.info("Você pode fechar esta aba agora", {
+          description: "Seu cadastro foi concluído com sucesso!",
+          duration: 10000,
+        });
+      }
+    }, 100);
   };
 
   const renderOuraStatus = () => {
@@ -88,31 +99,33 @@ export default function OnboardingSuccessPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-center text-muted-foreground">
-            Seu perfil foi criado e seu treinador já pode acessar suas informações.
+            Seu cadastro foi concluído com sucesso! 
+            {ouraConnection 
+              ? " Seus dados do Oura Ring estão sendo sincronizados e seu treinador já pode acompanhar seu progresso."
+              : " Seu treinador já pode acessar suas informações e iniciar seu planejamento."
+            }
           </p>
           
           {renderOuraStatus()}
 
-          <div className="space-y-2 pt-4">
-            <Button
-              onClick={handleAccessProfile}
-              className="w-full"
-            >
-              Acessar Meu Perfil
-            </Button>
-
+          <div className="pt-4">
             <Button
               variant="outline"
-              onClick={() => window.close()}
+              onClick={handleClose}
               className="w-full"
             >
-              Fechar
+              Fechar Janela
             </Button>
           </div>
 
-          <p className="text-xs text-center text-muted-foreground">
-            Você pode acessar seu perfil a qualquer momento.
-          </p>
+          <div className="border-t pt-4 mt-4">
+            <p className="text-sm text-center text-muted-foreground">
+              <strong className="text-foreground">Próximos passos:</strong> Aguarde contato do seu treinador para agendar sua primeira sessão.
+            </p>
+            <p className="text-xs text-center text-muted-foreground mt-2">
+              Você pode fechar esta janela agora.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
