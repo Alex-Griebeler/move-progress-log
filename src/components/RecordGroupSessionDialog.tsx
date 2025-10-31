@@ -881,7 +881,14 @@ export function RecordGroupSessionDialog({
                               </div>
                               <div>
                                 <span className="text-muted-foreground">Carga: </span>
-                                <span className="font-semibold">{ex.load_breakdown}</span>
+                                <div className="flex flex-col">
+                                  {ex.load_kg !== null && ex.load_kg !== undefined && (
+                                    <span className="font-bold text-primary">{ex.load_kg} kg</span>
+                                  )}
+                                  {ex.load_breakdown && (
+                                    <span className="text-xs text-muted-foreground">{ex.load_breakdown}</span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             
