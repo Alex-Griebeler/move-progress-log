@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info } from "lucide-react";
+import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -22,9 +22,11 @@ import { OuraWorkoutsCard } from "@/components/OuraWorkoutsCard";
 import { OuraAdvancedMetricsCard } from "@/components/OuraAdvancedMetricsCard";
 import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecommendationDialog";
 import { StudentObservationsCard } from "@/components/StudentObservationsCard";
+import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { useOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +37,7 @@ const StudentDetailPage = () => {
   const { data: ouraMetrics, isLoading: loadingOuraMetrics } = useOuraMetrics(id!, 30);
   const { data: ouraConnection } = useOuraConnection(id!);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
+  const [recordSessionOpen, setRecordSessionOpen] = useState(false);
 
   const student = students?.find((s) => s.id === id);
 
@@ -69,23 +72,42 @@ const StudentDetailPage = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <Avatar className="h-16 w-16">
-          <AvatarImage src={student.avatar_url || undefined} className="object-cover" />
-          <AvatarFallback className="text-2xl">{student.name.charAt(0)}</AvatarFallback>
-        </Avatar>
-        <div>
-          <h1 className="text-3xl font-bold">{student.name}</h1>
-          <p className="text-muted-foreground">
-            {student.birth_date && (() => {
-              const [year, month, day] = student.birth_date.split('-');
-              return `Nascimento: ${day}/${month}/${year}`;
-            })()}
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={student.avatar_url || undefined} className="object-cover" />
+            <AvatarFallback className="text-2xl">{student.name.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-3xl font-bold">{student.name}</h1>
+            <p className="text-muted-foreground">
+              {student.birth_date && (() => {
+                const [year, month, day] = student.birth_date.split('-');
+                return `Nascimento: ${day}/${month}/${year}`;
+              })()}
+            </p>
+          </div>
         </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                onClick={() => setRecordSessionOpen(true)} 
+                className="gap-2 animate-pulse hover:animate-none"
+                variant="gradient"
+              >
+                <Mic className="h-4 w-4" />
+                Registrar Sessão
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Grave uma sessão de treino usando sua voz</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
@@ -223,10 +245,25 @@ const StudentDetailPage = () => {
               })}
             </div>
           ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Nenhuma sessão registrada ainda</p>
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+                <div className="rounded-full bg-primary/10 p-4">
+                  <Calendar className="h-12 w-12 text-primary" />
+                </div>
+                <div className="text-center space-y-2">
+                  <h3 className="text-lg font-semibold">Nenhuma sessão registrada</h3>
+                  <p className="text-muted-foreground text-sm max-w-md">
+                    Comece registrando a primeira sessão de treino de {student.name}
+                  </p>
+                </div>
+                <Button 
+                  onClick={() => setRecordSessionOpen(true)}
+                  variant="gradient"
+                  className="gap-2 mt-4"
+                >
+                  <Mic className="h-4 w-4" />
+                  Registrar Primeira Sessão
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -440,6 +477,13 @@ const StudentDetailPage = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      <RecordIndividualSessionDialog
+        open={recordSessionOpen}
+        onOpenChange={setRecordSessionOpen}
+        studentId={id!}
+        studentName={student.name}
+      />
     </div>
   );
 };
