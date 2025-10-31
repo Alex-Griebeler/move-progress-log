@@ -4,22 +4,92 @@ import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
 import { ImportSessionsDialog } from "@/components/ImportSessionsDialog";
-import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit, Info } from "lucide-react";
+import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit, Info, Database, Trash2 } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AppHeader } from "@/components/AppHeader";
+import { populateTestSessions } from "@/utils/populateTestSessions";
+import { clearTestSessions } from "@/utils/clearTestSessions";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Index = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [isPopulating, setIsPopulating] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const { data: stats, isLoading: statsLoading } = useStats();
   const { data: recentWorkouts, isLoading: workoutsLoading } = useWorkouts();
 
   const handleWorkoutAdded = () => {
     setRefreshKey(prev => prev + 1);
+  };
+
+  const handlePopulateTestData = async () => {
+    setIsPopulating(true);
+    try {
+      toast({
+        title: "Criando dados de teste...",
+        description: "Por favor, aguarde enquanto geramos as sessões.",
+      });
+
+      const result = await populateTestSessions();
+      
+      await queryClient.invalidateQueries({ queryKey: ['workouts'] });
+      await queryClient.invalidateQueries({ queryKey: ['stats'] });
+
+      toast({
+        title: "✅ Dados criados com sucesso!",
+        description: result.message,
+      });
+    } catch (error) {
+      console.error('Erro ao popular dados:', error);
+      toast({
+        title: "❌ Erro ao criar dados",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPopulating(false);
+    }
+  };
+
+  const handleClearTestData = async () => {
+    if (!confirm('Tem certeza que deseja deletar TODAS as sessões de teste? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    setIsClearing(true);
+    try {
+      toast({
+        title: "Limpando dados de teste...",
+        description: "Deletando todas as sessões...",
+      });
+
+      const result = await clearTestSessions();
+      
+      await queryClient.invalidateQueries({ queryKey: ['workouts'] });
+      await queryClient.invalidateQueries({ queryKey: ['stats'] });
+
+      toast({
+        title: "✅ Dados limpos com sucesso!",
+        description: result.message,
+      });
+    } catch (error) {
+      console.error('Erro ao limpar dados:', error);
+      toast({
+        title: "❌ Erro ao limpar dados",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setIsClearing(false);
+    }
   };
 
   return (
@@ -64,6 +134,28 @@ const Index = () => {
                 Importar Excel
               </Button>
               <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
+              {import.meta.env.DEV && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    onClick={handlePopulateTestData}
+                    disabled={isPopulating}
+                    className="gap-2"
+                  >
+                    <Database className="h-4 w-4" />
+                    {isPopulating ? 'Criando...' : 'Popular Dados'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleClearTestData}
+                    disabled={isClearing}
+                    className="gap-2 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {isClearing ? 'Limpando...' : 'Limpar Sessões'}
+                  </Button>
+                </>
+              )}
             </>
           }
         />
