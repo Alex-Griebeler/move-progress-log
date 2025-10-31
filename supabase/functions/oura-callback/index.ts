@@ -32,6 +32,7 @@ Deno.serve(async (req) => {
     const ouraClientId = Deno.env.get('OURA_CLIENT_ID');
     const ouraClientSecret = Deno.env.get('OURA_CLIENT_SECRET');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://fabrik-performance.lovable.app';
     const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
 
     console.log('Token exchange attempt:', {
@@ -58,12 +59,8 @@ Deno.serve(async (req) => {
       const errorText = await tokenResponse.text();
       console.error('Oura token exchange failed:', errorText);
       
-      const baseUrl = supabaseUrl?.includes('supabase.co')
-        ? 'https://fabrik-performance.lovable.app'
-        : 'http://localhost:5173';
-      
       return Response.redirect(
-        `${baseUrl}/onboarding/oura-error?student_id=${student_id}&reason=token_exchange`,
+        `${frontendUrl}/onboarding/oura-error?student_id=${student_id}&reason=token_exchange`,
         302
       );
     }
@@ -93,12 +90,8 @@ Deno.serve(async (req) => {
     if (insertError) {
       console.error('Failed to save Oura connection:', insertError);
       
-      const baseUrl = supabaseUrl?.includes('supabase.co')
-        ? 'https://fabrik-performance.lovable.app'
-        : 'http://localhost:5173';
-      
       return Response.redirect(
-        `${baseUrl}/onboarding/oura-error?student_id=${student_id}&reason=database`,
+        `${frontendUrl}/onboarding/oura-error?student_id=${student_id}&reason=database`,
         302
       );
     }
@@ -137,16 +130,12 @@ Deno.serve(async (req) => {
     }
 
     // Redirect based on origin
-    const baseUrl = supabaseUrl?.includes('supabase.co')
-      ? 'https://fabrik-performance.lovable.app'
-      : 'http://localhost:5173';
-
     if (invite_token) {
       // Came from student onboarding
-      return Response.redirect(`${baseUrl}/onboarding/success?student_id=${student_id}`, 302);
+      return Response.redirect(`${frontendUrl}/onboarding/success?student_id=${student_id}`, 302);
     } else {
       // Came from trainer interface
-      return Response.redirect(`${baseUrl}/alunos/${student_id}`, 302);
+      return Response.redirect(`${frontendUrl}/alunos/${student_id}`, 302);
     }
   } catch (error) {
     console.error('Error in oura-callback:', error);

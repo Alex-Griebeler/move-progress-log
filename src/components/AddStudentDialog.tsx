@@ -30,7 +30,13 @@ import { STUDENT_OBJECTIVES } from "@/constants/objectives";
 
 const formSchema = z.object({
   name: z.string().trim().min(1, "Nome completo é obrigatório").max(100, "Nome deve ter no máximo 100 caracteres"),
-  birth_date: z.string().optional(),
+  birth_date: z.string().optional().refine((date) => {
+    if (!date) return true;
+    const birthDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return birthDate <= today;
+  }, "Data de nascimento não pode ser no futuro"),
   weekly_sessions_proposed: z.coerce.number().min(1, "Mínimo 1 sessão").max(7, "Máximo 7 sessões"),
   objectives: z.string().optional(),
   limitations: z.string().optional(),
