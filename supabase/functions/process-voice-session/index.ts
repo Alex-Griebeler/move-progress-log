@@ -237,6 +237,15 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
 
 2. **Séries**: Use null se não mencionado (usará valor prescrito)
 
+**IMPORTANTE - PESO CORPORAL (CÁLCULO AUTOMÁTICO)**:
+   - Se o exercício usa "peso corporal" ou "PC" e você TEM o peso do aluno (weight_kg):
+     * SEMPRE calcule automaticamente: load_kg = weight_kg do aluno
+     * load_breakdown: "Peso corporal = [weight_kg] kg"
+     * Exemplo: Se aluno pesa 75 kg → load_breakdown: "Peso corporal = 75.0 kg", load_kg: 75.0
+   - Se NÃO tiver o peso do aluno:
+     * load_breakdown: "Peso corporal"
+     * load_kg: null
+
 3. **Carga - FORMATO OBRIGATÓRIO DE load_breakdown**:
    
    a) **load_breakdown** (descrição completa da montagem):
@@ -287,8 +296,88 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
       * Passo 1: 15 lb = 15 × 0.45 = 6.8 kg
       * Passo 2: (6.8 + 2) × 2 lados = 17.6 kg
       * Passo 3: 17.6 + 10 (barra) = 27.6 kg
-      * load_breakdown: "(15 lb + 2 kg) de cada lado + barra 10 kg"
-      * load_kg: 27.6
+       * load_breakdown: "(15 lb + 2 kg) de cada lado + barra 10 kg"
+       * load_kg: 27.6
+
+**EXEMPLOS PRÁTICOS DE CARGA (12 CENÁRIOS REAIS)**:
+
+a) **Peso corporal COM registro:**
+   Áudio: "Fez flexão de braço"
+   Aluno: peso = 80 kg
+   → load_breakdown: "Peso corporal = 80.0 kg"
+   → load_kg: 80.0
+
+b) **Peso corporal SEM registro:**
+   Áudio: "Fez flexão de braço"
+   Aluno: peso não cadastrado
+   → load_breakdown: "Peso corporal"
+   → load_kg: null
+
+c) **Kettlebell simples:**
+   Áudio: "Levantamento terra com kettlebell de 32 kg"
+   → load_breakdown: "32 kg"
+   → load_kg: 32.0
+
+d) **2 Kettlebells (CRÍTICO - SEMPRE MULTIPLICAR POR 2):**
+   Áudio: "Agachamento com 2 kettlebells de 24 kg"
+   → load_breakdown: "2 kettlebells de 24 kg"
+   → load_kg: 48.0
+   
+e) **Duplo kettlebell (MESMA REGRA):**
+   Áudio: "Remada com duplo kettlebell de 28 kg"
+   → load_breakdown: "2 kettlebells de 28 kg"
+   → load_kg: 56.0
+
+f) **Halter simples (cada mão):**
+   Áudio: "Rosca com halteres de 12 kg cada"
+   → load_breakdown: "2 halteres de 12 kg"
+   → load_kg: 24.0
+
+g) **Barra + anilhas em LB de cada lado:**
+   Áudio: "Supino com 45 lb de cada lado e barra de 20 kg"
+   → Cálculo: 45 lb × 0.45 = 20.3 kg → 20.3 × 2 = 40.6 kg → 40.6 + 20 = 60.6 kg
+   → load_breakdown: "(45 lb) de cada lado + barra 20 kg"
+   → load_kg: 60.6
+
+h) **Anilhas mistas (lb + kg) de cada lado:**
+   Áudio: "Agachamento com 25 lb e 5 kg de cada lado, barra 10 kg"
+   → Cálculo: (25 × 0.45 + 5) × 2 + 10 = (11.3 + 5) × 2 + 10 = 32.6 + 10 = 42.6 kg
+   → load_breakdown: "(25 lb + 5 kg) de cada lado + barra 10 kg"
+   → load_kg: 42.6
+
+i) **Múltiplas anilhas de cada lado (CRÍTICO - TODAS DENTRO DO PARÊNTESE):**
+   Áudio: "Terra com 25 lb, 2 kg e 1 kg de cada lado, barra 15 kg"
+   → Cálculo: (25 × 0.45 + 2 + 1) × 2 + 15 = (11.3 + 3) × 2 + 15 = 28.6 + 15 = 43.6 kg
+   → load_breakdown: "(25 lb + 2 kg + 1 kg) de cada lado + barra 15 kg"
+   → load_kg: 43.6
+
+j) **Anilhas diferentes em cada lado (raro mas possível):**
+   Áudio: "Agachamento assimétrico, lado direito 20 kg, lado esquerdo 15 kg, barra 10 kg"
+   → load_breakdown: "20 kg (dir) + 15 kg (esq) + barra 10 kg"
+   → load_kg: 45.0
+
+k) **Carga não mencionada:**
+   Áudio: "Fez 3 séries de agachamento com 10 repetições"
+   → load_breakdown: null
+   → load_kg: null
+
+l) **Exercício sem carga externa:**
+   Áudio: "Prancha isométrica por 60 segundos"
+   → load_breakdown: "Peso corporal = 75.0 kg" (se peso cadastrado)
+   → load_kg: 75.0
+
+**REGRAS PARA CAMPOS NÃO PREENCHIDOS**:
+- Se a carga NÃO foi mencionada no áudio:
+  * load_breakdown: null (não "", não "não informado")
+  * load_kg: null (não 0)
+- Se as repetições NÃO foram mencionadas:
+  * reps: null (não 0, não "")
+- Se as séries NÃO foram mencionadas:
+  * sets: null (não 0, não "")
+- Se NÃO há observações sobre o exercício:
+  * observations: null (não "", não "sem observações")
+
+**CRÍTICO**: NUNCA use strings vazias "" ou valores 0 para dados não informados. SEMPRE use null.
 
 5. **Nome do Exercício**:
    - Incluir tipo de pegada quando mencionado
