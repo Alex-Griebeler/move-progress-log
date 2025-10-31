@@ -105,14 +105,14 @@ const StudentsPage = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                    className="h-8 px-3 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border border-amber-200"
                     onClick={() => setShowObservationsDialog(true)}
                   >
-                    <AlertCircle className="h-4 w-4 mr-1" />
+                    <AlertCircle className="h-4 w-4 mr-2" />
                     <span className="text-xs font-medium">
-                      {importantObservations.length} {importantObservations.length === 1 ? 'observação' : 'observações'} importante(s)
+                      {importantObservations.length} observação{importantObservations.length !== 1 ? 'ões' : ''}
                     </span>
-                    <Info className="h-3 w-3 ml-1" />
+                    <Info className="h-3 w-3 ml-2 opacity-70" />
                   </Button>
                 </div>
               )}

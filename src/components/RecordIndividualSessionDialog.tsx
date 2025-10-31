@@ -37,7 +37,7 @@ interface SessionData {
       prescribed_exercise_name?: string | null;
       executed_exercise_name: string;
       sets?: number | null;
-      reps: number;
+      reps: number | null;
       load_kg?: number | null;
       load_breakdown: string;
       observations?: string | null;
@@ -62,7 +62,7 @@ interface MergedData {
     prescribed_exercise_name?: string | null;
     executed_exercise_name: string;
     sets?: number | null;
-    reps: number;
+    reps: number | null;
     load_kg?: number | null;
     load_breakdown: string;
     observations?: string | null;
@@ -299,33 +299,67 @@ export function RecordIndividualSessionDialog({
     setExercisesNeedingValidation([]);
   };
 
+  // Função para calcular load_kg automaticamente durante edição
+  const calculateLoadFromBreakdown = (breakdown: string): number | null => {
+    try {
+      let total = 0;
+      
+      const eachSideMatch = breakdown.match(/\((.*?)\)\s*de cada lado/i);
+      if (eachSideMatch) {
+        const content = eachSideMatch[1];
+        
+        const kgMatches = content.match(/(\d+(?:\.\d+)?)\s*kg/gi);
+        kgMatches?.forEach(m => { total += parseFloat(m) * 2; });
+        
+        const lbMatches = content.match(/(\d+(?:\.\d+)?)\s*lb/gi);
+        lbMatches?.forEach(m => { total += parseFloat(m) * 0.45 * 2; });
+      }
+      
+      const barraMatch = breakdown.match(/barra\s*(\d+(?:\.\d+)?)\s*kg/i);
+      if (barraMatch) total += parseFloat(barraMatch[1]);
+      
+      return total > 0 ? Math.round(total * 10) / 10 : null;
+    } catch {
+      return null;
+    }
+  };
+
   const validateExercisesBeforeSave = () => {
     const invalidExercises: number[] = [];
     
+    console.log('🔍 VALIDAÇÃO - Exercícios:', editableExercises);
+    
     editableExercises.forEach((ex, idx) => {
-      // Validar campos obrigatórios
+      const issues = [];
+      
       if (!ex.executed_exercise_name.trim()) {
+        issues.push('Nome vazio');
         invalidExercises.push(idx);
-        return;
       }
       
-      // Para treinos livres (sem prescrição), número de séries é obrigatório
       if (!selectedPrescriptionId && (ex.sets === null || ex.sets === 0)) {
+        issues.push('Séries obrigatórias (treino livre)');
         invalidExercises.push(idx);
       }
       
-      // Reps sempre obrigatório
       if (ex.reps === 0 || ex.reps === null) {
+        issues.push('Reps obrigatórias');
         invalidExercises.push(idx);
+      }
+      
+      if (issues.length > 0) {
+        console.log(`❌ Exercício #${idx + 1} (${ex.executed_exercise_name || 'SEM NOME'}):`, issues);
       }
     });
     
     if (invalidExercises.length > 0) {
+      console.log('❌ VALIDAÇÃO FALHOU. Total de exercícios inválidos:', invalidExercises.length);
       setExercisesNeedingValidation(invalidExercises);
       setShowValidationDialog(true);
       return false;
     }
     
+    console.log('✅ VALIDAÇÃO OK - Prosseguindo com save');
     return true;
   };
 
@@ -467,16 +501,23 @@ export function RecordIndividualSessionDialog({
                               <Badge variant="outline" className="text-xs">Prescrito</Badge>
                             }
                           </span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Reps: </span>
-                          <span className="font-semibold">{ex.reps}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Carga: </span>
-                          <span className="font-semibold">{ex.load_breakdown}</span>
-                        </div>
                       </div>
+                      <div>
+                        <span className="text-muted-foreground">Reps: </span>
+                        <span className="font-semibold">{ex.reps}</span>
+                      </div>
+                    </div>
+                    {ex.load_breakdown && (
+                      <div className="mt-2">
+                        <span className="text-muted-foreground text-sm">Carga: </span>
+                        <div className="font-medium">{ex.load_breakdown}</div>
+                        {ex.load_kg && (
+                          <div className="text-sm text-primary font-semibold mt-1">
+                            = {ex.load_kg} kg total
+                          </div>
+                        )}
+                      </div>
+                    )}
                       {ex.observations && (
                         <p className="text-xs text-muted-foreground mt-2">{ex.observations}</p>
                       )}
@@ -646,44 +687,57 @@ export function RecordIndividualSessionDialog({
                           value={ex.reps ?? ''}
                           onChange={(e) => {
                             const updated = [...editableExercises];
-                            updated[idx].reps = e.target.value ? parseInt(e.target.value) : null;
+                            const value = e.target.value ? parseInt(e.target.value) : null;
+                            updated[idx].reps = value;
                             setEditableExercises(updated);
+                            
+                            // Remover da lista de inválidos se corrigiu
+                            if (value && value > 0) {
+                              setExercisesNeedingValidation(prev => prev.filter(i => i !== idx));
+                            }
                           }}
                           placeholder="Obrigatório"
                           className={
                             ex.reps === 0 || ex.reps === null
-                              ? "border-destructive focus:border-destructive"
-                              : ""
+                              ? "border-red-400 focus:border-red-500 bg-red-50"
+                              : "border-green-400 bg-green-50"
                           }
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label className="text-xs">Carga (kg)</Label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={ex.load_kg ?? ''}
-                          onChange={(e) => {
-                            const updated = [...editableExercises];
-                            updated[idx].load_kg = e.target.value ? parseFloat(e.target.value) : null;
-                            setEditableExercises(updated);
-                          }}
                         />
                       </div>
                     </div>
                     
-                    <div>
-                      <Label className="text-xs">Descrição da Carga</Label>
-                      <Input
-                        value={ex.load_breakdown}
-                        onChange={(e) => {
-                          const updated = [...editableExercises];
-                          updated[idx].load_breakdown = e.target.value;
-                          setEditableExercises(updated);
-                        }}
-                        placeholder="Ex: (15 lb × 2) + barra 10 kg"
-                      />
+                    {/* Carga Total e Breakdown */}
+                    <div className="space-y-2">
+                      <div>
+                        <Label className="text-xs">Descrição da Carga</Label>
+                        <Input
+                          value={ex.load_breakdown || ''}
+                          onChange={(e) => {
+                            const updated = [...editableExercises];
+                            updated[idx].load_breakdown = e.target.value;
+                            
+                            // Auto-calcular load_kg
+                            const calculated = calculateLoadFromBreakdown(e.target.value);
+                            if (calculated !== null) {
+                              updated[idx].load_kg = calculated;
+                            }
+                            
+                            setEditableExercises(updated);
+                          }}
+                          placeholder="Ex: (25 lb + 2 kg) de cada lado + barra 10 kg"
+                          className="text-sm"
+                        />
+                      </div>
+                      
+                      {/* Display do load_kg calculado */}
+                      {ex.load_kg !== null && (
+                        <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-md">
+                          <span className="text-xs text-muted-foreground">Carga Total:</span>
+                          <Badge variant="default" className="font-bold">
+                            {ex.load_kg} kg
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                     
                     <div>

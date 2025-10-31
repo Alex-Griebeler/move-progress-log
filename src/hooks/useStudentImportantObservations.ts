@@ -11,7 +11,7 @@ export const useStudentImportantObservations = (studentId: string) => {
         .select('*')
         .eq('student_id', studentId)
         .eq('is_resolved', false)
-        .in('severity', ['média', 'alta'])
+        .in('severity', ['baixa', 'média', 'alta'])
         .order('severity', { ascending: false })
         .order('created_at', { ascending: false });
       

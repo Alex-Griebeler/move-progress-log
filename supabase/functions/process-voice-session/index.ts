@@ -248,23 +248,26 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
 4. **Conversão de Libras (PADRÃO FABRIK)**:
    - **1 lb = 0.45 kg** (usar este valor, não o técnico)
    - **ATENÇÃO: "de cada lado" significa multiplicar por 2**
+   - **CÁLCULO OBRIGATÓRIO**: Se load_breakdown foi preenchido, load_kg NUNCA pode ser null
+   - **ARREDONDAMENTO**: Sempre 1 casa decimal
    
-   Exemplos:
+   Exemplos detalhados:
    
    a) "25 kg"
       * load_breakdown: "25 kg"
       * load_kg: 25.0
    
    b) "25 lb de cada lado + barra 10 kg"
-      * "de cada lado" = 25 lb × 2 = 50 lb
-      * 50 lb = 22.5 kg (50 × 0.45)
-      * Total: 22.5 + 10 = 32.5 kg
-      * load_breakdown: "(25 lb × 2) + barra 10 kg"
-      * load_kg: 32.5
+      * Passo 1: 25 lb = 25 × 0.45 = 11.3 kg (por lado)
+      * Passo 2: 11.3 × 2 lados = 22.6 kg
+      * Passo 3: 22.6 + 10 (barra) = 32.6 kg
+      * load_breakdown: "(25 lb) de cada lado + barra 10 kg"
+      * load_kg: 32.6
    
    c) "15 lb + 2 kg de cada lado + barra 10 kg"
-      * (15 lb + 2 kg) × 2 = (6.8 kg + 2 kg) × 2 = 17.6 kg
-      * Total: 17.6 + 10 = 27.6 kg
+      * Passo 1: 15 lb = 15 × 0.45 = 6.8 kg
+      * Passo 2: (6.8 + 2) × 2 lados = 17.6 kg
+      * Passo 3: 17.6 + 10 (barra) = 27.6 kg
       * load_breakdown: "(15 lb + 2 kg) de cada lado + barra 10 kg"
       * load_kg: 27.6
 
@@ -280,12 +283,25 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
    - Incluir qualquer comentário técnico relevante
 
 8. **Observações Clínicas** (campo separado clinical_observations):
-   - Extraia: DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE
+   - Extraia: DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE/ATIVAÇÃO
+   - **CAPITALIZE a primeira letra de cada observation_text**
+   - Exemplo: "dor no joelho" → "Dor no joelho"
+   - Exemplo: "desconforto no quadril" → "Desconforto no quadril"
    - UMA observação pode ter MÚLTIPLAS categorias
-   - Exemplo: "dor no joelho esquerdo e dificuldade de mobilidade"
+   - Exemplo: "Dor no joelho esquerdo e dificuldade de mobilidade"
      * categories: ["dor", "mobilidade"]
    - Categorias possíveis: "dor", "mobilidade", "força", "técnica", "geral"
-   - Severidade: "baixa", "média", "alta"
+   
+   **CLASSIFICAÇÃO DE SEVERIDADE (CRÍTICO)**:
+   - **ALTA**: Dor aguda, limitações severas que impedem o exercício
+     * Exemplo: "Dor intensa no joelho que impediu o agachamento"
+   - **MÉDIA**: Desconfortos, déficits de ativação, limitações moderadas
+     * Exemplo: "Desconforto no quadril por déficit de ativação do glúteo"
+     * Exemplo: "Dificuldade de mobilidade no tornozelo"
+   - **BAIXA**: Comentários técnicos leves, fadiga normal
+     * Exemplo: "Leve cansaço ao final da série"
+   
+   **REGRA GERAL**: Qualquer DOR, DESCONFORTO ou DÉFICIT deve ser no mínimo "média"
 
 9. **prescribed_exercise_name** (IMPORTANTE):
    - Tente SEMPRE associar o exercício executado com um dos exercícios prescritos
@@ -338,11 +354,52 @@ FORMATO DE SAÍDA:
 
     const extractedData = JSON.parse(extractionResult.response.text());
     
-    // Garantir que load_kg sempre tenha 1 casa decimal
-    extractedData.sessions?.forEach((session: any) => {
-      session.exercises?.forEach((ex: any) => {
+    // Função auxiliar para recalcular carga se Gemini não calculou
+    function calculateLoadFromBreakdown(breakdown: string): number | null {
+      try {
+        let total = 0;
+        
+        // Extrair carga de cada lado e multiplicar por 2
+        const eachSideMatch = breakdown.match(/\((.*?)\)\s*de cada lado/i);
+        if (eachSideMatch) {
+          const content = eachSideMatch[1];
+          
+          // Kg matches
+          const kgMatches = content.match(/(\d+(?:\.\d+)?)\s*kg/gi);
+          kgMatches?.forEach(m => {
+            total += parseFloat(m) * 2;
+          });
+          
+          // Lb matches (converter para kg)
+          const lbMatches = content.match(/(\d+(?:\.\d+)?)\s*lb/gi);
+          lbMatches?.forEach(m => {
+            total += parseFloat(m) * 0.45 * 2;
+          });
+        }
+        
+        // Extrair peso da barra
+        const barraMatch = breakdown.match(/barra\s*(\d+(?:\.\d+)?)\s*kg/i);
+        if (barraMatch) {
+          total += parseFloat(barraMatch[1]);
+        }
+        
+        return total > 0 ? Math.round(total * 10) / 10 : null;
+      } catch (err) {
+        console.error('Erro ao calcular carga:', err);
+        return null;
+      }
+    }
+    
+    // Garantir que load_kg sempre tenha 1 casa decimal e recalcular se ausente
+    console.log('🔧 Verificando cálculo de cargas...');
+    extractedData.sessions?.forEach((session: any, sessionIdx: number) => {
+      session.exercises?.forEach((ex: any, exIdx: number) => {
         if (ex.load_kg !== null && ex.load_kg !== undefined) {
           ex.load_kg = parseFloat(ex.load_kg.toFixed(1));
+        } else if (ex.load_breakdown && !ex.load_kg) {
+          console.log(`⚠️ Sessão ${sessionIdx + 1}, Exercício ${exIdx + 1}: load_kg ausente, recalculando...`);
+          ex.load_kg = calculateLoadFromBreakdown(ex.load_breakdown);
+          console.log(`✅ Recalculado: ${ex.load_kg} kg`);
         }
       });
     });
