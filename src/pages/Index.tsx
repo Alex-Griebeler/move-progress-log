@@ -4,10 +4,11 @@ import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
 import { ImportSessionsDialog } from "@/components/ImportSessionsDialog";
-import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit } from "lucide-react";
+import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit, Info } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { AppHeader } from "@/components/AppHeader";
 
 const Index = () => {
@@ -119,9 +120,36 @@ const Index = () => {
                 />
               ))
             ) : (
-              <p className="text-muted-foreground col-span-full text-center py-8">
-                Nenhuma sessão registrada ainda. Clique em "Registrar Sessão" para começar!
-              </p>
+              <Card className="border-dashed col-span-full">
+                <CardContent className="flex flex-col items-center justify-center py-16 space-y-6">
+                  <div className="rounded-full bg-primary/10 p-6">
+                    <Dumbbell className="h-16 w-16 text-primary" />
+                  </div>
+                  <div className="text-center space-y-3 max-w-md">
+                    <h3 className="text-2xl font-bold">Comece a Registrar Sessões</h3>
+                    <p className="text-muted-foreground">
+                      Ainda não há sessões registradas. Escolha uma das opções abaixo para começar a acompanhar o progresso dos seus alunos.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
+                    <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="gap-2">
+                      <Upload className="h-4 w-4" />
+                      Importar Excel
+                    </Button>
+                    <Link to="/alunos">
+                      <Button variant="outline" className="gap-2">
+                        <Users className="h-4 w-4" />
+                        Ver Alunos
+                      </Button>
+                    </Link>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-4">
+                    <Info className="h-4 w-4" />
+                    <span>Dica: Você pode registrar sessões por voz direto na página de cada aluno</span>
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         </section>
