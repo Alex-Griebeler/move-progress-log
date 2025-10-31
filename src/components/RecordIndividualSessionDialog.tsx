@@ -637,7 +637,7 @@ export function RecordIndividualSessionDialog({
                       setEditableExercises([...editableExercises, {
                         executed_exercise_name: '',
                         sets: null,
-                        reps: 0,
+                        reps: null,
                         load_kg: null,
                         load_breakdown: '',
                         observations: null,
@@ -833,13 +833,7 @@ export function RecordIndividualSessionDialog({
                 <Mic className="h-4 w-4 mr-2" />
                 Adicionar Gravação
               </Button>
-              <Button 
-                onClick={() => {
-                  if (validateExercisesBeforeSave()) {
-                    handleSave();
-                  }
-                }}
-              >
+              <Button onClick={handleSave}>
                 <Save className="h-4 w-4 mr-2" />
                 Finalizar e Salvar
               </Button>
@@ -862,6 +856,11 @@ export function RecordIndividualSessionDialog({
               </Button>
               <Button 
                 onClick={() => {
+                  // ✅ Validar ANTES de aplicar edições
+                  if (!validateExercisesBeforeSave()) {
+                    return; // Bloqueia se houver erros críticos
+                  }
+                  
                   if (mergedData) {
                     setMergedData({
                       clinical_observations: editableObservations,
@@ -871,7 +870,7 @@ export function RecordIndividualSessionDialog({
                   setDialogState('preview');
                   toast({
                     title: "Edições aplicadas",
-                    description: "Revise os dados antes de salvar",
+                    description: "Dados validados e prontos para salvar",
                   });
                 }}
               >
