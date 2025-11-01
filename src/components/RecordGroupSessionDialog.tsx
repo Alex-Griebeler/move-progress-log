@@ -745,7 +745,7 @@ export function RecordGroupSessionDialog({
           </div>
         )}
 
-        {dialogState === 'recording' && prescriptionId && (
+        {dialogState === 'recording' && (
           <VoiceSessionRecorder
             key={`recording-${currentRecordingNumber}`}
             prescriptionId={prescriptionId}
