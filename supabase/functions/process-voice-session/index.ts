@@ -295,9 +295,42 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
    c) "15 lb + 2 kg de cada lado + barra 10 kg"
       * Passo 1: 15 lb = 15 × 0.45 = 6.8 kg
       * Passo 2: (6.8 + 2) × 2 lados = 17.6 kg
-      * Passo 3: 17.6 + 10 (barra) = 27.6 kg
-       * load_breakdown: "(15 lb + 2 kg) de cada lado + barra 10 kg"
-       * load_kg: 27.6
+       * Passo 3: 17.6 + 10 (barra) = 27.6 kg
+        * load_breakdown: "(15 lb + 2 kg) de cada lado + barra 10 kg"
+        * load_kg: 27.6
+
+**CASOS ESPECIAIS DE UNIDADES MISTAS (CRÍTICO)**:
+
+=== CENÁRIO A: UMA LIBRA + UM QUILO DE CADA LADO ===
+Áudio: "25 lb e 5 kg de cada lado, barra 20 kg"
+Cálculo: (25 × 0.45 + 5) × 2 + 20 = (11.25 + 5) × 2 + 20 = 32.5 + 20 = 52.5 kg
+JSON ESPERADO:
+{
+  "load_breakdown": "(25 lb + 5 kg) de cada lado + barra 20 kg",
+  "load_kg": 52.5
+}
+
+=== CENÁRIO B: DUAS LIBRAS + DOIS QUILOS DE CADA LADO ===
+Áudio: "25 lb, 10 lb, 5 kg e 2 kg de cada lado, barra 15 kg"
+Cálculo: (25×0.45 + 10×0.45 + 5 + 2) × 2 + 15 = (11.25 + 4.5 + 7) × 2 + 15 = 45.5 + 15 = 60.5 kg
+JSON ESPERADO:
+{
+  "load_breakdown": "(25 lb + 10 lb + 5 kg + 2 kg) de cada lado + barra 15 kg",
+  "load_kg": 60.5
+}
+
+=== CENÁRIO C: PESO TOTAL (SEM "DE CADA LADO") ===
+Áudio: "Fez com 40 kg na barra"
+JSON ESPERADO:
+{
+  "load_breakdown": "40 kg",
+  "load_kg": 40.0
+}
+
+⚠️ REGRA CRÍTICA PARA UNIDADES MISTAS:
+- TODOS os pesos (lb E kg) devem estar DENTRO do mesmo parêntese
+- ❌ ERRADO: "(25 lb) de cada lado + 5 kg + barra 20 kg"
+- ✅ CORRETO: "(25 lb + 5 kg) de cada lado + barra 20 kg"
 
 **EXEMPLOS PRÁTICOS DE CARGA (12 CENÁRIOS REAIS)**:
 
@@ -462,81 +495,223 @@ FORMATO DE SAÍDA:
 
     const extractedData = JSON.parse(extractionResult.response.text());
     
-    // Função auxiliar para recalcular carga se Gemini não calculou
-    function calculateLoadFromBreakdown(breakdown: string): number | null {
+    // Função para normalizar load_breakdown com erros de formato
+    function normalizeBreakdown(breakdown: string): string {
+      console.log(`🔧 Normalizando: "${breakdown}"`);
+      
+      // Detectar "de cada lado"
+      const hasEachSide = /de cada lado/i.test(breakdown);
+      if (!hasEachSide) {
+        console.log('✅ Sem "de cada lado", não precisa normalizar');
+        return breakdown;
+      }
+      
+      // Detectar se há pesos FORA do parêntese antes de "barra"
+      // Exemplo errado: "(25 lb) de cada lado + 5 kg + barra 20 kg"
+      const match = breakdown.match(/\((.*?)\)\s*de cada lado(.*?)(?:barra|\+\s*barra|$)/i);
+      if (!match) {
+        console.log('✅ Formato já está correto ou não tem barra');
+        return breakdown;
+      }
+      
+      const insideParens = match[1]; // "25 lb"
+      const afterEachSide = match[2].trim(); // "+ 5 kg +"
+      const barraMatch = breakdown.match(/(barra\s+\d+(?:\.\d+)?\s*kg)/i);
+      const barra = barraMatch ? barraMatch[1] : '';
+      
+      // Extrair pesos soltos entre "de cada lado" e "barra"
+      const looseWeights: string[] = [];
+      const weightRegex = /(\d+(?:\.\d+)?)\s*(kg|lb)/gi;
+      let weightMatch;
+      
+      while ((weightMatch = weightRegex.exec(afterEachSide)) !== null) {
+        looseWeights.push(`${weightMatch[1]} ${weightMatch[2]}`);
+      }
+      
+      if (looseWeights.length === 0) {
+        console.log('✅ Nenhum peso solto encontrado');
+        return breakdown;
+      }
+      
+      // Reconstruir: mover pesos soltos para dentro do parêntese
+      const newInsideParens = [insideParens, ...looseWeights].join(' + ');
+      const normalized = `(${newInsideParens}) de cada lado${barra ? ' + ' + barra : ''}`;
+      
+      console.log(`✅ Normalizado: "${normalized}"`);
+      return normalized;
+    }
+
+    // Função auxiliar para calcular carga (ROBUSTA)
+    function calculateLoadFromBreakdown(breakdown: string | null): number | null {
+      if (!breakdown) return null;
+      
       try {
+        console.log(`🧮 Calculando carga de: "${breakdown}"`);
+        
+        // 1. DETECTAR PESO CORPORAL COM VALOR
+        const bodyCorporalWithValue = breakdown.match(/Peso corporal\s*=\s*(\d+(?:\.\d+)?)\s*kg/i);
+        if (bodyCorporalWithValue) {
+          const value = parseFloat(bodyCorporalWithValue[1]);
+          console.log(`✅ Peso corporal detectado: ${value} kg`);
+          return Math.round(value * 10) / 10;
+        }
+        
+        // 2. DETECTAR PESO CORPORAL SEM VALOR
+        if (/Peso corporal/i.test(breakdown) && !/\d/.test(breakdown)) {
+          console.log(`⚠️ Peso corporal sem valor registrado`);
+          return null;
+        }
+        
+        // 3. DETECTAR ELÁSTICOS/BANDAS (ignorar se for única carga)
+        const hasOnlyElastic = /^(elástico|banda|elastic)/i.test(breakdown.trim()) && !/\d+\s*(kg|lb)/i.test(breakdown);
+        if (hasOnlyElastic) {
+          console.log(`⚠️ Apenas elástico/banda, sem peso mensurável`);
+          return null;
+        }
+        
         let total = 0;
         let processedEachSide = false;
         
-        // 1. DETECTAR "DE CADA LADO" (multiplicar por 2)
+        // 4. DETECTAR "DE CADA LADO" (multiplicar por 2)
         const eachSideMatch = breakdown.match(/\((.*?)\)\s*de cada lado/i);
         if (eachSideMatch) {
           const content = eachSideMatch[1];
           processedEachSide = true;
           
           // Kg matches dentro do parêntese
-          const kgMatches = content.matchAll(/(\d+(?:\.\d+)?)\s*kg/gi);
+          const kgMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
           for (const m of kgMatches) {
-            total += parseFloat(m[1]) * 2;
+            const value = parseFloat(m[1].replace(',', '.'));
+            total += value * 2;
+            console.log(`  + ${value} kg × 2 lados = ${value * 2} kg`);
           }
           
           // Lb matches dentro do parêntese (converter para kg)
-          const lbMatches = content.matchAll(/(\d+(?:\.\d+)?)\s*lb/gi);
+          const lbMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
           for (const m of lbMatches) {
-            total += parseFloat(m[1]) * 0.45 * 2;
+            const value = parseFloat(m[1].replace(',', '.'));
+            const kg = value * 0.45;
+            total += kg * 2;
+            console.log(`  + ${value} lb × 0.45 × 2 lados = ${kg * 2} kg`);
           }
         }
         
-        // 2. DETECTAR KETTLEBELLS DUPLOS (multiplicar por 2)
-        const multiKbMatch = breakdown.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:\.\d+)?)\s*(kg|lb)/i);
+        // 5. DETECTAR KETTLEBELLS/HALTERES DUPLOS (multiplicar por 2)
+        const multiKbMatch = breakdown.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:[.,]\d+)?)\s*(kg|lb)/i);
         if (multiKbMatch && !processedEachSide) {
-          const value = parseFloat(multiKbMatch[2]);
+          const value = parseFloat(multiKbMatch[2].replace(',', '.'));
           const unit = multiKbMatch[3].toLowerCase();
-          total += (unit === 'lb' ? value * 0.45 : value) * 2;
+          const kg = unit === 'lb' ? value * 0.45 : value;
+          total += kg * 2;
+          console.log(`  + 2 kettlebells/halteres de ${value} ${unit} = ${kg * 2} kg`);
         }
         
-        // 3. EXTRAIR PESO DA BARRA (sempre adicionar)
-        const barraMatch = breakdown.match(/barra\s*(\d+(?:\.\d+)?)\s*kg/i);
+        // 6. EXTRAIR PESO DA BARRA (sempre adicionar)
+        const barraMatch = breakdown.match(/barra\s*(\d+(?:[.,]\d+)?)\s*kg/i);
         if (barraMatch) {
-          total += parseFloat(barraMatch[1]);
+          const value = parseFloat(barraMatch[1].replace(',', '.'));
+          total += value;
+          console.log(`  + barra ${value} kg`);
         }
         
-        // 4. SE NÃO TEM "de cada lado" NEM "duplo", somar pesos normais
+        // 7. SE NÃO TEM "de cada lado" NEM "duplo", somar pesos normais
         if (!processedEachSide && !multiKbMatch) {
-          const kgMatches = breakdown.matchAll(/(\d+(?:\.\d+)?)\s*kg/gi);
+          const kgMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
           for (const m of kgMatches) {
             // Não contar se já contou na barra
-            if (!breakdown.substring(m.index!).startsWith('barra')) {
-              total += parseFloat(m[1]);
+            const matchText = breakdown.substring(Math.max(0, (m.index || 0) - 6), (m.index || 0) + m[0].length);
+            if (!/barra/i.test(matchText)) {
+              const value = parseFloat(m[1].replace(',', '.'));
+              total += value;
+              console.log(`  + ${value} kg`);
             }
           }
           
-          const lbMatches = breakdown.matchAll(/(\d+(?:\.\d+)?)\s*lb/gi);
+          const lbMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
           for (const m of lbMatches) {
-            total += parseFloat(m[1]) * 0.45;
+            const value = parseFloat(m[1].replace(',', '.'));
+            const kg = value * 0.45;
+            total += kg;
+            console.log(`  + ${value} lb = ${kg} kg`);
           }
         }
         
-        return total > 0 ? Math.round(total * 10) / 10 : null;
+        const result = total > 0 ? Math.round(total * 10) / 10 : null;
+        console.log(`✅ Carga total: ${result} kg`);
+        return result;
       } catch (err) {
-        console.error('Erro ao calcular carga:', err);
+        console.error('❌ Erro ao calcular carga:', err);
         return null;
       }
     }
     
-    // Garantir que load_kg sempre tenha 1 casa decimal e recalcular se ausente
-    console.log('🔧 Verificando cálculo de cargas...');
+    // Função para sanitizar dados (converter 0 e "" para null)
+    function sanitizeExerciseData(exercise: any) {
+      const fieldsToSanitize = ['load_kg', 'load_breakdown', 'reps', 'sets', 'observations'];
+      
+      for (const field of fieldsToSanitize) {
+        if (exercise[field] === 0 || exercise[field] === '' || exercise[field] === 'não informado') {
+          exercise[field] = null;
+        }
+      }
+    }
+
+    // Função para validar e recalcular load_kg se necessário
+    function validateAndRecalculateLoad(exercise: any, sessionIdx: number, exIdx: number) {
+      // 1. Sanitizar primeiro
+      sanitizeExerciseData(exercise);
+      
+      // 2. Se não tem load_breakdown, load_kg deve ser null
+      if (!exercise.load_breakdown) {
+        if (exercise.load_kg !== null) {
+          console.log(`⚠️ Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: Removendo load_kg sem load_breakdown`);
+          exercise.load_kg = null;
+        }
+        return;
+      }
+      
+      // 3. Normalizar load_breakdown (corrigir formato se necessário)
+      const originalBreakdown = exercise.load_breakdown;
+      exercise.load_breakdown = normalizeBreakdown(exercise.load_breakdown);
+      if (originalBreakdown !== exercise.load_breakdown) {
+        console.log(`🔧 Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: Breakdown normalizado`);
+      }
+      
+      // 4. Calcular load_kg esperado
+      const calculatedLoadKg = calculateLoadFromBreakdown(exercise.load_breakdown);
+      
+      // 5. Se Gemini não calculou, usar o calculado
+      if (exercise.load_kg === null || exercise.load_kg === undefined) {
+        console.log(`⚠️ Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: load_kg ausente, usando calculado`);
+        exercise.load_kg = calculatedLoadKg;
+        return;
+      }
+      
+      // 6. Validar consistência (tolerância de 0.1 kg)
+      if (calculatedLoadKg !== null) {
+        const diff = Math.abs(exercise.load_kg - calculatedLoadKg);
+        if (diff > 0.1) {
+          console.log(`❌ Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: INCONSISTÊNCIA DETECTADA!`);
+          console.log(`   Gemini: ${exercise.load_kg} kg`);
+          console.log(`   Calculado: ${calculatedLoadKg} kg`);
+          console.log(`   Diferença: ${diff.toFixed(1)} kg`);
+          console.log(`   ✅ Usando valor calculado (mais confiável)`);
+          exercise.load_kg = calculatedLoadKg;
+        } else {
+          // Garantir 1 casa decimal
+          exercise.load_kg = Math.round(exercise.load_kg * 10) / 10;
+        }
+      }
+    }
+
+    // APLICAR VALIDAÇÃO COMPLETA
+    console.log('🔧 Iniciando validação e sanitização de dados...');
     extractedData.sessions?.forEach((session: any, sessionIdx: number) => {
       session.exercises?.forEach((ex: any, exIdx: number) => {
-        if (ex.load_kg !== null && ex.load_kg !== undefined) {
-          ex.load_kg = parseFloat(ex.load_kg.toFixed(1));
-        } else if (ex.load_breakdown && !ex.load_kg) {
-          console.log(`⚠️ Sessão ${sessionIdx + 1}, Exercício ${exIdx + 1}: load_kg ausente, recalculando...`);
-          ex.load_kg = calculateLoadFromBreakdown(ex.load_breakdown);
-          console.log(`✅ Recalculado: ${ex.load_kg} kg`);
-        }
+        validateAndRecalculateLoad(ex, sessionIdx, exIdx);
       });
     });
+    console.log('✅ Validação e sanitização concluídas');
     
     console.log("✅ Structured data extraction completed");
     console.log("📊 Extracted data:", JSON.stringify(extractedData, null, 2));
