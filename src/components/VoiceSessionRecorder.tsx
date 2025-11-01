@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mic, MicOff, Loader2 } from "lucide-react";
@@ -32,26 +32,120 @@ export function VoiceSessionRecorder({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
   const { toast } = useToast();
   
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const hasAutoStartedRef = useRef(false);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  // Auto-start quando autoStart=true (apenas uma vez)
+  // Attach handlers to MediaRecorder
+  const attachRecorderHandlers = useCallback((mr: MediaRecorder) => {
+    audioChunksRef.current = [];
+
+    const handleDataAvailable = (event: BlobEvent) => {
+      if (event.data.size > 0) {
+        audioChunksRef.current.push(event.data);
+      }
+    };
+
+    const handleStart = () => {
+      console.log("✅ MediaRecorder 'start' event fired");
+      setIsRecording(true);
+      setIsStarting(false);
+      toast({
+        title: "Gravação iniciada",
+        description: "Fale sobre a sessão de treino. Clique em 'Parar' quando terminar.",
+      });
+    };
+
+    const handleStop = async () => {
+      console.log("🔄 MediaRecorder 'stop' event fired, processing audio...");
+      setIsProcessing(true);
+      setIsRecording(false);
+      
+      try {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        
+        await new Promise((resolve, reject) => {
+          reader.onloadend = resolve;
+          reader.onerror = reject;
+        });
+        
+        const base64Audio = (reader.result as string).split(',')[1];
+        
+        const { data, error } = await supabase.functions.invoke('process-voice-session', {
+          body: {
+            audio: base64Audio,
+            prescriptionId,
+            students: selectedStudents,
+            date,
+            time
+          }
+        });
+
+        if (error) throw error;
+
+        console.log("✅ Processing completed:", data);
+        
+        if (data.success) {
+          setTranscript(data.transcription);
+          onSessionData(data.data);
+          
+          toast({
+            title: "Gravação processada",
+            description: "Revise os dados e confirme para salvar",
+          });
+        } else {
+          throw new Error(data.error || 'Erro ao processar gravação');
+        }
+      } catch (error) {
+        console.error("❌ Error processing:", error);
+        const errorMsg = error instanceof Error ? error.message : "Erro ao processar gravação";
+        toast({
+          title: "Erro",
+          description: errorMsg,
+          variant: "destructive",
+        });
+        if (onError) {
+          onError(errorMsg);
+        }
+      } finally {
+        setIsProcessing(false);
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+      }
+    };
+
+    mr.addEventListener('dataavailable', handleDataAvailable);
+    mr.addEventListener('start', handleStart);
+    mr.addEventListener('stop', handleStop);
+
+    return () => {
+      mr.removeEventListener('dataavailable', handleDataAvailable);
+      mr.removeEventListener('start', handleStart);
+      mr.removeEventListener('stop', handleStop);
+    };
+  }, [prescriptionId, selectedStudents, date, time, onSessionData, onError, toast]);
+
+  // Cleanup on unmount
   useEffect(() => {
-    if (autoStart && !hasAutoStartedRef.current) {
-      hasAutoStartedRef.current = true;
-      console.log("🚀 Auto-starting recording...");
-      // Small delay to ensure component is mounted
-      const timer = setTimeout(() => {
-        startRecording();
-      }, 150);
-      return () => clearTimeout(timer);
-    }
-  }, [autoStart]);
+    return () => {
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stop();
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [recorder]);
 
-  const startRecording = async () => {
+  const startRecording = useCallback(async () => {
     console.log("🔍 startRecording called, checking state...");
     console.log("  isRecording:", isRecording);
     console.log("  isProcessing:", isProcessing);
@@ -62,7 +156,6 @@ export function VoiceSessionRecorder({
       return;
     }
 
-    // Set starting state immediately
     setIsStarting(true);
     console.log("✅ Starting state set to true");
 
@@ -84,98 +177,17 @@ export function VoiceSessionRecorder({
         } 
       });
       
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        console.log("🔄 Processing audio...");
-        setIsProcessing(true);
-        setIsRecording(false);
-        
-        try {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          
-          // Converter para base64
-          const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          
-          await new Promise((resolve, reject) => {
-            reader.onloadend = resolve;
-            reader.onerror = reject;
-          });
-          
-          const base64Audio = (reader.result as string).split(',')[1];
-          
-          // Enviar para processamento
-          const { data, error } = await supabase.functions.invoke('process-voice-session', {
-            body: {
-              audio: base64Audio,
-              prescriptionId,
-              students: selectedStudents,
-              date,
-              time
-            }
-          });
-
-          if (error) {
-            throw error;
-          }
-
-          console.log("✅ Processing completed:", data);
-          
-          if (data.success) {
-            setTranscript(data.transcription);
-            onSessionData(data.data);
-            
-            toast({
-              title: "Gravação processada",
-              description: "Revise os dados e confirme para salvar",
-            });
-          } else {
-            throw new Error(data.error || 'Erro ao processar gravação');
-          }
-        } catch (error) {
-          console.error("❌ Error processing:", error);
-          const errorMsg = error instanceof Error ? error.message : "Erro ao processar gravação";
-          toast({
-            title: "Erro",
-            description: errorMsg,
-            variant: "destructive",
-          });
-          if (onError) {
-            onError(errorMsg);
-          }
-        } finally {
-          setIsProcessing(false);
-          stream.getTracks().forEach(track => track.stop());
-        }
-      };
-
-      // CRITICAL: Start MediaRecorder FIRST, then update state
-      mediaRecorder.start();
-      console.log("✅ MediaRecorder started");
+      streamRef.current = stream;
+      const mr = new MediaRecorder(stream);
+      const detach = attachRecorderHandlers(mr);
+      setRecorder(mr);
       
-      // NOW update state after MediaRecorder is actually recording
-      setIsRecording(true);
-      setIsStarting(false);
-      console.log("✅ Recording state updated");
-      
-      toast({
-        title: "Gravação iniciada",
-        description: "Fale sobre a sessão de treino. Clique em 'Parar' quando terminar.",
-      });
+      console.log("✅ MediaRecorder created, starting...");
+      mr.start();
       
     } catch (error) {
       console.error("❌ Error starting recording:", error);
       
-      // Reset state on error
       setIsStarting(false);
       setIsRecording(false);
       console.log("❌ Error occurred, state reset");
@@ -190,13 +202,34 @@ export function VoiceSessionRecorder({
         onError(errorMsg);
       }
     }
-  };
+  }, [isRecording, isProcessing, isStarting, attachRecorderHandlers, toast, onError]);
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
+  // Auto-start com requestAnimationFrame duplo para garantir paint estável
+  useEffect(() => {
+    if (!autoStart || hasAutoStartedRef.current) return;
+    hasAutoStartedRef.current = true;
+
+    console.log("🚀 Auto-starting recording...");
+    let raf1 = 0, raf2 = 0;
+    
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        startRecording();
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [autoStart, startRecording]);
+
+  const stopRecording = useCallback(() => {
+    if (recorder && recorder.state !== 'inactive') {
+      console.log("🛑 Stopping recording...");
+      recorder.stop();
     }
-  };
+  }, [recorder]);
 
   return (
     <Card>
