@@ -84,10 +84,6 @@ export function VoiceSessionRecorder({
         } 
       });
       
-      // Set recording state AFTER permissions granted
-      setIsRecording(true);
-      setIsStarting(false);
-      
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -162,11 +158,15 @@ export function VoiceSessionRecorder({
         }
       };
 
+      // CRITICAL: Start MediaRecorder FIRST, then update state
       mediaRecorder.start();
+      console.log("✅ MediaRecorder started");
       
-      // Release lock after MediaRecorder starts successfully
+      // NOW update state after MediaRecorder is actually recording
+      setIsRecording(true);
+      setIsStarting(false);
       isStartingRef.current = false;
-      console.log("✅ Recording started successfully, lock released");
+      console.log("✅ Recording state updated, lock released");
       
       toast({
         title: "Gravação iniciada",
