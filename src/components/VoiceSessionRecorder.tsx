@@ -36,35 +36,35 @@ export function VoiceSessionRecorder({
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const isStartingRef = useRef(false);
+  const hasAutoStartedRef = useRef(false);
 
-  // Auto-start quando autoStart=true
+  // Auto-start quando autoStart=true (apenas uma vez)
   useEffect(() => {
-    if (autoStart && !isRecording && !isProcessing && !isStarting && !isStartingRef.current) {
+    if (autoStart && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true;
       console.log("🚀 Auto-starting recording...");
+      // Small delay to ensure component is mounted
       const timer = setTimeout(() => {
         startRecording();
-      }, 100);
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [autoStart]);
 
   const startRecording = async () => {
     console.log("🔍 startRecording called, checking state...");
     console.log("  isRecording:", isRecording);
     console.log("  isProcessing:", isProcessing);
     console.log("  isStarting:", isStarting);
-    console.log("  isStartingRef.current:", isStartingRef.current);
     
-    if (isRecording || isProcessing || isStarting || isStartingRef.current) {
+    if (isRecording || isProcessing || isStarting) {
       console.log("⚠️ Blocked: Already recording, processing, or starting");
       return;
     }
 
-    // Set lock immediately (synchronous)
-    isStartingRef.current = true;
+    // Set starting state immediately
     setIsStarting(true);
-    console.log("✅ Lock acquired, isStarting and isStartingRef set to true");
+    console.log("✅ Starting state set to true");
 
     try {
       console.log("🎤 Starting audio recording...");
@@ -165,8 +165,7 @@ export function VoiceSessionRecorder({
       // NOW update state after MediaRecorder is actually recording
       setIsRecording(true);
       setIsStarting(false);
-      isStartingRef.current = false;
-      console.log("✅ Recording state updated, lock released");
+      console.log("✅ Recording state updated");
       
       toast({
         title: "Gravação iniciada",
@@ -176,11 +175,10 @@ export function VoiceSessionRecorder({
     } catch (error) {
       console.error("❌ Error starting recording:", error);
       
-      // Reset lock and state on error
-      isStartingRef.current = false;
+      // Reset state on error
       setIsStarting(false);
       setIsRecording(false);
-      console.log("❌ Error occurred, lock and state reset");
+      console.log("❌ Error occurred, state reset");
       
       const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
       toast({
