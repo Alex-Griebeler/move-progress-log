@@ -17,6 +17,7 @@ interface VoiceSessionRecorderProps {
   onSessionData: (data: any) => void;
   onError?: (error: string) => void;
   autoStart?: boolean;
+  onRecordingStarted?: () => void;
 }
 
 export function VoiceSessionRecorder({ 
@@ -26,141 +27,62 @@ export function VoiceSessionRecorder({
   time,
   onSessionData,
   onError,
-  autoStart = false
+  autoStart = false,
+  onRecordingStarted
 }: VoiceSessionRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
   const { toast } = useToast();
   
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const hasAutoStartedRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
+  const componentMountedRef = useRef(false);
 
-  // Attach handlers to MediaRecorder
-  const attachRecorderHandlers = useCallback((mr: MediaRecorder) => {
-    audioChunksRef.current = [];
-
-    const handleDataAvailable = (event: BlobEvent) => {
-      if (event.data.size > 0) {
-        audioChunksRef.current.push(event.data);
-      }
-    };
-
-    const handleStart = () => {
-      console.log("✅ MediaRecorder 'start' event fired");
-      setIsRecording(true);
-      setIsStarting(false);
-      toast({
-        title: "Gravação iniciada",
-        description: "Fale sobre a sessão de treino. Clique em 'Parar' quando terminar.",
-      });
-    };
-
-    const handleStop = async () => {
-      console.log("🔄 MediaRecorder 'stop' event fired, processing audio...");
-      setIsProcessing(true);
-      setIsRecording(false);
-      
-      try {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        
-        await new Promise((resolve, reject) => {
-          reader.onloadend = resolve;
-          reader.onerror = reject;
-        });
-        
-        const base64Audio = (reader.result as string).split(',')[1];
-        
-        const { data, error } = await supabase.functions.invoke('process-voice-session', {
-          body: {
-            audio: base64Audio,
-            prescriptionId,
-            students: selectedStudents,
-            date,
-            time
-          }
-        });
-
-        if (error) throw error;
-
-        console.log("✅ Processing completed:", data);
-        
-        if (data.success) {
-          setTranscript(data.transcription);
-          onSessionData(data.data);
-          
-          toast({
-            title: "Gravação processada",
-            description: "Revise os dados e confirme para salvar",
-          });
-        } else {
-          throw new Error(data.error || 'Erro ao processar gravação');
-        }
-      } catch (error) {
-        console.error("❌ Error processing:", error);
-        const errorMsg = error instanceof Error ? error.message : "Erro ao processar gravação";
-        toast({
-          title: "Erro",
-          description: errorMsg,
-          variant: "destructive",
-        });
-        if (onError) {
-          onError(errorMsg);
-        }
-      } finally {
-        setIsProcessing(false);
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-          streamRef.current = null;
-        }
-      }
-    };
-
-    mr.addEventListener('dataavailable', handleDataAvailable);
-    mr.addEventListener('start', handleStart);
-    mr.addEventListener('stop', handleStop);
-
-    return () => {
-      mr.removeEventListener('dataavailable', handleDataAvailable);
-      mr.removeEventListener('start', handleStart);
-      mr.removeEventListener('stop', handleStop);
-    };
-  }, [prescriptionId, selectedStudents, date, time, onSessionData, onError, toast]);
-
-  // Cleanup on unmount
+  // Track component lifecycle
   useEffect(() => {
+    console.log('🔵 VoiceSessionRecorder: Componente MONTADO');
+    console.log('   autoStart prop:', autoStart);
+    componentMountedRef.current = true;
+    
     return () => {
-      if (recorder && recorder.state !== 'inactive') {
-        recorder.stop();
+      console.log('🔴 VoiceSessionRecorder: Componente DESMONTADO');
+      componentMountedRef.current = false;
+      
+      // Cleanup: parar gravação e liberar recursos
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
       }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
     };
-  }, [recorder]);
+  }, [autoStart]);
 
   const startRecording = useCallback(async () => {
-    console.log("🔍 startRecording called, checking state...");
-    console.log("  isRecording:", isRecording);
-    console.log("  isProcessing:", isProcessing);
-    console.log("  isStarting:", isStarting);
+    console.log('📍 startRecording: Função chamada');
+    console.log('   Estado atual: isRecording:', isRecording, '| isProcessing:', isProcessing, '| isStarting:', isStarting);
+    console.log('   componentMountedRef.current (no início):', componentMountedRef.current);
+    
+    if (!componentMountedRef.current) {
+      console.warn('⚠️ Componente foi desmontado antes de iniciar gravação');
+      return;
+    }
     
     if (isRecording || isProcessing || isStarting) {
-      console.log("⚠️ Blocked: Already recording, processing, or starting");
+      console.log('⚠️ Blocked: Already recording, processing, or starting');
       return;
     }
 
     setIsStarting(true);
-    console.log("✅ Starting state set to true");
+    console.log('✅ Starting state set to true');
 
     try {
-      console.log("🎤 Starting audio recording...");
+      console.log('🎤 Tentando obter stream de mídia...');
       setTranscript("");
       
       toast({
@@ -177,20 +99,110 @@ export function VoiceSessionRecorder({
         } 
       });
       
-      streamRef.current = stream;
-      const mr = new MediaRecorder(stream);
-      const detach = attachRecorderHandlers(mr);
-      setRecorder(mr);
+      console.log('   Stream de mídia obtido. Verificando componentMountedRef novamente...');
+      if (!componentMountedRef.current) {
+        console.warn('   ⚠️ Componente desmontado APÓS obter stream');
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
       
-      console.log("✅ MediaRecorder created, starting...");
-      mr.start();
+      streamRef.current = stream;
+      audioChunksRef.current = [];
+      
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        console.log("🔄 Processing audio...");
+        setIsProcessing(true);
+        setIsRecording(false);
+        
+        try {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          
+          await new Promise((resolve, reject) => {
+            reader.onloadend = resolve;
+            reader.onerror = reject;
+          });
+          
+          const base64Audio = (reader.result as string).split(',')[1];
+          
+          const { data, error } = await supabase.functions.invoke('process-voice-session', {
+            body: {
+              audio: base64Audio,
+              prescriptionId,
+              students: selectedStudents,
+              date,
+              time
+            }
+          });
+
+          if (error) throw error;
+
+          console.log("✅ Processing completed:", data);
+          
+          if (data.success) {
+            setTranscript(data.transcription);
+            onSessionData(data.data);
+            
+            toast({
+              title: "Gravação processada",
+              description: "Revise os dados e confirme para salvar",
+            });
+          } else {
+            throw new Error(data.error || 'Erro ao processar gravação');
+          }
+        } catch (error) {
+          console.error("❌ Error processing:", error);
+          const errorMsg = error instanceof Error ? error.message : "Erro ao processar gravação";
+          toast({
+            title: "Erro",
+            description: errorMsg,
+            variant: "destructive",
+          });
+          if (onError) {
+            onError(errorMsg);
+          }
+        } finally {
+          setIsProcessing(false);
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
+        }
+      };
+      
+      console.log('   MediaRecorder pronto. Chamando mediaRecorder.start()...');
+      mediaRecorder.start();
+      console.log('   MediaRecorder INICIADO. Atualizando estados...');
+      
+      setIsStarting(false);
+      setIsRecording(true);
+      console.log('   Estados atualizados: isStarting: false, isRecording: true');
+      
+      onRecordingStarted?.();
+      console.log('   Callback onRecordingStarted executado (se fornecido)');
+      
+      toast({
+        title: "Gravação iniciada",
+        description: "Fale sobre a sessão de treino. Clique em 'Parar' quando terminar.",
+      });
       
     } catch (error) {
-      console.error("❌ Error starting recording:", error);
+      console.error('❌ Error starting recording:', error);
       
       setIsStarting(false);
       setIsRecording(false);
-      console.log("❌ Error occurred, state reset");
+      console.log('❌ Error occurred, state reset');
       
       const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
       toast({
@@ -202,34 +214,42 @@ export function VoiceSessionRecorder({
         onError(errorMsg);
       }
     }
-  }, [isRecording, isProcessing, isStarting, attachRecorderHandlers, toast, onError]);
+  }, [isRecording, isProcessing, isStarting, prescriptionId, selectedStudents, date, time, onSessionData, onError, onRecordingStarted, toast]);
 
-  // Auto-start com requestAnimationFrame duplo para garantir paint estável
+  // Auto-start com requestAnimationFrame para sincronizar com paint do navegador
   useEffect(() => {
-    if (!autoStart || hasAutoStartedRef.current) return;
-    hasAutoStartedRef.current = true;
-
-    console.log("🚀 Auto-starting recording...");
-    let raf1 = 0, raf2 = 0;
+    if (!autoStart || hasAutoStartedRef.current) {
+      return;
+    }
     
-    raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        startRecording();
-      });
+    hasAutoStartedRef.current = true;
+    console.log('🟢 useEffect autoStart: Detectado autoStart=true. Agendando início...');
+
+    const requestFrameId = requestAnimationFrame(() => {
+      console.log('  🟢 requestAnimationFrame: Executando no próximo frame. Agendando setTimeout...');
+      const timeoutId = setTimeout(() => {
+        if (componentMountedRef.current) {
+          console.log('  🟢 setTimeout (300ms): Disparado. Chamando startRecording()');
+          startRecording();
+        } else {
+          console.log('  ⚠️ setTimeout (300ms): Componente desmontado antes do disparo');
+        }
+      }, 300);
+      
+      return () => clearTimeout(timeoutId);
     });
 
     return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
+      cancelAnimationFrame(requestFrameId);
     };
   }, [autoStart, startRecording]);
 
   const stopRecording = useCallback(() => {
-    if (recorder && recorder.state !== 'inactive') {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       console.log("🛑 Stopping recording...");
-      recorder.stop();
+      mediaRecorderRef.current.stop();
     }
-  }, [recorder]);
+  }, []);
 
   return (
     <Card>

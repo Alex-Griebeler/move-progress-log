@@ -200,12 +200,14 @@ export function RecordIndividualSessionDialog({
   };
 
   const handleError = (error: string) => {
+    console.error("❌ handleError chamado:", error);
     toast({
       title: "Erro na gravação",
       description: error,
       variant: "destructive",
     });
-    setDialogState('setup');
+    // Não voltar para 'setup' imediatamente - permitir retry
+    setDialogState('recording');
   };
 
   const handleSave = async () => {
@@ -431,6 +433,7 @@ export function RecordIndividualSessionDialog({
 
         {dialogState === 'recording' && (
           <VoiceSessionRecorder
+            key={`recording-${currentRecordingNumber}`}
             prescriptionId={selectedPrescriptionId}
             selectedStudents={[{ id: studentId, name: studentName, weight_kg: undefined }]}
             date={date}
@@ -438,6 +441,9 @@ export function RecordIndividualSessionDialog({
             onSessionData={handleSessionData}
             onError={handleError}
             autoStart={true}
+            onRecordingStarted={() => {
+              console.log('🟢 Dialog Individual: Callback onRecordingStarted recebido');
+            }}
           />
         )}
 
