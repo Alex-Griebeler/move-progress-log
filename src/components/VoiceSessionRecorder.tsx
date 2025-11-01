@@ -30,6 +30,7 @@ export function VoiceSessionRecorder({
 }: VoiceSessionRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [transcript, setTranscript] = useState("");
   const { toast } = useToast();
   
@@ -39,29 +40,31 @@ export function VoiceSessionRecorder({
 
   // Auto-start quando autoStart=true
   useEffect(() => {
-    if (autoStart && !isRecording && !isProcessing && !isStartingRef.current) {
+    if (autoStart && !isRecording && !isProcessing && !isStarting && !isStartingRef.current) {
       console.log("🚀 Auto-starting recording...");
-      startRecording();
+      const timer = setTimeout(() => {
+        startRecording();
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, []); // Empty deps = só executa uma vez na montagem
+  }, []);
 
   const startRecording = async () => {
     console.log("🔍 startRecording called, checking state...");
     console.log("  isRecording:", isRecording);
     console.log("  isProcessing:", isProcessing);
+    console.log("  isStarting:", isStarting);
     console.log("  isStartingRef.current:", isStartingRef.current);
     
-    if (isRecording || isProcessing || isStartingRef.current) {
+    if (isRecording || isProcessing || isStarting || isStartingRef.current) {
       console.log("⚠️ Blocked: Already recording, processing, or starting");
       return;
     }
 
     // Set lock immediately (synchronous)
     isStartingRef.current = true;
-    console.log("✅ Lock acquired, isStartingRef set to true");
-
-    // Set UI state (asynchronous)
-    setIsRecording(true);
+    setIsStarting(true);
+    console.log("✅ Lock acquired, isStarting and isStartingRef set to true");
 
     try {
       console.log("🎤 Starting audio recording...");
@@ -80,6 +83,10 @@ export function VoiceSessionRecorder({
           noiseSuppression: true,
         } 
       });
+      
+      // Set recording state AFTER permissions granted
+      setIsRecording(true);
+      setIsStarting(false);
       
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
@@ -171,6 +178,7 @@ export function VoiceSessionRecorder({
       
       // Reset lock and state on error
       isStartingRef.current = false;
+      setIsStarting(false);
       setIsRecording(false);
       console.log("❌ Error occurred, lock and state reset");
       
@@ -202,7 +210,12 @@ export function VoiceSessionRecorder({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex justify-center">
-          {!isRecording && !isProcessing ? (
+          {isStarting ? (
+            <Button disabled size="lg" className="gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Iniciando gravação...
+            </Button>
+          ) : !isRecording && !isProcessing ? (
             <Button onClick={startRecording} size="lg" className="gap-2">
               <Mic className="h-5 w-5" />
               Iniciar Gravação
