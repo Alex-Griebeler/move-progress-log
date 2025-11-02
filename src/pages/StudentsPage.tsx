@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle } from "lucide-react";
+import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
@@ -18,6 +18,7 @@ import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useStudentImportantObservations } from "@/hooks/useStudentImportantObservations";
 import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
+import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -40,6 +41,7 @@ const StudentsPage = () => {
   const [recordingStudentId, setRecordingStudentId] = useState<string | null>(null);
   const [recordingStudentName, setRecordingStudentName] = useState<string>("");
   const [isGroupSessionDialogOpen, setIsGroupSessionDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const handleDelete = async (id: string) => {
     try {
@@ -169,6 +171,10 @@ const StudentsPage = () => {
     );
   };
 
+  const filteredStudents = students?.filter(student =>
+    student.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6 space-y-6">
@@ -204,6 +210,17 @@ const StudentsPage = () => {
           }
         />
 
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Buscar aluno por nome..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
@@ -218,12 +235,24 @@ const StudentsPage = () => {
               </Card>
             ))}
           </div>
-        ) : students && students.length > 0 ? (
+        ) : filteredStudents && filteredStudents.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {students.map((student) => (
+            {filteredStudents.map((student) => (
               <StudentCard key={student.id} student={student} />
             ))}
           </div>
+        ) : searchTerm ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <Search className="h-16 w-16 text-muted-foreground mb-4" />
+              <p className="text-xl font-semibold text-muted-foreground">
+                Nenhum aluno encontrado
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Tente buscar por outro nome
+              </p>
+            </CardContent>
+          </Card>
         ) : (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-12">
