@@ -122,6 +122,12 @@ export default function StudentOnboardingPage() {
         setTimeout(() => {
           window.location.href = result.oura_auth_url;
         }, 2000);
+      } else if (values.has_oura_ring && values.accepts_oura_sharing && !result.oura_auth_url) {
+        toast.warning("Oura Ring não configurado", {
+          description: "O sistema não está configurado para Oura Ring. Você pode conectar mais tarde.",
+          duration: 4000,
+        });
+        navigate("/onboarding/success");
       } else {
         navigate("/onboarding/success");
       }

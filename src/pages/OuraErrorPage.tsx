@@ -56,12 +56,19 @@ export default function OuraErrorPage() {
       const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
       const state = `${studentId}:retry`;
 
+      if (!ouraClientId) {
+        toast.error("Configuração do Oura Ring não encontrada");
+        setIsRetrying(false);
+        return;
+      }
+
+      const scope = 'email personal daily heartrate workout session spo2 tag sleep stress ring_configuration';
       const ouraAuthUrl = `https://cloud.ouraring.com/oauth/authorize?` +
         `response_type=code&` +
         `client_id=${ouraClientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `state=${state}&` +
-        `scope=email personal daily`;
+        `scope=${encodeURIComponent(scope)}&` +
+        `state=${encodeURIComponent(state)}`;
 
       toast.info("Redirecionando para Oura Ring...", {
         description: "Tentando conectar novamente",
