@@ -1,8 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Wind, Shield, TrendingUp } from "lucide-react";
+import { Activity, Wind, Shield, TrendingUp, Calendar } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { translateResilience } from "@/utils/ouraTranslations";
+import { formatLocalDate } from "@/utils/dateUtils";
 
 interface OuraAdvancedMetricsCardProps {
   metrics: OuraMetrics;
@@ -69,6 +70,10 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
   return (
     <Card>
       <CardHeader>
+        <div className="flex items-center gap-2 mb-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">{formatLocalDate(metrics.date)}</span>
+        </div>
         <div className="flex items-center gap-2">
           <Activity className="h-5 w-5 text-primary" />
           <CardTitle>Métricas Avançadas</CardTitle>

@@ -1,8 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity, Footprints, Flame, Clock, TrendingUp } from "lucide-react";
+import { Activity, Footprints, Flame, Clock, TrendingUp, Calendar } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+import { formatLocalDate } from "@/utils/dateUtils";
 
 interface OuraActivityCardProps {
   metrics: OuraMetrics;
@@ -73,16 +74,20 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-primary" />
-            <CardTitle>Atividade Diária</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">{formatLocalDate(metrics.date)}</span>
           </div>
           {metrics.activity_score && (
             <Badge className={getScoreColor(metrics.activity_score)}>
               {metrics.activity_score} - {getScoreLabel(metrics.activity_score)}
             </Badge>
           )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Activity className="h-5 w-5 text-primary" />
+          <CardTitle>Atividade Diária</CardTitle>
         </div>
         <CardDescription>
           Métricas de atividade e movimento do dia

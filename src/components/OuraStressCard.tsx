@@ -1,9 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Brain, TrendingDown, TrendingUp } from "lucide-react";
+import { Brain, TrendingDown, TrendingUp, Calendar } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { translateDaySummary } from "@/utils/ouraTranslations";
+import { formatLocalDate } from "@/utils/dateUtils";
 
 interface OuraStressCardProps {
   metrics: OuraMetrics;
@@ -79,16 +80,20 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-primary" />
-            <CardTitle>Estresse e Recuperação</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">{formatLocalDate(metrics.date)}</span>
           </div>
           {metrics.day_summary && (
             <Badge variant={getDaySummaryColor(metrics.day_summary)}>
               {getDaySummaryLabel(metrics.day_summary)}
             </Badge>
           )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Brain className="h-5 w-5 text-primary" />
+          <CardTitle>Estresse e Recuperação</CardTitle>
         </div>
         <CardDescription>
           Balanço entre estresse e recuperação do dia

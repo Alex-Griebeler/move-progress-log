@@ -1,8 +1,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Moon, Heart, Wind } from "lucide-react";
+import { Moon, Heart, Wind, Calendar } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { formatLocalDate } from "@/utils/dateUtils";
 
 interface OuraSleepDetailCardProps {
   metrics: OuraMetrics;
@@ -46,16 +47,20 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <Moon className="h-5 w-5 text-primary" />
-            <CardTitle>Análise Detalhada do Sono</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">{formatLocalDate(metrics.date)}</span>
           </div>
           {metrics.sleep_score && (
             <Badge className={getScoreColor(metrics.sleep_score)}>
               Score: {metrics.sleep_score}
             </Badge>
           )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Moon className="h-5 w-5 text-primary" />
+          <CardTitle>Análise Detalhada do Sono</CardTitle>
         </div>
         <CardDescription>
           Métricas completas da qualidade do sono
