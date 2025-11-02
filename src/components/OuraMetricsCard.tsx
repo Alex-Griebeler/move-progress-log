@@ -2,8 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Activity, Heart, Moon, Thermometer, TrendingUp, Calendar } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatLocalDate } from "@/utils/dateUtils";
 
 interface OuraMetricsCardProps {
   metrics: OuraMetrics;
@@ -24,9 +23,6 @@ const OuraMetricsCard = ({ metrics }: OuraMetricsCardProps) => {
     return "Atenção";
   };
 
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "dd 'de' MMMM", { locale: ptBR });
-  };
 
   return (
     <Card className="hover:shadow-lg transition-all duration-300">
@@ -34,7 +30,7 @@ const OuraMetricsCard = ({ metrics }: OuraMetricsCardProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            <CardTitle className="text-lg">{formatDate(metrics.date)}</CardTitle>
+            <CardTitle className="text-lg">{formatLocalDate(metrics.date)}</CardTitle>
           </div>
           <Badge variant="outline" className="text-xs">
             Oura Ring

@@ -169,17 +169,31 @@ Deno.serve(async (req) => {
     const resilience = resilienceData?.data?.[0];
 
     let restingHeartRate = null;
-    if (heartrateData?.data && heartrateData.data.length > 0) {
-      const hrValues = heartrateData.data
-        .map((hr: any) => hr.bpm)
-        .filter((bpm: number) => bpm > 0 && bpm < 200); // Filter valid heart rates
+    try {
+      if (heartrateData?.data && heartrateData.data.length > 0) {
+        const hrValues = heartrateData.data
+          .map((hr: any) => hr.bpm)
+          .filter((bpm: number) => bpm > 0 && bpm < 200); // Filter valid heart rates
+        
+        if (hrValues.length > 0) {
+          // Sort and get median of lowest 10% for more stable resting HR
+          const sortedValues = hrValues.sort((a: number, b: number) => a - b);
+          const lowestCount = Math.max(1, Math.floor(sortedValues.length * 0.1));
+          const lowestValues = sortedValues.slice(0, lowestCount);
+          restingHeartRate = Math.round(lowestValues.reduce((sum: number, val: number) => sum + val, 0) / lowestValues.length);
+        }
+      }
       
-      if (hrValues.length > 0) {
-        // Sort and get median of lowest 10% for more stable resting HR
-        const sortedValues = hrValues.sort((a: number, b: number) => a - b);
-        const lowestCount = Math.max(1, Math.floor(sortedValues.length * 0.1));
-        const lowestValues = sortedValues.slice(0, lowestCount);
-        restingHeartRate = Math.round(lowestValues.reduce((sum: number, val: number) => sum + val, 0) / lowestValues.length);
+      // Fallback: use sleep's lowest heart rate if available
+      if (!restingHeartRate && sleep?.lowest_heart_rate) {
+        restingHeartRate = sleep.lowest_heart_rate;
+        console.log('Using sleep lowest_heart_rate as fallback:', restingHeartRate);
+      }
+    } catch (error) {
+      console.error('Error calculating resting heart rate:', error);
+      // Final fallback from sleep data
+      if (sleep?.lowest_heart_rate) {
+        restingHeartRate = sleep.lowest_heart_rate;
       }
     }
 

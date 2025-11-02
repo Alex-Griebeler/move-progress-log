@@ -2,9 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Dumbbell, Heart, Flame, MapPin } from "lucide-react";
 import { useOuraWorkouts } from "@/hooks/useOuraWorkouts";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { translateActivity, translateIntensity } from "@/utils/ouraTranslations";
+import { formatLocalDateTime } from "@/utils/dateUtils";
 
 interface OuraWorkoutsCardProps {
   studentId: string;
@@ -89,7 +88,7 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
                   {translateActivity(workout.activity)}
                 </h4>
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(workout.start_datetime), "PPP 'às' HH:mm", { locale: ptBR })}
+                  {formatLocalDateTime(workout.start_datetime)}
                 </p>
               </div>
               <Badge variant={getIntensityColor(workout.intensity)}>

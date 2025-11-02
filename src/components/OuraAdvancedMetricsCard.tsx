@@ -48,9 +48,18 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
           <CardTitle>Métricas Avançadas</CardTitle>
           <CardDescription>Nenhuma métrica avançada disponível ainda</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Estas métricas são calculadas periodicamente pelo Oura Ring e podem levar alguns dias para aparecer.
+            Estas métricas são calculadas periodicamente pelo Oura Ring:
+          </p>
+          <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside">
+            <li><strong>VO2 Max:</strong> Requer treinos cardiovasculares específicos (corrida, ciclismo)</li>
+            <li><strong>SpO2:</strong> Medido durante o sono, disponível após 1-2 dias</li>
+            <li><strong>Índice Respiratório:</strong> Calculado com base nos dados de sono</li>
+            <li><strong>Resiliência:</strong> Tendência baseada em 2+ semanas de dados</li>
+          </ul>
+          <p className="text-xs text-muted-foreground mt-3">
+            💡 Continue usando o anel e sincronizando diariamente para ver estas métricas.
           </p>
         </CardContent>
       </Card>
@@ -70,7 +79,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
       </CardHeader>
       <CardContent className="space-y-6">
         {/* VO2 Max */}
-        {metrics.vo2_max && (
+        {metrics.vo2_max ? (
           <div className="flex items-center gap-4 p-4 rounded-lg border bg-card">
             <div className="p-3 rounded-full bg-primary/10">
               <TrendingUp className="h-6 w-6 text-primary" />
@@ -84,6 +93,18 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
               <p className="text-xs text-muted-foreground mt-1">
                 ml/kg/min - Capacidade aeróbica máxima
               </p>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 rounded-lg border border-dashed bg-muted/30">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">VO2 Max não disponível</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Realize um treino cardiovascular intenso (corrida, ciclismo) para calcular
+                </p>
+              </div>
             </div>
           </div>
         )}
