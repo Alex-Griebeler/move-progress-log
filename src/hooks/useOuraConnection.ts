@@ -35,18 +35,49 @@ export const useSyncOura = () => {
     mutationFn: async ({
       student_id,
       date,
+      days = 1,
     }: {
       student_id: string;
       date?: string;
+      days?: number;
     }) => {
-      const { data, error } = await supabase.functions.invoke("oura-sync", {
-        body: { student_id, date },
-      });
+      if (days === 1) {
+        // Single day sync
+        const { data, error } = await supabase.functions.invoke("oura-sync", {
+          body: { student_id, date },
+        });
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return data;
+      } else {
+        // Multiple days sync
+        const syncPromises = [];
+        for (let i = 0; i < days; i++) {
+          const syncDate = new Date();
+          syncDate.setDate(syncDate.getDate() - i);
+          const dateStr = syncDate.toISOString().split("T")[0];
+
+          syncPromises.push(
+            supabase.functions.invoke("oura-sync", {
+              body: { student_id, date: dateStr },
+            })
+          );
+        }
+
+        const results = await Promise.allSettled(syncPromises);
+        const successful = results.filter((r) => r.status === "fulfilled").length;
+        const failed = results.filter((r) => r.status === "rejected").length;
+
+        return {
+          success: true,
+          total: days,
+          successful,
+          failed,
+          message: `Sincronizados ${successful} de ${days} dias`,
+        };
+      }
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({
         queryKey: ["oura-connection", variables.student_id],
       });
@@ -56,9 +87,18 @@ export const useSyncOura = () => {
       queryClient.invalidateQueries({
         queryKey: ["oura-metrics-latest", variables.student_id],
       });
-      toast.success("Dados do Oura Ring sincronizados com sucesso!");
+      queryClient.invalidateQueries({
+        queryKey: ["oura-workouts", variables.student_id],
+      });
+
+      if (variables.days && variables.days > 1) {
+        toast.success(data.message || `Sincronização de ${variables.days} dias concluída`);
+      } else {
+        toast.success("Dados do Oura Ring sincronizados com sucesso!");
+      }
     },
     onError: (error: Error) => {
+      console.error("Oura sync error:", error);
       toast.error(`Erro ao sincronizar: ${error.message}`);
     },
   });

@@ -36,7 +36,10 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
   const disconnectOura = useDisconnectOura();
 
   const handleSync = () => {
-    syncOura.mutate({ student_id: studentId });
+    syncOura.mutate({ 
+      student_id: studentId,
+      days: 7 // Sync last 7 days by default
+    });
   };
 
   const handleDisconnect = () => {
@@ -100,14 +103,21 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
                 </Alert>
               )}
               {connection.last_sync_at && (
-                <p className="text-sm text-muted-foreground">
-                  Última sincronização:{" "}
-                  {format(
-                    new Date(connection.last_sync_at),
-                    "dd/MM/yyyy 'às' HH:mm",
-                    { locale: ptBR }
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    Última sincronização:{" "}
+                    {format(
+                      new Date(connection.last_sync_at),
+                      "dd/MM/yyyy 'às' HH:mm",
+                      { locale: ptBR }
+                    )}
+                  </p>
+                  {latestMetrics && (
+                    <p className="text-xs text-muted-foreground">
+                      Última métrica: {format(new Date(latestMetrics.date), "dd/MM/yyyy", { locale: ptBR })}
+                    </p>
                   )}
-                </p>
+                </div>
               )}
               <div className="flex gap-2">
                 <Button
@@ -121,7 +131,7 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
                       syncOura.isPending ? "animate-spin" : ""
                     }`}
                   />
-                  {syncOura.isPending ? "Sincronizando..." : "Sincronizar"}
+                  {syncOura.isPending ? "Sincronizando 7 dias..." : "Sincronizar (7 dias)"}
                 </Button>
                 <Button
                   variant="destructive"

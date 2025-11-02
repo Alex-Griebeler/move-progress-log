@@ -98,15 +98,11 @@ Deno.serve(async (req) => {
 
     console.log(`Oura connection saved for student ${student_id}`);
 
-    // Sync initial data for the last 7 days
+    // Sync initial data for the last 30 days (Oura keeps 30 days of data)
+    console.log('🔄 Starting initial Oura sync for the last 30 days...');
     try {
-      const syncDate = new Date();
-      syncDate.setDate(syncDate.getDate() - 7);
-      const startDate = syncDate.toISOString().split('T')[0];
-      
-      // Sync multiple days to increase chances of getting data
       const syncPromises = [];
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 30; i++) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
@@ -119,14 +115,23 @@ Deno.serve(async (req) => {
               'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
             },
             body: JSON.stringify({ student_id, date: dateStr }),
+          }).then(res => {
+            if (!res.ok) {
+              console.error(`Sync failed for ${dateStr}:`, res.status);
+            }
+            return res;
           })
         );
       }
       
-      await Promise.all(syncPromises);
-      console.log('Initial Oura sync triggered for last 7 days');
+      const results = await Promise.allSettled(syncPromises);
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      
+      console.log(`✅ Initial sync completed: ${successful} successful, ${failed} failed`);
     } catch (syncError) {
-      console.warn('Failed to trigger initial sync:', syncError);
+      console.error('❌ Failed to trigger initial sync:', syncError);
+      // Don't fail the whole connection if sync fails
     }
 
     // Redirect based on origin

@@ -53,19 +53,27 @@ Deno.serve(async (req) => {
 
       const refreshResponse = await fetch('https://api.ouraring.com/oauth/token', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
           grant_type: 'refresh_token',
           refresh_token: connection.refresh_token,
-          client_id: Deno.env.get('OURA_CLIENT_ID'),
-          client_secret: Deno.env.get('OURA_CLIENT_SECRET'),
-        }),
+          client_id: Deno.env.get('OURA_CLIENT_ID') || '',
+          client_secret: Deno.env.get('OURA_CLIENT_SECRET') || '',
+        }).toString(),
       });
 
       if (!refreshResponse.ok) {
-        console.error('Token refresh failed');
+        const errorText = await refreshResponse.text();
+        console.error('Token refresh failed:', {
+          status: refreshResponse.status,
+          error: errorText,
+        });
         return new Response(
-          JSON.stringify({ error: 'Falha ao renovar token' }),
+          JSON.stringify({ 
+            error: 'Falha ao renovar token do Oura Ring',
+            details: `Status ${refreshResponse.status}`,
+            suggestion: 'Tente reconectar seu Oura Ring'
+          }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         );
       }
@@ -119,22 +127,37 @@ Deno.serve(async (req) => {
     const vo2Data = vo2Res.ok ? await vo2Res.json() : null;
     const resilienceData = resilienceRes.ok ? await resilienceRes.json() : null;
 
-    console.log('Oura API responses received');
-    console.log('Readiness response:', {
+    console.log('📊 Oura API responses received for date:', syncDate);
+    console.log('Readiness:', {
       status: readinessRes.status,
-      dataCount: readinessData?.data?.length || 0,
-      firstItem: readinessData?.data?.[0] || 'none'
+      count: readinessData?.data?.length || 0,
+      score: readinessData?.data?.[0]?.score || 'none'
     });
-    console.log('Sleep response:', {
+    console.log('Sleep:', {
       status: sleepRes.status,
-      dataCount: sleepData?.data?.length || 0,
-      firstItem: sleepData?.data?.[0] || 'none'
+      count: sleepData?.data?.length || 0,
+      score: sleepData?.data?.[0]?.score || 'none'
     });
-    console.log('Heartrate response:', {
+    console.log('Activity:', {
+      status: activityRes.status,
+      count: activityData?.data?.length || 0,
+      score: activityData?.data?.[0]?.score || 'none'
+    });
+    console.log('Heartrate:', {
       status: heartrateRes.status,
-      dataCount: heartrateData?.data?.length || 0,
-      sampleCount: heartrateData?.data?.length || 0
+      samples: heartrateData?.data?.length || 0
     });
+    console.log('Workouts:', {
+      status: workoutsRes.status,
+      count: workoutsData?.data?.length || 0
+    });
+    
+    // Log de erros da API
+    if (!readinessRes.ok) console.error('❌ Readiness API error:', await readinessRes.text());
+    if (!sleepRes.ok) console.error('❌ Sleep API error:', await sleepRes.text());
+    if (!activityRes.ok) console.error('❌ Activity API error:', await activityRes.text());
+    if (!heartrateRes.ok) console.error('❌ Heartrate API error:', await heartrateRes.text());
+    if (!workoutsRes.ok) console.error('❌ Workouts API error:', await workoutsRes.text());
 
     // Extract metrics
     const readiness = readinessData?.data?.[0];
@@ -215,12 +238,18 @@ Deno.serve(async (req) => {
                     metrics.resting_heart_rate !== null;
 
     if (!hasData) {
-      console.log('No Oura data available for this date. Skipping save.');
+      console.log('⚠️ No Oura data available for date:', syncDate);
+      console.log('Possible reasons:');
+      console.log('1. Data not yet available (Oura processes data after sleep + sync)');
+      console.log('2. User has not worn the ring on this date');
+      console.log('3. Ring was not synced to the Oura app');
+      
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Sem dados disponíveis do Oura Ring para esta data. Os dados são processados após você acordar e sincronizar seu anel.',
+          message: `Sem dados do Oura Ring para ${syncDate}. Possíveis motivos:\n\n• Os dados ainda não foram processados pelo Oura (isso acontece após dormir e sincronizar o anel)\n• O anel não foi usado nesta data\n• O anel não foi sincronizado com o app Oura\n\nTente sincronizar novamente mais tarde.`,
           synced_metrics: null,
+          date: syncDate,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
