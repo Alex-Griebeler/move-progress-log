@@ -48,10 +48,12 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{formatLocalDate(metrics.date)}</span>
-          </div>
+          {metrics.date && (
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{formatLocalDate(metrics.date)}</span>
+            </div>
+          )}
           {metrics.sleep_score && (
             <Badge className={getScoreColor(metrics.sleep_score)}>
               Score: {metrics.sleep_score}

@@ -81,10 +81,12 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{formatLocalDate(metrics.date)}</span>
-          </div>
+          {metrics.date && (
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{formatLocalDate(metrics.date)}</span>
+            </div>
+          )}
           {metrics.day_summary && (
             <Badge variant={getDaySummaryColor(metrics.day_summary)}>
               {getDaySummaryLabel(metrics.day_summary)}
