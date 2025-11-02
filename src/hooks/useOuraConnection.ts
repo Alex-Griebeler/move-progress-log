@@ -36,13 +36,16 @@ export const useSyncOura = () => {
       student_id,
       date,
       days = 1,
+      onProgress,
     }: {
       student_id: string;
       date?: string;
       days?: number;
+      onProgress?: (current: number, total: number) => void;
     }) => {
       if (days === 1) {
         // Single day sync
+        onProgress?.(1, 1);
         const { data, error } = await supabase.functions.invoke("oura-sync", {
           body: { student_id, date },
         });
@@ -50,30 +53,50 @@ export const useSyncOura = () => {
         if (error) throw error;
         return data;
       } else {
-        // Multiple days sync
-        const syncPromises = [];
+        // Multiple days sync with progress tracking
+        const results = [];
+        let completed = 0;
+        
         for (let i = 0; i < days; i++) {
           const syncDate = new Date();
           syncDate.setDate(syncDate.getDate() - i);
           const dateStr = syncDate.toISOString().split("T")[0];
 
-          syncPromises.push(
-            supabase.functions.invoke("oura-sync", {
+          try {
+            const { data, error } = await supabase.functions.invoke("oura-sync", {
               body: { student_id, date: dateStr },
-            })
-          );
+            });
+            
+            completed++;
+            onProgress?.(completed, days);
+            
+            if (error) {
+              results.push({ status: 'rejected', reason: error });
+            } else {
+              results.push({ status: 'fulfilled', value: data });
+            }
+          } catch (error) {
+            completed++;
+            onProgress?.(completed, days);
+            results.push({ status: 'rejected', reason: error });
+          }
         }
 
-        const results = await Promise.allSettled(syncPromises);
         const successful = results.filter((r) => r.status === "fulfilled").length;
         const failed = results.filter((r) => r.status === "rejected").length;
+
+        if (successful === 0) {
+          throw new Error("Falha ao sincronizar todos os dias");
+        }
 
         return {
           success: true,
           total: days,
           successful,
           failed,
-          message: `Sincronizados ${successful} de ${days} dias`,
+          message: failed > 0 
+            ? `Sincronizados ${successful} de ${days} dias (${failed} com problemas)`
+            : `Todos os ${days} dias sincronizados com sucesso!`,
         };
       }
     },
@@ -92,14 +115,28 @@ export const useSyncOura = () => {
       });
 
       if (variables.days && variables.days > 1) {
-        toast.success(data.message || `Sincronização de ${variables.days} dias concluída`);
+        const message = data.message || `Sincronização concluída`;
+        const description = data.failed > 0
+          ? `${data.successful} dias sincronizados. Alguns dias podem não ter dados disponíveis ainda.`
+          : `${data.successful} dias sincronizados com sucesso!`;
+        
+        toast.success(message, { description });
       } else {
-        toast.success("Dados do Oura Ring sincronizados com sucesso!");
+        toast.success("Dados atualizados!", {
+          description: "Métricas do Oura Ring sincronizadas"
+        });
       }
     },
     onError: (error: Error) => {
       console.error("Oura sync error:", error);
-      toast.error(`Erro ao sincronizar: ${error.message}`);
+      
+      const errorMessage = error.message.includes("Falha ao sincronizar todos")
+        ? "Não foi possível sincronizar nenhum dia"
+        : "Erro na sincronização";
+      
+      toast.error(errorMessage, {
+        description: "Verifique se o Oura Ring está sincronizado e tente novamente mais tarde."
+      });
     },
   });
 };
@@ -123,10 +160,14 @@ export const useDisconnectOura = () => {
       queryClient.invalidateQueries({
         queryKey: ["oura-connection", student_id],
       });
-      toast.success("Oura Ring desconectado");
+      toast.success("Oura Ring desconectado com sucesso", {
+        description: "Seus dados já sincronizados foram preservados. Você pode reconectar a qualquer momento."
+      });
     },
     onError: (error: Error) => {
-      toast.error(`Erro ao desconectar: ${error.message}`);
+      toast.error("Falha ao desconectar", {
+        description: error.message || "Tente novamente em alguns instantes"
+      });
     },
   });
 };

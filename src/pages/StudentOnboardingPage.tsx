@@ -398,23 +398,42 @@ export default function StudentOnboardingPage() {
                     />
 
                     {hasOuraRing && (
-                      <FormField
-                        control={form.control}
-                        name="accepts_oura_sharing"
-                        render={({ field }) => (
-                          <FormItem className="flex items-center space-x-2 space-y-0 ml-6">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <FormLabel className="!mt-0 cursor-pointer">
-                              Aceito compartilhar dados do meu Oura Ring para otimizar meu treinamento
-                            </FormLabel>
-                          </FormItem>
-                        )}
-                      />
+                      <div className="ml-6 space-y-3 border-l-2 border-primary/20 pl-4">
+                        <FormField
+                          control={form.control}
+                          name="accepts_oura_sharing"
+                          render={({ field }) => (
+                            <FormItem className="space-y-3">
+                              <div className="flex items-center space-x-2">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                  />
+                                </FormControl>
+                                <FormLabel className="!mt-0 cursor-pointer font-semibold">
+                                  Aceito compartilhar dados do meu Oura Ring
+                                </FormLabel>
+                              </div>
+                              <div className="text-sm text-muted-foreground space-y-2 bg-muted/50 p-3 rounded-lg">
+                                <p className="font-medium">Dados que serão compartilhados:</p>
+                                <ul className="space-y-1 ml-4">
+                                  <li>• Qualidade do sono (duração, fases, eficiência)</li>
+                                  <li>• Prontidão física (recuperação, HRV, FC em repouso)</li>
+                                  <li>• Atividade física (passos, calorias, treinos)</li>
+                                  <li>• Métricas de stress e recuperação</li>
+                                  <li>• SpO2, VO2 Max e temperatura corporal</li>
+                                </ul>
+                                <div className="mt-3 pt-2 border-t border-border">
+                                  <p className="text-xs">
+                                    🔒 <strong>Privacidade garantida:</strong> Seus dados serão usados <strong>exclusivamente</strong> por {validationData?.trainer_name || "seu treinador"} para personalizar seus treinos. Não compartilharemos com terceiros.
+                                  </p>
+                                </div>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     )}
                   </div>
                 </div>
@@ -451,8 +470,8 @@ export default function StudentOnboardingPage() {
                   </p>
                   
                   {hasOuraRing && form.watch("accepts_oura_sharing") && (
-                    <p className="text-xs">
-                      Os dados do Oura Ring serão usados apenas para otimizar seu treinamento e não serão compartilhados com terceiros.
+                    <p className="text-xs bg-primary/10 p-2 rounded">
+                      ✓ Após o cadastro, você será redirecionado para autorizar o acesso seguro aos seus dados do Oura Ring.
                     </p>
                   )}
                 </div>

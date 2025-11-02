@@ -13,18 +13,26 @@ export default function OuraErrorPage() {
   const reason = searchParams.get("reason");
   const [isRetrying, setIsRetrying] = useState(false);
 
-  const errorMessages: Record<string, { title: string; description: string }> = {
+  const errorMessages: Record<string, { title: string; description: string; suggestion: string }> = {
     token_exchange: {
-      title: "Erro na Autorização",
-      description: "Não foi possível completar a autorização com o Oura Ring. Isso pode acontecer se você cancelou a autorização ou se houve um problema de conexão."
+      title: "Autorização Não Concluída",
+      description: "Não conseguimos completar a autorização com o Oura Ring.",
+      suggestion: "Isso acontece quando você cancela a autorização ou há um problema de conexão. Clique em 'Tentar Novamente' para uma nova tentativa."
     },
     database: {
       title: "Erro ao Salvar Conexão",
-      description: "A autorização foi bem-sucedida, mas houve um erro ao salvar a conexão no sistema."
+      description: "A autorização com o Oura Ring foi bem-sucedida, mas não conseguimos salvar no sistema.",
+      suggestion: "Este é um erro temporário. Tente novamente em alguns instantes. Se o problema persistir, entre em contato com seu treinador."
+    },
+    sync: {
+      title: "Erro na Sincronização Inicial",
+      description: "Conseguimos conectar o Oura Ring, mas houve um problema ao buscar seus dados iniciais.",
+      suggestion: "Não se preocupe! Você pode sincronizar manualmente através do seu perfil depois."
     },
     default: {
-      title: "Erro ao Conectar Oura Ring",
-      description: "Ocorreu um erro inesperado durante a conexão com o Oura Ring."
+      title: "Erro na Conexão",
+      description: "Ocorreu um erro inesperado ao conectar com o Oura Ring.",
+      suggestion: "Tente novamente em alguns instantes. Se o erro persistir, entre em contato com seu treinador para assistência."
     }
   };
 
@@ -103,8 +111,11 @@ export default function OuraErrorPage() {
           <CardTitle className="text-2xl">
             {error.title}
           </CardTitle>
-          <CardDescription>
-            {error.description}
+          <CardDescription className="space-y-2">
+            <p>{error.description}</p>
+            <p className="text-sm font-medium text-foreground mt-2">
+              💡 {error.suggestion}
+            </p>
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -136,9 +147,14 @@ export default function OuraErrorPage() {
             </Button>
           </div>
 
-          <p className="text-xs text-center text-muted-foreground">
-            Você pode conectar o Oura Ring mais tarde através do seu perfil.
-          </p>
+          <div className="text-xs text-center text-muted-foreground space-y-1 border-t pt-3">
+            <p>
+              ℹ️ Você pode conectar o Oura Ring mais tarde através do seu perfil
+            </p>
+            <p>
+              Seu treinador também pode gerar um novo link de convite com integração Oura
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

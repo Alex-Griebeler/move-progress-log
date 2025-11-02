@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { RefreshCw, Unlink, Link2, Info } from "lucide-react";
+import { RefreshCw, Unlink, Link2, Info, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,8 @@ interface OuraConnectionCardProps {
 
 export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
+  const [syncStatus, setSyncStatus] = useState<string>("");
 
   const { data: connection, isLoading } = useOuraConnection(studentId);
   const { data: latestMetrics } = useLatestOuraMetrics(studentId);
@@ -36,10 +39,33 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
   const disconnectOura = useDisconnectOura();
 
   const handleSync = () => {
-    syncOura.mutate({ 
-      student_id: studentId,
-      days: 7 // Sync last 7 days by default
-    });
+    setSyncProgress(0);
+    setSyncStatus("Iniciando sincronização...");
+    
+    syncOura.mutate(
+      { 
+        student_id: studentId,
+        days: 7,
+        onProgress: (current, total) => {
+          setSyncProgress((current / total) * 100);
+          setSyncStatus(`Sincronizando dia ${current} de ${total}...`);
+        }
+      },
+      {
+        onSuccess: () => {
+          setSyncProgress(100);
+          setSyncStatus("Sincronização concluída!");
+          setTimeout(() => {
+            setSyncProgress(0);
+            setSyncStatus("");
+          }, 2000);
+        },
+        onError: () => {
+          setSyncProgress(0);
+          setSyncStatus("");
+        }
+      }
+    );
   };
 
   const handleDisconnect = () => {
@@ -96,9 +122,17 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    Oura Ring conectado! Aguardando sincronização de dados...
-                    Os dados são processados pelo Oura após você acordar e sincronizar seu anel.
-                    Tente sincronizar novamente mais tarde.
+                    <p className="font-semibold mb-1">Oura Ring conectado com sucesso!</p>
+                    <p className="text-sm">
+                      Aguardando dados disponíveis. O Oura Ring processa suas métricas após:
+                    </p>
+                    <ul className="text-sm mt-2 space-y-1 ml-4">
+                      <li>• Você acordar e sincronizar seu anel</li>
+                      <li>• O processamento completo dos dados (pode levar algumas horas)</li>
+                    </ul>
+                    <p className="text-sm mt-2">
+                      💡 Tente sincronizar novamente após o meio-dia ou ao final do dia.
+                    </p>
                   </AlertDescription>
                 </Alert>
               )}
@@ -119,6 +153,16 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
                   )}
                 </div>
               )}
+              {syncOura.isPending && (
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">{syncStatus}</span>
+                    <span className="text-muted-foreground">{Math.round(syncProgress)}%</span>
+                  </div>
+                  <Progress value={syncProgress} className="h-2" />
+                </div>
+              )}
+              
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -126,17 +170,22 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
                   disabled={syncOura.isPending}
                   className="flex-1"
                 >
-                  <RefreshCw
-                    className={`h-4 w-4 mr-2 ${
-                      syncOura.isPending ? "animate-spin" : ""
-                    }`}
-                  />
-                  {syncOura.isPending ? "Sincronizando 7 dias..." : "Sincronizar (7 dias)"}
+                  {syncOura.isPending ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Sincronizando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Sincronizar últimos 7 dias
+                    </>
+                  )}
                 </Button>
                 <Button
                   variant="destructive"
                   onClick={() => setShowDisconnectDialog(true)}
-                  disabled={disconnectOura.isPending}
+                  disabled={disconnectOura.isPending || syncOura.isPending}
                 >
                   <Unlink className="h-4 w-4 mr-2" />
                   Desconectar
@@ -154,9 +203,13 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Desconectar Oura Ring?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Isso impedirá a sincronização automática dos dados do Oura Ring.
-              Os dados já sincronizados não serão removidos.
+            <AlertDialogDescription className="space-y-2">
+              <p>Ao desconectar o Oura Ring:</p>
+              <ul className="text-sm space-y-1 ml-4">
+                <li>✓ Seus dados já sincronizados serão preservados</li>
+                <li>✗ Novos dados não serão mais sincronizados automaticamente</li>
+                <li>↻ Você pode reconectar a qualquer momento através de um novo convite</li>
+              </ul>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
