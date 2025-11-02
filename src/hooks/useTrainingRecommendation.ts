@@ -175,14 +175,8 @@ export function useTrainingRecommendation(
       });
     }
 
-    // Calcula confiança com média ponderada baseada na disponibilidade dos dados
-    // Readiness Score tem maior peso pois já é uma métrica composta
-    let confidence = 0;
-    if (metrics.readiness_score !== null) confidence += 40;      // 40% do peso
-    if (metrics.sleep_score !== null) confidence += 25;          // 25% do peso
-    if (metrics.average_sleep_hrv !== null) confidence += 15;    // 15% do peso
-    if (metrics.resting_heart_rate !== null) confidence += 10;   // 10% do peso
-    if (metrics.total_sleep_duration !== null) confidence += 10; // 10% do peso
+    // Calcula confiança baseada no Readiness Score (que já engloba todas as métricas)
+    const confidence = metrics.readiness_score !== null ? metrics.readiness_score : 50;
 
     return {
       trainingType,
