@@ -29,6 +29,35 @@ const formatTime = (seconds: number | null) => {
 };
 
 export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
+  // Check if we have stress data
+  const hasStressData = metrics.stress_high_time !== null || metrics.recovery_high_time !== null || metrics.day_summary;
+  
+  if (!hasStressData) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Brain className="h-5 w-5 text-primary" />
+            <CardTitle>Estresse e Recuperação</CardTitle>
+          </div>
+          <CardDescription>
+            Sem dados de estresse registrados
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Os dados de estresse não estão disponíveis para este dia.
+          </p>
+          <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside">
+            <li>Use o anel durante todo o dia para medições</li>
+            <li>Dados processados após sincronização</li>
+            <li>Requer pelo menos algumas horas de uso</li>
+          </ul>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   const stressData = [
     { 
       name: "Estresse Alto", 

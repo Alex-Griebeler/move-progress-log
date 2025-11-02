@@ -136,12 +136,14 @@ Deno.serve(async (req) => {
     console.log('Sleep:', {
       status: sleepRes.status,
       count: sleepData?.data?.length || 0,
-      score: sleepData?.data?.[0]?.score || 'none'
+      score: sleepData?.data?.[0]?.score || 'none',
+      has_durations: !!(sleepData?.data?.[0]?.total_sleep_duration)
     });
     console.log('Activity:', {
       status: activityRes.status,
       count: activityData?.data?.length || 0,
-      score: activityData?.data?.[0]?.score || 'none'
+      score: activityData?.data?.[0]?.score || 'none',
+      has_steps: !!(activityData?.data?.[0]?.steps)
     });
     console.log('Heartrate:', {
       status: heartrateRes.status,
@@ -150,6 +152,11 @@ Deno.serve(async (req) => {
     console.log('Workouts:', {
       status: workoutsRes.status,
       count: workoutsData?.data?.length || 0
+    });
+    console.log('Stress:', {
+      status: stressRes.status,
+      count: stressData?.data?.length || 0,
+      has_high_time: !!(stressData?.data?.[0]?.stress_high)
     });
     
     // Log de erros da API
@@ -214,22 +221,22 @@ Deno.serve(async (req) => {
       steps: activity?.steps || null,
       active_calories: activity?.active_calories || null,
       total_calories: activity?.total_calories || null,
-      met_minutes: activity?.equivalent_walking_distance || activity?.met?.daily || null,
+      met_minutes: activity?.equivalent_walking_distance || null,
       high_activity_time: activity?.high_activity_time || null,
       medium_activity_time: activity?.medium_activity_time || null,
       low_activity_time: activity?.low_activity_time || null,
       sedentary_time: activity?.sedentary_time || null,
-      training_volume: activity?.contributors?.training_volume || null,
-      training_frequency: activity?.contributors?.training_frequency || null,
+      training_volume: activity?.training_volume || null,
+      training_frequency: activity?.training_frequency || null,
       
       // Sleep detailed metrics
-      total_sleep_duration: sleep?.contributors?.total_sleep || null,
-      deep_sleep_duration: sleep?.contributors?.deep_sleep || null,
-      rem_sleep_duration: sleep?.contributors?.rem_sleep || null,
-      light_sleep_duration: sleep?.contributors?.light_sleep || null,
-      awake_time: sleep?.contributors?.awake_time || null,
-      sleep_efficiency: sleep?.contributors?.efficiency || null,
-      sleep_latency: sleep?.contributors?.latency || null,
+      total_sleep_duration: sleep?.total_sleep_duration || null,
+      deep_sleep_duration: sleep?.deep_sleep_duration || null,
+      rem_sleep_duration: sleep?.rem_sleep_duration || null,
+      light_sleep_duration: sleep?.light_sleep_duration || null,
+      awake_time: sleep?.awake_time || null,
+      sleep_efficiency: sleep?.efficiency || null,
+      sleep_latency: sleep?.latency || null,
       lowest_heart_rate: sleep?.lowest_heart_rate || null,
       average_sleep_hrv: sleep?.average_hrv || null,
       average_breath: sleep?.average_breath || null,

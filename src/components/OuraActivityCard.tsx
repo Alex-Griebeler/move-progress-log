@@ -31,6 +31,38 @@ const formatTime = (seconds: number | null) => {
 };
 
 export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
+  // Check if we have any activity data
+  const hasActivityData = metrics.steps || metrics.active_calories || metrics.activity_score;
+  
+  if (!hasActivityData) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <CardTitle>Atividade Diária</CardTitle>
+          </div>
+          <CardDescription>
+            Sem dados de atividade registrados
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Os dados de atividade não estão disponíveis para este dia. Possíveis motivos:
+          </p>
+          <ul className="text-sm text-muted-foreground space-y-2 list-disc list-inside">
+            <li>O anel não foi usado durante o dia</li>
+            <li>Dados ainda não processados (disponíveis após 24h)</li>
+            <li>O anel não foi sincronizado com o app Oura</li>
+          </ul>
+          <p className="text-xs text-muted-foreground mt-3">
+            💡 Use o anel durante todo o dia e sincronize-o regularmente.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   const activityData = [
     { name: "Alta", value: metrics.high_activity_time || 0, color: "hsl(var(--destructive))" },
     { name: "Média", value: metrics.medium_activity_time || 0, color: "hsl(var(--chart-2))" },
