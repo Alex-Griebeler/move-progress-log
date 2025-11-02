@@ -21,9 +21,10 @@ import { OuraStressCard } from "@/components/OuraStressCard";
 import { OuraWorkoutsCard } from "@/components/OuraWorkoutsCard";
 import { OuraAdvancedMetricsCard } from "@/components/OuraAdvancedMetricsCard";
 import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecommendationDialog";
+import PersonalizedTrainingDashboard from "@/components/PersonalizedTrainingDashboard";
 import { StudentObservationsCard } from "@/components/StudentObservationsCard";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
-import { useOuraMetrics } from "@/hooks/useOuraMetrics";
+import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -35,6 +36,7 @@ const StudentDetailPage = () => {
   const { data: sessions, isLoading: loadingSessions } = useSessionsWithExercises(id!);
   const { data: assignments, isLoading: loadingAssignments } = useStudentPrescriptions(id!);
   const { data: ouraMetrics, isLoading: loadingOuraMetrics } = useOuraMetrics(id!, 30);
+  const { data: latestOuraMetrics } = useLatestOuraMetrics(id!);
   const { data: ouraConnection } = useOuraConnection(id!);
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
@@ -110,14 +112,23 @@ const StudentDetailPage = () => {
         </TooltipProvider>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+      <Tabs defaultValue="training" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="training">Treino Personalizado</TabsTrigger>
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="sessions">Sessões</TabsTrigger>
           <TabsTrigger value="exercises">Exercícios</TabsTrigger>
           <TabsTrigger value="prescriptions">Prescrições</TabsTrigger>
           <TabsTrigger value="oura">Métricas Oura</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="training" className="space-y-6">
+          <PersonalizedTrainingDashboard
+            latestMetrics={latestOuraMetrics}
+            recentMetrics={ouraMetrics || []}
+            studentName={student.name}
+          />
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-6">
           <StudentObservationsCard studentId={id!} />
