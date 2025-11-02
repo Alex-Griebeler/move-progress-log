@@ -43,27 +43,6 @@ const DEFAULT_GOALS: UserGoals = {
   moderateFatigueThreshold: 7000
 };
 
-function analyzeHRVTrend(currentHRV: number | null, avgHRV: number): number {
-  if (!currentHRV) return 50;
-  const percentDiff = ((currentHRV - avgHRV) / avgHRV) * 100;
-  // Normaliza para 0-100
-  if (percentDiff >= 10) return 100;
-  if (percentDiff <= -15) return 0;
-  return 50 + (percentDiff * 3);
-}
-
-function analyzeRHRTrend(currentRHR: number | null, avgRHR: number): number {
-  if (!currentRHR) return 50;
-  const diff = currentRHR - avgRHR;
-  // RHR mais baixo é melhor
-  if (diff <= -5) return 100;
-  if (diff >= 10) return 0;
-  return 50 - (diff * 5);
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
-}
 
 export function useTrainingRecommendation(
   metrics: OuraMetrics | null,
@@ -80,21 +59,8 @@ export function useTrainingRecommendation(
     const alerts: TrainingRecommendation['alerts'] = [];
 
     // 1. AVALIAÇÃO DE RECUPERAÇÃO GERAL
-    const readinessWeight = 0.4;
-    const sleepWeight = 0.3;
-    const hrvWeight = 0.2;
-    const rhrWeight = 0.1;
-
-    const hrvTrendScore = analyzeHRVTrend(metrics.average_sleep_hrv, history.avgHRV);
-    const rhrTrendScore = analyzeRHRTrend(metrics.resting_heart_rate, history.avgRHR);
-
-    let recoveryScore = 
-      (metrics.readiness_score || 50) * readinessWeight +
-      (metrics.sleep_score || 50) * sleepWeight +
-      hrvTrendScore * hrvWeight +
-      rhrTrendScore * rhrWeight;
-
-    recoveryScore = clamp(Math.round(recoveryScore), 0, 100);
+    // Usa diretamente o Readiness Score da Oura (já é uma métrica composta sofisticada)
+    const recoveryScore = metrics.readiness_score || 50;
 
     // 2. ANÁLISE DE FADIGA ACUMULADA
     const weeklyBurn = recentMetrics.reduce((sum, m) => sum + (m.active_calories || 0), 0);
