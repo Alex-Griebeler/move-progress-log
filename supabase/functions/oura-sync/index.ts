@@ -113,7 +113,7 @@ Deno.serve(async (req) => {
       fetch(`https://api.ouraring.com/v2/usercollection/workout?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
       fetch(`https://api.ouraring.com/v2/usercollection/daily_stress?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
       fetch(`https://api.ouraring.com/v2/usercollection/daily_spo2?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
-      fetch(`https://api.ouraring.com/v2/usercollection/vO2_max?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
+      fetch(`https://api.ouraring.com/v2/usercollection/vo2_max?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
       fetch(`https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
     ]);
 
@@ -170,9 +170,16 @@ Deno.serve(async (req) => {
 
     let restingHeartRate = null;
     if (heartrateData?.data && heartrateData.data.length > 0) {
-      const hrValues = heartrateData.data.map((hr: any) => hr.bpm).filter((bpm: number) => bpm > 0);
+      const hrValues = heartrateData.data
+        .map((hr: any) => hr.bpm)
+        .filter((bpm: number) => bpm > 0 && bpm < 200); // Filter valid heart rates
+      
       if (hrValues.length > 0) {
-        restingHeartRate = Math.min(...hrValues);
+        // Sort and get median of lowest 10% for more stable resting HR
+        const sortedValues = hrValues.sort((a: number, b: number) => a - b);
+        const lowestCount = Math.max(1, Math.floor(sortedValues.length * 0.1));
+        const lowestValues = sortedValues.slice(0, lowestCount);
+        restingHeartRate = Math.round(lowestValues.reduce((sum: number, val: number) => sum + val, 0) / lowestValues.length);
       }
     }
 
@@ -193,7 +200,7 @@ Deno.serve(async (req) => {
       steps: activity?.steps || null,
       active_calories: activity?.active_calories || null,
       total_calories: activity?.total_calories || null,
-      met_minutes: activity?.met?.interval || null,
+      met_minutes: activity?.equivalent_walking_distance || activity?.met?.daily || null,
       high_activity_time: activity?.high_activity_time || null,
       medium_activity_time: activity?.medium_activity_time || null,
       low_activity_time: activity?.low_activity_time || null,

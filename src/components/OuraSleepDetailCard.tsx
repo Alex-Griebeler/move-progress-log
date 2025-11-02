@@ -10,9 +10,9 @@ interface OuraSleepDetailCardProps {
 
 const getScoreColor = (score: number | null) => {
   if (!score) return "text-muted-foreground";
-  if (score >= 85) return "text-green-500";
-  if (score >= 70) return "text-yellow-500";
-  return "text-red-500";
+  if (score >= 85) return "text-primary";
+  if (score >= 70) return "text-secondary-foreground";
+  return "text-destructive";
 };
 
 const getEfficiencyColor = (efficiency: number | null) => {
@@ -37,10 +37,10 @@ const formatLatency = (seconds: number | null) => {
 
 export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
   const sleepPhases = [
-    { name: "Profundo", value: (metrics.deep_sleep_duration || 0) / 60, fill: "#3b82f6" },
-    { name: "REM", value: (metrics.rem_sleep_duration || 0) / 60, fill: "#8b5cf6" },
-    { name: "Leve", value: (metrics.light_sleep_duration || 0) / 60, fill: "#10b981" },
-    { name: "Acordado", value: (metrics.awake_time || 0) / 60, fill: "#ef4444" },
+    { name: "Profundo", value: (metrics.deep_sleep_duration || 0) / 60, fill: "hsl(var(--chart-1))" },
+    { name: "REM", value: (metrics.rem_sleep_duration || 0) / 60, fill: "hsl(var(--chart-4))" },
+    { name: "Leve", value: (metrics.light_sleep_duration || 0) / 60, fill: "hsl(var(--chart-3))" },
+    { name: "Acordado", value: (metrics.awake_time || 0) / 60, fill: "hsl(var(--destructive))" },
   ].filter(phase => phase.value > 0);
 
   return (
@@ -100,7 +100,7 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
           )}
           {metrics.lowest_heart_rate !== null && (
             <div className="flex items-center gap-2">
-              <Heart className="h-4 w-4 text-red-500" />
+              <Heart className="h-4 w-4 text-destructive" />
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">FC Mínima</p>
                 <p className="text-xl font-semibold">{metrics.lowest_heart_rate} bpm</p>
@@ -115,7 +115,7 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
           )}
           {metrics.average_breath !== null && (
             <div className="flex items-center gap-2">
-              <Wind className="h-4 w-4 text-blue-500" />
+              <Wind className="h-4 w-4 text-primary" />
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Respiração Média</p>
                 <p className="text-xl font-semibold">{metrics.average_breath.toFixed(1)} rpm</p>

@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Brain, TrendingDown, TrendingUp } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { translateDaySummary } from "@/utils/ouraTranslations";
 
 interface OuraStressCardProps {
   metrics: OuraMetrics;
@@ -17,8 +18,7 @@ const getDaySummaryColor = (summary: string | null) => {
 };
 
 const getDaySummaryLabel = (summary: string | null) => {
-  if (!summary) return "Sem dados";
-  return summary.charAt(0).toUpperCase() + summary.slice(1);
+  return translateDaySummary(summary);
 };
 
 const formatTime = (seconds: number | null) => {
@@ -33,12 +33,12 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
     { 
       name: "Estresse Alto", 
       value: (metrics.stress_high_time || 0) / 60, 
-      fill: "#ef4444" 
+      fill: "hsl(var(--destructive))" 
     },
     { 
       name: "Recuperação Alta", 
       value: (metrics.recovery_high_time || 0) / 60, 
-      fill: "#10b981" 
+      fill: "hsl(var(--chart-3))" 
     },
   ].filter(item => item.value > 0);
 
@@ -77,7 +77,7 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
             </div>
             <div className="w-full h-4 bg-secondary rounded-full overflow-hidden">
               <div 
-                className="h-full bg-red-500 transition-all"
+                className="h-full bg-destructive transition-all"
                 style={{ width: `${stressPercentage}%` }}
               />
             </div>
@@ -101,15 +101,15 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
 
         {/* Detailed Time Metrics */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800">
-            <TrendingUp className="h-8 w-8 text-red-500" />
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <TrendingUp className="h-8 w-8 text-destructive" />
             <div>
               <p className="text-sm text-muted-foreground">Tempo em Estresse Alto</p>
               <p className="text-xl font-bold">{formatTime(metrics.stress_high_time)}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800">
-            <TrendingDown className="h-8 w-8 text-green-500" />
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-chart-3/10 border border-chart-3/20">
+            <TrendingDown className="h-8 w-8 text-chart-3" />
             <div>
               <p className="text-sm text-muted-foreground">Tempo em Recuperação Alta</p>
               <p className="text-xl font-bold">{formatTime(metrics.recovery_high_time)}</p>
@@ -119,19 +119,19 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
 
         {/* Recommendations */}
         {metrics.stress_high_time && metrics.stress_high_time > 7200 && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-            <p className="text-sm text-amber-800 dark:text-amber-200 font-medium mb-1">
+          <div className="p-3 bg-secondary border rounded-lg">
+            <p className="text-sm text-secondary-foreground font-medium mb-1">
               ⚠️ Nível de estresse elevado detectado
             </p>
-            <p className="text-xs text-amber-700 dark:text-amber-300">
+            <p className="text-xs text-muted-foreground">
               Considere técnicas de relaxamento, meditação ou reduzir a intensidade do treino.
             </p>
           </div>
         )}
 
         {metrics.recovery_high_time && metrics.recovery_high_time > 14400 && (
-          <div className="p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <p className="text-sm text-green-800 dark:text-green-200 font-medium">
+          <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+            <p className="text-sm text-primary font-medium">
               ✓ Excelente recuperação detectada - momento ideal para treinos intensos!
             </p>
           </div>

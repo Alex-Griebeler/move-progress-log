@@ -4,6 +4,7 @@ import { Dumbbell, Heart, Flame, MapPin } from "lucide-react";
 import { useOuraWorkouts } from "@/hooks/useOuraWorkouts";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { translateActivity, translateIntensity } from "@/utils/ouraTranslations";
 
 interface OuraWorkoutsCardProps {
   studentId: string;
@@ -19,13 +20,7 @@ const getIntensityColor = (intensity: string | null) => {
 };
 
 const getIntensityLabel = (intensity: string | null) => {
-  if (!intensity) return "—";
-  const labels: Record<string, string> = {
-    easy: "Leve",
-    moderate: "Moderado",
-    hard: "Intenso",
-  };
-  return labels[intensity.toLowerCase()] || intensity;
+  return translateIntensity(intensity);
 };
 
 const formatDuration = (start: string, end: string) => {
@@ -90,8 +85,8 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
           >
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h4 className="font-semibold text-lg capitalize">
-                  {workout.activity.replace(/_/g, ' ')}
+                <h4 className="font-semibold text-lg">
+                  {translateActivity(workout.activity)}
                 </h4>
                 <p className="text-sm text-muted-foreground">
                   {format(new Date(workout.start_datetime), "PPP 'às' HH:mm", { locale: ptBR })}
@@ -106,7 +101,7 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
               {/* Duration */}
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-primary/10">
-                  <Dumbbell className="h-4 w-4 text-primary" />
+                  <Dumbbell className="h-4 w-4 text-foreground" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Duração</p>
@@ -119,8 +114,8 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
               {/* Calories */}
               {workout.calories && (
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-orange-500/10">
-                    <Flame className="h-4 w-4 text-orange-500" />
+                  <div className="p-2 rounded-lg bg-accent/50">
+                    <Flame className="h-4 w-4 text-destructive" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Calorias</p>
@@ -132,8 +127,8 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
               {/* Heart Rate */}
               {workout.average_heart_rate && (
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-red-500/10">
-                    <Heart className="h-4 w-4 text-red-500" />
+                  <div className="p-2 rounded-lg bg-destructive/10">
+                    <Heart className="h-4 w-4 text-destructive" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">FC Média</p>
@@ -152,8 +147,8 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
               {/* Distance */}
               {workout.distance && (
                 <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-blue-500/10">
-                    <MapPin className="h-4 w-4 text-blue-500" />
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <MapPin className="h-4 w-4 text-primary" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Distância</p>
@@ -167,7 +162,7 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
             {workout.source && (
               <div className="mt-3 pt-3 border-t">
                 <p className="text-xs text-muted-foreground">
-                  Fonte: <span className="capitalize">{workout.source.replace(/_/g, ' ')}</span>
+                  Fonte: <span>{translateActivity(workout.source)}</span>
                 </p>
               </div>
             )}

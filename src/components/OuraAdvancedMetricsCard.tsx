@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Activity, Wind, Shield, TrendingUp } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
+import { translateResilience } from "@/utils/ouraTranslations";
 
 interface OuraAdvancedMetricsCardProps {
   metrics: OuraMetrics;
@@ -24,14 +25,7 @@ const getResilienceColor = (level: string | null) => {
 };
 
 const getResilienceLabel = (level: string | null) => {
-  if (!level) return "Sem dados";
-  const labels: Record<string, string> = {
-    strong: "Forte",
-    solid: "Sólida",
-    adequate: "Adequada",
-    limited: "Limitada",
-  };
-  return labels[level.toLowerCase()] || level;
+  return translateResilience(level);
 };
 
 const getSpo2Status = (spo2: number | null) => {
@@ -97,8 +91,8 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
         {/* SpO2 Average */}
         {metrics.spo2_average && (
           <div className="flex items-center gap-4 p-4 rounded-lg border bg-card">
-            <div className="p-3 rounded-full bg-blue-500/10">
-              <Wind className="h-6 w-6 text-blue-500" />
+            <div className="p-3 rounded-full bg-primary/10">
+              <Wind className="h-6 w-6 text-primary" />
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
@@ -125,7 +119,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
             <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
               <div 
                 className={`h-full transition-all ${
-                  metrics.breathing_disturbance_index < 5 ? 'bg-green-500' : 'bg-yellow-500'
+                  metrics.breathing_disturbance_index < 5 ? 'bg-primary' : 'bg-chart-2'
                 }`}
                 style={{ width: `${Math.min(metrics.breathing_disturbance_index * 10, 100)}%` }}
               />
@@ -142,8 +136,8 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
         {/* Resilience Level */}
         {metrics.resilience_level && (
           <div className="flex items-center gap-4 p-4 rounded-lg border bg-card">
-            <div className="p-3 rounded-full bg-purple-500/10">
-              <Shield className="h-6 w-6 text-purple-500" />
+            <div className="p-3 rounded-full bg-chart-4/10">
+              <Shield className="h-6 w-6 text-chart-4" />
             </div>
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
@@ -161,22 +155,22 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
 
         {/* Recommendations */}
         {metrics.vo2_max && metrics.vo2_max < 35 && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-            <p className="text-sm text-amber-800 dark:text-amber-200 font-medium mb-1">
+          <div className="p-3 bg-secondary border rounded-lg">
+            <p className="text-sm text-secondary-foreground font-medium mb-1">
               💡 Dica: VO2 Max abaixo do ideal
             </p>
-            <p className="text-xs text-amber-700 dark:text-amber-300">
+            <p className="text-xs text-muted-foreground">
               Considere aumentar gradualmente a intensidade e volume de treinos cardiovasculares.
             </p>
           </div>
         )}
 
         {metrics.breathing_disturbance_index && metrics.breathing_disturbance_index >= 15 && (
-          <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-sm text-red-800 dark:text-red-200 font-medium mb-1">
+          <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <p className="text-sm text-destructive font-medium mb-1">
               ⚠️ Alerta: Distúrbio respiratório elevado
             </p>
-            <p className="text-xs text-red-700 dark:text-red-300">
+            <p className="text-xs text-destructive/80">
               Recomenda-se avaliação médica para possível apneia do sono.
             </p>
           </div>

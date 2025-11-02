@@ -12,9 +12,9 @@ interface OuraMetricsCardProps {
 const OuraMetricsCard = ({ metrics }: OuraMetricsCardProps) => {
   const getScoreColor = (score: number | null) => {
     if (!score) return "bg-muted text-muted-foreground";
-    if (score >= 85) return "bg-green-500/10 text-green-700 dark:text-green-400";
-    if (score >= 70) return "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400";
-    return "bg-red-500/10 text-red-700 dark:text-red-400";
+    if (score >= 85) return "bg-primary/10 text-primary";
+    if (score >= 70) return "bg-secondary/50 text-secondary-foreground";
+    return "bg-destructive/10 text-destructive";
   };
 
   const getScoreLabel = (score: number | null) => {

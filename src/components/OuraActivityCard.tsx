@@ -10,9 +10,9 @@ interface OuraActivityCardProps {
 
 const getScoreColor = (score: number | null) => {
   if (!score) return "text-muted-foreground";
-  if (score >= 85) return "text-green-500";
-  if (score >= 70) return "text-yellow-500";
-  return "text-red-500";
+  if (score >= 85) return "text-primary";
+  if (score >= 70) return "text-secondary-foreground";
+  return "text-destructive";
 };
 
 const getScoreLabel = (score: number | null) => {
@@ -32,10 +32,10 @@ const formatTime = (seconds: number | null) => {
 
 export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
   const activityData = [
-    { name: "Alta", value: metrics.high_activity_time || 0, color: "#ef4444" },
-    { name: "Média", value: metrics.medium_activity_time || 0, color: "#f59e0b" },
-    { name: "Baixa", value: metrics.low_activity_time || 0, color: "#10b981" },
-    { name: "Sedentário", value: metrics.sedentary_time || 0, color: "#6b7280" },
+    { name: "Alta", value: metrics.high_activity_time || 0, color: "hsl(var(--destructive))" },
+    { name: "Média", value: metrics.medium_activity_time || 0, color: "hsl(var(--chart-2))" },
+    { name: "Baixa", value: metrics.low_activity_time || 0, color: "hsl(var(--chart-3))" },
+    { name: "Sedentário", value: metrics.sedentary_time || 0, color: "hsl(var(--muted))" },
   ].filter(item => item.value > 0);
 
   return (
@@ -67,10 +67,10 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 rounded-lg bg-card border">
-            <Flame className="h-8 w-8 text-orange-500" />
+            <Flame className="h-8 w-8 text-destructive" />
             <div>
               <p className="text-sm text-muted-foreground">Calorias Ativas</p>
-              <p className="text-2xl font-bold">{metrics.active_calories || "—"}</p>
+              <p className="text-2xl font-bold">{metrics.active_calories ? `${metrics.active_calories} kcal` : "—"}</p>
             </div>
           </div>
         </div>
@@ -82,8 +82,8 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
             <p className="text-xl font-semibold">{metrics.total_calories || "—"} kcal</p>
           </div>
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">MET (minutos)</p>
-            <p className="text-xl font-semibold">{metrics.met_minutes || "—"}</p>
+            <p className="text-sm text-muted-foreground">Equivalente Caminhada</p>
+            <p className="text-xl font-semibold">{metrics.met_minutes ? `${(metrics.met_minutes / 1000).toFixed(1)} km` : "—"}</p>
           </div>
         </div>
 
@@ -145,10 +145,10 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
         )}
 
         {/* Sedentary Warning */}
-        {metrics.sedentary_time && metrics.sedentary_time > 43200 && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
-            <p className="text-sm text-amber-800 dark:text-amber-200">
-              ⚠️ Tempo sedentário elevado: {formatTime(metrics.sedentary_time)}
+        {metrics.sedentary_time && metrics.sedentary_time > 28800 && (
+          <div className="p-3 bg-secondary border rounded-lg">
+            <p className="text-sm text-secondary-foreground">
+              ⚠️ Tempo sedentário elevado: {formatTime(metrics.sedentary_time)}. Considere pausas ativas a cada hora.
             </p>
           </div>
         )}
