@@ -25,7 +25,7 @@ import { StudentObservationsCard } from "@/components/StudentObservationsCard";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { useOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const StudentDetailPage = () => {
@@ -40,21 +40,6 @@ const StudentDetailPage = () => {
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
 
   const student = students?.find((s) => s.id === id);
-
-  // Debug: Log Oura metrics when they change
-  useEffect(() => {
-    if (ouraMetrics && ouraMetrics.length > 0) {
-      console.log("📊 Oura Metrics carregados:", ouraMetrics.length, "registros");
-      console.log("📅 Datas disponíveis:", ouraMetrics.slice(0, 7).map(m => ({ 
-        date: m.date, 
-        readiness: m.readiness_score, 
-        sleep: m.sleep_score 
-      })));
-      console.log("🔍 Filtrando para nov 2024/2025:", ouraMetrics.filter(m => 
-        m.date.includes('2024-11') || m.date.includes('2025-11')
-      ).map(m => m.date));
-    }
-  }, [ouraMetrics]);
 
   if (loadingStudents) {
     return (

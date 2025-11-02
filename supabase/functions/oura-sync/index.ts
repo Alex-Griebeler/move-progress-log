@@ -105,9 +105,10 @@ Deno.serve(async (req) => {
       Authorization: `Bearer ${accessToken}`,
     };
 
-    const [readinessRes, sleepRes, heartrateRes, activityRes, workoutsRes, stressRes, spo2Res, vo2Res, resilienceRes] = await Promise.all([
+    const [readinessRes, dailySleepRes, sleepPeriodsRes, heartrateRes, activityRes, workoutsRes, stressRes, spo2Res, vo2Res, resilienceRes] = await Promise.all([
       fetch(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
       fetch(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
+      fetch(`https://api.ouraring.com/v2/usercollection/sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
       fetch(`https://api.ouraring.com/v2/usercollection/heartrate?start_datetime=${syncDate}T00:00:00&end_datetime=${syncDate}T23:59:59`, { headers }),
       fetch(`https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
       fetch(`https://api.ouraring.com/v2/usercollection/workout?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
@@ -118,7 +119,8 @@ Deno.serve(async (req) => {
     ]);
 
     const readinessData = readinessRes.ok ? await readinessRes.json() : null;
-    const sleepData = sleepRes.ok ? await sleepRes.json() : null;
+    const dailySleepData = dailySleepRes.ok ? await dailySleepRes.json() : null;
+    const sleepPeriodsData = sleepPeriodsRes.ok ? await sleepPeriodsRes.json() : null;
     const heartrateData = heartrateRes.ok ? await heartrateRes.json() : null;
     const activityData = activityRes.ok ? await activityRes.json() : null;
     const workoutsData = workoutsRes.ok ? await workoutsRes.json() : null;
@@ -133,11 +135,15 @@ Deno.serve(async (req) => {
       count: readinessData?.data?.length || 0,
       score: readinessData?.data?.[0]?.score || 'none'
     });
-    console.log('Sleep:', {
-      status: sleepRes.status,
-      count: sleepData?.data?.length || 0,
-      score: sleepData?.data?.[0]?.score || 'none',
-      has_durations: !!(sleepData?.data?.[0]?.total_sleep_duration)
+    console.log('Daily Sleep:', {
+      status: dailySleepRes.status,
+      count: dailySleepData?.data?.length || 0,
+      score: dailySleepData?.data?.[0]?.score || 'none'
+    });
+    console.log('Sleep Periods:', {
+      status: sleepPeriodsRes.status,
+      count: sleepPeriodsData?.data?.length || 0,
+      has_durations: !!(sleepPeriodsData?.data?.[0]?.total_sleep_duration)
     });
     console.log('Activity:', {
       status: activityRes.status,
@@ -161,19 +167,35 @@ Deno.serve(async (req) => {
     
     // Log de erros da API
     if (!readinessRes.ok) console.error('❌ Readiness API error:', await readinessRes.text());
-    if (!sleepRes.ok) console.error('❌ Sleep API error:', await sleepRes.text());
+    if (!dailySleepRes.ok) console.error('❌ Daily Sleep API error:', await dailySleepRes.text());
+    if (!sleepPeriodsRes.ok) console.error('❌ Sleep Periods API error:', await sleepPeriodsRes.text());
     if (!activityRes.ok) console.error('❌ Activity API error:', await activityRes.text());
     if (!heartrateRes.ok) console.error('❌ Heartrate API error:', await heartrateRes.text());
     if (!workoutsRes.ok) console.error('❌ Workouts API error:', await workoutsRes.text());
 
     // Extract metrics
     const readiness = readinessData?.data?.[0];
-    const sleep = sleepData?.data?.[0];
+    const dailySleep = dailySleepData?.data?.[0];
     const activity = activityData?.data?.[0];
     const stress = stressData?.data?.[0];
     const spo2 = spo2Data?.data?.[0];
     const vo2 = vo2Data?.data?.[0];
     const resilience = resilienceData?.data?.[0];
+
+    // Process sleep periods - get longest period or aggregate
+    let sleepPeriod = null;
+    if (sleepPeriodsData?.data && sleepPeriodsData.data.length > 0) {
+      // Find the longest sleep period (usually the main sleep)
+      sleepPeriod = sleepPeriodsData.data.reduce((longest: any, current: any) => {
+        return (current.total_sleep_duration || 0) > (longest.total_sleep_duration || 0) ? current : longest;
+      });
+      console.log('Selected sleep period:', {
+        duration: sleepPeriod.total_sleep_duration,
+        deep: sleepPeriod.deep_sleep_duration,
+        rem: sleepPeriod.rem_sleep_duration,
+        light: sleepPeriod.light_sleep_duration
+      });
+    }
 
     let restingHeartRate = null;
     try {
@@ -191,16 +213,16 @@ Deno.serve(async (req) => {
         }
       }
       
-      // Fallback: use sleep's lowest heart rate if available
-      if (!restingHeartRate && sleep?.lowest_heart_rate) {
-        restingHeartRate = sleep.lowest_heart_rate;
-        console.log('Using sleep lowest_heart_rate as fallback:', restingHeartRate);
+      // Fallback: use sleep period's lowest heart rate if available
+      if (!restingHeartRate && sleepPeriod?.lowest_heart_rate) {
+        restingHeartRate = sleepPeriod.lowest_heart_rate;
+        console.log('Using sleep period lowest_heart_rate as fallback:', restingHeartRate);
       }
     } catch (error) {
       console.error('Error calculating resting heart rate:', error);
-      // Final fallback from sleep data
-      if (sleep?.lowest_heart_rate) {
-        restingHeartRate = sleep.lowest_heart_rate;
+      // Final fallback from sleep period data
+      if (sleepPeriod?.lowest_heart_rate) {
+        restingHeartRate = sleepPeriod.lowest_heart_rate;
       }
     }
 
@@ -210,7 +232,7 @@ Deno.serve(async (req) => {
       
       // Existing metrics
       readiness_score: readiness?.score || null,
-      sleep_score: sleep?.score || null,
+      sleep_score: dailySleep?.score || null,
       hrv_balance: readiness?.contributors?.hrv_balance || null,
       resting_heart_rate: restingHeartRate,
       temperature_deviation: readiness?.contributors?.temperature_deviation || null,
@@ -229,17 +251,17 @@ Deno.serve(async (req) => {
       training_volume: activity?.training_volume || null,
       training_frequency: activity?.training_frequency || null,
       
-      // Sleep detailed metrics
-      total_sleep_duration: sleep?.total_sleep_duration || null,
-      deep_sleep_duration: sleep?.deep_sleep_duration || null,
-      rem_sleep_duration: sleep?.rem_sleep_duration || null,
-      light_sleep_duration: sleep?.light_sleep_duration || null,
-      awake_time: sleep?.awake_time || null,
-      sleep_efficiency: sleep?.efficiency || null,
-      sleep_latency: sleep?.latency || null,
-      lowest_heart_rate: sleep?.lowest_heart_rate || null,
-      average_sleep_hrv: sleep?.average_hrv || null,
-      average_breath: sleep?.average_breath || null,
+      // Sleep detailed metrics from sleep periods
+      total_sleep_duration: sleepPeriod?.total_sleep_duration || null,
+      deep_sleep_duration: sleepPeriod?.deep_sleep_duration || null,
+      rem_sleep_duration: sleepPeriod?.rem_sleep_duration || null,
+      light_sleep_duration: sleepPeriod?.light_sleep_duration || null,
+      awake_time: sleepPeriod?.awake_time || null,
+      sleep_efficiency: sleepPeriod?.efficiency || null,
+      sleep_latency: sleepPeriod?.latency || null,
+      lowest_heart_rate: sleepPeriod?.lowest_heart_rate || null,
+      average_sleep_hrv: sleepPeriod?.average_hrv || null,
+      average_breath: sleepPeriod?.average_breath || null,
       
       // Stress metrics
       stress_high_time: stress?.stress_high || null,
