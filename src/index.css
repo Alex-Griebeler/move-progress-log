@@ -26,7 +26,7 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 100%;
 
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
+    --muted-foreground: 0 0% 35%; /* Melhorado de 45% para 35% - AUD-015 */
 
     /* Accent neutro */
     --accent: 0 0% 20%;
@@ -82,7 +82,7 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 98%;
 
     --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 65%;
+    --muted-foreground: 0 0% 70%; /* Melhorado de 65% para 70% - AUD-015 */
 
     --accent: 0 0% 30%;
     --accent-foreground: 0 0% 98%;

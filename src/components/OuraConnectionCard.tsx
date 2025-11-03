@@ -169,15 +169,17 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
                   onClick={handleSync}
                   disabled={syncOura.isPending}
                   className="flex-1"
+                  aria-label="Sincronizar dados do Oura Ring dos últimos 7 dias"
+                  title="Sincronizar dados do Oura Ring dos últimos 7 dias"
                 >
                   {syncOura.isPending ? (
                     <>
-                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                       Sincronizando...
                     </>
                   ) : (
                     <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
+                      <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
                       Sincronizar últimos 7 dias
                     </>
                   )}
@@ -186,8 +188,10 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
                   variant="destructive"
                   onClick={() => setShowDisconnectDialog(true)}
                   disabled={disconnectOura.isPending || syncOura.isPending}
+                  aria-label="Desconectar Oura Ring"
+                  title="Desconectar Oura Ring deste aluno"
                 >
-                  <Unlink className="h-4 w-4 mr-2" />
+                  <Unlink className="h-4 w-4 mr-2" aria-hidden="true" />
                   Desconectar
                 </Button>
               </div>

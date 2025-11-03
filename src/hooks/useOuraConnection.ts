@@ -130,13 +130,20 @@ export const useSyncOura = () => {
     onError: (error: Error) => {
       console.error("Oura sync error:", error);
       
-      const errorMessage = error.message.includes("Falha ao sincronizar todos")
-        ? "Não foi possível sincronizar nenhum dia"
-        : "Erro na sincronização";
+      const errorMessage = error.message || "Erro na sincronização";
+      const isAuthError = errorMessage.toLowerCase().includes('token') || 
+                         errorMessage.toLowerCase().includes('unauthorized') ||
+                         errorMessage.toLowerCase().includes('autenticação');
       
-      toast.error(errorMessage, {
-        description: "Verifique se o Oura Ring está sincronizado e tente novamente mais tarde."
-      });
+      const title = error.message.includes("Falha ao sincronizar todos")
+        ? "❌ Não foi possível sincronizar nenhum dia"
+        : "❌ Erro na sincronização";
+      
+      const description = isAuthError
+        ? "Token de autenticação expirado ou inválido. Reconecte o Oura Ring através de um novo link de convite."
+        : "Verifique se o Oura Ring está sincronizado e sua conexão com a internet. Tente novamente mais tarde.";
+      
+      toast.error(title, { description });
     },
   });
 };
