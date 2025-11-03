@@ -362,6 +362,50 @@ export type Database = {
           },
         ]
       }
+      oura_sync_logs: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          error_message: string | null
+          id: string
+          metrics_synced: Json | null
+          status: string
+          student_id: string
+          sync_date: string
+          sync_time: string
+        }
+        Insert: {
+          attempt_number?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metrics_synced?: Json | null
+          status: string
+          student_id: string
+          sync_date: string
+          sync_time?: string
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          metrics_synced?: Json | null
+          status?: string
+          student_id?: string
+          sync_date?: string
+          sync_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oura_sync_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oura_workouts: {
         Row: {
           activity: string

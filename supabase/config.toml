@@ -3,6 +3,9 @@ project_id = "zrgfrdmywxlemcuiqtqg"
 [functions.generate-protocol-recommendations]
 verify_jwt = true
 
+[functions.oura-sync-all]
+verify_jwt = false
+
 [functions.validate-student-invite]
 verify_jwt = false
 
