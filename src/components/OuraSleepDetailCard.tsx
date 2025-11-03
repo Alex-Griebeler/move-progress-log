@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Moon, Heart, Wind, Calendar } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Moon, Heart, Wind, Calendar, Info } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { LazyChart } from "./LazyChart";
@@ -35,6 +36,19 @@ const formatLatency = (seconds: number | null) => {
   if (!seconds) return "—";
   const minutes = Math.floor(seconds / 60);
   return `${minutes} min`;
+};
+
+const hasAnySleepData = (metrics: OuraMetrics) => {
+  return !!(
+    metrics.total_sleep_duration ||
+    metrics.deep_sleep_duration ||
+    metrics.rem_sleep_duration ||
+    metrics.light_sleep_duration ||
+    metrics.awake_time ||
+    metrics.sleep_efficiency ||
+    metrics.sleep_latency ||
+    metrics.lowest_heart_rate
+  );
 };
 
 export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
@@ -135,7 +149,7 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
         </div>
 
         {/* Sleep Quality Indicators */}
-        {(metrics.sleep_efficiency || metrics.deep_sleep_duration || metrics.rem_sleep_duration) ? (
+        {hasAnySleepData(metrics) ? (
           <div className="space-y-2">
             <p className="text-sm font-medium">Indicadores de Qualidade</p>
             <div className="flex flex-wrap gap-2">
@@ -157,11 +171,18 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
             </div>
           </div>
         ) : (
-          <div className="p-4 rounded-lg bg-muted/50 border border-dashed">
-            <p className="text-sm text-muted-foreground text-center">
-              💤 Os indicadores de qualidade do sono estarão disponíveis após a próxima sincronização do Oura Ring
-            </p>
-          </div>
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              <p className="font-semibold text-sm">Dados de sono em processamento</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                O Oura Ring processa métricas de sono algumas horas após você acordar e sincronizar o anel.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                💡 Sincronize novamente após o meio-dia ou ao final do dia para obter os dados completos.
+              </p>
+            </AlertDescription>
+          </Alert>
         )}
       </CardContent>
     </Card>
