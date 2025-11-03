@@ -40,6 +40,7 @@ const formatLatency = (seconds: number | null) => {
 
 const hasAnySleepData = (metrics: OuraMetrics) => {
   return !!(
+    metrics.sleep_score ||
     metrics.total_sleep_duration ||
     metrics.deep_sleep_duration ||
     metrics.rem_sleep_duration ||
