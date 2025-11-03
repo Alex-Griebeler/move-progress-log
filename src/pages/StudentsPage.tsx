@@ -68,6 +68,24 @@ const StudentsPage = () => {
       return 'text-red-500';
     };
 
+    const getReadinessLabel = (score: number | null | undefined) => {
+      if (!score) return 'Sem dados';
+      if (score >= 85) return 'Ótimo';
+      if (score >= 70) return 'Bom';
+      if (score >= 55) return 'Regular';
+      return 'Crítico';
+    };
+
+    const calculateIMC = () => {
+      if (student.weight_kg && student.height_cm) {
+        const heightM = student.height_cm / 100;
+        return (student.weight_kg / (heightM * heightM)).toFixed(1);
+      }
+      return null;
+    };
+
+    const imc = calculateIMC();
+
     return (
       <>
         <Card className="hover:shadow-lg transition-shadow">
@@ -80,43 +98,60 @@ const StudentsPage = () => {
               <span className="flex-1">{student.name}</span>
             </CardTitle>
             
-            <CardDescription className="space-y-2">
-              {/* Nível de Fitness */}
-              {student.fitness_level && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">Nível:</span>
-                  <Badge variant="outline" className="capitalize">
-                    {student.fitness_level}
-                  </Badge>
-                </div>
-              )}
-              
-              {/* Readiness Oura Ring */}
-              {readinessScore && (
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">Prontidão:</span>
-                  <span className={`font-bold ${getReadinessColor(readinessScore)}`}>
+            <CardDescription className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                {/* Nível de Fitness */}
+                {student.fitness_level && (
+                  <div className="flex flex-col">
+                    <span className="text-xs text-muted-foreground">Nível</span>
+                    <Badge variant="outline" className="capitalize w-fit mt-1">
+                      {student.fitness_level}
+                    </Badge>
+                  </div>
+                )}
+                
+                {/* IMC */}
+                {imc && (
+                  <div className="flex flex-col">
+                    <span className="text-xs text-muted-foreground">IMC</span>
+                    <span className="text-sm font-semibold mt-1">{imc}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Readiness Oura Ring - Destaque maior */}
+              {readinessScore ? (
+                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Prontidão</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {getReadinessLabel(readinessScore)}
+                    </Badge>
+                  </div>
+                  <span className={`text-xl font-bold ${getReadinessColor(readinessScore)}`}>
                     {readinessScore}%
                   </span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-dashed">
+                  <span className="text-xs text-muted-foreground">Sem dados de prontidão</span>
                 </div>
               )}
               
               {/* Observações Importantes */}
               {hasImportantObservations && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-3 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border border-amber-200"
-                    onClick={() => setShowObservationsDialog(true)}
-                  >
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    <span className="text-xs font-medium">
-                      {importantObservations.length} observação{importantObservations.length !== 1 ? 'ões' : ''}
-                    </span>
-                    <Info className="h-3 w-3 ml-2 opacity-70" />
-                  </Button>
-                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full h-9 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border border-amber-200"
+                  onClick={() => setShowObservationsDialog(true)}
+                >
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  <span className="text-xs font-medium">
+                    {importantObservations.length} observação{importantObservations.length !== 1 ? 'ões' : ''} importante{importantObservations.length !== 1 ? 's' : ''}
+                  </span>
+                  <Info className="h-3 w-3 ml-2 opacity-70" />
+                </Button>
               )}
             </CardDescription>
           </CardHeader>
