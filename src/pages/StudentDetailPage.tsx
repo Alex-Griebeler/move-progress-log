@@ -20,6 +20,7 @@ import { OuraSleepDetailCard } from "@/components/OuraSleepDetailCard";
 import { OuraStressCard } from "@/components/OuraStressCard";
 import { OuraWorkoutsCard } from "@/components/OuraWorkoutsCard";
 import { OuraAdvancedMetricsCard } from "@/components/OuraAdvancedMetricsCard";
+import { OuraApiDiagnosticsCard } from "@/components/OuraApiDiagnosticsCard";
 import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecommendationDialog";
 import PersonalizedTrainingDashboard from "@/components/PersonalizedTrainingDashboard";
 import { StudentObservationsCard } from "@/components/StudentObservationsCard";
@@ -378,6 +379,8 @@ const StudentDetailPage = () => {
           </div>
 
           <OuraConnectionCard studentId={id!} />
+          
+          <OuraApiDiagnosticsCard studentId={id!} />
 
           {loadingOuraMetrics ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
