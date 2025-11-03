@@ -73,10 +73,10 @@ const StudentDetailPage = () => {
   );
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")} aria-label="Voltar para lista de alunos">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Avatar className="h-16 w-16">

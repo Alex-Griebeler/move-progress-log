@@ -163,6 +163,7 @@ const StudentsPage = () => {
                 size="sm"
                 className="flex-1"
                 onClick={() => navigate(`/alunos/${student.id}`)}
+                aria-label={`Ver detalhes de ${student.name}`}
               >
                 <Eye className="h-4 w-4 mr-2" />
                 Detalhes
@@ -174,6 +175,8 @@ const StudentsPage = () => {
                   setRecordingStudentId(student.id);
                   setRecordingStudentName(student.name);
                 }}
+                aria-label={`Registrar sessão por voz para ${student.name}`}
+                title="Registrar sessão por voz"
               >
                 <Mic className="h-4 w-4" />
               </Button>
@@ -181,6 +184,8 @@ const StudentsPage = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setEditingStudent(student)}
+                aria-label={`Editar dados de ${student.name}`}
+                title="Editar aluno"
               >
                 <Edit className="h-4 w-4" />
               </Button>
@@ -188,6 +193,8 @@ const StudentsPage = () => {
                 variant="destructive"
                 size="sm"
                 onClick={() => setDeletingStudentId(student.id)}
+                aria-label={`Excluir ${student.name}`}
+                title="Excluir aluno"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -212,7 +219,7 @@ const StudentsPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-6">
+      <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
         <AppHeader
           title="Gestão de Alunos"
           subtitle="Gerencie os dados dos seus alunos"
@@ -237,7 +244,7 @@ const StudentsPage = () => {
                 </Button>
               </Link>
               <Link to="/">
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" aria-label="Voltar para página inicial">
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
               </Link>
