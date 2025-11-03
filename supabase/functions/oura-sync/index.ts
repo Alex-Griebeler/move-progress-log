@@ -143,7 +143,11 @@ Deno.serve(async (req) => {
     console.log('Sleep Periods:', {
       status: sleepPeriodsRes.status,
       count: sleepPeriodsData?.data?.length || 0,
-      has_durations: !!(sleepPeriodsData?.data?.[0]?.total_sleep_duration)
+      has_durations: !!(sleepPeriodsData?.data?.[0]?.total_sleep_duration),
+      raw_response: sleepPeriodsData?.data?.length > 0 
+        ? JSON.stringify(sleepPeriodsData.data[0], null, 2)
+        : 'NO DATA',
+      full_response: sleepPeriodsData ? JSON.stringify(sleepPeriodsData, null, 2).substring(0, 500) : 'NULL'
     });
     console.log('Activity:', {
       status: activityRes.status,
