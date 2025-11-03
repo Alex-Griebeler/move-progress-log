@@ -4,6 +4,18 @@
     <script>document.documentElement.classList.add('dark')</script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- AUD-S01: Content Security Policy para proteção contra XSS -->
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self'; 
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://js.stripe.com; 
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+                   font-src 'self' https://fonts.gstatic.com data:;
+                   img-src 'self' data: https: blob:; 
+                   connect-src 'self' https://*.supabase.co https://api.ouraring.com wss://*.supabase.co;
+                   frame-src 'self' https://js.stripe.com;
+                   worker-src 'self' blob:;">
+    
     <title>Fabrik Performance - Sistema de Registro de Treinos</title>
     <meta name="description" content="Sistema profissional de registro e acompanhamento de performance em exercícios físicos - Metodologia Fabrik">
     <meta name="author" content="Fabrik Performance" />

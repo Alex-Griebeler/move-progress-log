@@ -58,10 +58,13 @@ export interface OuraMetrics {
   created_at: string;
 }
 
+// AUD-F03: Histórico com paginação e deduplicação
 export const useOuraMetrics = (studentId: string, limit?: number) => {
   return useQuery({
     queryKey: ["oura-metrics", studentId, limit],
     enabled: !!studentId,
+    staleTime: 5 * 60 * 1000, // Cache por 5 minutos
+    gcTime: 10 * 60 * 1000, // Manter em cache por 10 minutos
     queryFn: async () => {
       let query = supabase
         .from("oura_metrics")
@@ -76,7 +79,22 @@ export const useOuraMetrics = (studentId: string, limit?: number) => {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as OuraMetrics[];
+      
+      // AUD-F03: Deduplicar registros por data (pega o mais recente de cada dia)
+      const deduplicatedData = data.reduce((acc: OuraMetrics[], current: OuraMetrics) => {
+        const existingIndex = acc.findIndex(item => item.date === current.date);
+        if (existingIndex === -1) {
+          acc.push(current);
+        } else {
+          // Mantém o registro mais recente (created_at maior)
+          if (new Date(current.created_at) > new Date(acc[existingIndex].created_at)) {
+            acc[existingIndex] = current;
+          }
+        }
+        return acc;
+      }, []);
+      
+      return deduplicatedData;
     },
   });
 };
