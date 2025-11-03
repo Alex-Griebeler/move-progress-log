@@ -242,6 +242,68 @@ const PersonalizedTrainingDashboard = ({
         </div>
       </Card>
 
+      {/* Protocolos Prioritários de Recuperação (RS < 25) */}
+      {recommendation.priorityProtocols && recommendation.priorityProtocols.length > 0 && (
+        <Card className="p-6 border-2 border-destructive/50 bg-destructive/5">
+          <div className="flex items-center space-x-2 mb-4">
+            <AlertCircle className="w-6 h-6 text-destructive" />
+            <h3 className="text-xl font-bold text-destructive">
+              Protocolos Prioritários de Recuperação
+            </h3>
+          </div>
+          
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>
+              <strong>⚠️ Situação Crítica:</strong> Seu corpo precisa de recuperação urgente. 
+              Os protocolos abaixo são validados cientificamente e têm efeitos mensuráveis em 24-72h. 
+              Priorize-os hoje.
+            </AlertDescription>
+          </Alert>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {recommendation.priorityProtocols.map((protocol) => (
+              <div 
+                key={protocol.order}
+                className="p-5 rounded-lg border-2 border-muted bg-background hover:border-primary/50 transition-colors"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className="text-lg font-bold">
+                      {protocol.order}
+                    </Badge>
+                    <h4 className="text-lg font-bold">{protocol.name}</h4>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-muted-foreground">⏱️ Duração:</span>
+                    <span className="font-semibold">{protocol.duration}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-muted-foreground">🕐 Melhor Horário:</span>
+                    <span className="font-semibold">{protocol.timing}</span>
+                  </div>
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {protocol.description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 p-4 bg-muted/30 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              <strong>💡 Dica:</strong> Estes protocolos foram selecionados com base em meta-análises 
+              peer-reviewed. Siga a ordem recomendada para máxima eficácia. Se o Readiness Score 
+              crítico persistir por 3+ dias, consulte um profissional de saúde.
+            </p>
+          </div>
+        </Card>
+      )}
+
       {/* Alertas */}
       {recommendation.alerts.length > 0 && (
         <div className="space-y-3">
