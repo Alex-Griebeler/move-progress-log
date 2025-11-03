@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { usePrescriptions } from "@/hooks/usePrescriptions";
 import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog";
 import { EditPrescriptionDialog } from "@/components/EditPrescriptionDialog";
@@ -10,6 +9,9 @@ import { AddWorkoutSessionDialog } from "@/components/AddWorkoutSessionDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
 import { AppHeader } from "@/components/AppHeader";
 import { PrescriptionCard } from "@/components/PrescriptionCard";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { EmptyState } from "@/components/EmptyState";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 export default function PrescriptionsPage() {
   const { data: prescriptions, isLoading } = usePrescriptions();
@@ -36,14 +38,21 @@ export default function PrescriptionsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div id="main-content" className="min-h-screen bg-background p-8" role="main">
       <div className="max-w-7xl mx-auto space-y-8">
+        <Breadcrumbs 
+          items={[
+            { label: "Prescrições de Treino" }
+          ]}
+        />
+        
         <AppHeader
           title="Prescrições de Treino"
           subtitle="Crie e gerencie prescrições de treino para seus alunos"
           actions={
             <Button
               onClick={() => setCreateDialogOpen(true)}
+              variant="gradient"
               className="gap-2"
               size="lg"
             >
@@ -54,11 +63,9 @@ export default function PrescriptionsPage() {
         />
 
         {isLoading ? (
-          <div className="text-center text-muted-foreground py-12">
-            Carregando prescrições...
-          </div>
+          <LoadingSpinner text="Carregando prescrições..." />
         ) : prescriptions && prescriptions.length > 0 ? (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-fade-in">
             {prescriptions.map((prescription) => (
               <PrescriptionCard
                 key={prescription.id}
@@ -70,21 +77,13 @@ export default function PrescriptionsPage() {
             ))}
           </div>
         ) : (
-          <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="rounded-full bg-muted p-3 mb-4">
-                <Plus className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Nenhuma prescrição criada</h3>
-              <p className="text-muted-foreground mb-4">
-                Crie sua primeira prescrição de treino para começar
-              </p>
-              <Button onClick={() => setCreateDialogOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Criar Prescrição
-              </Button>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Plus}
+            title="Nenhuma prescrição criada"
+            description="Crie sua primeira prescrição de treino para começar a atribuir exercícios e monitorar o progresso dos seus alunos."
+            actionLabel="Criar Primeira Prescrição"
+            onAction={() => setCreateDialogOpen(true)}
+          />
         )}
       </div>
 

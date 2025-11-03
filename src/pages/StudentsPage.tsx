@@ -19,6 +19,7 @@ import { useStudentImportantObservations } from "@/hooks/useStudentImportantObse
 import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
 import { Input } from "@/components/ui/input";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -220,6 +221,12 @@ const StudentsPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
+        <Breadcrumbs 
+          items={[
+            { label: "Alunos", href: "/alunos", icon: Users }
+          ]}
+        />
+        
         <AppHeader
           title="Gestão de Alunos"
           subtitle="Gerencie os dados dos seus alunos"

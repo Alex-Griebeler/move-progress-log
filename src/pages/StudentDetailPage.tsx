@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic } from "lucide-react";
+import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -28,6 +28,7 @@ import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -74,6 +75,13 @@ const StudentDetailPage = () => {
 
   return (
     <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
+      <Breadcrumbs 
+        items={[
+          { label: "Alunos", href: "/alunos", icon: Users },
+          { label: student.name }
+        ]}
+      />
+      
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")} aria-label="Voltar para lista de alunos">
