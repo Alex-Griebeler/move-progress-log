@@ -127,38 +127,38 @@ export function useTrainingRecommendation(
       emoji = '🔴';
     }
 
-    // 3.1 DEFINIR PROTOCOLOS PRIORITÁRIOS PARA RS CRÍTICO
+    // 3.1 PROTOCOLOS PRIORITÁRIOS PARA RS CRÍTICO (validados por meta-análises peer-reviewed)
     let priorityProtocols: TrainingRecommendation['priorityProtocols'] = undefined;
 
     if (recoveryScore < 25) {
       priorityProtocols = [
         {
           order: 1,
-          name: 'Coerência Cardíaca',
-          duration: '10-15 minutos',
-          timing: 'Manhã (primeiro ao acordar)',
-          description: 'Sincroniza respiração com batidas do coração. Acalma sistema nervoso rapidamente e reduz ansiedade.'
+          name: 'Contraste Térmico',
+          duration: '15 minutos',
+          timing: 'Pós-treino ou manhã',
+          description: 'Alternância água quente/fria. Reduz inflamação e acelera recuperação muscular (efeitos mensuráveis em 24-48h).'
         },
         {
           order: 2,
-          name: 'Grounding',
-          duration: '15-20 minutos',
-          timing: 'Manhã (após Coerência)',
-          description: 'Contato direto com terra/grama ao ar livre. Reduz inflamação sistêmica e estresse.'
+          name: 'Crioterapia',
+          duration: '10 minutos',
+          timing: 'Após atividade física',
+          description: 'Imersão em água fria. Reduz marcadores inflamatórios e acelera recuperação (efeitos em 24-72h).'
         },
         {
           order: 3,
-          name: 'Técnicas de Respiração',
-          duration: '5-10 minutos',
-          timing: 'Tarde (se necessário, 3x ao dia)',
-          description: 'Box Breathing ou 4-7-8. Reforça ativação parasimpática e reduz estresse agudo.'
+          name: 'Coerência Cardíaca',
+          duration: '10-15 minutos',
+          timing: 'Ao acordar',
+          description: 'Respiração 6 ciclos/min. Ativa sistema parassimpático e reduz cortisol imediatamente.'
         },
         {
           order: 4,
-          name: 'Mindfulness',
-          duration: '15-20 minutos',
-          timing: 'Noite (antes de dormir)',
-          description: 'Meditação para acalmar a mente. Prepara o corpo para sono restaurador.'
+          name: 'Grounding',
+          duration: '10 minutos',
+          timing: 'Manhã',
+          description: 'Contato descalço com superfície natural. Reduz cortisol e inflamação (efeitos mensuráveis em 24-72h).'
         }
       ];
     }
