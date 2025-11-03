@@ -383,11 +383,13 @@ const StudentDetailPage = () => {
 
           <OuraConnectionCard studentId={id!} />
           
-          {/* Status de conexão para todos os usuários */}
-          <OuraConnectionStatus 
-            studentId={id!} 
-            hasConnection={!!ouraConnection} 
-          />
+          {/* Status de conexão discreto apenas para alunos */}
+          {!isAdmin && (
+            <OuraConnectionStatus 
+              studentId={id!} 
+              hasConnection={!!ouraConnection} 
+            />
+          )}
           
           {/* Diagnóstico técnico apenas para admins */}
           {isAdmin && (
