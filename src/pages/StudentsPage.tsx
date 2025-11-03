@@ -94,7 +94,7 @@ const StudentsPage = () => {
               {/* Readiness Oura Ring */}
               {readinessScore && (
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="font-medium">Readiness:</span>
+                  <span className="font-medium">Prontidão:</span>
                   <span className={`font-bold ${getReadinessColor(readinessScore)}`}>
                     {readinessScore}%
                   </span>

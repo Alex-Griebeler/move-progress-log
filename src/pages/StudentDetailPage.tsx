@@ -127,6 +127,8 @@ const StudentDetailPage = () => {
             latestMetrics={latestOuraMetrics}
             recentMetrics={ouraMetrics || []}
             studentName={student.name}
+            studentId={student.id}
+            onStartTraining={() => setRecordSessionOpen(true)}
           />
         </TabsContent>
 

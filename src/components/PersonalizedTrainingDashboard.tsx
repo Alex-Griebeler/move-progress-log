@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -5,19 +6,33 @@ import { AlertCircle, Activity, Heart, Moon, TrendingUp, Target, Zap } from "luc
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
 import { Alert, AlertDescription } from "./ui/alert";
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle 
+} from "./ui/alert-dialog";
 
 interface PersonalizedTrainingDashboardProps {
   latestMetrics: OuraMetrics | null;
   recentMetrics: OuraMetrics[];
   studentName: string;
+  studentId: string;
+  onStartTraining?: () => void;
 }
 
 const PersonalizedTrainingDashboard = ({
   latestMetrics,
   recentMetrics,
-  studentName
+  studentName,
+  studentId,
+  onStartTraining
 }: PersonalizedTrainingDashboardProps) => {
   const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics);
+  const [showAlternatives, setShowAlternatives] = useState(false);
 
   if (!latestMetrics || !recommendation) {
     return (
@@ -42,6 +57,100 @@ const PersonalizedTrainingDashboard = ({
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}min`;
+  };
+
+  const getTrainingAlternatives = (rs: number) => {
+    if (rs >= 85) {
+      return [
+        { 
+          emoji: "🔥",
+          type: "Desafio Máximo Recomendado", 
+          description: "Dia perfeito para buscar novos recordes pessoais! Seu corpo está totalmente recuperado." 
+        },
+        { 
+          emoji: "💪",
+          type: "Treino Normal Intenso", 
+          description: "Execute treinos de alta intensidade com confiança. Sistema nervoso e muscular prontos." 
+        },
+        { 
+          emoji: "🎯",
+          type: "Volume Alto", 
+          description: "Ótimo dia para treinos longos ou múltiplas sessões." 
+        }
+      ];
+    } else if (rs >= 65) {
+      return [
+        { 
+          emoji: "💪",
+          type: "Treino Completo (Recomendado)", 
+          description: "Execute o treino programado normalmente. Corpo bem recuperado para cargas habituais." 
+        },
+        { 
+          emoji: "⚡",
+          type: "Redução Leve (10%)", 
+          description: "Se sentir fadiga durante o treino, reduza levemente o volume ou intensidade." 
+        },
+        { 
+          emoji: "🧘",
+          type: "Foco Técnico", 
+          description: "Priorize qualidade de movimento sobre carga máxima." 
+        }
+      ];
+    } else if (rs >= 45) {
+      return [
+        { 
+          emoji: "⚠️",
+          type: "Redução Moderada (Recomendado)", 
+          description: "Reduza 20-30% do volume ou intensidade. Corpo precisa de carga mais leve para continuar progredindo." 
+        },
+        { 
+          emoji: "🚶",
+          type: "Recuperação Ativa", 
+          description: "Alternativa mais segura: mobilidade leve, yoga ou caminhada. Mantém movimento sem estresse adicional." 
+        },
+        { 
+          emoji: "❌",
+          type: "Descanso Completo", 
+          description: "Se sentir sintomas de overtraining (fadiga intensa, dor persistente), opte por descanso." 
+        }
+      ];
+    } else if (rs >= 25) {
+      return [
+        { 
+          emoji: "🚶",
+          type: "Recuperação Ativa (Recomendado)", 
+          description: "Movimento leve apenas: alongamento dinâmico, yoga suave ou caminhada de 20-30 min." 
+        },
+        { 
+          emoji: "🛌",
+          type: "Descanso Completo", 
+          description: "Se sentir muito cansado, priorize descanso total. Corpo precisa de recuperação urgente." 
+        },
+        { 
+          emoji: "🧊",
+          type: "Protocolos de Recuperação", 
+          description: "Foque nos protocolos recomendados abaixo (crioterapia, respiração, mindfulness)." 
+        }
+      ];
+    } else {
+      return [
+        { 
+          emoji: "🛑",
+          type: "Descanso Obrigatório (CRÍTICO)", 
+          description: "Seu sistema nervoso está severamente sobrecarregado. Treinar hoje aumenta risco de lesão e piora a recuperação." 
+        },
+        { 
+          emoji: "🧊",
+          type: "Protocolos de Recuperação Urgente", 
+          description: "Foque 100% nos 4 protocolos prioritários listados abaixo. Eles têm efeito mensurável em 24-72h." 
+        },
+        { 
+          emoji: "🩺",
+          type: "Avaliação Médica", 
+          description: "Se RS crítico persistir por 3+ dias, considere consultar médico/fisioterapeuta." 
+        }
+      ];
+    }
   };
 
   return (
@@ -116,8 +225,19 @@ const PersonalizedTrainingDashboard = ({
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button className="flex-1">Iniciar Treino</Button>
-            <Button variant="outline" className="flex-1">Ver Alternativas</Button>
+            <Button 
+              className="flex-1"
+              onClick={() => onStartTraining?.()}
+            >
+              Iniciar Treino
+            </Button>
+            <Button 
+              variant="outline" 
+              className="flex-1"
+              onClick={() => setShowAlternatives(true)}
+            >
+              Ver Alternativas
+            </Button>
           </div>
         </div>
       </Card>
@@ -214,6 +334,37 @@ const PersonalizedTrainingDashboard = ({
           </div>
         </Card>
       </div>
+
+      {/* Dialog de Alternativas de Treino */}
+      <AlertDialog open={showAlternatives} onOpenChange={setShowAlternatives}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>🎯 Alternativas de Treino</AlertDialogTitle>
+            <AlertDialogDescription>
+              Com base no seu Readiness Score de <strong>{recommendation.recoveryScore}</strong>, 
+              aqui estão as opções disponíveis:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-3 my-4">
+            {getTrainingAlternatives(recommendation.recoveryScore).map((alt, idx) => (
+              <div key={idx} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">{alt.emoji}</span>
+                  <div>
+                    <h4 className="font-semibold text-base">{alt.type}</h4>
+                    <p className="text-sm text-muted-foreground mt-1">{alt.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogAction>Entendi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
