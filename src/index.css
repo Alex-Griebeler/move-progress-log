@@ -143,6 +143,46 @@ All colors MUST be HSL.
     color: hsl(var(--secondary-foreground));
   }
 
+  /* AUD-012: Melhorias de responsividade mobile */
+  @media (max-width: 375px) {
+    /* Ajustes para viewports pequenos (320-375px) */
+    body {
+      font-size: 14px;
+    }
+    
+    h1 {
+      font-size: 1.75rem !important; /* ~28px */
+    }
+    
+    h2 {
+      font-size: 1.5rem !important; /* ~24px */
+    }
+    
+    h3 {
+      font-size: 1.25rem !important; /* ~20px */
+    }
+    
+    /* Cards com padding reduzido */
+    .card {
+      padding: 12px;
+    }
+    
+    /* Botões ocupam largura total em mobile muito pequeno */
+    .mobile-full-width {
+      width: 100%;
+    }
+  }
+
+  /* Garantir que modais sejam fluidos */
+  @media (max-width: 640px) {
+    [role="dialog"], 
+    [data-radix-dialog-content] {
+      max-width: 95vw !important;
+      max-height: 90vh !important;
+      margin: 0 !important;
+    }
+  }
+
   /* Animações respeitam preferências do usuário */
   @media (prefers-reduced-motion: reduce) {
     *,

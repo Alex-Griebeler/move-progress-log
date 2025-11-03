@@ -198,7 +198,7 @@ export default function StudentOnboardingPage() {
                       {avatarPreview && (
                         <img
                           src={avatarPreview}
-                          alt="Preview"
+                          alt="Pré-visualização da foto de perfil selecionada"
                           className="h-16 w-16 rounded-full object-cover"
                         />
                       )}

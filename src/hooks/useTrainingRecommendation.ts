@@ -65,6 +65,16 @@ export function useTrainingRecommendation(
 
     const alerts: TrainingRecommendation['alerts'] = [];
 
+    // AUD-002: Validar histórico mínimo para cálculos confiáveis
+    const hasMinimumHistory = recentMetrics.length >= 7;
+    
+    if (!hasMinimumHistory && recentMetrics.length > 0) {
+      alerts.push({
+        level: 'INFO',
+        message: `ℹ️ Histórico em construção: Coletamos ${recentMetrics.length} dias de dados. Para recomendações mais precisas, aguarde pelo menos 7 dias de sincronização.`
+      });
+    }
+
     // 1. AVALIAÇÃO DE RECUPERAÇÃO GERAL
     // Usa diretamente o Readiness Score da Oura (já é uma métrica composta sofisticada)
     const recoveryScore = metrics.readiness_score || 50;
@@ -165,8 +175,8 @@ export function useTrainingRecommendation(
 
     // 4. GERAR ALERTAS ESPECÍFICOS
     
-    // HRV Baixa
-    if (metrics.average_sleep_hrv && metrics.average_sleep_hrv < history.avgHRV * 0.85) {
+    // HRV Baixa (só valida se tiver histórico mínimo - AUD-002)
+    if (hasMinimumHistory && metrics.average_sleep_hrv && metrics.average_sleep_hrv < history.avgHRV * 0.85) {
       if (metrics.average_sleep_hrv < history.avgHRV * 0.70) {
         alerts.push({
           level: 'CRITICAL',
@@ -180,8 +190,8 @@ export function useTrainingRecommendation(
       }
     }
 
-    // RHR Elevada
-    if (metrics.resting_heart_rate && metrics.resting_heart_rate > history.avgRHR + 5) {
+    // RHR Elevada (só valida se tiver histórico mínimo - AUD-002)
+    if (hasMinimumHistory && metrics.resting_heart_rate && metrics.resting_heart_rate > history.avgRHR + 5) {
       if (metrics.resting_heart_rate > history.avgRHR + 10) {
         alerts.push({
           level: 'CRITICAL',
