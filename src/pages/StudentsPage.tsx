@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search } from "lucide-react";
+import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
@@ -21,6 +21,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { Input } from "@/components/ui/input";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { OuraSyncAllButton } from "@/components/OuraSyncAllButton";
+import { useIsAdmin } from "@/hooks/useUserRole";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +36,7 @@ import {
 const StudentsPage = () => {
   const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();
+  const { isAdmin } = useIsAdmin();
   const deleteStudent = useDeleteStudent();
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
@@ -234,6 +236,14 @@ const StudentsPage = () => {
           actions={
             <>
               <OuraSyncAllButton />
+              {isAdmin && (
+                <Link to="/admin/diagnostico-oura">
+                  <Button variant="outline">
+                    <Shield className="h-4 w-4 mr-2" />
+                    Diagnóstico API
+                  </Button>
+                </Link>
+              )}
               <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Aluno

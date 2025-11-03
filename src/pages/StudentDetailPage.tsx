@@ -13,14 +13,16 @@ import WorkoutCard from "@/components/WorkoutCard";
 import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
 import TrainingZonesCard from "@/components/TrainingZonesCard";
 import ProtocolRecommendationsCard from "@/components/ProtocolRecommendationsCard";
-import OuraMetricsCard from "@/components/OuraMetricsCard";
 import { OuraConnectionCard } from "@/components/OuraConnectionCard";
-import { OuraActivityCard } from "@/components/OuraActivityCard";
+import OuraMetricsCard from "@/components/OuraMetricsCard";
 import { OuraSleepDetailCard } from "@/components/OuraSleepDetailCard";
-import { OuraStressCard } from "@/components/OuraStressCard";
+import { OuraActivityCard } from "@/components/OuraActivityCard";
 import { OuraWorkoutsCard } from "@/components/OuraWorkoutsCard";
+import { OuraStressCard } from "@/components/OuraStressCard";
 import { OuraAdvancedMetricsCard } from "@/components/OuraAdvancedMetricsCard";
 import { OuraApiDiagnosticsCard } from "@/components/OuraApiDiagnosticsCard";
+import { OuraConnectionStatus } from "@/components/OuraConnectionStatus";
+import { useIsAdmin } from "@/hooks/useUserRole";
 import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecommendationDialog";
 import PersonalizedTrainingDashboard from "@/components/PersonalizedTrainingDashboard";
 import { StudentObservationsCard } from "@/components/StudentObservationsCard";
@@ -40,6 +42,7 @@ const StudentDetailPage = () => {
   const { data: ouraMetrics, isLoading: loadingOuraMetrics } = useOuraMetrics(id!, 30);
   const { data: latestOuraMetrics } = useLatestOuraMetrics(id!);
   const { data: ouraConnection } = useOuraConnection(id!);
+  const { isAdmin } = useIsAdmin();
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
 
@@ -380,7 +383,16 @@ const StudentDetailPage = () => {
 
           <OuraConnectionCard studentId={id!} />
           
-          <OuraApiDiagnosticsCard studentId={id!} />
+          {/* Status de conexão para todos os usuários */}
+          <OuraConnectionStatus 
+            studentId={id!} 
+            hasConnection={!!ouraConnection} 
+          />
+          
+          {/* Diagnóstico técnico apenas para admins */}
+          {isAdmin && (
+            <OuraApiDiagnosticsCard studentId={id!} />
+          )}
 
           {loadingOuraMetrics ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
