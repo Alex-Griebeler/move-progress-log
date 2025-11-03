@@ -9,8 +9,20 @@ verify_jwt = false
 [functions.create-student-from-invite]
 verify_jwt = false
 
+[functions.generate-student-invite]
+verify_jwt = true
+
 [functions.oura-callback]
 verify_jwt = false
+
+[functions.oura-sync]
+verify_jwt = false
+
+[functions.oura-sync-test]
+verify_jwt = false
+
+[functions.oura-disconnect]
+verify_jwt = true
 
 [functions.suggest-regressions]
 verify_jwt = true

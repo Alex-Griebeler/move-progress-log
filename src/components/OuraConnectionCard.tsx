@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Unlink, Link2, Info, CheckCircle2, AlertCircle, WifiOff } from "lucide-react";
+import { RefreshCw, Unlink, Link2, Info, CheckCircle2, AlertCircle, WifiOff, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ import {
 } from "@/hooks/useOuraConnection";
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOfflineDetection } from "@/hooks/useOfflineSync";
+import { useOuraTestSync } from "@/hooks/useOuraTestSync";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -39,6 +40,7 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
   const { data: latestMetrics } = useLatestOuraMetrics(studentId);
   const syncOura = useSyncOura();
   const disconnectOura = useDisconnectOura();
+  const testSync = useOuraTestSync();
   const isOnline = useOfflineDetection();
 
   const handleSync = () => {
@@ -227,6 +229,22 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
                     </>
                   )}
                 </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => testSync.mutate(studentId)}
+                  disabled={testSync.isPending}
+                  aria-label="Testar sincronização com dados mock"
+                  title="🧪 Testar com dados mock do Oura para validar mapeamento de campos"
+                  className="px-3"
+                >
+                  {testSync.isPending ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <span className="text-lg">🧪</span>
+                  )}
+                </Button>
+                
                 <Button
                   variant="destructive"
                   onClick={() => setShowDisconnectDialog(true)}
