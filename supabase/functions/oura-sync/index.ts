@@ -100,29 +100,51 @@ Deno.serve(async (req) => {
     // Determine date to sync - CRITICAL: Calculate in user timezone (Brazil UTC-3)
     let syncDate: string;
     
+    // 🔍 DETAILED TIMEZONE DEBUG LOGGING
+    const nowUTC = new Date();
+    console.log('🕐 === DETAILED TIMEZONE CALCULATION START ===');
+    console.log('⏰ Current UTC Time:', nowUTC.toISOString());
+    console.log('⏰ Current UTC Date:', nowUTC.toISOString().split('T')[0]);
+    console.log('⏰ Current UTC Hours:', nowUTC.getUTCHours());
+    console.log('⏰ Current UTC Minutes:', nowUTC.getUTCMinutes());
+    console.log('🌎 Brazil Timezone: UTC-3 (3 hours behind UTC)');
+    
     if (date) {
       // If date is provided explicitly, use it
       syncDate = date;
-      console.log('📅 Using explicitly provided date:', syncDate);
+      console.log('📅 ✅ Using explicitly provided date:', syncDate);
+      console.log('⚠️  Skipping timezone calculation (date provided by caller)');
     } else {
       // Calculate today in Brazil timezone (UTC-3)
-      const nowUTC = new Date();
       const brazilOffsetMinutes = 3 * 60; // Brazil is UTC-3
-      const nowBrazil = new Date(nowUTC.getTime() - brazilOffsetMinutes * 60 * 1000);
-      syncDate = nowBrazil.toISOString().split('T')[0];
+      const brazilOffsetMs = brazilOffsetMinutes * 60 * 1000;
+      console.log('🧮 Calculating Brazil time...');
+      console.log('🧮 Offset in minutes:', brazilOffsetMinutes);
+      console.log('🧮 Offset in milliseconds:', brazilOffsetMs);
+      console.log('🧮 UTC timestamp (ms):', nowUTC.getTime());
       
-      console.log('🕐 TIMEZONE CALCULATION:', {
-        utc_time: nowUTC.toISOString(),
-        utc_date: nowUTC.toISOString().split('T')[0],
-        brazil_time: nowBrazil.toISOString(),
-        brazil_date: syncDate,
-        offset_applied: '-3 hours (Brazil)',
-        note: 'Using Brazil timezone for Oura API date parameter'
+      const nowBrazil = new Date(nowUTC.getTime() - brazilOffsetMs);
+      console.log('🇧🇷 Brazil Time (calculated):', nowBrazil.toISOString());
+      console.log('🇧🇷 Brazil Hours:', nowBrazil.getUTCHours(), '(should be 3 hours less than UTC)');
+      console.log('🇧🇷 Brazil Minutes:', nowBrazil.getUTCMinutes());
+      
+      syncDate = nowBrazil.toISOString().split('T')[0];
+      console.log('📅 Brazil Date extracted:', syncDate);
+      
+      console.log('✅ TIMEZONE CALCULATION COMPLETE:', {
+        utc_time_full: nowUTC.toISOString(),
+        utc_date_only: nowUTC.toISOString().split('T')[0],
+        brazil_time_full: nowBrazil.toISOString(),
+        brazil_date_only: syncDate,
+        offset_applied: '-3 hours (UTC-3)',
+        calculation: `${nowUTC.getTime()} - ${brazilOffsetMs} = ${nowBrazil.getTime()}`
       });
     }
     
-    console.log('📅 FINAL DATE BEING SENT TO OURA API:', syncDate);
-    console.log('⚠️  Oura API uses dates in user local timezone (Brazil UTC-3)');
+    console.log('🕐 === TIMEZONE CALCULATION END ===');
+    console.log('');
+    console.log('📅 🎯 FINAL DATE BEING SENT TO OURA API:', syncDate);
+    console.log('⚠️  Remember: Oura API expects dates in user local timezone (Brazil UTC-3)');
 
     // Fetch Oura data
     const headers = {
