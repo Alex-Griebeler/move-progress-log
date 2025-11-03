@@ -5,44 +5,53 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SkipToContent } from "@/components/SkipToContent";
-import Index from "./pages/Index";
-import StudentsPage from "./pages/StudentsPage";
-import StudentDetailPage from "./pages/StudentDetailPage";
-import StudentsComparisonPage from "./pages/StudentsComparisonPage";
-import ExercisesLibraryPage from "./pages/ExercisesLibraryPage";
-import PrescriptionsPage from "./pages/PrescriptionsPage";
-import RecoveryProtocolsPage from "./pages/RecoveryProtocolsPage";
-import AuthPage from "./pages/AuthPage";
-import StudentOnboardingPage from "./pages/StudentOnboardingPage";
-import OnboardingSuccessPage from "./pages/OnboardingSuccessPage";
-import OuraErrorPage from "./pages/OuraErrorPage";
-import NotFound from "./pages/NotFound";
+import { TrainingProvider } from "@/contexts/TrainingContext";
+import { lazy, Suspense } from "react";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+
+// AUD-009: Code splitting por rota para reduzir bundle size inicial
+const Index = lazy(() => import("./pages/Index"));
+const StudentsPage = lazy(() => import("./pages/StudentsPage"));
+const StudentDetailPage = lazy(() => import("./pages/StudentDetailPage"));
+const StudentsComparisonPage = lazy(() => import("./pages/StudentsComparisonPage"));
+const ExercisesLibraryPage = lazy(() => import("./pages/ExercisesLibraryPage"));
+const PrescriptionsPage = lazy(() => import("./pages/PrescriptionsPage"));
+const RecoveryProtocolsPage = lazy(() => import("./pages/RecoveryProtocolsPage"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const StudentOnboardingPage = lazy(() => import("./pages/StudentOnboardingPage"));
+const OnboardingSuccessPage = lazy(() => import("./pages/OnboardingSuccessPage"));
+const OuraErrorPage = lazy(() => import("./pages/OuraErrorPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <SkipToContent />
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
-          <Route path="/onboarding/success" element={<OnboardingSuccessPage />} />
-          <Route path="/onboarding/oura-error" element={<OuraErrorPage />} />
-          <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-          <Route path="/alunos" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
-          <Route path="/alunos/:id" element={<ProtectedRoute><StudentDetailPage /></ProtectedRoute>} />
-          <Route path="/alunos-comparacao" element={<ProtectedRoute><StudentsComparisonPage /></ProtectedRoute>} />
-          <Route path="/exercicios" element={<ProtectedRoute><ExercisesLibraryPage /></ProtectedRoute>} />
-          <Route path="/prescricoes" element={<ProtectedRoute><PrescriptionsPage /></ProtectedRoute>} />
-          <Route path="/protocolos" element={<ProtectedRoute><RecoveryProtocolsPage /></ProtectedRoute>} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <TrainingProvider>
+        <SkipToContent />
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>
+            <Routes>
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
+              <Route path="/onboarding/success" element={<OnboardingSuccessPage />} />
+              <Route path="/onboarding/oura-error" element={<OuraErrorPage />} />
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/alunos" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
+              <Route path="/alunos/:id" element={<ProtectedRoute><StudentDetailPage /></ProtectedRoute>} />
+              <Route path="/alunos-comparacao" element={<ProtectedRoute><StudentsComparisonPage /></ProtectedRoute>} />
+              <Route path="/exercicios" element={<ProtectedRoute><ExercisesLibraryPage /></ProtectedRoute>} />
+              <Route path="/prescricoes" element={<ProtectedRoute><PrescriptionsPage /></ProtectedRoute>} />
+              <Route path="/protocolos" element={<ProtectedRoute><RecoveryProtocolsPage /></ProtectedRoute>} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </TrainingProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

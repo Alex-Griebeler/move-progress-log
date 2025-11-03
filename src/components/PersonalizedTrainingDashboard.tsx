@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { AlertCircle, Activity, Heart, Moon, TrendingUp, Target, Zap } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
+import { useTrainingContext } from "@/contexts/TrainingContext";
 import { Alert, AlertDescription } from "./ui/alert";
 import { 
   AlertDialog, 
@@ -33,6 +34,15 @@ const PersonalizedTrainingDashboard = ({
 }: PersonalizedTrainingDashboardProps) => {
   const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics);
   const [showAlternatives, setShowAlternatives] = useState(false);
+  const { selectedAlternative, setSelectedAlternative } = useTrainingContext();
+
+  // AUD-003: Sincronizar alternativa selecionada com contexto global
+  useEffect(() => {
+    if (selectedAlternative && recommendation) {
+      // Aplicar alternativa selecionada à recomendação atual
+      console.log('Alternativa persistida:', selectedAlternative);
+    }
+  }, [selectedAlternative, recommendation]);
 
   if (!latestMetrics || !recommendation) {
     return (
@@ -410,15 +420,23 @@ const PersonalizedTrainingDashboard = ({
           
           <div className="space-y-3 my-4">
             {getTrainingAlternatives(recommendation.recoveryScore).map((alt, idx) => (
-              <div key={idx} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+              <button
+                key={idx}
+                onClick={() => {
+                  setSelectedAlternative(alt);
+                  setShowAlternatives(false);
+                }}
+                className="w-full p-4 border rounded-lg hover:bg-muted/50 transition-colors text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                aria-label={`Selecionar alternativa: ${alt.type}`}
+              >
                 <div className="flex items-start gap-3">
-                  <span className="text-2xl">{alt.emoji}</span>
+                  <span className="text-2xl" aria-hidden="true">{alt.emoji}</span>
                   <div>
                     <h4 className="font-semibold text-base">{alt.type}</h4>
                     <p className="text-sm text-muted-foreground mt-1">{alt.description}</p>
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
           

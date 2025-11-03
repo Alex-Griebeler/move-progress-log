@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Brain, TrendingDown, TrendingUp, Calendar } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+import { LazyChart } from "./LazyChart";
 import { translateDaySummary } from "@/utils/ouraTranslations";
 import { formatLocalDate } from "@/utils/dateUtils";
 
@@ -124,14 +125,16 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
         {stressData.length > 0 && (
           <div>
             <p className="text-sm font-medium mb-3">Distribuição do Tempo (minutos)</p>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={stressData}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip formatter={(value: number) => `${Math.round(value)} min`} />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <LazyChart height={200}>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={stressData}>
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip formatter={(value: number) => `${Math.round(value)} min`} />
+                  <Bar dataKey="value" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </LazyChart>
           </div>
         )}
 

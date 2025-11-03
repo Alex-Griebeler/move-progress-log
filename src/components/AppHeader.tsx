@@ -38,8 +38,9 @@ export const AppHeader = ({
         <Link to="/" className="flex items-center gap-4 hover:opacity-80 transition-opacity">
           <img 
             src={logoFabrik} 
-            alt="Logo Fabrik Performance" 
+            alt="Logo Fabrik Performance - Studio boutique de treinamento funcional" 
             className="h-12 md:h-14 w-auto object-contain"
+            loading="eager"
           />
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-primary tracking-tight">

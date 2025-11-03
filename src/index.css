@@ -183,6 +183,40 @@ All colors MUST be HSL.
     }
   }
 
+  /* AUD-006: Alinhamento Visual Consistente */
+  .space-y-1 > * + * {
+    margin-top: 0.25rem;
+  }
+  
+  .space-y-2 > * + * {
+    margin-top: 0.5rem;
+  }
+  
+  .space-y-3 > * + * {
+    margin-top: 0.75rem;
+  }
+  
+  .space-y-4 > * + * {
+    margin-top: 1rem;
+  }
+  
+  .space-y-6 > * + * {
+    margin-top: 1.5rem;
+  }
+  
+  /* Alinhamento de ícones com texto */
+  .icon-text-align {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    gap: 0.5rem;
+  }
+  
+  /* Cards com espaçamento consistente */
+  .card {
+    @apply rounded-lg border bg-card text-card-foreground shadow-sm;
+  }
+
   /* Animações respeitam preferências do usuário */
   @media (prefers-reduced-motion: reduce) {
     *,

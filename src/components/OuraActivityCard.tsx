@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Activity, Footprints, Flame, Clock, TrendingUp, Calendar } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+import { LazyChart } from "./LazyChart";
 import { formatLocalDate } from "@/utils/dateUtils";
 
 interface OuraActivityCardProps {
@@ -150,36 +151,38 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
         {activityData.length > 0 && (
           <div>
             <p className="text-sm font-medium mb-3">Distribuição do Tempo</p>
-            <div className="flex items-center gap-4">
-              <ResponsiveContainer width={120} height={120}>
-                <PieChart>
-                  <Pie
-                    data={activityData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={30}
-                    outerRadius={50}
-                  >
-                    {activityData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex-1 space-y-2">
-                {activityData.map((item) => (
-                  <div key={item.name} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                      <span>{item.name}</span>
+            <LazyChart height={120}>
+              <div className="flex items-center gap-4">
+                <ResponsiveContainer width={120} height={120}>
+                  <PieChart>
+                    <Pie
+                      data={activityData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={30}
+                      outerRadius={50}
+                    >
+                      {activityData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex-1 space-y-2">
+                  {activityData.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span>{item.name}</span>
+                      </div>
+                      <span className="font-medium">{formatTime(item.value)}</span>
                     </div>
-                    <span className="font-medium">{formatTime(item.value)}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            </LazyChart>
           </div>
         )}
 
