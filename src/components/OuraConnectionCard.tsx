@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Unlink, Link2, Info, CheckCircle2 } from "lucide-react";
+import { RefreshCw, Unlink, Link2, Info, CheckCircle2, AlertCircle, WifiOff } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import {
   useDisconnectOura,
 } from "@/hooks/useOuraConnection";
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
+import { useOfflineDetection } from "@/hooks/useOfflineSync";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -32,15 +33,18 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStatus, setSyncStatus] = useState<string>("");
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const { data: connection, isLoading } = useOuraConnection(studentId);
   const { data: latestMetrics } = useLatestOuraMetrics(studentId);
   const syncOura = useSyncOura();
   const disconnectOura = useDisconnectOura();
+  const isOnline = useOfflineDetection();
 
   const handleSync = () => {
     setSyncProgress(0);
     setSyncStatus("Iniciando sincronização...");
+    setSyncError(null); // Limpar erro anterior
     
     syncOura.mutate(
       { 
@@ -55,14 +59,18 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
         onSuccess: () => {
           setSyncProgress(100);
           setSyncStatus("Sincronização concluída!");
+          setSyncError(null);
           setTimeout(() => {
             setSyncProgress(0);
             setSyncStatus("");
           }, 2000);
         },
-        onError: () => {
+        onError: (error) => {
           setSyncProgress(0);
           setSyncStatus("");
+          setSyncError(error.message);
+          // Limpar erro automaticamente após 10 segundos
+          setTimeout(() => setSyncError(null), 10000);
         }
       }
     );
@@ -118,6 +126,41 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
             </div>
           ) : (
             <div className="space-y-3">
+              {/* Alerta de modo offline */}
+              {!isOnline && (
+                <Alert variant="destructive">
+                  <WifiOff className="h-4 w-4" />
+                  <AlertDescription>
+                    <p className="font-semibold">Você está offline</p>
+                    <p className="text-sm">
+                      Mostrando dados em cache. Conecte-se à internet para
+                      sincronizar novos dados.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Alerta de erro persistente com botão "Tentar novamente" */}
+              {syncError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <p className="font-semibold">Erro na sincronização</p>
+                    <p className="text-sm mb-2">{syncError}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleSync}
+                      disabled={syncOura.isPending}
+                      className="mt-1"
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Tentar novamente
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {!latestMetrics && (
                 <Alert>
                   <Info className="h-4 w-4" />
