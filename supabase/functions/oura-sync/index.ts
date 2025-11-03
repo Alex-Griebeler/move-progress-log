@@ -97,14 +97,44 @@ Deno.serve(async (req) => {
       console.log('Token refreshed successfully');
     }
 
-    // Determine date to sync
-    const syncDate = date || new Date().toISOString().split('T')[0];
+    // Determine date to sync - CRITICAL: Calculate in user timezone (Brazil UTC-3)
+    let syncDate: string;
+    
+    if (date) {
+      // If date is provided explicitly, use it
+      syncDate = date;
+      console.log('📅 Using explicitly provided date:', syncDate);
+    } else {
+      // Calculate today in Brazil timezone (UTC-3)
+      const nowUTC = new Date();
+      const brazilOffsetMinutes = 3 * 60; // Brazil is UTC-3
+      const nowBrazil = new Date(nowUTC.getTime() - brazilOffsetMinutes * 60 * 1000);
+      syncDate = nowBrazil.toISOString().split('T')[0];
+      
+      console.log('🕐 TIMEZONE CALCULATION:', {
+        utc_time: nowUTC.toISOString(),
+        utc_date: nowUTC.toISOString().split('T')[0],
+        brazil_time: nowBrazil.toISOString(),
+        brazil_date: syncDate,
+        offset_applied: '-3 hours (Brazil)',
+        note: 'Using Brazil timezone for Oura API date parameter'
+      });
+    }
+    
+    console.log('📅 FINAL DATE BEING SENT TO OURA API:', syncDate);
+    console.log('⚠️  Oura API uses dates in user local timezone (Brazil UTC-3)');
 
     // Fetch Oura data
     const headers = {
       Authorization: `Bearer ${accessToken}`,
     };
 
+    console.log('🌐 API ENDPOINTS BEING CALLED:');
+    console.log(`  Daily Readiness: https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${syncDate}&end_date=${syncDate}`);
+    console.log(`  Daily Sleep: https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${syncDate}&end_date=${syncDate}`);
+    console.log(`  Sleep Periods: https://api.ouraring.com/v2/usercollection/sleep?start_date=${syncDate}&end_date=${syncDate}`);
+    console.log(`  Activity: https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${syncDate}&end_date=${syncDate}`);
+    
     const [readinessRes, dailySleepRes, sleepPeriodsRes, heartrateRes, activityRes, workoutsRes, stressRes, spo2Res, vo2Res, resilienceRes] = await Promise.all([
       fetch(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
       fetch(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }),

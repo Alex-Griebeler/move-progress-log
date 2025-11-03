@@ -92,14 +92,25 @@ export const useSyncOura = () => {
         });
         return data;
       } else {
-        // Multiple days sync with progress tracking
+        // Multiple days sync with progress tracking - FIXED: Use Brazil timezone
         const results = [];
         let completed = 0;
 
         for (let i = 0; i < days; i++) {
-          const syncDate = new Date();
-          syncDate.setDate(syncDate.getDate() - i);
-          const dateStr = syncDate.toISOString().split("T")[0];
+          // Calculate date in Brazil timezone (UTC-3)
+          const nowUTC = new Date();
+          const brazilOffsetMinutes = 3 * 60;
+          const syncDateBrazil = new Date(nowUTC.getTime() - brazilOffsetMinutes * 60 * 1000);
+          syncDateBrazil.setDate(syncDateBrazil.getDate() - i);
+          const dateStr = syncDateBrazil.toISOString().split("T")[0];
+          
+          console.log(`🔍 FRONTEND DATE (Brazil timezone, day ${i + 1}/${days}):`, {
+            iteration: i,
+            utc_time: nowUTC.toISOString(),
+            brazil_time: syncDateBrazil.toISOString(),
+            date_sent_to_api: dateStr,
+            offset_applied: '-3 hours (Brazil UTC-3)',
+          });
 
           try {
             const data = await invokeWithTimeout("oura-sync", {
