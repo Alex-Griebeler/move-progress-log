@@ -18,6 +18,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 
 interface StudentStats {
   studentId: string;
@@ -200,8 +202,15 @@ const StudentsComparisonPage = () => {
   }, [students, selectedStudents]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div id="main-content" className="min-h-screen bg-background" role="main">
       <div className="container mx-auto p-6 space-y-6">
+        <Breadcrumbs 
+          items={[
+            { label: "Alunos", href: "/alunos" },
+            { label: "Comparação de Alunos" }
+          ]}
+        />
+        
         <AppHeader
           title="Comparação de Alunos"
           subtitle="Visualize e compare dados de até 10 alunos simultaneamente"
@@ -344,14 +353,7 @@ const StudentsComparisonPage = () => {
             <CardContent>
               <ScrollArea className="h-[600px] pr-4">
                 {studentsLoading ? (
-                  <div className="space-y-3">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="flex items-center gap-3">
-                        <Skeleton className="h-5 w-5" />
-                        <Skeleton className="h-5 flex-1" />
-                      </div>
-                    ))}
-                  </div>
+                  <LoadingSpinner size="sm" text="Carregando alunos..." />
                 ) : (
                   <div className="space-y-3">
                     {students?.map((student) => (
@@ -408,13 +410,10 @@ const StudentsComparisonPage = () => {
                           </Button>
                         </div>
                       </CardHeader>
-                      <CardContent>
-                        {statsLoading ? (
-                          <div className="space-y-3">
-                            <Skeleton className="h-12 w-full" />
-                            <Skeleton className="h-32 w-full" />
-                          </div>
-                        ) : (
+                       <CardContent>
+                         {statsLoading ? (
+                           <LoadingSpinner size="sm" text="Carregando estatísticas..." />
+                         ) : (
                           <Tabs defaultValue="summary" className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                               <TabsTrigger value="summary">Resumo</TabsTrigger>

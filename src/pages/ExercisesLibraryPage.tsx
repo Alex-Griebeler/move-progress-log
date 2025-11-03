@@ -38,6 +38,9 @@ import {
 } from "@/hooks/useExercisesLibrary";
 import { populateExercisesLibrary } from "@/utils/populateExercises";
 import { toast } from "sonner";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function ExercisesLibraryPage() {
   const [filters, setFilters] = useState<ExerciseFilters>({});
@@ -89,7 +92,13 @@ export default function ExercisesLibraryPage() {
   );
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
+      <Breadcrumbs 
+        items={[
+          { label: "Biblioteca de Exercícios" }
+        ]}
+      />
+      
       <AppHeader
         title="Biblioteca de Exercícios"
         subtitle="Gerencie exercícios com classificações por padrões de movimento"
@@ -265,29 +274,19 @@ export default function ExercisesLibraryPage() {
 
       {/* Exercise List */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <LoadingSpinner text="Carregando exercícios..." />
       ) : !filteredExercises || filteredExercises.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
-              {hasActiveFilters
-                ? "Nenhum exercício encontrado com os filtros selecionados."
-                : "Nenhum exercício cadastrado. Adicione o primeiro exercício à biblioteca!"}
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Database}
+          title={hasActiveFilters ? "Nenhum exercício encontrado" : "Nenhum exercício cadastrado"}
+          description={
+            hasActiveFilters
+              ? "Tente ajustar os filtros ou limpar para ver todos os exercícios disponíveis."
+              : "Adicione exercícios à biblioteca ou importe exercícios pré-configurados para começar."
+          }
+          actionLabel={hasActiveFilters ? undefined : "Importar Exercícios"}
+          onAction={hasActiveFilters ? undefined : handlePopulateDatabase}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredExercises.map((exercise) => (

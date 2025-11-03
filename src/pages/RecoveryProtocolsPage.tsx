@@ -6,6 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppHeader } from "@/components/AppHeader";
 import { Heart, Sparkles } from "lucide-react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { EmptyState } from "@/components/EmptyState";
 
 const RecoveryProtocolsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
@@ -18,8 +21,14 @@ const RecoveryProtocolsPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div id="main-content" className="min-h-screen bg-background" role="main">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
+        <Breadcrumbs 
+          items={[
+            { label: "Protocolos de Recuperação" }
+          ]}
+        />
+        
         <AppHeader
           title="Protocolos de Recuperação"
           subtitle="Biblioteca completa baseada em evidências científicas"
@@ -28,17 +37,13 @@ const RecoveryProtocolsPage = () => {
         <div className="space-y-6">
 
       {isLoading ? (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i}>
-              <CardContent className="p-6 space-y-4">
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <Skeleton className="h-20 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <LoadingSpinner text="Carregando protocolos..." />
+      ) : !protocols || protocols.length === 0 ? (
+        <EmptyState
+          icon={Heart}
+          title="Nenhum protocolo disponível"
+          description="Os protocolos de recuperação baseados em evidências científicas serão carregados em breve."
+        />
       ) : (
         <Tabs defaultValue="all" className="space-y-6">
           <TabsList className="grid w-full grid-cols-5">

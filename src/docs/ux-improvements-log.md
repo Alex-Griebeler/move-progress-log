@@ -32,6 +32,9 @@ Melhorar a experiência do usuário através de componentes reutilizáveis, nave
 - ✅ PrescriptionsPage
 - ✅ StudentsPage
 - ✅ StudentDetailPage
+- ✅ ExercisesLibraryPage
+- ✅ RecoveryProtocolsPage
+- ✅ StudentsComparisonPage
 
 **Impacto:**
 - Reduz desorientação em 40%
@@ -92,6 +95,8 @@ Melhorar a experiência do usuário através de componentes reutilizáveis, nave
 
 **Implementado em:**
 - ✅ PrescriptionsPage
+- ✅ ExercisesLibraryPage (com ações contextuais)
+- ✅ RecoveryProtocolsPage
 
 **Impacto:**
 - +35% de conversão em ações primárias
