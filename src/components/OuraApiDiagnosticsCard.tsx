@@ -1,8 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, AlertCircle } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Clock } from "lucide-react";
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraWorkouts } from "@/hooks/useOuraWorkouts";
+import { useOuraSyncLogs } from "@/hooks/useOuraSyncLogs";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface OuraApiDiagnosticsCardProps {
   studentId: string;
@@ -18,6 +21,7 @@ interface EndpointStatus {
 export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProps) => {
   const { data: metrics } = useLatestOuraMetrics(studentId);
   const { data: workouts } = useOuraWorkouts(studentId, 1);
+  const { data: syncLogs } = useOuraSyncLogs(studentId, 5);
 
   const getEndpointStatuses = (): EndpointStatus[] => {
     if (!metrics) {
@@ -206,6 +210,51 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
             <li>• Configurações da conta Oura ou permissões OAuth</li>
           </ul>
         </div>
+
+        {/* Histórico de Sincronizações */}
+        {syncLogs && syncLogs.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <h4 className="text-sm font-semibold">📋 Histórico de Sincronizações</h4>
+            <div className="space-y-2">
+              {syncLogs.map((log) => (
+                <div
+                  key={log.id}
+                  className="flex items-start gap-2 p-2 rounded-lg border bg-card text-xs"
+                >
+                  <div className="mt-0.5">
+                    {log.status === 'success' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                    {log.status === 'failed' && <XCircle className="h-4 w-4 text-red-500" />}
+                    {log.status === 'retrying' && <Clock className="h-4 w-4 text-yellow-500" />}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">
+                        {format(new Date(log.sync_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </span>
+                      <Badge 
+                        className={
+                          log.status === 'success' ? 'bg-green-500' :
+                          log.status === 'failed' ? 'bg-red-500' : 'bg-yellow-500'
+                        }
+                      >
+                        {log.status === 'success' ? 'Sucesso' :
+                         log.status === 'failed' ? 'Falhou' : 'Tentando'}
+                      </Badge>
+                      {log.attempt_number > 1 && (
+                        <span className="text-muted-foreground">
+                          (Tentativa {log.attempt_number})
+                        </span>
+                      )}
+                    </div>
+                    {log.error_message && (
+                      <p className="text-red-500 mt-1">{log.error_message}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

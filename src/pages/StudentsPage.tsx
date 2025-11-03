@@ -20,6 +20,7 @@ import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
 import { Input } from "@/components/ui/input";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { OuraSyncAllButton } from "@/components/OuraSyncAllButton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -232,6 +233,7 @@ const StudentsPage = () => {
           subtitle="Gerencie os dados dos seus alunos"
           actions={
             <>
+              <OuraSyncAllButton />
               <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Adicionar Aluno
