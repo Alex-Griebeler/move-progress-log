@@ -35,22 +35,25 @@ export const Breadcrumbs = ({ items, className }: BreadcrumbsProps) => {
         return (
           <div key={index} className="flex items-center gap-2">
             <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            {isLast ? (
-              <span 
-                className="font-medium text-foreground flex items-center gap-1"
-                aria-current="page"
-              >
-                {Icon && <Icon className="h-4 w-4" />}
-                {item.label}
-              </span>
-            ) : (
+            {item.href && !isLast ? (
               <Link
-                to={item.href || "#"}
+                to={item.href}
                 className="hover:text-foreground transition-colors flex items-center gap-1"
               >
-                {Icon && <Icon className="h-4 w-4" />}
+                {Icon && <Icon className="h-4 w-4" aria-hidden="true" />}
                 {item.label}
               </Link>
+            ) : (
+              <span 
+                className={cn(
+                  "flex items-center gap-1",
+                  isLast && "font-medium text-foreground"
+                )}
+                aria-current={isLast ? "page" : undefined}
+              >
+                {Icon && <Icon className="h-4 w-4" aria-hidden="true" />}
+                {item.label}
+              </span>
             )}
           </div>
         );
