@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { AppHeader } from "@/components/AppHeader";
@@ -144,10 +144,20 @@ export default function AdminUsersPage() {
       
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Gestão de Usuários</h1>
-          <p className="text-muted-foreground">
-            Gerencie contas, perfis e permissões do sistema
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Gestão de Usuários</h1>
+              <p className="text-muted-foreground">
+                Gerencie contas, perfis e permissões do sistema (trainers e admins)
+              </p>
+            </div>
+            <Link to="/alunos">
+              <Button variant="outline">
+                <Users className="h-4 w-4 mr-2" />
+                Ver Alunos
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Stats Cards */}
