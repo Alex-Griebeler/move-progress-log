@@ -17,7 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Mic, User, AlertTriangle, XCircle, Save, Edit, Trash, Pencil, ChevronLeft, ChevronRight, Plus, CheckCircle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 interface RecordGroupSessionDialogProps {
   open: boolean;
@@ -124,8 +125,7 @@ export function RecordGroupSessionDialog({
   const { data: assignments } = usePrescriptionAssignments(prescriptionId);
   const { data: prescriptionDetails } = usePrescriptionDetails(prescriptionId);
   const createGroupSessions = useCreateGroupWorkoutSessions();
-  const { toast } = useToast();
-
+  
   // 🔍 DEBUG: Monitorar mudanças de estado
   useEffect(() => {
     console.log("🔄 Dialog State mudou para:", dialogState);
@@ -321,9 +321,8 @@ export function RecordGroupSessionDialog({
       
       if (newStudents.length > 0) {
         setSelectedStudents(prev => [...prev, ...newStudents]);
-        toast({
-          title: "Alunos adicionados automaticamente",
-          description: `${newStudents.map(s => s.name).join(", ")} foram adicionados à sessão`,
+        notify.success(i18n.modules.workouts.studentsAutoAdded, {
+          description: `${newStudents.map(s => s.name).join(", ")} ${i18n.modules.workouts.studentsWereAdded}`,
         });
       }
     } catch (error) {
@@ -386,10 +385,8 @@ export function RecordGroupSessionDialog({
 
   const handleError = (error: string) => {
     console.error("❌ handleError chamado:", error);
-    toast({
-      title: "Erro na gravação",
+    notify.error(i18n.modules.workouts.recordingError, {
       description: error,
-      variant: "destructive"
     });
     // Não voltar para 'selecting' imediatamente - permitir retry
     setDialogState('recording');
@@ -467,10 +464,8 @@ export function RecordGroupSessionDialog({
               
             if (error) {
               console.error('Error saving clinical observations:', error);
-              toast({
-                title: "Aviso",
-                description: `Observações clínicas de ${student.name} não foram salvas`,
-                variant: "destructive"
+              notify.error(i18n.modules.workouts.warning, {
+                description: `${i18n.modules.workouts.clinicalObservationsNotSaved}: ${student.name}`,
               });
             }
           }
@@ -489,10 +484,8 @@ export function RecordGroupSessionDialog({
 
   const handleAddAnotherRecording = () => {
     if (accumulatedRecordings.length >= MAX_RECORDINGS) {
-      toast({
-        title: "Limite atingido",
-        description: `Máximo de ${MAX_RECORDINGS} gravações por sessão`,
-        variant: "destructive"
+      notify.warning(i18n.modules.workouts.limitReached, {
+        description: i18n.modules.workouts.maxRecordings.replace('{{max}}', MAX_RECORDINGS.toString()),
       });
       return;
     }
@@ -1087,8 +1080,7 @@ export function RecordGroupSessionDialog({
                                   const updated = [...editableExercises];
                                   updated[idx].load_kg = calculated;
                                   setEditableExercises(updated);
-                                  toast({
-                                    title: "Carga calculada",
+                                  notify.info("Carga calculada", {
                                     description: `${calculated} kg`
                                   });
                                 }

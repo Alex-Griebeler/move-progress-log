@@ -13,7 +13,8 @@ import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { supabase } from "@/integrations/supabase/client";
 import { Mic, Save } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 import { useQuery } from "@tanstack/react-query";
 
 interface RecordIndividualSessionDialogProps {
@@ -94,7 +95,6 @@ export function RecordIndividualSessionDialog({
 
   const { data: assignments } = usePrescriptionAssignments(studentId);
   const createSession = useCreateWorkoutSession();
-  const { toast } = useToast();
 
   // Buscar prescrições com nomes
   const { data: prescriptions } = useQuery({
@@ -201,10 +201,8 @@ export function RecordIndividualSessionDialog({
 
   const handleError = (error: string) => {
     console.error("❌ handleError chamado:", error);
-    toast({
-      title: "Erro na gravação",
+    notify.error(i18n.modules.workouts.recordingError, {
       description: error,
-      variant: "destructive",
     });
     // Não voltar para 'setup' imediatamente - permitir retry
     setDialogState('recording');
@@ -262,28 +260,23 @@ export function RecordIndividualSessionDialog({
         if (observationsError) throw observationsError;
       }
 
-      toast({
-        title: "Sessão registrada",
-        description: `${accumulatedRecordings.length} gravação(ões) processada(s) com sucesso`,
+      notify.success(i18n.modules.workouts.sessionCreated, {
+        description: `${accumulatedRecordings.length} ${i18n.modules.workouts.recording}`,
       });
 
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error saving session:', error);
-      toast({
-        title: "Erro ao salvar",
+      notify.error(i18n.feedback.genericError, {
         description: error.message,
-        variant: "destructive",
       });
     }
   };
 
   const handleAddAnotherRecording = () => {
     if (accumulatedRecordings.length >= MAX_RECORDINGS) {
-      toast({
-        title: "Limite atingido",
-        description: `Máximo de ${MAX_RECORDINGS} gravações por sessão`,
-        variant: "destructive"
+      notify.warning(i18n.modules.workouts.limitReached, {
+        description: i18n.modules.workouts.maxRecordings.replace('{{max}}', MAX_RECORDINGS.toString()),
       });
       return;
     }
@@ -874,8 +867,7 @@ export function RecordIndividualSessionDialog({
                     });
                   }
                   setDialogState('preview');
-                  toast({
-                    title: "Edições aplicadas",
+                  notify.success("Edições aplicadas", {
                     description: "Dados validados e prontos para salvar",
                   });
                 }}
@@ -928,10 +920,8 @@ export function RecordIndividualSessionDialog({
                     onClick={() => {
                       setShowValidationDialog(false);
                       setDialogState('edit');
-                      toast({
-                        title: "Corrija os campos obrigatórios",
+                      notify.error("Corrija os campos obrigatórios", {
                         description: "Complete todos os dados antes de salvar",
-                        variant: "destructive",
                       });
                     }}
                     className="bg-red-500 hover:bg-red-600 text-white"

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 export interface WorkoutSession {
   id: string;
@@ -112,14 +113,14 @@ export const useCreateWorkout = () => {
       queryClient.invalidateQueries({ queryKey: ["stats"] });
       queryClient.invalidateQueries({ queryKey: ["workout-sessions", variables.studentId] });
       
-      toast.success("Treino registrado com sucesso!", {
-        description: `${variables.exercises.length} exercício(s) salvos para a sessão.`,
+      notify.success(i18n.modules.workouts.created, {
+        description: `${variables.exercises.length} ${i18n.modules.workouts.exercisesSaved}`,
       });
     },
     onError: (error: Error) => {
       console.error("Error creating workout:", error);
-      toast.error("Erro ao registrar treino", {
-        description: error.message || "Não foi possível salvar o treino. Tente novamente.",
+      notify.error(i18n.modules.workouts.errorCreate, {
+        description: error.message,
       });
     },
   });

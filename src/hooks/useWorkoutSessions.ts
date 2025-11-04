@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { toast as sonnerToast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 export interface WorkoutSession {
   id: string;
@@ -119,16 +119,13 @@ export const useCreateWorkoutSession = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
-      toast({
-        title: "Sessão registrada",
-        description: "A sessão de treino foi registrada com sucesso.",
+      notify.success(i18n.modules.workouts.sessionCreated, {
+        description: i18n.modules.workouts.sessionSaved,
       });
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao registrar sessão",
+      notify.error(i18n.modules.workouts.errorSession, {
         description: error.message,
-        variant: "destructive",
       });
     },
   });
@@ -250,21 +247,21 @@ export const useCreateGroupWorkoutSessions = () => {
       const failedResults = results.filter(r => !r.success);
       
       if (successResults.length > 0) {
-        sonnerToast.success(`${successResults.length} sessão(ões) registrada(s)`, {
-          description: `Treino salvo para: ${successResults.map(r => r.student).join(", ")}`,
+        notify.success(`${successResults.length} ${i18n.modules.workouts.groupSessionsCreated}`, {
+          description: `${i18n.modules.workouts.savedFor}: ${successResults.map(r => r.student).join(", ")}`,
         });
       }
       
       if (failedResults.length > 0) {
-        sonnerToast.error(`${failedResults.length} sessão(ões) falharam`, {
-          description: `Erro ao salvar: ${failedResults.map(r => r.student).join(", ")}`,
+        notify.error(`${failedResults.length} ${i18n.modules.workouts.recordingsFailed}`, {
+          description: `${i18n.modules.workouts.errorFor}: ${failedResults.map(r => r.student).join(", ")}`,
         });
       }
     },
     onError: (error) => {
       console.error("Error in useCreateGroupWorkoutSessions:", error);
-      sonnerToast.error("Erro ao registrar sessões", {
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+      notify.error(i18n.modules.workouts.errorGroupSessions, {
+        description: error instanceof Error ? error.message : i18n.errors.unknown,
       });
     },
   });

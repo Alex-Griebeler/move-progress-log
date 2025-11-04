@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import i18n from "@/i18n/pt-BR.json";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -134,14 +135,14 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                 <FormField
                   control={form.control}
                   name="student_id"
-                  rules={{ required: "Selecione um aluno" }}
+                  rules={{ required: i18n.errors.selectStudent }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Aluno</FormLabel>
+                      <FormLabel>{i18n.forms.student}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione o aluno" />
+                            <SelectValue placeholder={i18n.forms.selectStudent} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -161,10 +162,10 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                   <FormField
                     control={form.control}
                     name="date"
-                    rules={{ required: "Data é obrigatória" }}
+                    rules={{ required: i18n.errors.dateRequired }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Data</FormLabel>
+                        <FormLabel>{i18n.forms.date}</FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -176,10 +177,10 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                   <FormField
                     control={form.control}
                     name="time"
-                    rules={{ required: "Horário é obrigatório" }}
+                    rules={{ required: i18n.errors.timeRequired }}
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Horário</FormLabel>
+                        <FormLabel>{i18n.forms.time}</FormLabel>
                         <FormControl>
                           <Input type="time" {...field} />
                         </FormControl>
@@ -216,12 +217,12 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                       <FormField
                         control={form.control}
                         name={`exercises.${index}.exercise_name`}
-                        rules={{ required: "Nome do exercício é obrigatório" }}
+                        rules={{ required: i18n.errors.exerciseNameRequired }}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Nome do Exercício</FormLabel>
+                            <FormLabel>{i18n.forms.exerciseName}</FormLabel>
                             <FormControl>
-                              <Input placeholder="Ex: Supino reto" {...field} />
+                              <Input placeholder={i18n.forms.placeholder.exerciseName} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -234,11 +235,11 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                           name={`exercises.${index}.sets`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Séries</FormLabel>
+                              <FormLabel>{i18n.forms.sets}</FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
-                                  placeholder="Ex: 3"
+                                  placeholder={i18n.forms.placeholder.sets}
                                   {...field}
                                   onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                                 />
@@ -253,11 +254,11 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                           name={`exercises.${index}.reps`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Repetições</FormLabel>
+                              <FormLabel>{i18n.forms.reps}</FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
-                                  placeholder="Ex: 12"
+                                  placeholder={i18n.forms.placeholder.reps}
                                   {...field}
                                   onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
                                 />
@@ -275,7 +276,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="flex items-center gap-2">
-                                Carga Total (kg)
+                                {i18n.forms.loadTotal}
                                 <TooltipProvider>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -294,7 +295,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                                 <Input
                                   type="number"
                                   step="0.1"
-                                  placeholder="Ex: 60.0"
+                                  placeholder={i18n.forms.placeholder.load}
                                   {...field}
                                   onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
                                 />
@@ -309,9 +310,9 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                           name={`exercises.${index}.load_description`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Descrição da Carga</FormLabel>
+                              <FormLabel>{i18n.forms.loadDescription}</FormLabel>
                               <FormControl>
-                                <Input placeholder="Ex: Barra olímpica" {...field} />
+                                <Input placeholder={i18n.forms.placeholder.loadDescription} {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -324,9 +325,9 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                         name={`exercises.${index}.load_breakdown`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Composição da Carga (detalhada)</FormLabel>
+                            <FormLabel>{i18n.forms.loadBreakdown}</FormLabel>
                             <FormControl>
-                              <Input placeholder="Ex: 20kg barra + 15kg cada lado + 2,5kg anilha" {...field} />
+                              <Input placeholder={i18n.forms.placeholder.loadBreakdown} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -338,9 +339,9 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                         name={`exercises.${index}.observations`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Observações</FormLabel>
+                            <FormLabel>{i18n.forms.observations}</FormLabel>
                             <FormControl>
-                              <Textarea placeholder="Observações sobre a execução" {...field} />
+                              <Textarea placeholder={i18n.forms.placeholder.observations} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -352,10 +353,10 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
 
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                    Cancelar
+                    {i18n.actions.close}
                   </Button>
                   <Button type="submit" disabled={createSession.isPending}>
-                    {createSession.isPending ? "Salvando..." : "Salvar Sessão"}
+                    {createSession.isPending ? i18n.feedback.loading : i18n.actions.save}
                   </Button>
                 </DialogFooter>
               </form>

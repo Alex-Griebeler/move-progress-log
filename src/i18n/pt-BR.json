@@ -84,7 +84,11 @@
     "unknown": "Algo deu errado. Tente novamente",
     "unauthorized": "Você não tem permissão para esta ação",
     "notFound": "Item não encontrado",
-    "conflict": "Este item já existe"
+    "conflict": "Este item já existe",
+    "selectStudent": "Selecione um aluno",
+    "dateRequired": "Data é obrigatória",
+    "timeRequired": "Horário é obrigatório",
+    "exerciseNameRequired": "Nome do exercício é obrigatório"
   },
   "forms": {
     "name": "Nome",
@@ -95,6 +99,7 @@
     "date": "Data",
     "startDate": "Data inicial",
     "endDate": "Data final",
+    "time": "Horário",
     "weight": "Carga",
     "reps": "Repetições",
     "sets": "Séries",
@@ -106,6 +111,14 @@
     "objective": "Objetivo",
     "phone": "Telefone",
     "address": "Endereço",
+    "student": "Aluno",
+    "exerciseName": "Nome do Exercício",
+    "loadTotal": "Carga Total (kg)",
+    "loadDescription": "Descrição da Carga",
+    "loadBreakdown": "Composição da Carga (detalhada)",
+    "observations": "Observações",
+    "prescription": "Prescrição",
+    "selectStudent": "Selecione o aluno",
     "helper": {
       "password": "Use ao menos 8 caracteres, incluindo números",
       "email": "Usaremos para login e comunicação",
@@ -117,7 +130,14 @@
       "search": "Buscar...",
       "name": "Digite o nome",
       "email": "seu@email.com",
-      "notes": "Adicione observações aqui"
+      "notes": "Adicione observações aqui",
+      "exerciseName": "Ex: Supino reto",
+      "sets": "Ex: 3",
+      "reps": "Ex: 12",
+      "load": "Ex: 60.0",
+      "loadDescription": "Ex: Barra olímpica",
+      "loadBreakdown": "Ex: 20kg barra + 15kg cada lado + 2,5kg anilha",
+      "observations": "Observações sobre a execução"
     }
   },
   "filters": {
@@ -186,7 +206,24 @@
       "errorDelete": "Erro ao excluir treino",
       "errorLoad": "Erro ao carregar treinos",
       "imported": "Sessões importadas com sucesso",
-      "errorImport": "Erro ao importar sessões"
+      "errorImport": "Erro ao importar sessões",
+      "exercisesSaved": "exercício(s) salvos para a sessão",
+      "sessionCreated": "Sessão registrada",
+      "sessionSaved": "A sessão de treino foi registrada com sucesso",
+      "errorSession": "Erro ao registrar sessão",
+      "groupSessionsCreated": "sessão(ões) registrada(s)",
+      "errorGroupSessions": "Erro ao registrar sessões",
+      "savedFor": "Treino salvo para",
+      "errorFor": "Erro ao salvar",
+      "recordingsFailed": "sessão(ões) falharam",
+      "recording": "gravação(ões) processada(s) com sucesso",
+      "limitReached": "Limite atingido",
+      "maxRecordings": "Máximo de {{max}} gravações por sessão",
+      "studentsAutoAdded": "Alunos adicionados automaticamente",
+      "studentsWereAdded": "foram adicionados à sessão",
+      "recordingError": "Erro na gravação",
+      "clinicalObservationsNotSaved": "Observações clínicas não foram salvas",
+      "warning": "Aviso"
     },
     "oura": {
       "connected": "Oura Ring conectado com sucesso",
