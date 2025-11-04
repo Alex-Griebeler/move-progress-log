@@ -618,6 +618,39 @@ export type Database = {
           },
         ]
       }
+      rate_limit_attempts: {
+        Row: {
+          action: string
+          attempt_count: number
+          blocked_until: string | null
+          created_at: string
+          first_attempt_at: string
+          id: string
+          ip_address: string
+          last_attempt_at: string
+        }
+        Insert: {
+          action: string
+          attempt_count?: number
+          blocked_until?: string | null
+          created_at?: string
+          first_attempt_at?: string
+          id?: string
+          ip_address: string
+          last_attempt_at?: string
+        }
+        Update: {
+          action?: string
+          attempt_count?: number
+          blocked_until?: string | null
+          created_at?: string
+          first_attempt_at?: string
+          id?: string
+          ip_address?: string
+          last_attempt_at?: string
+        }
+        Relationships: []
+      }
       recovery_protocols: {
         Row: {
           benefits: Json | null
@@ -989,6 +1022,7 @@ export type Database = {
         Args: { _trainer_id: string; _viewer_id: string }
         Returns: boolean
       }
+      cleanup_rate_limit_attempts: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

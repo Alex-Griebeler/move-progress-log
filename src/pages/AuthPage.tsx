@@ -8,9 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePasswordSecurity } from "@/hooks/usePasswordSecurity";
-import { AlertCircle, Check, X, Loader2 } from "lucide-react";
+import { AlertCircle, Check, X, Loader2, Shield } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
+import { checkRateLimit, recordFailedAttempt, type RateLimitAction } from "@/lib/rateLimiter";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -21,6 +22,7 @@ export default function AuthPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [passwordSecurity, setPasswordSecurity] = useState<any>(null);
+  const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { checkPasswordSecurity, checking } = usePasswordSecurity();
@@ -67,6 +69,20 @@ export default function AuthPage() {
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
+    setRateLimitWarning(null);
+
+    // Check rate limit for login
+    const rateLimitCheck = await checkRateLimit('login');
+    if (!rateLimitCheck.allowed) {
+      setLoading(false);
+      toast({
+        title: "Muitas tentativas",
+        description: rateLimitCheck.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -77,6 +93,7 @@ export default function AuthPage() {
     setLoading(false);
 
     if (error) {
+      await recordFailedAttempt('login');
       toast({
         title: "Erro ao conectar com Google",
         description: getErrorMessage(error),
@@ -88,6 +105,7 @@ export default function AuthPage() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setRateLimitWarning(null);
 
     if (!email || !password || !fullName) {
       toast({
@@ -116,6 +134,18 @@ export default function AuthPage() {
         variant: "destructive",
       });
       setLoading(false);
+      return;
+    }
+
+    // Check rate limit for signup
+    const rateLimitCheck = await checkRateLimit('signup');
+    if (!rateLimitCheck.allowed) {
+      setLoading(false);
+      toast({
+        title: "Muitas tentativas de cadastro",
+        description: rateLimitCheck.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -154,6 +184,7 @@ export default function AuthPage() {
     setLoading(false);
 
     if (error) {
+      await recordFailedAttempt('signup');
       toast({
         title: "Erro no cadastro",
         description: getErrorMessage(error),
@@ -175,6 +206,7 @@ export default function AuthPage() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setRateLimitWarning(null);
 
     if (!email || !password) {
       toast({
@@ -186,6 +218,23 @@ export default function AuthPage() {
       return;
     }
 
+    // Check rate limit for login
+    const rateLimitCheck = await checkRateLimit('login');
+    if (!rateLimitCheck.allowed) {
+      setLoading(false);
+      toast({
+        title: "Muitas tentativas de login",
+        description: rateLimitCheck.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show warning if close to limit
+    if (rateLimitCheck.message && rateLimitCheck.remainingAttempts && rateLimitCheck.remainingAttempts <= 2) {
+      setRateLimitWarning(rateLimitCheck.message);
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -194,12 +243,14 @@ export default function AuthPage() {
     setLoading(false);
 
     if (error) {
+      await recordFailedAttempt('login');
       toast({
         title: "Erro no login",
         description: getErrorMessage(error),
         variant: "destructive",
       });
     } else {
+      setRateLimitWarning(null);
       toast({
         title: "✅ Login realizado com sucesso!",
         description: "Redirecionando para o sistema...",
@@ -226,6 +277,14 @@ export default function AuthPage() {
             
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
+                {rateLimitWarning && (
+                  <Alert variant="default" className="border-yellow-500 bg-yellow-50">
+                    <Shield className="h-4 w-4 text-yellow-600" />
+                    <AlertDescription className="text-sm text-yellow-900">
+                      {rateLimitWarning}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="signin-email">Email</Label>
                   <Input

@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { usePasswordSecurity } from "@/hooks/usePasswordSecurity";
-import { AlertCircle, Check, X, Loader2, ArrowLeft } from "lucide-react";
+import { AlertCircle, Check, X, Loader2, ArrowLeft, Shield } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
+import { checkRateLimit, recordFailedAttempt } from "@/lib/rateLimiter";
 
 const emailSchema = z.string().email("Email inválido");
 
@@ -24,6 +25,7 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [passwordSecurity, setPasswordSecurity] = useState<any>(null);
+  const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -50,6 +52,7 @@ export default function ResetPasswordPage() {
   const handleRequestReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setRateLimitWarning(null);
 
     // Validar email
     const validation = emailSchema.safeParse(email);
@@ -63,6 +66,23 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    // Check rate limit for reset password
+    const rateLimitCheck = await checkRateLimit('reset_password');
+    if (!rateLimitCheck.allowed) {
+      setLoading(false);
+      toast({
+        title: "Muitas solicitações",
+        description: rateLimitCheck.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show warning if close to limit
+    if (rateLimitCheck.message && rateLimitCheck.remainingAttempts && rateLimitCheck.remainingAttempts <= 2) {
+      setRateLimitWarning(rateLimitCheck.message);
+    }
+
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -71,12 +91,14 @@ export default function ResetPasswordPage() {
       if (error) throw error;
 
       setEmailSent(true);
+      setRateLimitWarning(null);
       toast({
         title: "✅ Email enviado!",
         description: "Verifique sua caixa de entrada e clique no link para resetar sua senha.",
       });
     } catch (error: any) {
       console.error("Erro ao solicitar reset:", error);
+      await recordFailedAttempt('reset_password');
       toast({
         title: "Erro ao enviar email",
         description: error.message || "Tente novamente mais tarde.",
@@ -219,6 +241,14 @@ export default function ResetPasswordPage() {
               </div>
             ) : (
               <form onSubmit={handleRequestReset} className="space-y-4">
+                {rateLimitWarning && (
+                  <Alert variant="default" className="border-yellow-500 bg-yellow-50">
+                    <Shield className="h-4 w-4 text-yellow-600" />
+                    <AlertDescription className="text-sm text-yellow-900">
+                      {rateLimitWarning}
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
