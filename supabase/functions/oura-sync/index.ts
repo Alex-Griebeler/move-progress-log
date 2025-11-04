@@ -213,7 +213,10 @@ Deno.serve(async (req) => {
     });
     console.log('Workouts:', {
       status: workoutsRes.status,
-      count: workoutsData?.data?.length || 0
+      ok: workoutsRes.ok,
+      count: workoutsData?.data?.length || 0,
+      raw_data: workoutsData ? JSON.stringify(workoutsData, null, 2).substring(0, 1000) : 'NULL',
+      endpoint: `https://api.ouraring.com/v2/usercollection/workout?start_date=${syncDate}&end_date=${syncDate}`
     });
     console.log('Stress:', {
       status: stressRes.status,
@@ -375,31 +378,65 @@ Deno.serve(async (req) => {
     }
 
     // Save workouts
+    console.log('💪 === WORKOUT PROCESSING START ===');
+    console.log('Workouts API Response OK?:', workoutsRes.ok);
+    console.log('Workouts Data exists?:', !!workoutsData);
+    console.log('Workouts Data.data exists?:', !!workoutsData?.data);
+    console.log('Workouts count:', workoutsData?.data?.length || 0);
+    
     if (workoutsData?.data && workoutsData.data.length > 0) {
-      const workouts = workoutsData.data.map((w: any) => ({
-        student_id,
-        oura_workout_id: w.id,
-        activity: w.activity,
-        start_datetime: w.start_datetime,
-        end_datetime: w.end_datetime,
-        calories: w.calories || null,
-        distance: w.distance || null,
-        intensity: w.intensity || null,
-        average_heart_rate: w.heart_rate?.average || null,
-        max_heart_rate: w.heart_rate?.max || null,
-        source: w.source || null,
-      }));
+      console.log(`🏃 Found ${workoutsData.data.length} workouts to save`);
+      
+      const workouts = workoutsData.data.map((w: any, index: number) => {
+        console.log(`  Workout ${index + 1}:`, {
+          id: w.id,
+          activity: w.activity,
+          start: w.start_datetime,
+          end: w.end_datetime,
+          calories: w.calories,
+          intensity: w.intensity
+        });
+        
+        return {
+          student_id,
+          oura_workout_id: w.id,
+          activity: w.activity,
+          start_datetime: w.start_datetime,
+          end_datetime: w.end_datetime,
+          calories: w.calories || null,
+          distance: w.distance || null,
+          intensity: w.intensity || null,
+          average_heart_rate: w.heart_rate?.average || null,
+          max_heart_rate: w.heart_rate?.max || null,
+          source: w.source || null,
+        };
+      });
 
-      const { error: workoutsError } = await supabaseClient
+      console.log('🔄 Attempting to upsert workouts to database...');
+      const { error: workoutsError, data: insertedWorkouts } = await supabaseClient
         .from('oura_workouts')
-        .upsert(workouts, { onConflict: 'student_id,oura_workout_id' });
+        .upsert(workouts, { onConflict: 'student_id,oura_workout_id' })
+        .select();
 
       if (workoutsError) {
-        console.error('Failed to save workouts:', workoutsError);
+        console.error('❌ Failed to save workouts:', {
+          error: workoutsError,
+          message: workoutsError.message,
+          details: workoutsError.details,
+          hint: workoutsError.hint
+        });
       } else {
-        console.log(`Saved ${workouts.length} workouts`);
+        console.log(`✅ Saved ${workouts.length} workouts successfully`);
+        console.log('Inserted workout IDs:', insertedWorkouts?.map(w => w.id) || []);
       }
+    } else {
+      console.log('⚠️ No workouts found for this date');
+      console.log('Possible reasons:');
+      console.log('  - No workouts recorded in Oura app for this date');
+      console.log('  - Workouts not yet synced to Oura servers');
+      console.log('  - API returned empty data array');
     }
+    console.log('💪 === WORKOUT PROCESSING END ===');
 
     // Update last_sync_at
     await supabaseClient
