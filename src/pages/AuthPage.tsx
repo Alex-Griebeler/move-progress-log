@@ -10,11 +10,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePasswordSecurity } from "@/hooks/usePasswordSecurity";
 import { AlertCircle, Check, X, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [passwordSecurity, setPasswordSecurity] = useState<any>(null);
   const navigate = useNavigate();
@@ -61,6 +65,26 @@ export default function AuthPage() {
     return error.message;
   };
 
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`,
+      },
+    });
+
+    setLoading(false);
+
+    if (error) {
+      toast({
+        title: "Erro ao conectar com Google",
+        description: getErrorMessage(error),
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -69,6 +93,26 @@ export default function AuthPage() {
       toast({
         title: "Campos obrigatórios",
         description: "Por favor, preencha todos os campos para continuar.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast({
+        title: "Senhas não coincidem",
+        description: "As senhas digitadas não são iguais.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    if (!acceptTerms) {
+      toast({
+        title: "Termos não aceitos",
+        description: "Você precisa aceitar os termos de uso para continuar.",
         variant: "destructive",
       });
       setLoading(false);
@@ -122,7 +166,9 @@ export default function AuthPage() {
       });
       setEmail("");
       setPassword("");
+      setConfirmPassword("");
       setFullName("");
+      setAcceptTerms(false);
     }
   };
 
@@ -202,8 +248,44 @@ export default function AuthPage() {
                     required
                   />
                 </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="remember-me"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    <Label htmlFor="remember-me" className="text-sm cursor-pointer">
+                      Lembrar-me
+                    </Label>
+                  </div>
+                  <a href="/reset-password" className="text-sm text-primary hover:underline">
+                    Esqueceu a senha?
+                  </a>
+                </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Entrando..." : "Entrar"}
+                </Button>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Ou continue com
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={loading}
+                  onClick={handleGoogleSignIn}
+                >
+                  Entrar com Google
                 </Button>
               </form>
             </TabsContent>
@@ -342,6 +424,49 @@ export default function AuthPage() {
                   )}
                 </div>
                 
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirmar Senha</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="Digite a senha novamente"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={12}
+                    className={
+                      confirmPassword && password !== confirmPassword
+                        ? "border-red-500 focus-visible:ring-red-500"
+                        : confirmPassword && password === confirmPassword
+                        ? "border-green-500 focus-visible:ring-green-500"
+                        : ""
+                    }
+                  />
+                  {confirmPassword && password !== confirmPassword && (
+                    <p className="text-xs text-red-500">As senhas não coincidem</p>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="accept-terms"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    className="h-4 w-4 rounded border-input"
+                  />
+                  <Label htmlFor="accept-terms" className="text-sm cursor-pointer">
+                    Aceito os{" "}
+                    <a href="/terms" className="text-primary hover:underline">
+                      termos de uso
+                    </a>{" "}
+                    e{" "}
+                    <a href="/privacy" className="text-primary hover:underline">
+                      política de privacidade
+                    </a>
+                  </Label>
+                </div>
+                
                 <Button 
                   type="submit" 
                   className="w-full" 
@@ -349,13 +474,36 @@ export default function AuthPage() {
                     loading || 
                     checking || 
                     !passwordSecurity || 
-                    !passwordSecurity.isSecure
+                    !passwordSecurity.isSecure ||
+                    password !== confirmPassword ||
+                    !acceptTerms
                   }
                 >
                   {loading ? "Cadastrando..." : 
                    checking ? "Verificando senha..." :
                    !passwordSecurity?.isSecure ? "Senha não segura" :
+                   password !== confirmPassword ? "Senhas não coincidem" :
+                   !acceptTerms ? "Aceite os termos" :
                    "Cadastrar"}
+                </Button>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Ou continue com
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  disabled={loading}
+                  onClick={handleGoogleSignIn}
+                >
+                  Cadastrar com Google
                 </Button>
               </form>
             </TabsContent>
