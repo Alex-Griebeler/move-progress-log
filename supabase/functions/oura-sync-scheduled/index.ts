@@ -6,9 +6,11 @@ const corsHeaders = {
 };
 
 /**
- * Edge Function para sincronização automática diária do Oura Ring
- * Roda via cron todos os dias às 10h (horário de Brasília UTC-3)
- * Isso garante que os dados do dia anterior já foram processados pelo Oura
+ * Edge Function para sincronização automática do Oura Ring
+ * Chamada via pg_cron 2x ao dia:
+ * - 6h (horário de Brasília UTC-3) = 9h UTC
+ * - 18h (horário de Brasília UTC-3) = 21h UTC
+ * Isso garante que os dados sejam atualizados pela manhã e à noite
  */
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -16,7 +18,11 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const schedule = body.schedule || 'manual';
+    
     console.log('🕐 === SCHEDULED OURA SYNC STARTED ===');
+    console.log('Schedule:', schedule);
     console.log('Timestamp:', new Date().toISOString());
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -41,6 +47,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true,
+        schedule,
         timestamp: new Date().toISOString(),
         ...data
       }),

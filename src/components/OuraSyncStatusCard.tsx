@@ -48,7 +48,7 @@ export const OuraSyncStatusCard = () => {
               Sincronização Oura: {syncStatus.totalConnections} {syncStatus.totalConnections === 1 ? 'aluno' : 'alunos'}
             </p>
             <p className="text-xs text-muted-foreground">
-              Última sync automática às 10h • {syncStatus.recentSuccess} sucessos, {syncStatus.recentFailed} falhas (24h)
+              Sync automática 2x ao dia (6h e 18h) • {syncStatus.recentSuccess} sucessos, {syncStatus.recentFailed} falhas (24h)
             </p>
           </div>
         </div>

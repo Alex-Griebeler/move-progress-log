@@ -8,9 +8,11 @@ O sistema de sincronização do Oura Ring foi completamente automatizado e otimi
 
 ## ✨ Funcionalidades Implementadas
 
-### 1. **Sincronização Automática Diária**
-- ⏰ **Horário**: 10h (horário de Brasília, UTC-3)
-- 🎯 **Objetivo**: Sincronizar dados do dia anterior quando já foram processados pelo Oura
+### 1. **Sincronização Automática 2x ao Dia**
+- ⏰ **Horários**: 6h e 18h (horário de Brasília, UTC-3)
+- 🎯 **Objetivo**: Manter métricas sempre atualizadas
+  - **6h**: Captura dados do sono/recuperação da noite
+  - **18h**: Captura dados de atividade do dia
 - 🔁 **Retry**: 3 tentativas com backoff exponencial (2s, 4s)
 - 📊 **Logs**: Todas as tentativas são registradas na tabela `oura_sync_logs`
 
@@ -48,7 +50,7 @@ Melhorias no logging para diagnóstico de problemas:
 
 #### **oura-sync-scheduled** (NOVO)
 ```typescript
-// Roda via cron às 10h todos os dias
+// Roda via pg_cron 2x ao dia (6h e 18h Brasília)
 // Chama oura-sync-all para fazer o trabalho
 ```
 
@@ -138,21 +140,50 @@ Melhorias no logging para diagnóstico de problemas:
 
 ---
 
-## 🔧 Configuração do Cron
+## 🔧 Configuração do Cron (pg_cron)
 
-```toml
-# supabase/config.toml
-[functions.oura-sync-scheduled]
-verify_jwt = false
-# Cron: Todos os dias às 10h (Brasília UTC-3)
-# Equivale a 13h UTC
-schedule = "0 13 * * *"
+O sistema usa **pg_cron** do PostgreSQL para agendar as sincronizações automáticas:
+
+```sql
+-- Sincronização da Manhã (6h Brasília = 9h UTC)
+SELECT cron.schedule(
+  'oura-sync-morning',
+  '0 9 * * *',
+  $$ SELECT net.http_post(...) $$
+);
+
+-- Sincronização da Tarde (18h Brasília = 21h UTC)
+SELECT cron.schedule(
+  'oura-sync-evening',
+  '0 21 * * *',
+  $$ SELECT net.http_post(...) $$
+);
 ```
 
-### Por que 10h?
-1. **Dados processados**: Oura processa dados após o sono + sincronização
-2. **Horário conveniente**: Manhã no Brasil, dados do dia anterior prontos
-3. **Evita conflitos**: Fora do horário de pico de uso do app
+### Por que 6h e 18h?
+
+**6h da manhã:**
+- ✅ Dados do sono da noite já processados pelo Oura
+- ✅ Métricas de recuperação prontas (HRV, temperatura, etc)
+- ✅ Trainer pode planejar treinos do dia baseado na recuperação
+
+**18h da tarde:**
+- ✅ Dados de atividade do dia completos
+- ✅ Workouts registrados
+- ✅ Permite ajustes no treino do dia seguinte
+
+### Monitorando os Cron Jobs
+
+```sql
+-- Ver todos os cron jobs ativos
+SELECT * FROM cron.job WHERE jobname LIKE 'oura-sync-%';
+
+-- Ver histórico de execuções
+SELECT * FROM cron.job_run_details 
+WHERE jobid IN (SELECT jobid FROM cron.job WHERE jobname LIKE 'oura-sync-%')
+ORDER BY start_time DESC
+LIMIT 20;
+```
 
 ---
 
