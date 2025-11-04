@@ -35,6 +35,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
+import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getPersonSchema } from "@/utils/structuredData";
 
@@ -59,7 +60,16 @@ const StudentDetailPage = () => {
   }, [student]);
   
   usePageTitle(pageTitle);
-  useSEOHead(SEO_PRESETS.private); // Detalhes do aluno são privados
+  useSEOHead(SEO_PRESETS.private);
+  useOpenGraph({
+    ...FABRIK_OG_DEFAULTS,
+    title: `${pageTitle} · Fabrik Performance`,
+    description: student 
+      ? `Perfil e acompanhamento de treino de ${student.name} no sistema Fabrik Performance.`
+      : 'Perfil de aluno no sistema Fabrik Performance.',
+    type: 'profile',
+    url: true,
+  });
 
   if (loadingStudents) {
     return (

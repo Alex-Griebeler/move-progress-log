@@ -12,10 +12,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
+import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 
 const AdminDiagnosticsPage = () => {
   usePageTitle(NAV_LABELS.adminDiagnostics);
-  useSEOHead(SEO_PRESETS.private); // Diagnóstico é privado (admin only)
+  useSEOHead(SEO_PRESETS.private);
+  useOpenGraph({
+    ...FABRIK_OG_DEFAULTS,
+    title: `${NAV_LABELS.adminDiagnostics} · Fabrik Performance`,
+    description: 'Diagnósticos e monitoramento do sistema Fabrik Performance.',
+    type: 'website',
+    url: true,
+  });
   
   const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();

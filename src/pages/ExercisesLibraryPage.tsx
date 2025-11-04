@@ -44,12 +44,20 @@ import { EmptyState } from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
+import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
 
 export default function ExercisesLibraryPage() {
   usePageTitle(NAV_LABELS.exercises);
-  useSEOHead(SEO_PRESETS.private); // Biblioteca de exercícios é privada
+  useSEOHead(SEO_PRESETS.private);
+  useOpenGraph({
+    ...FABRIK_OG_DEFAULTS,
+    title: `${NAV_LABELS.exercises} · Fabrik Performance`,
+    description: 'Biblioteca completa de exercícios funcionais, HIIT, yoga e mindfulness do método Body & Mind Fitness.',
+    type: 'website',
+    url: true,
+  });
   
   const [filters, setFilters] = useState<ExerciseFilters>({});
   const [searchTerm, setSearchTerm] = useState("");

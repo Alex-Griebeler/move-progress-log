@@ -26,6 +26,7 @@ import { useIsAdmin } from "@/hooks/useUserRole";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
+import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
 import {
@@ -41,7 +42,14 @@ import {
 
 const StudentsPage = () => {
   usePageTitle(NAV_LABELS.students);
-  useSEOHead(SEO_PRESETS.private); // Página de alunos é privada
+  useSEOHead(SEO_PRESETS.private);
+  useOpenGraph({
+    ...FABRIK_OG_DEFAULTS,
+    title: `${NAV_LABELS.students} · Fabrik Performance`,
+    description: 'Gestão de alunos e acompanhamento de treinos personalizados no sistema Fabrik Performance.',
+    type: 'website',
+    url: true,
+  });
   
   const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();

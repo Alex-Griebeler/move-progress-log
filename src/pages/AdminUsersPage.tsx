@@ -27,6 +27,7 @@ import {
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
+import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 
 interface UserWithRole {
   id: string;
@@ -51,7 +52,14 @@ const roleVariants: Record<string, "default" | "secondary" | "destructive"> = {
 
 export default function AdminUsersPage() {
   usePageTitle(NAV_LABELS.adminUsers);
-  useSEOHead(SEO_PRESETS.private); // Admin users é privado
+  useSEOHead(SEO_PRESETS.private);
+  useOpenGraph({
+    ...FABRIK_OG_DEFAULTS,
+    title: `${NAV_LABELS.adminUsers} · Fabrik Performance`,
+    description: 'Administração de usuários e permissões do sistema Fabrik Performance.',
+    type: 'website',
+    url: true,
+  });
   
   const navigate = useNavigate();
   const { isAdmin, isLoading: roleLoading } = useIsAdmin();

@@ -17,12 +17,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
+import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 
 const Index = () => {
   usePageTitle(NAV_LABELS.dashboard);
-  useSEOHead(SEO_PRESETS.private); // Dashboard é privado (requer autenticação)
+  useSEOHead(SEO_PRESETS.private);
+  useOpenGraph({
+    ...FABRIK_OG_DEFAULTS,
+    title: 'Dashboard · Fabrik Performance',
+    type: 'website',
+    url: true,
+  });
   
   const [refreshKey, setRefreshKey] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);

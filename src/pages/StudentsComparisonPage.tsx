@@ -23,6 +23,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
+import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 
 interface StudentStats {
   studentId: string;
@@ -42,7 +43,14 @@ interface StudentStats {
 
 const StudentsComparisonPage = () => {
   usePageTitle(NAV_LABELS.studentsComparison);
-  useSEOHead(SEO_PRESETS.private); // Comparação é privada
+  useSEOHead(SEO_PRESETS.private);
+  useOpenGraph({
+    ...FABRIK_OG_DEFAULTS,
+    title: `${NAV_LABELS.studentsComparison} · Fabrik Performance`,
+    description: 'Comparação de métricas e desempenho entre alunos do sistema Fabrik Performance.',
+    type: 'website',
+    url: true,
+  });
   
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<Date | undefined>();
