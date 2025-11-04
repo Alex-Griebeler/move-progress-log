@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
+import { User, Session } from "@supabase/supabase-js";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -9,25 +9,48 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check current session
+    // Check current session - store both user and session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for auth changes
+    // Listen for auth changes - update both user and session
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Auto-refresh token every 50 minutes (tokens expire after 60 min)
+  useEffect(() => {
+    if (!session) return;
+
+    const refreshInterval = setInterval(async () => {
+      console.log('[Auth] Renovando token automaticamente...');
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        console.error('[Auth] Erro ao renovar token:', error);
+      } else if (data.session) {
+        console.log('[Auth] Token renovado com sucesso');
+        setSession(data.session);
+        setUser(data.session.user);
+      }
+    }, 50 * 60 * 1000); // 50 minutos
+
+    return () => clearInterval(refreshInterval);
+  }, [session]);
 
   if (loading) {
     return (
