@@ -16,12 +16,12 @@ import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog"
 import { StudentObservationsDialog } from "@/components/StudentObservationsDialog";
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useStudentImportantObservations } from "@/hooks/useStudentImportantObservations";
+import { useOuraConnectionStatus } from "@/hooks/useOuraConnectionStatus";
 import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
 import { Input } from "@/components/ui/input";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { OuraSyncAllButton } from "@/components/OuraSyncAllButton";
-import { OuraSyncStatusCard } from "@/components/OuraSyncStatusCard";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import {
   AlertDialog,
@@ -61,6 +61,7 @@ const StudentsPage = () => {
   const StudentCard = ({ student }: { student: Student }) => {
     const { data: ouraMetrics } = useLatestOuraMetrics(student.id);
     const { data: importantObservations } = useStudentImportantObservations(student.id);
+    const { data: ouraStatus } = useOuraConnectionStatus(student.id);
     const [showObservationsDialog, setShowObservationsDialog] = useState(false);
     
     const readinessScore = ouraMetrics?.readiness_score;
@@ -137,11 +138,20 @@ const StudentsPage = () => {
                     {readinessScore}%
                   </span>
                 </div>
-              ) : (
-                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-dashed">
-                  <span className="text-xs text-muted-foreground">Sem dados de prontidão</span>
+              ) : ouraStatus?.isConnected && ouraStatus.hasIssues ? (
+                <div className="flex items-center justify-between p-2 rounded-lg bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                    <span className="text-xs text-yellow-700 dark:text-yellow-400 font-medium">
+                      Problema na sync Oura
+                    </span>
+                  </div>
                 </div>
-              )}
+              ) : ouraStatus?.isConnected ? (
+                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-dashed">
+                  <span className="text-xs text-muted-foreground">Aguardando dados Oura</span>
+                </div>
+              ) : null}
               
               {/* Observações Importantes */}
               {hasImportantObservations && (
@@ -271,9 +281,6 @@ const StudentsPage = () => {
             </>
           }
         />
-
-        {/* Status da Sincronização Oura */}
-        {isAdmin && <OuraSyncStatusCard />}
 
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
