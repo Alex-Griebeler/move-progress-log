@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 
+// Chaves i18n disponíveis para workouts
+const workoutKeys = i18n.modules.workouts;
+
 export interface WorkoutSession {
   id: string;
   student_id: string;
@@ -113,13 +116,13 @@ export const useCreateWorkout = () => {
       queryClient.invalidateQueries({ queryKey: ["stats"] });
       queryClient.invalidateQueries({ queryKey: ["workout-sessions", variables.studentId] });
       
-      notify.success(i18n.modules.workouts.created, {
-        description: `${variables.exercises.length} ${i18n.modules.workouts.exercisesSaved}`,
+      notify.success(workoutKeys.created, {
+        description: `${variables.exercises.length} ${workoutKeys.exercisesSaved}`,
       });
     },
     onError: (error: Error) => {
       console.error("Error creating workout:", error);
-      notify.error(i18n.modules.workouts.errorCreate, {
+      notify.error(workoutKeys.errorCreate, {
         description: error.message,
       });
     },

@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 
+// Chaves i18n disponíveis para workouts
+const workoutKeys = i18n.modules.workouts;
+
 export interface WorkoutSession {
   id: string;
   student_id: string;
@@ -119,12 +122,12 @@ export const useCreateWorkoutSession = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
-      notify.success(i18n.modules.workouts.sessionCreated, {
-        description: i18n.modules.workouts.sessionSaved,
+      notify.success(workoutKeys.sessionCreated, {
+        description: workoutKeys.sessionSaved,
       });
     },
     onError: (error) => {
-      notify.error(i18n.modules.workouts.errorSession, {
+      notify.error(workoutKeys.errorSession, {
         description: error.message,
       });
     },
@@ -247,20 +250,20 @@ export const useCreateGroupWorkoutSessions = () => {
       const failedResults = results.filter(r => !r.success);
       
       if (successResults.length > 0) {
-        notify.success(`${successResults.length} ${i18n.modules.workouts.groupSessionsCreated}`, {
-          description: `${i18n.modules.workouts.savedFor}: ${successResults.map(r => r.student).join(", ")}`,
+        notify.success(`${successResults.length} ${workoutKeys.groupSessionsCreated}`, {
+          description: `${workoutKeys.savedFor}: ${successResults.map(r => r.student).join(", ")}`,
         });
       }
       
       if (failedResults.length > 0) {
-        notify.error(`${failedResults.length} ${i18n.modules.workouts.recordingsFailed}`, {
-          description: `${i18n.modules.workouts.errorFor}: ${failedResults.map(r => r.student).join(", ")}`,
+        notify.error(`${failedResults.length} ${workoutKeys.recordingsFailed}`, {
+          description: `${workoutKeys.errorFor}: ${failedResults.map(r => r.student).join(", ")}`,
         });
       }
     },
     onError: (error) => {
       console.error("Error in useCreateGroupWorkoutSessions:", error);
-      notify.error(i18n.modules.workouts.errorGroupSessions, {
+      notify.error(workoutKeys.errorGroupSessions, {
         description: error instanceof Error ? error.message : i18n.errors.unknown,
       });
     },
