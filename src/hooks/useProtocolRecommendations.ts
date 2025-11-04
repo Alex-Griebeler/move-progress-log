@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 export interface ProtocolRecommendation {
   id: string;
@@ -67,15 +68,17 @@ export const useGenerateRecommendations = () => {
       });
       
       if (data.recommendations_count > 0) {
-        toast.success(
-          `${data.recommendations_count} recomendações geradas com base nos dados do Oura Ring`
+        notify.success(
+          `${data.recommendations_count} ${i18n.modules.recommendations.generated}`
         );
       } else {
-        toast.info("Nenhuma recomendação gerada. Métricas dentro dos parâmetros normais.");
+        notify.info(i18n.modules.recommendations.noRecommendations);
       }
     },
     onError: (error: Error) => {
-      toast.error(`Erro ao gerar recomendações: ${error.message}`);
+      notify.error(i18n.modules.recommendations.errorGenerate, {
+        description: error.message
+      });
     },
   });
 };
@@ -108,10 +111,12 @@ export const useUpdateRecommendation = () => {
       queryClient.invalidateQueries({ 
         queryKey: ["protocol-recommendations"] 
       });
-      toast.success("Recomendação atualizada");
+      notify.success(i18n.modules.recommendations.updated);
     },
     onError: (error: Error) => {
-      toast.error(`Erro ao atualizar recomendação: ${error.message}`);
+      notify.error(i18n.modules.recommendations.errorUpdate, {
+        description: error.message
+      });
     },
   });
 };

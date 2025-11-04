@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 export interface ExerciseLibrary {
   id: string;
@@ -95,7 +96,6 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
 };
 
 export const useCreateExercise = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -111,23 +111,17 @@ export const useCreateExercise = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["exercises-library"] });
-      toast({
-        title: "Exercício criado",
-        description: "O exercício foi adicionado à biblioteca com sucesso.",
-      });
+      notify.success(i18n.modules.exercises.created);
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao criar exercício",
-        description: error.message,
-        variant: "destructive",
+      notify.error(i18n.modules.exercises.errorCreate, {
+        description: error.message
       });
     },
   });
 };
 
 export const useUpdateExercise = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -144,23 +138,17 @@ export const useUpdateExercise = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["exercises-library"] });
-      toast({
-        title: "Exercício atualizado",
-        description: "O exercício foi atualizado com sucesso.",
-      });
+      notify.success(i18n.modules.exercises.updated);
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao atualizar exercício",
-        description: error.message,
-        variant: "destructive",
+      notify.error(i18n.modules.exercises.errorUpdate, {
+        description: error.message
       });
     },
   });
 };
 
 export const useDeleteExercise = () => {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -200,16 +188,11 @@ export const useDeleteExercise = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["exercises-library"] });
-      toast({
-        title: "Exercício excluído",
-        description: "O exercício foi removido da biblioteca.",
-      });
+      notify.success(i18n.modules.exercises.deleted);
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao excluir exercício",
-        description: error.message,
-        variant: "destructive",
+      notify.error(i18n.modules.exercises.errorDelete, {
+        description: error.message
       });
     },
   });

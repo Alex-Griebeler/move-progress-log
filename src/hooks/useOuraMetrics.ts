@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 export interface OuraMetrics {
   id: string;
@@ -136,10 +137,12 @@ export const useAddOuraMetrics = () => {
       queryClient.invalidateQueries({ 
         queryKey: ["oura-metrics-latest", variables.student_id] 
       });
-      toast.success("Métricas do Oura Ring adicionadas");
+      notify.success(i18n.modules.oura.metricsAdded);
     },
     onError: (error: Error) => {
-      toast.error(`Erro ao adicionar métricas: ${error.message}`);
+      notify.error(i18n.modules.oura.errorAddMetrics, {
+        description: error.message
+      });
     },
   });
 };

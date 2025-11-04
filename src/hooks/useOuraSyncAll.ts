@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 interface SyncAllResult {
   message: string;
@@ -35,25 +36,27 @@ export const useOuraSyncAll = () => {
       queryClient.invalidateQueries({ queryKey: ["oura-connection"] });
 
       if (data.failed > 0) {
-        toast.warning(
-          `Sincronização concluída: ${data.success} sucesso, ${data.failed} falhas`,
+        notify.warning(
+          i18n.modules.oura.syncCompletedWithFailures
+            .replace("{{success}}", String(data.success))
+            .replace("{{failed}}", String(data.failed)),
           {
-            description: "Verifique os logs para mais detalhes das falhas."
+            description: i18n.modules.oura.checkLogs
           }
         );
       } else {
-        toast.success(
-          `Sincronização concluída com sucesso!`,
+        notify.success(
+          i18n.modules.oura.syncCompleted,
           {
-            description: `${data.success} alunos sincronizados.`
+            description: `${data.success} ${i18n.modules.oura.studentsSynced}`
           }
         );
       }
     },
     onError: (error: Error) => {
       console.error("Error in sync all:", error);
-      toast.error("Erro ao sincronizar alunos", {
-        description: error.message || "Erro desconhecido"
+      notify.error(i18n.modules.oura.errorSyncAll, {
+        description: error.message || i18n.errors.unknown
       });
     },
   });

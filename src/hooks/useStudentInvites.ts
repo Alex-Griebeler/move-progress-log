@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 export const useGenerateInvite = () => {
   const queryClient = useQueryClient();
@@ -25,10 +26,12 @@ export const useGenerateInvite = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["student-invites"] });
-      toast.success("Link de convite gerado com sucesso!");
+      notify.success(i18n.modules.invites.generated);
     },
     onError: (error: Error) => {
-      toast.error(`Erro ao gerar convite: ${error.message}`);
+      notify.error(i18n.modules.invites.errorGenerate, {
+        description: error.message
+      });
     },
   });
 };
@@ -100,7 +103,9 @@ export const useCreateStudentFromInvite = () => {
       return data;
     },
     onError: (error: Error) => {
-      toast.error(`Erro ao criar cadastro: ${error.message}`);
+      notify.error(i18n.modules.invites.errorCreate, {
+        description: error.message
+      });
     },
   });
 };

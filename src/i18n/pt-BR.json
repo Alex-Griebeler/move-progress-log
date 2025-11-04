@@ -37,7 +37,10 @@
     "saving": "Salvando...",
     "deleting": "Excluindo...",
     "updating": "Atualizando...",
-    "importing": "Importando..."
+    "importing": "Importando...",
+    "comingSoon": "Em breve",
+    "redirecting": "Redirecionando...",
+    "closeTab": "Você pode fechar esta aba agora"
   },
   "empty": {
     "defaultTitle": "Nada por aqui ainda",
@@ -175,7 +178,10 @@
       "errorDelete": "Erro ao excluir exercício",
       "errorLoad": "Erro ao carregar exercícios",
       "populated": "Biblioteca populada com sucesso",
-      "errorPopulate": "Erro ao popular biblioteca"
+      "errorPopulate": "Erro ao popular biblioteca",
+      "duplicated": "Sessão duplicada",
+      "connectionError": "Erro de conexão",
+      "atLeastOne": "Adicione pelo menos um exercício completo com carga"
     },
     "prescriptions": {
       "created": "Prescrição criada com sucesso",
@@ -233,7 +239,66 @@
       "errorConnect": "Erro ao conectar Oura Ring",
       "errorDisconnect": "Erro ao desconectar",
       "errorSync": "Erro na sincronização",
-      "errorLoad": "Erro ao carregar dados do Oura"
+      "errorLoad": "Erro ao carregar dados do Oura",
+      "connecting": "Conectando ao Oura Ring",
+      "notConfigured": "Oura Ring não configurado",
+      "reconnecting": "Redirecionando para Oura Ring...",
+      "dataUpdated": "Dados atualizados",
+      "metricsAdded": "Métricas do Oura Ring adicionadas",
+      "testCompleted": "Teste concluído",
+      "errorTest": "Erro no teste",
+      "errorAddMetrics": "Erro ao adicionar métricas",
+      "errorReconnect": "Erro ao tentar reconectar",
+      "studentsWithoutConnection": "aluno(s) sem conexão do Oura",
+      "studentsSynced": "aluno(s) sincronizado(s)",
+      "syncingAll": "Sincronizando todos os alunos",
+      "syncCompleted": "Sincronização concluída",
+      "syncCompletedWithFailures": "Sincronização concluída: {{success}} sucesso, {{failed}} falhas",
+      "checkLogs": "Verifique os logs para mais detalhes das falhas",
+      "errorSyncAll": "Erro ao sincronizar alunos"
+    },
+    "recommendations": {
+      "created": "Recomendação criada com sucesso",
+      "updated": "Recomendação atualizada",
+      "generated": "recomendação(ões) gerada(s)",
+      "noRecommendations": "Nenhuma recomendação gerada. Métricas dentro dos parâmetros normais",
+      "errorCreate": "Erro ao criar recomendação",
+      "errorUpdate": "Erro ao atualizar recomendação",
+      "errorGenerate": "Erro ao gerar recomendações"
+    },
+    "invites": {
+      "generated": "Link de convite gerado com sucesso",
+      "linkCopied": "Link copiado",
+      "messageCopied": "Mensagem copiada! Cole no WhatsApp do aluno",
+      "invalid": "Link de convite inválido ou expirado",
+      "errorGenerate": "Erro ao gerar convite",
+      "errorCreate": "Erro ao criar cadastro"
+    },
+    "import": {
+      "completed": "Importação concluída com sucesso",
+      "completedWithWarnings": "Importação concluída com avisos",
+      "sessionsImported": "{{count}} sessão(ões) importada(s)",
+      "sessionsFailed": "{{count}} sessão(ões) falharam",
+      "errorProcess": "Erro ao processar arquivo"
+    },
+    "twoFactor": {
+      "enabled": "2FA ativado com sucesso",
+      "disabled": "2FA desativado com sucesso",
+      "codeGenerated": "Código gerado com sucesso",
+      "codeCopied": "Código copiado",
+      "invalidCode": "Código inválido",
+      "errorGenerate": "Erro ao gerar 2FA",
+      "errorVerify": "Erro ao verificar código",
+      "codeIncorrect": "Código incorreto"
+    },
+    "voice": {
+      "recordingStarted": "Gravação iniciada! 🎙️",
+      "recordingEnded": "Gravação finalizada",
+      "processing": "Processando gravação...",
+      "processed": "gravação(ões) processada(s) com sucesso",
+      "errorProcessing": "Erro no processamento",
+      "errorMicrophone": "Erro ao acessar microfone",
+      "permissionDenied": "Permissão negada para acessar o microfone"
     },
     "auth": {
       "loginSuccess": "Login realizado com sucesso",

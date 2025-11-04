@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 export interface WorkoutPrescription {
   id: string;
@@ -216,16 +217,11 @@ export const useCreatePrescription = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
-      toast({
-        title: "Prescrição criada",
-        description: "A prescrição foi criada com sucesso.",
-      });
+      notify.success(i18n.modules.prescriptions.created);
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao criar prescrição",
-        description: error.message,
-        variant: "destructive",
+      notify.error(i18n.modules.prescriptions.errorCreate, {
+        description: error.message
       });
     },
   });
@@ -258,19 +254,14 @@ export const useAssignPrescription = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
-      toast({
-        title: "Prescrição atribuída",
-        description: "A prescrição foi atribuída com sucesso aos alunos.",
-      });
+      notify.success(i18n.modules.prescriptions.assigned);
     },
     onError: (error: any) => {
       const isAlreadyAssigned = error.code === "23505" || error.message?.includes("duplicate key");
-      toast({
-        title: "Erro ao atribuir prescrição",
+      notify.error(i18n.modules.prescriptions.errorAssign, {
         description: isAlreadyAssigned 
           ? "Este aluno já tem esta prescrição atribuída com a mesma data de início."
-          : error.message,
-        variant: "destructive",
+          : error.message
       });
     },
   });
@@ -384,16 +375,11 @@ export const useUpdatePrescription = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
       queryClient.invalidateQueries({ queryKey: ["prescription"] });
-      toast({
-        title: "Prescrição atualizada",
-        description: "A prescrição foi atualizada com sucesso.",
-      });
+      notify.success(i18n.modules.prescriptions.updated);
     },
     onError: (error) => {
-      toast({
-        title: "Erro ao atualizar prescrição",
-        description: error.message,
-        variant: "destructive",
+      notify.error(i18n.modules.prescriptions.errorUpdate, {
+        description: error.message
       });
     },
   });

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 interface OuraConnection {
   id: string;
@@ -168,10 +169,10 @@ export const useSyncOura = () => {
           ? `${data.successful} dias sincronizados. Alguns dias podem não ter dados disponíveis ainda.`
           : `${data.successful} dias sincronizados com sucesso!`;
         
-        toast.success(message, { description });
+        notify.success(message, { description });
       } else {
-        toast.success("Dados atualizados!", {
-          description: "Métricas do Oura Ring sincronizadas"
+        notify.success(i18n.modules.oura.dataUpdated, {
+          description: i18n.modules.oura.synced
         });
       }
     },
@@ -213,9 +214,9 @@ export const useSyncOura = () => {
           "Verifique se o Oura Ring está sincronizado e sua conexão com a internet. Tente novamente mais tarde.";
       }
 
-      toast.error(title, {
+      notify.error(title, {
         description,
-        duration: 8000, // 8 segundos para dar tempo de ler
+        duration: 8000,
       });
     },
   });
@@ -240,12 +241,12 @@ export const useDisconnectOura = () => {
       queryClient.invalidateQueries({
         queryKey: ["oura-connection", student_id],
       });
-      toast.success("Oura Ring desconectado com sucesso", {
+      notify.success(i18n.modules.oura.disconnected, {
         description: "Seus dados já sincronizados foram preservados. Você pode reconectar a qualquer momento."
       });
     },
     onError: (error: Error) => {
-      toast.error("Falha ao desconectar", {
+      notify.error(i18n.modules.oura.errorDisconnect, {
         description: error.message || "Tente novamente em alguns instantes"
       });
     },

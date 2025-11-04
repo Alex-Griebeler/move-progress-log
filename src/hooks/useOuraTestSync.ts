@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 export const useOuraTestSync = () => {
   const queryClient = useQueryClient();
@@ -24,14 +25,14 @@ export const useOuraTestSync = () => {
       queryClient.invalidateQueries({ queryKey: ['latest-oura-metrics', student_id] });
       queryClient.invalidateQueries({ queryKey: ['oura-workouts', student_id] });
       
-      toast.success('Teste concluído!', {
+      notify.success(i18n.modules.oura.testCompleted, {
         description: `Dados mock do Oura salvos com sucesso. Sleep score: ${data.mock_data_used?.sleep_score}, Duração total: ${Math.floor((data.mock_data_used?.total_sleep_duration || 0) / 3600)}h`,
         duration: 5000,
       });
     },
     onError: (error: any) => {
       console.error('❌ Test sync error:', error);
-      toast.error('Erro no teste', {
+      notify.error(i18n.modules.oura.errorTest, {
         description: error.message || 'Falha ao processar dados mock do Oura',
       });
     },
