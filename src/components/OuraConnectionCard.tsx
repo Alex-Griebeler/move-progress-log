@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,13 +49,23 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
     setSyncStatus("Iniciando sincronização...");
     setSyncError(null); // Limpar erro anterior
     
+    const syncToastId = toast.loading("Iniciando sincronização do Oura Ring...", {
+      description: "Conectando com a API do Oura"
+    });
+    
     syncOura.mutate(
       { 
         student_id: studentId,
         days: 7,
         onProgress: (current, total) => {
           setSyncProgress((current / total) * 100);
-          setSyncStatus(`Sincronizando dia ${current} de ${total}...`);
+          const statusMsg = `Sincronizando dia ${current} de ${total}...`;
+          setSyncStatus(statusMsg);
+          
+          toast.loading(statusMsg, {
+            id: syncToastId,
+            description: `${Math.round((current / total) * 100)}% concluído`
+          });
         }
       },
       {
@@ -62,6 +73,13 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
           setSyncProgress(100);
           setSyncStatus("Sincronização concluída!");
           setSyncError(null);
+          
+          toast.dismiss(syncToastId);
+          toast.success("Dados sincronizados com sucesso!", {
+            description: "As métricas do Oura Ring foram atualizadas dos últimos 7 dias.",
+            duration: 5000,
+          });
+          
           setTimeout(() => {
             setSyncProgress(0);
             setSyncStatus("");
@@ -71,6 +89,13 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
           setSyncProgress(0);
           setSyncStatus("");
           setSyncError(error.message);
+          
+          toast.dismiss(syncToastId);
+          toast.error("Erro ao sincronizar Oura Ring", {
+            description: error.message || "Não foi possível conectar com a API do Oura. Tente novamente.",
+            duration: 7000,
+          });
+          
           // Limpar erro automaticamente após 10 segundos
           setTimeout(() => setSyncError(null), 10000);
         }
@@ -79,8 +104,25 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
   };
 
   const handleDisconnect = () => {
-    disconnectOura.mutate(studentId);
-    setShowDisconnectDialog(false);
+    const disconnectToastId = toast.loading("Desconectando Oura Ring...", {
+      description: "Removendo conexão"
+    });
+    
+    disconnectOura.mutate(studentId, {
+      onSuccess: () => {
+        toast.dismiss(disconnectToastId);
+        toast.success("Oura Ring desconectado", {
+          description: "Os dados sincronizados foram preservados no sistema.",
+        });
+        setShowDisconnectDialog(false);
+      },
+      onError: (error: Error) => {
+        toast.dismiss(disconnectToastId);
+        toast.error("Erro ao desconectar", {
+          description: error.message || "Não foi possível desconectar o Oura Ring. Tente novamente.",
+        });
+      }
+    });
   };
 
   const handleConnect = () => {
@@ -278,9 +320,21 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDisconnect}>
-              Desconectar
+            <AlertDialogCancel disabled={disconnectOura.isPending}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDisconnect}
+              disabled={disconnectOura.isPending}
+            >
+              {disconnectOura.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Desconectando...
+                </>
+              ) : (
+                "Desconectar"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
