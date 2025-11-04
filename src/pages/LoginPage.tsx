@@ -33,6 +33,11 @@ const LoginPage = () => {
       provider: "google",
       options: {
         redirectTo: `${window.location.origin}/home`,
+        scopes: 'openid email profile',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
       },
     });
 
