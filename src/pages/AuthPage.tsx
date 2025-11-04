@@ -83,20 +83,70 @@ export default function AuthPage() {
       return;
     }
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/`,
-      },
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        },
+      });
 
-    setLoading(false);
+      if (error) {
+        console.error('❌ Erro Google OAuth:', error);
+        await recordFailedAttempt('login');
+        
+        // Mensagem específica para erro 403
+        if (error.message.includes('403') || error.message.includes('access_denied')) {
+          toast({
+            title: "Acesso Negado pelo Google",
+            description: "Verifique as configurações do Google Cloud Console. Detalhes no console do navegador.",
+            variant: "destructive",
+          });
+          
+          console.group('🔍 DIAGNÓSTICO - Erro 403 Google OAuth');
+          console.error('PROBLEMA: Google está bloqueando o login');
+          console.log('');
+          console.log('✅ SOLUÇÃO - Siga EXATAMENTE estes passos:');
+          console.log('');
+          console.log('1. Acesse: https://console.cloud.google.com/apis/credentials/consent');
+          console.log('');
+          console.log('2. Verifique o "User Type":');
+          console.log('   ❌ Se estiver "Internal" → Mude para "External"');
+          console.log('   ✅ Se estiver "External" → OK, vá para o passo 3');
+          console.log('');
+          console.log('3. Se "Publishing status" está "Testing":');
+          console.log('   → Clique em "+ ADD USERS"');
+          console.log(`   → Adicione: ${email || 'alex@fabrikbrasil.com'}`);
+          console.log('   → Salve');
+          console.log('');
+          console.log('   OU clique em "PUBLISH APP" para modo produção');
+          console.log('');
+          console.log('4. Aguarde 1 minuto e tente novamente');
+          console.groupEnd();
+        } else {
+          toast({
+            title: "Erro ao conectar com Google",
+            description: getErrorMessage(error),
+            variant: "destructive",
+          });
+        }
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
-      await recordFailedAttempt('login');
+      // Se chegou aqui, o redirect vai acontecer automaticamente
+      console.log('✅ Redirecionando para Google...');
+      
+    } catch (err: any) {
+      console.error('❌ Erro inesperado:', err);
+      setLoading(false);
       toast({
-        title: "Erro ao conectar com Google",
-        description: getErrorMessage(error),
+        title: "Erro inesperado",
+        description: "Verifique o console para mais detalhes.",
         variant: "destructive",
       });
     }
