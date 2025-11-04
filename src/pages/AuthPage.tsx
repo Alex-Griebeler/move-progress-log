@@ -67,7 +67,7 @@ export default function AuthPage() {
     return error.message;
   };
 
-  const handleOAuthSignIn = async (provider: 'google' | 'github') => {
+  const handleGoogleSignIn = async () => {
     setLoading(true);
     setRateLimitWarning(null);
 
@@ -84,7 +84,7 @@ export default function AuthPage() {
     }
 
     const { error } = await supabase.auth.signInWithOAuth({
-      provider,
+      provider: 'google',
       options: {
         redirectTo: `${window.location.origin}/`,
       },
@@ -94,9 +94,8 @@ export default function AuthPage() {
 
     if (error) {
       await recordFailedAttempt('login');
-      const providerName = provider === 'google' ? 'Google' : 'GitHub';
       toast({
-        title: `Erro ao conectar com ${providerName}`,
+        title: "Erro ao conectar com Google",
         description: getErrorMessage(error),
         variant: "destructive",
       });
@@ -343,18 +342,9 @@ export default function AuthPage() {
                   variant="outline"
                   className="w-full"
                   disabled={loading}
-                  onClick={() => handleOAuthSignIn('google')}
+                  onClick={handleGoogleSignIn}
                 >
                   Entrar com Google
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full bg-[#24292e] text-white hover:bg-[#1a1e22] hover:text-white border-[#24292e]"
-                  disabled={loading}
-                  onClick={() => handleOAuthSignIn('github')}
-                >
-                  Continuar com GitHub
                 </Button>
               </form>
             </TabsContent>
@@ -570,18 +560,9 @@ export default function AuthPage() {
                   variant="outline"
                   className="w-full"
                   disabled={loading}
-                  onClick={() => handleOAuthSignIn('google')}
+                  onClick={handleGoogleSignIn}
                 >
                   Cadastrar com Google
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full bg-[#24292e] text-white hover:bg-[#1a1e22] hover:text-white border-[#24292e]"
-                  disabled={loading}
-                  onClick={() => handleOAuthSignIn('github')}
-                >
-                  Cadastrar com GitHub
                 </Button>
               </form>
             </TabsContent>
