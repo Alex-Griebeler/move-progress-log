@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { AppHeader } from "@/components/AppHeader";
@@ -83,21 +83,38 @@ export default function AdminUsersPage() {
 
       if (profilesError) throw profilesError;
 
-      // Combinar dados
-      const usersData: UserWithRole[] = (profiles || []).map((profile: any) => {
+      // Buscar todos os alunos
+      const { data: students, error: studentsError } = await supabase
+        .from("students")
+        .select("id, name, created_at, updated_at");
+
+      if (studentsError) throw studentsError;
+
+      // Combinar dados de trainers/admins
+      const trainersData: UserWithRole[] = (profiles || []).map((profile: any) => {
         const roleData = roles?.find((r: any) => r.user_id === profile.id);
 
         return {
           id: profile.id,
           email: 'admin@fabrikbrasil.com', // Placeholder até ter auth.admin
           full_name: profile.full_name || 'Sem nome',
-          role: (roleData?.role || 'user') as 'admin' | 'moderator' | 'user',
+          role: (roleData?.role || 'moderator') as 'admin' | 'moderator' | 'user',
           created_at: profile.created_at,
           last_sign_in_at: profile.updated_at
         };
       });
 
-      setUsers(usersData);
+      // Adicionar alunos como usuários com role 'user'
+      const studentsData: UserWithRole[] = (students || []).map((student: any) => ({
+        id: student.id,
+        email: 'aluno@fabrikbrasil.com', // Placeholder - alunos não têm email no sistema
+        full_name: student.name,
+        role: 'user' as const,
+        created_at: student.created_at,
+        last_sign_in_at: student.updated_at
+      }));
+
+      setUsers([...trainersData, ...studentsData]);
     } catch (error: any) {
       console.error("Error fetching users:", error);
       toast({
@@ -144,20 +161,10 @@ export default function AdminUsersPage() {
       
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Gestão de Usuários</h1>
-              <p className="text-muted-foreground">
-                Gerencie contas, perfis e permissões do sistema (trainers e admins)
-              </p>
-            </div>
-            <Link to="/alunos">
-              <Button variant="outline">
-                <Users className="h-4 w-4 mr-2" />
-                Ver Alunos
-              </Button>
-            </Link>
-          </div>
+          <h1 className="text-3xl font-bold mb-2">Gestão de Usuários</h1>
+          <p className="text-muted-foreground">
+            Gerencie contas, perfis e permissões de todos os usuários do sistema
+          </p>
         </div>
 
         {/* Stats Cards */}
