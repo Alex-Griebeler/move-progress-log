@@ -6,19 +6,26 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageCircle, X, Send } from "lucide-react";
 import { z } from "zod";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
 });
 
+type Message = { role: "user" | "assistant"; content: string };
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showHelper, setShowHelper] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [isStreaming, setIsStreaming] = useState(false);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
@@ -70,6 +77,89 @@ const LoginPage = () => {
     }
 
     navigate("/home");
+  };
+
+  const sendMessage = async () => {
+    if (!inputMessage.trim() || isStreaming) return;
+
+    const userMsg: Message = { role: "user", content: inputMessage.trim() };
+    setMessages(prev => [...prev, userMsg]);
+    setInputMessage("");
+    setIsStreaming(true);
+
+    const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-helper`;
+
+    try {
+      const response = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ messages: [...messages, userMsg] }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error("Falha ao iniciar stream");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let streamDone = false;
+      let assistantContent = "";
+
+      while (!streamDone) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") {
+            streamDone = true;
+            break;
+          }
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              assistantContent += content;
+              setMessages(prev => {
+                const last = prev[prev.length - 1];
+                if (last?.role === "assistant") {
+                  return prev.map((m, i) => 
+                    i === prev.length - 1 ? { ...m, content: assistantContent } : m
+                  );
+                }
+                return [...prev, { role: "assistant", content: assistantContent }];
+              });
+            }
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Erro no chat:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível conectar com o assistente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStreaming(false);
+    }
   };
 
   return (
@@ -190,6 +280,92 @@ const LoginPage = () => {
           </div>
         </div>
       </Card>
+
+      {/* Botão flutuante do assistente */}
+      {!showHelper && (
+        <Button
+          onClick={() => setShowHelper(true)}
+          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
+          size="icon"
+        >
+          <MessageCircle className="h-6 w-6" />
+        </Button>
+      )}
+
+      {/* Painel do assistente */}
+      {showHelper && (
+        <Card className="fixed bottom-6 right-6 w-96 h-[500px] shadow-2xl flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-primary" />
+              <h3 className="font-semibold">Assistente Google OAuth</h3>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setShowHelper(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+
+          <ScrollArea className="flex-1 p-4">
+            {messages.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                <MessageCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p className="text-sm">
+                  Olá! Estou aqui para ajudar com problemas de login do Google.
+                </p>
+                <p className="text-xs mt-2">
+                  Descreva o erro que está enfrentando.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-lg p-3 ${
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+
+          <div className="p-4 border-t">
+            <div className="flex gap-2">
+              <Input
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+                placeholder="Descreva seu problema..."
+                disabled={isStreaming}
+              />
+              <Button
+                onClick={sendMessage}
+                disabled={isStreaming || !inputMessage.trim()}
+                size="icon"
+              >
+                {isStreaming ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
