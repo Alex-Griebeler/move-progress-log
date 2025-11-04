@@ -13,8 +13,11 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function PrescriptionsPage() {
+  usePageTitle(NAV_LABELS.prescriptions);
+  
   const { data: prescriptions, isLoading } = usePrescriptions();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);

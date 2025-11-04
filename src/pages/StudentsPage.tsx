@@ -24,6 +24,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { OuraSyncAllButton } from "@/components/OuraSyncAllButton";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { NAV_LABELS } from "@/constants/navigation";
+import { usePageTitle } from "@/hooks/usePageTitle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const StudentsPage = () => {
+  usePageTitle(NAV_LABELS.students);
+  
   const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();
   const { isAdmin } = useIsAdmin();

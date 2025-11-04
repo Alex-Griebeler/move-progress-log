@@ -29,10 +29,11 @@ import { StudentObservationsCard } from "@/components/StudentObservationsCard";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +49,13 @@ const StudentDetailPage = () => {
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
 
   const student = students?.find((s) => s.id === id);
+  
+  // Dynamic page title with student name
+  const pageTitle = useMemo(() => {
+    return student ? student.name : NAV_LABELS.students;
+  }, [student]);
+  
+  usePageTitle(pageTitle);
 
   if (loadingStudents) {
     return (

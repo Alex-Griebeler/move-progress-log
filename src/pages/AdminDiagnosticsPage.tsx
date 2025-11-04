@@ -10,8 +10,11 @@ import { AppHeader } from "@/components/AppHeader";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { NAV_LABELS } from "@/constants/navigation";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const AdminDiagnosticsPage = () => {
+  usePageTitle(NAV_LABELS.adminDiagnostics);
+  
   const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();
   const { isAdmin, isLoading: isLoadingRole } = useIsAdmin();

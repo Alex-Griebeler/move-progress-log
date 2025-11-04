@@ -15,8 +15,11 @@ import { clearTestSessions } from "@/utils/clearTestSessions";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { NAV_LABELS } from "@/constants/navigation";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const Index = () => {
+  usePageTitle(NAV_LABELS.dashboard);
+  
   const [refreshKey, setRefreshKey] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [isPopulating, setIsPopulating] = useState(false);

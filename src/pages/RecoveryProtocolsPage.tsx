@@ -10,8 +10,11 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 const RecoveryProtocolsPage = () => {
+  usePageTitle(NAV_LABELS.protocols);
+  
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const { data: protocols, isLoading } = useRecoveryProtocols(selectedCategory);
 

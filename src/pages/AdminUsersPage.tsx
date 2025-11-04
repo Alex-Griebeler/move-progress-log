@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { NAV_LABELS } from "@/constants/navigation";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 interface UserWithRole {
   id: string;
@@ -48,6 +49,8 @@ const roleVariants: Record<string, "default" | "secondary" | "destructive"> = {
 };
 
 export default function AdminUsersPage() {
+  usePageTitle(NAV_LABELS.adminUsers);
+  
   const navigate = useNavigate();
   const { isAdmin, isLoading: roleLoading } = useIsAdmin();
   const [users, setUsers] = useState<UserWithRole[]>([]);

@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { NAV_LABELS } from "@/constants/navigation";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 interface StudentStats {
   studentId: string;
@@ -39,6 +40,8 @@ interface StudentStats {
 }
 
 const StudentsComparisonPage = () => {
+  usePageTitle(NAV_LABELS.studentsComparison);
+  
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();

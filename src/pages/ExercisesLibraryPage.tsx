@@ -42,8 +42,11 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
+import { usePageTitle } from "@/hooks/usePageTitle";
 
 export default function ExercisesLibraryPage() {
+  usePageTitle(NAV_LABELS.exercises);
+  
   const [filters, setFilters] = useState<ExerciseFilters>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [editingExercise, setEditingExercise] = useState<ExerciseLibrary | null>(null);
