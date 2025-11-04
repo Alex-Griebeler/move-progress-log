@@ -7,6 +7,7 @@ import { useGetOrCreateStudent } from "@/hooks/useStudents";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 
 interface ImportSessionsDialogProps {
   open: boolean;
@@ -90,8 +91,15 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
     setProcessing(true);
     setStatus({ total: 0, processed: 0, errors: [], success: false });
+    
+    let toastId: string | number | undefined;
 
     try {
+      // Toast inicial
+      toastId = toast.loading("Lendo arquivo Excel...", {
+        description: "Processando planilha"
+      });
+
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -121,6 +129,12 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
       const totalSessions = sessionsMap.size;
       setStatus((prev) => ({ ...prev!, total: totalSessions }));
+      
+      // Atualiza toast com total encontrado
+      toast.loading(`Processando ${totalSessions} sessão(ões)...`, {
+        id: toastId,
+        description: "Importando dados para o sistema"
+      });
 
       let processed = 0;
       const errors: string[] = [];
@@ -128,6 +142,12 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       for (const [key, exercises] of sessionsMap) {
         try {
           const firstRow = exercises[0];
+          
+          // Atualiza toast com progresso atual
+          toast.loading(`Processando sessão ${processed + 1} de ${totalSessions}`, {
+            id: toastId,
+            description: `Aluno: ${firstRow.aluno} - ${exercises.length} exercício(s)`
+          });
           
           // Cria ou busca aluno
           const student = await getOrCreateStudent.mutateAsync(firstRow.aluno);
@@ -153,6 +173,21 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         }
       }
 
+      // Toast final
+      toast.dismiss(toastId);
+      
+      if (errors.length === 0) {
+        toast.success("Importação concluída com sucesso!", {
+          description: `${processed} sessão(ões) importada(s) com todos os exercícios.`,
+          duration: 5000,
+        });
+      } else {
+        toast.warning("Importação concluída com avisos", {
+          description: `${processed} de ${totalSessions} sessão(ões) importada(s). ${errors.length} erro(s) encontrado(s).`,
+          duration: 7000,
+        });
+      }
+
       setStatus({
         total: totalSessions,
         processed,
@@ -160,6 +195,12 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         success: errors.length === 0,
       });
     } catch (error: any) {
+      if (toastId) toast.dismiss(toastId);
+      
+      toast.error("Erro ao processar arquivo", {
+        description: error.message || "Verifique o formato do arquivo Excel e tente novamente.",
+      });
+      
       setStatus({
         total: 0,
         processed: 0,
