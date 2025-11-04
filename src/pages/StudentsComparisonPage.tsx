@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { NAV_LABELS } from "@/constants/navigation";
 
 interface StudentStats {
   studentId: string;
@@ -206,14 +207,14 @@ const StudentsComparisonPage = () => {
       <div className="container mx-auto p-6 space-y-6">
         <Breadcrumbs 
           items={[
-            { label: "Alunos", href: "/alunos" },
-            { label: "Comparação de Alunos" }
+            { label: NAV_LABELS.students, href: "/alunos" },
+            { label: NAV_LABELS.studentsComparison }
           ]}
         />
         
         <AppHeader
-          title="Comparação de Alunos"
-          subtitle="Visualize e compare dados de até 10 alunos simultaneamente"
+          title={NAV_LABELS.studentsComparison}
+          subtitle={NAV_LABELS.subtitleComparison}
           actions={
             <Link to="/alunos">
               <Button variant="ghost" size="icon">
@@ -227,7 +228,7 @@ const StudentsComparisonPage = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Filter className="h-5 w-5" />
-              Filtros
+              {NAV_LABELS.sectionFilters}
             </CardTitle>
             <CardDescription>
               Refine a visualização dos dados

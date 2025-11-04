@@ -14,6 +14,7 @@ import { populateTestSessions } from "@/utils/populateTestSessions";
 import { clearTestSessions } from "@/utils/clearTestSessions";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { NAV_LABELS } from "@/constants/navigation";
 
 const Index = () => {
   const [refreshKey, setRefreshKey] = useState(0);
@@ -100,38 +101,38 @@ const Index = () => {
           actions={
             <>
               <Link to="/alunos">
-                <Button variant="outline">
+                <Button variant="outline" aria-label={NAV_LABELS.students}>
                   <Users className="h-4 w-4 mr-2" />
-                  Gerenciar Alunos
+                  {NAV_LABELS.students}
                 </Button>
               </Link>
               <Link to="/alunos-comparacao">
-                <Button variant="outline">
+                <Button variant="outline" aria-label={NAV_LABELS.studentsComparison}>
                   <Users className="h-4 w-4 mr-2" />
-                  Comparar Alunos
+                  {NAV_LABELS.studentsComparison}
                 </Button>
               </Link>
               <Link to="/exercicios">
-                <Button variant="outline">
+                <Button variant="outline" aria-label={NAV_LABELS.exercises}>
                   <Library className="h-4 w-4 mr-2" />
-                  Biblioteca de Exercícios
+                  {NAV_LABELS.exercises}
                 </Button>
               </Link>
               <Link to="/prescricoes">
-                <Button variant="outline">
+                <Button variant="outline" aria-label={NAV_LABELS.prescriptions}>
                   <FileText className="h-4 w-4 mr-2" />
-                  Prescrições
+                  {NAV_LABELS.prescriptions}
                 </Button>
               </Link>
               <Link to="/protocolos">
-                <Button variant="outline">
+                <Button variant="outline" aria-label={NAV_LABELS.protocols}>
                   <Heart className="h-4 w-4 mr-2" />
-                  Protocolos de Recuperação
+                  {NAV_LABELS.protocols}
                 </Button>
               </Link>
-              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)} aria-label={NAV_LABELS.importExcel}>
                 <Upload className="h-4 w-4 mr-2" />
-                Importar Excel
+                {NAV_LABELS.importExcel}
               </Button>
               <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
               {import.meta.env.DEV && (
@@ -163,26 +164,26 @@ const Index = () => {
         {/* Stats Grid */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           <StatCard
-            title="Sessões Registradas"
+            title={NAV_LABELS.statTotalSessions}
             value={statsLoading ? "..." : stats?.totalSessions || 0}
             icon={Dumbbell}
             subtitle="Total consolidado"
             gradient
           />
           <StatCard
-            title="Este Mês"
+            title={NAV_LABELS.statThisMonth}
             value={statsLoading ? "..." : stats?.thisMonth || 0}
             icon={Calendar}
             subtitle="Sessões em outubro"
           />
           <StatCard
-            title="Alunos Ativos"
+            title={NAV_LABELS.statActiveStudents}
             value={statsLoading ? "..." : stats?.activeStudents || 0}
             icon={Users}
             subtitle="Com treinos regulares"
           />
           <StatCard
-            title="Carga Média"
+            title={NAV_LABELS.statAvgLoad}
             value={statsLoading ? "..." : `${stats?.avgLoad || 0}kg`}
             icon={TrendingUp}
             subtitle="Por sessão"
@@ -193,7 +194,7 @@ const Index = () => {
         <section>
           <div className="flex items-center gap-3 mb-6">
             <div className="h-1 w-12 bg-primary rounded-full" />
-            <h2 className="text-xl font-bold text-foreground">Sessões Recentes</h2>
+            <h2 className="text-xl font-bold text-foreground">{NAV_LABELS.sectionRecentSessions}</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -225,14 +226,14 @@ const Index = () => {
                   </div>
                   <div className="flex flex-wrap gap-3 justify-center">
                     <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
-                    <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="gap-2">
+                    <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="gap-2" aria-label={NAV_LABELS.importExcel}>
                       <Upload className="h-4 w-4" />
-                      Importar Excel
+                      {NAV_LABELS.importExcel}
                     </Button>
                     <Link to="/alunos">
-                      <Button variant="outline" className="gap-2">
+                      <Button variant="outline" className="gap-2" aria-label={NAV_LABELS.students}>
                         <Users className="h-4 w-4" />
-                        Ver Alunos
+                        {NAV_LABELS.students}
                       </Button>
                     </Link>
                   </div>

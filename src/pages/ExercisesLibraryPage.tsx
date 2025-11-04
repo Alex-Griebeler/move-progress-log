@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
+import { NAV_LABELS } from "@/constants/navigation";
 
 export default function ExercisesLibraryPage() {
   const [filters, setFilters] = useState<ExerciseFilters>({});
@@ -95,22 +96,23 @@ export default function ExercisesLibraryPage() {
     <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
       <Breadcrumbs 
         items={[
-          { label: "Biblioteca de Exercícios" }
+          { label: NAV_LABELS.exercises }
         ]}
       />
       
       <AppHeader
-        title="Biblioteca de Exercícios"
-        subtitle="Gerencie exercícios com classificações por padrões de movimento"
+        title={NAV_LABELS.exercises}
+        subtitle={NAV_LABELS.subtitleExercises}
         actions={
           <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={handlePopulateDatabase}
               disabled={isPopulating}
+              aria-label={NAV_LABELS.importExercises}
             >
               <Database className="h-4 w-4 mr-2" />
-              {isPopulating ? "Importando..." : "Importar Exercícios"}
+              {isPopulating ? "Importando..." : NAV_LABELS.importExercises}
             </Button>
             <AddExerciseDialog />
           </div>
@@ -123,7 +125,7 @@ export default function ExercisesLibraryPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Filter className="h-5 w-5" />
-              <CardTitle>Filtros</CardTitle>
+              <CardTitle>{NAV_LABELS.sectionFilters}</CardTitle>
             </div>
             {hasActiveFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>

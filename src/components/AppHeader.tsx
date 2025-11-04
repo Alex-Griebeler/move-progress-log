@@ -5,6 +5,7 @@ import { LogOut, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import logoFabrik from "@/assets/logo-fabrik.webp";
+import { NAV_LABELS } from "@/constants/navigation";
 
 interface AppHeaderProps {
   title?: string;
@@ -14,7 +15,7 @@ interface AppHeaderProps {
 
 export const AppHeader = ({ 
   title = "Fabrik Performance", 
-  subtitle = "Sistema de Registro e Acompanhamento",
+  subtitle = NAV_LABELS.subtitleDefault,
   actions 
 }: AppHeaderProps) => {
   const navigate = useNavigate();
@@ -58,9 +59,10 @@ export const AppHeader = ({
               size="sm"
               onClick={() => navigate("/admin/usuarios")}
               className="gap-2"
+              aria-label={NAV_LABELS.adminUsers}
             >
               <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Usuários</span>
+              <span className="hidden sm:inline">{NAV_LABELS.adminUsers}</span>
             </Button>
           )}
           {actions}
@@ -69,9 +71,10 @@ export const AppHeader = ({
             size="sm"
             onClick={handleSignOut}
             className="gap-2"
+            aria-label={NAV_LABELS.signOut}
           >
             <LogOut className="h-4 w-4" />
-            Sair
+            {NAV_LABELS.signOut}
           </Button>
         </div>
       </div>

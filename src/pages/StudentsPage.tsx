@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { OuraSyncAllButton } from "@/components/OuraSyncAllButton";
 import { useIsAdmin } from "@/hooks/useUserRole";
+import { NAV_LABELS } from "@/constants/navigation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -237,40 +238,40 @@ const StudentsPage = () => {
       <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
         <Breadcrumbs 
           items={[
-            { label: "Alunos", href: "/alunos", icon: Users }
+            { label: NAV_LABELS.students, href: "/alunos", icon: Users }
           ]}
         />
         
         <AppHeader
-          title="Gestão de Alunos"
-          subtitle="Gerencie os dados dos seus alunos"
+          title={NAV_LABELS.students}
+          subtitle={NAV_LABELS.subtitleStudents}
           actions={
             <>
               <OuraSyncAllButton />
               {isAdmin && (
                 <Link to="/admin/diagnostico-oura">
-                  <Button variant="outline">
+                  <Button variant="outline" aria-label={NAV_LABELS.adminDiagnostics}>
                     <Shield className="h-4 w-4 mr-2" />
-                    Diagnóstico API
+                    {NAV_LABELS.adminDiagnostics}
                   </Button>
                 </Link>
               )}
-              <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)}>
+              <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)} aria-label={NAV_LABELS.addStudent}>
                 <Plus className="h-4 w-4 mr-2" />
-                Adicionar Aluno
+                {NAV_LABELS.addStudent}
               </Button>
-              <Button variant="default" onClick={() => setIsGroupSessionDialogOpen(true)}>
+              <Button variant="default" onClick={() => setIsGroupSessionDialogOpen(true)} aria-label={NAV_LABELS.groupSession}>
                 <UserPlus className="h-4 w-4 mr-2" />
-                Sessão em Grupo
+                {NAV_LABELS.groupSession}
               </Button>
-              <Button variant="outline" onClick={() => setIsInviteDialogOpen(true)}>
+              <Button variant="outline" onClick={() => setIsInviteDialogOpen(true)} aria-label={NAV_LABELS.generateInvite}>
                 <Link2 className="h-4 w-4 mr-2" />
-                Gerar Link de Convite
+                {NAV_LABELS.generateInvite}
               </Button>
               <Link to="/alunos-comparacao">
-                <Button variant="outline">
+                <Button variant="outline" aria-label={NAV_LABELS.studentsComparison}>
                   <GitCompare className="h-4 w-4 mr-2" />
-                  Comparar Alunos
+                  {NAV_LABELS.studentsComparison}
                 </Button>
               </Link>
               <Link to="/">

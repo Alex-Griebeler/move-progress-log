@@ -32,6 +32,7 @@ import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { NAV_LABELS } from "@/constants/navigation";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -81,7 +82,7 @@ const StudentDetailPage = () => {
     <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
       <Breadcrumbs 
         items={[
-          { label: "Alunos", href: "/alunos", icon: Users },
+          { label: NAV_LABELS.students, href: "/alunos", icon: Users },
           { label: student.name }
         ]}
       />
@@ -112,9 +113,10 @@ const StudentDetailPage = () => {
                 onClick={() => setRecordSessionOpen(true)} 
                 className="gap-2 animate-pulse hover:animate-none"
                 variant="gradient"
+                aria-label={NAV_LABELS.recordSession}
               >
                 <Mic className="h-4 w-4" />
-                Registrar Sessão
+                {NAV_LABELS.recordSession}
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -126,12 +128,12 @@ const StudentDetailPage = () => {
 
       <Tabs defaultValue="training" className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="training">Treino Personalizado</TabsTrigger>
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-          <TabsTrigger value="sessions">Sessões</TabsTrigger>
-          <TabsTrigger value="exercises">Exercícios</TabsTrigger>
-          <TabsTrigger value="prescriptions">Prescrições</TabsTrigger>
-          <TabsTrigger value="oura">Métricas Oura</TabsTrigger>
+          <TabsTrigger value="training">{NAV_LABELS.tabTraining}</TabsTrigger>
+          <TabsTrigger value="overview">{NAV_LABELS.tabOverview}</TabsTrigger>
+          <TabsTrigger value="sessions">{NAV_LABELS.tabSessions}</TabsTrigger>
+          <TabsTrigger value="exercises">{NAV_LABELS.tabExercises}</TabsTrigger>
+          <TabsTrigger value="prescriptions">{NAV_LABELS.tabPrescriptions}</TabsTrigger>
+          <TabsTrigger value="oura">{NAV_LABELS.tabOura}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="training" className="space-y-6">

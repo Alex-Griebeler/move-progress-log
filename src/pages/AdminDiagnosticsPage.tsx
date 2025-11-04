@@ -9,6 +9,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { AppHeader } from "@/components/AppHeader";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { NAV_LABELS } from "@/constants/navigation";
 
 const AdminDiagnosticsPage = () => {
   const navigate = useNavigate();
@@ -44,14 +45,14 @@ const AdminDiagnosticsPage = () => {
       <div className="container mx-auto p-6 space-y-6">
         <Breadcrumbs 
           items={[
-            { label: "Alunos", href: "/alunos" },
-            { label: "Diagnóstico Oura", icon: Shield }
+            { label: NAV_LABELS.students, href: "/alunos" },
+            { label: NAV_LABELS.adminDiagnostics, icon: Shield }
           ]}
         />
         
         <AppHeader
-          title="Diagnóstico da API Oura"
-          subtitle="Painel técnico para administradores"
+          title={NAV_LABELS.adminDiagnostics}
+          subtitle={NAV_LABELS.subtitleDiagnostics}
           actions={
             <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")}>
               <ArrowLeft className="h-5 w-5" />

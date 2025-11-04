@@ -9,6 +9,7 @@ import { Heart, Sparkles } from "lucide-react";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
+import { NAV_LABELS } from "@/constants/navigation";
 
 const RecoveryProtocolsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
@@ -25,13 +26,13 @@ const RecoveryProtocolsPage = () => {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <Breadcrumbs 
           items={[
-            { label: "Protocolos de Recuperação" }
+            { label: NAV_LABELS.protocols }
           ]}
         />
         
         <AppHeader
-          title="Protocolos de Recuperação"
-          subtitle="Biblioteca completa baseada em evidências científicas"
+          title={NAV_LABELS.protocols}
+          subtitle={NAV_LABELS.subtitleProtocols}
         />
 
         <div className="space-y-6">

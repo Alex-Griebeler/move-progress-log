@@ -12,6 +12,7 @@ import { PrescriptionCard } from "@/components/PrescriptionCard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { NAV_LABELS } from "@/constants/navigation";
 
 export default function PrescriptionsPage() {
   const { data: prescriptions, isLoading } = usePrescriptions();
@@ -42,22 +43,23 @@ export default function PrescriptionsPage() {
       <div className="max-w-7xl mx-auto space-y-8">
         <Breadcrumbs 
           items={[
-            { label: "Prescrições de Treino" }
+            { label: NAV_LABELS.prescriptions }
           ]}
         />
         
         <AppHeader
-          title="Prescrições de Treino"
-          subtitle="Crie e gerencie prescrições de treino para seus alunos"
+          title={NAV_LABELS.prescriptions}
+          subtitle={NAV_LABELS.subtitlePrescriptions}
           actions={
             <Button
               onClick={() => setCreateDialogOpen(true)}
               variant="gradient"
               className="gap-2"
               size="lg"
+              aria-label={NAV_LABELS.newPrescription}
             >
               <Plus className="h-5 w-5" />
-              Nova Prescrição
+              {NAV_LABELS.newPrescription}
             </Button>
           }
         />
