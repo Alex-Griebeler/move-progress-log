@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 export interface WorkoutSession {
   id: string;
@@ -106,9 +107,20 @@ export const useCreateWorkout = () => {
       
       return session;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
+      queryClient.invalidateQueries({ queryKey: ["workout-sessions", variables.studentId] });
+      
+      toast.success("Treino registrado com sucesso!", {
+        description: `${variables.exercises.length} exercício(s) salvos para a sessão.`,
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Error creating workout:", error);
+      toast.error("Erro ao registrar treino", {
+        description: error.message || "Não foi possível salvar o treino. Tente novamente.",
+      });
     },
   });
 };
