@@ -37,20 +37,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (!session) return;
 
     const refreshInterval = setInterval(async () => {
-      console.log('[Auth] Renovando token automaticamente...');
-      
       try {
         const { data, error } = await supabase.auth.refreshSession();
         
         if (error) throw error;
         
         if (data.session) {
-          console.log('✅ Token renovado com sucesso');
           setSession(data.session);
           setUser(data.session.user);
         }
       } catch (err) {
-        console.error('❌ Erro ao renovar token:', err);
         // Logout automático se refresh falhar
         await supabase.auth.signOut();
         setSession(null);
