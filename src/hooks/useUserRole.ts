@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+// Mapeamento dos papéis do sistema
 export type AppRole = 'admin' | 'moderator' | 'user';
 
 export const useUserRole = () => {
@@ -31,6 +32,14 @@ export const useIsAdmin = () => {
   const { data: role, isLoading } = useUserRole();
   return {
     isAdmin: role === 'admin',
+    isLoading
+  };
+};
+
+export const useIsModerator = () => {
+  const { data: role, isLoading } = useUserRole();
+  return {
+    isModerator: role === 'moderator' || role === 'admin',
     isLoading
   };
 };

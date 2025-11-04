@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { LogOut } from "lucide-react";
+import { LogOut, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useIsAdmin } from "@/hooks/useUserRole";
 import logoFabrik from "@/assets/logo-fabrik.webp";
 
 interface AppHeaderProps {
@@ -18,6 +19,7 @@ export const AppHeader = ({
 }: AppHeaderProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isAdmin } = useIsAdmin();
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
@@ -50,6 +52,17 @@ export const AppHeader = ({
           </div>
         </Link>
         <div className="flex gap-2 items-center flex-wrap">
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/admin/usuarios")}
+              className="gap-2"
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Usuários</span>
+            </Button>
+          )}
           {actions}
           <Button
             variant="ghost"

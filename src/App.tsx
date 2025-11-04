@@ -18,6 +18,7 @@ const ExercisesLibraryPage = lazy(() => import("./pages/ExercisesLibraryPage"));
 const PrescriptionsPage = lazy(() => import("./pages/PrescriptionsPage"));
 const RecoveryProtocolsPage = lazy(() => import("./pages/RecoveryProtocolsPage"));
 const AdminDiagnosticsPage = lazy(() => import("./pages/AdminDiagnosticsPage"));
+const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const StudentOnboardingPage = lazy(() => import("./pages/StudentOnboardingPage"));
 const OnboardingSuccessPage = lazy(() => import("./pages/OnboardingSuccessPage"));
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/prescricoes" element={<ProtectedRoute><PrescriptionsPage /></ProtectedRoute>} />
               <Route path="/protocolos" element={<ProtectedRoute><RecoveryProtocolsPage /></ProtectedRoute>} />
               <Route path="/admin/diagnostico-oura" element={<ProtectedRoute><AdminDiagnosticsPage /></ProtectedRoute>} />
+              <Route path="/admin/usuarios" element={<ProtectedRoute><AdminUsersPage /></ProtectedRoute>} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
