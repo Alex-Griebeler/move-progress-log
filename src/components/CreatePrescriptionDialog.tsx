@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import {
   DndContext,
   closestCenter,
@@ -171,6 +172,10 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     if (!selectedExercise) return;
 
     setLoadingRegressions(exerciseIndex);
+    
+    const loadingToastId = sonnerToast.loading("Gerando sugestões de regressões...", {
+      description: "A IA está analisando o exercício e buscando alternativas adequadas."
+    });
 
     try {
       const { data, error } = await supabase.functions.invoke("suggest-regressions", {
@@ -200,11 +205,13 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       updateExercise(exerciseIndex, "adaptations", suggestions);
       updateExercise(exerciseIndex, "showAdaptations", true);
 
+      sonnerToast.dismiss(loadingToastId);
       toast({
-        title: "Regressões sugeridas",
+        title: "Regressões sugeridas com sucesso!",
         description: "A IA sugeriu 3 exercícios de regressão baseados no padrão de movimento.",
       });
     } catch (error: any) {
+      sonnerToast.dismiss(loadingToastId);
       toast({
         title: "Erro ao sugerir regressões",
         description: error.message || "Tente novamente mais tarde.",
