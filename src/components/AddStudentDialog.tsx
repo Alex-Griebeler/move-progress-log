@@ -100,6 +100,8 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
   };
 
   const onSubmit = async (data: FormData) => {
+    let uploadToastId: string | number | undefined;
+    
     try {
       setIsUploadingAvatar(true);
 
@@ -115,6 +117,10 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
 
       // Upload avatar if provided
       if (avatarFile) {
+        uploadToastId = toast.loading("Fazendo upload da foto...", {
+          description: "Aguarde enquanto processamos a imagem"
+        });
+        
         const tempId = crypto.randomUUID();
         const fileExt = avatarFile.name.split('.').pop();
         const fileName = `${tempId}-${Date.now()}.${fileExt}`;
@@ -123,13 +129,17 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
           .from('student-avatars')
           .upload(fileName, avatarFile);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          toast.dismiss(uploadToastId);
+          throw uploadError;
+        }
 
         const { data: { publicUrl } } = supabase.storage
           .from('student-avatars')
           .getPublicUrl(fileName);
 
         avatarUrl = publicUrl;
+        toast.dismiss(uploadToastId);
       }
 
       await createStudent.mutateAsync({
@@ -147,6 +157,8 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
         height_cm: data.height_cm,
       });
       
+      if (uploadToastId) toast.dismiss(uploadToastId);
+      
       toast.success(`✅ ${data.name} foi cadastrado com sucesso!`, {
         description: "Agora você pode criar treinos e prescrições para este aluno."
       });
@@ -155,10 +167,14 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
       setAvatarPreview(null);
       onOpenChange(false);
     } catch (error: any) {
+      if (uploadToastId) toast.dismiss(uploadToastId);
+      
       const errorMessage = error.message?.includes('duplicate') 
         ? "Este aluno já está cadastrado no sistema."
         : error.message?.includes('network')
         ? "Erro de conexão. Verifique sua internet e tente novamente."
+        : error.message?.includes('upload') || error.message?.includes('storage')
+        ? "Erro ao fazer upload da foto. Tente novamente com uma imagem menor."
         : "Não foi possível cadastrar o aluno. Tente novamente.";
       
       toast.error(errorMessage, {

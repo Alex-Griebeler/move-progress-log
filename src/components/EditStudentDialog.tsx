@@ -124,6 +124,8 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
   const onSubmit = async (data: FormData) => {
     if (!student) return;
 
+    let uploadToastId: string | number | undefined;
+    
     try {
       setIsUploadingAvatar(true);
 
@@ -139,6 +141,10 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
 
       // Upload avatar if changed
       if (avatarFile) {
+        uploadToastId = toast.loading("Fazendo upload da foto...", {
+          description: "Aguarde enquanto processamos a imagem"
+        });
+        
         const fileExt = avatarFile.name.split('.').pop();
         const fileName = `${student.id}-${Date.now()}.${fileExt}`;
         
@@ -146,13 +152,17 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
           .from('student-avatars')
           .upload(fileName, avatarFile, { upsert: true });
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          toast.dismiss(uploadToastId);
+          throw uploadError;
+        }
 
         const { data: { publicUrl } } = supabase.storage
           .from('student-avatars')
           .getPublicUrl(fileName);
 
         avatarUrl = publicUrl;
+        toast.dismiss(uploadToastId);
       } else if (avatarPreview === null && student.avatar_url) {
         // Remove avatar if cleared
         avatarUrl = null;
@@ -173,10 +183,20 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
         weight_kg: data.weight_kg,
         height_cm: data.height_cm,
       });
-      toast.success("Aluno atualizado com sucesso");
+      if (uploadToastId) toast.dismiss(uploadToastId);
+      
+      toast.success("Aluno atualizado com sucesso", {
+        description: "As alterações foram salvas."
+      });
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "Erro ao atualizar aluno");
+      if (uploadToastId) toast.dismiss(uploadToastId);
+      
+      const errorMessage = error.message?.includes('upload') || error.message?.includes('storage')
+        ? "Erro ao fazer upload da foto. Tente novamente com uma imagem menor."
+        : error.message || "Erro ao atualizar aluno";
+        
+      toast.error(errorMessage);
     } finally {
       setIsUploadingAvatar(false);
     }
