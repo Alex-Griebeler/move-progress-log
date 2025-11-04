@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/form";
 import { useValidateInvite, useCreateStudentFromInvite } from "@/hooks/useStudentInvites";
 import { toast } from "sonner";
+import { logger } from "@/utils/logger";
 
 const formSchema = z.object({
   name: z.string().min(1, "Nome é obrigatório"),
@@ -51,8 +52,8 @@ export default function StudentOnboardingPage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
-  console.log('StudentOnboardingPage loaded with token:', token);
-  console.log('Current URL:', window.location.href);
+  console.log('StudentOnboardingPage loaded');
+  logger.log('Validating invite token');
 
   const { data: validationData, isLoading: isValidating, error: validationError } = useValidateInvite(token || "");
   const createStudent = useCreateStudentFromInvite();
@@ -94,6 +95,7 @@ export default function StudentOnboardingPage() {
     if (!token) return;
 
     try {
+      logger.log('Creating student from invite');
       const result = await createStudent.mutateAsync({
         invite_token: token,
         student_data: {

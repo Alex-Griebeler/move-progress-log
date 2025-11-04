@@ -8,10 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePasswordSecurity } from "@/hooks/usePasswordSecurity";
-import { AlertCircle, Check, X, Loader2, Shield } from "lucide-react";
+import { AlertCircle, Check, X, Loader2, Shield, Lock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { checkRateLimit, recordFailedAttempt, type RateLimitAction } from "@/lib/rateLimiter";
+import { logger } from "@/utils/logger";
+import { Enable2FADialog } from "@/components/Enable2FADialog";
+import { Verify2FADialog } from "@/components/Verify2FADialog";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -23,6 +26,9 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [passwordSecurity, setPasswordSecurity] = useState<any>(null);
   const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [show2FAVerify, setShow2FAVerify] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string>('');
   const navigate = useNavigate();
   const { toast } = useToast();
   const { checkPasswordSecurity, checking } = usePasswordSecurity();
@@ -96,37 +102,16 @@ export default function AuthPage() {
       });
 
       if (error) {
-        console.error('❌ Erro Google OAuth:', error);
+        logger.error('Google OAuth error:', error);
         await recordFailedAttempt('login');
         
         // Mensagem específica para erro 403
         if (error.message.includes('403') || error.message.includes('access_denied')) {
           toast({
             title: "Acesso Negado pelo Google",
-            description: "Verifique as configurações do Google Cloud Console. Detalhes no console do navegador.",
+            description: "Entre em contato com o administrador do sistema.",
             variant: "destructive",
           });
-          
-          console.group('🔍 DIAGNÓSTICO - Erro 403 Google OAuth');
-          console.error('PROBLEMA: Google está bloqueando o login');
-          console.log('');
-          console.log('✅ SOLUÇÃO - Siga EXATAMENTE estes passos:');
-          console.log('');
-          console.log('1. Acesse: https://console.cloud.google.com/apis/credentials/consent');
-          console.log('');
-          console.log('2. Verifique o "User Type":');
-          console.log('   ❌ Se estiver "Internal" → Mude para "External"');
-          console.log('   ✅ Se estiver "External" → OK, vá para o passo 3');
-          console.log('');
-          console.log('3. Se "Publishing status" está "Testing":');
-          console.log('   → Clique em "+ ADD USERS"');
-          console.log(`   → Adicione: ${email || 'alex@fabrikbrasil.com'}`);
-          console.log('   → Salve');
-          console.log('');
-          console.log('   OU clique em "PUBLISH APP" para modo produção');
-          console.log('');
-          console.log('4. Aguarde 1 minuto e tente novamente');
-          console.groupEnd();
         } else {
           toast({
             title: "Erro ao conectar com Google",
@@ -138,15 +123,14 @@ export default function AuthPage() {
         return;
       }
 
-      // Se chegou aqui, o redirect vai acontecer automaticamente
-      console.log('✅ Redirecionando para Google...');
+      logger.log('Redirecting to Google OAuth...');
       
     } catch (err: any) {
-      console.error('❌ Erro inesperado:', err);
+      logger.error('Unexpected Google OAuth error:', err);
       setLoading(false);
       toast({
         title: "Erro inesperado",
-        description: "Verifique o console para mais detalhes.",
+        description: "Tente novamente mais tarde.",
         variant: "destructive",
       });
     }
@@ -299,7 +283,17 @@ export default function AuthPage() {
         description: getErrorMessage(error),
         variant: "destructive",
       });
+      return;
+    }
+
+    // Verificar se o usuário tem 2FA ativado
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+    if (factors?.totp && factors.totp.length > 0) {
+      // Usuário tem 2FA, mostrar dialog de verificação
+      setMfaFactorId(factors.totp[0].id);
+      setShow2FAVerify(true);
     } else {
+      // Login sem 2FA
       setRateLimitWarning(null);
       toast({
         title: "✅ Login realizado com sucesso!",
@@ -617,8 +611,32 @@ export default function AuthPage() {
               </form>
             </TabsContent>
           </Tabs>
+
+          {/* Link para ativar 2FA - aparece após login bem-sucedido */}
+          <div className="mt-4 text-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShow2FASetup(true)}
+              className="text-xs text-muted-foreground hover:text-primary"
+            >
+              <Lock className="h-3 w-3 mr-1" />
+              Ativar Autenticação em Duas Etapas (2FA)
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Dialogs de 2FA */}
+      <Enable2FADialog
+        open={show2FASetup}
+        onOpenChange={setShow2FASetup}
+      />
+      <Verify2FADialog
+        open={show2FAVerify}
+        onOpenChange={setShow2FAVerify}
+        factorId={mfaFactorId}
+      />
     </div>
   );
 }

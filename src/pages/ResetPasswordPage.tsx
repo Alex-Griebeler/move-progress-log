@@ -11,6 +11,7 @@ import { AlertCircle, Check, X, Loader2, ArrowLeft, Shield } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import { checkRateLimit, recordFailedAttempt } from "@/lib/rateLimiter";
+import { logger } from "@/utils/logger";
 
 const emailSchema = z.string().email("Email inválido");
 
@@ -170,7 +171,7 @@ export default function ResetPasswordPage() {
         navigate("/auth");
       }, 2000);
     } catch (error: any) {
-      console.error("Erro ao atualizar senha:", error);
+      logger.error("Error updating password:", error);
       
       if (error.message?.includes("token")) {
         toast({
