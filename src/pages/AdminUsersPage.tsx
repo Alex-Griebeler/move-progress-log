@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 
 interface UserWithRole {
   id: string;
@@ -50,6 +51,7 @@ const roleVariants: Record<string, "default" | "secondary" | "destructive"> = {
 
 export default function AdminUsersPage() {
   usePageTitle(NAV_LABELS.adminUsers);
+  useSEOHead(SEO_PRESETS.private); // Admin users é privado
   
   const navigate = useNavigate();
   const { isAdmin, isLoading: roleLoading } = useIsAdmin();

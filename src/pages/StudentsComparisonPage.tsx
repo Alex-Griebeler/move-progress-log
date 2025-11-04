@@ -22,6 +22,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 
 interface StudentStats {
   studentId: string;
@@ -41,6 +42,7 @@ interface StudentStats {
 
 const StudentsComparisonPage = () => {
   usePageTitle(NAV_LABELS.studentsComparison);
+  useSEOHead(SEO_PRESETS.private); // Comparação é privada
   
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<Date | undefined>();

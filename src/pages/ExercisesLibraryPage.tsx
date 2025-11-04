@@ -43,11 +43,13 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
 
 export default function ExercisesLibraryPage() {
   usePageTitle(NAV_LABELS.exercises);
+  useSEOHead(SEO_PRESETS.private); // Biblioteca de exercícios é privada
   
   const [filters, setFilters] = useState<ExerciseFilters>({});
   const [searchTerm, setSearchTerm] = useState("");

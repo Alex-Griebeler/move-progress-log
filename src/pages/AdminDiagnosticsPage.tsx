@@ -11,9 +11,11 @@ import { useIsAdmin } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 
 const AdminDiagnosticsPage = () => {
   usePageTitle(NAV_LABELS.adminDiagnostics);
+  useSEOHead(SEO_PRESETS.private); // Diagnóstico é privado (admin only)
   
   const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();

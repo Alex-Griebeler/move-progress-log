@@ -25,6 +25,7 @@ import { OuraSyncAllButton } from "@/components/OuraSyncAllButton";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
 import {
@@ -40,6 +41,7 @@ import {
 
 const StudentsPage = () => {
   usePageTitle(NAV_LABELS.students);
+  useSEOHead(SEO_PRESETS.private); // Página de alunos é privada
   
   const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();

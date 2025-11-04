@@ -14,11 +14,13 @@ import { EmptyState } from "@/components/EmptyState";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getTrainingProgramSchema } from "@/utils/structuredData";
 
 export default function PrescriptionsPage() {
   usePageTitle(NAV_LABELS.prescriptions);
+  useSEOHead(SEO_PRESETS.private); // Prescrições são privadas
   
   const { data: prescriptions, isLoading } = usePrescriptions();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);

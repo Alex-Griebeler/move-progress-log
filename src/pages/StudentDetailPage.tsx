@@ -34,6 +34,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getPersonSchema } from "@/utils/structuredData";
 
@@ -58,6 +59,7 @@ const StudentDetailPage = () => {
   }, [student]);
   
   usePageTitle(pageTitle);
+  useSEOHead(SEO_PRESETS.private); // Detalhes do aluno são privados
 
   if (loadingStudents) {
     return (

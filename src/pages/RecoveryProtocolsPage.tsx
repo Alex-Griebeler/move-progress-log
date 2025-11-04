@@ -11,11 +11,13 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 
 const RecoveryProtocolsPage = () => {
   usePageTitle(NAV_LABELS.protocols);
+  useSEOHead(SEO_PRESETS.private); // Protocolos são privados
   
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const { data: protocols, isLoading } = useRecoveryProtocols(selectedCategory);
