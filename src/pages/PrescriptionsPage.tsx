@@ -18,8 +18,6 @@ import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getTrainingProgramSchema } from "@/utils/structuredData";
-import { PageLayout } from "@/components/PageLayout";
-import { PageHeader } from "@/components/PageHeader";
 
 export default function PrescriptionsPage() {
   usePageTitle(NAV_LABELS.prescriptions);
@@ -49,27 +47,47 @@ export default function PrescriptionsPage() {
   };
 
   return (
-    <PageLayout
-      structuredData={[
-        { data: getWebPageSchema(NAV_LABELS.prescriptions, "Crie e gerencie prescrições de treino personalizadas para seus alunos com exercícios e objetivos específicos"), id: "webpage-schema" },
-        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.prescriptions, href: "/prescricoes" }]), id: "breadcrumb-schema" }
-      ]}
-    >
-      <PageHeader
-        title={NAV_LABELS.prescriptions}
-        description={NAV_LABELS.subtitlePrescriptions}
-        breadcrumbs={[{ label: NAV_LABELS.prescriptions }]}
-        actions={
-          <Button
-            onClick={() => setCreateDialogOpen(true)}
-            variant="gradient"
-            size="sm"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {NAV_LABELS.newPrescription}
-          </Button>
-        }
+    <div id="main-content" className="min-h-screen bg-background p-8" role="main">
+      {/* Structured Data para SEO */}
+      <StructuredData data={getOrganizationSchema()} id="org-schema" />
+      <StructuredData 
+        data={getWebPageSchema(
+          NAV_LABELS.prescriptions,
+          "Crie e gerencie prescrições de treino personalizadas para seus alunos com exercícios e objetivos específicos"
+        )} 
+        id="webpage-schema" 
       />
+      <StructuredData 
+        data={getBreadcrumbSchema([
+          { label: "Home", href: "/" },
+          { label: NAV_LABELS.prescriptions, href: "/prescricoes" }
+        ])} 
+        id="breadcrumb-schema" 
+      />
+      
+      <div className="max-w-7xl mx-auto space-y-8">
+        <Breadcrumbs
+          items={[
+            { label: NAV_LABELS.prescriptions }
+          ]}
+        />
+        
+        <AppHeader
+          title={NAV_LABELS.prescriptions}
+          subtitle={NAV_LABELS.subtitlePrescriptions}
+          actions={
+            <Button
+              onClick={() => setCreateDialogOpen(true)}
+              variant="gradient"
+              className="gap-2"
+              size="lg"
+              aria-label={NAV_LABELS.newPrescription}
+            >
+              <Plus className="h-5 w-5" />
+              {NAV_LABELS.newPrescription}
+            </Button>
+          }
+        />
 
         {isLoading ? (
           <LoadingSpinner text="Carregando prescrições..." />
@@ -96,6 +114,7 @@ export default function PrescriptionsPage() {
             }}
           />
         )}
+      </div>
 
       <CreatePrescriptionDialog
         open={createDialogOpen}
@@ -125,6 +144,6 @@ export default function PrescriptionsPage() {
         onOpenChange={setRecordGroupDialogOpen}
         prescriptionId={selectedPrescriptionId}
       />
-    </PageLayout>
+    </div>
   );
 }

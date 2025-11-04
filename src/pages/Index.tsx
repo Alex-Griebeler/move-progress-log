@@ -20,8 +20,6 @@ import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
-import { PageLayout } from "@/components/PageLayout";
-import { PageHeader } from "@/components/PageHeader";
 
 const Index = () => {
   usePageTitle(NAV_LABELS.dashboard);
@@ -110,72 +108,88 @@ const Index = () => {
   };
 
   return (
-    <PageLayout
-      structuredData={[
-        { data: getWebPageSchema(NAV_LABELS.dashboard, "Dashboard principal com visão geral de sessões, estatísticas e atividades recentes"), id: "webpage-schema" },
-        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }]), id: "breadcrumb-schema" }
-      ]}
-    >
-      <PageHeader
-        title={NAV_LABELS.dashboard}
-        description="Visão geral de treinos, estatísticas e atividades recentes"
-        actions={
-          <>
-            <Link to="/alunos">
-              <Button variant="outline" size="sm">
-                <Users className="h-4 w-4 mr-2" />
-                {NAV_LABELS.students}
-              </Button>
-            </Link>
-            <Link to="/exercicios">
-              <Button variant="outline" size="sm">
-                <Library className="h-4 w-4 mr-2" />
-                {NAV_LABELS.exercises}
-              </Button>
-            </Link>
-            <Link to="/prescricoes">
-              <Button variant="outline" size="sm">
-                <FileText className="h-4 w-4 mr-2" />
-                {NAV_LABELS.prescriptions}
-              </Button>
-            </Link>
-            <Link to="/protocolos">
-              <Button variant="outline" size="sm">
-                <Heart className="h-4 w-4 mr-2" />
-                {NAV_LABELS.protocols}
-              </Button>
-            </Link>
-            <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              {NAV_LABELS.importExcel}
-            </Button>
-            <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
-            {import.meta.env.DEV && (
-              <>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handlePopulateTestData}
-                  disabled={isPopulating}
-                >
-                  <Database className="h-4 w-4 mr-2" />
-                  {isPopulating ? 'Criando...' : 'Popular'}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleClearTestData}
-                  disabled={isClearing}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {isClearing ? 'Limpando...' : 'Limpar'}
-                </Button>
-              </>
-            )}
-          </>
-        }
+    <div className="min-h-screen bg-background">
+      {/* Structured Data para SEO */}
+      <StructuredData data={getOrganizationSchema()} id="org-schema" />
+      <StructuredData 
+        data={getWebPageSchema(
+          NAV_LABELS.dashboard,
+          "Dashboard principal com visão geral de sessões, estatísticas e atividades recentes"
+        )} 
+        id="webpage-schema" 
       />
+      <StructuredData 
+        data={getBreadcrumbSchema([
+          { label: "Home", href: "/" }
+        ])} 
+        id="breadcrumb-schema" 
+      />
+      
+      <div id="main-content" className="container mx-auto px-4 py-8 max-w-7xl" role="main">
+        {/* Header */}
+        <AppHeader
+          actions={
+            <>
+              <Link to="/alunos">
+                <Button variant="outline" aria-label={NAV_LABELS.students}>
+                  <Users className="h-4 w-4 mr-2" />
+                  {NAV_LABELS.students}
+                </Button>
+              </Link>
+              <Link to="/alunos-comparacao">
+                <Button variant="outline" aria-label={NAV_LABELS.studentsComparison}>
+                  <Users className="h-4 w-4 mr-2" />
+                  {NAV_LABELS.studentsComparison}
+                </Button>
+              </Link>
+              <Link to="/exercicios">
+                <Button variant="outline" aria-label={NAV_LABELS.exercises}>
+                  <Library className="h-4 w-4 mr-2" />
+                  {NAV_LABELS.exercises}
+                </Button>
+              </Link>
+              <Link to="/prescricoes">
+                <Button variant="outline" aria-label={NAV_LABELS.prescriptions}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  {NAV_LABELS.prescriptions}
+                </Button>
+              </Link>
+              <Link to="/protocolos">
+                <Button variant="outline" aria-label={NAV_LABELS.protocols}>
+                  <Heart className="h-4 w-4 mr-2" />
+                  {NAV_LABELS.protocols}
+                </Button>
+              </Link>
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)} aria-label={NAV_LABELS.importExcel}>
+                <Upload className="h-4 w-4 mr-2" />
+                {NAV_LABELS.importExcel}
+              </Button>
+              <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
+              {import.meta.env.DEV && (
+                <>
+                  <Button 
+                    variant="outline" 
+                    onClick={handlePopulateTestData}
+                    disabled={isPopulating}
+                    className="gap-2"
+                  >
+                    <Database className="h-4 w-4" />
+                    {isPopulating ? 'Criando...' : 'Popular Dados'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={handleClearTestData}
+                    disabled={isClearing}
+                    className="gap-2 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {isClearing ? 'Limpando...' : 'Limpar Sessões'}
+                  </Button>
+                </>
+              )}
+            </>
+          }
+        />
 
         {/* Stats Grid */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
@@ -262,12 +276,13 @@ const Index = () => {
             )}
           </div>
         </section>
+      </div>
 
       <ImportSessionsDialog 
         open={importDialogOpen} 
         onOpenChange={setImportDialogOpen}
       />
-    </PageLayout>
+    </div>
   );
 };
 

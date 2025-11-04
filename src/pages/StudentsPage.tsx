@@ -31,8 +31,6 @@ import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
-import { PageLayout } from "@/components/PageLayout";
-import { PageHeader } from "@/components/PageHeader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -248,49 +246,80 @@ const StudentsPage = () => {
   );
 
   return (
-    <PageLayout
-      structuredData={[
-        { data: getWebPageSchema(NAV_LABELS.students, "Gerencie os dados dos seus alunos, acompanhe métricas Oura Ring e registre sessões de treino"), id: "webpage-schema" },
-        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.students, href: "/alunos" }]), id: "breadcrumb-schema" },
-        ...(students && students.length > 0 ? [{ data: getItemListSchema(students.map(s => ({ name: s.name, url: `/alunos/${s.id}` })), "Lista de Alunos"), id: "students-list-schema" }] : [])
-      ]}
-    >
-      <PageHeader
-        title={NAV_LABELS.students}
-        description={NAV_LABELS.subtitleStudents}
-        breadcrumbs={[{ label: NAV_LABELS.students, icon: Users }]}
-        actions={
-          <>
-            <OuraSyncAllButton />
-            {isAdmin && (
-              <Link to="/admin/diagnostico-oura">
-                <Button variant="outline" size="sm">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Diagnóstico
+    <div className="min-h-screen bg-background">
+      {/* Structured Data para SEO */}
+      <StructuredData data={getOrganizationSchema()} id="org-schema" />
+      <StructuredData 
+        data={getWebPageSchema(
+          NAV_LABELS.students,
+          "Gerencie os dados dos seus alunos, acompanhe métricas Oura Ring e registre sessões de treino"
+        )} 
+        id="webpage-schema" 
+      />
+      <StructuredData 
+        data={getBreadcrumbSchema([
+          { label: "Home", href: "/" },
+          { label: NAV_LABELS.students, href: "/alunos" }
+        ])} 
+        id="breadcrumb-schema" 
+      />
+      {students && students.length > 0 && (
+        <StructuredData 
+          data={getItemListSchema(
+            students.map(s => ({ name: s.name, url: `/alunos/${s.id}` })),
+            "Lista de Alunos"
+          )} 
+          id="students-list-schema" 
+        />
+      )}
+      
+      <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
+        <Breadcrumbs 
+          items={[
+            { label: NAV_LABELS.students, href: "/alunos", icon: Users }
+          ]}
+        />
+        
+        <AppHeader
+          title={NAV_LABELS.students}
+          subtitle={NAV_LABELS.subtitleStudents}
+          actions={
+            <>
+              <OuraSyncAllButton />
+              {isAdmin && (
+                <Link to="/admin/diagnostico-oura">
+                  <Button variant="outline" aria-label={NAV_LABELS.adminDiagnostics}>
+                    <Shield className="h-4 w-4 mr-2" />
+                    {NAV_LABELS.adminDiagnostics}
+                  </Button>
+                </Link>
+              )}
+              <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)} aria-label={NAV_LABELS.addStudent}>
+                <Plus className="h-4 w-4 mr-2" />
+                {NAV_LABELS.addStudent}
+              </Button>
+              <Button variant="default" onClick={() => setIsGroupSessionDialogOpen(true)} aria-label={NAV_LABELS.groupSession}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                {NAV_LABELS.groupSession}
+              </Button>
+              <Button variant="outline" onClick={() => setIsInviteDialogOpen(true)} aria-label={NAV_LABELS.generateInvite}>
+                <Link2 className="h-4 w-4 mr-2" />
+                {NAV_LABELS.generateInvite}
+              </Button>
+              <Link to="/alunos-comparacao">
+                <Button variant="outline" aria-label={NAV_LABELS.studentsComparison}>
+                  <GitCompare className="h-4 w-4 mr-2" />
+                  {NAV_LABELS.studentsComparison}
                 </Button>
               </Link>
-            )}
-            <Button variant="gradient" size="sm" onClick={() => setIsAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              {NAV_LABELS.addStudent}
-            </Button>
-            <Button variant="default" size="sm" onClick={() => setIsGroupSessionDialogOpen(true)}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Sessão Grupo
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsInviteDialogOpen(true)}>
-              <Link2 className="h-4 w-4 mr-2" />
-              Gerar Convite
-            </Button>
-            <Link to="/alunos-comparacao">
-              <Button variant="outline" size="sm">
-                <GitCompare className="h-4 w-4 mr-2" />
-                Comparar
-              </Button>
-            </Link>
-          </>
-        }
-      />
+              <Link to="/">
+                <Button variant="ghost" size="icon" aria-label="Voltar para página inicial">
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+            </>
+          }
+        />
 
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -348,6 +377,7 @@ const StudentsPage = () => {
             }}
           />
         )}
+      </div>
 
       <AddStudentDialog
         open={isAddDialogOpen}
@@ -402,7 +432,7 @@ const StudentsPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </PageLayout>
+    </div>
   );
 };
 

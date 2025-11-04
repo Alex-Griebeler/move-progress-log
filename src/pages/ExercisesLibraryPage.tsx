@@ -47,9 +47,6 @@ import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
-import { PageLayout } from "@/components/PageLayout";
-import { PageHeader } from "@/components/PageHeader";
-import { StickyBar } from "@/components/StickyBar";
 
 export default function ExercisesLibraryPage() {
   usePageTitle(NAV_LABELS.exercises);
@@ -111,35 +108,59 @@ export default function ExercisesLibraryPage() {
   );
 
   return (
-    <PageLayout
-      structuredData={[
-        { data: getWebPageSchema(NAV_LABELS.exercises, "Biblioteca completa de exercícios com classificações por padrões de movimento, lateralidade, planos e tipos de contração"), id: "webpage-schema" },
-        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.exercises, href: "/exercicios" }]), id: "breadcrumb-schema" },
-        ...(exercises && exercises.length > 0 ? [{ data: getItemListSchema(exercises.map(ex => ({ name: ex.name })), "Biblioteca de Exercícios"), id: "exercises-list-schema" }] : [])
-      ]}
-    >
-      <PageHeader
+    <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
+      {/* Structured Data para SEO */}
+      <StructuredData data={getOrganizationSchema()} id="org-schema" />
+      <StructuredData 
+        data={getWebPageSchema(
+          NAV_LABELS.exercises,
+          "Biblioteca completa de exercícios com classificações por padrões de movimento, lateralidade, planos e tipos de contração"
+        )} 
+        id="webpage-schema" 
+      />
+      <StructuredData 
+        data={getBreadcrumbSchema([
+          { label: "Home", href: "/" },
+          { label: NAV_LABELS.exercises, href: "/exercicios" }
+        ])} 
+        id="breadcrumb-schema" 
+      />
+      {exercises && exercises.length > 0 && (
+        <StructuredData 
+          data={getItemListSchema(
+            exercises.map(ex => ({ name: ex.name })),
+            "Biblioteca de Exercícios"
+          )} 
+          id="exercises-list-schema" 
+        />
+      )}
+      
+      <Breadcrumbs
+        items={[
+          { label: NAV_LABELS.exercises }
+        ]}
+      />
+      
+      <AppHeader
         title={NAV_LABELS.exercises}
-        description={NAV_LABELS.subtitleExercises}
-        breadcrumbs={[{ label: NAV_LABELS.exercises }]}
+        subtitle={NAV_LABELS.subtitleExercises}
         actions={
-          <>
+          <div className="flex gap-2">
             <Button
               variant="outline"
-              size="sm"
               onClick={handlePopulateDatabase}
               disabled={isPopulating}
+              aria-label={NAV_LABELS.importExercises}
             >
               <Database className="h-4 w-4 mr-2" />
               {isPopulating ? "Importando..." : NAV_LABELS.importExercises}
             </Button>
             <AddExerciseDialog />
-          </>
+          </div>
         }
       />
 
-      {/* Filters - Sticky */}
-      <StickyBar threshold={100}>
+      {/* Filters */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -293,7 +314,6 @@ export default function ExercisesLibraryPage() {
           </div>
         </CardContent>
       </Card>
-      </StickyBar>
 
       {/* Exercise List */}
       {isLoading ? (
@@ -402,6 +422,6 @@ export default function ExercisesLibraryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </PageLayout>
+    </div>
   );
 }
