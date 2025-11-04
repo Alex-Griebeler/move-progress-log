@@ -21,7 +21,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 import { Loader2, Upload, X } from "lucide-react";
 import { useCreateStudent } from "@/hooks/useStudents";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,23 +30,23 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { STUDENT_OBJECTIVES } from "@/constants/objectives";
 
 const formSchema = z.object({
-  name: z.string().trim().min(1, "Nome completo é obrigatório").max(100, "Nome deve ter no máximo 100 caracteres"),
+  name: z.string().trim().min(1, i18n.errors.required).max(100, i18n.errors.maxLength.replace("{{max}}", "100")),
   birth_date: z.string().optional().refine((date) => {
     if (!date) return true;
     const birthDate = new Date(date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return birthDate <= today;
-  }, "Data de nascimento não pode ser no futuro"),
-  weekly_sessions_proposed: z.coerce.number().min(1, "Mínimo 1 sessão").max(7, "Máximo 7 sessões"),
+  }, i18n.validation.dateFuture),
+  weekly_sessions_proposed: z.coerce.number().min(1, i18n.errors.min.replace("{{min}}", "1")).max(7, i18n.errors.max.replace("{{max}}", "7")),
   objectives: z.string().optional(),
   limitations: z.string().optional(),
   preferences: z.string().optional(),
   max_heart_rate: z.coerce.number().optional().nullable(),
   injury_history: z.string().optional(),
   fitness_level: z.enum(['iniciante', 'intermediario', 'avancado']).optional().nullable(),
-  weight_kg: z.coerce.number().optional().nullable(),
-  height_cm: z.coerce.number().optional().nullable(),
+  weight_kg: z.coerce.number().positive(i18n.validation.positiveNumber).optional().nullable(),
+  height_cm: z.coerce.number().positive(i18n.validation.positiveNumber).optional().nullable(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -82,7 +83,7 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error("Arquivo muito grande. Máximo 5MB.");
+        notify.error(i18n.modules.upload.errorSize.replace("{{max}}", "5"));
         return;
       }
       setAvatarFile(file);
@@ -100,12 +101,12 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
   };
 
   const onSubmit = async (data: FormData) => {
-    let uploadToastId: string | number | undefined;
+    const loader = notify.loading(i18n.feedback.saving);
     
     try {
       setIsUploadingAvatar(true);
 
-      // Auto-calcular frequência cardíaca máxima se não informada e tiver data de nascimento
+      // Auto-calcular frequência cardíaca máxima
       let maxHeartRate = data.max_heart_rate;
       if (!maxHeartRate && data.birth_date) {
         const birthYear = new Date(data.birth_date).getFullYear();
@@ -117,9 +118,7 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
 
       // Upload avatar if provided
       if (avatarFile) {
-        uploadToastId = toast.loading("Fazendo upload da foto...", {
-          description: "Aguarde enquanto processamos a imagem"
-        });
+        loader.update(i18n.feedback.uploading);
         
         const tempId = crypto.randomUUID();
         const fileExt = avatarFile.name.split('.').pop();
@@ -130,8 +129,7 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
           .upload(fileName, avatarFile);
 
         if (uploadError) {
-          toast.dismiss(uploadToastId);
-          throw uploadError;
+          throw new Error(i18n.modules.upload.error);
         }
 
         const { data: { publicUrl } } = supabase.storage
@@ -139,7 +137,6 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
           .getPublicUrl(fileName);
 
         avatarUrl = publicUrl;
-        toast.dismiss(uploadToastId);
       }
 
       await createStudent.mutateAsync({
@@ -157,31 +154,13 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
         height_cm: data.height_cm,
       });
       
-      if (uploadToastId) toast.dismiss(uploadToastId);
-      
-      toast.success(`✅ ${data.name} foi cadastrado com sucesso!`, {
-        description: "Agora você pode criar treinos e prescrições para este aluno."
-      });
+      loader.dismiss();
       form.reset();
       setAvatarFile(null);
       setAvatarPreview(null);
       onOpenChange(false);
     } catch (error: any) {
-      if (uploadToastId) toast.dismiss(uploadToastId);
-      
-      const errorMessage = error.message?.includes('duplicate') 
-        ? "Este aluno já está cadastrado no sistema."
-        : error.message?.includes('network')
-        ? "Erro de conexão. Verifique sua internet e tente novamente."
-        : error.message?.includes('upload') || error.message?.includes('storage')
-        ? "Erro ao fazer upload da foto. Tente novamente com uma imagem menor."
-        : "Não foi possível cadastrar o aluno. Tente novamente.";
-      
-      toast.error(errorMessage, {
-        description: error.message && !errorMessage.includes(error.message) 
-          ? `Detalhes: ${error.message}` 
-          : undefined
-      });
+      loader.error(i18n.modules.students.errorCreate, error.message);
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -238,9 +217,9 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome Completo</FormLabel>
+                  <FormLabel>{i18n.forms.fullName}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nome completo do aluno" {...field} />
+                    <Input placeholder={i18n.forms.placeholder.name} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -441,29 +420,29 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
               )}
             />
             <div className="flex gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                variant="gradient"
-                className="flex-1"
-                disabled={createStudent.isPending || isUploadingAvatar}
-              >
-                {createStudent.isPending || isUploadingAvatar ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  "Cadastrar"
-                )}
-              </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => onOpenChange(false)}
+                >
+                  {i18n.actions.cancel}
+                </Button>
+                <Button
+                  type="submit"
+                  variant="gradient"
+                  className="flex-1"
+                  disabled={createStudent.isPending || isUploadingAvatar}
+                >
+                  {createStudent.isPending || isUploadingAvatar ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-label={i18n.feedback.saving} />
+                      {i18n.feedback.saving}
+                    </>
+                  ) : (
+                    i18n.actions.save
+                  )}
+                </Button>
             </div>
           </form>
         </Form>

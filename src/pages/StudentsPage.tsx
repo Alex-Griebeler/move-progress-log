@@ -4,7 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
+import EmptyState from "@/components/EmptyState";
 import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -65,13 +67,8 @@ const StudentsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleDelete = async (id: string) => {
-    try {
-      await deleteStudent.mutateAsync(id);
-      toast.success("Aluno excluído com sucesso");
-      setDeletingStudentId(null);
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao excluir aluno");
-    }
+    await deleteStudent.mutateAsync(id);
+    setDeletingStudentId(null);
   };
 
   const StudentCard = ({ student }: { student: Student }) => {
@@ -356,29 +353,29 @@ const StudentsPage = () => {
             ))}
           </div>
         ) : searchTerm ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Search className="h-16 w-16 text-muted-foreground mb-4" />
-              <p className="text-xl font-semibold text-muted-foreground">
-                Nenhum aluno encontrado
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Tente buscar por outro nome
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={<Search className="h-6 w-6" />}
+            title={i18n.empty.filtered.title}
+            description={i18n.empty.filtered.description}
+            secondaryAction={{
+              label: i18n.filters.clear,
+              onClick: () => setSearchTerm("")
+            }}
+          />
         ) : (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Users className="h-16 w-16 text-muted-foreground mb-4" />
-              <p className="text-xl font-semibold text-muted-foreground">
-                Nenhum aluno cadastrado
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                Os alunos são criados automaticamente ao registrar sessões
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={<Users className="h-6 w-6" />}
+            title={i18n.empty.students.title}
+            description={i18n.empty.students.description}
+            primaryAction={{
+              label: i18n.actions.create,
+              onClick: () => setIsAddDialogOpen(true)
+            }}
+            secondaryAction={{
+              label: i18n.actions.import,
+              onClick: () => setIsInviteDialogOpen(true)
+            }}
+          />
         )}
       </div>
 
@@ -419,19 +416,18 @@ const StudentsPage = () => {
       <AlertDialog open={!!deletingStudentId} onOpenChange={(open) => !open && setDeletingStudentId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogTitle>{i18n.modules.students.confirmDelete}</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir este aluno? Esta ação não pode ser desfeita.
-              Todas as sessões e exercícios associados serão mantidos.
+              {i18n.modules.students.deleteWarning}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{i18n.actions.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingStudentId && handleDelete(deletingStudentId)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Excluir
+              {i18n.actions.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

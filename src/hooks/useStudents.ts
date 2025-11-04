@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 
 export interface Student {
   id: string;
@@ -53,18 +54,13 @@ export const useCreateStudent = () => {
       if (error) throw error;
       return data as Student;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
-      toast({
-        title: "Aluno criado",
-        description: `${data.name} foi adicionado com sucesso.`,
-      });
+      notify.success(i18n.modules.students.created);
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao criar aluno",
-        description: error.message || "Não foi possível criar o aluno.",
-        variant: "destructive",
+      notify.error(i18n.modules.students.errorCreate, {
+        description: error.message
       });
     },
   });
@@ -101,16 +97,11 @@ export const useGetOrCreateStudent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
-      toast({
-        title: "Aluno encontrado",
-        description: "Aluno localizado ou criado com sucesso.",
-      });
+      notify.success("Aluno localizado com sucesso");
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao buscar aluno",
-        description: error.message || "Não foi possível localizar ou criar o aluno.",
-        variant: "destructive",
+      notify.error("Erro ao buscar aluno", {
+        description: error.message
       });
     },
   });
@@ -132,19 +123,14 @@ export const useUpdateStudent = () => {
       if (error) throw error;
       return data as Student;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
-      queryClient.invalidateQueries({ queryKey: ["student", data.id] });
-      toast({
-        title: "Aluno atualizado",
-        description: `Os dados de ${data.name} foram atualizados com sucesso.`,
-      });
+      queryClient.invalidateQueries({ queryKey: ["student"] });
+      notify.success(i18n.modules.students.updated);
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao atualizar aluno",
-        description: error.message || "Não foi possível atualizar os dados do aluno.",
-        variant: "destructive",
+      notify.error(i18n.modules.students.errorUpdate, {
+        description: error.message
       });
     },
   });
@@ -164,16 +150,11 @@ export const useDeleteStudent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
-      toast({
-        title: "Aluno excluído",
-        description: "O aluno foi removido do sistema com sucesso.",
-      });
+      notify.success(i18n.modules.students.deleted);
     },
     onError: (error: Error) => {
-      toast({
-        title: "Erro ao excluir aluno",
-        description: error.message || "Não foi possível excluir o aluno. Verifique se não há dados vinculados.",
-        variant: "destructive",
+      notify.error(i18n.modules.students.errorDelete, {
+        description: error.message
       });
     },
   });

@@ -22,7 +22,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 import { Loader2, Upload, X } from "lucide-react";
 import { useUpdateStudent } from "@/hooks/useStudents";
 import type { Student } from "@/hooks/useStudents";
@@ -30,23 +31,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const formSchema = z.object({
-  name: z.string().min(1, "Nome completo é obrigatório"),
+  name: z.string().min(1, i18n.errors.required),
   birth_date: z.string().optional().refine((date) => {
     if (!date) return true;
     const birthDate = new Date(date);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return birthDate <= today;
-  }, "Data de nascimento não pode ser no futuro"),
-  weekly_sessions_proposed: z.coerce.number().min(1, "Mínimo 1 sessão").max(7, "Máximo 7 sessões"),
+  }, i18n.validation.dateFuture),
+  weekly_sessions_proposed: z.coerce.number().min(1, i18n.errors.min.replace("{{min}}", "1")).max(7, i18n.errors.max.replace("{{max}}", "7")),
   objectives: z.string().optional(),
   limitations: z.string().optional(),
   preferences: z.string().optional(),
   max_heart_rate: z.coerce.number().optional().nullable(),
   injury_history: z.string().optional(),
   fitness_level: z.enum(['iniciante', 'intermediario', 'avancado']).optional().nullable(),
-  weight_kg: z.coerce.number().optional().nullable(),
-  height_cm: z.coerce.number().optional().nullable(),
+  weight_kg: z.coerce.number().positive(i18n.validation.positiveNumber).optional().nullable(),
+  height_cm: z.coerce.number().positive(i18n.validation.positiveNumber).optional().nullable(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -104,7 +105,7 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error("Arquivo muito grande. Máximo 5MB.");
+        notify.error(i18n.modules.upload.errorSize.replace("{{max}}", "5"));
         return;
       }
       setAvatarFile(file);
@@ -124,12 +125,12 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
   const onSubmit = async (data: FormData) => {
     if (!student) return;
 
-    let uploadToastId: string | number | undefined;
+    const loader = notify.loading(i18n.feedback.updating);
     
     try {
       setIsUploadingAvatar(true);
 
-      // Auto-calcular frequência cardíaca máxima se não informada e tiver data de nascimento
+      // Auto-calcular frequência cardíaca máxima
       let maxHeartRate = data.max_heart_rate;
       if (!maxHeartRate && data.birth_date) {
         const birthYear = new Date(data.birth_date).getFullYear();
@@ -141,20 +142,17 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
 
       // Upload avatar if changed
       if (avatarFile) {
-        uploadToastId = toast.loading("Fazendo upload da foto...", {
-          description: "Aguarde enquanto processamos a imagem"
-        });
+        loader.update(i18n.feedback.uploading);
         
         const fileExt = avatarFile.name.split('.').pop();
         const fileName = `${student.id}-${Date.now()}.${fileExt}`;
         
-        const { error: uploadError, data: uploadData } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('student-avatars')
           .upload(fileName, avatarFile, { upsert: true });
 
         if (uploadError) {
-          toast.dismiss(uploadToastId);
-          throw uploadError;
+          throw new Error(i18n.modules.upload.error);
         }
 
         const { data: { publicUrl } } = supabase.storage
@@ -162,7 +160,6 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
           .getPublicUrl(fileName);
 
         avatarUrl = publicUrl;
-        toast.dismiss(uploadToastId);
       } else if (avatarPreview === null && student.avatar_url) {
         // Remove avatar if cleared
         avatarUrl = null;
@@ -183,20 +180,11 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
         weight_kg: data.weight_kg,
         height_cm: data.height_cm,
       });
-      if (uploadToastId) toast.dismiss(uploadToastId);
       
-      toast.success("Aluno atualizado com sucesso", {
-        description: "As alterações foram salvas."
-      });
+      loader.dismiss();
       onOpenChange(false);
     } catch (error: any) {
-      if (uploadToastId) toast.dismiss(uploadToastId);
-      
-      const errorMessage = error.message?.includes('upload') || error.message?.includes('storage')
-        ? "Erro ao fazer upload da foto. Tente novamente com uma imagem menor."
-        : error.message || "Erro ao atualizar aluno";
-        
-      toast.error(errorMessage);
+      loader.error(i18n.modules.students.errorUpdate, error.message);
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -462,7 +450,7 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
                 className="flex-1"
                 onClick={() => onOpenChange(false)}
               >
-                Cancelar
+                {i18n.actions.cancel}
               </Button>
               <Button
                 type="submit"
@@ -472,11 +460,11 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
               >
                 {updateStudent.isPending || isUploadingAvatar ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Salvando...
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-label={i18n.feedback.updating} />
+                    {i18n.feedback.updating}
                   </>
                 ) : (
-                  "Salvar"
+                  i18n.actions.save
                 )}
               </Button>
             </div>
