@@ -20,6 +20,7 @@ const RecoveryProtocolsPage = lazy(() => import("./pages/RecoveryProtocolsPage")
 const AdminDiagnosticsPage = lazy(() => import("./pages/AdminDiagnosticsPage"));
 const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const StudentOnboardingPage = lazy(() => import("./pages/StudentOnboardingPage"));
 const OnboardingSuccessPage = lazy(() => import("./pages/OnboardingSuccessPage"));
 const OuraErrorPage = lazy(() => import("./pages/OuraErrorPage"));
@@ -38,6 +39,7 @@ const App = () => (
           <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
               <Route path="/onboarding/success" element={<OnboardingSuccessPage />} />
               <Route path="/onboarding/oura-error" element={<OuraErrorPage />} />
