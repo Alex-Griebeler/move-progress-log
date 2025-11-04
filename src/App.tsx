@@ -12,6 +12,8 @@ import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 
 // AUD-009: Code splitting por rota para reduzir bundle size inicial
 const Index = lazy(() => import("./pages/Index"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const HomePage = lazy(() => import("./pages/HomePage"));
 const StudentsPage = lazy(() => import("./pages/StudentsPage"));
 const StudentDetailPage = lazy(() => import("./pages/StudentDetailPage"));
 const StudentsComparisonPage = lazy(() => import("./pages/StudentsComparisonPage"));
@@ -40,6 +42,8 @@ const App = () => (
         <BrowserRouter>
           <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>
             <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/home" element={<HomePage />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
