@@ -1,0 +1,236 @@
+{
+  "actions": {
+    "save": "Salvar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "cancel": "Cancelar",
+    "confirm": "Confirmar",
+    "filter": "Filtrar",
+    "apply": "Aplicar",
+    "clearFilters": "Limpar filtros",
+    "sync": "Sincronizar",
+    "syncNow": "Sincronizar agora",
+    "import": "Importar",
+    "export": "Exportar",
+    "retry": "Tentar novamente",
+    "seeDetails": "Ver detalhes",
+    "create": "Criar",
+    "close": "Fechar",
+    "search": "Buscar",
+    "add": "Adicionar",
+    "remove": "Remover",
+    "update": "Atualizar",
+    "view": "Visualizar",
+    "back": "Voltar",
+    "next": "Próximo",
+    "previous": "Anterior",
+    "finish": "Finalizar",
+    "download": "Baixar",
+    "upload": "Enviar"
+  },
+  "feedback": {
+    "success": "Operação realizada com sucesso",
+    "genericError": "Erro ao concluir a operação",
+    "loading": "Processando...",
+    "uploading": "Enviando...",
+    "syncing": "Sincronizando...",
+    "saving": "Salvando...",
+    "deleting": "Excluindo...",
+    "updating": "Atualizando...",
+    "importing": "Importando..."
+  },
+  "empty": {
+    "defaultTitle": "Nada por aqui ainda",
+    "defaultDescription": "Use os filtros ou crie um novo item para começar",
+    "students": {
+      "title": "Nenhum aluno cadastrado",
+      "description": "Comece adicionando seu primeiro aluno para gerenciar treinos"
+    },
+    "exercises": {
+      "title": "Nenhum exercício encontrado",
+      "description": "Crie um exercício ou importe da biblioteca"
+    },
+    "prescriptions": {
+      "title": "Nenhuma prescrição criada",
+      "description": "Crie uma prescrição de treino para começar"
+    },
+    "protocols": {
+      "title": "Nenhum protocolo cadastrado",
+      "description": "Adicione um protocolo de recuperação"
+    },
+    "workouts": {
+      "title": "Nenhum treino registrado",
+      "description": "Registre o primeiro treino deste aluno"
+    },
+    "observations": {
+      "title": "Nenhuma observação",
+      "description": "Adicione observações importantes sobre o aluno"
+    },
+    "filtered": {
+      "title": "Nenhum resultado encontrado",
+      "description": "Tente ajustar os filtros ou limpar a busca"
+    }
+  },
+  "errors": {
+    "required": "Campo obrigatório",
+    "minLength": "Mínimo de {{min}} caracteres",
+    "maxLength": "Máximo de {{max}} caracteres",
+    "min": "Valor mínimo: {{min}}",
+    "max": "Valor máximo: {{max}}",
+    "invalidFormat": "Formato inválido",
+    "invalidEmail": "E-mail inválido",
+    "invalidDate": "Data inválida",
+    "network": "Falha de rede. Verifique sua conexão",
+    "unknown": "Algo deu errado. Tente novamente",
+    "unauthorized": "Você não tem permissão para esta ação",
+    "notFound": "Item não encontrado",
+    "conflict": "Este item já existe"
+  },
+  "forms": {
+    "name": "Nome",
+    "fullName": "Nome completo",
+    "email": "E-mail",
+    "password": "Senha",
+    "confirmPassword": "Confirmar senha",
+    "date": "Data",
+    "startDate": "Data inicial",
+    "endDate": "Data final",
+    "weight": "Carga",
+    "reps": "Repetições",
+    "sets": "Séries",
+    "duration": "Duração",
+    "notes": "Observações",
+    "description": "Descrição",
+    "category": "Categoria",
+    "status": "Status",
+    "objective": "Objetivo",
+    "phone": "Telefone",
+    "address": "Endereço",
+    "helper": {
+      "password": "Use ao menos 8 caracteres, incluindo números",
+      "email": "Usaremos para login e comunicação",
+      "weight": "Carga utilizada em kg",
+      "reps": "Número de repetições realizadas",
+      "optional": "Opcional"
+    },
+    "placeholder": {
+      "search": "Buscar...",
+      "name": "Digite o nome",
+      "email": "seu@email.com",
+      "notes": "Adicione observações aqui"
+    }
+  },
+  "filters": {
+    "period": "Período",
+    "student": "Aluno",
+    "origin": "Origem",
+    "status": "Status",
+    "muscleGroup": "Grupo muscular",
+    "category": "Categoria",
+    "method": "Método",
+    "objective": "Objetivo",
+    "apply": "Aplicar filtros",
+    "clear": "Limpar filtros",
+    "active": "{{count}} filtro ativo",
+    "active_plural": "{{count}} filtros ativos"
+  },
+  "modules": {
+    "students": {
+      "created": "Aluno criado com sucesso",
+      "updated": "Aluno atualizado com sucesso",
+      "deleted": "Aluno excluído com sucesso",
+      "errorCreate": "Erro ao criar aluno",
+      "errorUpdate": "Erro ao atualizar aluno",
+      "errorDelete": "Erro ao excluir aluno",
+      "errorLoad": "Erro ao carregar alunos",
+      "confirmDelete": "Tem certeza que deseja excluir este aluno?",
+      "deleteWarning": "Esta ação não pode ser desfeita"
+    },
+    "exercises": {
+      "created": "Exercício criado com sucesso",
+      "updated": "Exercício atualizado com sucesso",
+      "deleted": "Exercício excluído com sucesso",
+      "errorCreate": "Erro ao criar exercício",
+      "errorUpdate": "Erro ao atualizar exercício",
+      "errorDelete": "Erro ao excluir exercício",
+      "errorLoad": "Erro ao carregar exercícios",
+      "populated": "Biblioteca populada com sucesso",
+      "errorPopulate": "Erro ao popular biblioteca"
+    },
+    "prescriptions": {
+      "created": "Prescrição criada com sucesso",
+      "updated": "Prescrição atualizada com sucesso",
+      "deleted": "Prescrição excluída com sucesso",
+      "assigned": "Prescrição atribuída com sucesso",
+      "errorCreate": "Erro ao criar prescrição",
+      "errorUpdate": "Erro ao atualizar prescrição",
+      "errorDelete": "Erro ao excluir prescrição",
+      "errorAssign": "Erro ao atribuir prescrição",
+      "errorLoad": "Erro ao carregar prescrições"
+    },
+    "protocols": {
+      "created": "Protocolo criado com sucesso",
+      "updated": "Protocolo atualizado com sucesso",
+      "deleted": "Protocolo excluído com sucesso",
+      "errorCreate": "Erro ao criar protocolo",
+      "errorUpdate": "Erro ao atualizar protocolo",
+      "errorDelete": "Erro ao excluir protocolo",
+      "errorLoad": "Erro ao carregar protocolos"
+    },
+    "workouts": {
+      "created": "Treino registrado com sucesso",
+      "updated": "Treino atualizado com sucesso",
+      "deleted": "Treino excluído com sucesso",
+      "errorCreate": "Erro ao registrar treino",
+      "errorUpdate": "Erro ao atualizar treino",
+      "errorDelete": "Erro ao excluir treino",
+      "errorLoad": "Erro ao carregar treinos",
+      "imported": "Sessões importadas com sucesso",
+      "errorImport": "Erro ao importar sessões"
+    },
+    "oura": {
+      "connected": "Oura Ring conectado com sucesso",
+      "disconnected": "Oura Ring desconectado",
+      "synced": "Sincronização concluída",
+      "syncStarted": "Sincronização iniciada",
+      "errorConnect": "Erro ao conectar Oura Ring",
+      "errorDisconnect": "Erro ao desconectar",
+      "errorSync": "Erro na sincronização",
+      "errorLoad": "Erro ao carregar dados do Oura"
+    },
+    "auth": {
+      "loginSuccess": "Login realizado com sucesso",
+      "logoutSuccess": "Logout realizado com sucesso",
+      "passwordReset": "Link de redefinição enviado para seu e-mail",
+      "passwordUpdated": "Senha atualizada com sucesso",
+      "errorLogin": "Erro ao fazer login",
+      "errorLogout": "Erro ao fazer logout",
+      "errorPasswordReset": "Erro ao enviar link de redefinição",
+      "errorPasswordUpdate": "Erro ao atualizar senha",
+      "invalidCredentials": "E-mail ou senha incorretos",
+      "sessionExpired": "Sua sessão expirou. Faça login novamente"
+    },
+    "upload": {
+      "done": "Upload concluído",
+      "error": "Erro no upload",
+      "errorSize": "Arquivo muito grande. Máximo: {{max}}MB",
+      "errorType": "Tipo de arquivo não suportado"
+    }
+  },
+  "confirmations": {
+    "delete": "Tem certeza que deseja excluir?",
+    "deleteWarning": "Esta ação não pode ser desfeita",
+    "unsavedChanges": "Você tem alterações não salvas",
+    "unsavedWarning": "Se sair agora, suas alterações serão perdidas",
+    "continue": "Deseja continuar?"
+  },
+  "validation": {
+    "passwordMismatch": "As senhas não coincidem",
+    "weakPassword": "Senha muito fraca",
+    "datePast": "Data não pode ser no passado",
+    "dateFuture": "Data não pode ser no futuro",
+    "endBeforeStart": "Data final deve ser posterior à inicial",
+    "positiveNumber": "Valor deve ser positivo",
+    "integer": "Valor deve ser um número inteiro"
+  }
+}
