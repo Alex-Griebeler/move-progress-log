@@ -15,6 +15,8 @@ import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 
 const RecoveryProtocolsPage = () => {
   usePageTitle(NAV_LABELS.protocols);
@@ -37,35 +39,17 @@ const RecoveryProtocolsPage = () => {
   };
 
   return (
-    <div id="main-content" className="min-h-screen bg-background" role="main">
-      {/* Structured Data para SEO */}
-      <StructuredData data={getOrganizationSchema()} id="org-schema" />
-      <StructuredData 
-        data={getWebPageSchema(
-          NAV_LABELS.protocols,
-          "Biblioteca completa de protocolos de recuperação baseados em evidências científicas: termoterapia, respiração, mindfulness e atividade leve"
-        )} 
-        id="webpage-schema" 
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.protocols, "Biblioteca completa de protocolos de recuperação baseados em evidências científicas: termoterapia, respiração, mindfulness e atividade leve"), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.protocols, href: "/protocolos" }]), id: "breadcrumb-schema" }
+      ]}
+    >
+      <PageHeader
+        title={NAV_LABELS.protocols}
+        description={NAV_LABELS.subtitleProtocols}
+        breadcrumbs={[{ label: NAV_LABELS.protocols }]}
       />
-      <StructuredData 
-        data={getBreadcrumbSchema([
-          { label: "Home", href: "/" },
-          { label: NAV_LABELS.protocols, href: "/protocolos" }
-        ])} 
-        id="breadcrumb-schema" 
-      />
-      
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <Breadcrumbs
-          items={[
-            { label: NAV_LABELS.protocols }
-          ]}
-        />
-        
-        <AppHeader
-          title={NAV_LABELS.protocols}
-          subtitle={NAV_LABELS.subtitleProtocols}
-        />
 
         <div className="space-y-6">
 
@@ -124,8 +108,7 @@ const RecoveryProtocolsPage = () => {
         </Tabs>
       )}
         </div>
-      </div>
-    </div>
+    </PageLayout>
   );
 };
 
