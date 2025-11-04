@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 export interface Student {
   id: string;
@@ -52,8 +53,19 @@ export const useCreateStudent = () => {
       if (error) throw error;
       return data as Student;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast({
+        title: "Aluno criado",
+        description: `${data.name} foi adicionado com sucesso.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao criar aluno",
+        description: error.message || "Não foi possível criar o aluno.",
+        variant: "destructive",
+      });
     },
   });
 };
@@ -89,6 +101,17 @@ export const useGetOrCreateStudent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast({
+        title: "Aluno encontrado",
+        description: "Aluno localizado ou criado com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao buscar aluno",
+        description: error.message || "Não foi possível localizar ou criar o aluno.",
+        variant: "destructive",
+      });
     },
   });
 };
@@ -109,8 +132,20 @@ export const useUpdateStudent = () => {
       if (error) throw error;
       return data as Student;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["student", data.id] });
+      toast({
+        title: "Aluno atualizado",
+        description: `Os dados de ${data.name} foram atualizados com sucesso.`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao atualizar aluno",
+        description: error.message || "Não foi possível atualizar os dados do aluno.",
+        variant: "destructive",
+      });
     },
   });
 };
@@ -129,6 +164,17 @@ export const useDeleteStudent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
+      toast({
+        title: "Aluno excluído",
+        description: "O aluno foi removido do sistema com sucesso.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Erro ao excluir aluno",
+        description: error.message || "Não foi possível excluir o aluno. Verifique se não há dados vinculados.",
+        variant: "destructive",
+      });
     },
   });
 };
