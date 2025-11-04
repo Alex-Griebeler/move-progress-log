@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+  
+  <!-- 
+    SITEMAP FABRIK PERFORMANCE
+    
+    NOTA: Como esta é uma aplicação privada (sistema de gestão de alunos),
+    atualmente não há páginas públicas para indexação.
+    
+    Quando houver páginas públicas (ex: landing page, blog, sobre nós),
+    adicione-as aqui seguindo o formato:
+    
+    <url>
+      <loc>https://seu-dominio.com/pagina</loc>
+      <lastmod>2024-01-01</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.8</priority>
+    </url>
+    
+    Prioridades recomendadas:
+    - Homepage: 1.0
+    - Páginas principais: 0.8
+    - Páginas secundárias: 0.6
+    - Páginas de detalhe: 0.4
+  -->
+
+</urlset>

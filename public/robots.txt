@@ -1,14 +1,41 @@
+# Robots.txt - Fabrik Performance
+# Aplicação privada de gestão de treinos e alunos
+
+# Sitemap (preparado para quando houver páginas públicas)
+Sitemap: /sitemap.xml
+
+# Google bots
 User-agent: Googlebot
+User-agent: Googlebot-Image
+User-agent: Googlebot-Mobile
+# Respeita meta robots tags (noindex em páginas privadas)
 Allow: /
 
+# Bing
 User-agent: Bingbot
 Allow: /
 
+# Social media crawlers (para Open Graph previews)
 User-agent: Twitterbot
-Allow: /
-
 User-agent: facebookexternalhit
+User-agent: LinkedInBot
+User-agent: Slackbot
 Allow: /
 
+# Outros bots legítimos
 User-agent: *
+# Permite crawling, mas páginas privadas têm noindex via meta tags
 Allow: /
+
+# Bloquear acesso a recursos técnicos
+Disallow: /api/
+Disallow: /*.json$
+Disallow: /*.xml$
+Disallow: /admin
+Disallow: /students
+Disallow: /exercises
+Disallow: /prescriptions
+Disallow: /protocols
+
+# Crawler delay para evitar sobrecarga (1 segundo)
+Crawl-delay: 1
