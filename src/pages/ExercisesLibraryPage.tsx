@@ -40,7 +40,7 @@ import { populateExercisesLibrary } from "@/utils/populateExercises";
 import { toast } from "sonner";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { EmptyState } from "@/components/EmptyState";
+import EmptyState from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
@@ -320,15 +320,17 @@ export default function ExercisesLibraryPage() {
         <LoadingSpinner text="Carregando exercícios..." />
       ) : !filteredExercises || filteredExercises.length === 0 ? (
         <EmptyState
-          icon={Database}
+          icon={<Database className="h-6 w-6" />}
           title={hasActiveFilters ? "Nenhum exercício encontrado" : "Nenhum exercício cadastrado"}
           description={
             hasActiveFilters
               ? "Tente ajustar os filtros ou limpar para ver todos os exercícios disponíveis."
               : "Adicione exercícios à biblioteca ou importe exercícios pré-configurados para começar."
           }
-          actionLabel={hasActiveFilters ? undefined : "Importar Exercícios"}
-          onAction={hasActiveFilters ? undefined : handlePopulateDatabase}
+          primaryAction={hasActiveFilters ? undefined : {
+            label: "Importar Exercícios",
+            onClick: handlePopulateDatabase
+          }}
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

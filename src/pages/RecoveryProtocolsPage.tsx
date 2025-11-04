@@ -8,7 +8,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { Heart, Sparkles } from "lucide-react";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { EmptyState } from "@/components/EmptyState";
+import EmptyState from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
@@ -73,7 +73,7 @@ const RecoveryProtocolsPage = () => {
         <LoadingSpinner text="Carregando protocolos..." />
       ) : !protocols || protocols.length === 0 ? (
         <EmptyState
-          icon={Heart}
+          icon={<Heart className="h-6 w-6" />}
           title="Nenhum protocolo disponível"
           description="Os protocolos de recuperação baseados em evidências científicas serão carregados em breve."
         />

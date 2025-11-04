@@ -10,7 +10,7 @@ import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog"
 import { AppHeader } from "@/components/AppHeader";
 import { PrescriptionCard } from "@/components/PrescriptionCard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { EmptyState } from "@/components/EmptyState";
+import EmptyState from "@/components/EmptyState";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -105,11 +105,13 @@ export default function PrescriptionsPage() {
           </div>
         ) : (
           <EmptyState
-            icon={Plus}
+            icon={<Plus className="h-6 w-6" />}
             title="Nenhuma prescrição criada"
             description="Crie sua primeira prescrição de treino para começar a atribuir exercícios e monitorar o progresso dos seus alunos."
-            actionLabel="Criar Primeira Prescrição"
-            onAction={() => setCreateDialogOpen(true)}
+            primaryAction={{
+              label: "Criar Primeira Prescrição",
+              onClick: () => setCreateDialogOpen(true)
+            }}
           />
         )}
       </div>
