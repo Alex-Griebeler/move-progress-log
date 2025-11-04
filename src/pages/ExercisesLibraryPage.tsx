@@ -43,6 +43,8 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { EmptyState } from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { StructuredData } from "@/components/StructuredData";
+import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
 
 export default function ExercisesLibraryPage() {
   usePageTitle(NAV_LABELS.exercises);
@@ -97,7 +99,33 @@ export default function ExercisesLibraryPage() {
 
   return (
     <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
-      <Breadcrumbs 
+      {/* Structured Data para SEO */}
+      <StructuredData data={getOrganizationSchema()} id="org-schema" />
+      <StructuredData 
+        data={getWebPageSchema(
+          NAV_LABELS.exercises,
+          "Biblioteca completa de exercícios com classificações por padrões de movimento, lateralidade, planos e tipos de contração"
+        )} 
+        id="webpage-schema" 
+      />
+      <StructuredData 
+        data={getBreadcrumbSchema([
+          { label: "Home", href: "/" },
+          { label: NAV_LABELS.exercises, href: "/exercicios" }
+        ])} 
+        id="breadcrumb-schema" 
+      />
+      {exercises && exercises.length > 0 && (
+        <StructuredData 
+          data={getItemListSchema(
+            exercises.map(ex => ({ name: ex.name })),
+            "Biblioteca de Exercícios"
+          )} 
+          id="exercises-list-schema" 
+        />
+      )}
+      
+      <Breadcrumbs
         items={[
           { label: NAV_LABELS.exercises }
         ]}

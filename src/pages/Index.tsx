@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { StructuredData } from "@/components/StructuredData";
+import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 
 const Index = () => {
   usePageTitle(NAV_LABELS.dashboard);
@@ -98,6 +100,22 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Structured Data para SEO */}
+      <StructuredData data={getOrganizationSchema()} id="org-schema" />
+      <StructuredData 
+        data={getWebPageSchema(
+          NAV_LABELS.dashboard,
+          "Dashboard principal com visão geral de sessões, estatísticas e atividades recentes"
+        )} 
+        id="webpage-schema" 
+      />
+      <StructuredData 
+        data={getBreadcrumbSchema([
+          { label: "Home", href: "/" }
+        ])} 
+        id="breadcrumb-schema" 
+      />
+      
       <div id="main-content" className="container mx-auto px-4 py-8 max-w-7xl" role="main">
         {/* Header */}
         <AppHeader

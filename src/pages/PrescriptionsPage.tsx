@@ -14,6 +14,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { StructuredData } from "@/components/StructuredData";
+import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getTrainingProgramSchema } from "@/utils/structuredData";
 
 export default function PrescriptionsPage() {
   usePageTitle(NAV_LABELS.prescriptions);
@@ -43,8 +45,25 @@ export default function PrescriptionsPage() {
 
   return (
     <div id="main-content" className="min-h-screen bg-background p-8" role="main">
+      {/* Structured Data para SEO */}
+      <StructuredData data={getOrganizationSchema()} id="org-schema" />
+      <StructuredData 
+        data={getWebPageSchema(
+          NAV_LABELS.prescriptions,
+          "Crie e gerencie prescrições de treino personalizadas para seus alunos com exercícios e objetivos específicos"
+        )} 
+        id="webpage-schema" 
+      />
+      <StructuredData 
+        data={getBreadcrumbSchema([
+          { label: "Home", href: "/" },
+          { label: NAV_LABELS.prescriptions, href: "/prescricoes" }
+        ])} 
+        id="breadcrumb-schema" 
+      />
+      
       <div className="max-w-7xl mx-auto space-y-8">
-        <Breadcrumbs 
+        <Breadcrumbs
           items={[
             { label: NAV_LABELS.prescriptions }
           ]}

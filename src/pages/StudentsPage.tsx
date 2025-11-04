@@ -25,6 +25,8 @@ import { OuraSyncAllButton } from "@/components/OuraSyncAllButton";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { StructuredData } from "@/components/StructuredData";
+import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -238,6 +240,32 @@ const StudentsPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Structured Data para SEO */}
+      <StructuredData data={getOrganizationSchema()} id="org-schema" />
+      <StructuredData 
+        data={getWebPageSchema(
+          NAV_LABELS.students,
+          "Gerencie os dados dos seus alunos, acompanhe métricas Oura Ring e registre sessões de treino"
+        )} 
+        id="webpage-schema" 
+      />
+      <StructuredData 
+        data={getBreadcrumbSchema([
+          { label: "Home", href: "/" },
+          { label: NAV_LABELS.students, href: "/alunos" }
+        ])} 
+        id="breadcrumb-schema" 
+      />
+      {students && students.length > 0 && (
+        <StructuredData 
+          data={getItemListSchema(
+            students.map(s => ({ name: s.name, url: `/alunos/${s.id}` })),
+            "Lista de Alunos"
+          )} 
+          id="students-list-schema" 
+        />
+      )}
+      
       <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
         <Breadcrumbs 
           items={[
