@@ -146,7 +146,7 @@ export default function AdminUsersPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Gestão de Usuários</h1>
           <p className="text-muted-foreground">
-            Gerencie contas, papéis e permissões do sistema
+            Gerencie contas, perfis e permissões do sistema
           </p>
         </div>
 
@@ -231,10 +231,10 @@ export default function AdminUsersPage() {
                 <Select value={roleFilter} onValueChange={setRoleFilter}>
                   <SelectTrigger>
                     <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filtrar por papel" />
+                    <SelectValue placeholder="Filtrar por perfil" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Todos os papéis</SelectItem>
+                    <SelectItem value="all">Todos os perfis</SelectItem>
                     <SelectItem value="admin">Administradores</SelectItem>
                     <SelectItem value="moderator">Treinadores</SelectItem>
                     <SelectItem value="user">Alunos</SelectItem>
@@ -255,7 +255,7 @@ export default function AdminUsersPage() {
                       <tr>
                         <th className="text-left p-4 font-medium">Nome</th>
                         <th className="text-left p-4 font-medium">Email</th>
-                        <th className="text-left p-4 font-medium">Papel</th>
+                        <th className="text-left p-4 font-medium">Perfil</th>
                         <th className="text-left p-4 font-medium">Último Acesso</th>
                         <th className="text-left p-4 font-medium">Ações</th>
                       </tr>
