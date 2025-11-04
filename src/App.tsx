@@ -8,6 +8,7 @@ import { SkipToContent } from "@/components/SkipToContent";
 import { TrainingProvider } from "@/contexts/TrainingContext";
 import { lazy, Suspense } from "react";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 
 // AUD-009: Code splitting por rota para reduzir bundle size inicial
 const Index = lazy(() => import("./pages/Index"));
@@ -35,6 +36,7 @@ const App = () => (
         <SkipToContent />
         <Toaster />
         <Sonner />
+        <AuthDebugPanel />
         <BrowserRouter>
           <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>
             <Routes>
