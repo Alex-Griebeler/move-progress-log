@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mic, MicOff, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 interface VoiceSessionRecorderProps {
@@ -80,14 +81,15 @@ export function VoiceSessionRecorder({
 
     setIsStarting(true);
     console.log('✅ Starting state set to true');
+    
+    let permissionToastId: string | number | undefined;
 
     try {
       console.log('🎤 Tentando obter stream de mídia...');
       setTranscript("");
       
-      toast({
-        title: "Solicitando permissões",
-        description: "Aguardando acesso ao microfone...",
+      permissionToastId = sonnerToast.loading("Solicitando acesso ao microfone...", {
+        description: "Aguarde enquanto verificamos as permissões"
       });
       
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -103,6 +105,7 @@ export function VoiceSessionRecorder({
       if (!componentMountedRef.current) {
         console.warn('   ⚠️ Componente desmontado APÓS obter stream');
         stream.getTracks().forEach(track => track.stop());
+        if (permissionToastId) sonnerToast.dismiss(permissionToastId);
         return;
       }
       
@@ -123,7 +126,14 @@ export function VoiceSessionRecorder({
         setIsProcessing(true);
         setIsRecording(false);
         
+        let processingToastId: string | number | undefined;
+        
         try {
+          // Etapa 1: Preparando áudio
+          processingToastId = sonnerToast.loading("Processando gravação...", {
+            description: "Etapa 1/3: Preparando arquivo de áudio"
+          });
+          
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
           
           const reader = new FileReader();
@@ -135,6 +145,12 @@ export function VoiceSessionRecorder({
           });
           
           const base64Audio = (reader.result as string).split(',')[1];
+          
+          // Etapa 2: Transcrevendo
+          sonnerToast.loading("Transcrevendo áudio...", {
+            id: processingToastId,
+            description: "Etapa 2/3: Convertendo fala em texto com IA"
+          });
           
           const { data, error } = await supabase.functions.invoke('process-voice-session', {
             body: {
@@ -148,27 +164,36 @@ export function VoiceSessionRecorder({
 
           if (error) throw error;
 
+          // Etapa 3: Processando dados
+          sonnerToast.loading("Analisando dados...", {
+            id: processingToastId,
+            description: "Etapa 3/3: Extraindo informações da sessão"
+          });
+
           console.log("✅ Processing completed:", data);
           
           if (data.success) {
             setTranscript(data.transcription);
             onSessionData(data.data);
             
+            sonnerToast.dismiss(processingToastId);
             toast({
-              title: "Gravação processada",
-              description: "Revise os dados e confirme para salvar",
+              title: "Gravação processada com sucesso! ✅",
+              description: "Revise os dados extraídos e confirme para salvar a sessão.",
             });
           } else {
             throw new Error(data.error || 'Erro ao processar gravação');
           }
         } catch (error) {
           console.error("❌ Error processing:", error);
+          
+          if (processingToastId) sonnerToast.dismiss(processingToastId);
+          
           const errorMsg = error instanceof Error ? error.message : "Erro ao processar gravação";
-          toast({
-            title: "Erro",
+          sonnerToast.error("Erro no processamento", {
             description: errorMsg,
-            variant: "destructive",
           });
+          
           if (onError) {
             onError(errorMsg);
           }
@@ -189,27 +214,29 @@ export function VoiceSessionRecorder({
       setIsRecording(true);
       console.log('   Estados atualizados: isStarting: false, isRecording: true');
       
+      if (permissionToastId) sonnerToast.dismiss(permissionToastId);
+      
       onRecordingStarted?.();
       console.log('   Callback onRecordingStarted executado (se fornecido)');
       
-      toast({
-        title: "Gravação iniciada",
+      sonnerToast.success("Gravação iniciada! 🎙️", {
         description: "Fale sobre a sessão de treino. Clique em 'Parar' quando terminar.",
       });
       
     } catch (error) {
       console.error('❌ Error starting recording:', error);
       
+      if (permissionToastId) sonnerToast.dismiss(permissionToastId);
+      
       setIsStarting(false);
       setIsRecording(false);
       console.log('❌ Error occurred, state reset');
       
       const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
-      toast({
-        title: "Erro",
-        description: errorMsg,
-        variant: "destructive",
+      sonnerToast.error("Erro ao acessar microfone", {
+        description: errorMsg + ". Verifique as permissões do navegador.",
       });
+      
       if (onError) {
         onError(errorMsg);
       }
