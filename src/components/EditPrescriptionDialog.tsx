@@ -348,24 +348,27 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                   items={exercises.map((ex) => ex.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  {exercises.map((exercise, index) => (
+                  {exercises.map((exercise, exerciseIndex) => (
                     <SortableExerciseItem
                       key={exercise.id}
                       exercise={exercise}
-                      index={index}
+                      index={exerciseIndex}
                       total={exercises.length}
                       exercisesLibrary={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
-                      onUpdate={(field, value) => updateExercise(index, field, value)}
-                      onRemove={() => removeExercise(index)}
-                      onToggleAdaptations={() => toggleAdaptations(index)}
-                      onAddAdaptation={() => addAdaptation(index)}
-                      onRemoveAdaptation={(adaptIndex) => removeAdaptation(index, adaptIndex)}
-                      onUpdateAdaptation={(adaptIndex, exerciseId) => updateAdaptation(index, adaptIndex, exerciseId)}
-                      onSuggestRegressions={() => suggestRegressions(index)}
-                      loadingRegressions={loadingRegressions === index}
-                      onAddExerciseBelow={() => addExercise(index)}
-                      onFocus={() => setFocusedExerciseIndex(index)}
-                      isFocused={focusedExerciseIndex === index}
+                      onUpdate={(field, value) => updateExercise(exerciseIndex, field, value)}
+                      onRemove={() => removeExercise(exerciseIndex)}
+                      onToggleAdaptations={() => toggleAdaptations(exerciseIndex)}
+                      onAddAdaptation={() => addAdaptation(exerciseIndex)}
+                      onRemoveAdaptation={(adaptIndex) => removeAdaptation(exerciseIndex, adaptIndex)}
+                      onUpdateAdaptation={(adaptIndex, exerciseId) => updateAdaptation(exerciseIndex, adaptIndex, exerciseId)}
+                      onSuggestRegressions={() => suggestRegressions(exerciseIndex)}
+                      loadingRegressions={loadingRegressions === exerciseIndex}
+                      onAddExerciseBelow={() => {
+                        console.log('onAddExerciseBelow called with index:', exerciseIndex);
+                        addExercise(exerciseIndex);
+                      }}
+                      onFocus={() => setFocusedExerciseIndex(exerciseIndex)}
+                      isFocused={focusedExerciseIndex === exerciseIndex}
                     />
                   ))}
                 </SortableContext>
