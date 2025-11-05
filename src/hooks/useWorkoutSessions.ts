@@ -11,6 +11,12 @@ export interface WorkoutSession {
   student_id: string;
   date: string;
   time: string;
+  workout_name?: string;
+  room_name?: string;
+  trainer_name?: string;
+  is_finalized?: boolean;
+  can_reopen?: boolean;
+  prescription_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -265,6 +271,39 @@ export const useCreateGroupWorkoutSessions = () => {
       console.error("Error in useCreateGroupWorkoutSessions:", error);
       notify.error(workoutKeys.errorGroupSessions, {
         description: error instanceof Error ? error.message : i18n.errors.unknown,
+      });
+    },
+  });
+};
+
+export const useReopenWorkoutSession = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      const { data, error } = await supabase
+        .from("workout_sessions")
+        .update({ 
+          is_finalized: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", sessionId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
+      notify.success("Sessão reaberta com sucesso", {
+        description: "Você pode continuar editando esta sessão",
+      });
+    },
+    onError: (error) => {
+      notify.error("Erro ao reabrir sessão", {
+        description: error instanceof Error ? error.message : "Erro desconhecido",
       });
     },
   });

@@ -23,6 +23,7 @@ interface RecordIndividualSessionDialogProps {
   onOpenChange: (open: boolean) => void;
   studentId: string;
   studentName: string;
+  existingSessionId?: string | null;
 }
 
 type DialogState = 'setup' | 'recording' | 'processing' | 'preview' | 'edit';
@@ -79,6 +80,7 @@ export function RecordIndividualSessionDialog({
   onOpenChange,
   studentId,
   studentName,
+  existingSessionId,
 }: RecordIndividualSessionDialogProps) {
   const [dialogState, setDialogState] = useState<DialogState>('setup');
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
@@ -99,6 +101,74 @@ export function RecordIndividualSessionDialog({
 
   const { data: assignments } = usePrescriptionAssignments(studentId);
   const createSession = useCreateWorkoutSession();
+  
+  const isReopening = !!existingSessionId;
+
+  // Carregar dados da sessão existente quando reabrindo
+  const { data: existingSessionData } = useQuery({
+    queryKey: ['existing-session', existingSessionId],
+    queryFn: async () => {
+      if (!existingSessionId) return null;
+      
+      const { data: session, error: sessionError } = await supabase
+        .from('workout_sessions')
+        .select('*')
+        .eq('id', existingSessionId)
+        .single();
+      
+      if (sessionError) throw sessionError;
+      
+      const { data: exercises, error: exercisesError } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('session_id', existingSessionId);
+      
+      if (exercisesError) throw exercisesError;
+      
+      const { data: segments, error: segmentsError } = await supabase
+        .from('session_audio_segments')
+        .select('*')
+        .eq('session_id', existingSessionId)
+        .order('segment_order');
+      
+      if (segmentsError) throw segmentsError;
+      
+      return { session, exercises, segments };
+    },
+    enabled: !!existingSessionId,
+  });
+  
+  // Preencher form com dados da sessão existente
+  useEffect(() => {
+    if (existingSessionData) {
+      const { session, exercises } = existingSessionData;
+      setDate(session.date);
+      setTime(session.time);
+      setWorkoutName(session.workout_name || '');
+      setRoomName(session.room_name || '');
+      setTrainerName(session.trainer_name || '');
+      setSelectedPrescriptionId(session.prescription_id || null);
+      
+      // Converter exercícios existentes para formato editável
+      if (exercises && exercises.length > 0) {
+        const convertedExercises = exercises.map(ex => ({
+          executed_exercise_name: ex.exercise_name,
+          sets: ex.sets,
+          reps: ex.reps || 0,
+          load_kg: ex.load_kg,
+          load_breakdown: ex.load_breakdown || '',
+          observations: ex.observations,
+          is_best_set: ex.is_best_set || false,
+        }));
+        
+        setMergedData({
+          clinical_observations: [],
+          exercises: convertedExercises
+        });
+        setEditableExercises(convertedExercises);
+      }
+    }
+  }, [existingSessionData]);
 
   // Buscar prescrições com nomes
   const { data: prescriptions } = useQuery({
@@ -221,27 +291,53 @@ export function RecordIndividualSessionDialog({
     }
 
     try {
-      const workoutSession = {
-        student_id: studentId,
-        prescription_id: selectedPrescriptionId,
-        date,
-        time,
-        workout_name: workoutName,
-        room_name: roomName,
-        trainer_name: trainerName,
-      };
+      let sessionId: string;
+      
+      if (isReopening && existingSessionId) {
+        // Reabrindo sessão existente - atualizar dados
+        const { error: updateError } = await supabase
+          .from('workout_sessions')
+          .update({
+            workout_name: workoutName,
+            room_name: roomName,
+            trainer_name: trainerName,
+            is_finalized: true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingSessionId);
 
-      const { data: session, error: sessionError } = await supabase
-        .from('workout_sessions')
-        .insert(workoutSession)
-        .select()
-        .single();
+        if (updateError) throw updateError;
+        sessionId = existingSessionId;
+        
+        notify.info("Atualizando sessão existente", {
+          description: "Adicionando novos exercícios e observações",
+        });
+      } else {
+        // Criando nova sessão
+        const workoutSession = {
+          student_id: studentId,
+          prescription_id: selectedPrescriptionId,
+          date,
+          time,
+          workout_name: workoutName,
+          room_name: roomName,
+          trainer_name: trainerName,
+          is_finalized: true,
+        };
 
-      if (sessionError) throw sessionError;
+        const { data: session, error: sessionError } = await supabase
+          .from('workout_sessions')
+          .insert(workoutSession)
+          .select()
+          .single();
+
+        if (sessionError) throw sessionError;
+        sessionId = session.id;
+      }
 
       // ✅ USAR OS DADOS EDITADOS MAIS RECENTES
       const exercises = editableExercises.map(ex => ({
-        session_id: session.id,
+        session_id: sessionId,
         exercise_name: ex.executed_exercise_name,
         sets: ex.sets,
         reps: ex.reps,
@@ -262,7 +358,7 @@ export function RecordIndividualSessionDialog({
         const audioSegments = accumulatedRecordings
           .filter((recording: any) => recording.rawTranscription)
           .map((recording: any) => ({
-            session_id: session.id,
+            session_id: sessionId,
             segment_order: recording.recordingNumber,
             raw_transcription: recording.rawTranscription || 'Sem transcrição disponível',
             edited_transcription: recording.editedTranscription || null,
@@ -289,7 +385,7 @@ export function RecordIndividualSessionDialog({
       if (editableObservations && editableObservations.length > 0) {
         const observations = editableObservations.map(obs => ({
           student_id: studentId,
-          session_id: session.id,
+          session_id: sessionId,
           observation_text: obs.observation_text,
           categories: obs.category ? [obs.category] : null,
           severity: obs.severity,
@@ -302,9 +398,14 @@ export function RecordIndividualSessionDialog({
         if (observationsError) throw observationsError;
       }
 
-      notify.success(i18n.modules.workouts.sessionCreated, {
-        description: `${accumulatedRecordings.length} ${i18n.modules.workouts.recording}`,
-      });
+      notify.success(
+        isReopening ? "Sessão atualizada com sucesso" : i18n.modules.workouts.sessionCreated,
+        {
+          description: isReopening 
+            ? "Novos dados adicionados à sessão"
+            : `${accumulatedRecordings.length} ${i18n.modules.workouts.recording}`,
+        }
+      );
 
       onOpenChange(false);
     } catch (error: any) {
@@ -416,9 +517,9 @@ export function RecordIndividualSessionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mic className="h-5 w-5" />
-            {dialogState === 'setup' && `Registrar Sessão Individual (Voz) - ${studentName}`}
+            {dialogState === 'setup' && (isReopening ? `Continuar Sessão - ${studentName}` : `Registrar Sessão Individual (Voz) - ${studentName}`)}
             {dialogState === 'recording' && `🎤 Gravação ${currentRecordingNumber} - ${studentName}`}
-            {dialogState === 'preview' && `Preview da Sessão - ${studentName}`}
+            {dialogState === 'preview' && (isReopening ? `Atualizando Sessão - ${studentName}` : `Preview da Sessão - ${studentName}`)}
           </DialogTitle>
         </DialogHeader>
 

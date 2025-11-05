@@ -1,15 +1,19 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dumbbell, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dumbbell, TrendingUp, FolderOpen, Lock } from "lucide-react";
 
 interface WorkoutCardProps {
   name: string;
   exercises: number;
   date: string;
   totalVolume?: number;
+  isFinalized?: boolean;
+  canReopen?: boolean;
+  onReopen?: () => void;
 }
 
-const WorkoutCard = ({ name, exercises, date, totalVolume }: WorkoutCardProps) => {
+const WorkoutCard = ({ name, exercises, date, totalVolume, isFinalized, canReopen, onReopen }: WorkoutCardProps) => {
   const displayName = name?.trim() || 'Aluno Desconhecido';
   
   const getIntensityBadge = (volume: number | undefined) => {
@@ -49,7 +53,7 @@ const WorkoutCard = ({ name, exercises, date, totalVolume }: WorkoutCardProps) =
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-3">
         {totalVolume && (
           <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10">
             <span className="text-sm font-medium text-muted-foreground">Volume Total</span>
@@ -57,6 +61,26 @@ const WorkoutCard = ({ name, exercises, date, totalVolume }: WorkoutCardProps) =
               <TrendingUp className="h-4 w-4" />
               <span className="text-lg font-bold">{totalVolume.toLocaleString('pt-BR')}kg</span>
             </div>
+          </div>
+        )}
+        
+        {isFinalized && (
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Lock className="h-3 w-3" />
+              <span>Sessão Finalizada</span>
+            </div>
+            {canReopen && onReopen && (
+              <Button 
+                onClick={onReopen}
+                variant="outline"
+                size="sm"
+                className="h-8 gap-2"
+              >
+                <FolderOpen className="h-3 w-3" />
+                Reabrir
+              </Button>
+            )}
           </div>
         )}
       </CardContent>

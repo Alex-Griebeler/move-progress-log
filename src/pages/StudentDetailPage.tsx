@@ -33,6 +33,7 @@ import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState, useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useReopenWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -53,7 +54,9 @@ const StudentDetailPage = () => {
   const { isAdmin } = useIsAdmin();
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
+  const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
   const deleteAssignment = useDeletePrescriptionAssignment();
+  const reopenSession = useReopenWorkoutSession();
 
   const student = students?.find((s) => s.id === id);
   
@@ -313,10 +316,20 @@ const StudentDetailPage = () => {
                 return (
                   <WorkoutCard
                     key={session.id}
-                    name={`Treino - ${session.time}`}
+                    name={session.workout_name || `Treino - ${session.time}`}
                     exercises={session.exercises?.length || 0}
                     date={session.date}
                     totalVolume={totalVolume}
+                    isFinalized={session.is_finalized}
+                    canReopen={session.can_reopen}
+                    onReopen={() => {
+                      reopenSession.mutate(session.id, {
+                        onSuccess: () => {
+                          setSessionToReopen(session.id);
+                          setRecordSessionOpen(true);
+                        }
+                      });
+                    }}
                   />
                 );
               })}
@@ -601,9 +614,13 @@ const StudentDetailPage = () => {
 
       <RecordIndividualSessionDialog
         open={recordSessionOpen}
-        onOpenChange={setRecordSessionOpen}
+        onOpenChange={(open) => {
+          setRecordSessionOpen(open);
+          if (!open) setSessionToReopen(null);
+        }}
         studentId={id!}
         studentName={student.name}
+        existingSessionId={sessionToReopen}
       />
     </div>
   );
