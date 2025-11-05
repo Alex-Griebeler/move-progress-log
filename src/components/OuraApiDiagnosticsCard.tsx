@@ -159,9 +159,20 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>🔍 Diagnóstico API Oura</span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <Badge className="bg-green-500">{successCount} OK</Badge>
             <Badge className="bg-yellow-500">{emptyCount} Vazios</Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDetails(!showDetails)}
+            >
+              {showDetails ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
           </div>
         </CardTitle>
         <CardDescription>
@@ -170,24 +181,6 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Button
-          variant="outline"
-          onClick={() => setShowDetails(!showDetails)}
-          className="w-full"
-        >
-          {showDetails ? (
-            <>
-              <ChevronUp className="mr-2 h-4 w-4" />
-              Ocultar Detalhes
-            </>
-          ) : (
-            <>
-              <ChevronDown className="mr-2 h-4 w-4" />
-              Ver Detalhes
-            </>
-          )}
-        </Button>
-
         {showDetails && (
           <>
             <div className="space-y-3">
