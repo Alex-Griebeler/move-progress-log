@@ -126,7 +126,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="transition-all duration-300 ease-in-out">
+    <Sidebar collapsible="icon">
       <SidebarContent>
         {/* Logo - sem border para alinhamento */}
         <div className="h-14 flex items-center px-4">
