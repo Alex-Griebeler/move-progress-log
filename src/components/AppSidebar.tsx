@@ -96,7 +96,7 @@ export function AppSidebar() {
           className={
             isActive 
               ? "bg-primary/10 text-primary font-medium border-l-2 border-primary" 
-              : "hover:bg-muted/50 hover:border-l-2 hover:border-muted-foreground/20 transition-all duration-200"
+              : "hover:bg-muted/50 hover:border-l-2 hover:border-muted-foreground/20"
           }
           aria-label={item.title}
           aria-current={isActive ? "page" : undefined}
@@ -190,7 +190,7 @@ export function AppSidebar() {
                     <SidebarMenuButton 
                       onClick={handleSignOut}
                       aria-label={NAV_LABELS.signOut}
-                      className="hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      className="hover:bg-destructive/10 hover:text-destructive"
                     >
                       <LogOut className="h-4 w-4" aria-hidden="true" />
                     </SidebarMenuButton>
@@ -204,7 +204,7 @@ export function AppSidebar() {
               <SidebarMenuButton 
                 onClick={handleSignOut}
                 aria-label={NAV_LABELS.signOut}
-                className="hover:bg-destructive/10 hover:text-destructive transition-colors"
+                className="hover:bg-destructive/10 hover:text-destructive"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
                 <span>{NAV_LABELS.signOut}</span>

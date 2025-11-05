@@ -117,23 +117,6 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
     background-color: hsl(0 0% 10%) !important;
-    transition: background-color 0.3s ease;
-  }
-  
-  /* Smooth page transitions */
-  main {
-    animation: fadeIn 0.2s ease-in-out;
-  }
-  
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
 
   /* Melhorias de Acessibilidade - Focus States */
