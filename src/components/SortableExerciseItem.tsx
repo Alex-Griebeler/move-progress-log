@@ -120,27 +120,6 @@ export function SortableExerciseItem({
           </div>
         </div>
         <div className="flex gap-2">
-          {onAddExerciseBelow && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log('Add exercise button clicked, index:', index);
-                    onAddExerciseBelow();
-                  }}
-                  className="h-8 w-8 p-0"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Adicionar exercício abaixo</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
           {total > 1 && (
             <Button
               variant="ghost"

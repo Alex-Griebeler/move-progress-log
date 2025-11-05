@@ -317,7 +317,12 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-base">Exercícios</Label>
-                <Button onClick={() => addExercise()} variant="outline" size="sm" className="gap-2">
+                <Button 
+                  onClick={() => addExercise(focusedExerciseIndex ?? undefined)} 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-2"
+                >
                   <Plus className="h-4 w-4" />
                   Adicionar Exercício
                 </Button>
@@ -347,10 +352,6 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
                       onUpdateAdaptation={(adaptIndex, exerciseId) => updateAdaptation(exerciseIndex, adaptIndex, exerciseId)}
                       onSuggestRegressions={() => suggestRegressions(exerciseIndex)}
                       loadingRegressions={loadingRegressions === exerciseIndex}
-                      onAddExerciseBelow={() => {
-                        console.log('onAddExerciseBelow called with index:', exerciseIndex);
-                        addExercise(exerciseIndex);
-                      }}
                       onFocus={() => setFocusedExerciseIndex(exerciseIndex)}
                       isFocused={focusedExerciseIndex === exerciseIndex}
                     />
