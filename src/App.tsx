@@ -9,6 +9,8 @@ import { TrainingProvider } from "@/contexts/TrainingContext";
 import { lazy, Suspense } from "react";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
 
 // AUD-009: Code splitting por rota para reduzir bundle size inicial
 const Index = lazy(() => import("./pages/Index"));
@@ -40,22 +42,42 @@ const App = () => (
         <BrowserRouter>
           <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>
             <Routes>
+              {/* Public routes without sidebar */}
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
               <Route path="/onboarding/success" element={<OnboardingSuccessPage />} />
               <Route path="/onboarding/oura-error" element={<OuraErrorPage />} />
-              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-              <Route path="/alunos" element={<ProtectedRoute><StudentsPage /></ProtectedRoute>} />
-              <Route path="/alunos/:id" element={<ProtectedRoute><StudentDetailPage /></ProtectedRoute>} />
-              <Route path="/alunos-comparacao" element={<ProtectedRoute><StudentsComparisonPage /></ProtectedRoute>} />
-              <Route path="/exercicios" element={<ProtectedRoute><ExercisesLibraryPage /></ProtectedRoute>} />
-              <Route path="/prescricoes" element={<ProtectedRoute><PrescriptionsPage /></ProtectedRoute>} />
-              <Route path="/protocolos" element={<ProtectedRoute><RecoveryProtocolsPage /></ProtectedRoute>} />
-              <Route path="/admin/diagnostico-oura" element={<ProtectedRoute><AdminDiagnosticsPage /></ProtectedRoute>} />
-              <Route path="/admin/usuarios" element={<ProtectedRoute><AdminUsersPage /></ProtectedRoute>} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
+              
+              {/* Protected routes with sidebar */}
+              <Route path="/*" element={
+                <ProtectedRoute>
+                  <SidebarProvider>
+                    <div className="flex min-h-screen w-full">
+                      <AppSidebar />
+                      <div className="flex-1 flex flex-col">
+                        <header className="h-12 flex items-center border-b border-border px-4 sticky top-0 bg-background z-50">
+                          <SidebarTrigger />
+                        </header>
+                        <main className="flex-1">
+                          <Routes>
+                            <Route path="/" element={<Index />} />
+                            <Route path="/alunos" element={<StudentsPage />} />
+                            <Route path="/alunos/:id" element={<StudentDetailPage />} />
+                            <Route path="/alunos-comparacao" element={<StudentsComparisonPage />} />
+                            <Route path="/exercicios" element={<ExercisesLibraryPage />} />
+                            <Route path="/prescricoes" element={<PrescriptionsPage />} />
+                            <Route path="/protocolos" element={<RecoveryProtocolsPage />} />
+                            <Route path="/admin/diagnostico-oura" element={<AdminDiagnosticsPage />} />
+                            <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </main>
+                      </div>
+                    </div>
+                  </SidebarProvider>
+                </ProtectedRoute>
+              } />
             </Routes>
           </Suspense>
         </BrowserRouter>

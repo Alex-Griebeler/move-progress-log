@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useUserRole";
-import { AppHeader } from "@/components/AppHeader";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { StructuredData } from "@/components/StructuredData";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
+import { StickyBar } from "@/components/StickyBar";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,6 +70,8 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [sortField, setSortField] = useState<'name' | 'email' | 'role' | 'last_sign_in'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     if (!roleLoading && !isAdmin) {
@@ -150,12 +152,44 @@ export default function AdminUsersPage() {
     }
   }, [isAdmin]);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
+  const handleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const filteredAndSortedUsers = users
+    .filter(user => {
+      const matchesSearch = user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesRole = roleFilter === "all" || user.role === roleFilter;
+      return matchesSearch && matchesRole;
+    })
+    .sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'name':
+          comparison = a.full_name.localeCompare(b.full_name);
+          break;
+        case 'email':
+          comparison = a.email.localeCompare(b.email);
+          break;
+        case 'role':
+          comparison = a.role.localeCompare(b.role);
+          break;
+        case 'last_sign_in':
+          const dateA = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
+          const dateB = b.last_sign_in_at ? new Date(b.last_sign_in_at).getTime() : 0;
+          comparison = dateA - dateB;
+          break;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
 
   const stats = {
     total: users.length,
@@ -175,140 +209,79 @@ export default function AdminUsersPage() {
     );
   }
 
+  const clearFilters = () => {
+    setSearchTerm("");
+    setRoleFilter("all");
+  };
+
   return (
-    <div id="main-content" className="min-h-screen bg-background p-8" role="main">
-      {/* Structured Data para SEO */}
-      <StructuredData data={getOrganizationSchema()} id="org-schema" />
-      <StructuredData 
-        data={getWebPageSchema(
-          NAV_LABELS.adminUsers,
-          NAV_LABELS.subtitleAdminUsers
-        )} 
-        id="webpage-schema" 
-      />
-      <StructuredData 
-        data={getBreadcrumbSchema([
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.adminUsers, NAV_LABELS.subtitleAdminUsers), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([
           { label: "Home", href: "/" },
           { label: NAV_LABELS.adminUsers, href: "/admin/usuarios" }
-        ])} 
-        id="breadcrumb-schema" 
+        ]), id: "breadcrumb-schema" }
+      ]}
+    >
+      <PageHeader
+        title={NAV_LABELS.adminUsers}
+        description={`${stats.total} usuários • ${stats.admins} admins • ${stats.moderators} treinadores • ${stats.users} alunos`}
       />
-      
-      <div className="max-w-7xl mx-auto space-y-8">
-        <Breadcrumbs
-          items={[
-            { label: NAV_LABELS.adminUsers }
-          ]}
-        />
-        
-        <AppHeader
-          title={NAV_LABELS.adminUsers}
-          subtitle={NAV_LABELS.subtitleAdminUsers}
-        />
 
-        {/* Stats Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {loading ? (
-            <>
-              {[...Array(4)].map((_, i) => (
-                <Card key={i}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-4 w-4 rounded" />
-                  </CardHeader>
-                  <CardContent>
-                    <Skeleton className="h-8 w-16" />
-                  </CardContent>
-                </Card>
-              ))}
-            </>
-          ) : (
-            <>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{NAV_LABELS.statTotalUsers}</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.total}</div>
-                </CardContent>
-              </Card>
+      {/* Filters in StickyBar */}
+      <StickyBar topOffset={48} threshold={100}>
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+          </div>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{NAV_LABELS.statAdmins}</CardTitle>
-                  <Shield className="h-4 w-4 text-destructive" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.admins}</div>
-                </CardContent>
-              </Card>
+          <div className="w-full md:w-48">
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger>
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filtrar por perfil" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os perfis</SelectItem>
+                <SelectItem value="admin">Administradores</SelectItem>
+                <SelectItem value="moderator">Treinadores</SelectItem>
+                <SelectItem value="user">Alunos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{NAV_LABELS.statModerators}</CardTitle>
-                  <UserCog className="h-4 w-4 text-primary" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.moderators}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">{NAV_LABELS.statStudents}</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.users}</div>
-                </CardContent>
-              </Card>
-            </>
+          {(searchTerm || roleFilter !== "all") && (
+            <Button variant="outline" size="sm" onClick={clearFilters}>
+              Limpar filtros
+            </Button>
           )}
+
+          <Button onClick={fetchUsers} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Atualizar
+          </Button>
         </div>
+      </StickyBar>
 
-        {/* User List */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <CardTitle>{NAV_LABELS.sectionUserList}</CardTitle>
-                <CardDescription>
-                  {filteredUsers.length} {filteredUsers.length === 1 ? 'usuário encontrado' : 'usuários encontrados'}
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
+      {/* User List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>{NAV_LABELS.sectionUserList}</CardTitle>
+          <CardDescription>
+            {filteredAndSortedUsers.length} {filteredAndSortedUsers.length === 1 ? 'usuário encontrado' : 'usuários encontrados'}
+          </CardDescription>
+        </CardHeader>
 
-          <CardContent>
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar por nome ou email..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              <div className="w-full md:w-48">
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
-                  <SelectTrigger>
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="Filtrar por perfil" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os perfis</SelectItem>
-                    <SelectItem value="admin">Administradores</SelectItem>
-                    <SelectItem value="moderator">Treinadores</SelectItem>
-                    <SelectItem value="user">Alunos</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+        <CardContent>
 
             {loading ? (
               <div className="space-y-4">
@@ -342,89 +315,108 @@ export default function AdminUsersPage() {
                   </div>
                 </div>
               </div>
-            ) : (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-muted">
-                      <tr>
-                        <th className="text-left p-4 font-medium">Nome</th>
-                        <th className="text-left p-4 font-medium">Email</th>
-                        <th className="text-left p-4 font-medium">Perfil</th>
-                        <th className="text-left p-4 font-medium">Último Acesso</th>
-                        <th className="text-left p-4 font-medium">Ações</th>
+          ) : (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th 
+                        className="text-left p-4 font-medium cursor-pointer hover:bg-muted-foreground/10 select-none"
+                        onClick={() => handleSort('name')}
+                      >
+                        Nome {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="text-left p-4 font-medium cursor-pointer hover:bg-muted-foreground/10 select-none"
+                        onClick={() => handleSort('email')}
+                      >
+                        Email {sortField === 'email' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="text-left p-4 font-medium cursor-pointer hover:bg-muted-foreground/10 select-none"
+                        onClick={() => handleSort('role')}
+                      >
+                        Perfil {sortField === 'role' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th 
+                        className="text-left p-4 font-medium cursor-pointer hover:bg-muted-foreground/10 select-none"
+                        onClick={() => handleSort('last_sign_in')}
+                      >
+                        Último Acesso {sortField === 'last_sign_in' && (sortDirection === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="text-left p-4 font-medium">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAndSortedUsers.map((user) => (
+                      <tr key={user.id} className="border-t hover:bg-muted/50">
+                        <td className="p-4">{user.full_name}</td>
+                        <td className="p-4 text-sm text-muted-foreground">{user.email}</td>
+                        <td className="p-4">
+                          <Badge variant={roleVariants[user.role]}>
+                            {roleLabels[user.role]}
+                          </Badge>
+                        </td>
+                        <td className="p-4 text-sm text-muted-foreground">
+                          {user.last_sign_in_at 
+                            ? new Date(user.last_sign_in_at).toLocaleDateString('pt-BR')
+                            : 'Nunca'}
+                        </td>
+                        <td className="p-4">
+                          <Button variant="ghost" size="sm">
+                            Editar
+                          </Button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {filteredUsers.map((user) => (
-                        <tr key={user.id} className="border-t hover:bg-muted/50">
-                          <td className="p-4">{user.full_name}</td>
-                          <td className="p-4 text-sm text-muted-foreground">{user.email}</td>
-                          <td className="p-4">
-                            <Badge variant={roleVariants[user.role]}>
-                              {roleLabels[user.role]}
-                            </Badge>
-                          </td>
-                          <td className="p-4 text-sm text-muted-foreground">
-                            {user.last_sign_in_at 
-                              ? new Date(user.last_sign_in_at).toLocaleDateString('pt-BR')
-                              : 'Nunca'}
-                          </td>
-                          <td className="p-4">
-                            <Button variant="ghost" size="sm">
-                              Editar
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {filteredUsers.length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    Nenhum usuário encontrado
-                  </div>
-                )}
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Info Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Sistema de Gestão de Contas - Fase 1</CardTitle>
-            <CardDescription>
-              Fundação implementada com sucesso
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              <p className="flex items-center gap-2">
-                <span className="text-green-500">✓</span>
-                <span>Sistema de permissões granulares (35 permissões)</span>
-              </p>
-              <p className="flex items-center gap-2">
-                <span className="text-green-500">✓</span>
-                <span>Auditoria completa (histórico de mudanças)</span>
-              </p>
-              <p className="flex items-center gap-2">
-                <span className="text-green-500">✓</span>
-                <span>Rate limiting anti-brute force</span>
-              </p>
-              <p className="flex items-center gap-2">
-                <span className="text-green-500">✓</span>
-                <span>Sistema de reset de senha</span>
-              </p>
-              <p className="flex items-center gap-2">
-                <span className="text-yellow-500">⊙</span>
-                <span>Painel de gestão (em desenvolvimento)</span>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+              {filteredAndSortedUsers.length === 0 && (
+                <div className="text-center py-12 text-muted-foreground">
+                  Nenhum usuário encontrado
+                </div>
+              )}
+              </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Info Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Sistema de Gestão de Contas - Fase 1</CardTitle>
+          <CardDescription>
+            Fundação implementada com sucesso
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 text-sm">
+            <p className="flex items-center gap-2">
+              <span className="text-green-500">✓</span>
+              <span>Sistema de permissões granulares (35 permissões)</span>
+            </p>
+            <p className="flex items-center gap-2">
+              <span className="text-green-500">✓</span>
+              <span>Auditoria completa (histórico de mudanças)</span>
+            </p>
+            <p className="flex items-center gap-2">
+              <span className="text-green-500">✓</span>
+              <span>Rate limiting anti-brute force</span>
+            </p>
+            <p className="flex items-center gap-2">
+              <span className="text-green-500">✓</span>
+              <span>Sistema de reset de senha</span>
+            </p>
+            <p className="flex items-center gap-2">
+              <span className="text-yellow-500">⊙</span>
+              <span>Painel de gestão (em desenvolvimento)</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </PageLayout>
   );
 }
