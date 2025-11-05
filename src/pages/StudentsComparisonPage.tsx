@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppHeader } from "@/components/AppHeader";
-import { ArrowLeft, Users, TrendingUp, Calendar, Dumbbell, Filter } from "lucide-react";
+import { ArrowLeft, Users, TrendingUp, Calendar, Dumbbell, Filter, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -57,6 +58,7 @@ const StudentsComparisonPage = () => {
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [selectedExercise, setSelectedExercise] = useState<string>("all");
   const [selectedPrescription, setSelectedPrescription] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   
   const { data: students, isLoading: studentsLoading } = useStudents();
 
@@ -210,6 +212,13 @@ const StudentsComparisonPage = () => {
       return prev;
     });
   };
+
+  const filteredStudents = useMemo(() => {
+    if (!searchQuery) return students || [];
+    return students?.filter((student) =>
+      student.name.toLowerCase().includes(searchQuery.toLowerCase())
+    ) || [];
+  }, [students, searchQuery]);
 
   const selectedStudentsData = useMemo(() => {
     return students?.filter((s) => selectedStudents.includes(s.id)) || [];
@@ -365,12 +374,21 @@ const StudentsComparisonPage = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[600px] pr-4">
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar aluno..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <ScrollArea className="h-[560px] pr-4">
                 {studentsLoading ? (
                   <LoadingSpinner size="sm" text="Carregando alunos..." />
                 ) : (
                   <div className="space-y-3">
-                    {students?.map((student) => (
+                    {filteredStudents?.map((student) => (
                       <div
                         key={student.id}
                         className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent transition-colors"
