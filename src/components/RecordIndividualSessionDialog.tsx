@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { VoiceSessionRecorder } from "./VoiceSessionRecorder";
+import { MultiSegmentRecorder } from "./MultiSegmentRecorder";
+import { SessionContextForm } from "./SessionContextForm";
 import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,6 +84,9 @@ export function RecordIndividualSessionDialog({
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [workoutName, setWorkoutName] = useState<string>('');
+  const [roomName, setRoomName] = useState<string>('');
+  const [trainerName, setTrainerName] = useState<string>('');
   const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording[]>([]);
   const [currentRecordingNumber, setCurrentRecordingNumber] = useState(1);
   const [mergedData, setMergedData] = useState<MergedData | null>(null);
@@ -222,6 +226,9 @@ export function RecordIndividualSessionDialog({
         prescription_id: selectedPrescriptionId,
         date,
         time,
+        workout_name: workoutName,
+        room_name: roomName,
+        trainer_name: trainerName,
       };
 
       const { data: session, error: sessionError } = await supabase
@@ -389,26 +396,18 @@ export function RecordIndividualSessionDialog({
 
         {dialogState === 'setup' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="date">Data</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="time">Horário</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                />
-              </div>
-            </div>
+            <SessionContextForm
+              workoutName={workoutName}
+              roomName={roomName}
+              trainerName={trainerName}
+              date={date}
+              time={time}
+              onWorkoutNameChange={setWorkoutName}
+              onRoomNameChange={setRoomName}
+              onTrainerNameChange={setTrainerName}
+              onDateChange={setDate}
+              onTimeChange={setTime}
+            />
 
             <div className="space-y-2">
               <Label>Prescrição</Label>
@@ -432,18 +431,25 @@ export function RecordIndividualSessionDialog({
         )}
 
         {dialogState === 'recording' && (
-          <VoiceSessionRecorder
-            key={`recording-${currentRecordingNumber}`}
-            prescriptionId={selectedPrescriptionId}
+          <MultiSegmentRecorder
+            prescriptionId={selectedPrescriptionId || undefined}
             selectedStudents={[{ id: studentId, name: studentName, weight_kg: undefined }]}
-            date={date}
-            time={time}
-            onSessionData={handleSessionData}
-            onError={handleError}
-            autoStart={true}
-            onRecordingStarted={() => {
-              console.log('🟢 Dialog Individual: Callback onRecordingStarted recebido');
+            onComplete={(segments) => {
+              // Consolidar dados dos segmentos
+              const consolidatedTranscription = segments
+                .map(seg => seg.editedTranscription || seg.rawTranscription)
+                .join('\n\n');
+              
+              // Processar consolidação e extrair dados
+              handleSessionData({
+                sessions: [{
+                  student_name: studentName,
+                  clinical_observations: [],
+                  exercises: []
+                }]
+              });
             }}
+            onError={handleError}
           />
         )}
 

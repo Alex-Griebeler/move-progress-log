@@ -693,6 +693,47 @@ export type Database = {
         }
         Relationships: []
       }
+      session_audio_segments: {
+        Row: {
+          audio_duration_seconds: number | null
+          created_at: string | null
+          edited_transcription: string | null
+          id: string
+          raw_transcription: string
+          segment_order: number
+          session_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          audio_duration_seconds?: number | null
+          created_at?: string | null
+          edited_transcription?: string | null
+          id?: string
+          raw_transcription: string
+          segment_order: number
+          session_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          audio_duration_seconds?: number | null
+          created_at?: string | null
+          edited_transcription?: string | null
+          id?: string
+          raw_transcription?: string
+          segment_order?: number
+          session_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_session"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "workout_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       student_invites: {
         Row: {
           created_at: string | null
@@ -970,31 +1011,46 @@ export type Database = {
       }
       workout_sessions: {
         Row: {
+          can_reopen: boolean | null
           created_at: string
           date: string
           id: string
+          is_finalized: boolean | null
           prescription_id: string | null
+          room_name: string | null
           student_id: string
           time: string
+          trainer_name: string | null
           updated_at: string
+          workout_name: string | null
         }
         Insert: {
+          can_reopen?: boolean | null
           created_at?: string
           date: string
           id?: string
+          is_finalized?: boolean | null
           prescription_id?: string | null
+          room_name?: string | null
           student_id: string
           time: string
+          trainer_name?: string | null
           updated_at?: string
+          workout_name?: string | null
         }
         Update: {
+          can_reopen?: boolean | null
           created_at?: string
           date?: string
           id?: string
+          is_finalized?: boolean | null
           prescription_id?: string | null
+          room_name?: string | null
           student_id?: string
           time?: string
+          trainer_name?: string | null
           updated_at?: string
+          workout_name?: string | null
         }
         Relationships: [
           {
