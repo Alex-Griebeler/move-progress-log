@@ -410,3 +410,29 @@ export const usePrescriptionAssignments = (prescriptionId: string | null) => {
     },
   });
 };
+
+export const useDeletePrescriptionAssignment = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (assignmentId: string) => {
+      const { error } = await supabase
+        .from("prescription_assignments")
+        .delete()
+        .eq("id", assignmentId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+      notify.success("Atribuição excluída com sucesso");
+    },
+    onError: (error) => {
+      notify.error("Erro ao excluir atribuição", {
+        description: error.message
+      });
+    },
+  });
+};

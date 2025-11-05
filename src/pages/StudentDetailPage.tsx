@@ -1,11 +1,13 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useStudents } from "@/hooks/useStudents";
 import { useStudentPrescriptions, useSessionsWithExercises } from "@/hooks/useStudentDetail";
+import { useDeletePrescriptionAssignment } from "@/hooks/usePrescriptions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users } from "lucide-react";
+import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -51,6 +53,7 @@ const StudentDetailPage = () => {
   const { isAdmin } = useIsAdmin();
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
+  const deleteAssignment = useDeletePrescriptionAssignment();
 
   const student = students?.find((s) => s.id === id);
   
@@ -380,7 +383,7 @@ const StudentDetailPage = () => {
                 <Card key={assignment.id}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
-                      <div>
+                      <div className="flex-1">
                         <CardTitle>{assignment.prescription?.name}</CardTitle>
                         {assignment.prescription?.objective && (
                           <p className="text-sm text-muted-foreground mt-1">
@@ -388,9 +391,40 @@ const StudentDetailPage = () => {
                           </p>
                         )}
                       </div>
-                      <Badge variant="secondary">
-                        {new Date(assignment.start_date).toLocaleDateString('pt-BR')}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">
+                          {new Date(assignment.start_date).toLocaleDateString('pt-BR')}
+                        </Badge>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              aria-label="Excluir atribuição"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir esta atribuição de prescrição? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteAssignment.mutate(assignment.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
