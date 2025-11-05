@@ -48,22 +48,6 @@ export function AppSidebar() {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
 
-  // Salvar preferência da sidebar no localStorage (apenas desktop)
-  useEffect(() => {
-    if (!isMobile) {
-      const saved = localStorage.getItem('sidebar-state');
-      if (saved !== null) {
-        setOpen(saved === 'true');
-      }
-    }
-  }, [setOpen, isMobile]);
-
-  useEffect(() => {
-    if (!isMobile) {
-      localStorage.setItem('sidebar-state', String(open));
-    }
-  }, [open, isMobile]);
-
   // Fechar sidebar automaticamente no mobile após navegação
   useEffect(() => {
     if (isMobile) {
@@ -147,8 +131,8 @@ export function AppSidebar() {
         </div>
 
         {/* Main Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
+        <SidebarGroup className="overflow-hidden">
+          <SidebarGroupLabel className="overflow-hidden">Navegação</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu role="navigation" aria-label="Navegação principal">
               {mainItems.map((item) => (
@@ -162,8 +146,8 @@ export function AppSidebar() {
 
         {/* Admin Navigation */}
         {isAdmin && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Administração</SidebarGroupLabel>
+          <SidebarGroup className="overflow-hidden">
+            <SidebarGroupLabel className="overflow-hidden">Administração</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu role="navigation" aria-label="Navegação administrativa">
                 {adminItems.map((item) => (
