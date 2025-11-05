@@ -7,7 +7,7 @@ import { useIsAdmin } from "@/hooks/useUserRole";
 import { NAV_LABELS } from "@/constants/navigation";
 import logoFabrik from "@/assets/logo-fabrik.webp";
 import { useEffect } from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import {
   Sidebar,
@@ -102,23 +102,21 @@ export function AppSidebar() {
           aria-current={isActive ? "page" : undefined}
         >
           <item.icon className="h-4 w-4" aria-hidden="true" />
-          {open && <span>{item.title}</span>}
+          {open && <span className="truncate">{item.title}</span>}
         </NavLink>
       </SidebarMenuButton>
     );
 
     if (!open) {
       return (
-        <TooltipProvider delayDuration={0}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              {button}
-            </TooltipTrigger>
-            <TooltipContent side="right" className="font-medium">
-              {item.title}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {button}
+          </TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {item.title}
+          </TooltipContent>
+        </Tooltip>
       );
     }
 
@@ -184,22 +182,20 @@ export function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             {!open ? (
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <SidebarMenuButton 
-                      onClick={handleSignOut}
-                      aria-label={NAV_LABELS.signOut}
-                      className="hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <LogOut className="h-4 w-4" aria-hidden="true" />
-                    </SidebarMenuButton>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="font-medium">
-                    {NAV_LABELS.signOut}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton 
+                    onClick={handleSignOut}
+                    aria-label={NAV_LABELS.signOut}
+                    className="hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4" aria-hidden="true" />
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="font-medium">
+                  {NAV_LABELS.signOut}
+                </TooltipContent>
+              </Tooltip>
             ) : (
               <SidebarMenuButton 
                 onClick={handleSignOut}
