@@ -53,29 +53,7 @@ export const AppHeader = ({
           </div>
         </Link>
         <div className="flex gap-2 items-center flex-wrap">
-          {isAdmin && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate("/admin/usuarios")}
-              className="gap-2"
-              aria-label={NAV_LABELS.adminUsers}
-            >
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">{NAV_LABELS.adminUsers}</span>
-            </Button>
-          )}
           {actions}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="gap-2"
-            aria-label={NAV_LABELS.signOut}
-          >
-            <LogOut className="h-4 w-4" />
-            {NAV_LABELS.signOut}
-          </Button>
         </div>
       </div>
     </header>
