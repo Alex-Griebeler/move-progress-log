@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Mic, MicOff, Loader2 } from "lucide-react";
+import { Mic, MicOff, Loader2, Pause, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,13 +32,17 @@ export function VoiceSessionRecorder({
   onRecordingStarted
 }: VoiceSessionRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [accumulatedSegments, setAccumulatedSegments] = useState<any[]>([]);
+  const [currentSegment, setCurrentSegment] = useState(1);
   const { toast } = useToast();
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const allSegmentsRef = useRef<Blob[][]>([]);
   const hasAutoStartedRef = useRef(false);
   const streamRef = useRef<MediaStream | null>(null);
   const componentMountedRef = useRef(false);
@@ -122,68 +126,106 @@ export function VoiceSessionRecorder({
       };
 
       mediaRecorder.onstop = async () => {
-        console.log("🔄 Processing audio...");
+        console.log("🔄 Processing audio segment...");
+        
+        // Se foi pausado, armazenar o segmento atual
+        if (isPaused) {
+          console.log("⏸️ Paused - storing current segment");
+          allSegmentsRef.current.push([...audioChunksRef.current]);
+          audioChunksRef.current = [];
+          return;
+        }
+        
+        // Se foi finalizado, processar todos os segmentos
         setIsProcessing(true);
         setIsRecording(false);
         
         let processingToastId: string | number | undefined;
         
         try {
-          // Etapa 1: Preparando áudio
-          processingToastId = sonnerToast.loading("Processando gravação...", {
-            description: "Etapa 1/3: Preparando arquivo de áudio"
+          // Adicionar segmento final
+          allSegmentsRef.current.push([...audioChunksRef.current]);
+          
+          // Etapa 1: Preparando áudios
+          processingToastId = sonnerToast.loading("Processando gravações...", {
+            description: `Etapa 1/3: Consolidando ${allSegmentsRef.current.length} segmento(s) de áudio`
           });
           
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const segmentsData = [];
           
-          const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          
-          await new Promise((resolve, reject) => {
-            reader.onloadend = resolve;
-            reader.onerror = reject;
-          });
-          
-          const base64Audio = (reader.result as string).split(',')[1];
-          
-          // Etapa 2: Transcrevendo
-          sonnerToast.loading("Transcrevendo áudio...", {
-            id: processingToastId,
-            description: "Etapa 2/3: Convertendo fala em texto com IA"
-          });
-          
-          const { data, error } = await supabase.functions.invoke('process-voice-session', {
-            body: {
-              audio: base64Audio,
-              prescriptionId,
-              students: selectedStudents,
-              date,
-              time
-            }
-          });
-
-          if (error) throw error;
-
-          // Etapa 3: Processando dados
-          sonnerToast.loading("Analisando dados...", {
-            id: processingToastId,
-            description: "Etapa 3/3: Extraindo informações da sessão"
-          });
-
-          console.log("✅ Processing completed:", data);
-          
-          if (data.success) {
-            setTranscript(data.transcription);
-            onSessionData(data.data);
+          // Processar cada segmento separadamente
+          for (let i = 0; i < allSegmentsRef.current.length; i++) {
+            const segmentChunks = allSegmentsRef.current[i];
+            const audioBlob = new Blob(segmentChunks, { type: 'audio/webm' });
             
-            sonnerToast.dismiss(processingToastId);
-            toast({
-              title: "Gravação processada com sucesso! ✅",
-              description: "Revise os dados extraídos e confirme para salvar a sessão.",
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            
+            await new Promise((resolve, reject) => {
+              reader.onloadend = resolve;
+              reader.onerror = reject;
             });
-          } else {
-            throw new Error(data.error || 'Erro ao processar gravação');
+            
+            const base64Audio = (reader.result as string).split(',')[1];
+            
+            // Etapa 2: Transcrevendo cada segmento
+            sonnerToast.loading(`Transcrevendo segmento ${i + 1}/${allSegmentsRef.current.length}...`, {
+              id: processingToastId,
+              description: "Etapa 2/3: Convertendo fala em texto com IA"
+            });
+            
+            const { data, error } = await supabase.functions.invoke('process-voice-session', {
+              body: {
+                audio: base64Audio,
+                prescriptionId,
+                students: selectedStudents,
+                date,
+                time,
+                segmentNumber: i + 1,
+                totalSegments: allSegmentsRef.current.length
+              }
+            });
+
+            if (error) throw error;
+            
+            if (data.success) {
+              segmentsData.push(data);
+            } else {
+              throw new Error(data.error || `Erro ao processar segmento ${i + 1}`);
+            }
           }
+
+          // Etapa 3: Consolidando dados
+          sonnerToast.loading("Consolidando informações...", {
+            id: processingToastId,
+            description: "Etapa 3/3: Mesclando dados de todos os segmentos"
+          });
+
+          // Consolidar transcrições
+          const fullTranscript = segmentsData
+            .map((seg, idx) => `[Segmento ${idx + 1}]\n${seg.transcription}`)
+            .join('\n\n');
+          
+          // Mesclar dados de sessões
+          const consolidatedData = {
+            sessions: segmentsData.flatMap(seg => seg.data?.sessions || [])
+          };
+
+          console.log("✅ All segments processed and consolidated:", consolidatedData);
+          
+          setTranscript(fullTranscript);
+          setAccumulatedSegments(segmentsData);
+          onSessionData(consolidatedData);
+          
+          sonnerToast.dismiss(processingToastId);
+          toast({
+            title: `${allSegmentsRef.current.length} segmento(s) processado(s) com sucesso! ✅`,
+            description: "Revise os dados consolidados e confirme para salvar a sessão.",
+          });
+          
+          // Reset refs
+          allSegmentsRef.current = [];
+          
         } catch (error) {
           console.error("❌ Error processing:", error);
           
@@ -199,6 +241,7 @@ export function VoiceSessionRecorder({
           }
         } finally {
           setIsProcessing(false);
+          setCurrentSegment(1);
           if (streamRef.current) {
             streamRef.current.getTracks().forEach(track => track.stop());
             streamRef.current = null;
@@ -271,9 +314,182 @@ export function VoiceSessionRecorder({
     };
   }, [autoStart, startRecording]);
 
+  const pauseRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      console.log("⏸️ Pausing recording...");
+      setIsPaused(true);
+      mediaRecorderRef.current.stop();
+      
+      sonnerToast.info("Gravação pausada", {
+        description: "Clique em 'Retomar' para continuar gravando",
+      });
+    }
+  }, []);
+
+  const resumeRecording = useCallback(async () => {
+    if (!isPaused) return;
+    
+    console.log("▶️ Resuming recording...");
+    setIsPaused(false);
+    setCurrentSegment(prev => prev + 1);
+    
+    try {
+      // Criar novo MediaRecorder para continuar gravando
+      const stream = streamRef.current;
+      if (!stream) {
+        throw new Error("Stream não disponível");
+      }
+      
+      audioChunksRef.current = [];
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        console.log("🔄 Processing audio segment...");
+        
+        if (isPaused) {
+          console.log("⏸️ Paused - storing current segment");
+          allSegmentsRef.current.push([...audioChunksRef.current]);
+          audioChunksRef.current = [];
+          return;
+        }
+        
+        // Processar todos os segmentos (código do onstop anterior)
+        setIsProcessing(true);
+        setIsRecording(false);
+        
+        let processingToastId: string | number | undefined;
+        
+        try {
+          allSegmentsRef.current.push([...audioChunksRef.current]);
+          
+          processingToastId = sonnerToast.loading("Processando gravações...", {
+            description: `Etapa 1/3: Consolidando ${allSegmentsRef.current.length} segmento(s) de áudio`
+          });
+          
+          const segmentsData = [];
+          
+          for (let i = 0; i < allSegmentsRef.current.length; i++) {
+            const segmentChunks = allSegmentsRef.current[i];
+            const audioBlob = new Blob(segmentChunks, { type: 'audio/webm' });
+            
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+            
+            await new Promise((resolve, reject) => {
+              reader.onloadend = resolve;
+              reader.onerror = reject;
+            });
+            
+            const base64Audio = (reader.result as string).split(',')[1];
+            
+            sonnerToast.loading(`Transcrevendo segmento ${i + 1}/${allSegmentsRef.current.length}...`, {
+              id: processingToastId,
+              description: "Etapa 2/3: Convertendo fala em texto com IA"
+            });
+            
+            const { data, error } = await supabase.functions.invoke('process-voice-session', {
+              body: {
+                audio: base64Audio,
+                prescriptionId,
+                students: selectedStudents,
+                date,
+                time,
+                segmentNumber: i + 1,
+                totalSegments: allSegmentsRef.current.length
+              }
+            });
+
+            if (error) throw error;
+            
+            if (data.success) {
+              segmentsData.push(data);
+            } else {
+              throw new Error(data.error || `Erro ao processar segmento ${i + 1}`);
+            }
+          }
+
+          sonnerToast.loading("Consolidando informações...", {
+            id: processingToastId,
+            description: "Etapa 3/3: Mesclando dados de todos os segmentos"
+          });
+
+          const fullTranscript = segmentsData
+            .map((seg, idx) => `[Segmento ${idx + 1}]\n${seg.transcription}`)
+            .join('\n\n');
+          
+          const consolidatedData = {
+            sessions: segmentsData.flatMap(seg => seg.data?.sessions || [])
+          };
+
+          console.log("✅ All segments processed and consolidated:", consolidatedData);
+          
+          setTranscript(fullTranscript);
+          setAccumulatedSegments(segmentsData);
+          onSessionData(consolidatedData);
+          
+          sonnerToast.dismiss(processingToastId);
+          toast({
+            title: `${allSegmentsRef.current.length} segmento(s) processado(s) com sucesso! ✅`,
+            description: "Revise os dados consolidados e confirme para salvar a sessão.",
+          });
+          
+          allSegmentsRef.current = [];
+          
+        } catch (error) {
+          console.error("❌ Error processing:", error);
+          
+          if (processingToastId) sonnerToast.dismiss(processingToastId);
+          
+          const errorMsg = error instanceof Error ? error.message : "Erro ao processar gravação";
+          sonnerToast.error("Erro no processamento", {
+            description: errorMsg,
+          });
+          
+          if (onError) {
+            onError(errorMsg);
+          }
+        } finally {
+          setIsProcessing(false);
+          setCurrentSegment(1);
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
+        }
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+      
+      sonnerToast.success(`Gravação retomada - Segmento ${currentSegment}`, {
+        description: "Continue falando sobre a sessão de treino",
+      });
+      
+    } catch (error) {
+      console.error('❌ Error resuming recording:', error);
+      
+      const errorMsg = error instanceof Error ? error.message : "Erro ao retomar gravação";
+      sonnerToast.error("Erro ao retomar", {
+        description: errorMsg,
+      });
+      
+      if (onError) {
+        onError(errorMsg);
+      }
+    }
+  }, [isPaused, currentSegment, prescriptionId, selectedStudents, date, time, onSessionData, onError, toast]);
+
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       console.log("🛑 Stopping recording...");
+      setIsPaused(false);
       mediaRecorderRef.current.stop();
     }
   }, []);
@@ -287,35 +503,68 @@ export function VoiceSessionRecorder({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex justify-center">
-          {isStarting ? (
-            <Button disabled size="lg" className="gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Iniciando gravação...
-            </Button>
-          ) : !isRecording && !isProcessing ? (
-            <Button onClick={startRecording} size="lg" className="gap-2">
-              <Mic className="h-5 w-5" />
-              Iniciar Gravação
-            </Button>
-          ) : isProcessing ? (
-            <Button disabled size="lg" className="gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Processando gravação...
-            </Button>
-          ) : (
-            <Button onClick={stopRecording} variant="destructive" size="lg" className="gap-2">
-              <MicOff className="h-5 w-5" />
-              Parar Gravação
-            </Button>
+        <div className="flex flex-col gap-3">
+          <div className="flex justify-center gap-2">
+            {isStarting ? (
+              <Button disabled size="lg" className="gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Iniciando gravação...
+              </Button>
+            ) : !isRecording && !isProcessing && !isPaused ? (
+              <Button onClick={startRecording} size="lg" className="gap-2">
+                <Mic className="h-5 w-5" />
+                Iniciar Gravação
+              </Button>
+            ) : isProcessing ? (
+              <Button disabled size="lg" className="gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Processando gravação...
+              </Button>
+            ) : isPaused ? (
+              <>
+                <Button onClick={resumeRecording} size="lg" className="gap-2">
+                  <Play className="h-5 w-5" />
+                  Retomar Gravação
+                </Button>
+                <Button onClick={stopRecording} variant="destructive" size="lg" className="gap-2">
+                  <MicOff className="h-5 w-5" />
+                  Finalizar
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button onClick={pauseRecording} variant="secondary" size="lg" className="gap-2">
+                  <Pause className="h-5 w-5" />
+                  Pausar
+                </Button>
+                <Button onClick={stopRecording} variant="destructive" size="lg" className="gap-2">
+                  <MicOff className="h-5 w-5" />
+                  Finalizar
+                </Button>
+              </>
+            )}
+          </div>
+
+          {(isRecording || isPaused) && (
+            <div className="text-center space-y-1">
+              {isRecording && (
+                <div className="text-sm text-muted-foreground animate-pulse">
+                  🎤 Gravando segmento {currentSegment}... Fale sobre a sessão de treino
+                </div>
+              )}
+              {isPaused && (
+                <div className="text-sm text-amber-600">
+                  ⏸️ Gravação pausada - Segmento {currentSegment - 1} finalizado
+                </div>
+              )}
+              {allSegmentsRef.current.length > 0 && (
+                <div className="text-xs text-muted-foreground">
+                  {allSegmentsRef.current.length} segmento(s) gravado(s)
+                </div>
+              )}
+            </div>
           )}
         </div>
-
-        {isRecording && (
-          <div className="text-center text-sm text-muted-foreground animate-pulse">
-            🎤 Gravando... Fale sobre a sessão de treino
-          </div>
-        )}
 
         {transcript && (
           <div className="space-y-2">
