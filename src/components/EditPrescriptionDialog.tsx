@@ -72,6 +72,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     },
   ]);
   const [loadingRegressions, setLoadingRegressions] = useState<number | null>(null);
+  const [focusedExerciseIndex, setFocusedExerciseIndex] = useState<number | null>(null);
 
   const { data: prescriptionData } = usePrescriptionDetails(prescriptionId);
   const { data: exercisesLibrary } = useExercisesLibrary();
@@ -125,23 +126,30 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     }
   }, [prescriptionData, open]);
 
-  const addExercise = () => {
-    setExercises([
-      ...exercises,
-      {
-        id: crypto.randomUUID(),
-        exercise_library_id: "",
-        sets: "",
-        reps: "",
-        interval_seconds: "",
-        pse: "",
-        training_method: "",
-        observations: "",
-        group_with_previous: false,
-        adaptations: [],
-        showAdaptations: false,
-      },
-    ]);
+  const addExercise = (afterIndex?: number) => {
+    const newExercise = {
+      id: crypto.randomUUID(),
+      exercise_library_id: "",
+      sets: "",
+      reps: "",
+      interval_seconds: "",
+      pse: "",
+      training_method: "",
+      observations: "",
+      group_with_previous: false,
+      adaptations: [],
+      showAdaptations: false,
+    };
+
+    if (afterIndex !== undefined && afterIndex >= 0) {
+      const newExercises = [...exercises];
+      newExercises.splice(afterIndex + 1, 0, newExercise);
+      setExercises(newExercises);
+      setFocusedExerciseIndex(afterIndex + 1);
+    } else {
+      setExercises([...exercises, newExercise]);
+      setFocusedExerciseIndex(exercises.length);
+    }
   };
 
   const removeExercise = (index: number) => {
@@ -322,7 +330,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <Label className="text-base">Exercícios</Label>
-                <Button onClick={addExercise} variant="outline" size="sm" className="gap-2">
+                <Button onClick={() => addExercise()} variant="outline" size="sm" className="gap-2">
                   <Plus className="h-4 w-4" />
                   Adicionar Exercício
                 </Button>
@@ -353,6 +361,9 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                       onUpdateAdaptation={(adaptIndex, exerciseId) => updateAdaptation(index, adaptIndex, exerciseId)}
                       onSuggestRegressions={() => suggestRegressions(index)}
                       loadingRegressions={loadingRegressions === index}
+                      onAddExerciseBelow={() => addExercise(index)}
+                      onFocus={() => setFocusedExerciseIndex(index)}
+                      isFocused={focusedExerciseIndex === index}
                     />
                   ))}
                 </SortableContext>

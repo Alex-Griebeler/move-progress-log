@@ -41,6 +41,9 @@ interface SortableExerciseItemProps {
   onUpdateAdaptation: (adaptIndex: number, exerciseId: string) => void;
   onSuggestRegressions: () => void;
   loadingRegressions: boolean;
+  onAddExerciseBelow?: () => void;
+  onFocus?: () => void;
+  isFocused?: boolean;
 }
 
 export function SortableExerciseItem({
@@ -56,6 +59,9 @@ export function SortableExerciseItem({
   onUpdateAdaptation,
   onSuggestRegressions,
   loadingRegressions,
+  onAddExerciseBelow,
+  onFocus,
+  isFocused,
 }: SortableExerciseItemProps) {
   const {
     attributes,
@@ -76,7 +82,10 @@ export function SortableExerciseItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="space-y-4 p-4 border rounded-lg bg-muted/30"
+      className={`space-y-4 p-4 border rounded-lg bg-muted/30 transition-all ${
+        isFocused ? 'ring-2 ring-primary shadow-lg' : ''
+      }`}
+      onClick={onFocus}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 flex-1">
@@ -110,16 +119,41 @@ export function SortableExerciseItem({
             )}
           </div>
         </div>
-        {total > 1 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRemove}
-            className="h-8 w-8 p-0"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {onAddExerciseBelow && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddExerciseBelow();
+                  }}
+                  className="h-8 w-8 p-0"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Adicionar exercício abaixo</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {total > 1 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              className="h-8 w-8 p-0"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
