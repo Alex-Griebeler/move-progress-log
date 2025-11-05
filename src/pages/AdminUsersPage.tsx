@@ -3,6 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { AppHeader } from "@/components/AppHeader";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { StructuredData } from "@/components/StructuredData";
+import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -173,78 +176,99 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
+    <div id="main-content" className="min-h-screen bg-background p-8" role="main">
+      {/* Structured Data para SEO */}
+      <StructuredData data={getOrganizationSchema()} id="org-schema" />
+      <StructuredData 
+        data={getWebPageSchema(
+          NAV_LABELS.adminUsers,
+          NAV_LABELS.subtitleAdminUsers
+        )} 
+        id="webpage-schema" 
+      />
+      <StructuredData 
+        data={getBreadcrumbSchema([
+          { label: "Home", href: "/" },
+          { label: NAV_LABELS.adminUsers, href: "/admin/usuarios" }
+        ])} 
+        id="breadcrumb-schema" 
+      />
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">{NAV_LABELS.adminUsers}</h1>
-          <p className="text-muted-foreground">
-            {NAV_LABELS.subtitleAdminUsers}
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto space-y-8">
+        <Breadcrumbs
+          items={[
+            { label: NAV_LABELS.adminUsers }
+          ]}
+        />
+        
+        <AppHeader
+          title={NAV_LABELS.adminUsers}
+          subtitle={NAV_LABELS.subtitleAdminUsers}
+        />
 
-        {/* Stats Cards */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i}>
+        {/* Stats Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {loading ? (
+            <>
+              {[...Array(4)].map((_, i) => (
+                <Card key={i}>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-4 rounded" />
+                  </CardHeader>
+                  <CardContent>
+                    <Skeleton className="h-8 w-16" />
+                  </CardContent>
+                </Card>
+              ))}
+            </>
+          ) : (
+            <>
+              <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-4 w-4 rounded" />
+                  <CardTitle className="text-sm font-medium">{NAV_LABELS.statTotalUsers}</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <Skeleton className="h-8 w-16" />
+                  <div className="text-2xl font-bold">{stats.total}</div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{NAV_LABELS.statTotalUsers}</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.total}</div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{NAV_LABELS.statAdmins}</CardTitle>
-                <Shield className="h-4 w-4 text-destructive" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.admins}</div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{NAV_LABELS.statAdmins}</CardTitle>
+                  <Shield className="h-4 w-4 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.admins}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{NAV_LABELS.statModerators}</CardTitle>
-                <UserCog className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.moderators}</div>
-              </CardContent>
-            </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{NAV_LABELS.statModerators}</CardTitle>
+                  <UserCog className="h-4 w-4 text-primary" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.moderators}</div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{NAV_LABELS.statStudents}</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.users}</div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{NAV_LABELS.statStudents}</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.users}</div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
 
-        {/* Filters and Actions */}
-        <Card className="mb-6">
+        {/* User List */}
+        <Card>
           <CardHeader>
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
@@ -252,13 +276,6 @@ export default function AdminUsersPage() {
                 <CardDescription>
                   {filteredUsers.length} {filteredUsers.length === 1 ? 'usuário encontrado' : 'usuários encontrados'}
                 </CardDescription>
-              </div>
-              
-              <div className="flex gap-2">
-                <Button onClick={fetchUsers} variant="outline" size="sm">
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Atualizar
-                </Button>
               </div>
             </div>
           </CardHeader>
@@ -407,7 +424,7 @@ export default function AdminUsersPage() {
             </div>
           </CardContent>
         </Card>
-      </main>
+      </div>
     </div>
   );
 }
