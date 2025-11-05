@@ -48,24 +48,28 @@ export function AppSidebar() {
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
 
-  // Salvar preferência da sidebar no localStorage
+  // Salvar preferência da sidebar no localStorage (apenas desktop)
   useEffect(() => {
-    const saved = localStorage.getItem('sidebar-state');
-    if (saved !== null) {
-      setOpen(saved === 'true');
+    if (!isMobile) {
+      const saved = localStorage.getItem('sidebar-state');
+      if (saved !== null) {
+        setOpen(saved === 'true');
+      }
     }
-  }, [setOpen]);
+  }, [setOpen, isMobile]);
 
   useEffect(() => {
-    localStorage.setItem('sidebar-state', String(open));
-  }, [open]);
+    if (!isMobile) {
+      localStorage.setItem('sidebar-state', String(open));
+    }
+  }, [open, isMobile]);
 
   // Fechar sidebar automaticamente no mobile após navegação
   useEffect(() => {
-    if (isMobile && open) {
+    if (isMobile) {
       setOpen(false);
     }
-  }, [location.pathname, isMobile, setOpen, open]);
+  }, [location.pathname, isMobile, setOpen]);
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
