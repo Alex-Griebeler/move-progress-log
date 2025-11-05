@@ -61,7 +61,7 @@ export function AssignPrescriptionDialog({
   };
 
   const handleSubmit = async () => {
-    if (!prescriptionId || selectedStudents.length === 0 || !dateRange?.from) {
+    if (!prescriptionId || selectedStudents.length === 0) {
       return;
     }
 
@@ -76,8 +76,8 @@ export function AssignPrescriptionDialog({
     await assignPrescription.mutateAsync({
       prescription_id: prescriptionId,
       student_ids: selectedStudents,
-      start_date: format(dateRange.from, "yyyy-MM-dd"),
-      end_date: dateRange.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
+      start_date: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+      end_date: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
       custom_adaptations: Object.keys(customAdaptations).length > 0 ? customAdaptations : undefined,
     });
 
@@ -120,7 +120,7 @@ export function AssignPrescriptionDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>Período da Prescrição *</Label>
+            <Label>Período da Prescrição (opcional)</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -202,8 +202,7 @@ export function AssignPrescriptionDialog({
             onClick={handleSubmit}
             disabled={
               assignPrescription.isPending ||
-              selectedStudents.length === 0 ||
-              !dateRange?.from
+              selectedStudents.length === 0
             }
           >
             {assignPrescription.isPending ? "Atribuindo..." : "Atribuir"}
