@@ -257,6 +257,34 @@ export function RecordIndividualSessionDialog({
 
       if (exercisesError) throw exercisesError;
 
+      // ✅ SALVAR SEGMENTOS DE ÁUDIO (se houver gravações)
+      if (accumulatedRecordings.length > 0) {
+        const audioSegments = accumulatedRecordings
+          .filter((recording: any) => recording.rawTranscription)
+          .map((recording: any) => ({
+            session_id: session.id,
+            segment_order: recording.recordingNumber,
+            raw_transcription: recording.rawTranscription || 'Sem transcrição disponível',
+            edited_transcription: recording.editedTranscription || null,
+          }));
+
+        if (audioSegments.length > 0) {
+          const { error: segmentsError } = await supabase
+            .from('session_audio_segments')
+            .insert(audioSegments);
+
+          if (segmentsError) {
+            console.error('Error saving audio segments:', segmentsError);
+            // Não falhar a sessão por causa disso, apenas avisar
+            notify.warning("Aviso", {
+              description: "Segmentos de áudio não foram salvos, mas a sessão foi criada com sucesso",
+            });
+          } else {
+            console.log(`✅ ${audioSegments.length} segmento(s) de áudio salvos com sucesso`);
+          }
+        }
+      }
+
       // ✅ CORRIGIR: categories deve ser array, não string
       if (editableObservations && editableObservations.length > 0) {
         const observations = editableObservations.map(obs => ({
@@ -435,10 +463,22 @@ export function RecordIndividualSessionDialog({
             prescriptionId={selectedPrescriptionId || undefined}
             selectedStudents={[{ id: studentId, name: studentName, weight_kg: undefined }]}
             onComplete={(segments) => {
-              // Consolidar dados dos segmentos
-              const consolidatedTranscription = segments
-                .map(seg => seg.editedTranscription || seg.rawTranscription)
-                .join('\n\n');
+              // Armazenar segmentos para salvar depois
+              const recordingsData = segments.map((seg, idx) => ({
+                recordingNumber: seg.segmentOrder,
+                timestamp: new Date().toISOString(),
+                rawTranscription: seg.rawTranscription,
+                editedTranscription: seg.editedTranscription,
+                data: {
+                  sessions: [{
+                    student_name: studentName,
+                    clinical_observations: [],
+                    exercises: []
+                  }]
+                }
+              }));
+              
+              setAccumulatedRecordings(recordingsData as any);
               
               // Processar consolidação e extrair dados
               handleSessionData({
