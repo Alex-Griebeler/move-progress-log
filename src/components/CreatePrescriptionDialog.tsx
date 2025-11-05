@@ -111,13 +111,15 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     };
 
     if (afterIndex !== undefined && afterIndex >= 0) {
+      console.log('Adding exercise after index:', afterIndex);
       const newExercises = [...exercises];
       newExercises.splice(afterIndex + 1, 0, newExercise);
       setExercises(newExercises);
-      setFocusedExerciseIndex(afterIndex + 1);
+      setTimeout(() => setFocusedExerciseIndex(afterIndex + 1), 0);
     } else {
+      console.log('Adding exercise at end');
       setExercises([...exercises, newExercise]);
-      setFocusedExerciseIndex(exercises.length);
+      setTimeout(() => setFocusedExerciseIndex(exercises.length), 0);
     }
   };
 

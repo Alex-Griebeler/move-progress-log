@@ -128,6 +128,7 @@ export function SortableExerciseItem({
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
+                    console.log('Add exercise button clicked, index:', index);
                     onAddExerciseBelow();
                   }}
                   className="h-8 w-8 p-0"
