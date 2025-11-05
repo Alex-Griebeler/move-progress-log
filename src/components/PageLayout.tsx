@@ -42,7 +42,7 @@ export const PageLayout = ({ children, className, structuredData }: PageLayoutPr
       
       <main 
         id="main-content" 
-        className={cn("container mx-auto px-4 py-6 space-y-6 max-w-7xl", className)}
+        className={cn("container mx-auto px-4 md:px-6 py-6 space-y-6 max-w-7xl", className)}
         role="main"
       >
         {children}
