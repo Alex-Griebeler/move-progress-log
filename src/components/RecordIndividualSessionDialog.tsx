@@ -211,6 +211,11 @@ export function RecordIndividualSessionDialog({
   const handleSave = async () => {
     if (!mergedData) return;
 
+    // ✅ Validar ANTES de salvar
+    if (!validateExercisesBeforeSave()) {
+      return;
+    }
+
     try {
       const workoutSession = {
         student_id: studentId,
@@ -227,6 +232,7 @@ export function RecordIndividualSessionDialog({
 
       if (sessionError) throw sessionError;
 
+      // ✅ USAR OS DADOS EDITADOS MAIS RECENTES
       const exercises = editableExercises.map(ex => ({
         session_id: session.id,
         exercise_name: ex.executed_exercise_name,
@@ -244,12 +250,13 @@ export function RecordIndividualSessionDialog({
 
       if (exercisesError) throw exercisesError;
 
+      // ✅ CORRIGIR: categories deve ser array, não string
       if (editableObservations && editableObservations.length > 0) {
         const observations = editableObservations.map(obs => ({
           student_id: studentId,
           session_id: session.id,
           observation_text: obs.observation_text,
-          category: obs.category,
+          categories: obs.category ? [obs.category] : null,
           severity: obs.severity,
         }));
 
@@ -832,7 +839,15 @@ export function RecordIndividualSessionDialog({
                 <Mic className="h-4 w-4 mr-2" />
                 Adicionar Gravação
               </Button>
-              <Button onClick={handleSave}>
+              <Button 
+                onClick={() => {
+                  // ✅ Validar antes de salvar
+                  if (!validateExercisesBeforeSave()) {
+                    return;
+                  }
+                  handleSave();
+                }}
+              >
                 <Save className="h-4 w-4 mr-2" />
                 Finalizar e Salvar
               </Button>
@@ -844,6 +859,7 @@ export function RecordIndividualSessionDialog({
               <Button 
                 variant="outline" 
                 onClick={() => {
+                  // Restaurar dados originais de mergedData
                   if (mergedData) {
                     setEditableObservations(mergedData.clinical_observations);
                     setEditableExercises(mergedData.exercises);
@@ -857,15 +873,15 @@ export function RecordIndividualSessionDialog({
                 onClick={() => {
                   // ✅ Validar ANTES de aplicar edições
                   if (!validateExercisesBeforeSave()) {
-                    return; // Bloqueia se houver erros críticos
+                    return;
                   }
                   
-                  if (mergedData) {
-                    setMergedData({
-                      clinical_observations: editableObservations,
-                      exercises: editableExercises
-                    });
-                  }
+                  // ✅ CRÍTICO: Atualizar mergedData E os estados editáveis simultaneamente
+                  setMergedData({
+                    clinical_observations: editableObservations,
+                    exercises: editableExercises
+                  });
+                  
                   setDialogState('preview');
                   notify.success("Edições aplicadas", {
                     description: "Dados validados e prontos para salvar",
