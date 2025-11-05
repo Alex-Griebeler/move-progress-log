@@ -9,12 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { VoiceSessionRecorder } from "./VoiceSessionRecorder";
+import { ManualSessionEntry } from "./ManualSessionEntry";
 import { useStudents } from "@/hooks/useStudents";
 import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateGroupWorkoutSessions } from "@/hooks/useWorkoutSessions";
 import { usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { supabase } from "@/integrations/supabase/client";
-import { Mic, User, AlertTriangle, XCircle, Save, Edit, Trash, Pencil, ChevronLeft, ChevronRight, Plus, CheckCircle } from "lucide-react";
+import { Mic, User, AlertTriangle, XCircle, Save, Edit, Trash, Pencil, ChevronLeft, ChevronRight, Plus, CheckCircle, BookOpen } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { notify } from "@/lib/notify";
@@ -26,7 +27,7 @@ interface RecordGroupSessionDialogProps {
   prescriptionId?: string | null;
 }
 
-type DialogState = 'selecting' | 'recording' | 'processing' | 'preview' | 'edit';
+type DialogState = 'mode-selection' | 'selecting' | 'recording' | 'processing' | 'preview' | 'edit' | 'manual-entry';
 
 interface Student {
   id: string;
@@ -90,7 +91,7 @@ export function RecordGroupSessionDialog({
   onOpenChange,
   prescriptionId,
 }: RecordGroupSessionDialogProps) {
-  const [dialogState, setDialogState] = useState<DialogState>('selecting');
+  const [dialogState, setDialogState] = useState<DialogState>('mode-selection');
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
@@ -120,6 +121,11 @@ export function RecordGroupSessionDialog({
     observations?: string | null;
     is_best_set: boolean;
   }>>([]);
+
+  // Estados para registro manual
+  const [workoutType, setWorkoutType] = useState<string>('');
+  const [room, setRoom] = useState<string>('');
+  const [trainer, setTrainer] = useState<string>('');
 
   const { data: students } = useStudents();
   const { data: assignments } = usePrescriptionAssignments(prescriptionId);
@@ -653,9 +659,99 @@ export function RecordGroupSessionDialog({
     }
   }, [open, assignments, enrichedStudents, hasAutoSelected]);
 
+  const handleSaveManual = async (data: {
+    workoutType: string;
+    room: string;
+    trainer: string;
+    studentExercises: Array<{
+      studentId: string;
+      exercises: Array<{
+        exercise_name: string;
+        sets: number;
+        reps: number;
+        load_kg: number | null;
+        load_breakdown: string;
+        observations: string;
+      }>;
+    }>;
+  }) => {
+    try {
+      const sessionsToCreate = data.studentExercises.map(se => {
+        const student = selectedStudents.find(s => s.id === se.studentId);
+        return {
+          student_id: se.studentId,
+          student_name: student?.name || '',
+          exercises: se.exercises.map(ex => ({
+            executed_exercise_name: ex.exercise_name,
+            sets: ex.sets,
+            reps: ex.reps,
+            load_kg: ex.load_kg,
+            load_breakdown: ex.load_breakdown,
+            observations: ex.observations,
+            is_best_set: false
+          }))
+        };
+      });
+
+      // Criar sessões com os novos campos
+      for (const session of sessionsToCreate) {
+        const { data: workoutSession, error: sessionError } = await supabase
+          .from("workout_sessions")
+          .insert({
+            student_id: session.student_id,
+            prescription_id: prescriptionId,
+            date,
+            time,
+            workout_name: data.workoutType,
+            room_name: data.room,
+            trainer_name: data.trainer,
+            is_finalized: true,
+            can_reopen: true,
+          })
+          .select()
+          .single();
+
+        if (sessionError) throw sessionError;
+
+        const exercisesToInsert = session.exercises.map((ex) => ({
+          session_id: workoutSession.id,
+          exercise_name: ex.executed_exercise_name,
+          sets: ex.sets,
+          reps: ex.reps,
+          load_kg: ex.load_kg,
+          load_breakdown: ex.load_breakdown,
+          observations: ex.observations || null,
+        }));
+
+        const { error: exercisesError } = await supabase
+          .from("exercises")
+          .insert(exercisesToInsert);
+
+        if (exercisesError) throw exercisesError;
+      }
+
+      notify.success("Sessões registradas com sucesso", {
+        description: `${sessionsToCreate.length} sessão(ões) criada(s) manualmente`,
+      });
+
+      // Reset e fechar
+      setDialogState('mode-selection');
+      setSelectedStudents([]);
+      setWorkoutType('');
+      setRoom('');
+      setTrainer('');
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error saving manual sessions:", error);
+      notify.error("Erro ao salvar sessões", {
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+      });
+    }
+  };
+
   useEffect(() => {
     if (!open) {
-      setDialogState('selecting');
+      setDialogState('mode-selection');
       setSelectedStudents([]);
       setAccumulatedRecordings([]);
       setCurrentRecordingNumber(1);
@@ -664,6 +760,9 @@ export function RecordGroupSessionDialog({
       setDate(new Date().toISOString().split('T')[0]);
       setTime(new Date().toTimeString().slice(0, 5));
       setHasAutoSelected(false);
+      setWorkoutType('');
+      setRoom('');
+      setTrainer('');
     }
   }, [open]);
 
@@ -672,14 +771,74 @@ export function RecordGroupSessionDialog({
       <DialogContent forceMount className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-            <Mic className="h-5 w-5" />
-            {dialogState === 'selecting' && 'Registrar Sessão em Grupo (Voz)'}
-            {dialogState === 'recording' && `🎤 Gravação ${currentRecordingNumber}`}
+            {dialogState === 'mode-selection' && (
+              <>
+                <User className="h-5 w-5" />
+                Registrar Sessão em Grupo
+              </>
+            )}
+            {dialogState === 'selecting' && (
+              <>
+                <Mic className="h-5 w-5" />
+                Registrar Sessão em Grupo (Voz)
+              </>
+            )}
+            {dialogState === 'recording' && (
+              <>
+                <Mic className="h-5 w-5" />
+                🎤 Gravação {currentRecordingNumber}
+              </>
+            )}
+            {dialogState === 'manual-entry' && (
+              <>
+                <BookOpen className="h-5 w-5" />
+                Registro Manual da Sessão
+              </>
+            )}
             {dialogState === 'processing' && 'Processando...'}
             {dialogState === 'preview' && 'Preview da Sessão'}
             {dialogState === 'edit' && `Editando: ${mergedStudents[editingStudentIndex]?.student_name}`}
           </DialogTitle>
         </DialogHeader>
+
+        {dialogState === 'mode-selection' && (
+          <div className="space-y-6 py-8">
+            <p className="text-center text-muted-foreground">
+              Escolha como deseja registrar a sessão em grupo:
+            </p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-32 flex flex-col gap-4 items-center justify-center"
+                onClick={() => setDialogState('selecting')}
+              >
+                <Mic className="h-12 w-12" />
+                <div className="text-center">
+                  <div className="font-semibold">Registro por Voz</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Grave áudio e deixe a IA transcrever e processar
+                  </div>
+                </div>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-32 flex flex-col gap-4 items-center justify-center"
+                onClick={() => setDialogState('manual-entry')}
+              >
+                <BookOpen className="h-12 w-12" />
+                <div className="text-center">
+                  <div className="font-semibold">Registro Manual</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Preencha os dados da sessão manualmente
+                  </div>
+                </div>
+              </Button>
+            </div>
+          </div>
+        )}
 
         {dialogState === 'selecting' && (
           <div className="space-y-6">
@@ -752,6 +911,60 @@ export function RecordGroupSessionDialog({
               console.log('🟢 Dialog: Callback onRecordingStarted recebido do filho');
             }}
           />
+        )}
+
+        {dialogState === 'manual-entry' && (
+          <>
+            {/* Seleção de alunos */}
+            {selectedStudents.length === 0 ? (
+              <div className="space-y-4">
+                <p className="text-muted-foreground">Selecione os alunos que participarão desta sessão:</p>
+                <ScrollArea className="h-[300px] border rounded-md p-4">
+                  <div className="space-y-3">
+                    {enrichedStudents?.map((student) => (
+                      <div key={student.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={student.id}
+                          checked={selectedStudents.some(s => s.id === student.id)}
+                          onCheckedChange={() => toggleStudent(student)}
+                        />
+                        <label
+                          htmlFor={student.id}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
+                        >
+                          {student.name}
+                          {student.has_active_prescription && (
+                            <Badge variant="secondary" className="text-xs">Com prescrição</Badge>
+                          )}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              <ManualSessionEntry
+                prescriptionExercises={
+                  prescriptionDetails?.exercises?.map((ex: any) => ({
+                    id: ex.id,
+                    exercise_name: ex.exercise_name,
+                    sets: ex.sets,
+                    reps: ex.reps,
+                    interval_seconds: ex.interval_seconds,
+                    pse: ex.pse,
+                    training_method: ex.training_method,
+                    observations: ex.observations,
+                  })) || []
+                }
+                selectedStudents={selectedStudents}
+                date={date}
+                time={time}
+                onDateChange={setDate}
+                onTimeChange={setTime}
+                onSave={handleSaveManual}
+              />
+            )}
+          </>
         )}
 
         {dialogState === 'preview' && mergedStudents.length > 0 && (
@@ -1134,10 +1347,32 @@ export function RecordGroupSessionDialog({
         )}
 
         <DialogFooter>
+          {dialogState === 'mode-selection' && (
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+          )}
+
+          {dialogState === 'manual-entry' && selectedStudents.length === 0 && (
+            <>
+              <Button variant="outline" onClick={() => setDialogState('mode-selection')}>
+                Voltar
+              </Button>
+              <Button 
+                onClick={() => {
+                  // Nada, o botão será desabilitado até selecionar alunos
+                }}
+                disabled={true}
+              >
+                Continuar
+              </Button>
+            </>
+          )}
+
           {dialogState === 'selecting' && (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Cancelar
+              <Button variant="outline" onClick={() => setDialogState('mode-selection')}>
+                Voltar
               </Button>
               <Button 
                 onClick={() => setDialogState('recording')}
