@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, AlertCircle, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle2, XCircle, AlertCircle, Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraWorkouts } from "@/hooks/useOuraWorkouts";
 import { useOuraSyncLogs } from "@/hooks/useOuraSyncLogs";
@@ -19,6 +21,7 @@ interface EndpointStatus {
 }
 
 export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProps) => {
+  const [showDetails, setShowDetails] = useState(false);
   const { data: metrics } = useLatestOuraMetrics(studentId);
   const { data: workouts } = useOuraWorkouts(studentId, 1);
   const { data: syncLogs } = useOuraSyncLogs(studentId, 5);
@@ -166,94 +169,116 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
           {metrics.date ? new Date(metrics.date).toLocaleDateString('pt-BR') : 'N/A'}
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {statuses.map((endpoint) => (
-            <div
-              key={endpoint.name}
-              className="flex items-start gap-3 p-3 rounded-lg border bg-card"
-            >
-              <div className="mt-0.5">
-                {getStatusIcon(endpoint.status)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium text-sm">{endpoint.name}</span>
-                  {getStatusBadge(endpoint.status)}
-                </div>
-                <p className="text-xs text-muted-foreground mb-1">
-                  {endpoint.description}
-                </p>
-                <p className="text-xs text-foreground">
-                  {endpoint.details}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+      <CardContent className="space-y-4">
+        <Button
+          variant="outline"
+          onClick={() => setShowDetails(!showDetails)}
+          className="w-full"
+        >
+          {showDetails ? (
+            <>
+              <ChevronUp className="mr-2 h-4 w-4" />
+              Ocultar Detalhes
+            </>
+          ) : (
+            <>
+              <ChevronDown className="mr-2 h-4 w-4" />
+              Ver Detalhes
+            </>
+          )}
+        </Button>
 
-        <div className="mt-4 p-3 rounded-lg bg-muted">
-          <p className="text-xs text-muted-foreground">
-            <strong>📌 Problema principal identificado:</strong> O endpoint{" "}
-            <code className="bg-background px-1 py-0.5 rounded">
-              /v2/usercollection/sleep
-            </code>{" "}
-            retorna status 200 mas com <code className="bg-background px-1 py-0.5 rounded">count: 0</code>,
-            indicando que a API do Oura não está retornando os períodos de sono detalhados.
-          </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            <strong>Possíveis causas:</strong>
-          </p>
-          <ul className="text-xs text-muted-foreground mt-1 ml-4 space-y-1">
-            <li>• Oura Ring não sincronizou com o app oficial</li>
-            <li>• Dados ainda sendo processados pelo Oura (pode demorar horas)</li>
-            <li>• Configurações da conta Oura ou permissões OAuth</li>
-          </ul>
-        </div>
-
-        {/* Histórico de Sincronizações */}
-        {syncLogs && syncLogs.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <h4 className="text-sm font-semibold">📋 Histórico de Sincronizações</h4>
-            <div className="space-y-2">
-              {syncLogs.map((log) => (
+        {showDetails && (
+          <>
+            <div className="space-y-3">
+              {statuses.map((endpoint) => (
                 <div
-                  key={log.id}
-                  className="flex items-start gap-2 p-2 rounded-lg border bg-card text-xs"
+                  key={endpoint.name}
+                  className="flex items-start gap-3 p-3 rounded-lg border bg-card"
                 >
                   <div className="mt-0.5">
-                    {log.status === 'success' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-                    {log.status === 'failed' && <XCircle className="h-4 w-4 text-red-500" />}
-                    {log.status === 'retrying' && <Clock className="h-4 w-4 text-yellow-500" />}
+                    {getStatusIcon(endpoint.status)}
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">
-                        {format(new Date(log.sync_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </span>
-                      <Badge 
-                        className={
-                          log.status === 'success' ? 'bg-green-500' :
-                          log.status === 'failed' ? 'bg-red-500' : 'bg-yellow-500'
-                        }
-                      >
-                        {log.status === 'success' ? 'Sucesso' :
-                         log.status === 'failed' ? 'Falhou' : 'Tentando'}
-                      </Badge>
-                      {log.attempt_number > 1 && (
-                        <span className="text-muted-foreground">
-                          (Tentativa {log.attempt_number})
-                        </span>
-                      )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm">{endpoint.name}</span>
+                      {getStatusBadge(endpoint.status)}
                     </div>
-                    {log.error_message && (
-                      <p className="text-red-500 mt-1">{log.error_message}</p>
-                    )}
+                    <p className="text-xs text-muted-foreground mb-1">
+                      {endpoint.description}
+                    </p>
+                    <p className="text-xs text-foreground">
+                      {endpoint.details}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+
+            <div className="p-3 rounded-lg bg-muted">
+              <p className="text-xs text-muted-foreground">
+                <strong>📌 Problema principal identificado:</strong> O endpoint{" "}
+                <code className="bg-background px-1 py-0.5 rounded">
+                  /v2/usercollection/sleep
+                </code>{" "}
+                retorna status 200 mas com <code className="bg-background px-1 py-0.5 rounded">count: 0</code>,
+                indicando que a API do Oura não está retornando os períodos de sono detalhados.
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                <strong>Possíveis causas:</strong>
+              </p>
+              <ul className="text-xs text-muted-foreground mt-1 ml-4 space-y-1">
+                <li>• Oura Ring não sincronizou com o app oficial</li>
+                <li>• Dados ainda sendo processados pelo Oura (pode demorar horas)</li>
+                <li>• Configurações da conta Oura ou permissões OAuth</li>
+              </ul>
+            </div>
+
+            {/* Histórico de Sincronizações */}
+            {syncLogs && syncLogs.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-semibold">📋 Histórico de Sincronizações</h4>
+                <div className="space-y-2">
+                  {syncLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-start gap-2 p-2 rounded-lg border bg-card text-xs"
+                    >
+                      <div className="mt-0.5">
+                        {log.status === 'success' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+                        {log.status === 'failed' && <XCircle className="h-4 w-4 text-red-500" />}
+                        {log.status === 'retrying' && <Clock className="h-4 w-4 text-yellow-500" />}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">
+                            {format(new Date(log.sync_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </span>
+                          <Badge 
+                            className={
+                              log.status === 'success' ? 'bg-green-500' :
+                              log.status === 'failed' ? 'bg-red-500' : 'bg-yellow-500'
+                            }
+                          >
+                            {log.status === 'success' ? 'Sucesso' :
+                             log.status === 'failed' ? 'Falhou' : 'Tentando'}
+                          </Badge>
+                          {log.attempt_number > 1 && (
+                            <span className="text-muted-foreground">
+                              (Tentativa {log.attempt_number})
+                            </span>
+                          )}
+                        </div>
+                        {log.error_message && (
+                          <p className="text-red-500 mt-1">{log.error_message}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
