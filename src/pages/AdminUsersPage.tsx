@@ -17,7 +17,8 @@ import {
   UserCog, 
   Search,
   Filter,
-  RefreshCw
+  RefreshCw,
+  UserPlus
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +32,8 @@ import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
+import { AddUserDialog } from "@/components/AddUserDialog";
+import { EditUserDialog } from "@/components/EditUserDialog";
 
 interface UserWithRole {
   id: string;
@@ -72,6 +75,10 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<'name' | 'email' | 'role' | 'last_sign_in'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
 
   useEffect(() => {
     if (!roleLoading && !isAdmin) {
@@ -83,6 +90,16 @@ export default function AdminUsersPage() {
       navigate("/");
     }
   }, [isAdmin, roleLoading, navigate]);
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+      }
+    };
+    getCurrentUser();
+  }, []);
 
   const fetchUsers = async () => {
     try {
@@ -265,6 +282,15 @@ export default function AdminUsersPage() {
             </Button>
           )}
 
+          <Button 
+            onClick={() => setShowAddDialog(true)} 
+            variant="default"
+            size="sm"
+          >
+            <UserPlus className="h-4 w-4 mr-2" />
+            Adicionar Usuário
+          </Button>
+
           <Button onClick={fetchUsers} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Atualizar
@@ -364,7 +390,14 @@ export default function AdminUsersPage() {
                             : 'Nunca'}
                         </td>
                         <td className="p-4">
-                          <Button variant="ghost" size="sm">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setShowEditDialog(true);
+                            }}
+                          >
                             Editar
                           </Button>
                         </td>
@@ -417,6 +450,21 @@ export default function AdminUsersPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Dialogs */}
+      <AddUserDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onSuccess={fetchUsers}
+      />
+
+      <EditUserDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        user={selectedUser}
+        currentUserId={currentUserId}
+        onSuccess={fetchUsers}
+      />
     </PageLayout>
   );
 }
