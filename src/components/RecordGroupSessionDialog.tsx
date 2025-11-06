@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { VoiceSessionRecorder } from "./VoiceSessionRecorder";
 import { ManualSessionEntry } from "./ManualSessionEntry";
+import { SessionSetupForm } from "./SessionSetupForm";
 import { useStudents } from "@/hooks/useStudents";
 import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateGroupWorkoutSessions } from "@/hooks/useWorkoutSessions";
@@ -27,7 +28,7 @@ interface RecordGroupSessionDialogProps {
   prescriptionId?: string | null;
 }
 
-type DialogState = 'mode-selection' | 'selecting' | 'recording' | 'processing' | 'preview' | 'edit' | 'manual-entry';
+type DialogState = 'context-setup' | 'mode-selection' | 'recording' | 'processing' | 'preview' | 'edit' | 'manual-entry';
 
 interface Student {
   id: string;
@@ -91,7 +92,7 @@ export function RecordGroupSessionDialog({
   onOpenChange,
   prescriptionId,
 }: RecordGroupSessionDialogProps) {
-  const [dialogState, setDialogState] = useState<DialogState>('mode-selection');
+  const [dialogState, setDialogState] = useState<DialogState>('context-setup');
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
@@ -154,10 +155,8 @@ export function RecordGroupSessionDialog({
       const isSelected = prev.find(s => s.id === student.id);
       
       if (isSelected) {
-        // Remove student
         return prev.filter((s) => s.id !== student.id);
       } else {
-        // Add student only if under limit
         if (prev.length >= 10) {
           notify.warning("Limite atingido", {
             description: "É possível selecionar no máximo 10 alunos por sessão",
@@ -168,6 +167,8 @@ export function RecordGroupSessionDialog({
       }
     });
   };
+
+  const isContextValid = date && time && trainer && selectedStudents.length > 0;
 
   const areSimilarObservations = (obs1: string, obs2: string): boolean => {
     const normalize = (s: string) => s.toLowerCase().trim().replace(/\s+/g, ' ');
@@ -494,7 +495,7 @@ export function RecordGroupSessionDialog({
     setCurrentRecordingNumber(1);
     setMergedStudents([]);
     setValidationIssues({ errors: [], warnings: [] });
-    setDialogState('selecting');
+    setDialogState('context-setup');
     onOpenChange(false);
   };
 
@@ -511,7 +512,7 @@ export function RecordGroupSessionDialog({
   };
 
   const handleBack = () => {
-    setDialogState('selecting');
+    setDialogState('mode-selection');
     setAccumulatedRecordings([]);
     setCurrentRecordingNumber(1);
     setMergedStudents([]);
@@ -670,7 +671,6 @@ export function RecordGroupSessionDialog({
   }, [open, assignments, enrichedStudents, hasAutoSelected]);
 
   const handleSaveManual = async (data: {
-    trainer: string;
     studentExercises: Array<{
       studentId: string;
       exercises: Array<{
@@ -710,7 +710,7 @@ export function RecordGroupSessionDialog({
             prescription_id: prescriptionId,
             date,
             time,
-            trainer_name: data.trainer,
+            trainer_name: trainer,
             is_finalized: true,
             can_reopen: true,
           })
@@ -755,7 +755,7 @@ export function RecordGroupSessionDialog({
 
   useEffect(() => {
     if (!open) {
-      setDialogState('mode-selection');
+      setDialogState('context-setup');
       setSelectedStudents([]);
       setAccumulatedRecordings([]);
       setCurrentRecordingNumber(1);
@@ -773,16 +773,11 @@ export function RecordGroupSessionDialog({
       <DialogContent forceMount className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
+            {dialogState === 'context-setup' && "Configurar Sessão"}
             {dialogState === 'mode-selection' && (
               <>
                 <User className="h-5 w-5" />
-                Registrar Sessão em Grupo
-              </>
-            )}
-            {dialogState === 'selecting' && (
-              <>
-                <Mic className="h-5 w-5" />
-                Registrar Sessão em Grupo (Voz)
+                Escolher Modo de Registro
               </>
             )}
             {dialogState === 'recording' && (
@@ -803,6 +798,19 @@ export function RecordGroupSessionDialog({
           </DialogTitle>
         </DialogHeader>
 
+        {dialogState === 'context-setup' && (
+          <SessionSetupForm
+            date={date}
+            time={time}
+            trainerName={trainer}
+            selectedStudents={selectedStudents}
+            onDateChange={setDate}
+            onTimeChange={setTime}
+            onTrainerNameChange={setTrainer}
+            onStudentToggle={toggleStudent}
+          />
+        )}
+
         {dialogState === 'mode-selection' && (
           <div className="space-y-6 py-8">
             <p className="text-center text-muted-foreground">
@@ -813,7 +821,7 @@ export function RecordGroupSessionDialog({
                 variant="outline"
                 size="lg"
                 className="h-32 flex flex-col gap-4 items-center justify-center"
-                onClick={() => setDialogState('selecting')}
+                onClick={() => setDialogState('recording')}
               >
                 <Mic className="h-12 w-12" />
                 <div className="text-center">
@@ -838,63 +846,6 @@ export function RecordGroupSessionDialog({
                   </div>
                 </div>
               </Button>
-            </div>
-          </div>
-        )}
-
-        {dialogState === 'selecting' && (
-          <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="date">Data *</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="time">Hora *</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <Label>Selecione os Alunos</Label>
-              <ScrollArea className="h-[200px] border rounded-md p-4">
-                <div className="space-y-3">
-                  {enrichedStudents?.map((student) => (
-                    <div key={student.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={student.id}
-                        checked={selectedStudents.some(s => s.id === student.id)}
-                        onCheckedChange={() => toggleStudent(student)}
-                      />
-                      <label
-                        htmlFor={student.id}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
-                      >
-                        {student.name}
-                        {student.has_active_prescription && (
-                          <Badge variant="secondary" className="text-xs">Com prescrição</Badge>
-                        )}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              </ScrollArea>
-              {selectedStudents.length > 0 && (
-                <p className="text-sm text-muted-foreground">
-                  {selectedStudents.length} aluno(s) selecionado(s) {selectedStudents.length >= 10 && "(máximo atingido)"}
-                </p>
-              )}
             </div>
           </div>
         )}
@@ -960,10 +911,6 @@ export function RecordGroupSessionDialog({
                   })) || []
                 }
                 selectedStudents={selectedStudents}
-                date={date}
-                time={time}
-                onDateChange={setDate}
-                onTimeChange={setTime}
                 onSave={handleSaveManual}
               />
             )}
@@ -1368,21 +1315,6 @@ export function RecordGroupSessionDialog({
                 disabled={true}
               >
                 Continuar
-              </Button>
-            </>
-          )}
-
-          {dialogState === 'selecting' && (
-            <>
-              <Button variant="outline" onClick={() => setDialogState('mode-selection')}>
-                Voltar
-              </Button>
-              <Button 
-                onClick={() => setDialogState('recording')}
-                disabled={selectedStudents.length === 0}
-              >
-                <Mic className="h-4 w-4 mr-2" />
-                Iniciar Gravação
               </Button>
             </>
           )}

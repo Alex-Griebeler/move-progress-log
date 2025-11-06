@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useTrainers } from "@/hooks/useTrainers";
 import { Trash } from "lucide-react";
 
 interface ManualSessionEntryProps {
@@ -25,12 +23,7 @@ interface ManualSessionEntryProps {
     name: string;
     weight_kg?: number;
   }>;
-  date: string;
-  time: string;
-  onDateChange: (date: string) => void;
-  onTimeChange: (time: string) => void;
   onSave: (data: {
-    trainer: string;
     studentExercises: Array<{
       studentId: string;
       exercises: Array<{
@@ -48,14 +41,8 @@ interface ManualSessionEntryProps {
 export function ManualSessionEntry({
   prescriptionExercises,
   selectedStudents,
-  date,
-  time,
-  onDateChange,
-  onTimeChange,
   onSave,
 }: ManualSessionEntryProps) {
-  const [trainer, setTrainer] = useState<string>('');
-  const { data: trainers } = useTrainers();
   
   // Estado para armazenar os dados de execução de cada aluno
   const [studentExercises, setStudentExercises] = useState<{
@@ -102,7 +89,6 @@ export function ManualSessionEntry({
 
   const handleSubmit = () => {
     const data = {
-      trainer,
       studentExercises: selectedStudents.map(student => ({
         studentId: student.id,
         exercises: studentExercises[student.id] || []
@@ -111,65 +97,17 @@ export function ManualSessionEntry({
     onSave(data);
   };
 
-  const isValid = trainer && 
-    selectedStudents.every(student => 
-      studentExercises[student.id]?.every(ex => 
-        ex.reps > 0 && ex.load_breakdown
-      )
-    );
+  const isValid = selectedStudents.every(student => 
+    studentExercises[student.id]?.every(ex => 
+      ex.reps > 0 && ex.load_breakdown
+    )
+  );
 
   return (
     <div className="space-y-6">
-      {/* Contexto da Sessão */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Contexto da Sessão</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="date">Data *</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => onDateChange(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="time">Hora *</Label>
-              <Input
-                id="time"
-                type="time"
-                value={time}
-                onChange={(e) => onTimeChange(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="trainer">Treinador Responsável *</Label>
-            <Select value={trainer} onValueChange={setTrainer}>
-              <SelectTrigger id="trainer">
-                <SelectValue placeholder="Selecione o treinador" />
-              </SelectTrigger>
-              <SelectContent>
-                {trainers?.map(t => (
-                  <SelectItem key={t.id} value={t.full_name || ''}>
-                    {t.full_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Alunos Selecionados */}
-      <div className="space-y-2">
-        <Label>Alunos Participantes</Label>
-        <div className="flex flex-wrap gap-2">
+      <div className="mb-4">
+        <Label>Alunos Selecionados</Label>
+        <div className="flex flex-wrap gap-2 mt-2">
           {selectedStudents.map(student => (
             <Badge key={student.id} variant="secondary">
               {student.name}
