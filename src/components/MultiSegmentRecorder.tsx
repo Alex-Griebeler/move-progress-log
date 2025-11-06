@@ -13,11 +13,20 @@ interface AudioSegment {
   rawTranscription: string;
   editedTranscription?: string;
   audioDuration: number;
+  extractedData?: {
+    sessions: Array<{
+      student_name: string;
+      clinical_observations: any[];
+      exercises: any[];
+    }>;
+  };
 }
 
 interface MultiSegmentRecorderProps {
   prescriptionId?: string;
   selectedStudents?: Array<{ id: string; name: string; weight_kg?: number }>;
+  date: string;
+  time: string;
   onComplete: (segments: AudioSegment[]) => void;
   onError?: (error: string) => void;
 }
@@ -25,6 +34,8 @@ interface MultiSegmentRecorderProps {
 export function MultiSegmentRecorder({
   prescriptionId,
   selectedStudents,
+  date,
+  time,
   onComplete,
   onError,
 }: MultiSegmentRecorderProps) {
@@ -94,6 +105,8 @@ export function MultiSegmentRecorder({
           currentSegmentNumber={currentSegmentNumber}
           prescriptionId={prescriptionId}
           selectedStudents={selectedStudents}
+          date={date}
+          time={time}
           onSegmentComplete={handleSegmentComplete}
           onError={onError}
         />

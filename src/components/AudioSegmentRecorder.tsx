@@ -9,6 +9,13 @@ interface AudioSegment {
   segmentOrder: number;
   rawTranscription: string;
   audioDuration: number;
+  extractedData?: {
+    sessions: Array<{
+      student_name: string;
+      clinical_observations: any[];
+      exercises: any[];
+    }>;
+  };
 }
 
 interface AudioSegmentRecorderProps {
@@ -17,6 +24,8 @@ interface AudioSegmentRecorderProps {
   currentSegmentNumber: number;
   prescriptionId?: string;
   selectedStudents?: Array<{ id: string; name: string; weight_kg?: number }>;
+  date: string;
+  time: string;
 }
 
 export function AudioSegmentRecorder({
@@ -25,6 +34,8 @@ export function AudioSegmentRecorder({
   currentSegmentNumber,
   prescriptionId,
   selectedStudents,
+  date,
+  time,
 }: AudioSegmentRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -128,6 +139,8 @@ export function AudioSegmentRecorder({
           audio: base64Audio,
           prescriptionId,
           students: selectedStudents,
+          date,
+          time,
           segmentNumber: currentSegmentNumber,
         },
       });
@@ -139,6 +152,7 @@ export function AudioSegmentRecorder({
           segmentOrder: currentSegmentNumber,
           rawTranscription: data.transcription,
           audioDuration: duration,
+          extractedData: data.data, // 🔥 INCLUIR DADOS ESTRUTURADOS!
         };
 
         onSegmentComplete(segment);

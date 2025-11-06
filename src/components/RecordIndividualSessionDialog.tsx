@@ -552,9 +552,32 @@ export function RecordIndividualSessionDialog({
           <MultiSegmentRecorder
             prescriptionId={selectedPrescriptionId || undefined}
             selectedStudents={[{ id: studentId, name: studentName, weight_kg: undefined }]}
+            date={date}
+            time={time}
             onComplete={(segments) => {
-              // Armazenar segmentos para salvar depois
-              const recordingsData = segments.map((seg, idx) => ({
+              console.log('📦 Segmentos recebidos do MultiSegmentRecorder:', segments);
+              
+              // Consolidar dados de todos os segmentos
+              const allObservations: any[] = [];
+              const allExercises: any[] = [];
+              
+              segments.forEach(segment => {
+                if (segment.extractedData?.sessions) {
+                  segment.extractedData.sessions.forEach(session => {
+                    if (session.clinical_observations) {
+                      allObservations.push(...session.clinical_observations);
+                    }
+                    if (session.exercises) {
+                      allExercises.push(...session.exercises);
+                    }
+                  });
+                }
+              });
+              
+              console.log('✅ Dados consolidados:', { allObservations, allExercises });
+              
+              // Armazenar segmentos para salvar na tabela session_audio_segments
+              const recordingsData = segments.map((seg) => ({
                 recordingNumber: seg.segmentOrder,
                 timestamp: new Date().toISOString(),
                 rawTranscription: seg.rawTranscription,
@@ -570,12 +593,12 @@ export function RecordIndividualSessionDialog({
               
               setAccumulatedRecordings(recordingsData as any);
               
-              // Processar consolidação e extrair dados
+              // Processar consolidação com dados REAIS
               handleSessionData({
                 sessions: [{
                   student_name: studentName,
-                  clinical_observations: [],
-                  exercises: []
+                  clinical_observations: allObservations,
+                  exercises: allExercises
                 }]
               });
             }}
