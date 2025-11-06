@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { WORKOUT_TYPES, FABRIK_ROOMS } from "@/constants/workouts";
+import { useTrainers } from "@/hooks/useTrainers";
 import { Trash } from "lucide-react";
 
 interface ManualSessionEntryProps {
@@ -30,8 +30,6 @@ interface ManualSessionEntryProps {
   onDateChange: (date: string) => void;
   onTimeChange: (time: string) => void;
   onSave: (data: {
-    workoutType: string;
-    room: string;
     trainer: string;
     studentExercises: Array<{
       studentId: string;
@@ -56,9 +54,8 @@ export function ManualSessionEntry({
   onTimeChange,
   onSave,
 }: ManualSessionEntryProps) {
-  const [workoutType, setWorkoutType] = useState<string>('');
-  const [room, setRoom] = useState<string>('');
   const [trainer, setTrainer] = useState<string>('');
+  const { data: trainers } = useTrainers();
   
   // Estado para armazenar os dados de execução de cada aluno
   const [studentExercises, setStudentExercises] = useState<{
@@ -105,8 +102,6 @@ export function ManualSessionEntry({
 
   const handleSubmit = () => {
     const data = {
-      workoutType,
-      room,
       trainer,
       studentExercises: selectedStudents.map(student => ({
         studentId: student.id,
@@ -116,7 +111,7 @@ export function ManualSessionEntry({
     onSave(data);
   };
 
-  const isValid = workoutType && room && trainer && 
+  const isValid = trainer && 
     selectedStudents.every(student => 
       studentExercises[student.id]?.every(ex => 
         ex.reps > 0 && ex.load_breakdown
@@ -153,48 +148,20 @@ export function ManualSessionEntry({
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="workout-type">Tipo de Treino *</Label>
-              <Select value={workoutType} onValueChange={setWorkoutType}>
-                <SelectTrigger id="workout-type">
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {WORKOUT_TYPES.map(type => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="room">Sala *</Label>
-              <Select value={room} onValueChange={setRoom}>
-                <SelectTrigger id="room">
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {FABRIK_ROOMS.map(room => (
-                    <SelectItem key={room.value} value={room.value}>
-                      {room.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="trainer">Treinador *</Label>
-              <Input
-                id="trainer"
-                placeholder="Nome do treinador"
-                value={trainer}
-                onChange={(e) => setTrainer(e.target.value)}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="trainer">Treinador Responsável *</Label>
+            <Select value={trainer} onValueChange={setTrainer}>
+              <SelectTrigger id="trainer">
+                <SelectValue placeholder="Selecione o treinador" />
+              </SelectTrigger>
+              <SelectContent>
+                {trainers?.map(t => (
+                  <SelectItem key={t.id} value={t.full_name || ''}>
+                    {t.full_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -222,14 +189,19 @@ export function ManualSessionEntry({
               const prescribedEx = prescriptionExercises[idx];
               return (
                 <div key={idx} className="border-b pb-4 last:border-0 last:pb-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <h4 className="font-semibold">{exercise.exercise_name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Prescrito: {prescribedEx?.sets} séries × {prescribedEx?.reps} reps
-                        {prescribedEx?.training_method && ` • ${prescribedEx.training_method}`}
+                  <div className="space-y-2 mb-3">
+                    <Label className="text-xs">Nome do Exercício *</Label>
+                    <Input
+                      value={exercise.exercise_name}
+                      onChange={(e) => updateExercise(student.id, idx, 'exercise_name', e.target.value)}
+                      placeholder="Nome do exercício"
+                    />
+                    {prescribedEx && (
+                      <p className="text-xs text-muted-foreground">
+                        Prescrito: {prescribedEx.sets} séries × {prescribedEx.reps} reps
+                        {prescribedEx.training_method && ` • ${prescribedEx.training_method}`}
                       </p>
-                    </div>
+                    )}
                   </div>
                   
                   <div className="grid gap-3 md:grid-cols-4 mt-2">

@@ -123,8 +123,6 @@ export function RecordGroupSessionDialog({
   }>>([]);
 
   // Estados para registro manual
-  const [workoutType, setWorkoutType] = useState<string>('');
-  const [room, setRoom] = useState<string>('');
   const [trainer, setTrainer] = useState<string>('');
 
   const { data: students } = useStudents();
@@ -152,11 +150,23 @@ export function RecordGroupSessionDialog({
   });
 
   const toggleStudent = (student: Student) => {
-    setSelectedStudents((prev) =>
-      prev.find(s => s.id === student.id)
-        ? prev.filter((s) => s.id !== student.id)
-        : [...prev, student]
-    );
+    setSelectedStudents((prev) => {
+      const isSelected = prev.find(s => s.id === student.id);
+      
+      if (isSelected) {
+        // Remove student
+        return prev.filter((s) => s.id !== student.id);
+      } else {
+        // Add student only if under limit
+        if (prev.length >= 10) {
+          notify.warning("Limite atingido", {
+            description: "É possível selecionar no máximo 10 alunos por sessão",
+          });
+          return prev;
+        }
+        return [...prev, student];
+      }
+    });
   };
 
   const areSimilarObservations = (obs1: string, obs2: string): boolean => {
@@ -660,8 +670,6 @@ export function RecordGroupSessionDialog({
   }, [open, assignments, enrichedStudents, hasAutoSelected]);
 
   const handleSaveManual = async (data: {
-    workoutType: string;
-    room: string;
     trainer: string;
     studentExercises: Array<{
       studentId: string;
@@ -702,8 +710,6 @@ export function RecordGroupSessionDialog({
             prescription_id: prescriptionId,
             date,
             time,
-            workout_name: data.workoutType,
-            room_name: data.room,
             trainer_name: data.trainer,
             is_finalized: true,
             can_reopen: true,
@@ -737,8 +743,6 @@ export function RecordGroupSessionDialog({
       // Reset e fechar
       setDialogState('mode-selection');
       setSelectedStudents([]);
-      setWorkoutType('');
-      setRoom('');
       setTrainer('');
       onOpenChange(false);
     } catch (error) {
@@ -760,8 +764,6 @@ export function RecordGroupSessionDialog({
       setDate(new Date().toISOString().split('T')[0]);
       setTime(new Date().toTimeString().slice(0, 5));
       setHasAutoSelected(false);
-      setWorkoutType('');
-      setRoom('');
       setTrainer('');
     }
   }, [open]);
@@ -890,7 +892,7 @@ export function RecordGroupSessionDialog({
               </ScrollArea>
               {selectedStudents.length > 0 && (
                 <p className="text-sm text-muted-foreground">
-                  {selectedStudents.length} aluno(s) selecionado(s)
+                  {selectedStudents.length} aluno(s) selecionado(s) {selectedStudents.length >= 10 && "(máximo atingido)"}
                 </p>
               )}
             </div>
@@ -921,12 +923,13 @@ export function RecordGroupSessionDialog({
                 <p className="text-muted-foreground">Selecione os alunos que participarão desta sessão:</p>
                 <ScrollArea className="h-[300px] border rounded-md p-4">
                   <div className="space-y-3">
-                    {enrichedStudents?.map((student) => (
+                     {enrichedStudents?.map((student) => (
                       <div key={student.id} className="flex items-center space-x-2">
                         <Checkbox
                           id={student.id}
                           checked={selectedStudents.some(s => s.id === student.id)}
                           onCheckedChange={() => toggleStudent(student)}
+                          disabled={selectedStudents.length >= 10 && !selectedStudents.some(s => s.id === student.id)}
                         />
                         <label
                           htmlFor={student.id}

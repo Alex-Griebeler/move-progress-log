@@ -86,8 +86,6 @@ export function RecordIndividualSessionDialog({
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
-  const [workoutName, setWorkoutName] = useState<string>('');
-  const [roomName, setRoomName] = useState<string>('');
   const [trainerName, setTrainerName] = useState<string>('');
   const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording[]>([]);
   const [currentRecordingNumber, setCurrentRecordingNumber] = useState(1);
@@ -144,8 +142,6 @@ export function RecordIndividualSessionDialog({
       const { session, exercises } = existingSessionData;
       setDate(session.date);
       setTime(session.time);
-      setWorkoutName(session.workout_name || '');
-      setRoomName(session.room_name || '');
       setTrainerName(session.trainer_name || '');
       setSelectedPrescriptionId(session.prescription_id || null);
       
@@ -247,6 +243,7 @@ export function RecordIndividualSessionDialog({
       setSelectedPrescriptionId(null);
       setDate(new Date().toISOString().split('T')[0]);
       setTime(new Date().toTimeString().slice(0, 5));
+      setTrainerName('');
       setAccumulatedRecordings([]);
       setCurrentRecordingNumber(1);
       setMergedData(null);
@@ -298,8 +295,6 @@ export function RecordIndividualSessionDialog({
         const { error: updateError } = await supabase
           .from('workout_sessions')
           .update({
-            workout_name: workoutName,
-            room_name: roomName,
             trainer_name: trainerName,
             is_finalized: true,
             updated_at: new Date().toISOString(),
@@ -319,8 +314,6 @@ export function RecordIndividualSessionDialog({
           prescription_id: selectedPrescriptionId,
           date,
           time,
-          workout_name: workoutName,
-          room_name: roomName,
           trainer_name: trainerName,
           is_finalized: true,
         };
@@ -526,13 +519,9 @@ export function RecordIndividualSessionDialog({
         {dialogState === 'setup' && (
           <div className="space-y-4">
             <SessionContextForm
-              workoutName={workoutName}
-              roomName={roomName}
               trainerName={trainerName}
               date={date}
               time={time}
-              onWorkoutNameChange={setWorkoutName}
-              onRoomNameChange={setRoomName}
               onTrainerNameChange={setTrainerName}
               onDateChange={setDate}
               onTimeChange={setTime}
