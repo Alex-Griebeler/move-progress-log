@@ -1296,8 +1296,22 @@ export function RecordGroupSessionDialog({
           </ScrollArea>
         )}
 
-        <DialogFooter>
-          {dialogState === 'mode-selection' && (
+      <DialogFooter>
+        {dialogState === 'context-setup' && (
+          <>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => setDialogState('mode-selection')}
+              disabled={!date || !time || !trainer || selectedStudents.length === 0}
+            >
+              Continuar
+            </Button>
+          </>
+        )}
+        
+        {dialogState === 'mode-selection' && (
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
