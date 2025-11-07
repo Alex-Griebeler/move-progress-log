@@ -96,9 +96,11 @@ serve(async (req) => {
     if (role === 'admin' || role === 'moderator') {
       const { error: profileError } = await supabaseClient
         .from("trainer_profiles")
-        .insert({
+        .upsert({
           id: newUser.user.id,
           full_name: fullName,
+        }, {
+          onConflict: 'id'
         });
 
       if (profileError) {
