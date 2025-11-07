@@ -740,10 +740,13 @@ export function RecordGroupSessionDialog({
         description: `${sessionsToCreate.length} sessão(ões) criada(s) manualmente`,
       });
 
-      // Reset e fechar
-      setDialogState('mode-selection');
+      // Reset completo de estados
+      setDialogState('context-setup');
       setSelectedStudents([]);
       setTrainer('');
+      setDate(new Date().toISOString().split('T')[0]);
+      setTime(new Date().toTimeString().slice(0, 5));
+      setHasAutoSelected(false);
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving manual sessions:", error);
@@ -825,9 +828,9 @@ export function RecordGroupSessionDialog({
               >
                 <Mic className="h-12 w-12" />
                 <div className="text-center">
-                  <div className="font-semibold">Registro por Voz</div>
+                  <div className="font-semibold">Registro por Voz Contínuo</div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    Grave áudio e deixe a IA transcrever e processar
+                    Grave uma única sessão contínua e processe no final
                   </div>
                 </div>
               </Button>
@@ -867,54 +870,23 @@ export function RecordGroupSessionDialog({
         )}
 
         {dialogState === 'manual-entry' && (
-          <>
-            {/* Seleção de alunos */}
-            {selectedStudents.length === 0 ? (
-              <div className="space-y-4">
-                <p className="text-muted-foreground">Selecione os alunos que participarão desta sessão:</p>
-                <ScrollArea className="h-[300px] border rounded-md p-4">
-                  <div className="space-y-3">
-                     {enrichedStudents?.map((student) => (
-                      <div key={student.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={student.id}
-                          checked={selectedStudents.some(s => s.id === student.id)}
-                          onCheckedChange={() => toggleStudent(student)}
-                          disabled={selectedStudents.length >= 10 && !selectedStudents.some(s => s.id === student.id)}
-                        />
-                        <label
-                          htmlFor={student.id}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
-                        >
-                          {student.name}
-                          {student.has_active_prescription && (
-                            <Badge variant="secondary" className="text-xs">Com prescrição</Badge>
-                          )}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            ) : (
-              <ManualSessionEntry
-                prescriptionExercises={
-                  prescriptionDetails?.exercises?.map((ex: any) => ({
-                    id: ex.id,
-                    exercise_name: ex.exercise_name,
-                    sets: ex.sets,
-                    reps: ex.reps,
-                    interval_seconds: ex.interval_seconds,
-                    pse: ex.pse,
-                    training_method: ex.training_method,
-                    observations: ex.observations,
-                  })) || []
-                }
-                selectedStudents={selectedStudents}
-                onSave={handleSaveManual}
-              />
-            )}
-          </>
+          <ManualSessionEntry
+            prescriptionExercises={
+              prescriptionDetails?.exercises?.map((ex: any) => ({
+                id: ex.id,
+                exercise_name: ex.exercise_name,
+                sets: ex.sets,
+                reps: ex.reps,
+                interval_seconds: ex.interval_seconds,
+                pse: ex.pse,
+                training_method: ex.training_method,
+                observations: ex.observations,
+              })) || []
+            }
+            selectedStudents={selectedStudents}
+            onSave={handleSaveManual}
+            onCancel={() => setDialogState('mode-selection')}
+          />
         )}
 
         {dialogState === 'preview' && mergedStudents.length > 0 && (
@@ -1312,25 +1284,9 @@ export function RecordGroupSessionDialog({
         )}
         
         {dialogState === 'mode-selection' && (
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
+            <Button variant="outline" onClick={() => setDialogState('context-setup')}>
+              Voltar
             </Button>
-          )}
-
-          {dialogState === 'manual-entry' && selectedStudents.length === 0 && (
-            <>
-              <Button variant="outline" onClick={() => setDialogState('mode-selection')}>
-                Voltar
-              </Button>
-              <Button 
-                onClick={() => {
-                  // Nada, o botão será desabilitado até selecionar alunos
-                }}
-                disabled={true}
-              >
-                Continuar
-              </Button>
-            </>
           )}
           
           {dialogState === 'preview' && (

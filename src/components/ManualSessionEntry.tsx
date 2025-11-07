@@ -36,12 +36,14 @@ interface ManualSessionEntryProps {
       }>;
     }>;
   }) => void;
+  onCancel?: () => void;
 }
 
 export function ManualSessionEntry({
   prescriptionExercises,
   selectedStudents,
   onSave,
+  onCancel,
 }: ManualSessionEntryProps) {
   
   // Estado para armazenar os dados de execução de cada aluno
@@ -221,13 +223,22 @@ export function ManualSessionEntry({
         </Card>
       ))}
 
-      {/* Botão Salvar */}
-      <div className="flex justify-end gap-2">
+      {/* Botões de Ação */}
+      <div className="flex justify-between gap-2">
+        {onCancel && (
+          <Button
+            onClick={onCancel}
+            variant="outline"
+            size="lg"
+          >
+            Voltar
+          </Button>
+        )}
         <Button
           onClick={handleSubmit}
           disabled={!isValid}
           size="lg"
-          className="gap-2"
+          className="gap-2 ml-auto"
         >
           Salvar Sessão
         </Button>
