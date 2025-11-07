@@ -99,9 +99,22 @@ export function ManualSessionEntry({
 
   const isValid = selectedStudents.every(student => 
     studentExercises[student.id]?.every(ex => 
-      ex.reps > 0 && ex.load_breakdown
+      ex.exercise_name && ex.sets > 0 && ex.reps > 0 && ex.load_breakdown
     )
   );
+
+  const getValidationErrors = (studentId: string, exerciseIdx: number) => {
+    const exercise = studentExercises[studentId]?.[exerciseIdx];
+    if (!exercise) return [];
+    
+    const errors: string[] = [];
+    if (!exercise.exercise_name) errors.push("Nome obrigatório");
+    if (exercise.sets <= 0) errors.push("Séries deve ser > 0");
+    if (exercise.reps <= 0) errors.push("Reps deve ser > 0");
+    if (!exercise.load_breakdown) errors.push("Descrição da carga obrigatória");
+    
+    return errors;
+  };
 
   return (
     <div className="space-y-6">
@@ -133,6 +146,7 @@ export function ManualSessionEntry({
                       value={exercise.exercise_name}
                       onChange={(e) => updateExercise(student.id, idx, 'exercise_name', e.target.value)}
                       placeholder="Nome do exercício"
+                      className={!exercise.exercise_name ? "border-destructive" : ""}
                     />
                     {prescribedEx && (
                       <p className="text-xs text-muted-foreground">
@@ -140,26 +154,33 @@ export function ManualSessionEntry({
                         {prescribedEx.training_method && ` • ${prescribedEx.training_method}`}
                       </p>
                     )}
+                    {getValidationErrors(student.id, idx).length > 0 && (
+                      <p className="text-xs text-destructive">
+                        {getValidationErrors(student.id, idx).join(", ")}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="grid gap-3 md:grid-cols-4 mt-2">
                     <div className="space-y-1">
-                      <Label className="text-xs">Séries</Label>
+                      <Label className="text-xs">Séries *</Label>
                       <Input
                         type="number"
                         value={exercise.sets}
                         onChange={(e) => updateExercise(student.id, idx, 'sets', parseInt(e.target.value) || 0)}
-                        min="0"
+                        min="1"
+                        className={exercise.sets <= 0 ? "border-destructive" : ""}
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">Reps</Label>
+                      <Label className="text-xs">Reps *</Label>
                       <Input
                         type="number"
                         value={exercise.reps}
                         onChange={(e) => updateExercise(student.id, idx, 'reps', parseInt(e.target.value) || 0)}
-                        min="0"
+                        min="1"
+                        className={exercise.reps <= 0 ? "border-destructive" : ""}
                       />
                     </div>
 
@@ -179,6 +200,7 @@ export function ManualSessionEntry({
                         placeholder="Ex: 20kg"
                         value={exercise.load_breakdown}
                         onChange={(e) => updateExercise(student.id, idx, 'load_breakdown', e.target.value)}
+                        className={!exercise.load_breakdown ? "border-destructive" : ""}
                       />
                     </div>
                   </div>
