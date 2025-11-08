@@ -29,6 +29,7 @@ import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecom
 import PersonalizedTrainingDashboard from "@/components/PersonalizedTrainingDashboard";
 import { StudentObservationsCard } from "@/components/StudentObservationsCard";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
+import { EditSessionDialog } from "@/components/EditSessionDialog";
 import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState, useMemo } from "react";
@@ -55,6 +56,7 @@ const StudentDetailPage = () => {
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const deleteAssignment = useDeletePrescriptionAssignment();
   const reopenSession = useReopenWorkoutSession();
 
@@ -316,12 +318,14 @@ const StudentDetailPage = () => {
                 return (
                   <WorkoutCard
                     key={session.id}
+                    sessionId={session.id}
                     name={session.workout_name || `Treino - ${session.time}`}
                     exercises={session.exercises?.length || 0}
                     date={session.date}
                     totalVolume={totalVolume}
                     isFinalized={session.is_finalized}
                     canReopen={session.can_reopen}
+                    onEdit={() => setEditingSessionId(session.id)}
                     onReopen={() => {
                       reopenSession.mutate(session.id, {
                         onSuccess: () => {
@@ -621,6 +625,16 @@ const StudentDetailPage = () => {
         studentId={id!}
         studentName={student.name}
         existingSessionId={sessionToReopen}
+      />
+
+      <EditSessionDialog
+        open={!!editingSessionId}
+        onOpenChange={(open) => !open && setEditingSessionId(null)}
+        sessionId={editingSessionId}
+        onSuccess={() => {
+          // Refetch sessions after successful edit
+          window.location.reload();
+        }}
       />
     </div>
   );

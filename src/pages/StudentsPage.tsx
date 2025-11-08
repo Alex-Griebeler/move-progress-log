@@ -16,6 +16,12 @@ import { GenerateInviteLinkDialog } from "@/components/GenerateInviteLinkDialog"
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
 import { StudentObservationsDialog } from "@/components/StudentObservationsDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useStudentImportantObservations } from "@/hooks/useStudentImportantObservations";
 import { useOuraConnectionStatus } from "@/hooks/useOuraConnectionStatus";
@@ -196,18 +202,39 @@ const StudentsPage = () => {
                 <Eye className="h-4 w-4 mr-2" />
                 Detalhes
               </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  setRecordingStudentId(student.id);
-                  setRecordingStudentName(student.name);
-                }}
-                aria-label={`Registrar sessão por voz para ${student.name}`}
-                title="Registrar sessão por voz"
-              >
-                <Mic className="h-4 w-4" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    aria-label={`Registrar sessão para ${student.name}`}
+                    title="Registrar sessão"
+                  >
+                    <Mic className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setRecordingStudentId(student.id);
+                      setRecordingStudentName(student.name);
+                    }}
+                  >
+                    <Mic className="h-4 w-4 mr-2" />
+                    Registro por Voz
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      // Abre o dialog de grupo com apenas esse aluno pré-selecionado
+                      setIsGroupSessionDialogOpen(true);
+                      // TODO: Pre-selecionar esse aluno no dialog
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Registro Manual
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button
                 variant="outline"
                 size="sm"

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, TrendingUp, FolderOpen, Lock } from "lucide-react";
+import { Dumbbell, TrendingUp, FolderOpen, Lock, Edit } from "lucide-react";
 
 interface WorkoutCardProps {
   name: string;
@@ -11,9 +11,11 @@ interface WorkoutCardProps {
   isFinalized?: boolean;
   canReopen?: boolean;
   onReopen?: () => void;
+  onEdit?: () => void;
+  sessionId?: string;
 }
 
-const WorkoutCard = ({ name, exercises, date, totalVolume, isFinalized, canReopen, onReopen }: WorkoutCardProps) => {
+const WorkoutCard = ({ name, exercises, date, totalVolume, isFinalized, canReopen, onReopen, onEdit, sessionId }: WorkoutCardProps) => {
   const displayName = name?.trim() || 'Aluno Desconhecido';
   
   const getIntensityBadge = (volume: number | undefined) => {
@@ -70,17 +72,30 @@ const WorkoutCard = ({ name, exercises, date, totalVolume, isFinalized, canReope
               <Lock className="h-3 w-3" />
               <span>Sessão Finalizada</span>
             </div>
-            {canReopen && onReopen && (
-              <Button 
-                onClick={onReopen}
-                variant="outline"
-                size="sm"
-                className="h-8 gap-2"
-              >
-                <FolderOpen className="h-3 w-3" />
-                Reabrir
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {onEdit && (
+                <Button 
+                  onClick={onEdit}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-2"
+                >
+                  <Edit className="h-3 w-3" />
+                  Editar
+                </Button>
+              )}
+              {canReopen && onReopen && (
+                <Button 
+                  onClick={onReopen}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-2"
+                >
+                  <FolderOpen className="h-3 w-3" />
+                  Reabrir
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </CardContent>

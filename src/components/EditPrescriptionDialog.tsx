@@ -368,6 +368,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                       onUpdateAdaptation={(adaptIndex, exerciseId) => updateAdaptation(exerciseIndex, adaptIndex, exerciseId)}
                       onSuggestRegressions={() => suggestRegressions(exerciseIndex)}
                       loadingRegressions={loadingRegressions === exerciseIndex}
+                      onAddExerciseBelow={() => addExercise(exerciseIndex)}
                       onFocus={() => setFocusedExerciseIndex(exerciseIndex)}
                       isFocused={focusedExerciseIndex === exerciseIndex}
                     />
