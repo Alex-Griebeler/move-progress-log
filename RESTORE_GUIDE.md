@@ -188,8 +188,8 @@ Execute no SQL Editor:
 ```sql
 -- Inserir protocolos básicos de recuperação
 INSERT INTO public.recovery_protocols (name, category, subcategory, duration_minutes, instructions, benefits)
-VALUES 
-('Imersão em Gelo', 'Crioterapia', 'Cold Water Immersion', 10, 
+VALUES
+('Imersão em Gelo', 'Crioterapia', 'Cold Water Immersion', 10,
  'Imergir o corpo em água com temperatura entre 10-15°C por 10 minutos',
  '["Redução de inflamação", "Aceleração da recuperação muscular", "Melhora da circulação"]'::jsonb),
 
@@ -232,6 +232,7 @@ verify_jwt = false
 ### Configurar Scheduled Functions (Sync Oura Automático)
 
 No painel Supabase, vá em Database > Extensions e habilite:
+
 - `pg_cron`
 
 Execute no SQL Editor:
@@ -266,24 +267,29 @@ SELECT cron.schedule(
 ## 🐛 Troubleshooting
 
 ### Erro: "relation does not exist"
+
 - Verifique se o script SQL foi executado completamente
 - Verifique se está usando o schema `public`
 
 ### Erro: "JWT expired" ou "Invalid JWT"
+
 - Verifique se `SUPABASE_SERVICE_ROLE_KEY` está correto nos secrets
 - Verifique se a configuração de JWT no `config.toml` está correta
 
 ### Edge Functions não respondem
+
 - Verifique os logs em Edge Functions > Logs
 - Verifique se os secrets foram configurados corretamente
 - Teste localmente com `supabase functions serve`
 
 ### Erro de RLS Policy
+
 - Verifique se o usuário está autenticado
 - Verifique se o usuário tem a role correta
 - Verifique os logs no SQL Editor
 
 ### Upload de imagens falha
+
 - Verifique se o bucket está público
 - Verifique as policies de storage
 - Verifique o tamanho máximo do arquivo
@@ -316,16 +322,19 @@ workout_prescriptions → prescription_exercises → exercise_adaptations
 ### Tabelas por Módulo
 
 **Autenticação & Usuários:**
+
 - `trainer_profiles`
 - `user_roles`
 - `trainer_access_permissions`
 
 **Gestão de Alunos:**
+
 - `students`
 - `student_invites`
 - `student_observations`
 
 **Exercícios & Prescrições:**
+
 - `exercises_library`
 - `workout_prescriptions`
 - `prescription_exercises`
@@ -333,22 +342,26 @@ workout_prescriptions → prescription_exercises → exercise_adaptations
 - `exercise_adaptations`
 
 **Sessões de Treino:**
+
 - `workout_sessions`
 - `exercises`
 - `session_audio_segments`
 
 **Protocolos de Recuperação:**
+
 - `recovery_protocols`
 - `protocol_recommendations`
 - `adaptation_rules`
 
 **Integração Oura Ring:**
+
 - `oura_connections`
 - `oura_metrics`
 - `oura_workouts`
 - `oura_sync_logs`
 
 **Sistema:**
+
 - `rate_limit_attempts`
 
 ## 🔒 Segurança
@@ -376,6 +389,7 @@ workout_prescriptions → prescription_exercises → exercise_adaptations
 ## 📞 Suporte
 
 Para problemas específicos:
+
 1. Consulte os logs do Supabase
 2. Verifique a documentação oficial: [supabase.com/docs](https://supabase.com/docs)
 3. Revise o arquivo `BACKUP_COMPLETO.md` para detalhes de implementação
