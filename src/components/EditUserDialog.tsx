@@ -119,6 +119,19 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
     setIsSubmitting(true);
 
     try {
+      console.log("Updating user with data:", {
+        userId: user.id,
+        fullName: values.fullName,
+        email: values.email,
+        role: values.role,
+      });
+
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("Você precisa estar autenticado para editar usuários");
+      }
+
       const { data, error } = await supabase.functions.invoke("admin-update-user", {
         body: {
           userId: user.id,
@@ -129,9 +142,15 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
         },
       });
 
-      if (error) throw error;
+      console.log("Response from admin-update-user:", { data, error });
 
-      if (data.error) {
+      if (error) {
+        console.error("Edge function error:", error);
+        throw error;
+      }
+
+      if (data?.error) {
+        console.error("Data error:", data.error);
         throw new Error(data.error);
       }
 

@@ -77,6 +77,18 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
     setIsSubmitting(true);
 
     try {
+      console.log("Creating user with data:", { 
+        email: values.email, 
+        fullName: values.fullName, 
+        role: values.role 
+      });
+
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("Você precisa estar autenticado para criar usuários");
+      }
+
       const { data, error } = await supabase.functions.invoke("admin-create-user", {
         body: {
           email: values.email,
@@ -86,9 +98,15 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
         },
       });
 
-      if (error) throw error;
+      console.log("Response from admin-create-user:", { data, error });
 
-      if (data.error) {
+      if (error) {
+        console.error("Edge function error:", error);
+        throw error;
+      }
+
+      if (data?.error) {
+        console.error("Data error:", data.error);
         throw new Error(data.error);
       }
 
