@@ -92,6 +92,7 @@ export function RecordIndividualSessionDialog({
   const [mergedData, setMergedData] = useState<MergedData | null>(null);
   const [editableObservations, setEditableObservations] = useState<MergedData['clinical_observations']>([]);
   const [editableExercises, setEditableExercises] = useState<MergedData['exercises']>([]);
+  const [existingExercises, setExistingExercises] = useState<MergedData['exercises']>([]);
 
   // Validation states
   const [showValidationDialog, setShowValidationDialog] = useState(false);
@@ -157,6 +158,8 @@ export function RecordIndividualSessionDialog({
           is_best_set: ex.is_best_set || false,
         }));
         
+        console.log('✅ Carregando exercícios existentes:', convertedExercises.length);
+        setExistingExercises(convertedExercises);
         setMergedData({
           clinical_observations: [],
           exercises: convertedExercises
@@ -247,6 +250,9 @@ export function RecordIndividualSessionDialog({
       setAccumulatedRecordings([]);
       setCurrentRecordingNumber(1);
       setMergedData(null);
+      setExistingExercises([]);
+      setEditableObservations([]);
+      setEditableExercises([]);
     }
   }, [open]);
 
@@ -263,9 +269,28 @@ export function RecordIndividualSessionDialog({
     setAccumulatedRecordings(updatedRecordings);
     
     const merged = mergeAllRecordings(updatedRecordings);
-    setMergedData(merged);
+    
+    // ✅ CONSOLIDAR: Exercícios existentes + novos (sem duplicatas)
+    const consolidatedExercises = [...existingExercises];
+    merged.exercises.forEach(newEx => {
+      const isDuplicate = consolidatedExercises.some(
+        ex => ex.executed_exercise_name === newEx.executed_exercise_name &&
+              ex.reps === newEx.reps &&
+              ex.load_kg === newEx.load_kg
+      );
+      if (!isDuplicate) {
+        consolidatedExercises.push(newEx);
+      }
+    });
+    
+    console.log(`✅ Consolidados: ${existingExercises.length} existentes + ${merged.exercises.length} novos = ${consolidatedExercises.length} total`);
+    
+    setMergedData({
+      ...merged,
+      exercises: consolidatedExercises
+    });
     setEditableObservations(merged.clinical_observations);
-    setEditableExercises(merged.exercises);
+    setEditableExercises(consolidatedExercises);
     
     setDialogState('preview');
   };
@@ -291,7 +316,17 @@ export function RecordIndividualSessionDialog({
       let sessionId: string;
       
       if (isReopening && existingSessionId) {
-        // Reabrindo sessão existente - atualizar dados
+        // Reabrindo sessão existente - deletar exercícios antigos primeiro
+        const { error: deleteError } = await supabase
+          .from('exercises')
+          .delete()
+          .eq('session_id', existingSessionId);
+
+        if (deleteError) {
+          console.error('Error deleting old exercises:', deleteError);
+          throw deleteError;
+        }
+        
         const { error: updateError } = await supabase
           .from('workout_sessions')
           .update({
@@ -304,8 +339,10 @@ export function RecordIndividualSessionDialog({
         if (updateError) throw updateError;
         sessionId = existingSessionId;
         
+        console.log(`✅ Sessão ${existingSessionId} atualizada - exercícios antigos deletados`);
+        
         notify.info("Atualizando sessão existente", {
-          description: "Adicionando novos exercícios e observações",
+          description: "Substituindo exercícios com dados consolidados",
         });
       } else {
         // Criando nova sessão

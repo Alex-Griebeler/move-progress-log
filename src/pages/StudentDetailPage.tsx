@@ -635,6 +635,11 @@ const StudentDetailPage = () => {
           // Refetch sessions after successful edit
           window.location.reload();
         }}
+        onReopenForRecording={(sessionId) => {
+          setEditingSessionId(null);
+          setSessionToReopen(sessionId);
+          setRecordSessionOpen(true);
+        }}
       />
     </div>
   );

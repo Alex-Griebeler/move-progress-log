@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
-import { Trash, Loader2 } from "lucide-react";
+import { Trash, Loader2, Mic } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface EditSessionDialogProps {
@@ -15,6 +15,7 @@ interface EditSessionDialogProps {
   onOpenChange: (open: boolean) => void;
   sessionId: string | null;
   onSuccess?: () => void;
+  onReopenForRecording?: (sessionId: string) => void;
 }
 
 interface Exercise {
@@ -33,6 +34,7 @@ export function EditSessionDialog({
   onOpenChange,
   sessionId,
   onSuccess,
+  onReopenForRecording,
 }: EditSessionDialogProps) {
   const [loading, setLoading] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -265,6 +267,19 @@ export function EditSessionDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
+          {onReopenForRecording && sessionId && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                onReopenForRecording(sessionId);
+                onOpenChange(false);
+              }}
+              disabled={loading}
+            >
+              <Mic className="h-4 w-4 mr-2" />
+              Adicionar Gravações
+            </Button>
+          )}
           <Button onClick={handleSave} disabled={loading}>
             {loading ? (
               <>
