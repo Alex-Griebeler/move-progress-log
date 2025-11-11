@@ -7,6 +7,7 @@ import { EditPrescriptionDialog } from "@/components/EditPrescriptionDialog";
 import { AssignPrescriptionDialog } from "@/components/AssignPrescriptionDialog";
 import { AddWorkoutSessionDialog } from "@/components/AddWorkoutSessionDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
+import { EditGroupSessionDialog } from "@/components/EditGroupSessionDialog";
 import { AppHeader } from "@/components/AppHeader";
 import { PrescriptionCard } from "@/components/PrescriptionCard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -29,7 +30,13 @@ export default function PrescriptionsPage() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [recordGroupDialogOpen, setRecordGroupDialogOpen] = useState(false);
+  const [editGroupDialogOpen, setEditGroupDialogOpen] = useState(false);
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
+  const [reopenGroupSession, setReopenGroupSession] = useState<{
+    prescriptionId: string;
+    date: string;
+    time: string;
+  } | null>(null);
 
   const handleEdit = (prescriptionId: string) => {
     setSelectedPrescriptionId(prescriptionId);
@@ -141,8 +148,30 @@ export default function PrescriptionsPage() {
 
       <RecordGroupSessionDialog
         open={recordGroupDialogOpen}
-        onOpenChange={setRecordGroupDialogOpen}
+        onOpenChange={(open) => {
+          setRecordGroupDialogOpen(open);
+          if (!open) setReopenGroupSession(null);
+        }}
         prescriptionId={selectedPrescriptionId}
+        reopenDate={reopenGroupSession?.date}
+        reopenTime={reopenGroupSession?.time}
+      />
+
+      <EditGroupSessionDialog
+        open={editGroupDialogOpen}
+        onOpenChange={setEditGroupDialogOpen}
+        prescriptionId={selectedPrescriptionId}
+        date={reopenGroupSession?.date || ''}
+        time={reopenGroupSession?.time || ''}
+        onSuccess={() => {
+          window.location.reload();
+        }}
+        onReopenForRecording={(prescriptionId, date, time) => {
+          setEditGroupDialogOpen(false);
+          setSelectedPrescriptionId(prescriptionId);
+          setReopenGroupSession({ prescriptionId, date, time });
+          setRecordGroupDialogOpen(true);
+        }}
       />
     </div>
   );

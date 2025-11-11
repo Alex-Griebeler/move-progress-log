@@ -26,6 +26,8 @@ interface RecordGroupSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   prescriptionId?: string | null;
+  reopenDate?: string;
+  reopenTime?: string;
 }
 
 type DialogState = 'context-setup' | 'mode-selection' | 'recording' | 'processing' | 'preview' | 'edit' | 'manual-entry';
@@ -91,11 +93,14 @@ export function RecordGroupSessionDialog({
   open,
   onOpenChange,
   prescriptionId,
+  reopenDate,
+  reopenTime,
 }: RecordGroupSessionDialogProps) {
-  const [dialogState, setDialogState] = useState<DialogState>('context-setup');
+  const isReopening = !!(reopenDate && reopenTime);
+  const [dialogState, setDialogState] = useState<DialogState>(isReopening ? 'mode-selection' : 'context-setup');
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [date, setDate] = useState(reopenDate || new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState(reopenTime || new Date().toTimeString().slice(0, 5));
   const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording[]>([]);
   const [currentRecordingNumber, setCurrentRecordingNumber] = useState(1);
   const [mergedStudents, setMergedStudents] = useState<MergedStudent[]>([]);
@@ -150,6 +155,79 @@ export function RecordGroupSessionDialog({
     return a.name.localeCompare(b.name);
   });
 
+  // Carregar sessões existentes quando reabrindo
+  useEffect(() => {
+    if (isReopening && prescriptionId && reopenDate && reopenTime && open) {
+      loadExistingSessionsData();
+    }
+  }, [isReopening, prescriptionId, reopenDate, reopenTime, open]);
+
+  const loadExistingSessionsData = async () => {
+    if (!prescriptionId || !reopenDate || !reopenTime) return;
+
+    try {
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('workout_sessions')
+        .select('id, student_id, students!inner(id, name, weight_kg)')
+        .eq('prescription_id', prescriptionId)
+        .eq('date', reopenDate)
+        .eq('time', reopenTime);
+
+      if (sessionsError) throw sessionsError;
+
+      if (sessions && sessions.length > 0) {
+        // Auto-selecionar alunos das sessões existentes
+        const existingStudents = sessions.map((s: any) => ({
+          id: s.student_id,
+          name: s.students.name,
+          weight_kg: s.students.weight_kg,
+          has_active_prescription: true,
+        }));
+        setSelectedStudents(existingStudents);
+
+        // Carregar exercícios existentes de todas as sessões
+        const allExercises = await Promise.all(
+          sessions.map(async (session: any) => {
+            const { data: exercises } = await supabase
+              .from('exercises')
+              .select('*')
+              .eq('session_id', session.id);
+            
+            return {
+              student_name: session.students.name,
+              exercises: exercises || [],
+            };
+          })
+        );
+
+        // Converter para formato MergedStudent
+        const merged: MergedStudent[] = allExercises.map((data) => ({
+          student_name: data.student_name,
+          recording_numbers: [0], // Marcador de que são dados existentes
+          clinical_observations: [],
+          exercises: data.exercises.map((ex: any) => ({
+            prescribed_exercise_name: null,
+            executed_exercise_name: ex.exercise_name,
+            sets: ex.sets,
+            reps: ex.reps,
+            load_kg: ex.load_kg,
+            load_breakdown: ex.load_breakdown || '',
+            observations: ex.observations,
+            is_best_set: ex.is_best_set || false,
+          })),
+        }));
+
+        setMergedStudents(merged);
+        
+        notify.info("Sessão carregada", {
+          description: `${sessions.length} aluno(s) carregado(s). Você pode adicionar mais gravações.`,
+        });
+      }
+    } catch (error) {
+      console.error("Erro ao carregar sessões existentes:", error);
+    }
+  };
+
   const toggleStudent = (student: Student) => {
     setSelectedStudents((prev) => {
       const isSelected = prev.find(s => s.id === student.id);
@@ -196,9 +274,21 @@ export function RecordGroupSessionDialog({
     return category.charAt(0).toUpperCase();
   };
 
-  const mergeAllRecordings = (recordings: AccumulatedRecording[]): MergedStudent[] => {
+  const mergeAllRecordings = (recordings: AccumulatedRecording[], existingData?: MergedStudent[]): MergedStudent[] => {
     const studentMap = new Map<string, MergedStudent>();
 
+    // Primeiro, adicionar dados existentes ao mapa
+    if (existingData) {
+      existingData.forEach(existing => {
+        const key = existing.student_name.toLowerCase();
+        studentMap.set(key, {
+          ...existing,
+          recording_numbers: [0], // Marcador de dados existentes
+        });
+      });
+    }
+
+    // Depois, mesclar com novas gravações
     recordings.forEach((recording) => {
       recording.data.sessions.forEach((session) => {
         const key = session.student_name.toLowerCase();
@@ -229,7 +319,17 @@ export function RecordGroupSessionDialog({
           });
         }
         
-        merged.exercises.push(...session.exercises);
+        // Adicionar exercícios sem duplicatas
+        session.exercises.forEach(newEx => {
+          const isDuplicate = merged.exercises.some(
+            ex => ex.executed_exercise_name === newEx.executed_exercise_name &&
+                  ex.reps === newEx.reps &&
+                  ex.load_kg === newEx.load_kg
+          );
+          if (!isDuplicate) {
+            merged.exercises.push(newEx);
+          }
+        });
       });
     });
 
@@ -380,13 +480,15 @@ export function RecordGroupSessionDialog({
       const updatedRecordings = [...accumulatedRecordings, newRecording];
       setAccumulatedRecordings(updatedRecordings);
       
-      const merged = mergeAllRecordings(updatedRecordings);
+      // ✅ Passar dados existentes (se houver) para consolidação
+      const existingData = isReopening && mergedStudents.length > 0 ? mergedStudents : undefined;
+      const merged = mergeAllRecordings(updatedRecordings, existingData);
       setMergedStudents(merged);
       
       const validation = validateMergedData(merged);
       setValidationIssues(validation);
       
-      console.log("✅ Dados processados, transitando para preview...");
+      console.log("✅ Dados processados (consolidados com existentes), transitando para preview...");
       
       // Garantir que React processe todos os setStates antes de mudar dialogState
       setTimeout(() => {
@@ -411,6 +513,43 @@ export function RecordGroupSessionDialog({
 
   const handleSave = async () => {
     if (mergedStudents.length === 0 || !prescriptionId) return;
+
+    // Se estiver reabrindo, deletar sessões antigas antes de criar novas consolidadas
+    if (isReopening && reopenDate && reopenTime) {
+      try {
+        // Buscar IDs das sessões existentes
+        const { data: existingSessions } = await supabase
+          .from('workout_sessions')
+          .select('id')
+          .eq('prescription_id', prescriptionId)
+          .eq('date', reopenDate)
+          .eq('time', reopenTime);
+
+        if (existingSessions && existingSessions.length > 0) {
+          const sessionIds = existingSessions.map(s => s.id);
+          
+          // Deletar exercícios das sessões
+          await supabase
+            .from('exercises')
+            .delete()
+            .in('session_id', sessionIds);
+          
+          // Deletar as sessões
+          await supabase
+            .from('workout_sessions')
+            .delete()
+            .in('id', sessionIds);
+          
+          console.log(`✅ ${sessionIds.length} sessão(ões) antiga(s) deletada(s) para consolidação`);
+        }
+      } catch (error) {
+        console.error('Erro ao deletar sessões antigas:', error);
+        notify.error("Erro ao consolidar dados", {
+          description: "Não foi possível atualizar as sessões existentes.",
+        });
+        return;
+      }
+    }
 
     const sessionsToSave = mergedStudents.map(merged => {
       const student = selectedStudents.find(
