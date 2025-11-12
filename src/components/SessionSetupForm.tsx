@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useTrainers } from "@/hooks/useTrainers";
 import { useStudents } from "@/hooks/useStudents";
 import { format } from "date-fns";
+import { Search } from "lucide-react";
 
 interface Student {
   id: string;
@@ -36,6 +38,7 @@ export function SessionSetupForm({
 }: SessionSetupFormProps) {
   const { data: trainers } = useTrainers();
   const { data: students } = useStudents();
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Converter date de YYYY-MM-DD para DD/MM/YYYY para exibição
   const dateForDisplay = date ? format(new Date(date + 'T00:00:00'), 'dd/MM/yyyy') : '';
@@ -54,6 +57,11 @@ export function SessionSetupForm({
     ...student,
     has_active_prescription: false, // TODO: buscar da tabela prescription_assignments
   }));
+
+  // Filtrar estudantes baseado no termo de busca
+  const filteredStudents = enrichedStudents?.filter(student =>
+    student.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -105,8 +113,17 @@ export function SessionSetupForm({
             </Badge>
           )}
         </div>
+        <div className="relative mb-2">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar aluno..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
         <div className="border rounded-md p-4 max-h-[300px] overflow-y-auto space-y-3">
-          {enrichedStudents?.map((student) => (
+          {filteredStudents?.map((student) => (
             <div key={student.id} className="flex items-center space-x-2">
               <Checkbox
                 id={`student-${student.id}`}
@@ -125,11 +142,15 @@ export function SessionSetupForm({
               </label>
             </div>
           ))}
-          {!enrichedStudents?.length && (
+          {!filteredStudents?.length && enrichedStudents?.length ? (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              Nenhum aluno encontrado com "{searchTerm}"
+            </p>
+          ) : !enrichedStudents?.length ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               Nenhum aluno cadastrado
             </p>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
