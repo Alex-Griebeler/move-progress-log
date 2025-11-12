@@ -206,12 +206,38 @@ export function VoiceSessionRecorder({
             .map((seg, idx) => `[Segmento ${idx + 1}]\n${seg.transcription}`)
             .join('\n\n');
           
+          // 🔍 LOGS DETALHADOS DE CONSOLIDAÇÃO
+          console.log('🔍 ========== INÍCIO DA CONSOLIDAÇÃO ==========');
+          console.log(`🔍 Total de segmentos processados: ${segmentsData.length}`);
+          
+          segmentsData.forEach((seg, idx) => {
+            console.log(`🔍 Segmento ${idx + 1}:`);
+            console.log(`   - Transcrição: ${seg.transcription.substring(0, 100)}...`);
+            console.log(`   - Sessões encontradas: ${seg.data?.sessions?.length || 0}`);
+            if (seg.data?.sessions) {
+              seg.data.sessions.forEach((session, sIdx) => {
+                console.log(`     Sessão ${sIdx + 1}: ${session.student_name}`);
+                console.log(`       - Observações: ${session.clinical_observations?.length || 0}`);
+                console.log(`       - Exercícios: ${session.exercises?.length || 0}`);
+              });
+            }
+          });
+          
           // Mesclar dados de sessões
           const consolidatedData = {
             sessions: segmentsData.flatMap(seg => seg.data?.sessions || [])
           };
 
-          console.log("✅ All segments processed and consolidated:", consolidatedData);
+          console.log(`🔍 ========== RESULTADO DA CONSOLIDAÇÃO ==========`);
+          console.log(`🔍 Total de sessões consolidadas: ${consolidatedData.sessions.length}`);
+          consolidatedData.sessions.forEach((session, idx) => {
+            console.log(`🔍 Sessão consolidada ${idx + 1}:`);
+            console.log(`   - Aluno: ${session.student_name}`);
+            console.log(`   - Observações: ${session.clinical_observations?.length || 0}`);
+            console.log(`   - Exercícios: ${session.exercises?.length || 0}`);
+          });
+          console.log('🔍 ========== FIM DA CONSOLIDAÇÃO ==========');
+          console.log("✅ Dados consolidados completos:", JSON.stringify(consolidatedData, null, 2));
           
           setTranscript(fullTranscript);
           setAccumulatedSegments(segmentsData);

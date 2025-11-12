@@ -275,12 +275,18 @@ export function RecordGroupSessionDialog({
   };
 
   const mergeAllRecordings = (recordings: AccumulatedRecording[], existingData?: MergedStudent[]): MergedStudent[] => {
+    console.log('🔍 [Group] mergeAllRecordings chamado');
+    console.log(`   - Recordings: ${recordings.length}`);
+    console.log(`   - Dados existentes: ${existingData?.length || 0} alunos`);
+    
     const studentMap = new Map<string, MergedStudent>();
 
     // Primeiro, adicionar dados existentes ao mapa
     if (existingData) {
-      existingData.forEach(existing => {
+      console.log('🔍 [Group] Carregando dados existentes no mapa...');
+      existingData.forEach((existing, idx) => {
         const key = existing.student_name.toLowerCase();
+        console.log(`   ${idx + 1}. ${existing.student_name}: ${existing.exercises.length} exercícios`);
         studentMap.set(key, {
           ...existing,
           recording_numbers: [0], // Marcador de dados existentes
@@ -289,11 +295,19 @@ export function RecordGroupSessionDialog({
     }
 
     // Depois, mesclar com novas gravações
-    recordings.forEach((recording) => {
-      recording.data.sessions.forEach((session) => {
+    console.log('🔍 [Group] Processando novos recordings...');
+    recordings.forEach((recording, recIdx) => {
+      console.log(`🔍 [Group] Recording ${recIdx + 1}/${recordings.length} (número ${recording.recordingNumber})`);
+      console.log(`   - Sessões no recording: ${recording.data.sessions.length}`);
+      
+      recording.data.sessions.forEach((session, sessIdx) => {
         const key = session.student_name.toLowerCase();
+        console.log(`   🔍 Sessão ${sessIdx + 1}: ${session.student_name}`);
+        console.log(`      - Observações: ${session.clinical_observations?.length || 0}`);
+        console.log(`      - Exercícios: ${session.exercises?.length || 0}`);
         
         if (!studentMap.has(key)) {
+          console.log(`      ➕ Criando novo aluno no mapa: ${session.student_name}`);
           studentMap.set(key, {
             student_name: session.student_name,
             recording_numbers: [],
@@ -320,7 +334,8 @@ export function RecordGroupSessionDialog({
         }
         
         // Adicionar exercícios sem duplicatas
-        session.exercises.forEach(newEx => {
+        let addedExercises = 0;
+        session.exercises.forEach((newEx, exIdx) => {
           const isDuplicate = merged.exercises.some(
             ex => ex.executed_exercise_name === newEx.executed_exercise_name &&
                   ex.reps === newEx.reps &&
@@ -328,14 +343,26 @@ export function RecordGroupSessionDialog({
           );
           if (!isDuplicate) {
             merged.exercises.push(newEx);
+            addedExercises++;
+            console.log(`      ✅ Exercício ${exIdx + 1} adicionado: ${newEx.executed_exercise_name}`);
+          } else {
+            console.log(`      ⚠️ Exercício ${exIdx + 1} duplicado, ignorado: ${newEx.executed_exercise_name}`);
           }
         });
+        console.log(`      Total adicionado para ${session.student_name}: ${addedExercises} exercícios`);
       });
     });
 
-    return Array.from(studentMap.values()).sort((a, b) => 
+    const result = Array.from(studentMap.values()).sort((a, b) => 
       a.student_name.localeCompare(b.student_name)
     );
+    
+    console.log('✅ [Group] Merge completo:');
+    result.forEach((student, idx) => {
+      console.log(`   ${idx + 1}. ${student.student_name}: ${student.exercises.length} exercícios, ${student.clinical_observations.length} observações`);
+    });
+    
+    return result;
   };
 
   const validateMergedData = (merged: MergedStudent[]) => {

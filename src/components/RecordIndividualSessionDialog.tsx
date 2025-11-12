@@ -209,6 +209,8 @@ export function RecordIndividualSessionDialog({
   };
 
   const mergeAllRecordings = (recordings: AccumulatedRecording[]): MergedData => {
+    console.log('🔍 [Individual] mergeAllRecordings chamado com', recordings.length, 'recordings');
+    
     const allObservations: Array<{
       observation_text: string;
       category: 'dor' | 'mobilidade' | 'força' | 'técnica' | 'geral';
@@ -216,9 +218,17 @@ export function RecordIndividualSessionDialog({
     }> = [];
     const allExercises: Array<any> = [];
 
-    recordings.forEach(recording => {
+    recordings.forEach((recording, recIdx) => {
+      console.log(`🔍 [Individual] Processando recording ${recIdx + 1}/${recordings.length}`);
       const session = recording.data.sessions[0];
-      if (!session) return;
+      if (!session) {
+        console.warn(`⚠️ [Individual] Recording ${recIdx + 1} não tem sessão`);
+        return;
+      }
+
+      console.log(`🔍 [Individual] Recording ${recIdx + 1} - Aluno: ${session.student_name}`);
+      console.log(`   - Observações: ${session.clinical_observations?.length || 0}`);
+      console.log(`   - Exercícios: ${session.exercises?.length || 0}`);
 
       if (session.clinical_observations) {
         session.clinical_observations.forEach(newObs => {
@@ -231,8 +241,13 @@ export function RecordIndividualSessionDialog({
         });
       }
 
-      allExercises.push(...session.exercises);
+      if (session.exercises && session.exercises.length > 0) {
+        console.log(`🔍 [Individual] Adicionando ${session.exercises.length} exercícios do recording ${recIdx + 1}`);
+        allExercises.push(...session.exercises);
+      }
     });
+
+    console.log(`✅ [Individual] Merge completo: ${allObservations.length} observações, ${allExercises.length} exercícios`);
 
     return {
       clinical_observations: allObservations,
@@ -257,7 +272,11 @@ export function RecordIndividualSessionDialog({
   }, [open]);
 
   const handleSessionData = (data: SessionData) => {
-    console.log('Received session data from recording', currentRecordingNumber, ':', data);
+    console.log('🔍 [Individual] ========== handleSessionData CHAMADO ==========');
+    console.log(`🔍 [Individual] Recording número: ${currentRecordingNumber}`);
+    console.log('🔍 [Individual] Data recebida:', JSON.stringify(data, null, 2));
+    console.log(`🔍 [Individual] Recordings acumulados antes: ${accumulatedRecordings.length}`);
+    console.log(`🔍 [Individual] Exercícios existentes: ${existingExercises.length}`);
     
     const newRecording: AccumulatedRecording = {
       recordingNumber: currentRecordingNumber,
@@ -267,12 +286,17 @@ export function RecordIndividualSessionDialog({
     
     const updatedRecordings = [...accumulatedRecordings, newRecording];
     setAccumulatedRecordings(updatedRecordings);
+    console.log(`🔍 [Individual] Recordings acumulados depois: ${updatedRecordings.length}`);
     
     const merged = mergeAllRecordings(updatedRecordings);
+    console.log(`🔍 [Individual] Merge retornou: ${merged.exercises.length} exercícios`);
     
     // ✅ CONSOLIDAR: Exercícios existentes + novos (sem duplicatas)
     const consolidatedExercises = [...existingExercises];
-    merged.exercises.forEach(newEx => {
+    console.log(`🔍 [Individual] Iniciando consolidação: ${consolidatedExercises.length} já existentes`);
+    
+    let addedCount = 0;
+    merged.exercises.forEach((newEx, idx) => {
       const isDuplicate = consolidatedExercises.some(
         ex => ex.executed_exercise_name === newEx.executed_exercise_name &&
               ex.reps === newEx.reps &&
@@ -280,10 +304,14 @@ export function RecordIndividualSessionDialog({
       );
       if (!isDuplicate) {
         consolidatedExercises.push(newEx);
+        addedCount++;
+        console.log(`✅ [Individual] Exercício ${idx + 1} adicionado: ${newEx.executed_exercise_name}`);
+      } else {
+        console.log(`⚠️ [Individual] Exercício ${idx + 1} duplicado, ignorado: ${newEx.executed_exercise_name}`);
       }
     });
     
-    console.log(`✅ Consolidados: ${existingExercises.length} existentes + ${merged.exercises.length} novos = ${consolidatedExercises.length} total`);
+    console.log(`✅ [Individual] Consolidação final: ${existingExercises.length} existentes + ${addedCount} novos = ${consolidatedExercises.length} total`);
     
     setMergedData({
       ...merged,
@@ -292,6 +320,7 @@ export function RecordIndividualSessionDialog({
     setEditableObservations(merged.clinical_observations);
     setEditableExercises(consolidatedExercises);
     
+    console.log('🔍 [Individual] ========== handleSessionData CONCLUÍDO ==========');
     setDialogState('preview');
   };
 
