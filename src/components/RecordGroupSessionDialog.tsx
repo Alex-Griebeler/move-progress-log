@@ -1063,19 +1063,71 @@ export function RecordGroupSessionDialog({
         )}
 
         {dialogState === 'recording' && (
-          <VoiceSessionRecorder
-            key={`recording-${currentRecordingNumber}`}
-            prescriptionId={prescriptionId}
-            selectedStudents={selectedStudents}
-            date={date}
-            time={time}
-            onSessionData={handleSessionData}
-            onError={handleError}
-            autoStart={true}
-            onRecordingStarted={() => {
-              console.log('🟢 Dialog: Callback onRecordingStarted recebido do filho');
-            }}
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            {/* Coluna Esquerda - Prescrição */}
+            <div className="lg:col-span-2">
+              <Card className="h-[600px] flex flex-col">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Prescrição - Exercícios a Registrar</CardTitle>
+                    <Badge variant="secondary">
+                      {prescriptionDetails?.exercises?.filter((ex: any) => ex.should_track !== false).length || 0} exercícios
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 overflow-hidden p-0">
+                  <ScrollArea className="h-full px-6 pb-6">
+                    {prescriptionDetails?.exercises
+                      ?.filter((ex: any) => ex.should_track !== false)
+                      .map((exercise: any, index: number) => (
+                        <div 
+                          key={exercise.id || index} 
+                          className="mb-4 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="font-medium text-sm mb-1">
+                            {exercise.exercise_name || exercise.exercises_library?.name}
+                          </div>
+                          <div className="text-xs text-muted-foreground space-y-0.5">
+                            {exercise.sets && exercise.reps && (
+                              <div>📊 {exercise.sets} x {exercise.reps}</div>
+                            )}
+                            {exercise.training_method && (
+                              <div>🎯 {exercise.training_method}</div>
+                            )}
+                            {exercise.observations && (
+                              <div className="mt-1 text-xs italic">💬 {exercise.observations}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    {(!prescriptionDetails?.exercises || 
+                      prescriptionDetails.exercises.filter((ex: any) => ex.should_track !== false).length === 0) && (
+                      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                        Nenhum exercício para registrar nesta prescrição
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Coluna Direita - Gravador */}
+            <div className="lg:col-span-3">
+              <VoiceSessionRecorder
+                key={`recording-${currentRecordingNumber}`}
+                prescriptionId={prescriptionId}
+                selectedStudents={selectedStudents}
+                date={date}
+                time={time}
+                onSessionData={handleSessionData}
+                onError={handleError}
+                autoStart={true}
+                onRecordingStarted={() => {
+                  console.log('🟢 Dialog: Callback onRecordingStarted recebido do filho');
+                }}
+              />
+            </div>
+          </div>
         )}
 
         {dialogState === 'manual-entry' && (
