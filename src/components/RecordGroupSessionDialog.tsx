@@ -609,51 +609,10 @@ export function RecordGroupSessionDialog({
         return null;
       }
 
-      // Buscar todos os exercícios prescritos que devem ser rastreados
-      const prescribedExercises = prescriptionDetails?.exercises?.filter(
-        (ex: any) => ex.should_track !== false
-      ) || [];
-
-      // Criar mapa de exercícios executados (mencionados no áudio)
-      const executedExercisesMap = new Map<string, any>();
-      merged.exercises.forEach(ex => {
-        const key = (ex.executed_exercise_name || '').toLowerCase();
-        executedExercisesMap.set(key, ex);
-      });
-
-      // Combinar exercícios prescritos com os executados
-      const allExercises = prescribedExercises.map(prescribedEx => {
-        const prescribedName = (prescribedEx.exercise_name || prescribedEx.exercises_library?.name || '').toLowerCase();
-        const executedEx = executedExercisesMap.get(prescribedName);
-
-        if (executedEx) {
-          // Exercício foi mencionado no áudio - usar dados reais
-          return {
-            ...executedEx,
-            prescribed_sets: prescribedEx.sets ? parseInt(prescribedEx.sets) : undefined,
-            was_mentioned: true
-          };
-        } else {
-          // Exercício NÃO foi mencionado - criar entrada vazia para edição
-          return {
-            prescribed_exercise_name: prescribedEx.exercise_name || prescribedEx.exercises_library?.name,
-            executed_exercise_name: prescribedEx.exercise_name || prescribedEx.exercises_library?.name,
-            sets: 0,
-            reps: 0,
-            load_kg: null,
-            load_breakdown: '',
-            observations: '',
-            is_best_set: false,
-            prescribed_sets: prescribedEx.sets ? parseInt(prescribedEx.sets) : undefined,
-            was_mentioned: false
-          };
-        }
-      });
-
       return {
         student_id: student.id,
         student_name: student.name,
-        exercises: allExercises,
+        exercises: merged.exercises, // Apenas exercícios mencionados no áudio
         clinical_observations: merged.clinical_observations || []
       };
     }).filter(Boolean);
@@ -664,6 +623,68 @@ export function RecordGroupSessionDialog({
       time,
       sessions: sessionsToSave as any
     });
+
+    // Adicionar exercícios prescritos não mencionados para edição posterior
+    for (const sessionData of sessionsToSave) {
+      // Buscar a sessão criada para este aluno
+      const { data: createdSession } = await supabase
+        .from('workout_sessions')
+        .select('id')
+        .eq('student_id', sessionData.student_id)
+        .eq('date', date)
+        .eq('time', time)
+        .eq('prescription_id', prescriptionId)
+        .maybeSingle();
+      
+      if (!createdSession) continue;
+      
+      // Buscar exercícios prescritos QUE DEVEM SER RASTREADOS
+      const prescribedExercises = prescriptionDetails?.exercises?.filter(
+        (ex: any) => ex.should_track !== false
+      ) || [];
+      
+      // Buscar exercícios já salvos para este aluno (vindos do áudio)
+      const { data: savedExercises } = await supabase
+        .from('exercises')
+        .select('exercise_name')
+        .eq('session_id', createdSession.id);
+      
+      const savedExerciseNames = new Set(
+        (savedExercises || []).map(ex => ex.exercise_name.toLowerCase())
+      );
+      
+      // Identificar exercícios prescritos não mencionados
+      const unmentionedExercises = prescribedExercises.filter(prescribed => {
+        const prescribedName = (
+          prescribed.exercise_name || 
+          prescribed.exercises_library?.name
+        ).toLowerCase();
+        return !savedExerciseNames.has(prescribedName);
+      });
+      
+      // Inserir exercícios não mencionados com valores zero
+      if (unmentionedExercises.length > 0) {
+        const exercisesToInsert = unmentionedExercises.map(ex => ({
+          session_id: createdSession.id,
+          exercise_name: ex.exercise_name || ex.exercises_library?.name,
+          sets: 0,
+          reps: 0,
+          load_kg: null,
+          load_description: null,
+          load_breakdown: null,
+          observations: '⚠️ Exercício prescrito não registrado no áudio - preencher manualmente',
+          is_best_set: false
+        }));
+        
+        const { error: insertError } = await supabase
+          .from('exercises')
+          .insert(exercisesToInsert);
+        
+        if (insertError) {
+          console.error('Erro ao inserir exercícios não mencionados:', insertError);
+        }
+      }
+    }
 
     for (const merged of mergedStudents) {
       if (merged.clinical_observations && merged.clinical_observations.length > 0) {
