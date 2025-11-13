@@ -180,84 +180,92 @@ export function EditSessionDialog({
               {/* Exercícios */}
               <div className="space-y-4">
                 <Label className="text-base">Exercícios ({exercises.length})</Label>
-                {exercises.map((exercise, idx) => (
-                  <Card key={exercise.id}>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm">Exercício {idx + 1}</CardTitle>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeExercise(idx)}
-                          className="h-6 w-6 p-0 text-destructive"
-                        >
-                          <Trash className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="space-y-2">
-                        <Label className="text-xs">Nome do Exercício *</Label>
-                        <Input
-                          value={exercise.exercise_name}
-                          onChange={(e) => updateExercise(idx, 'exercise_name', e.target.value)}
-                          placeholder="Nome do exercício"
-                        />
-                      </div>
-
-                      <div className="grid gap-3 md:grid-cols-4">
+                {exercises.map((exercise, idx) => {
+                  const needsAttention = exercise.sets === 0 || exercise.reps === 0;
+                  return (
+                    <Card key={exercise.id} className={needsAttention ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20' : ''}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-sm">Exercício {idx + 1}</CardTitle>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeExercise(idx)}
+                            className="h-6 w-6 p-0 text-destructive"
+                          >
+                            <Trash className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {needsAttention && (
+                          <div className="mb-3 text-sm text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
+                            ⚠️ Exercício não registrado no áudio - preencher manualmente
+                          </div>
+                        )}
                         <div className="space-y-2">
-                          <Label className="text-xs">Séries</Label>
+                          <Label className="text-xs">Nome do Exercício *</Label>
                           <Input
-                            type="number"
-                            value={exercise.sets}
-                            onChange={(e) => updateExercise(idx, 'sets', parseInt(e.target.value) || 0)}
-                            min="1"
+                            value={exercise.exercise_name}
+                            onChange={(e) => updateExercise(idx, 'exercise_name', e.target.value)}
+                            placeholder="Nome do exercício"
                           />
                         </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-xs">Reps</Label>
-                          <Input
-                            type="number"
-                            value={exercise.reps}
-                            onChange={(e) => updateExercise(idx, 'reps', parseInt(e.target.value) || 0)}
-                            min="1"
-                          />
+                        <div className="grid gap-3 md:grid-cols-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs">Séries</Label>
+                            <Input
+                              type="number"
+                              value={exercise.sets}
+                              onChange={(e) => updateExercise(idx, 'sets', parseInt(e.target.value) || 0)}
+                              min="1"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs">Reps</Label>
+                            <Input
+                              type="number"
+                              value={exercise.reps}
+                              onChange={(e) => updateExercise(idx, 'reps', parseInt(e.target.value) || 0)}
+                              min="1"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs">Carga (kg)</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={exercise.load_kg || ''}
+                              onChange={(e) => updateExercise(idx, 'load_kg', parseFloat(e.target.value) || null)}
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs">Descrição Carga</Label>
+                            <Input
+                              value={exercise.load_breakdown}
+                              onChange={(e) => updateExercise(idx, 'load_breakdown', e.target.value)}
+                              placeholder="Ex: 20kg"
+                            />
+                          </div>
                         </div>
 
                         <div className="space-y-2">
-                          <Label className="text-xs">Carga (kg)</Label>
-                          <Input
-                            type="number"
-                            step="0.1"
-                            value={exercise.load_kg || ''}
-                            onChange={(e) => updateExercise(idx, 'load_kg', parseFloat(e.target.value) || null)}
+                          <Label className="text-xs">Observações</Label>
+                          <Textarea
+                            value={exercise.observations || ''}
+                            onChange={(e) => updateExercise(idx, 'observations', e.target.value)}
+                            placeholder="Observações sobre a execução..."
+                            rows={2}
                           />
                         </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-xs">Descrição Carga</Label>
-                          <Input
-                            value={exercise.load_breakdown}
-                            onChange={(e) => updateExercise(idx, 'load_breakdown', e.target.value)}
-                            placeholder="Ex: 20kg"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-xs">Observações</Label>
-                        <Textarea
-                          value={exercise.observations || ''}
-                          onChange={(e) => updateExercise(idx, 'observations', e.target.value)}
-                          placeholder="Observações sobre a execução..."
-                          rows={2}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             </div>
           </ScrollArea>

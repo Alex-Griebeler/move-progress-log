@@ -609,22 +609,52 @@ export function RecordGroupSessionDialog({
         return null;
       }
 
-      const exercisesWithPrescribedSets = merged.exercises.map(ex => {
-        const prescribedExercise = prescriptionDetails?.exercises?.find(
-          pe => pe.exercises_library?.name.toLowerCase() === 
-                (ex.prescribed_exercise_name || ex.executed_exercise_name).toLowerCase()
-        );
+      // Buscar todos os exercícios prescritos que devem ser rastreados
+      const prescribedExercises = prescriptionDetails?.exercises?.filter(
+        (ex: any) => ex.should_track !== false
+      ) || [];
 
-        return {
-          ...ex,
-          prescribed_sets: prescribedExercise?.sets ? parseInt(prescribedExercise.sets) : undefined
-        };
+      // Criar mapa de exercícios executados (mencionados no áudio)
+      const executedExercisesMap = new Map<string, any>();
+      merged.exercises.forEach(ex => {
+        const key = (ex.executed_exercise_name || '').toLowerCase();
+        executedExercisesMap.set(key, ex);
+      });
+
+      // Combinar exercícios prescritos com os executados
+      const allExercises = prescribedExercises.map(prescribedEx => {
+        const prescribedName = (prescribedEx.exercise_name || prescribedEx.exercises_library?.name || '').toLowerCase();
+        const executedEx = executedExercisesMap.get(prescribedName);
+
+        if (executedEx) {
+          // Exercício foi mencionado no áudio - usar dados reais
+          return {
+            ...executedEx,
+            prescribed_sets: prescribedEx.sets ? parseInt(prescribedEx.sets) : undefined,
+            was_mentioned: true
+          };
+        } else {
+          // Exercício NÃO foi mencionado - criar entrada vazia para edição
+          return {
+            prescribed_exercise_name: prescribedEx.exercise_name || prescribedEx.exercises_library?.name,
+            executed_exercise_name: prescribedEx.exercise_name || prescribedEx.exercises_library?.name,
+            sets: 0,
+            reps: 0,
+            load_kg: null,
+            load_breakdown: '',
+            observations: '',
+            is_best_set: false,
+            prescribed_sets: prescribedEx.sets ? parseInt(prescribedEx.sets) : undefined,
+            was_mentioned: false
+          };
+        }
       });
 
       return {
         student_id: student.id,
         student_name: student.name,
-        exercises: exercisesWithPrescribedSets
+        exercises: allExercises,
+        clinical_observations: merged.clinical_observations || []
       };
     }).filter(Boolean);
 
