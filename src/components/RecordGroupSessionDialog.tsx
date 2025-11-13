@@ -1213,14 +1213,50 @@ export function RecordGroupSessionDialog({
                 date={date}
                 time={time}
                 onComplete={(segments) => {
-                  console.log('🎯 Segmentos consolidados recebidos:', segments);
+                  console.log('🎯 Total de segmentos recebidos:', segments.length);
                   
-                  // Consolidar todos os segmentos em um único conjunto de dados
+                  // Consolidar todos os exercícios e observações de todos os segmentos
+                  const allSessions = segments.flatMap(seg => {
+                    console.log(`📼 Segmento ${seg.segmentOrder}:`, seg.extractedData?.sessions);
+                    return seg.extractedData?.sessions || [];
+                  });
+                  
+                  // Agrupar por aluno e consolidar exercícios
+                  const sessionsByStudent = allSessions.reduce((acc, session) => {
+                    const existing = acc.find(s => 
+                      s.student_name.toLowerCase() === session.student_name.toLowerCase()
+                    );
+                    
+                    if (existing) {
+                      // Consolidar exercícios do mesmo aluno de múltiplos segmentos
+                      existing.exercises = [...existing.exercises, ...session.exercises];
+                      existing.clinical_observations = [
+                        ...existing.clinical_observations, 
+                        ...session.clinical_observations
+                      ];
+                    } else {
+                      acc.push({
+                        student_name: session.student_name,
+                        exercises: [...session.exercises],
+                        clinical_observations: [...session.clinical_observations]
+                      });
+                    }
+                    
+                    return acc;
+                  }, [] as Array<{
+                    student_name: string;
+                    exercises: any[];
+                    clinical_observations: any[];
+                  }>);
+                  
                   const consolidatedData = {
-                    sessions: segments.flatMap(seg => seg.extractedData?.sessions || [])
+                    sessions: sessionsByStudent
                   };
                   
-                  console.log('📦 Dados consolidados finais:', consolidatedData);
+                  console.log('📦 Dados consolidados (alunos agrupados):', consolidatedData);
+                  console.log('➡️ Enviando para tela de validação manual...');
+                  
+                  // handleSessionData já faz a transição para 'preview' (tela de edição)
                   handleSessionData(consolidatedData);
                 }}
                 onError={handleError}
