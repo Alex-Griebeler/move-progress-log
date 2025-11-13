@@ -50,3 +50,6 @@ verify_jwt = true
 
 [functions.suggest-exercise]
 verify_jwt = true
+
+[functions.generate-student-report]
+verify_jwt = true

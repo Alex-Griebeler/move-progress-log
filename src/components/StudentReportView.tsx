@@ -1,0 +1,269 @@
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { 
+  Calendar, 
+  TrendingUp, 
+  Activity, 
+  Target,
+  BarChart3,
+  FileText,
+  Heart,
+  Moon,
+  Zap
+} from "lucide-react";
+import { useReportById, useReportTrackedExercises } from "@/hooks/useStudentReports";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+
+interface StudentReportViewProps {
+  reportId: string;
+  studentName: string;
+}
+
+export function StudentReportView({ reportId, studentName }: StudentReportViewProps) {
+  const { data: report, isLoading: reportLoading } = useReportById(reportId);
+  const { data: trackedExercises, isLoading: exercisesLoading } = useReportTrackedExercises(reportId);
+
+  if (reportLoading || exercisesLoading) {
+    return <LoadingSpinner />;
+  }
+
+  if (!report) {
+    return <div className="text-center py-8">Relatório não encontrado</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <Card className="p-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">{studentName}</h1>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                <span>
+                  {format(new Date(report.period_start), "dd/MM/yyyy", { locale: ptBR })} até{" "}
+                  {format(new Date(report.period_end), "dd/MM/yyyy", { locale: ptBR })}
+                </span>
+              </div>
+              {report.generated_at && (
+                <div className="text-xs">
+                  Gerado em {format(new Date(report.generated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </div>
+              )}
+            </div>
+          </div>
+          <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
+            {report.status === 'completed' ? 'Concluído' : report.status === 'generating' ? 'Gerando...' : 'Falhou'}
+          </Badge>
+        </div>
+      </Card>
+
+      {/* Section 1: Frequency and Adherence */}
+      <Card className="p-6">
+        <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+          <BarChart3 className="w-5 h-5" />
+          Frequência e Adesão
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <Card className="p-4 bg-muted/50">
+            <div className="text-sm text-muted-foreground mb-1">Total de Treinos</div>
+            <div className="text-3xl font-bold">{report.total_sessions}</div>
+          </Card>
+          <Card className="p-4 bg-muted/50">
+            <div className="text-sm text-muted-foreground mb-1">Média Semanal</div>
+            <div className="text-3xl font-bold">{report.weekly_average.toFixed(1)}</div>
+          </Card>
+          {report.adherence_percentage && (
+            <Card className="p-4 bg-muted/50">
+              <div className="text-sm text-muted-foreground mb-1">Adesão</div>
+              <div className="text-3xl font-bold">{report.adherence_percentage.toFixed(0)}%</div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {report.total_sessions} de {report.sessions_proposed} sessões
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {report.consistency_analysis && (
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
+            <p className="text-sm leading-relaxed">{report.consistency_analysis}</p>
+          </div>
+        )}
+      </Card>
+
+      {/* Section 2: Load Evolution */}
+      {trackedExercises && trackedExercises.length > 0 && (
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Evolução de Carga / Força
+          </h2>
+
+          <div className="space-y-6">
+            {trackedExercises.map((exercise) => (
+              <div key={exercise.id} className="border rounded-lg p-4">
+                <h3 className="font-semibold mb-4">{exercise.exercise_name}</h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Carga Inicial</div>
+                    <div className="text-xl font-bold">{exercise.initial_load?.toFixed(1)} kg</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Carga Final</div>
+                    <div className="text-xl font-bold">{exercise.final_load?.toFixed(1)} kg</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Variação de Carga</div>
+                    <div className={`text-xl font-bold ${(exercise.load_variation_percentage || 0) > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {exercise.load_variation_percentage ? `${exercise.load_variation_percentage > 0 ? '+' : ''}${exercise.load_variation_percentage.toFixed(1)}%` : 'N/A'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground">Variação de Volume</div>
+                    <div className={`text-xl font-bold ${(exercise.work_variation_percentage || 0) > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {exercise.work_variation_percentage ? `${exercise.work_variation_percentage > 0 ? '+' : ''}${exercise.work_variation_percentage.toFixed(1)}%` : 'N/A'}
+                    </div>
+                  </div>
+                </div>
+
+                {exercise.weekly_progression && Array.isArray(exercise.weekly_progression) && exercise.weekly_progression.length > 0 && (
+                  <div className="h-[200px] mt-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={exercise.weekly_progression}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="week" 
+                          label={{ value: 'Semana', position: 'insideBottom', offset: -5 }}
+                        />
+                        <YAxis 
+                          label={{ value: 'Carga Média (kg)', angle: -90, position: 'insideLeft' }}
+                        />
+                        <Tooltip />
+                        <Line 
+                          type="monotone" 
+                          dataKey="avgLoad" 
+                          stroke="hsl(var(--primary))" 
+                          strokeWidth={2}
+                          name="Carga Média"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {report.strength_analysis && (
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mt-6">
+              <p className="text-sm leading-relaxed">{report.strength_analysis}</p>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Section 3: Oura Data (if available) */}
+      {report.oura_data && (
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Activity className="w-5 h-5" />
+            Dados de Wearable
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="p-4 bg-muted/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="w-4 h-4 text-primary" />
+                <div className="text-sm text-muted-foreground">Readiness Médio</div>
+              </div>
+              <div className="text-2xl font-bold">{report.oura_data.avgReadiness?.toFixed(0)}</div>
+            </Card>
+
+            <Card className="p-4 bg-muted/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Moon className="w-4 h-4 text-primary" />
+                <div className="text-sm text-muted-foreground">Sleep Score Médio</div>
+              </div>
+              <div className="text-2xl font-bold">{report.oura_data.avgSleep?.toFixed(0)}</div>
+            </Card>
+
+            <Card className="p-4 bg-muted/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Heart className="w-4 h-4 text-primary" />
+                <div className="text-sm text-muted-foreground">HRV Médio</div>
+              </div>
+              <div className="text-2xl font-bold">{report.oura_data.avgHrv?.toFixed(0)} ms</div>
+            </Card>
+
+            <Card className="p-4 bg-muted/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="w-4 h-4 text-primary" />
+                <div className="text-sm text-muted-foreground">RHR Médio</div>
+              </div>
+              <div className="text-2xl font-bold">{report.oura_data.avgRhr?.toFixed(0)} bpm</div>
+            </Card>
+          </div>
+
+          <p className="text-xs text-muted-foreground mt-4">
+            Baseado em {report.oura_data.dataPoints} dias de dados
+          </p>
+        </Card>
+      )}
+
+      {/* Section 4: Trainer Summary */}
+      {(report.trainer_highlights || report.attention_points || report.next_cycle_plan) && (
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Resumo do Treinador
+          </h2>
+
+          <div className="space-y-4">
+            {report.trainer_highlights && (
+              <div>
+                <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-green-600" />
+                  Destaques Positivos
+                </h3>
+                <p className="text-sm text-muted-foreground">{report.trainer_highlights}</p>
+              </div>
+            )}
+
+            {report.attention_points && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-amber-600" />
+                    Pontos de Atenção
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{report.attention_points}</p>
+                </div>
+              </>
+            )}
+
+            {report.next_cycle_plan && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                    Plano para o Próximo Ciclo
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{report.next_cycle_plan}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}

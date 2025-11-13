@@ -177,24 +177,45 @@ const StudentDetailPage = () => {
             </p>
           </div>
         </div>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                onClick={() => setRecordSessionOpen(true)} 
-                className="gap-2 animate-pulse hover:animate-none"
-                variant="gradient"
-                aria-label={NAV_LABELS.recordSession}
-              >
-                <Mic className="h-4 w-4" />
-                {NAV_LABELS.recordSession}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Grave uma sessão de treino usando sua voz</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex gap-2">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={() => navigate(`/alunos/${id}/relatorios`)} 
+                  className="gap-2"
+                  variant="outline"
+                  aria-label="Ver Relatórios"
+                >
+                  <FileText className="h-4 w-4" />
+                  Relatórios
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Visualizar e gerar relatórios periódicos de evolução</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={() => setRecordSessionOpen(true)} 
+                  className="gap-2 animate-pulse hover:animate-none"
+                  variant="gradient"
+                  aria-label={NAV_LABELS.recordSession}
+                >
+                  <Mic className="h-4 w-4" />
+                  {NAV_LABELS.recordSession}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Grave uma sessão de treino usando sua voz</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       {/* Alerta de Dados Incompletos - Detalhado */}
