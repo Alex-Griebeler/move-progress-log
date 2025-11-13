@@ -189,24 +189,23 @@ const StudentsPage = () => {
               
               {/* Alerta de Dados Incompletos */}
               {hasIncompleteData && (
-                <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30">
-                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-                  <AlertDescription className="flex items-center justify-between">
-                    <div className="text-xs text-amber-800 dark:text-amber-300">
-                      <span className="font-medium">Dados incompletos:</span>
-                      <span className="ml-1">{missingFields.join(', ')}</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-100 dark:text-amber-400 dark:hover:text-amber-300 dark:hover:bg-amber-900/50 ml-2 shrink-0"
-                      onClick={() => setEditingStudent(student)}
-                      aria-label={`Completar dados de ${student.name}`}
-                    >
-                      Completar
-                    </Button>
-                  </AlertDescription>
-                </Alert>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                    <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">
+                      Dados incompletos
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-100 dark:text-amber-400 dark:hover:text-amber-300 dark:hover:bg-amber-900/50"
+                    onClick={() => setEditingStudent(student)}
+                    aria-label={`Completar dados de ${student.name}`}
+                  >
+                    Completar
+                  </Button>
+                </div>
               )}
               
               {/* Observações Importantes */}

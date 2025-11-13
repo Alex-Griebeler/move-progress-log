@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, Trash2, AlertCircle } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -108,6 +108,22 @@ const StudentDetailPage = () => {
     )
   );
 
+  // Check for missing student data
+  const getMissingFields = () => {
+    const missing: string[] = [];
+    
+    if (!student.birth_date) missing.push('Data de nascimento');
+    if (!student.fitness_level) missing.push('Nível de fitness');
+    if (!student.objectives) missing.push('Objetivos');
+    if (!student.weight_kg || !student.height_cm) missing.push('Peso/Altura');
+    if (!student.max_heart_rate) missing.push('FC Máxima');
+    
+    return missing;
+  };
+
+  const missingFields = getMissingFields();
+  const hasIncompleteData = missingFields.length > 0;
+
   return (
     <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
       {/* Structured Data para SEO */}
@@ -180,6 +196,19 @@ const StudentDetailPage = () => {
           </Tooltip>
         </TooltipProvider>
       </div>
+
+      {/* Alerta de Dados Incompletos - Detalhado */}
+      {hasIncompleteData && (
+        <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30">
+          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+          <AlertDescription className="text-amber-800 dark:text-amber-300">
+            <span className="font-semibold block mb-1">Dados incompletos detectados</span>
+            <span className="text-sm">
+              Complete os seguintes campos para melhor análise: <strong>{missingFields.join(', ')}</strong>
+            </span>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Tabs defaultValue="training" className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">
