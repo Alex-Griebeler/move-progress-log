@@ -47,3 +47,6 @@ verify_jwt = true
 
 [functions.admin-update-user]
 verify_jwt = true
+
+[functions.suggest-exercise]
+verify_jwt = true

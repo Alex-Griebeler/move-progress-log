@@ -13,10 +13,11 @@ import { SessionContextForm } from "./SessionContextForm";
 import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { supabase } from "@/integrations/supabase/client";
-import { Mic, Save } from "lucide-react";
+import { Mic, Save, BookOpen } from "lucide-react";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { useQuery } from "@tanstack/react-query";
+import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 
 interface RecordIndividualSessionDialogProps {
   open: boolean;
@@ -97,6 +98,13 @@ export function RecordIndividualSessionDialog({
   // Validation states
   const [showValidationDialog, setShowValidationDialog] = useState(false);
   const [exercisesNeedingValidation, setExercisesNeedingValidation] = useState<number[]>([]);
+
+  // Exercise selection state
+  const [exerciseSelectionOpen, setExerciseSelectionOpen] = useState(false);
+  const [selectedExerciseForReplacement, setSelectedExerciseForReplacement] = useState<{
+    exerciseIndex: number;
+    currentName: string;
+  } | null>(null);
 
   const { data: assignments } = usePrescriptionAssignments(studentId);
   const createSession = useCreateWorkoutSession();
@@ -570,6 +578,28 @@ export function RecordIndividualSessionDialog({
     return true;
   };
 
+  const openExerciseSelection = (exerciseIndex: number) => {
+    const exercise = editableExercises[exerciseIndex];
+    if (!exercise) return;
+    
+    setSelectedExerciseForReplacement({
+      exerciseIndex,
+      currentName: exercise.executed_exercise_name,
+    });
+    setExerciseSelectionOpen(true);
+  };
+
+  const handleExerciseSelected = (exerciseId: string, exerciseName: string) => {
+    if (!selectedExerciseForReplacement) return;
+    
+    const { exerciseIndex } = selectedExerciseForReplacement;
+    const updated = [...editableExercises];
+    updated[exerciseIndex].executed_exercise_name = exerciseName;
+    setEditableExercises(updated);
+    
+    setSelectedExerciseForReplacement(null);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent forceMount className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -881,17 +911,32 @@ export function RecordIndividualSessionDialog({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {editableExercises.map((ex, idx) => (
+                 {editableExercises.map((ex, idx) => (
                   <div key={idx} className="p-3 border rounded-lg space-y-2">
-                    <Input
-                      value={ex.executed_exercise_name}
-                      onChange={(e) => {
-                        const updated = [...editableExercises];
-                        updated[idx].executed_exercise_name = e.target.value;
-                        setEditableExercises(updated);
-                      }}
-                      placeholder="Nome do exercício..."
-                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={ex.executed_exercise_name}
+                        onChange={(e) => {
+                          const updated = [...editableExercises];
+                          updated[idx].executed_exercise_name = e.target.value;
+                          setEditableExercises(updated);
+                        }}
+                        placeholder="Nome do exercício..."
+                        readOnly
+                        className="flex-1"
+                        title="Use o botão ao lado para substituir o exercício"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openExerciseSelection(idx)}
+                        className="gap-1 shrink-0"
+                        title="Substituir por exercício cadastrado"
+                      >
+                        <BookOpen className="h-4 w-4" />
+                        Substituir
+                      </Button>
+                    </div>
                     
                     <div className="grid grid-cols-3 gap-2">
                 <div>
@@ -1175,6 +1220,15 @@ export function RecordIndividualSessionDialog({
           </Alert>
         )}
       </DialogContent>
+
+      {/* Dialog de seleção de exercício */}
+      <ExerciseSelectionDialog
+        open={exerciseSelectionOpen}
+        onOpenChange={setExerciseSelectionOpen}
+        currentExerciseName={selectedExerciseForReplacement?.currentName || ""}
+        onExerciseSelected={handleExerciseSelected}
+        autoSuggest={true}
+      />
     </Dialog>
   );
 }

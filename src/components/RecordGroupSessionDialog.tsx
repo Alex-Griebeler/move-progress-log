@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 
 interface RecordGroupSessionDialogProps {
   open: boolean;
@@ -130,6 +131,13 @@ export function RecordGroupSessionDialog({
 
   // Estados para registro manual
   const [trainer, setTrainer] = useState<string>('');
+
+  // Exercise selection state
+  const [exerciseSelectionOpen, setExerciseSelectionOpen] = useState(false);
+  const [selectedExerciseForReplacement, setSelectedExerciseForReplacement] = useState<{
+    exerciseIndex: number;
+    currentName: string;
+  } | null>(null);
 
   const { data: students } = useStudents();
   const { data: assignments } = usePrescriptionAssignments(prescriptionId);
@@ -692,6 +700,28 @@ export function RecordGroupSessionDialog({
     setEditableObservations(mergedStudents[0].clinical_observations || []);
     setEditableExercises(mergedStudents[0].exercises || []);
     setDialogState('edit');
+  };
+
+  const openExerciseSelection = (exerciseIndex: number) => {
+    const exercise = editableExercises[exerciseIndex];
+    if (!exercise) return;
+    
+    setSelectedExerciseForReplacement({
+      exerciseIndex,
+      currentName: exercise.executed_exercise_name,
+    });
+    setExerciseSelectionOpen(true);
+  };
+
+  const handleExerciseSelected = (exerciseId: string, exerciseName: string) => {
+    if (!selectedExerciseForReplacement) return;
+    
+    const { exerciseIndex } = selectedExerciseForReplacement;
+    const updated = [...editableExercises];
+    updated[exerciseIndex].executed_exercise_name = exerciseName;
+    setEditableExercises(updated);
+    
+    setSelectedExerciseForReplacement(null);
   };
 
   const handleSaveEdits = () => {
@@ -1300,18 +1330,32 @@ export function RecordGroupSessionDialog({
                         </Button>
                       </div>
                       
-                      <div className="grid gap-3 md:grid-cols-2">
+                       <div className="grid gap-3 md:grid-cols-2">
                         <div className="space-y-2">
                           <Label htmlFor={`ex-name-${idx}`}>Nome do Exercício *</Label>
-                          <Input
-                            id={`ex-name-${idx}`}
-                            value={ex.executed_exercise_name}
-                            onChange={(e) => {
-                              const updated = [...editableExercises];
-                              updated[idx].executed_exercise_name = e.target.value;
-                              setEditableExercises(updated);
-                            }}
-                          />
+                          <div className="flex gap-2">
+                            <Input
+                              id={`ex-name-${idx}`}
+                              value={ex.executed_exercise_name}
+                              onChange={(e) => {
+                                const updated = [...editableExercises];
+                                updated[idx].executed_exercise_name = e.target.value;
+                                setEditableExercises(updated);
+                              }}
+                              readOnly
+                              className="flex-1"
+                              title="Use o botão ao lado para substituir o exercício"
+                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openExerciseSelection(idx)}
+                              className="gap-1 shrink-0"
+                              title="Substituir por exercício cadastrado"
+                            >
+                              <BookOpen className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         
                         <div className="space-y-2">
@@ -1508,6 +1552,15 @@ export function RecordGroupSessionDialog({
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Dialog de seleção de exercício */}
+      <ExerciseSelectionDialog
+        open={exerciseSelectionOpen}
+        onOpenChange={setExerciseSelectionOpen}
+        currentExerciseName={selectedExerciseForReplacement?.currentName || ""}
+        onExerciseSelected={handleExerciseSelected}
+        autoSuggest={true}
+      />
     </Dialog>
   );
 }

@@ -5,7 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash, ChevronLeft, ChevronRight, Calculator } from "lucide-react";
+import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen } from "lucide-react";
+import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 
 interface ManualSessionEntryProps {
   prescriptionExercises: Array<{
@@ -48,6 +49,14 @@ export function ManualSessionEntry({
   
   // Estado para controlar o aluno atual (visualização página por página)
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
+  
+  // Estado para dialog de seleção de exercício
+  const [exerciseSelectionOpen, setExerciseSelectionOpen] = useState(false);
+  const [selectedExerciseForReplacement, setSelectedExerciseForReplacement] = useState<{
+    studentId: string;
+    exerciseIndex: number;
+    currentName: string;
+  } | null>(null);
   
   // Estado para armazenar os dados de execução de cada aluno
   const [studentExercises, setStudentExercises] = useState<{
@@ -213,6 +222,27 @@ export function ManualSessionEntry({
     return errors;
   };
 
+  const openExerciseSelection = (studentId: string, exerciseIndex: number) => {
+    const exercise = studentExercises[studentId]?.[exerciseIndex];
+    if (!exercise) return;
+    
+    setSelectedExerciseForReplacement({
+      studentId,
+      exerciseIndex,
+      currentName: exercise.exercise_name,
+    });
+    setExerciseSelectionOpen(true);
+  };
+
+  const handleExerciseSelected = (exerciseId: string, exerciseName: string) => {
+    if (!selectedExerciseForReplacement) return;
+    
+    const { studentId, exerciseIndex } = selectedExerciseForReplacement;
+    updateExercise(studentId, exerciseIndex, 'exercise_name', exerciseName);
+    
+    setSelectedExerciseForReplacement(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Navegação entre alunos */}
@@ -263,25 +293,39 @@ export function ManualSessionEntry({
               const prescribedEx = prescriptionExercises[idx];
               return (
                 <div key={idx} className="border-b pb-4 last:border-0 last:pb-0">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs">Nome do Exercício *</Label>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeExercise(currentStudent.id, idx)}
-                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                        >
-                          <Trash className="h-3 w-3" />
-                        </Button>
-                      </div>
-                      <Input
-                        value={exercise.exercise_name}
-                        onChange={(e) => updateExercise(currentStudent.id, idx, 'exercise_name', e.target.value)}
-                        placeholder="Nome do exercício"
-                        className={!exercise.exercise_name ? "border-destructive" : ""}
-                      />
+                   <div className="flex items-start justify-between mb-3">
+                     <div className="flex-1 space-y-2">
+                       <div className="flex items-center justify-between">
+                         <Label className="text-xs">Nome do Exercício *</Label>
+                         <div className="flex gap-1">
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => openExerciseSelection(currentStudent.id, idx)}
+                             className="h-6 px-2 gap-1 text-primary hover:text-primary"
+                             title="Substituir por exercício cadastrado"
+                           >
+                             <BookOpen className="h-3 w-3" />
+                             <span className="text-xs">Substituir</span>
+                           </Button>
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => removeExercise(currentStudent.id, idx)}
+                             className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                           >
+                             <Trash className="h-3 w-3" />
+                           </Button>
+                         </div>
+                       </div>
+                       <Input
+                         value={exercise.exercise_name}
+                         onChange={(e) => updateExercise(currentStudent.id, idx, 'exercise_name', e.target.value)}
+                         placeholder="Nome do exercício"
+                         className={!exercise.exercise_name ? "border-destructive" : ""}
+                         readOnly
+                         title="Use o botão 'Substituir' para trocar o exercício"
+                       />
                       {prescribedEx && (
                         <p className="text-xs text-muted-foreground">
                           Prescrito: {prescribedEx.sets} séries × {prescribedEx.reps} reps
@@ -394,6 +438,15 @@ export function ManualSessionEntry({
           Salvar Sessão
         </Button>
       </div>
+
+      {/* Dialog de seleção de exercício */}
+      <ExerciseSelectionDialog
+        open={exerciseSelectionOpen}
+        onOpenChange={setExerciseSelectionOpen}
+        currentExerciseName={selectedExerciseForReplacement?.currentName || ""}
+        onExerciseSelected={handleExerciseSelected}
+        autoSuggest={false}
+      />
     </div>
   );
 }
