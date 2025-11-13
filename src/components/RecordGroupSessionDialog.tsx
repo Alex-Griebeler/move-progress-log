@@ -16,7 +16,7 @@ import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateGroupWorkoutSessions } from "@/hooks/useWorkoutSessions";
 import { usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { supabase } from "@/integrations/supabase/client";
-import { Mic, User, AlertTriangle, XCircle, Save, Edit, Trash, Pencil, ChevronLeft, ChevronRight, Plus, CheckCircle, BookOpen } from "lucide-react";
+import { Mic, User, Users, AlertTriangle, XCircle, Save, Edit, Trash, Pencil, ChevronLeft, ChevronRight, Plus, CheckCircle, BookOpen } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { notify } from "@/lib/notify";
@@ -1114,7 +1114,49 @@ export function RecordGroupSessionDialog({
         )}
 
         {dialogState === 'recording' && (
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <div className="space-y-4">
+            {/* Header com Alunos Participantes */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Alunos Participantes
+                  <Badge variant="secondary" className="ml-auto">
+                    {selectedStudents.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {selectedStudents.map(student => {
+                    const initials = student.name
+                      .split(' ')
+                      .map(n => n[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase();
+                    
+                    return (
+                      <Badge 
+                        key={student.id}
+                        variant="outline"
+                        className="px-3 py-1.5 text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium">
+                            {initials}
+                          </div>
+                          <span>{student.name}</span>
+                        </div>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Grid de Exercícios + Gravador */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
             {/* Coluna Esquerda - Prescrição */}
             <div className="lg:col-span-2">
               <Card className="h-[600px] flex flex-col">
@@ -1177,6 +1219,7 @@ export function RecordGroupSessionDialog({
                   console.log('🟢 Dialog: Callback onRecordingStarted recebido do filho');
                 }}
               />
+            </div>
             </div>
           </div>
         )}
