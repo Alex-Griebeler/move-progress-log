@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
-import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield } from "lucide-react";
+import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import { AddStudentDialog } from "@/components/AddStudentDialog";
 import { GenerateInviteLinkDialog } from "@/components/GenerateInviteLinkDialog";
@@ -109,7 +110,21 @@ const StudentsPage = () => {
       return null;
     };
 
+    const getMissingFields = () => {
+      const missing: string[] = [];
+      
+      if (!student.birth_date) missing.push('Data de nascimento');
+      if (!student.fitness_level) missing.push('Nível de fitness');
+      if (!student.objectives) missing.push('Objetivos');
+      if (!student.weight_kg || !student.height_cm) missing.push('Peso/Altura');
+      if (!student.max_heart_rate) missing.push('FC Máxima');
+      
+      return missing;
+    };
+
     const imc = calculateIMC();
+    const missingFields = getMissingFields();
+    const hasIncompleteData = missingFields.length > 0;
 
     return (
       <>
@@ -172,13 +187,36 @@ const StudentsPage = () => {
                 </div>
               ) : null}
               
+              {/* Alerta de Dados Incompletos */}
+              {hasIncompleteData && (
+                <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30">
+                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <div className="text-xs text-amber-800 dark:text-amber-300">
+                      <span className="font-medium">Dados incompletos:</span>
+                      <span className="ml-1">{missingFields.join(', ')}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-100 dark:text-amber-400 dark:hover:text-amber-300 dark:hover:bg-amber-900/50 ml-2 shrink-0"
+                      onClick={() => setEditingStudent(student)}
+                      aria-label={`Completar dados de ${student.name}`}
+                    >
+                      Completar
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               {/* Observações Importantes */}
               {hasImportantObservations && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full h-9 text-amber-600 hover:text-amber-700 hover:bg-amber-50 border border-amber-200"
+                  className="w-full h-9 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-500 dark:hover:text-amber-400 dark:hover:bg-amber-950/30 border border-amber-200 dark:border-amber-800"
                   onClick={() => setShowObservationsDialog(true)}
+                  aria-label={`Ver ${importantObservations.length} observações importantes de ${student.name}`}
                 >
                   <AlertCircle className="h-4 w-4 mr-2" />
                   <span className="text-xs font-medium">
@@ -210,7 +248,7 @@ const StudentsPage = () => {
                     aria-label={`Registrar sessão para ${student.name}`}
                     title="Registrar sessão"
                   >
-                    <Mic className="h-4 w-4" />
+                    <NotebookPen className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
