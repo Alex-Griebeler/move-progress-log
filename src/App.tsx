@@ -22,6 +22,7 @@ const PrescriptionsPage = lazy(() => import("./pages/PrescriptionsPage"));
 const RecoveryProtocolsPage = lazy(() => import("./pages/RecoveryProtocolsPage"));
 const AdminDiagnosticsPage = lazy(() => import("./pages/AdminDiagnosticsPage"));
 const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
+const StudentReportsPage = lazy(() => import("./pages/StudentReportsPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const StudentOnboardingPage = lazy(() => import("./pages/StudentOnboardingPage"));
@@ -64,6 +65,7 @@ const App = () => (
                             <Route path="/" element={<Index />} />
                             <Route path="/alunos" element={<StudentsPage />} />
                             <Route path="/alunos/:id" element={<StudentDetailPage />} />
+                            <Route path="/alunos/:studentId/relatorios" element={<StudentReportsPage />} />
                             <Route path="/alunos-comparacao" element={<StudentsComparisonPage />} />
                             <Route path="/exercicios" element={<ExercisesLibraryPage />} />
                             <Route path="/prescricoes" element={<PrescriptionsPage />} />
