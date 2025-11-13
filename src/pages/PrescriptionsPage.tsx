@@ -6,23 +6,19 @@ import { useFolders, useMovePrescription, useReorderPrescriptions, useDeleteFold
 import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog";
 import { EditPrescriptionDialog } from "@/components/EditPrescriptionDialog";
 import { AssignPrescriptionDialog } from "@/components/AssignPrescriptionDialog";
-import { AddWorkoutSessionDialog } from "@/components/AddWorkoutSessionDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
-import { EditGroupSessionDialog } from "@/components/EditGroupSessionDialog";
 import { CreateFolderDialog } from "@/components/CreateFolderDialog";
 import { RenameFolderDialog } from "@/components/RenameFolderDialog";
 import { FolderSection } from "@/components/FolderSection";
 import { AppHeader } from "@/components/AppHeader";
-import { PrescriptionCard } from "@/components/PrescriptionCard";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
-import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
-import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getTrainingProgramSchema } from "@/utils/structuredData";
+import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import {
@@ -50,9 +46,7 @@ export default function PrescriptionsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [recordGroupDialogOpen, setRecordGroupDialogOpen] = useState(false);
-  const [editGroupDialogOpen, setEditGroupDialogOpen] = useState(false);
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [renameFolderDialogOpen, setRenameFolderDialogOpen] = useState(false);
   const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = useState(false);
@@ -66,8 +60,10 @@ export default function PrescriptionsPage() {
     time: string;
   } | null>(null);
 
-  // Expanded folders state
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(["no-folder"]));
+  // Expanded folders state (persist which folders are open)
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
+    new Set(["no-folder", ...(folders?.map(f => f.id) || [])])
+  );
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -147,49 +143,101 @@ export default function PrescriptionsPage() {
     }
   };
 
-  const handleMoveToFolder = () => {};
+  const handleMoveToFolder = (prescriptionId: string) => {
+    // Placeholder - will be enhanced with folder selection menu
+    console.log("Move to folder:", prescriptionId);
+  };
+
   const handleRemoveFromFolder = async (prescriptionId: string) => {
     const prescription = prescriptions?.find(p => p.id === prescriptionId);
     if (!prescription) return;
+
+    // Get max order_index in no-folder group
     const noFolderPrescriptions = prescriptions?.filter(p => !p.folder_id) || [];
-    const maxOrder = noFolderPrescriptions.length > 0 ? Math.max(...noFolderPrescriptions.map(p => p.order_index)) : -1;
-    await movePrescription.mutateAsync({ prescriptionId, folderId: null, orderIndex: maxOrder + 1 });
+    const maxOrder = noFolderPrescriptions.length > 0
+      ? Math.max(...noFolderPrescriptions.map(p => p.order_index))
+      : -1;
+
+    await movePrescription.mutateAsync({
+      prescriptionId,
+      folderId: null,
+      orderIndex: maxOrder + 1,
+    });
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+
     if (!over || !prescriptions) return;
+
     const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const activePrescription = prescriptions.find(p => p.id === activeId);
+    if (!activePrescription) return;
+
+    // Check if dropped on a folder
     const overData = over.data.current;
     if (overData?.type === 'folder') {
       const targetFolderId = overData.folderId;
-      const targetFolderPrescriptions = prescriptions.filter(p => (targetFolderId ? p.folder_id === targetFolderId : !p.folder_id));
-      const maxOrder = targetFolderPrescriptions.length > 0 ? Math.max(...targetFolderPrescriptions.map(p => p.order_index)) : -1;
-      await movePrescription.mutateAsync({ prescriptionId: activeId, folderId: targetFolderId, orderIndex: maxOrder + 1 });
+      
+      // Get prescriptions in target folder
+      const targetFolderPrescriptions = prescriptions.filter(
+        p => (targetFolderId ? p.folder_id === targetFolderId : !p.folder_id)
+      );
+      
+      const maxOrder = targetFolderPrescriptions.length > 0
+        ? Math.max(...targetFolderPrescriptions.map(p => p.order_index))
+        : -1;
+
+      await movePrescription.mutateAsync({
+        prescriptionId: activeId,
+        folderId: targetFolderId,
+        orderIndex: maxOrder + 1,
+      });
+      
       return;
     }
-    const overId = over.id as string;
+
+    // Reordering within same folder
     if (activeId !== overId) {
       const activePrescription = prescriptions.find(p => p.id === activeId);
       const overPrescription = prescriptions.find(p => p.id === overId);
-      if (!activePrescription || !overPrescription || activePrescription.folder_id !== overPrescription.folder_id) return;
-      const folderPrescriptions = prescriptions.filter(p => p.folder_id === activePrescription.folder_id);
+
+      if (!activePrescription || !overPrescription) return;
+
+      // Only allow reordering within same folder
+      if (activePrescription.folder_id !== overPrescription.folder_id) return;
+
+      const folderPrescriptions = prescriptions.filter(
+        p => p.folder_id === activePrescription.folder_id
+      );
+
       const oldIndex = folderPrescriptions.findIndex(p => p.id === activeId);
       const newIndex = folderPrescriptions.findIndex(p => p.id === overId);
+
       const reordered = arrayMove(folderPrescriptions, oldIndex, newIndex);
-      const updates = reordered.map((prescription, index) => ({ id: prescription.id, order_index: index }));
+      
+      // Update order_index for all affected prescriptions
+      const updates = reordered.map((prescription, index) => ({
+        id: prescription.id,
+        order_index: index,
+      }));
+
       await reorderPrescriptions.mutateAsync(updates);
     }
   };
 
+  const hasContent = prescriptions && prescriptions.length > 0;
+
   return (
     <div id="main-content" className="min-h-screen bg-background p-8" role="main">
-      {/* Structured Data para SEO */}
+      {/* Structured Data */}
       <StructuredData data={getOrganizationSchema()} id="org-schema" />
       <StructuredData 
         data={getWebPageSchema(
           NAV_LABELS.prescriptions,
-          "Crie e gerencie prescrições de treino personalizadas para seus alunos com exercícios e objetivos específicos"
+          "Crie e gerencie prescrições de treino personalizadas com organização em pastas"
         )} 
         id="webpage-schema" 
       />
@@ -202,22 +250,29 @@ export default function PrescriptionsPage() {
       />
       
       <div className="max-w-7xl mx-auto space-y-8">
-        <Breadcrumbs
-          items={[
-            { label: NAV_LABELS.prescriptions }
-          ]}
-        />
+        <Breadcrumbs items={[{ label: NAV_LABELS.prescriptions }]} />
         
         <AppHeader
           title={NAV_LABELS.prescriptions}
           subtitle={NAV_LABELS.subtitlePrescriptions}
           actions={
             <div className="flex gap-2">
-              <Button onClick={() => setCreateFolderDialogOpen(true)} variant="outline" className="gap-2" size="lg">
+              <Button
+                onClick={() => setCreateFolderDialogOpen(true)}
+                variant="outline"
+                className="gap-2"
+                size="lg"
+              >
                 <FolderPlus className="h-5 w-5" />
                 Nova Pasta
               </Button>
-              <Button onClick={() => setCreateDialogOpen(true)} variant="gradient" className="gap-2" size="lg">
+              <Button
+                onClick={() => setCreateDialogOpen(true)}
+                variant="gradient"
+                className="gap-2"
+                size="lg"
+                aria-label={NAV_LABELS.newPrescription}
+              >
                 <Plus className="h-5 w-5" />
                 {NAV_LABELS.newPrescription}
               </Button>
@@ -227,25 +282,47 @@ export default function PrescriptionsPage() {
 
         {isLoading ? (
           <LoadingSpinner text="Carregando prescrições..." />
-        ) : prescriptions && prescriptions.length > 0 ? (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        ) : hasContent ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
             <div className="space-y-6 animate-fade-in">
+              {/* Folders */}
               {folders?.map(folder => (
-                <FolderSection key={folder.id} folder={folder} prescriptions={groupedPrescriptions.folders[folder.id] || []}
-                  isExpanded={expandedFolders.has(folder.id)} onToggleExpand={() => handleToggleFolder(folder.id)}
-                  onRename={() => handleRenameFolder(folder.id, folder.name)} onDelete={() => handleDeleteFolderClick(folder.id, folder.name)}
-                  onEdit={handleEdit} onAssign={handleAssign} onAddSession={handleAddSession}
-                  onMoveToFolder={handleMoveToFolder} onRemoveFromFolder={handleRemoveFromFolder} />
+                <FolderSection
+                  key={folder.id}
+                  folder={folder}
+                  prescriptions={groupedPrescriptions.folders[folder.id] || []}
+                  isExpanded={expandedFolders.has(folder.id)}
+                  onToggleExpand={() => handleToggleFolder(folder.id)}
+                  onRename={() => handleRenameFolder(folder.id, folder.name)}
+                  onDelete={() => handleDeleteFolderClick(folder.id, folder.name)}
+                  onEdit={handleEdit}
+                  onAssign={handleAssign}
+                  onAddSession={handleAddSession}
+                  onMoveToFolder={handleMoveToFolder}
+                  onRemoveFromFolder={handleRemoveFromFolder}
+                />
               ))}
+
+              {/* No Folder Section */}
               {groupedPrescriptions.noFolder.length > 0 && (
-                <FolderSection folder={null} prescriptions={groupedPrescriptions.noFolder}
-                  isExpanded={expandedFolders.has("no-folder")} onToggleExpand={() => handleToggleFolder("no-folder")}
-                  onEdit={handleEdit} onAssign={handleAssign} onAddSession={handleAddSession}
-                  onMoveToFolder={handleMoveToFolder} onRemoveFromFolder={handleRemoveFromFolder} />
+                <FolderSection
+                  folder={null}
+                  prescriptions={groupedPrescriptions.noFolder}
+                  isExpanded={expandedFolders.has("no-folder")}
+                  onToggleExpand={() => handleToggleFolder("no-folder")}
+                  onEdit={handleEdit}
+                  onAssign={handleAssign}
+                  onAddSession={handleAddSession}
+                  onMoveToFolder={handleMoveToFolder}
+                  onRemoveFromFolder={handleRemoveFromFolder}
+                />
               )}
             </div>
           </DndContext>
-          </div>
         ) : (
           <EmptyState
             icon={<Plus className="h-6 w-6" />}
@@ -259,56 +336,65 @@ export default function PrescriptionsPage() {
         )}
       </div>
 
+      {/* Dialogs */}
       <CreatePrescriptionDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
       />
-
+      
       <EditPrescriptionDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         prescriptionId={selectedPrescriptionId}
       />
-
+      
       <AssignPrescriptionDialog
         open={assignDialogOpen}
         onOpenChange={setAssignDialogOpen}
         prescriptionId={selectedPrescriptionId}
       />
-
-      <AddWorkoutSessionDialog
-        open={sessionDialogOpen}
-        onOpenChange={setSessionDialogOpen}
-        prescriptionId={selectedPrescriptionId}
-      />
-
+      
       <RecordGroupSessionDialog
         open={recordGroupDialogOpen}
-        onOpenChange={(open) => {
-          setRecordGroupDialogOpen(open);
-          if (!open) setReopenGroupSession(null);
-        }}
+        onOpenChange={setRecordGroupDialogOpen}
         prescriptionId={selectedPrescriptionId}
         reopenDate={reopenGroupSession?.date}
         reopenTime={reopenGroupSession?.time}
       />
 
-      <EditGroupSessionDialog
-        open={editGroupDialogOpen}
-        onOpenChange={setEditGroupDialogOpen}
-        prescriptionId={selectedPrescriptionId}
-        date={reopenGroupSession?.date || ''}
-        time={reopenGroupSession?.time || ''}
-        onSuccess={() => {
-          window.location.reload();
-        }}
-        onReopenForRecording={(prescriptionId, date, time) => {
-          setEditGroupDialogOpen(false);
-          setSelectedPrescriptionId(prescriptionId);
-          setReopenGroupSession({ prescriptionId, date, time });
-          setRecordGroupDialogOpen(true);
-        }}
+      <CreateFolderDialog
+        open={createFolderDialogOpen}
+        onOpenChange={setCreateFolderDialogOpen}
+        existingNames={folders?.map(f => f.name) || []}
       />
+
+      <RenameFolderDialog
+        open={renameFolderDialogOpen}
+        onOpenChange={setRenameFolderDialogOpen}
+        folderId={selectedFolderId}
+        currentName={selectedFolderName}
+        existingNames={folders?.filter(f => f.id !== selectedFolderId).map(f => f.name) || []}
+      />
+
+      <AlertDialog open={deleteFolderDialogOpen} onOpenChange={setDeleteFolderDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir pasta "{selectedFolderName}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As prescrições dentro desta pasta serão movidas para "Sem Pasta". Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteFolder}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
