@@ -1253,20 +1253,58 @@ export function RecordGroupSessionDialog({
                     return seg.extractedData?.sessions || [];
                   });
                   
-                  // Agrupar por aluno e consolidar exercícios
+                  // 🆕 FASE 2: Agrupar por aluno e consolidar exercícios com deduplicação inteligente
                   const sessionsByStudent = allSessions.reduce((acc, session) => {
                     const existing = acc.find(s => 
                       s.student_name.toLowerCase() === session.student_name.toLowerCase()
                     );
                     
                     if (existing) {
-                      // Consolidar exercícios do mesmo aluno de múltiplos segmentos
-                      existing.exercises = [...existing.exercises, ...session.exercises];
+                      // 🆕 DEDUPLICAÇÃO INTELIGENTE DE EXERCÍCIOS
+                      session.exercises.forEach(newEx => {
+                        const newExName = newEx.executed_exercise_name.toLowerCase().trim();
+                        
+                        // Verificar se já existe um exercício com nome semelhante
+                        const duplicateIndex = existing.exercises.findIndex((existingEx: any) => {
+                          const existingExName = existingEx.executed_exercise_name.toLowerCase().trim();
+                          // Considerar duplicata se os nomes são idênticos ou contêm um ao outro
+                          return existingExName === newExName || 
+                                 existingExName.includes(newExName) || 
+                                 newExName.includes(existingExName);
+                        });
+                        
+                        if (duplicateIndex >= 0) {
+                          // ⚠️ CONFLITO DETECTADO - aplicar estratégia de resolução
+                          const existingEx = existing.exercises[duplicateIndex];
+                          
+                          // Estratégia 1: Manter o exercício com maior carga
+                          const newLoad = newEx.load_kg || 0;
+                          const existingLoad = existingEx.load_kg || 0;
+                          
+                          if (newLoad > existingLoad) {
+                            console.log(`🔄 [${session.student_name}] Substituindo "${newExName}" (carga: ${existingLoad}kg → ${newLoad}kg)`);
+                            existing.exercises[duplicateIndex] = newEx;
+                          } else if (newLoad === existingLoad && newLoad > 0) {
+                            // Estratégia 2: Se cargas iguais, manter o mais recente (último segmento)
+                            console.log(`🔄 [${session.student_name}] Substituindo "${newExName}" (mesma carga ${newLoad}kg, mantendo versão mais recente)`);
+                            existing.exercises[duplicateIndex] = newEx;
+                          } else {
+                            // Manter o existente (tinha carga maior ou ambos sem carga)
+                            console.log(`⚠️ [${session.student_name}] Duplicata ignorada "${newExName}" (carga menor: ${newLoad}kg vs ${existingLoad}kg)`);
+                          }
+                        } else {
+                          // ✅ Não é duplicata, adicionar normalmente
+                          existing.exercises.push(newEx);
+                        }
+                      });
+                      
+                      // Observações clínicas sem deduplicação (podem ser diferentes e todas são válidas)
                       existing.clinical_observations = [
                         ...existing.clinical_observations, 
                         ...session.clinical_observations
                       ];
                     } else {
+                      // Primeiro registro deste aluno
                       acc.push({
                         student_name: session.student_name,
                         exercises: [...session.exercises],
