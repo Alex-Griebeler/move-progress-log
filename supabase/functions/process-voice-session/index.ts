@@ -237,6 +237,12 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
 
 2. **Séries**: Use null se não mencionado (usará valor prescrito)
 
+**CRÍTICO - REGRA DE EXERCÍCIOS NÃO MENCIONADOS**:
+   - Se um exercício foi PRESCRITO mas NÃO foi mencionado no áudio: NÃO inclua esse exercício no resultado
+   - Apenas registre exercícios que foram EXPLICITAMENTE mencionados no áudio
+   - Se o áudio menciona "fez agachamento" mas não menciona outros exercícios prescritos, registre APENAS o agachamento
+   - NUNCA preencha exercícios automaticamente da prescrição se eles não foram mencionados
+
 **IMPORTANTE - PESO CORPORAL (CÁLCULO AUTOMÁTICO)**:
    - Se o exercício usa "peso corporal" ou "PC" e você TEM o peso do aluno (weight_kg):
      * SEMPRE calcule automaticamente: load_kg = weight_kg do aluno
@@ -494,6 +500,30 @@ FORMATO DE SAÍDA:
     ]);
 
     const extractedData = JSON.parse(extractionResult.response.text());
+    
+    console.log("📊 Extracted data:", JSON.stringify(extractedData, null, 2));
+    
+    // ✅ VALIDAÇÃO CRÍTICA: remover exercícios sem repetições
+    if (extractedData.sessions) {
+      extractedData.sessions.forEach((session: any) => {
+        if (session.exercises) {
+          const beforeCount = session.exercises.length;
+          session.exercises = session.exercises.filter((ex: any) => {
+            if (!ex.reps || ex.reps === 0) {
+              console.log(`⚠️ Removendo exercício sem reps de ${session.student_name}: ${ex.executed_exercise_name || 'sem nome'}`);
+              return false;
+            }
+            return true;
+          });
+          const afterCount = session.exercises.length;
+          if (beforeCount !== afterCount) {
+            console.log(`✅ ${session.student_name}: ${beforeCount - afterCount} exercício(s) sem reps removido(s)`);
+          }
+        }
+      });
+    }
+    
+    console.log("🔧 Iniciando validação e sanitização de dados...");
     
     // Função para normalizar load_breakdown com erros de formato
     function normalizeBreakdown(breakdown: string): string {

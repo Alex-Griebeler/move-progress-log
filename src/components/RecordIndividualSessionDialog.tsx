@@ -250,8 +250,16 @@ export function RecordIndividualSessionDialog({
       }
 
       if (session.exercises && session.exercises.length > 0) {
-        console.log(`🔍 [Individual] Adicionando ${session.exercises.length} exercícios do recording ${recIdx + 1}`);
-        allExercises.push(...session.exercises);
+        console.log(`🔍 [Individual] Processando ${session.exercises.length} exercícios do recording ${recIdx + 1}`);
+        session.exercises.forEach((ex, exIdx) => {
+          // ✅ VALIDAÇÃO: exercício deve ter reps para ser válido
+          if (!ex.reps || ex.reps === 0) {
+            console.log(`   ⚠️ Exercício ${exIdx + 1} sem repetições, IGNORADO: ${ex.executed_exercise_name}`);
+            return;
+          }
+          console.log(`   ✅ Exercício ${exIdx + 1} válido: ${ex.executed_exercise_name} (${ex.reps} reps)`);
+          allExercises.push(ex);
+        });
       }
     });
 

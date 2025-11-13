@@ -344,6 +344,12 @@ export function RecordGroupSessionDialog({
         // Adicionar exercícios sem duplicatas
         let addedExercises = 0;
         session.exercises.forEach((newEx, exIdx) => {
+          // ✅ VALIDAÇÃO: exercício deve ter reps para ser válido
+          if (!newEx.reps || newEx.reps === 0) {
+            console.log(`      ⚠️ Exercício ${exIdx + 1} sem repetições, IGNORADO: ${newEx.executed_exercise_name}`);
+            return;
+          }
+          
           const isDuplicate = merged.exercises.some(
             ex => ex.executed_exercise_name === newEx.executed_exercise_name &&
                   ex.reps === newEx.reps &&
@@ -352,7 +358,7 @@ export function RecordGroupSessionDialog({
           if (!isDuplicate) {
             merged.exercises.push(newEx);
             addedExercises++;
-            console.log(`      ✅ Exercício ${exIdx + 1} adicionado: ${newEx.executed_exercise_name}`);
+            console.log(`      ✅ Exercício ${exIdx + 1} adicionado: ${newEx.executed_exercise_name} (${newEx.reps} reps)`);
           } else {
             console.log(`      ⚠️ Exercício ${exIdx + 1} duplicado, ignorado: ${newEx.executed_exercise_name}`);
           }
@@ -386,6 +392,13 @@ export function RecordGroupSessionDialog({
       if (student.exercises.length === 0) {
         errors.push(`❌ ${student.student_name} foi mencionado mas não tem exercícios registrados`);
       }
+      
+      // ✅ NOVA VALIDAÇÃO: verificar se há exercícios sem dados essenciais (provavelmente não mencionados)
+      student.exercises.forEach((ex, idx) => {
+        if (!ex.reps || ex.reps === 0) {
+          errors.push(`❌ ${student.student_name} - ${ex.executed_exercise_name || `Exercício ${idx + 1}`}: sem repetições registradas (exercício não foi mencionado?)`);
+        }
+      });
       
       if (student.recording_numbers.length === 1 && accumulatedRecordings.length > 1) {
         warnings.push(`⚠️ ${student.student_name} só aparece na gravação ${student.recording_numbers[0]}`);
