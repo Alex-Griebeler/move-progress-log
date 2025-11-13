@@ -243,7 +243,13 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
                 <FormItem>
                   <FormLabel>Nome Completo</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nome completo do aluno" {...field} />
+                    <Input 
+                      id="edit-student-name"
+                      name="student-name"
+                      autoComplete="name"
+                      placeholder="Nome completo do aluno" 
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

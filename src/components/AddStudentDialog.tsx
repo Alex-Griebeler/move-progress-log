@@ -219,7 +219,13 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
                 <FormItem>
                   <FormLabel>{i18n.forms.fullName}</FormLabel>
                   <FormControl>
-                    <Input placeholder={i18n.forms.placeholder.name} {...field} />
+                    <Input 
+                      id="add-student-name"
+                      name="student-name"
+                      autoComplete="name"
+                      placeholder={i18n.forms.placeholder.name} 
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
