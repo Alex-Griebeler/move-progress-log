@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash, ChevronLeft, ChevronRight, Calculator } from "lucide-react";
 
 interface ManualSessionEntryProps {
   prescriptionExercises: Array<{
@@ -115,6 +115,61 @@ export function ManualSessionEntry({
       updated[studentId] = updated[studentId].filter((_, i) => i !== exerciseIndex);
       return updated;
     });
+  };
+
+  // Função para calcular a carga baseada na descrição
+  const calculateLoadFromDescription = (studentId: string, exerciseIndex: number) => {
+    const exercise = studentExercises[studentId]?.[exerciseIndex];
+    if (!exercise?.load_breakdown) return;
+
+    const description = exercise.load_breakdown.toLowerCase().trim();
+    const student = selectedStudents.find(s => s.id === studentId);
+    let calculatedLoad: number | null = null;
+
+    // Peso corporal
+    if (description.includes('peso corporal') || description.includes('corporal')) {
+      calculatedLoad = student?.weight_kg || null;
+    }
+    // Elástico/banda - não tem peso mensurável
+    else if (description.includes('elástico') || description.includes('banda')) {
+      calculatedLoad = null;
+    }
+    // Formato: "2x10kg" ou "2 x 10kg"
+    else if (/(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*kg/i.test(description)) {
+      const match = description.match(/(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*kg/i);
+      if (match) {
+        const quantity = parseInt(match[1]);
+        const weight = parseFloat(match[2]);
+        calculatedLoad = quantity * weight;
+      }
+    }
+    // Formato: "10kg cada lado" ou "10kg each side"
+    else if (/(\d+(?:\.\d+)?)\s*kg\s*(cada|each)/i.test(description)) {
+      const match = description.match(/(\d+(?:\.\d+)?)\s*kg/i);
+      if (match) {
+        calculatedLoad = parseFloat(match[1]) * 2;
+      }
+    }
+    // Formato simples: "20kg" ou "20.5kg"
+    else if (/(\d+(?:\.\d+)?)\s*kg/i.test(description)) {
+      const match = description.match(/(\d+(?:\.\d+)?)\s*kg/i);
+      if (match) {
+        calculatedLoad = parseFloat(match[1]);
+      }
+    }
+    // Formato em libras: "20lb" ou "20lbs"
+    else if (/(\d+(?:\.\d+)?)\s*lbs?/i.test(description)) {
+      const match = description.match(/(\d+(?:\.\d+)?)\s*lbs?/i);
+      if (match) {
+        // Converter libras para kg (1 lb = 0.453592 kg)
+        calculatedLoad = parseFloat(match[1]) * 0.453592;
+      }
+    }
+
+    // Atualizar o campo load_kg com o valor calculado
+    if (calculatedLoad !== null) {
+      updateExercise(studentId, exerciseIndex, 'load_kg', calculatedLoad);
+    }
   };
 
   const goToNextStudent = () => {
@@ -266,12 +321,25 @@ export function ManualSessionEntry({
 
                     <div className="space-y-1">
                       <Label className="text-xs">Descrição Carga *</Label>
-                      <Input
-                        placeholder="Ex: 20kg ou 'peso corporal'"
-                        value={exercise.load_breakdown}
-                        onChange={(e) => updateExercise(currentStudent.id, idx, 'load_breakdown', e.target.value)}
-                        className={!exercise.load_breakdown ? "border-destructive" : ""}
-                      />
+                      <div className="flex gap-1">
+                        <Input
+                          placeholder="Ex: 20kg, 2x10kg, peso corporal"
+                          value={exercise.load_breakdown}
+                          onChange={(e) => updateExercise(currentStudent.id, idx, 'load_breakdown', e.target.value)}
+                          className={!exercise.load_breakdown ? "border-destructive" : ""}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => calculateLoadFromDescription(currentStudent.id, idx)}
+                          disabled={!exercise.load_breakdown}
+                          className="shrink-0"
+                          title="Calcular carga total"
+                        >
+                          <Calculator className="h-4 w-4" />
+                        </Button>
+                      </div>
                       {exercise.load_breakdown.toLowerCase().includes('peso corporal') && currentStudent.weight_kg && (
                         <p className="text-xs text-green-600">
                           ✓ Carga calculada: {currentStudent.weight_kg} kg
