@@ -40,7 +40,7 @@ export function CreateFolderDialog({ open, onOpenChange, existingNames = [] }: C
     }
 
     try {
-      await createFolder.mutateAsync(trimmedName);
+      await createFolder.mutateAsync({ name: trimmedName });
       setName("");
       onOpenChange(false);
     } catch (err) {

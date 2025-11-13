@@ -573,29 +573,46 @@ export type Database = {
       prescription_folders: {
         Row: {
           created_at: string
+          depth_level: number
+          full_path: string | null
           id: string
           name: string
           order_index: number
+          parent_id: string | null
           trainer_id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          depth_level?: number
+          full_path?: string | null
           id?: string
           name: string
           order_index?: number
+          parent_id?: string | null
           trainer_id: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          depth_level?: number
+          full_path?: string | null
           id?: string
           name?: string
           order_index?: number
+          parent_id?: string | null
           trainer_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "prescription_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "prescription_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       protocol_recommendations: {
         Row: {

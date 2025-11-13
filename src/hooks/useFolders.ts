@@ -8,11 +8,42 @@ export interface PrescriptionFolder {
   name: string;
   trainer_id: string;
   order_index: number;
+  parent_id: string | null;
+  depth_level: number;
+  full_path: string | null;
   created_at: string;
   updated_at: string;
+  children?: PrescriptionFolder[];
 }
 
-// Fetch all folders for current trainer
+// Build hierarchical structure from flat list
+const buildFolderTree = (folders: PrescriptionFolder[]): PrescriptionFolder[] => {
+  const folderMap = new Map<string, PrescriptionFolder>();
+  const rootFolders: PrescriptionFolder[] = [];
+
+  // First pass: create map and initialize children arrays
+  folders.forEach(folder => {
+    folderMap.set(folder.id, { ...folder, children: [] });
+  });
+
+  // Second pass: build tree structure
+  folders.forEach(folder => {
+    const folderWithChildren = folderMap.get(folder.id)!;
+    
+    if (!folder.parent_id) {
+      rootFolders.push(folderWithChildren);
+    } else {
+      const parent = folderMap.get(folder.parent_id);
+      if (parent) {
+        parent.children!.push(folderWithChildren);
+      }
+    }
+  });
+
+  return rootFolders;
+};
+
+// Fetch all folders for current trainer (returns hierarchical structure)
 export const useFolders = () => {
   return useQuery({
     queryKey: ["prescription-folders"],
@@ -24,28 +55,39 @@ export const useFolders = () => {
         .from("prescription_folders")
         .select("*")
         .eq("trainer_id", user.id)
+        .order("depth_level", { ascending: true })
         .order("order_index", { ascending: true });
 
       if (error) throw error;
-      return data as PrescriptionFolder[];
+      
+      const folders = data as PrescriptionFolder[];
+      return buildFolderTree(folders);
     },
   });
 };
 
-// Create new folder
+// Create new folder (supports parent_id for subfolders)
 export const useCreateFolder = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async ({ name, parentId }: { name: string; parentId?: string | null }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Get max order_index
-      const { data: folders } = await supabase
+      // Get max order_index for folders at the same level
+      const query = supabase
         .from("prescription_folders")
         .select("order_index")
-        .eq("trainer_id", user.id)
+        .eq("trainer_id", user.id);
+
+      if (parentId) {
+        query.eq("parent_id", parentId);
+      } else {
+        query.is("parent_id", null);
+      }
+
+      const { data: folders } = await query
         .order("order_index", { ascending: false })
         .limit(1);
 
@@ -56,6 +98,7 @@ export const useCreateFolder = () => {
         .insert({
           name: name.trim(),
           trainer_id: user.id,
+          parent_id: parentId || null,
           order_index: maxOrder + 1,
         })
         .select()
