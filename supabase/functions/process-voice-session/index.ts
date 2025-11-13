@@ -503,21 +503,32 @@ FORMATO DE SAÍDA:
     
     console.log("📊 Extracted data:", JSON.stringify(extractedData, null, 2));
     
-    // ✅ VALIDAÇÃO CRÍTICA: remover exercícios sem repetições
+    // 🆕 FASE 3: Preservar exercícios mencionados sem reps e marcá-los para input manual
     if (extractedData.sessions) {
       extractedData.sessions.forEach((session: any) => {
         if (session.exercises) {
-          const beforeCount = session.exercises.length;
-          session.exercises = session.exercises.filter((ex: any) => {
+          session.exercises = session.exercises.map((ex: any) => {
             if (!ex.reps || ex.reps === 0) {
-              console.log(`⚠️ Removendo exercício sem reps de ${session.student_name}: ${ex.executed_exercise_name || 'sem nome'}`);
-              return false;
+              console.log(`🔴 [${session.student_name}] Exercício mencionado sem reps: "${ex.executed_exercise_name}" - marcando para input manual`);
+              
+              // Preservar o exercício mas marcar para preenchimento manual
+              return {
+                ...ex,
+                reps: 0,
+                sets: ex.sets || 0,
+                load_kg: ex.load_kg || 0,
+                observations: ex.observations 
+                  ? `🔴 EXERCÍCIO MENCIONADO SEM REPETIÇÕES - PREENCHER MANUALMENTE\n\n${ex.observations}`
+                  : '🔴 EXERCÍCIO MENCIONADO SEM REPETIÇÕES - PREENCHER MANUALMENTE',
+                needs_manual_input: true
+              };
             }
-            return true;
+            return ex;
           });
-          const afterCount = session.exercises.length;
-          if (beforeCount !== afterCount) {
-            console.log(`✅ ${session.student_name}: ${beforeCount - afterCount} exercício(s) sem reps removido(s)`);
+          
+          const needsManualCount = session.exercises.filter((ex: any) => ex.needs_manual_input).length;
+          if (needsManualCount > 0) {
+            console.log(`⚠️ [${session.student_name}] ${needsManualCount} exercício(s) marcado(s) para input manual`);
           }
         }
       });
