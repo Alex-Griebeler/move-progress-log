@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { VoiceSessionRecorder } from "./VoiceSessionRecorder";
+import { MultiSegmentRecorder } from "./MultiSegmentRecorder";
 import { ManualSessionEntry } from "./ManualSessionEntry";
 import { SessionSetupForm } from "./SessionSetupForm";
 import { useStudents } from "@/hooks/useStudents";
@@ -1204,20 +1204,26 @@ export function RecordGroupSessionDialog({
               </Card>
             </div>
 
-            {/* Coluna Direita - Gravador */}
+            {/* Coluna Direita - Gravador Multi-Segmento */}
             <div className="lg:col-span-3">
-              <VoiceSessionRecorder
+              <MultiSegmentRecorder
                 key={`recording-${currentRecordingNumber}`}
                 prescriptionId={prescriptionId}
                 selectedStudents={selectedStudents}
                 date={date}
                 time={time}
-                onSessionData={handleSessionData}
-                onError={handleError}
-                autoStart={true}
-                onRecordingStarted={() => {
-                  console.log('🟢 Dialog: Callback onRecordingStarted recebido do filho');
+                onComplete={(segments) => {
+                  console.log('🎯 Segmentos consolidados recebidos:', segments);
+                  
+                  // Consolidar todos os segmentos em um único conjunto de dados
+                  const consolidatedData = {
+                    sessions: segments.flatMap(seg => seg.extractedData?.sessions || [])
+                  };
+                  
+                  console.log('📦 Dados consolidados finais:', consolidatedData);
+                  handleSessionData(consolidatedData);
                 }}
+                onError={handleError}
               />
             </div>
             </div>
