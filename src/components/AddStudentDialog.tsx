@@ -54,9 +54,10 @@ type FormData = z.infer<typeof formSchema>;
 interface AddStudentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onStudentCreated?: (student: { id: string; name: string }) => void;
 }
 
-export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) => {
+export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddStudentDialogProps) => {
   const createStudent = useCreateStudent();
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -139,7 +140,7 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
         avatarUrl = publicUrl;
       }
 
-      await createStudent.mutateAsync({
+      const newStudent = await createStudent.mutateAsync({
         name: data.name,
         birth_date: data.birth_date || null,
         weekly_sessions_proposed: data.weekly_sessions_proposed,
@@ -159,6 +160,11 @@ export const AddStudentDialog = ({ open, onOpenChange }: AddStudentDialogProps) 
       setAvatarFile(null);
       setAvatarPreview(null);
       onOpenChange(false);
+      
+      // Notify parent component about the new student
+      if (onStudentCreated && newStudent) {
+        onStudentCreated({ id: newStudent.id, name: newStudent.name });
+      }
     } catch (error: any) {
       loader.error(i18n.modules.students.errorCreate, error.message);
     } finally {

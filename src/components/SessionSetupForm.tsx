@@ -66,6 +66,11 @@ export function SessionSetupForm({
     student.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleStudentCreated = (newStudent: { id: string; name: string }) => {
+    // Auto-select the newly created student
+    onStudentToggle(newStudent as Student);
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
@@ -176,6 +181,7 @@ export function SessionSetupForm({
       <AddStudentDialog 
         open={showAddStudentDialog} 
         onOpenChange={setShowAddStudentDialog}
+        onStudentCreated={handleStudentCreated}
       />
     </div>
   );
