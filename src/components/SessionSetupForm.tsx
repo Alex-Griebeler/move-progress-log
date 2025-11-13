@@ -4,10 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useTrainers } from "@/hooks/useTrainers";
 import { useStudents } from "@/hooks/useStudents";
 import { format } from "date-fns";
-import { Search } from "lucide-react";
+import { Search, UserPlus } from "lucide-react";
+import { AddStudentDialog } from "./AddStudentDialog";
 
 interface Student {
   id: string;
@@ -39,6 +41,7 @@ export function SessionSetupForm({
   const { data: trainers } = useTrainers();
   const { data: students } = useStudents();
   const [searchTerm, setSearchTerm] = useState("");
+  const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
 
   // Converter date de YYYY-MM-DD para DD/MM/YYYY para exibição
   const dateForDisplay = date ? format(new Date(date + 'T00:00:00'), 'dd/MM/yyyy') : '';
@@ -105,7 +108,19 @@ export function SessionSetupForm({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label>Alunos * (máximo 10)</Label>
+          <div className="flex items-center gap-3">
+            <Label>Alunos * (máximo 10)</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAddStudentDialog(true)}
+              className="h-7 gap-1.5 text-xs"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Novo
+            </Button>
+          </div>
           {selectedStudents.length > 0 && (
             <Badge variant="secondary">
               {selectedStudents.length} selecionado{selectedStudents.length > 1 ? 's' : ''}
@@ -157,6 +172,11 @@ export function SessionSetupForm({
           ) : null}
         </div>
       </div>
+
+      <AddStudentDialog 
+        open={showAddStudentDialog} 
+        onOpenChange={setShowAddStudentDialog}
+      />
     </div>
   );
 }
