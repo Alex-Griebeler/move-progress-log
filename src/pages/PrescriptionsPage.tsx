@@ -65,11 +65,11 @@ export default function PrescriptionsPage() {
     new Set(["no-folder", ...(folders?.map(f => f.id) || [])])
   );
 
-  // Drag and drop sensors
+  // Drag and drop sensors - configuração mais permissiva
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5,
       },
     })
   );

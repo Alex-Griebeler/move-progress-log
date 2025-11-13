@@ -48,18 +48,18 @@ export function DraggablePrescriptionCard({
       style={style}
       className="relative group"
     >
-      {/* Drag Handle */}
+      {/* Drag Handle - sempre visível */}
       <button
-        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-grab active:cursor-grabbing touch-none opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-muted/50 rounded"
+        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-grab active:cursor-grabbing touch-none p-2 hover:bg-accent rounded transition-colors opacity-40 group-hover:opacity-100"
         {...attributes}
         {...listeners}
         aria-label="Reordenar prescrição"
       >
-        <GripVertical className="h-5 w-5 text-muted-foreground" />
+        <GripVertical className="h-6 w-6 text-muted-foreground" />
       </button>
 
       {/* Card with left padding for drag handle */}
-      <div className="pl-10">
+      <div className="pl-12">
         <PrescriptionCard
           prescription={prescription}
           onEdit={onEdit}
