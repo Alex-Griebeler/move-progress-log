@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { Plus } from "lucide-react";
@@ -289,6 +290,18 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Criar Nova Prescrição</DialogTitle>
+          {exercises.length > 0 && (
+            <div className="flex items-center gap-2 pt-2">
+              <Badge variant="secondary" className="text-sm">
+                {exercises.filter(ex => ex.should_track !== false).length} de {exercises.length} exercício(s) para registro
+              </Badge>
+              {exercises.filter(ex => ex.should_track !== false).length === 0 && (
+                <Badge variant="destructive" className="text-xs">
+                  Atenção: Nenhum exercício marcado para registro
+                </Badge>
+              )}
+            </div>
+          )}
         </DialogHeader>
 
         <TooltipProvider>
