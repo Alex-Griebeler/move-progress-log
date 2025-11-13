@@ -46,13 +46,13 @@ export const useStudentReports = (studentId: string) => {
     enabled: !!studentId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("student_reports")
+        .from("student_reports" as any)
         .select("*")
         .eq("student_id", studentId)
         .order("period_end", { ascending: false });
 
       if (error) throw error;
-      return data as StudentReport[];
+      return data as unknown as StudentReport[];
     },
   });
 };
@@ -65,13 +65,13 @@ export const useReportById = (reportId: string | null) => {
       if (!reportId) return null;
 
       const { data, error } = await supabase
-        .from("student_reports")
+        .from("student_reports" as any)
         .select("*")
         .eq("id", reportId)
         .single();
 
       if (error) throw error;
-      return data as StudentReport;
+      return data as unknown as StudentReport;
     },
   });
 };
@@ -84,13 +84,13 @@ export const useReportTrackedExercises = (reportId: string | null) => {
       if (!reportId) return [];
 
       const { data, error } = await supabase
-        .from("report_tracked_exercises")
+        .from("report_tracked_exercises" as any)
         .select("*")
         .eq("report_id", reportId)
         .order("load_variation_percentage", { ascending: false });
 
       if (error) throw error;
-      return data as TrackedExercise[];
+      return data as unknown as TrackedExercise[];
     },
   });
 };
@@ -156,7 +156,7 @@ export const useUpdateTrainerNotes = () => {
       nextCyclePlan?: string;
     }) => {
       const { data, error } = await supabase
-        .from("student_reports")
+        .from("student_reports" as any)
         .update({
           trainer_highlights: highlights,
           attention_points: attentionPoints,
@@ -167,7 +167,7 @@ export const useUpdateTrainerNotes = () => {
         .single();
 
       if (error) throw error;
-      return data;
+      return data as unknown as StudentReport;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["student-report", data.id] });

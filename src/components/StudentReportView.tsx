@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
@@ -12,11 +13,18 @@ import {
   FileText,
   Heart,
   Moon,
-  Zap
+  Zap,
+  Download,
+  Loader2
 } from "lucide-react";
 import { useReportById, useReportTrackedExercises } from "@/hooks/useStudentReports";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { pdf } from '@react-pdf/renderer';
+import { ReportPDFDocument } from "@/components/ReportPDFDocument";
+import { useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StudentReportViewProps {
   reportId: string;
@@ -26,6 +34,57 @@ interface StudentReportViewProps {
 export function StudentReportView({ reportId, studentName }: StudentReportViewProps) {
   const { data: report, isLoading: reportLoading } = useReportById(reportId);
   const { data: trackedExercises, isLoading: exercisesLoading } = useReportTrackedExercises(reportId);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    if (!report) return;
+    
+    setIsExporting(true);
+    try {
+      // Get trainer name
+      const { data: { user } } = await supabase.auth.getUser();
+      let trainerName = undefined;
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('trainer_profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        
+        trainerName = profile?.full_name || undefined;
+      }
+
+      // Generate PDF
+      const pdfDoc = (
+        <ReportPDFDocument
+          report={report}
+          trackedExercises={trackedExercises || []}
+          studentName={studentName}
+          trainerName={trainerName}
+        />
+      );
+
+      const blob = await pdf(pdfDoc).toBlob();
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Relatorio_${studentName.replace(/\s+/g, '_')}_${format(new Date(report.period_start), 'yyyyMMdd')}-${format(new Date(report.period_end), 'yyyyMMdd')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success('PDF exportado com sucesso!');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Erro ao exportar PDF');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   if (reportLoading || exercisesLoading) {
     return <LoadingSpinner />;
@@ -57,9 +116,29 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
               )}
             </div>
           </div>
-          <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
-            {report.status === 'completed' ? 'Concluído' : report.status === 'generating' ? 'Gerando...' : 'Falhou'}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleExportPDF}
+              disabled={isExporting || report.status !== 'completed'}
+              variant="outline"
+              className="gap-2"
+            >
+              {isExporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Exportando...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  Exportar PDF
+                </>
+              )}
+            </Button>
+            <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
+              {report.status === 'completed' ? 'Concluído' : report.status === 'generating' ? 'Gerando...' : 'Falhou'}
+            </Badge>
+          </div>
         </div>
       </Card>
 
