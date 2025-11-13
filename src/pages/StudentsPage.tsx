@@ -8,6 +8,7 @@ import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
 import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -187,25 +188,24 @@ const StudentsPage = () => {
                 </div>
               ) : null}
               
-              {/* Alerta de Dados Incompletos */}
+              {/* Alerta de Dados Incompletos - Ícone Minimalista */}
               {hasIncompleteData && (
-                <div className="flex items-center justify-between p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
-                    <span className="text-xs text-amber-700 dark:text-amber-400 font-medium">
-                      Dados incompletos
-                    </span>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="h-7 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-100 dark:text-amber-400 dark:hover:text-amber-300 dark:hover:bg-amber-900/50"
-                    onClick={() => setEditingStudent(student)}
-                    aria-label={`Completar dados de ${student.name}`}
-                  >
-                    Completar
-                  </Button>
-                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => setEditingStudent(student)}
+                        className="inline-flex items-center justify-center rounded-full p-1.5 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
+                        aria-label={`Dados incompletos - Clique para completar dados de ${student.name}`}
+                      >
+                        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">Dados incompletos - Clique para completar</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               
               {/* Observações Importantes */}
