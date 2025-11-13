@@ -383,6 +383,11 @@ export function RecordGroupSessionDialog({
     const warnings: string[] = [];
     const errors: string[] = [];
     
+    // 🆕 FASE 1: Validação de exercícios prescritos não mencionados
+    const prescribedExercises = prescriptionDetails?.exercises?.filter(
+      (ex: any) => ex.should_track !== false
+    ) || [];
+    
     merged.forEach(student => {
       const matchingStudent = selectedStudents.find(
         s => s.name.toLowerCase() === student.student_name.toLowerCase()
@@ -391,6 +396,33 @@ export function RecordGroupSessionDialog({
       
       if (student.exercises.length === 0) {
         errors.push(`❌ ${student.student_name} foi mencionado mas não tem exercícios registrados`);
+      }
+      
+      // 🆕 VALIDAR EXERCÍCIOS PRESCRITOS vs EXECUTADOS
+      if (prescribedExercises.length > 0) {
+        prescribedExercises.forEach((prescribed: any) => {
+          const prescribedName = (
+            prescribed.exercise_name || 
+            prescribed.exercises_library?.name || 
+            ''
+          ).toLowerCase().trim();
+          
+          if (!prescribedName) return;
+          
+          const wasExecuted = student.exercises.some(ex => {
+            const executedName = ex.executed_exercise_name.toLowerCase().trim();
+            // Verificar se os nomes são semelhantes (contém um ao outro)
+            return executedName.includes(prescribedName) || 
+                   prescribedName.includes(executedName) ||
+                   executedName === prescribedName;
+          });
+          
+          if (!wasExecuted) {
+            warnings.push(
+              `⚠️ ${student.student_name}: "${prescribed.exercise_name || prescribed.exercises_library?.name}" prescrito mas NÃO mencionado no áudio`
+            );
+          }
+        });
       }
       
       // ✅ NOVA VALIDAÇÃO: verificar se há exercícios sem dados essenciais (provavelmente não mencionados)
@@ -1301,35 +1333,111 @@ export function RecordGroupSessionDialog({
               </Badge>
             </div>
 
-            {validationIssues.warnings.length > 0 && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Avisos</AlertTitle>
-                <AlertDescription>
-                  <ul className="list-disc pl-4">
-                    {validationIssues.warnings.map((w, i) => <li key={i}>{w}</li>)}
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {validationIssues.errors.length > 0 && (
-              <Alert variant="destructive">
-                <XCircle className="h-4 w-4" />
-                <AlertTitle>Erros Críticos</AlertTitle>
-                <AlertDescription>
-                  <ul className="list-disc pl-4">
-                    {validationIssues.errors.map((e, i) => <li key={i}>{e}</li>)}
-                  </ul>
-                </AlertDescription>
-              </Alert>
+            {/* 🆕 FASE 1: Alertas de Validação Melhorados */}
+            {(validationIssues.errors.length > 0 || validationIssues.warnings.length > 0) && (
+              <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2 text-amber-900 dark:text-amber-100">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
+                    Alertas de Validação
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Erros Críticos (bloqueiam salvamento) */}
+                  {validationIssues.errors.length > 0 && (
+                    <div className="space-y-2">
+                      {validationIssues.errors.map((err, idx) => (
+                        <Alert key={`error-${idx}`} variant="destructive" className="py-2">
+                          <XCircle className="h-4 w-4" />
+                          <AlertDescription className="text-sm">{err}</AlertDescription>
+                        </Alert>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Avisos (não bloqueiam, mas alertam) */}
+                  {validationIssues.warnings.length > 0 && (
+                    <div className="space-y-2">
+                      {validationIssues.warnings.map((warn, idx) => (
+                        <Alert 
+                          key={`warning-${idx}`} 
+                          className="border-amber-300 bg-amber-100 dark:bg-amber-950/50 dark:border-amber-700 py-2"
+                        >
+                          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                          <AlertDescription className="text-sm text-amber-900 dark:text-amber-200">
+                            {warn}
+                          </AlertDescription>
+                        </Alert>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* 🆕 Botão para adicionar exercícios não mencionados */}
+                  {validationIssues.warnings.some(w => w.includes('NÃO mencionado no áudio')) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-2 w-full border-amber-400 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-100 dark:hover:bg-amber-900/30"
+                      onClick={() => {
+                        // Identificar exercícios não mencionados e adicionar com valores zero
+                        const prescribedExercises = prescriptionDetails?.exercises?.filter(
+                          (ex: any) => ex.should_track !== false
+                        ) || [];
+                        
+                        const updatedMergedStudents = mergedStudents.map(student => {
+                          const unmentionedExercises = prescribedExercises.filter((prescribed: any) => {
+                            const prescribedName = (
+                              prescribed.exercise_name || 
+                              prescribed.exercises_library?.name || 
+                              ''
+                            ).toLowerCase().trim();
+                            
+                            const wasExecuted = student.exercises.some(ex => {
+                              const executedName = ex.executed_exercise_name.toLowerCase().trim();
+                              return executedName.includes(prescribedName) || 
+                                     prescribedName.includes(executedName) ||
+                                     executedName === prescribedName;
+                            });
+                            
+                            return !wasExecuted && prescribedName;
+                          });
+                          
+                          const newExercises = unmentionedExercises.map((prescribed: any) => ({
+                            prescribed_exercise_name: prescribed.exercise_name || prescribed.exercises_library?.name,
+                            executed_exercise_name: prescribed.exercise_name || prescribed.exercises_library?.name,
+                            sets: prescribed.sets || null,
+                            reps: 0,
+                            load_kg: null,
+                            load_breakdown: '',
+                            observations: '⚠️ Exercício prescrito mas não mencionado - preencher manualmente',
+                            is_best_set: false,
+                          }));
+                          
+                          return {
+                            ...student,
+                            exercises: [...student.exercises, ...newExercises],
+                          };
+                        });
+                        
+                        setMergedStudents(updatedMergedStudents);
+                        const issues = validateMergedData(updatedMergedStudents);
+                        setValidationIssues(issues);
+                        notify.success('Exercícios não mencionados adicionados para edição manual');
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar Exercícios Não Mencionados para Edição
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
             )}
 
             {validationIssues.warnings.length === 0 && validationIssues.errors.length === 0 && (
-              <Alert>
-                <CheckCircle className="h-4 w-4" />
-                <AlertTitle>Tudo pronto!</AlertTitle>
-                <AlertDescription>
+              <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
+                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-500" />
+                <AlertTitle className="text-green-900 dark:text-green-100">Tudo pronto!</AlertTitle>
+                <AlertDescription className="text-green-800 dark:text-green-200">
                   Todos os dados críticos foram preenchidos corretamente.
                 </AlertDescription>
               </Alert>
