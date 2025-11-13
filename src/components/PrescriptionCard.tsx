@@ -2,8 +2,19 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { usePrescriptionDetails, WorkoutPrescription, PrescriptionExercise } from "@/hooks/usePrescriptions";
-import { Calendar, Users, ClipboardList, Pencil, Clock, Dumbbell } from "lucide-react";
+import { useFolders } from "@/hooks/useFolders";
+import { Calendar, Users, ClipboardList, Pencil, Clock, Dumbbell, MoreVertical, FolderInput, FolderX } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,6 +61,8 @@ interface PrescriptionCardProps {
   onEdit: (id: string) => void;
   onAssign: (id: string) => void;
   onAddSession: (id: string) => void;
+  onMoveToFolder: (prescriptionId: string) => void;
+  onRemoveFromFolder: (prescriptionId: string) => void;
 }
 
 const getAssignmentBadge = (count: number) => {
@@ -82,8 +95,16 @@ const formatInterval = (seconds: number | null) => {
   return `${seconds}s`;
 };
 
-export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession }: PrescriptionCardProps) {
+export function PrescriptionCard({ 
+  prescription, 
+  onEdit, 
+  onAssign, 
+  onAddSession,
+  onMoveToFolder,
+  onRemoveFromFolder 
+}: PrescriptionCardProps) {
   const { data: details, isLoading } = usePrescriptionDetails(prescription.id);
+  const { data: folders } = useFolders();
 
   return (
     <Card className="hover:shadow-lg transition-shadow">
@@ -134,6 +155,57 @@ export function PrescriptionCard({ prescription, onEdit, onAssign, onAddSession 
               <ClipboardList className="h-4 w-4" />
               Registrar Sessão
             </Button>
+
+            {/* Context Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                  <span className="sr-only">Menu da prescrição</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <FolderInput className="h-4 w-4 mr-2" />
+                    Mover para Pasta
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {folders && folders.length > 0 ? (
+                      folders
+                        .filter(f => f.id !== prescription.folder_id)
+                        .map(folder => (
+                          <DropdownMenuItem
+                            key={folder.id}
+                            onClick={() => onMoveToFolder(prescription.id)}
+                            data-folder-id={folder.id}
+                          >
+                            {folder.name}
+                          </DropdownMenuItem>
+                        ))
+                    ) : (
+                      <DropdownMenuItem disabled>
+                        Nenhuma pasta disponível
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                
+                {prescription.folder_id && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onRemoveFromFolder(prescription.id)}>
+                      <FolderX className="h-4 w-4 mr-2" />
+                      Remover da Pasta
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </CardHeader>

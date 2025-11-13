@@ -9,6 +9,8 @@ export interface WorkoutPrescription {
   objective: string | null;
   created_at: string;
   updated_at: string;
+  folder_id: string | null;
+  order_index: number;
   assigned_students_count?: number;
 }
 
@@ -61,7 +63,8 @@ export const usePrescriptions = () => {
           *,
           prescription_assignments(student_id)
         `)
-        .order("created_at", { ascending: false });
+        .order("folder_id", { ascending: true, nullsFirst: false })
+        .order("order_index", { ascending: true });
 
       if (error) throw error;
       

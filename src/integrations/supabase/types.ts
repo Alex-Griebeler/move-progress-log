@@ -570,6 +570,33 @@ export type Database = {
           },
         ]
       }
+      prescription_folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          order_index: number
+          trainer_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          order_index?: number
+          trainer_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          order_index?: number
+          trainer_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       protocol_recommendations: {
         Row: {
           applied: boolean | null
@@ -988,29 +1015,43 @@ export type Database = {
       workout_prescriptions: {
         Row: {
           created_at: string
+          folder_id: string | null
           id: string
           name: string
           objective: string | null
+          order_index: number
           trainer_id: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          folder_id?: string | null
           id?: string
           name: string
           objective?: string | null
+          order_index?: number
           trainer_id: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          folder_id?: string | null
           id?: string
           name?: string
           objective?: string | null
+          order_index?: number
           trainer_id?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "workout_prescriptions_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "prescription_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workout_sessions: {
         Row: {
