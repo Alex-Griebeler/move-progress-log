@@ -40,6 +40,7 @@ interface Exercise {
   training_method: string;
   observations: string;
   group_with_previous: boolean;
+  should_track: boolean;
   adaptations: Array<{
     type: "regression_1" | "regression_2" | "regression_3";
     exercise_library_id: string;
@@ -66,6 +67,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       training_method: "",
       observations: "",
       group_with_previous: false,
+      should_track: true,
       adaptations: [],
       showAdaptations: false,
     },
@@ -106,6 +108,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       training_method: "",
       observations: "",
       group_with_previous: false,
+      should_track: true,
       adaptations: [],
       showAdaptations: false,
     };
@@ -255,6 +258,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         training_method: ex.training_method || undefined,
         observations: ex.observations || undefined,
         group_with_previous: index > 0 ? ex.group_with_previous : false,
+        should_track: ex.should_track ?? true,
         adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
       })),
     });
@@ -272,6 +276,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         training_method: "",
         observations: "",
         group_with_previous: false,
+        should_track: true,
         adaptations: [],
         showAdaptations: false,
       },

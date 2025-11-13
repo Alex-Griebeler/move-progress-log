@@ -520,6 +520,7 @@ export type Database = {
           pse: string | null
           reps: string
           sets: string
+          should_track: boolean
           training_method: string | null
         }
         Insert: {
@@ -534,6 +535,7 @@ export type Database = {
           pse?: string | null
           reps: string
           sets: string
+          should_track?: boolean
           training_method?: string | null
         }
         Update: {
@@ -548,6 +550,7 @@ export type Database = {
           pse?: string | null
           reps?: string
           sets?: string
+          should_track?: boolean
           training_method?: string | null
         }
         Relationships: [

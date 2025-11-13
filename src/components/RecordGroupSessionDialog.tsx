@@ -1081,14 +1081,16 @@ export function RecordGroupSessionDialog({
         {dialogState === 'manual-entry' && (
           <ManualSessionEntry
             prescriptionExercises={
-              prescriptionDetails?.exercises?.map((ex: any) => ({
-                id: ex.id,
-                exercise_name: ex.exercise_name,
-                sets: ex.sets,
-                reps: ex.reps,
-                interval_seconds: ex.interval_seconds,
-                pse: ex.pse,
-                training_method: ex.training_method,
+              prescriptionDetails?.exercises
+                ?.filter((ex: any) => ex.should_track !== false)
+                .map((ex: any) => ({
+                  id: ex.id,
+                  exercise_name: ex.exercise_name,
+                  sets: ex.sets,
+                  reps: ex.reps,
+                  interval_seconds: ex.interval_seconds,
+                  pse: ex.pse,
+                  training_method: ex.training_method,
                 observations: ex.observations,
               })) || []
             }

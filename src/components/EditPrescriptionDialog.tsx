@@ -40,6 +40,7 @@ interface Exercise {
   training_method: string;
   observations: string;
   group_with_previous: boolean;
+  should_track: boolean;
   adaptations: Array<{
     type: "regression_1" | "regression_2" | "regression_3";
     exercise_library_id: string;
@@ -67,6 +68,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       training_method: "",
       observations: "",
       group_with_previous: false,
+      should_track: true,
       adaptations: [],
       showAdaptations: false,
     },
@@ -115,6 +117,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             training_method: ex.training_method || "",
             observations: ex.observations || "",
             group_with_previous: ex.group_with_previous || false,
+            should_track: ex.should_track ?? true,
             adaptations: (ex.adaptations || []).map((adapt: any) => ({
               type: adapt.adaptation_type,
               exercise_library_id: adapt.exercise_library_id,
@@ -137,6 +140,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       training_method: "",
       observations: "",
       group_with_previous: false,
+      should_track: true,
       adaptations: [],
       showAdaptations: false,
     };

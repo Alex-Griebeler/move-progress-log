@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TRAINING_METHODS } from "@/constants/trainingMethods";
 import { GripVertical, Trash2, ChevronDown, ChevronUp, Sparkles, Plus } from "lucide-react";
@@ -21,6 +22,7 @@ interface Exercise {
   training_method: string;
   observations: string;
   group_with_previous: boolean;
+  should_track: boolean;
   adaptations: Array<{
     type: "regression_1" | "regression_2" | "regression_3";
     exercise_library_id: string;
@@ -117,6 +119,26 @@ export function SortableExerciseItem({
                 </Label>
               </div>
             )}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id={`track-${exercise.id}`}
+                checked={exercise.should_track}
+                onCheckedChange={(checked) =>
+                  onUpdate("should_track", checked === true)
+                }
+              />
+              <Label
+                htmlFor={`track-${exercise.id}`}
+                className="text-sm font-normal cursor-pointer flex items-center gap-2"
+              >
+                Registrar desempenho deste exercício
+                {!exercise.should_track && (
+                  <Badge variant="outline" className="text-xs">
+                    Apenas prescrito
+                  </Badge>
+                )}
+              </Label>
+            </div>
           </div>
         </div>
         <div className="flex gap-2">

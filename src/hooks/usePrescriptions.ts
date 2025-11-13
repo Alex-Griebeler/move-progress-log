@@ -145,6 +145,7 @@ export const useCreatePrescription = () => {
         training_method?: string;
         observations?: string;
         group_with_previous?: boolean;
+        should_track?: boolean;
         adaptations?: Array<{
           type: "regression_1" | "regression_2" | "regression_3";
           exercise_library_id: string;
@@ -187,6 +188,7 @@ export const useCreatePrescription = () => {
             training_method: ex.training_method || null,
             observations: ex.observations || null,
             group_with_previous: ex.group_with_previous || false,
+            should_track: ex.should_track ?? true,
           })
           .select()
           .single();
@@ -284,6 +286,7 @@ export const useUpdatePrescription = () => {
         training_method?: string;
         observations?: string;
         group_with_previous?: boolean;
+        should_track?: boolean;
         adaptations?: Array<{
           type: "regression_1" | "regression_2" | "regression_3";
           exercise_library_id: string;
@@ -344,6 +347,7 @@ export const useUpdatePrescription = () => {
             training_method: ex.training_method || null,
             observations: ex.observations || null,
             group_with_previous: ex.group_with_previous || false,
+            should_track: ex.should_track ?? true,
           })
           .select()
           .single();
