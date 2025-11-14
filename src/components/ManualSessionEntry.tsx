@@ -122,6 +122,31 @@ export function ManualSessionEntry({
     }
   }, [studentExercises, date, time, trainer, prescriptionId, selectedStudents, saveDraft]);
 
+  // Inicializar exercícios para novos alunos adicionados dinamicamente
+  useEffect(() => {
+    const newStudentExercises = { ...studentExercises };
+    let hasNewStudents = false;
+
+    selectedStudents.forEach(student => {
+      if (!newStudentExercises[student.id]) {
+        // Novo aluno sem exercícios inicializados
+        newStudentExercises[student.id] = prescriptionExercises.map(ex => ({
+          exercise_name: ex.exercise_name,
+          sets: parseInt(ex.sets) || 0,
+          reps: parseInt(ex.reps) || 0,
+          load_kg: null,
+          load_breakdown: '',
+          observations: ex.observations || '',
+        }));
+        hasNewStudents = true;
+      }
+    });
+
+    if (hasNewStudents) {
+      setStudentExercises(newStudentExercises);
+    }
+  }, [selectedStudents, prescriptionExercises]);
+
   const currentStudent = selectedStudents[currentStudentIndex];
 
   const updateExercise = (
