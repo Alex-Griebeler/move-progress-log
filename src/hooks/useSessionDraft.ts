@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from '@/lib/notify';
+import { useSessionDraftHistory } from './useSessionDraftHistory';
 
 interface Student {
   id: string;
@@ -30,12 +31,16 @@ interface SessionDraft {
 
 const DRAFT_KEY = 'session_draft_v1';
 const DEBOUNCE_MS = 1000;
+const SAVE_TO_HISTORY_INTERVAL = 60000; // Salvar no histórico a cada 60 segundos
 
 export function useSessionDraft() {
+  const { saveDraftToHistory } = useSessionDraftHistory();
   const [draft, setDraft] = useState<SessionDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [lastHistorySave, setLastHistorySave] = useState<Date | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const historyTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Carregar rascunho ao montar
   useEffect(() => {
@@ -79,16 +84,30 @@ export function useSessionDraft() {
       setDraft(draftData);
       setLastSaved(new Date());
       setIsSaving(false);
+
+      // Verificar se deve salvar no histórico (a cada 60 segundos)
+      const now = Date.now();
+      const shouldSaveToHistory = !lastHistorySave || 
+        (now - lastHistorySave.getTime() > SAVE_TO_HISTORY_INTERVAL);
+
+      if (shouldSaveToHistory && Object.keys(draftData.studentExercises).length > 0) {
+        saveDraftToHistory(draftData);
+        setLastHistorySave(new Date());
+      }
     }, DEBOUNCE_MS);
-  }, []);
+  }, [lastHistorySave, saveDraftToHistory]);
 
   // Limpar rascunho
   const clearDraft = useCallback(() => {
     localStorage.removeItem(DRAFT_KEY);
     setDraft(null);
     setLastSaved(null);
+    setLastHistorySave(null);
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
+    }
+    if (historyTimeoutRef.current) {
+      clearTimeout(historyTimeoutRef.current);
     }
   }, []);
 
@@ -104,11 +123,24 @@ export function useSessionDraft() {
     );
   }, [draft]);
 
+  // Restaurar de um rascunho do histórico
+  const restoreDraft = useCallback((draftData: SessionDraft) => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+    setDraft(draftData);
+    setLastSaved(new Date(draftData.timestamp));
+    notify.success("Rascunho restaurado", {
+      description: "Os dados foram carregados do histórico",
+    });
+  }, []);
+
   // Cleanup ao desmontar
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+      }
+      if (historyTimeoutRef.current) {
+        clearTimeout(historyTimeoutRef.current);
       }
     };
   }, []);
@@ -117,6 +149,7 @@ export function useSessionDraft() {
     draft,
     saveDraft,
     clearDraft,
+    restoreDraft,
     isSaving,
     lastSaved,
     hasUnsavedChanges,
