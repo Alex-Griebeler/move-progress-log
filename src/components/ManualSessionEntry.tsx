@@ -1,12 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen } from "lucide-react";
+import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2 } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
+import { useSessionDraft } from "@/hooks/useSessionDraft";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface ManualSessionEntryProps {
   prescriptionExercises: Array<{
@@ -24,6 +27,10 @@ interface ManualSessionEntryProps {
     name: string;
     weight_kg?: number;
   }>;
+  date: string;
+  time: string;
+  trainer: string;
+  prescriptionId: string | null;
   onSave: (data: {
     studentExercises: Array<{
       studentId: string;
@@ -43,9 +50,15 @@ interface ManualSessionEntryProps {
 export function ManualSessionEntry({
   prescriptionExercises,
   selectedStudents,
+  date,
+  time,
+  trainer,
+  prescriptionId,
   onSave,
   onCancel,
 }: ManualSessionEntryProps) {
+  
+  const { draft, saveDraft, clearDraft, isSaving, lastSaved } = useSessionDraft();
   
   // Estado para controlar o aluno atual (visualização página por página)
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
@@ -69,6 +82,11 @@ export function ManualSessionEntry({
       observations: string;
     }>;
   }>(() => {
+    // Tentar carregar do rascunho primeiro
+    if (draft?.studentExercises) {
+      return draft.studentExercises;
+    }
+    
     // Inicializar com os exercícios da prescrição para cada aluno
     const initial: any = {};
     selectedStudents.forEach(student => {
@@ -83,6 +101,20 @@ export function ManualSessionEntry({
     });
     return initial;
   });
+
+  // Auto-save quando studentExercises mudar
+  useEffect(() => {
+    if (Object.keys(studentExercises).length > 0) {
+      saveDraft({
+        date,
+        time,
+        trainer,
+        prescriptionId,
+        selectedStudents,
+        studentExercises,
+      });
+    }
+  }, [studentExercises, date, time, trainer, prescriptionId, selectedStudents, saveDraft]);
 
   const currentStudent = selectedStudents[currentStudentIndex];
 
@@ -200,6 +232,7 @@ export function ManualSessionEntry({
         exercises: studentExercises[student.id] || []
       }))
     };
+    clearDraft(); // Limpar rascunho após salvar com sucesso
     onSave(data);
   };
 
@@ -245,6 +278,36 @@ export function ManualSessionEntry({
 
   return (
     <div className="space-y-6">
+      {/* Indicador de rascunho e auto-save */}
+      {(lastSaved || isSaving) && (
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg text-sm">
+          <div className="flex items-center gap-2">
+            {isSaving ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                <span className="text-muted-foreground">Salvando rascunho...</span>
+              </>
+            ) : lastSaved ? (
+              <>
+                <Save className="h-3 w-3 text-green-600" />
+                <span className="text-muted-foreground">
+                  Rascunho salvo {formatDistanceToNow(lastSaved, { addSuffix: true, locale: ptBR })}
+                </span>
+              </>
+            ) : null}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearDraft}
+            className="h-7 text-xs"
+          >
+            <Trash className="h-3 w-3 mr-1" />
+            Limpar rascunho
+          </Button>
+        </div>
+      )}
+      
       {/* Navegação entre alunos */}
       <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
         <Button
