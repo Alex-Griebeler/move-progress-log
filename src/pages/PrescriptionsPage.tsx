@@ -259,7 +259,7 @@ export default function PrescriptionsPage() {
   const noFolderPrescriptions = groupedPrescriptions['no-folder'] || [];
 
   return (
-    <div id="main-content" className="min-h-screen bg-background p-8 animate-fade-in" role="main">
+    <div id="main-content" className="min-h-screen bg-background p-xl animate-fade-in" role="main">
       {/* Structured Data */}
       <StructuredData data={getOrganizationSchema()} id="org-schema" />
       <StructuredData 
@@ -277,14 +277,14 @@ export default function PrescriptionsPage() {
         id="breadcrumb-schema" 
       />
       
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-xl">
         <Breadcrumbs items={[{ label: NAV_LABELS.prescriptions }]} />
         
         <AppHeader
           title={NAV_LABELS.prescriptions}
           subtitle={NAV_LABELS.subtitlePrescriptions}
           actions={
-            <div className="flex gap-2">
+            <div className="flex gap-xs">
               <Button
                 onClick={() => setShowSearch(!showSearch)}
                 variant={showSearch ? "default" : "outline"}
@@ -335,7 +335,7 @@ export default function PrescriptionsPage() {
         )}
 
         {isLoading ? (
-          <div className="space-y-4">
+          <div className="space-y-md">
             {[...Array(4)].map((_, i) => (
               <PrescriptionCardSkeleton key={i} />
             ))}
@@ -346,7 +346,7 @@ export default function PrescriptionsPage() {
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <div className="space-y-6">
+            <div className="space-y-lg">
               {/* Hierarchical folder tree */}
               {folders && folders.length > 0 && (
                 <FolderTree

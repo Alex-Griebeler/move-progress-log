@@ -133,7 +133,7 @@ const StudentsPage = () => {
       <>
         <Card className="animate-fade-in hover:shadow-lg transition-shadow">
           <CardHeader>
-            <CardTitle className="flex items-center gap-3">
+            <CardTitle className="flex items-center gap-sm">
               <Avatar className="h-10 w-10">
                 <AvatarImage src={student.avatar_url || undefined} />
                 <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
@@ -141,8 +141,8 @@ const StudentsPage = () => {
               <span className="flex-1">{student.name}</span>
             </CardTitle>
             
-            <CardDescription className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
+            <CardDescription className="space-y-sm">
+              <div className="grid grid-cols-2 gap-xs">
                 {/* Nível de Fitness */}
                 {student.fitness_level && (
                   <div className="flex flex-col">
@@ -164,8 +164,8 @@ const StudentsPage = () => {
 
               {/* Readiness Oura Ring - Destaque maior */}
               {readinessScore ? (
-                <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between p-xs rounded-md bg-muted/30">
+                  <div className="flex items-center gap-xs">
                     <span className="text-sm font-medium">Prontidão</span>
                     <Badge variant="secondary" className="text-xs">
                       {getReadinessLabel(readinessScore)}
@@ -176,8 +176,8 @@ const StudentsPage = () => {
                   </span>
                 </div>
               ) : ouraStatus?.isConnected && ouraStatus.hasIssues ? (
-                <div className="flex items-center justify-between p-2 rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between p-xs rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
+                  <div className="flex items-center gap-xs">
                     <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
                     <span className="text-xs text-yellow-700 dark:text-yellow-400 font-medium">
                       Problema na sync Oura
@@ -185,7 +185,7 @@ const StudentsPage = () => {
                   </div>
                 </div>
               ) : ouraStatus?.isConnected ? (
-                <div className="flex items-center justify-between p-2 rounded-md bg-muted/20 border border-dashed">
+                <div className="flex items-center justify-between p-xs rounded-md bg-muted/20 border border-dashed">
                   <span className="text-xs text-muted-foreground">Aguardando dados Oura</span>
                 </div>
               ) : null}
@@ -346,7 +346,7 @@ const StudentsPage = () => {
         />
       )}
       
-      <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
+      <div id="main-content" className="container mx-auto p-lg space-y-lg" role="main">
         <Breadcrumbs 
           items={[
             { label: NAV_LABELS.students, href: "/alunos", icon: Users }
@@ -406,13 +406,13 @@ const StudentsPage = () => {
         </div>
 
         {isLoading ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <StudentCardSkeleton key={i} />
             ))}
           </div>
         ) : filteredStudents && filteredStudents.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
             {filteredStudents.map((student) => (
               <StudentCard key={student.id} student={student} />
             ))}
