@@ -16,7 +16,7 @@ import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateGroupWorkoutSessions } from "@/hooks/useWorkoutSessions";
 import { usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { supabase } from "@/integrations/supabase/client";
-import { Mic, User, Users, AlertTriangle, XCircle, Save, Edit, Trash, Pencil, ChevronLeft, ChevronRight, Plus, CheckCircle, BookOpen } from "lucide-react";
+import { Mic, User, Users, AlertTriangle, XCircle, Save, Edit, Trash, Pencil, ChevronLeft, ChevronRight, Plus, CheckCircle, BookOpen, UserPlus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { notify } from "@/lib/notify";
@@ -24,6 +24,7 @@ import i18n from "@/i18n/pt-BR.json";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { NAV_LABELS } from "@/constants/navigation";
 import { useSessionDraft } from "@/hooks/useSessionDraft";
+import { AddStudentDialog } from "./AddStudentDialog";
 
 interface RecordGroupSessionDialogProps {
   open: boolean;
@@ -145,6 +146,9 @@ export function RecordGroupSessionDialog({
     exerciseIndex: number;
     currentName: string;
   } | null>(null);
+  
+  // Add student dialog state
+  const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
 
   const { data: students } = useStudents();
   const { data: assignments } = usePrescriptionAssignments(prescriptionId);
@@ -259,6 +263,15 @@ export function RecordGroupSessionDialog({
         return [...prev, student];
       }
     });
+  };
+
+  const handleStudentCreated = (newStudent: { id: string; name: string }) => {
+    // Auto-select the newly created student
+    const studentToAdd = {
+      ...newStudent,
+      has_active_prescription: false,
+    } as Student;
+    toggleStudent(studentToAdd);
   };
 
   const isContextValid = date && time && trainer && selectedStudents.length > 0;
@@ -1241,9 +1254,21 @@ export function RecordGroupSessionDialog({
 
         {dialogState === 'mode-selection' && (
           <div className="space-y-6 py-8">
-            <p className="text-center text-muted-foreground">
-              Escolha como deseja registrar a sessão em grupo:
-            </p>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-muted-foreground">
+                Escolha como deseja registrar a sessão em grupo:
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddStudentDialog(true)}
+                className="gap-1.5"
+              >
+                <UserPlus className="h-4 w-4" />
+                Adicionar Aluno
+              </Button>
+            </div>
             <div className="grid gap-4 md:grid-cols-2">
               <Button
                 variant="outline"
@@ -1289,6 +1314,16 @@ export function RecordGroupSessionDialog({
                   <Badge variant="secondary" className="ml-auto">
                     {selectedStudents.length}
                   </Badge>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAddStudentDialog(true)}
+                    className="gap-1.5 h-7"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Adicionar
+                  </Button>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -2082,6 +2117,13 @@ export function RecordGroupSessionDialog({
         currentExerciseName={selectedExerciseForReplacement?.currentName || ""}
         onExerciseSelected={handleExerciseSelected}
         autoSuggest={true}
+      />
+
+      {/* Dialog para adicionar novo aluno */}
+      <AddStudentDialog 
+        open={showAddStudentDialog} 
+        onOpenChange={setShowAddStudentDialog}
+        onStudentCreated={handleStudentCreated}
       />
     </Dialog>
   );
