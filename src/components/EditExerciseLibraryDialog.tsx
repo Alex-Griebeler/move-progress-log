@@ -85,8 +85,8 @@ export const EditExerciseLibraryDialog = ({
         <DialogHeader>
           <DialogTitle>Editar Exercício</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-md">
+          <div className="space-y-sm">
             <Label htmlFor="edit-name">Nome do Exercício *</Label>
             <Input
               id="edit-name"
@@ -97,7 +97,7 @@ export const EditExerciseLibraryDialog = ({
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-sm">
             <Label htmlFor="edit-movement-pattern">Padrão de Movimento *</Label>
             <Select value={movementPattern} onValueChange={setMovementPattern} required>
               <SelectTrigger>
@@ -113,7 +113,7 @@ export const EditExerciseLibraryDialog = ({
             </Select>
           </div>
 
-            <div className="space-y-2">
+            <div className="space-y-sm">
               <Label htmlFor="edit-laterality">Lateralidade</Label>
               <Select value={laterality} onValueChange={setLaterality}>
                 <SelectTrigger>
@@ -130,7 +130,7 @@ export const EditExerciseLibraryDialog = ({
               </Select>
             </div>
 
-          <div className="space-y-2">
+          <div className="space-y-sm">
             <Label htmlFor="edit-movement-plane">Plano de Movimento</Label>
             <Select value={movementPlane} onValueChange={setMovementPlane}>
               <SelectTrigger>
@@ -147,7 +147,7 @@ export const EditExerciseLibraryDialog = ({
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-sm">
             <Label htmlFor="edit-contraction-type">Tipo de Contração</Label>
             <Select value={contractionType} onValueChange={setContractionType}>
               <SelectTrigger>
@@ -164,7 +164,7 @@ export const EditExerciseLibraryDialog = ({
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-sm">
             <Label htmlFor="edit-level">Nível</Label>
             <Select value={level} onValueChange={setLevel}>
               <SelectTrigger>
@@ -181,7 +181,7 @@ export const EditExerciseLibraryDialog = ({
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-sm">
             <Label htmlFor="edit-description">Descrição</Label>
             <Textarea
               id="edit-description"

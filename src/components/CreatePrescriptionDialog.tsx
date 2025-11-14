@@ -306,9 +306,9 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
 
         <TooltipProvider>
           <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
+          <div className="space-y-lg">
+            <div className="space-y-md">
+              <div className="space-y-sm">
                 <Label htmlFor="name">Nome da Prescrição *</Label>
                 <Input
                   id="name"
@@ -318,7 +318,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-sm">
                 <Label htmlFor="objective">Objetivo</Label>
                 <Textarea
                   id="objective"
@@ -332,7 +332,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
 
             <Separator />
 
-            <div className="space-y-4">
+            <div className="space-y-md">
               <div className="flex items-center justify-between">
                 <Label className="text-base">Exercícios</Label>
                 <Button 
@@ -380,7 +380,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           </div>
         </ScrollArea>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
+        <div className="flex justify-end gap-sm pt-lg border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>

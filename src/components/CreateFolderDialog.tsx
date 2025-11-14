@@ -60,15 +60,15 @@ export function CreateFolderDialog({ open, onOpenChange, existingNames = [] }: C
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-sm">
             <FolderPlus className="h-5 w-5" />
             Nova Pasta
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
+          <div className="space-y-md py-lg">
+            <div className="space-y-sm">
               <Label htmlFor="folder-name">
                 Nome da Pasta <span className="text-destructive">*</span>
               </Label>

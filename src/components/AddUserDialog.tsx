@@ -138,7 +138,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-md">
             <FormField
               control={form.control}
               name="fullName"
