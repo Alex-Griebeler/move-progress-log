@@ -32,6 +32,8 @@ import { StudentObservationsCard } from "@/components/StudentObservationsCard";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
 import { SessionDetailDialog } from "@/components/SessionDetailDialog";
+import { EditStudentDialog } from "@/components/EditStudentDialog";
+import StudentProfileTab from "@/components/StudentProfileTab";
 import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState, useMemo, useEffect } from "react";
@@ -63,6 +65,7 @@ const StudentDetailPage = () => {
   const [studentNotFound, setStudentNotFound] = useState(false);
   const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'individual' | 'group'>('all');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [editStudentOpen, setEditStudentOpen] = useState(false);
   const deleteAssignment = useDeletePrescriptionAssignment();
   const reopenSession = useReopenWorkoutSession();
 
@@ -240,8 +243,12 @@ const StudentDetailPage = () => {
       )}
 
       <Tabs defaultValue="training" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="training">{NAV_LABELS.tabTraining}</TabsTrigger>
+          <TabsTrigger value="profile">
+            <User className="h-4 w-4 mr-1" />
+            Dados Cadastrais
+          </TabsTrigger>
           <TabsTrigger value="overview">{NAV_LABELS.tabOverview}</TabsTrigger>
           <TabsTrigger value="sessions">{NAV_LABELS.tabSessions}</TabsTrigger>
           <TabsTrigger value="exercises">{NAV_LABELS.tabExercises}</TabsTrigger>
@@ -256,6 +263,13 @@ const StudentDetailPage = () => {
             studentName={student.name}
             studentId={student.id}
             onStartTraining={() => setRecordSessionOpen(true)}
+          />
+        </TabsContent>
+
+        <TabsContent value="profile" className="space-y-6">
+          <StudentProfileTab 
+            student={student} 
+            onEdit={() => setEditStudentOpen(true)} 
           />
         </TabsContent>
 
@@ -794,6 +808,12 @@ const StudentDetailPage = () => {
             }
           });
         }}
+      />
+
+      <EditStudentDialog
+        student={student}
+        open={editStudentOpen}
+        onOpenChange={setEditStudentOpen}
       />
     </div>
   );

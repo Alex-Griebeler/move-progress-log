@@ -4,7 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { STUDENT_OBJECTIVES } from "@/constants/objectives";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { STUDENT_OBJECTIVES, MAX_OBJECTIVES, getObjectiveLabel } from "@/constants/objectives";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { Loader2, Upload, X } from "lucide-react";
@@ -40,7 +43,7 @@ const formSchema = z.object({
     return birthDate <= today;
   }, i18n.validation.dateFuture),
   weekly_sessions_proposed: z.coerce.number().min(1, i18n.errors.min.replace("{{min}}", "1")).max(7, i18n.errors.max.replace("{{max}}", "7")),
-  objectives: z.string().optional(),
+  objectives: z.array(z.string()).max(2, "Selecione no máximo 2 objetivos").optional(),
   limitations: z.string().optional(),
   preferences: z.string().optional(),
   max_heart_rate: z.coerce.number().optional().nullable(),
@@ -70,7 +73,7 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
       name: "",
       birth_date: "",
       weekly_sessions_proposed: 2,
-      objectives: "",
+      objectives: [],
       limitations: "",
       preferences: "",
       max_heart_rate: null,
@@ -87,7 +90,7 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
         name: student.name,
         birth_date: student.birth_date || "",
         weekly_sessions_proposed: student.weekly_sessions_proposed,
-        objectives: student.objectives || "",
+        objectives: student.objectives || [],
         limitations: student.limitations || "",
         preferences: student.preferences || "",
         max_heart_rate: student.max_heart_rate,
@@ -376,21 +379,49 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
               name="objectives"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Objetivos</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o objetivo principal" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {STUDENT_OBJECTIVES.map((objective) => (
-                        <SelectItem key={objective.value} value={objective.value}>
-                          {objective.label}
-                        </SelectItem>
+                  <FormLabel>Objetivos (até {MAX_OBJECTIVES})</FormLabel>
+                  <div className="space-y-xs">
+                    {STUDENT_OBJECTIVES.map((objective) => {
+                      const isChecked = field.value?.includes(objective.value) || false;
+                      const isDisabled = !isChecked && (field.value?.length || 0) >= MAX_OBJECTIVES;
+                      
+                      return (
+                        <div key={objective.value} className="flex items-center gap-xs">
+                          <Checkbox
+                            checked={isChecked}
+                            disabled={isDisabled}
+                            onCheckedChange={(checked) => {
+                              const current = field.value || [];
+                              const updated = checked 
+                                ? [...current, objective.value]
+                                : current.filter(v => v !== objective.value);
+                              field.onChange(updated);
+                            }}
+                          />
+                          <Label className={isDisabled ? "opacity-50" : ""}>
+                            {objective.label}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Badges dos objetivos selecionados */}
+                  {field.value && field.value.length > 0 && (
+                    <div className="flex flex-wrap gap-xs mt-xs">
+                      {field.value.map((value) => (
+                        <Badge key={value} variant="secondary" className="gap-1">
+                          {getObjectiveLabel(value)}
+                          <X 
+                            className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                            onClick={() => {
+                              field.onChange(field.value!.filter(v => v !== value));
+                            }}
+                          />
+                        </Badge>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

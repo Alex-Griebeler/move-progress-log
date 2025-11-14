@@ -1052,7 +1052,7 @@ export type Database = {
           limitations: string | null
           max_heart_rate: number | null
           name: string
-          objectives: string | null
+          objectives: string[] | null
           preferences: string | null
           trainer_id: string
           updated_at: string
@@ -1070,7 +1070,7 @@ export type Database = {
           limitations?: string | null
           max_heart_rate?: number | null
           name: string
-          objectives?: string | null
+          objectives?: string[] | null
           preferences?: string | null
           trainer_id: string
           updated_at?: string
@@ -1088,7 +1088,7 @@ export type Database = {
           limitations?: string | null
           max_heart_rate?: number | null
           name?: string
-          objectives?: string | null
+          objectives?: string[] | null
           preferences?: string | null
           trainer_id?: string
           updated_at?: string
@@ -1287,6 +1287,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      normalize_objective: { Args: { obj: string }; Returns: string }
     }
     Enums: {
       app_role: "admin" | "trainer" | "moderator"
