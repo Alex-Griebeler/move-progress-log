@@ -57,7 +57,7 @@ const calculateAge = (birthDate: string | null) => {
 const calculateIMC = (weight: number | null, height: number | null) => {
   if (!weight || !height) return null;
   const heightInMeters = height / 100;
-  return (weight / (heightInMeters * heightInMeters)).toFixed(1);
+  return Number((weight / (heightInMeters * heightInMeters)).toFixed(1));
 };
 
 // Objective icons and styles
@@ -267,7 +267,7 @@ export const StudentOverviewDashboard = ({
               </div>
 
               {/* CTA para análise histórica completa */}
-              {ouraConnection?.isConnected && (
+              {ouraConnection?.is_active && (
                 <div className="mt-6 pt-6 border-t border-border/50">
                   <Button
                     variant="outline"
