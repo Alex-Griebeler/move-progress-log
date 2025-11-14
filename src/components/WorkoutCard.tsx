@@ -1,12 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, TrendingUp, FolderOpen, Lock, Edit } from "lucide-react";
+import { Dumbbell, TrendingUp, FolderOpen, Lock, Edit, User, Users } from "lucide-react";
 
 interface WorkoutCardProps {
   name: string;
   exercises: number;
   date: string;
+  sessionType?: 'individual' | 'group';
   totalVolume?: number;
   isFinalized?: boolean;
   canReopen?: boolean;
@@ -15,7 +16,7 @@ interface WorkoutCardProps {
   sessionId?: string;
 }
 
-const WorkoutCard = ({ name, exercises, date, totalVolume, isFinalized, canReopen, onReopen, onEdit, sessionId }: WorkoutCardProps) => {
+const WorkoutCard = ({ name, exercises, date, sessionType, totalVolume, isFinalized, canReopen, onReopen, onEdit, sessionId }: WorkoutCardProps) => {
   const displayName = name?.trim() || 'Aluno Desconhecido';
   
   const getIntensityBadge = (volume: number | undefined) => {
@@ -27,6 +28,16 @@ const WorkoutCard = ({ name, exercises, date, totalVolume, isFinalized, canReope
 
   const intensity = getIntensityBadge(totalVolume);
   
+  const getSessionTypeBadge = () => {
+    if (!sessionType) return null;
+    if (sessionType === 'group') {
+      return { icon: Users, label: 'Grupo', variant: 'default' as const };
+    }
+    return { icon: User, label: 'Individual', variant: 'secondary' as const };
+  };
+
+  const sessionTypeBadge = getSessionTypeBadge();
+  
   return (
     <Card className="hover:shadow-premium transition-smooth border-border/50 backdrop-blur-sm group">
       <CardHeader className="pb-3">
@@ -37,8 +48,17 @@ const WorkoutCard = ({ name, exercises, date, totalVolume, isFinalized, canReope
             </div>
             <div className="flex flex-col">
               <CardTitle className="text-lg">{displayName}</CardTitle>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-xs text-muted-foreground">{exercises} exercícios</span>
+                {sessionTypeBadge && (
+                  <>
+                    <span className="text-xs text-muted-foreground">•</span>
+                    <Badge variant={sessionTypeBadge.variant} className="text-xs h-5 gap-1">
+                      <sessionTypeBadge.icon className="h-3 w-3" />
+                      {sessionTypeBadge.label}
+                    </Badge>
+                  </>
+                )}
                 {intensity && (
                   <>
                     <span className="text-xs text-muted-foreground">•</span>
