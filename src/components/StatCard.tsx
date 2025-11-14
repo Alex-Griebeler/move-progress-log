@@ -15,8 +15,8 @@ const StatCard = ({ title, value, icon: Icon, subtitle, gradient }: StatCardProp
       <CardHeader className="pb-sm">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-muted-foreground leading-normal">{title}</CardTitle>
-          <div className={`p-sm rounded-md ${gradient ? 'bg-gradient-to-br from-primary to-accent' : 'bg-secondary'}`}>
-            <Icon className={`h-4 w-4 ${gradient ? 'text-white' : 'text-primary'}`} />
+          <div className={`p-sm rounded-radius-md ${gradient ? 'bg-gradient-to-br from-primary to-accent' : 'bg-secondary'}`}>
+            <Icon className={`h-4 w-4 ${gradient ? 'text-primary-foreground' : 'text-primary'}`} />
           </div>
         </div>
       </CardHeader>

@@ -28,7 +28,7 @@ const WorkoutCard = ({ name, exercises, date, totalVolume, isFinalized, canReope
   const intensity = getIntensityBadge(totalVolume);
   
   return (
-    <Card className="hover:shadow-lg transition-all duration-300 border-border/50 backdrop-blur-sm group">
+    <Card className="hover:shadow-premium transition-smooth border-border/50 backdrop-blur-sm group">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">

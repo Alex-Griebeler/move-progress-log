@@ -25,7 +25,7 @@ const OuraMetricsCard = ({ metrics }: OuraMetricsCardProps) => {
 
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-300">
+    <Card className="hover:shadow-premium transition-smooth">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

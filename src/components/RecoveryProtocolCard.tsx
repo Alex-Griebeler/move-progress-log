@@ -30,7 +30,7 @@ const RecoveryProtocolCard = ({ protocol }: RecoveryProtocolCardProps) => {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-300">
+    <Card className="hover:shadow-premium transition-smooth">
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2 flex-1">

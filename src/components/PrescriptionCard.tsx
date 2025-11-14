@@ -107,7 +107,7 @@ export function PrescriptionCard({
   const { data: folders } = useFolders();
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card className="hover:shadow-premium transition-smooth">
       <CardHeader>
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex-1 min-w-0">

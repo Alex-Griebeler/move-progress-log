@@ -1198,9 +1198,9 @@ export function RecordIndividualSessionDialog({
                     }
                     
                     return (
-                      <div key={idx} className="text-sm text-red-800 dark:text-red-200 bg-white dark:bg-red-900/50 p-2 rounded border border-red-200 dark:border-red-700">
+                      <div key={idx} className="text-sm text-destructive bg-destructive/10 p-sm rounded-radius-md border border-destructive/20">
                         <strong>Exercício #{idx + 1}:</strong> {ex.executed_exercise_name || '(sem nome)'}
-                        <ul className="list-disc list-inside ml-4 mt-1">
+                        <ul className="list-disc list-inside ml-lg mt-xs">
                           {issues.map((issue, i) => (
                             <li key={i}>{issue}</li>
                           ))}
@@ -1219,7 +1219,7 @@ export function RecordIndividualSessionDialog({
                         description: "Complete todos os dados antes de salvar",
                       });
                     }}
-                    className="bg-red-500 hover:bg-red-600 text-white"
+                    variant="destructive"
                   >
                     ✏️ Corrigir Agora
                   </Button>
