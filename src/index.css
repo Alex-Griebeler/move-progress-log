@@ -385,4 +385,148 @@ All colors MUST be HSL.
     clip: auto;
     white-space: normal;
   }
+
+  /* ===========================
+     PREMIUM DESIGN SYSTEM
+     =========================== */
+
+  /* Glassmorphism Effects */
+  .card-glass {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  }
+
+  .dark .card-glass {
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .card-glass-hover {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-glass-hover:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: hsl(var(--primary) / 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 12px 48px 0 hsl(var(--primary) / 0.15);
+  }
+
+  .dark .card-glass-hover:hover {
+    background: rgba(0, 0, 0, 0.08);
+  }
+
+  /* Premium Typography */
+  .text-display-xl {
+    font-size: 4rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .text-display-lg {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .text-display-md {
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .text-display-number {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" on, "lnum" on;
+  }
+
+  /* Shimmer Animation */
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 3s infinite;
+  }
+
+  /* Ring Progress Custom Styles */
+  .CircularProgressbar-path {
+    transition: stroke-dashoffset 0.5s ease 0s;
+  }
+
+  .CircularProgressbar-trail {
+    stroke: hsl(var(--muted));
+  }
+
+  /* Objective Badge Gradients */
+  .badge-emagrecimento {
+    background: linear-gradient(135deg, hsl(25 95% 95% / 0.2), hsl(0 84% 95% / 0.2));
+    border: 2px solid hsl(25 95% 53% / 0.3);
+    color: hsl(25 95% 40%);
+  }
+
+  .dark .badge-emagrecimento {
+    background: linear-gradient(135deg, hsl(25 95% 20% / 0.2), hsl(0 84% 20% / 0.2));
+    color: hsl(25 95% 70%);
+  }
+
+  .badge-hipertrofia {
+    background: linear-gradient(135deg, hsl(221 83% 95% / 0.2), hsl(271 91% 95% / 0.2));
+    border: 2px solid hsl(221 83% 53% / 0.3);
+    color: hsl(221 83% 40%);
+  }
+
+  .dark .badge-hipertrofia {
+    background: linear-gradient(135deg, hsl(221 83% 20% / 0.2), hsl(271 91% 20% / 0.2));
+    color: hsl(221 83% 70%);
+  }
+
+  .badge-saude {
+    background: linear-gradient(135deg, hsl(346 77% 95% / 0.2), hsl(330 81% 95% / 0.2));
+    border: 2px solid hsl(346 77% 50% / 0.3);
+    color: hsl(346 77% 40%);
+  }
+
+  .dark .badge-saude {
+    background: linear-gradient(135deg, hsl(346 77% 20% / 0.2), hsl(330 81% 20% / 0.2));
+    color: hsl(346 77% 70%);
+  }
+
+  .badge-performance {
+    background: linear-gradient(135deg, hsl(142 76% 95% / 0.2), hsl(160 84% 95% / 0.2));
+    border: 2px solid hsl(142 76% 45% / 0.3);
+    color: hsl(142 76% 35%);
+  }
+
+  .dark .badge-performance {
+    background: linear-gradient(135deg, hsl(142 76% 20% / 0.2), hsl(160 84% 20% / 0.2));
+    color: hsl(142 76% 70%);
+  }
+
+  .badge-reabilitacao {
+    background: linear-gradient(135deg, hsl(48 96% 95% / 0.2), hsl(38 92% 95% / 0.2));
+    border: 2px solid hsl(48 96% 53% / 0.3);
+    color: hsl(48 96% 40%);
+  }
+
+  .dark .badge-reabilitacao {
+    background: linear-gradient(135deg, hsl(48 96% 20% / 0.2), hsl(38 92% 20% / 0.2));
+    color: hsl(48 96% 70%);
+  }
+
+  /* Pulse animation for alerts */
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
 }
