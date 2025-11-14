@@ -7,7 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useUpdatePrescription, usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
-import { Plus } from "lucide-react";
+import { usePrescriptionDraft } from "@/hooks/usePrescriptionDraft";
+import { Plus, Save, History, Trash2 } from "lucide-react";
+import { PrescriptionDraftHistoryDialog } from "@/components/PrescriptionDraftHistoryDialog";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -76,10 +80,16 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   ]);
   const [loadingRegressions, setLoadingRegressions] = useState<number | null>(null);
   const [focusedExerciseIndex, setFocusedExerciseIndex] = useState<number | null>(null);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const { data: prescriptionData } = usePrescriptionDetails(prescriptionId);
   const { data: exercisesLibrary } = useExercisesLibrary();
   const updatePrescription = useUpdatePrescription();
+  
+  // Chave única para cada prescrição sendo editada
+  const draftKey = prescriptionId ? `prescription-draft-edit-${prescriptionId}` : 'prescription-draft-edit';
+  const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = usePrescriptionDraft(draftKey);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -102,7 +112,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
 
   // Load prescription data when dialog opens
   useEffect(() => {
-    if (prescriptionData && open) {
+    if (prescriptionData && open && !dataLoaded) {
       setName(prescriptionData.name);
       setObjective(prescriptionData.objective || "");
       
@@ -127,8 +137,46 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
           }))
         );
       }
+      setDataLoaded(true);
     }
-  }, [prescriptionData, open]);
+  }, [prescriptionData, open, dataLoaded]);
+
+  // Carregar rascunho após dados originais (sobrescreve se houver)
+  useEffect(() => {
+    if (open && dataLoaded && draft) {
+      setName(draft.name);
+      setObjective(draft.objective);
+      setExercises(draft.exercises);
+    }
+  }, [open, dataLoaded, draft]);
+
+  // Resetar estado ao fechar
+  useEffect(() => {
+    if (!open) {
+      setDataLoaded(false);
+    }
+  }, [open]);
+
+  // Auto-save quando dados mudarem
+  useEffect(() => {
+    if (open && dataLoaded && (name || objective || exercises.some(ex => ex.exercise_library_id))) {
+      saveDraft({ name, objective, exercises });
+    }
+  }, [name, objective, exercises, open, dataLoaded, saveDraft]);
+
+  // Proteção ao navegar
+  useEffect(() => {
+    if (!open) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      if (name || objective || exercises.some(ex => ex.exercise_library_id)) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [open, name, objective, exercises]);
 
   const addExercise = (afterIndex?: number) => {
     const newExercise = {
@@ -296,14 +344,67 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       })),
     });
 
+    // Limpar rascunho após sucesso
+    clearDraft();
+    
     onOpenChange(false);
+  };
+
+  const handleClose = () => {
+    const hasContent = name || objective || exercises.some(ex => ex.exercise_library_id);
+    
+    if (hasContent) {
+      const confirmed = confirm(
+        'Você tem alterações não salvas. Seu rascunho foi salvo automaticamente. Deseja sair?'
+      );
+      if (!confirmed) return;
+    }
+    
+    onOpenChange(false);
+  };
+
+  const handleRestoreDraft = (draftData: any) => {
+    setName(draftData.name);
+    setObjective(draftData.objective);
+    setExercises(draftData.exercises);
+    restoreDraft(draftData);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Editar Prescrição</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Editar Prescrição</DialogTitle>
+            <div className="flex items-center gap-2">
+              {lastSaved && (
+                <Badge variant="outline" className="gap-1">
+                  <Save className="h-3 w-3" />
+                  {formatDistanceToNow(lastSaved, { locale: ptBR, addSuffix: true })}
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setHistoryDialogOpen(true)}
+                className="gap-2"
+              >
+                <History className="h-4 w-4" />
+                Histórico
+              </Button>
+              {draft && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearDraft}
+                  className="gap-2 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Limpar
+                </Button>
+              )}
+            </div>
+          </div>
           {exercises.length > 0 && (
             <div className="flex items-center gap-2 pt-2">
               <Badge variant="secondary" className="text-sm">
@@ -397,7 +498,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
         </ScrollArea>
 
         <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
           <Button onClick={handleSubmit} disabled={updatePrescription.isPending}>
@@ -406,6 +507,12 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
         </div>
         </TooltipProvider>
       </DialogContent>
+
+      <PrescriptionDraftHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        onRestoreDraft={handleRestoreDraft}
+      />
     </Dialog>
   );
 }
