@@ -4,7 +4,7 @@ import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
 import { ImportSessionsDialog } from "@/components/ImportSessionsDialog";
-import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit, Info, Database, Trash2 } from "lucide-react";
+import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit, Info, Database, Trash2, User, Filter } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ const Index = () => {
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [isPopulating, setIsPopulating] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'individual' | 'group'>('all');
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -268,22 +269,106 @@ const Index = () => {
             <h2 className="text-xl font-bold text-foreground">{NAV_LABELS.sectionRecentSessions}</h2>
           </div>
           
+          {/* Filtros de tipo de sessão */}
+          {recentWorkouts && recentWorkouts.length > 0 && (
+            <Card className="p-4 mb-4">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Filtrar por tipo:</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant={sessionTypeFilter === 'all' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSessionTypeFilter('all')}
+                    className="gap-1.5"
+                  >
+                    Todas
+                    <Badge variant={sessionTypeFilter === 'all' ? 'secondary' : 'outline'} className="ml-1">
+                      {recentWorkouts.length}
+                    </Badge>
+                  </Button>
+                  <Button
+                    variant={sessionTypeFilter === 'individual' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSessionTypeFilter('individual')}
+                    className="gap-1.5"
+                  >
+                    <User className="h-3.5 w-3.5" />
+                    Individual
+                    <Badge variant={sessionTypeFilter === 'individual' ? 'secondary' : 'outline'} className="ml-1">
+                      {recentWorkouts.filter(w => w.session_type === 'individual').length}
+                    </Badge>
+                  </Button>
+                  <Button
+                    variant={sessionTypeFilter === 'group' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSessionTypeFilter('group')}
+                    className="gap-1.5"
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    Grupo
+                    <Badge variant={sessionTypeFilter === 'group' ? 'secondary' : 'outline'} className="ml-1">
+                      {recentWorkouts.filter(w => w.session_type === 'group').length}
+                    </Badge>
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {workoutsLoading ? (
               <p className="text-muted-foreground col-span-full text-center py-8">
                 Carregando sessões...
               </p>
             ) : recentWorkouts && recentWorkouts.length > 0 ? (
-              recentWorkouts.map((workout) => (
-                <WorkoutCard
-                  key={workout.id}
-                  name={workout.student_name}
-                  exercises={workout.total_exercises}
-                  date={workout.date}
-                  sessionType={workout.session_type}
-                  totalVolume={workout.total_volume}
-                />
-              ))
+              recentWorkouts
+                .filter(workout => {
+                  if (sessionTypeFilter === 'all') return true;
+                  return workout.session_type === sessionTypeFilter;
+                })
+                .length > 0 ? (
+                recentWorkouts
+                  .filter(workout => {
+                    if (sessionTypeFilter === 'all') return true;
+                    return workout.session_type === sessionTypeFilter;
+                  })
+                  .map((workout) => (
+                    <WorkoutCard
+                      key={workout.id}
+                      name={workout.student_name}
+                      exercises={workout.total_exercises}
+                      date={workout.date}
+                      sessionType={workout.session_type}
+                      totalVolume={workout.total_volume}
+                    />
+                  ))
+              ) : (
+                <Card className="border-dashed col-span-full">
+                  <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+                    <div className="rounded-full bg-muted p-4">
+                      <Calendar className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <div className="text-center space-y-2">
+                      <h3 className="text-lg font-semibold">
+                        Nenhuma sessão {sessionTypeFilter === 'individual' ? 'individual' : 'em grupo'} encontrada
+                      </h3>
+                      <p className="text-muted-foreground text-sm max-w-md">
+                        Não há sessões {sessionTypeFilter === 'individual' ? 'individuais' : 'em grupo'} registradas
+                      </p>
+                    </div>
+                    <Button 
+                      variant="outline"
+                      onClick={() => setSessionTypeFilter('all')}
+                      className="gap-2 mt-4"
+                    >
+                      Ver todas as sessões
+                    </Button>
+                  </CardContent>
+                </Card>
+              )
             ) : (
               <Card className="border-dashed col-span-full">
                 <CardContent className="flex flex-col items-center justify-center py-16 space-y-6">
