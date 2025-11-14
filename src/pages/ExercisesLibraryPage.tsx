@@ -145,7 +145,7 @@ export default function ExercisesLibraryPage() {
         title={NAV_LABELS.exercises}
         subtitle={NAV_LABELS.subtitleExercises}
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-xs">
             <Button
               variant="outline"
               onClick={handlePopulateDatabase}
@@ -164,7 +164,7 @@ export default function ExercisesLibraryPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-xs">
               <Filter className="h-5 w-5" />
               <CardTitle>{NAV_LABELS.sectionFilters}</CardTitle>
             </div>
@@ -176,7 +176,7 @@ export default function ExercisesLibraryPage() {
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-md">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -186,8 +186,8 @@ export default function ExercisesLibraryPage() {
               className="pl-9"
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-md">
+          <div className="space-y-xs">
             <label className="text-sm font-medium">Padrão de Movimento</label>
             <Select
               value={filters.movement_pattern || "all"}
@@ -341,7 +341,7 @@ export default function ExercisesLibraryPage() {
           />
         )
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
           {filteredExercises.map((exercise) => (
             <Card key={exercise.id}>
               <CardHeader>

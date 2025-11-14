@@ -97,10 +97,10 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent>
         {/* Logo - sem border para alinhamento */}
-        <div className="h-14 flex items-center px-4">
+        <div className="h-14 flex items-center px-md">
           <NavLink 
             to={ROUTES.dashboard} 
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            className="flex items-center gap-sm hover:opacity-80 transition-opacity"
             aria-label="Página inicial - Fabrik Performance"
           >
             <img 

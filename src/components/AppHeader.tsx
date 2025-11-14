@@ -37,15 +37,15 @@ export const AppHeader = ({
   };
 
   return (
-    <header className="mb-6 pb-4 border-b border-border">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <header className="mb-lg pb-md border-b border-border">
+      <div className="flex items-center justify-between flex-wrap gap-md">
         <div className="space-y-xs">
           <h1 className="text-4xl font-bold text-primary tracking-tight leading-tight">
             {title}
           </h1>
           <p className="text-base text-muted-foreground leading-normal">{subtitle}</p>
         </div>
-        <div className="flex gap-2 items-center flex-wrap">
+        <div className="flex gap-xs items-center flex-wrap">
           {actions}
         </div>
       </div>

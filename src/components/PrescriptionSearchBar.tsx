@@ -77,7 +77,7 @@ export function PrescriptionSearchBar({
 
   return (
     <TooltipProvider>
-      <div className="space-y-3">
+      <div className="space-y-sm">
         {/* Main search bar */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -102,7 +102,7 @@ export function PrescriptionSearchBar({
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-xs">
         {/* Folder filter */}
         <Select
           value={activeFilters.folderId === null ? "no-folder" : activeFilters.folderId || "all"}
@@ -155,7 +155,7 @@ export function PrescriptionSearchBar({
 
         {/* Active filter indicator and clear button */}
         {hasActiveFilters && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-xs">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Badge variant="secondary" className="gap-1.5 cursor-help">
