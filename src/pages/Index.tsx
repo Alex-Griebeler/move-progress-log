@@ -5,6 +5,8 @@ import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
 import { ImportSessionsDialog } from "@/components/ImportSessionsDialog";
 import { SessionDetailDialog } from "@/components/SessionDetailDialog";
+import { StatCardSkeleton } from "@/components/skeletons/StatCardSkeleton";
+import { WorkoutCardSkeleton } from "@/components/skeletons/WorkoutCardSkeleton";
 import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit, Info, Database, Trash2, User, Filter } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
@@ -137,7 +139,7 @@ const Index = () => {
         id="breadcrumb-schema" 
       />
       
-      <div id="main-content" className="container mx-auto px-4 py-8 max-w-7xl" role="main">
+      <div id="main-content" className="container mx-auto px-4 py-8 max-w-7xl animate-fade-in" role="main">
         {/* Header */}
         <AppHeader
           actions={
@@ -238,32 +240,43 @@ const Index = () => {
 
         {/* Stats Grid */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-          <StatCard
-            title={NAV_LABELS.statTotalSessions}
-            value={statsLoading ? "..." : stats?.totalSessions || 0}
-            icon={Dumbbell}
-            subtitle="Total consolidado"
-            gradient
-          />
-          <StatCard
-            title={NAV_LABELS.statThisMonth}
-            value={statsLoading ? "..." : stats?.thisMonth || 0}
-            icon={Calendar}
-            subtitle="Sessões em outubro"
-          />
-          <StatCard
-            title={NAV_LABELS.statActiveStudents}
-            value={statsLoading ? "..." : stats?.activeStudents || 0}
-            icon={Users}
-            subtitle="Com treinos regulares"
-            onClick={() => navigate('/students')}
-          />
-          <StatCard
-            title={NAV_LABELS.statAvgLoad}
-            value={statsLoading ? "..." : `${stats?.avgLoad || 0}kg`}
-            icon={TrendingUp}
-            subtitle="Por sessão"
-          />
+          {statsLoading ? (
+            <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </>
+          ) : (
+            <>
+              <StatCard
+                title={NAV_LABELS.statTotalSessions}
+                value={stats?.totalSessions || 0}
+                icon={Dumbbell}
+                subtitle="Total consolidado"
+                gradient
+              />
+              <StatCard
+                title={NAV_LABELS.statThisMonth}
+                value={stats?.thisMonth || 0}
+                icon={Calendar}
+                subtitle="Sessões em outubro"
+              />
+              <StatCard
+                title={NAV_LABELS.statActiveStudents}
+                value={stats?.activeStudents || 0}
+                icon={Users}
+                subtitle="Com treinos regulares"
+                onClick={() => navigate('/students')}
+              />
+              <StatCard
+                title={NAV_LABELS.statAvgLoad}
+                value={`${stats?.avgLoad || 0}kg`}
+                icon={TrendingUp}
+                subtitle="Por sessão"
+              />
+            </>
+          )}
         </section>
 
         {/* Recent Workouts */}
@@ -327,9 +340,11 @@ const Index = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {workoutsLoading ? (
-              <p className="text-muted-foreground col-span-full text-center py-8">
-                Carregando sessões...
-              </p>
+              <>
+                <WorkoutCardSkeleton />
+                <WorkoutCardSkeleton />
+                <WorkoutCardSkeleton />
+              </>
             ) : recentWorkouts && recentWorkouts.length > 0 ? (
               recentWorkouts
                 .filter(workout => {

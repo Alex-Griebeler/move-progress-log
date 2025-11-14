@@ -15,6 +15,7 @@ import { PrescriptionSearchBar } from "@/components/PrescriptionSearchBar";
 import { FolderSection } from "@/components/FolderSection";
 import { AppHeader } from "@/components/AppHeader";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { PrescriptionCardSkeleton } from "@/components/skeletons/PrescriptionCardSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
@@ -258,7 +259,7 @@ export default function PrescriptionsPage() {
   const noFolderPrescriptions = groupedPrescriptions['no-folder'] || [];
 
   return (
-    <div id="main-content" className="min-h-screen bg-background p-8" role="main">
+    <div id="main-content" className="min-h-screen bg-background p-8 animate-fade-in" role="main">
       {/* Structured Data */}
       <StructuredData data={getOrganizationSchema()} id="org-schema" />
       <StructuredData 
@@ -334,7 +335,11 @@ export default function PrescriptionsPage() {
         )}
 
         {isLoading ? (
-          <LoadingSpinner text="Carregando prescrições..." />
+          <div className="space-y-4">
+            {[...Array(4)].map((_, i) => (
+              <PrescriptionCardSkeleton key={i} />
+            ))}
+          </div>
         ) : hasContent ? (
           <DndContext
             sensors={sensors}

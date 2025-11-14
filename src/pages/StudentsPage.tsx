@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
+import { StudentCardSkeleton } from "@/components/skeletons/StudentCardSkeleton";
 import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
@@ -130,7 +131,7 @@ const StudentsPage = () => {
 
     return (
       <>
-        <Card className="hover:shadow-lg transition-shadow">
+        <Card className="animate-fade-in hover:shadow-lg transition-shadow">
           <CardHeader>
             <CardTitle className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
@@ -318,7 +319,7 @@ const StudentsPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background animate-fade-in">
       {/* Structured Data para SEO */}
       <StructuredData data={getOrganizationSchema()} id="org-schema" />
       <StructuredData 
@@ -407,15 +408,7 @@ const StudentsPage = () => {
         {isLoading ? (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
-              <Card key={i}>
-                <CardHeader>
-                  <Skeleton className="h-6 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-10 w-full" />
-                </CardContent>
-              </Card>
+              <StudentCardSkeleton key={i} />
             ))}
           </div>
         ) : filteredStudents && filteredStudents.length > 0 ? (

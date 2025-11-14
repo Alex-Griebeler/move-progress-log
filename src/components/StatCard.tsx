@@ -13,7 +13,7 @@ interface StatCardProps {
 const StatCard = ({ title, value, icon: Icon, subtitle, gradient, onClick }: StatCardProps) => {
   return (
     <Card 
-      className={`hover:shadow-premium transition-smooth ${gradient ? 'bg-gradient-card border-primary/20' : ''} ${onClick ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]' : ''}`}
+      className={`animate-fade-in hover:shadow-premium transition-smooth ${gradient ? 'bg-gradient-card border-primary/20' : ''} ${onClick ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]' : ''}`}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
