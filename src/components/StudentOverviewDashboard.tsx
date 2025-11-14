@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, Calendar, TrendingUp, Target, AlertCircle, Activity, Heart, User, Flame, Zap } from "lucide-react";
+import { Dumbbell, Calendar, TrendingUp, Target, AlertCircle, Activity, Heart, User, Flame, Zap, X } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -13,8 +13,9 @@ import TrainingZonesCard from "./TrainingZonesCard";
 import { StudentObservationsCard } from "./StudentObservationsCard";
 import ProtocolRecommendationsCard from "./ProtocolRecommendationsCard";
 import { OuraConnectionStatus } from "./OuraConnectionStatus";
+import { OuraRingsSkeleton } from "./skeletons/OuraRingsSkeleton";
 import { useOuraTrends } from "@/hooks/useOuraTrends";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
@@ -131,8 +132,23 @@ export const StudentOverviewDashboard = ({
     return differenceInMonths(new Date(), new Date(student.created_at));
   }, [student.created_at]);
 
+  // Medical alert dismiss state
+  const [medicalAlertDismissed, setMedicalAlertDismissed] = useState(false);
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem(`medical-alert-dismissed-${student.id}`);
+    if (dismissed === 'true') {
+      setMedicalAlertDismissed(true);
+    }
+  }, [student.id]);
+
+  const handleDismissMedicalAlert = () => {
+    localStorage.setItem(`medical-alert-dismissed-${student.id}`, 'true');
+    setMedicalAlertDismissed(true);
+  };
+
   // Fetch Oura trends
-  const { data: ouraTrends } = useOuraTrends(student.id);
+  const { data: ouraTrends, isLoading: trendsLoading } = useOuraTrends(student.id);
 
   // Format Oura date
   const ouraDateLabel = useMemo(() => {
@@ -319,7 +335,9 @@ export const StudentOverviewDashboard = ({
           </CardHeader>
           <CardContent>
             {ouraConnection?.is_active ? (
-              latestOuraMetrics ? (
+              trendsLoading ? (
+                <OuraRingsSkeleton />
+              ) : latestOuraMetrics ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-lg">
                   {/* Readiness Ring */}
                   <TooltipProvider>
@@ -542,23 +560,35 @@ export const StudentOverviewDashboard = ({
       </motion.div>
 
       {/* Medical Considerations - Premium Alert */}
-      {(student.limitations || student.injury_history) && (
+      {(student.limitations || student.injury_history) && !medicalAlertDismissed && (
         <motion.div variants={cardVariants}>
-          <Card className="relative overflow-hidden border-2 border-warning bg-gradient-to-br from-warning/5 via-warning/10 to-warning/5">
-            {/* Animated shimmer effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-warning/20 to-transparent animate-shimmer" />
+          <Card className="relative overflow-hidden border-2 border-warning/50 bg-gradient-to-br from-warning/5 via-background to-warning/5">
+            {/* Subtle Corner Shimmer */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-warning/20 via-transparent to-transparent animate-shimmer pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-warning/20 via-transparent to-transparent animate-shimmer pointer-events-none" />
             
             <CardHeader className="relative z-10">
-              <CardTitle className="flex items-center gap-sm text-warning-foreground">
-                <div className="p-2 bg-warning/20 rounded-full">
-                  <AlertCircle className="h-6 w-6 text-warning animate-pulse-slow" />
-                </div>
-                ⚠️ Considerações Médicas Críticas
-              </CardTitle>
+              <div className="flex items-start justify-between gap-md">
+                <CardTitle className="flex items-center gap-sm text-warning-foreground">
+                  <div className="p-2 bg-warning/20 rounded-full">
+                    <AlertCircle className="h-5 w-5 text-warning animate-pulse-slow" />
+                  </div>
+                  ⚠️ Considerações Médicas Importantes
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-warning/10"
+                  onClick={handleDismissMedicalAlert}
+                  aria-label="Dispensar alerta"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-md relative z-10">
               {student.limitations && (
-                <div className="p-md rounded-lg bg-background/50 border border-warning/20">
+                <div className="p-md rounded-lg bg-background/70 border border-warning/30">
                   <h4 className="text-sm font-semibold mb-sm text-warning-foreground flex items-center gap-xs">
                     <AlertCircle className="h-4 w-4" />
                     Limitações:
@@ -567,7 +597,7 @@ export const StudentOverviewDashboard = ({
                 </div>
               )}
               {student.injury_history && (
-                <div className="p-md rounded-lg bg-background/50 border border-warning/20">
+                <div className="p-md rounded-lg bg-background/70 border border-warning/30">
                   <h4 className="text-sm font-semibold mb-sm text-warning-foreground flex items-center gap-xs">
                     <AlertCircle className="h-4 w-4" />
                     Histórico de Lesões:
