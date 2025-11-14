@@ -12,6 +12,15 @@ import { DraftHistoryDialog } from "./DraftHistoryDialog";
 import { SessionDraft } from "@/hooks/useSessionDraftHistory";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { 
+  POUND_TO_KG_CONVERSION, 
+  MIN_LOAD_KG, 
+  MAX_LOAD_KG, 
+  roundToDecimal,
+  poundsToKg,
+  isValidLoad,
+  getLoadErrorMessage 
+} from "@/constants/units";
 
 interface ManualSessionEntryProps {
   prescriptionExercises: Array<{
@@ -189,11 +198,6 @@ export function ManualSessionEntry({
     });
   };
 
-  // Função auxiliar de arredondamento para 1 casa decimal
-  const roundToOneDecimal = (value: number): number => {
-    return Math.round(value * 10) / 10;
-  };
-
   // Função para calcular a carga baseada na descrição (alinhada com registro por voz)
   const calculateLoadFromDescription = (studentId: string, exerciseIndex: number) => {
     const exercise = studentExercises[studentId]?.[exerciseIndex];
@@ -210,13 +214,13 @@ export function ManualSessionEntry({
       const bodyCorporalWithValue = breakdown.match(/Peso corporal\s*=\s*(\d+(?:[.,]\d+)?)\s*kg/i);
       if (bodyCorporalWithValue) {
         const value = parseFloat(bodyCorporalWithValue[1].replace(',', '.'));
-        updateExercise(studentId, exerciseIndex, 'load_kg', roundToOneDecimal(value));
+        updateExercise(studentId, exerciseIndex, 'load_kg', roundToDecimal(value));
         return;
       }
 
       // 2. PESO CORPORAL SEM VALOR → usar peso do aluno
       if (/peso\s*corporal/i.test(breakdown) && !bodyCorporalWithValue) {
-        updateExercise(studentId, exerciseIndex, 'load_kg', student?.weight_kg ? roundToOneDecimal(student.weight_kg) : null);
+        updateExercise(studentId, exerciseIndex, 'load_kg', student?.weight_kg ? roundToDecimal(student.weight_kg) : null);
         return;
       }
 
@@ -239,11 +243,11 @@ export function ManualSessionEntry({
           total += value * 2;
         }
 
-        // LB dentro do parêntese (converter para kg: 1 lb = 0.45 kg)
+        // LB dentro do parêntese (usar constante global)
         const lbMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
         for (const m of lbMatches) {
           const value = parseFloat(m[1].replace(',', '.'));
-          const kg = value * 0.45;
+          const kg = poundsToKg(value);
           total += kg * 2;
         }
       }
@@ -253,7 +257,7 @@ export function ManualSessionEntry({
       if (multiKbMatch && !processedEachSide) {
         const value = parseFloat(multiKbMatch[2].replace(',', '.'));
         const unit = multiKbMatch[3].toLowerCase();
-        const kg = unit === 'lb' ? value * 0.45 : value;
+        const kg = unit === 'lb' ? poundsToKg(value) : value;
         total += kg * 2;
       }
 
@@ -277,17 +281,17 @@ export function ManualSessionEntry({
           }
         }
 
-        // LB simples (converter: 1 lb = 0.45 kg)
+        // LB simples (usar constante global)
         const lbMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
         for (const m of lbMatches) {
           const value = parseFloat(m[1].replace(',', '.'));
-          const kg = value * 0.45;
+          const kg = poundsToKg(value);
           total += kg;
         }
       }
 
-      // 8. ARREDONDAR PARA 1 CASA DECIMAL
-      const finalLoad = total > 0 ? roundToOneDecimal(total) : null;
+      // 8. ARREDONDAR PARA 1 CASA DECIMAL usando função global
+      const finalLoad = total > 0 ? roundToDecimal(total) : null;
       updateExercise(studentId, exerciseIndex, 'load_kg', finalLoad);
 
     } catch (error) {
@@ -621,8 +625,13 @@ export function ManualSessionEntry({
                       <Input
                         type="number"
                         step="0.1"
+                        min={MIN_LOAD_KG}
+                        max={MAX_LOAD_KG}
                         value={exercise.load_kg || ''}
-                        onChange={(e) => updateExercise(currentStudent.id, idx, 'load_kg', parseFloat(e.target.value) || null)}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || null;
+                          updateExercise(currentStudent.id, idx, 'load_kg', value);
+                        }}
                         disabled={exercise.load_breakdown.toLowerCase().includes('peso corporal')}
                         className={requiresReview ? 'border-amber-500 focus-visible:ring-amber-500' : ''}
                       />
@@ -630,6 +639,12 @@ export function ManualSessionEntry({
                         <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                           <AlertTriangle className="h-3 w-3" />
                           Carga não calculada. Insira manualmente.
+                        </p>
+                      )}
+                      {exercise.load_kg !== null && !isValidLoad(exercise.load_kg) && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          {getLoadErrorMessage(exercise.load_kg)}
                         </p>
                       )}
                     </div>
