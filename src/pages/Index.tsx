@@ -4,6 +4,7 @@ import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
 import { ImportSessionsDialog } from "@/components/ImportSessionsDialog";
+import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit, Info, Database, Trash2, User, Filter } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
@@ -48,6 +49,7 @@ const Index = () => {
   const [isPopulating, setIsPopulating] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'individual' | 'group'>('all');
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -343,6 +345,7 @@ const Index = () => {
                       date={workout.date}
                       sessionType={workout.session_type}
                       totalVolume={workout.total_volume}
+                      onClick={() => setSelectedSessionId(workout.id)}
                     />
                   ))
               ) : (
@@ -408,6 +411,12 @@ const Index = () => {
       <ImportSessionsDialog 
         open={importDialogOpen} 
         onOpenChange={setImportDialogOpen}
+      />
+
+      <SessionDetailDialog
+        sessionId={selectedSessionId}
+        open={!!selectedSessionId}
+        onOpenChange={(open) => !open && setSelectedSessionId(null)}
       />
     </div>
   );

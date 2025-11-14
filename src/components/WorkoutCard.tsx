@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, TrendingUp, FolderOpen, Lock, Edit, User, Users } from "lucide-react";
+import { Dumbbell, TrendingUp, FolderOpen, Lock, Edit, User, Users, Eye } from "lucide-react";
 
 interface WorkoutCardProps {
   name: string;
@@ -14,9 +14,21 @@ interface WorkoutCardProps {
   onReopen?: () => void;
   onEdit?: () => void;
   sessionId?: string;
+  onClick?: () => void;
 }
 
-const WorkoutCard = ({ name, exercises, date, sessionType, totalVolume, isFinalized, canReopen, onReopen, onEdit, sessionId }: WorkoutCardProps) => {
+const WorkoutCard = ({ 
+  name, 
+  exercises, 
+  date, 
+  sessionType, 
+  totalVolume, 
+  isFinalized, 
+  canReopen, 
+  onReopen, 
+  onEdit, 
+  onClick 
+}: WorkoutCardProps) => {
   const displayName = name?.trim() || 'Aluno Desconhecido';
   
   const getIntensityBadge = (volume: number | undefined) => {
@@ -39,7 +51,10 @@ const WorkoutCard = ({ name, exercises, date, sessionType, totalVolume, isFinali
   const sessionTypeBadge = getSessionTypeBadge();
   
   return (
-    <Card className="hover:shadow-premium transition-smooth border-border/50 backdrop-blur-sm group">
+    <Card 
+      className={`hover:shadow-premium transition-smooth border-border/50 backdrop-blur-sm group ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
@@ -87,7 +102,7 @@ const WorkoutCard = ({ name, exercises, date, sessionType, totalVolume, isFinali
         )}
         
         {isFinalized && (
-          <div className="flex items-center justify-between gap-2">
+          <div className="space-y-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Lock className="h-3 w-3" />
               <span>Sessão Finalizada</span>
@@ -95,7 +110,10 @@ const WorkoutCard = ({ name, exercises, date, sessionType, totalVolume, isFinali
             <div className="flex gap-2">
               {onEdit && (
                 <Button 
-                  onClick={onEdit}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit();
+                  }}
                   variant="outline"
                   size="sm"
                   className="h-8 gap-2"
@@ -106,7 +124,10 @@ const WorkoutCard = ({ name, exercises, date, sessionType, totalVolume, isFinali
               )}
               {canReopen && onReopen && (
                 <Button 
-                  onClick={onReopen}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReopen();
+                  }}
                   variant="outline"
                   size="sm"
                   className="h-8 gap-2"
@@ -116,6 +137,15 @@ const WorkoutCard = ({ name, exercises, date, sessionType, totalVolume, isFinali
                 </Button>
               )}
             </div>
+          </div>
+        )}
+        
+        {onClick && (
+          <div className="flex items-center justify-center pt-2 border-t">
+            <Eye className="h-4 w-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground ml-1">
+              Clique para ver detalhes completos
+            </span>
           </div>
         )}
       </CardContent>

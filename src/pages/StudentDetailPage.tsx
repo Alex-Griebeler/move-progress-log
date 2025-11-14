@@ -31,6 +31,7 @@ import PersonalizedTrainingDashboard from "@/components/PersonalizedTrainingDash
 import { StudentObservationsCard } from "@/components/StudentObservationsCard";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
+import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState, useMemo } from "react";
@@ -59,6 +60,7 @@ const StudentDetailPage = () => {
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'individual' | 'group'>('all');
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const deleteAssignment = useDeletePrescriptionAssignment();
   const reopenSession = useReopenWorkoutSession();
 
@@ -445,6 +447,7 @@ const StudentDetailPage = () => {
                         }
                       });
                     }}
+                    onClick={() => setSelectedSessionId(session.id)}
                   />
                 );
               })}
@@ -766,13 +769,26 @@ const StudentDetailPage = () => {
         onOpenChange={(open) => !open && setEditingSessionId(null)}
         sessionId={editingSessionId}
         onSuccess={() => {
-          // Refetch sessions after successful edit
           window.location.reload();
         }}
         onReopenForRecording={(sessionId) => {
           setEditingSessionId(null);
           setSessionToReopen(sessionId);
           setRecordSessionOpen(true);
+        }}
+      />
+
+      <SessionDetailDialog
+        sessionId={selectedSessionId}
+        open={!!selectedSessionId}
+        onOpenChange={(open) => !open && setSelectedSessionId(null)}
+        onReopenSession={(sessionId) => {
+          reopenSession.mutate(sessionId, {
+            onSuccess: () => {
+              setSessionToReopen(sessionId);
+              setRecordSessionOpen(true);
+            }
+          });
         }}
       />
     </div>
