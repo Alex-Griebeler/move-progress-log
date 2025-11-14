@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { PageLayout } from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -58,7 +59,7 @@ export default function StudentReportsPage() {
         <div>
           <Button
             variant="ghost"
-            onClick={() => navigate(`/students/${studentId}`)}
+            onClick={() => navigate(ROUTES.studentDetail(studentId!))}
             className="mb-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />

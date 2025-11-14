@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { useStudents } from "@/hooks/useStudents";
 import { useStudentPrescriptions, useSessionsWithExercises } from "@/hooks/useStudentDetail";
 import { useDeletePrescriptionAssignment } from "@/hooks/usePrescriptions";
@@ -93,7 +94,7 @@ const StudentDetailPage = () => {
       <div className="container mx-auto p-6">
         <div className="text-center">
           <h2 className="text-2xl font-bold mb-4">Aluno não encontrado</h2>
-          <Button onClick={() => navigate("/alunos")}>Voltar</Button>
+          <Button onClick={() => navigate(ROUTES.students)}>Voltar</Button>
         </div>
       </div>
     );
@@ -160,7 +161,7 @@ const StudentDetailPage = () => {
       
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")} aria-label="Voltar para lista de alunos">
+          <Button variant="ghost" size="icon" onClick={() => navigate(ROUTES.students)} aria-label="Voltar para lista de alunos">
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Avatar className="h-16 w-16">
@@ -182,7 +183,7 @@ const StudentDetailPage = () => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
-                  onClick={() => navigate(`/alunos/${id}/relatorios`)} 
+                  onClick={() => navigate(ROUTES.studentReports(id!))} 
                   className="gap-2"
                   variant="outline"
                   aria-label="Ver Relatórios"

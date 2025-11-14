@@ -46,7 +46,7 @@ const AdminDiagnosticsPage = () => {
             Você não tem permissão para acessar esta página. Apenas administradores podem ver o diagnóstico da API Oura.
           </AlertDescription>
         </Alert>
-        <Button onClick={() => navigate("/alunos")} className="mt-4">
+        <Button onClick={() => navigate(ROUTES.students)} className="mt-4">
           Voltar para Alunos
         </Button>
       </div>
@@ -67,7 +67,7 @@ const AdminDiagnosticsPage = () => {
           title={NAV_LABELS.adminDiagnostics}
           subtitle={NAV_LABELS.subtitleDiagnostics}
           actions={
-            <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")}>
+            <Button variant="ghost" size="icon" onClick={() => navigate(ROUTES.students)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
           }
@@ -95,7 +95,7 @@ const AdminDiagnosticsPage = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/alunos/${student.id}`)}
+                    onClick={() => navigate(ROUTES.studentDetail(student.id))}
                   >
                     Ver Detalhes
                   </Button>

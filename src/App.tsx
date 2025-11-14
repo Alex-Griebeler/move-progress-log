@@ -11,6 +11,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { ROUTES } from "@/constants/navigation";
 
 // AUD-009: Code splitting por rota para reduzir bundle size inicial
 const Index = lazy(() => import("./pages/Index"));
@@ -44,11 +45,11 @@ const App = () => (
           <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>
             <Routes>
               {/* Public routes without sidebar */}
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path={ROUTES.auth} element={<AuthPage />} />
+              <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
               <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
-              <Route path="/onboarding/success" element={<OnboardingSuccessPage />} />
-              <Route path="/onboarding/oura-error" element={<OuraErrorPage />} />
+              <Route path={ROUTES.onboardingSuccess} element={<OnboardingSuccessPage />} />
+              <Route path={ROUTES.ouraError} element={<OuraErrorPage />} />
               
               {/* Protected routes with sidebar */}
               <Route path="/*" element={
