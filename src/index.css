@@ -455,6 +455,29 @@ All colors MUST be HSL.
     animation: shimmer 3s infinite;
   }
 
+  /* Shimmer Border Effect for Premium Badges */
+  .shimmer-border {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .shimmer-border::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(90deg, 
+      transparent,
+      hsl(var(--primary) / 0.4),
+      transparent
+    );
+    animation: shimmer 3s infinite;
+    border-radius: inherit;
+    z-index: -1;
+  }
+
   /* Ring Progress Custom Styles */
   .CircularProgressbar-path {
     transition: stroke-dashoffset 0.5s ease 0s;
