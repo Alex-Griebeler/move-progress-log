@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { LogOut, Users } from "lucide-react";
@@ -31,7 +32,7 @@ export const AppHeader = ({
         variant: "destructive",
       });
     } else {
-      navigate("/auth");
+      navigate(ROUTES.auth);
     }
   };
 

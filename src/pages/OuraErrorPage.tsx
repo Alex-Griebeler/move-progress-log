@@ -1,4 +1,5 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,9 +96,9 @@ export default function OuraErrorPage() {
 
   const handleContinueWithoutOura = () => {
     if (studentId) {
-      navigate(`/alunos/${studentId}`);
+      navigate(ROUTES.studentDetail(studentId));
     } else {
-      navigate("/");
+      navigate(ROUTES.dashboard);
     }
   };
 

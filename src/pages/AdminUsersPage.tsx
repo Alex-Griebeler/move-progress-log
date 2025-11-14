@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { PageLayout } from "@/components/PageLayout";
@@ -87,7 +88,7 @@ export default function AdminUsersPage() {
         description: "Você não tem permissão para acessar esta página.",
         variant: "destructive",
       });
-      navigate("/");
+      navigate(ROUTES.dashboard);
     }
   }, [isAdmin, roleLoading, navigate]);
 

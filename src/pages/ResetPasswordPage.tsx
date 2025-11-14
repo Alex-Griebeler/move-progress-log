@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import { checkRateLimit, recordFailedAttempt } from "@/lib/rateLimiter";
 import { logger } from "@/utils/logger";
+import { ROUTES } from "@/constants/navigation";
 
 const emailSchema = z.string().email("Email inválido");
 
@@ -86,7 +87,7 @@ export default function ResetPasswordPage() {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}${ROUTES.resetPassword}`,
       });
 
       if (error) throw error;
@@ -168,7 +169,7 @@ export default function ResetPasswordPage() {
 
       // Redirecionar para login após 2 segundos
       setTimeout(() => {
-        navigate("/auth");
+        navigate(ROUTES.auth);
       }, 2000);
     } catch (error: any) {
       logger.error("Error updating password:", error);
@@ -199,7 +200,7 @@ export default function ResetPasswordPage() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate(ROUTES.auth)}
               className="p-0 h-auto"
             >
               <ArrowLeft className="h-4 w-4 mr-1" />

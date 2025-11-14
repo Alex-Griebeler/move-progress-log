@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -129,9 +130,9 @@ export default function StudentOnboardingPage() {
           description: "O sistema não está configurado para Oura Ring. Você pode conectar mais tarde.",
           duration: 4000,
         });
-        navigate("/onboarding/success");
+        navigate(ROUTES.onboardingSuccess);
       } else {
-        navigate("/onboarding/success");
+        navigate(ROUTES.onboardingSuccess);
       }
     } catch (error) {
       console.error("Error creating student:", error);

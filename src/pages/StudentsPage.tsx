@@ -10,6 +10,7 @@ import EmptyState from "@/components/EmptyState";
 import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
@@ -233,7 +234,7 @@ const StudentsPage = () => {
                 variant="default"
                 size="sm"
                 className="flex-1"
-                onClick={() => navigate(`/alunos/${student.id}`)}
+                onClick={() => navigate(ROUTES.studentDetail(student.id))}
                 aria-label={`Ver detalhes de ${student.name}`}
               >
                 <Eye className="h-4 w-4 mr-2" />

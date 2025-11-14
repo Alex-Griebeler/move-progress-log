@@ -11,6 +11,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isRouteActive } from "@/lib/navigationUtils";
 
 interface TabItem {
   label: string;
@@ -30,12 +31,11 @@ interface PageTabsProps {
 export const PageTabs = ({ tabs, className }: PageTabsProps) => {
   const location = useLocation();
   
-  const isActive = (tab: TabItem) => {
-    if (tab.exactMatch) {
-      return location.pathname === tab.href;
-    }
-    return location.pathname.startsWith(tab.href);
-  };
+  const isActive = (tab: TabItem) => isRouteActive(
+    location.pathname, 
+    tab.href, 
+    { exact: tab.exactMatch, startsWith: !tab.exactMatch }
+  );
   
   return (
     <nav

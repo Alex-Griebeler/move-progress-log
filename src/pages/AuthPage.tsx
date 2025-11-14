@@ -15,7 +15,7 @@ import { checkRateLimit, recordFailedAttempt, type RateLimitAction } from "@/lib
 import { logger } from "@/utils/logger";
 import { Enable2FADialog } from "@/components/Enable2FADialog";
 import { Verify2FADialog } from "@/components/Verify2FADialog";
-import { NAV_LABELS } from "@/constants/navigation";
+import { NAV_LABELS, ROUTES, POST_LOGIN_ROUTE } from "@/constants/navigation";
 import i18n from "@/i18n/pt-BR.json";
 
 export default function AuthPage() {
@@ -95,7 +95,7 @@ export default function AuthPage() {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: `${window.location.origin}${POST_LOGIN_ROUTE}`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -301,7 +301,7 @@ export default function AuthPage() {
         title: "Login realizado com sucesso",
         description: "Redirecionando para o sistema...",
       });
-      navigate("/");
+      navigate(POST_LOGIN_ROUTE);
     }
   };
 
