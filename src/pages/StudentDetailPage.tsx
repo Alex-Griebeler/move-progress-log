@@ -33,7 +33,7 @@ import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSess
 import { EditSessionDialog } from "@/components/EditSessionDialog";
 import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
-import StudentProfileTab from "@/components/StudentProfileTab";
+import { StudentOverviewDashboard } from "@/components/StudentOverviewDashboard";
 import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState, useMemo, useEffect } from "react";
@@ -243,12 +243,8 @@ const StudentDetailPage = () => {
       )}
 
       <Tabs defaultValue="training" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="training">{NAV_LABELS.tabTraining}</TabsTrigger>
-          <TabsTrigger value="profile">
-            <User className="h-4 w-4 mr-1" />
-            Dados Cadastrais
-          </TabsTrigger>
           <TabsTrigger value="overview">{NAV_LABELS.tabOverview}</TabsTrigger>
           <TabsTrigger value="sessions">{NAV_LABELS.tabSessions}</TabsTrigger>
           <TabsTrigger value="exercises">{NAV_LABELS.tabExercises}</TabsTrigger>
@@ -266,108 +262,19 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="profile" className="space-y-6">
-          <StudentProfileTab 
-            student={student} 
-            onEdit={() => setEditStudentOpen(true)} 
-          />
-        </TabsContent>
-
         <TabsContent value="overview" className="space-y-6">
-          <StudentObservationsCard studentId={id!} />
-          
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Informações Pessoais
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {(student.weight_kg || student.height_cm) && (
-                  <div className="flex gap-4">
-                    {student.weight_kg && (
-                      <div>
-                        <span className="font-semibold">Peso:</span>{" "}
-                        <span className="text-muted-foreground">{student.weight_kg} kg</span>
-                      </div>
-                    )}
-                    {student.height_cm && (
-                      <div>
-                        <span className="font-semibold">Altura:</span>{" "}
-                        <span className="text-muted-foreground">{student.height_cm} cm</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {student.fitness_level && (
-                  <div>
-                    <span className="font-semibold">Nível:</span>{" "}
-                    <Badge variant="secondary">{student.fitness_level}</Badge>
-                  </div>
-                )}
-                {student.objectives && (
-                  <div>
-                    <span className="font-semibold">Objetivos:</span>
-                    <p className="text-muted-foreground mt-1">{student.objectives}</p>
-                  </div>
-                )}
-                {student.injury_history && (
-                  <div>
-                    <span className="font-semibold">Histórico de Lesões:</span>
-                    <p className="text-red-500 mt-1">{student.injury_history}</p>
-                  </div>
-                )}
-                {student.limitations && (
-                  <div>
-                    <span className="font-semibold">Limitações:</span>
-                    <p className="text-muted-foreground mt-1">{student.limitations}</p>
-                  </div>
-                )}
-                {student.preferences && (
-                  <div>
-                    <span className="font-semibold">Preferências:</span>
-                    <p className="text-muted-foreground mt-1">{student.preferences}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Estatísticas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Total de Sessões</span>
-                  <span className="text-2xl font-bold">{sessions?.length || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Prescrições Ativas</span>
-                  <span className="text-2xl font-bold">{assignments?.length || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Exercícios Únicos</span>
-                  <span className="text-2xl font-bold">{uniqueExercises.length}</span>
-                </div>
-                {student.weekly_sessions_proposed && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Sessões/Semana</span>
-                    <span className="text-2xl font-bold">{student.weekly_sessions_proposed}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TrainingZonesCard maxHeartRate={student.max_heart_rate} />
-            <ProtocolRecommendationsCard studentId={id!} />
-          </div>
+          <StudentOverviewDashboard
+            student={student}
+            sessions={sessions || []}
+            assignments={assignments || []}
+            latestOuraMetrics={latestOuraMetrics}
+            ouraConnection={ouraConnection}
+            onEditStudent={() => setEditStudentOpen(true)}
+            onNavigateToOura={() => {
+              const ouraTab = document.querySelector('[value="oura"]') as HTMLElement;
+              if (ouraTab) ouraTab.click();
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="sessions" className="space-y-4">
