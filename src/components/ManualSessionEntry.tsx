@@ -43,7 +43,7 @@ interface ManualSessionEntryProps {
         observations: string;
       }>;
     }>;
-  }) => void;
+  }) => Promise<void>;
   onCancel?: () => void;
 }
 
@@ -59,6 +59,7 @@ export function ManualSessionEntry({
 }: ManualSessionEntryProps) {
   
   const { draft, saveDraft, clearDraft, isSaving, lastSaved } = useSessionDraft();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Estado para controlar o aluno atual (visualização página por página)
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
@@ -225,15 +226,31 @@ export function ManualSessionEntry({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSubmitting) {
+      console.warn('⚠️ Salvamento já em progresso, ignorando clique');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     const data = {
       studentExercises: selectedStudents.map(student => ({
         studentId: student.id,
         exercises: studentExercises[student.id] || []
       }))
     };
-    clearDraft(); // Limpar rascunho após salvar com sucesso
-    onSave(data);
+    
+    try {
+      await onSave(data); // ✅ Espera completar
+      clearDraft(); // ✅ Limpa APENAS após sucesso confirmado
+      // Sucesso já é tratado pelo RecordGroupSessionDialog
+    } catch (error) {
+      // Erro já foi exibido pelo RecordGroupSessionDialog
+      console.error('❌ Erro ao salvar:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isValid = selectedStudents.every(student => 
@@ -488,17 +505,28 @@ export function ManualSessionEntry({
             onClick={onCancel}
             variant="outline"
             size="lg"
+            disabled={isSubmitting}
           >
             Voltar
           </Button>
         )}
         <Button
           onClick={handleSubmit}
-          disabled={!isValid}
+          disabled={!isValid || isSubmitting}
           size="lg"
           className="gap-2 ml-auto"
         >
-          Salvar Sessão
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Salvando...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              Salvar Sessão
+            </>
+          )}
         </Button>
       </div>
 
