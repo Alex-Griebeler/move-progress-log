@@ -211,7 +211,7 @@ const StudentDetailPage = () => {
                 
                 <div className="space-y-sm flex-1 min-w-0">
                   <div>
-                    <h1 className="text-2xl md:text-3xl font-bold mb-xs truncate">{student.name}</h1>
+                    <h1 className="text-2xl md:text-3xl font-bold mb-xs break-words leading-tight">{student.name}</h1>
                     <div className="flex items-center gap-xs text-sm text-muted-foreground flex-wrap">
                       <Calendar className="h-4 w-4 shrink-0" />
                       <span>{age} anos</span>
