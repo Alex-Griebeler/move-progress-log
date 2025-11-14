@@ -4,10 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { StatCard } from "@/components/StatCard";
+import StatCard from "@/components/StatCard";
 import { StudentObservationsCard } from "@/components/StudentObservationsCard";
-import { TrainingZonesCard } from "@/components/TrainingZonesCard";
-import { ProtocolRecommendationsCard } from "@/components/ProtocolRecommendationsCard";
+import TrainingZonesCard from "@/components/TrainingZonesCard";
+import ProtocolRecommendationsCard from "@/components/ProtocolRecommendationsCard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -332,7 +332,6 @@ export const StudentOverviewDashboard = ({
       {/* Row 2: Observações Importantes (full-width) */}
       <StudentObservationsCard 
         studentId={student.id}
-        className="col-span-full"
       />
 
       {/* Row 3: Zonas + Recomendações (2 cols) */}
