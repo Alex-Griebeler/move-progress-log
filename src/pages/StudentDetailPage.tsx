@@ -47,6 +47,8 @@ import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getPersonSchema } from "@/utils/structuredData";
 import { ErrorState } from "@/components/ErrorState";
+import { StudentHeaderSkeleton } from "@/components/skeletons/StudentHeaderSkeleton";
+import { getObjectiveLabel } from "@/constants/objectives";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -135,6 +137,19 @@ const StudentDetailPage = () => {
   const missingFields = getMissingFields();
   const hasIncompleteData = missingFields.length > 0;
 
+  // Calculate age
+  const age = useMemo(() => {
+    if (!student.birth_date) return null;
+    const today = new Date();
+    const birthDate = new Date(student.birth_date);
+    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      calculatedAge--;
+    }
+    return calculatedAge;
+  }, [student.birth_date]);
+
   return (
     <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
       {/* Structured Data para SEO */}
@@ -169,65 +184,129 @@ const StudentDetailPage = () => {
         ]}
       />
       
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(ROUTES.students)} aria-label="Voltar para lista de alunos">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={student.avatar_url || undefined} className="object-cover" />
-            <AvatarFallback className="text-2xl">{student.name.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-3xl font-bold">{student.name}</h1>
-            <p className="text-muted-foreground">
-              {student.birth_date && (() => {
-                const [year, month, day] = student.birth_date.split('-');
-                return `Nascimento: ${day}/${month}/${year}`;
-              })()}
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
+      {loadingStudents ? (
+        <StudentHeaderSkeleton />
+      ) : (
+        <Card className="card-glass card-glass-hover mb-md animate-fade-in">
+          <CardContent className="p-lg">
+            <div className="flex flex-col md:flex-row items-start justify-between gap-lg">
+              {/* Coluna 1: Perfil */}
+              <div className="flex gap-md items-start w-full md:w-auto">
                 <Button 
-                  onClick={() => navigate(ROUTES.studentReports(id!))} 
-                  className="gap-2"
-                  variant="outline"
-                  aria-label="Ver Relatórios"
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => navigate(ROUTES.students)} 
+                  aria-label="Voltar para lista de alunos"
+                  className="shrink-0"
                 >
-                  <FileText className="h-4 w-4" />
-                  Relatórios
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Visualizar e gerar relatórios periódicos de evolução</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  onClick={() => setRecordSessionOpen(true)} 
-                  className="gap-2 animate-pulse hover:animate-none"
-                  variant="gradient"
-                  aria-label={NAV_LABELS.recordSession}
-                >
-                  <Mic className="h-4 w-4" />
-                  {NAV_LABELS.recordSession}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Grave uma sessão de treino usando sua voz</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
+                
+                <Avatar className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-primary/20 ring-offset-4 ring-offset-background transition-transform duration-300 hover:scale-105 cursor-pointer shrink-0">
+                  <AvatarImage src={student.avatar_url || undefined} className="object-cover" />
+                  <AvatarFallback className="text-2xl md:text-3xl font-bold">
+                    {student.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="space-y-sm flex-1 min-w-0">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-bold mb-xs truncate">{student.name}</h1>
+                    <div className="flex items-center gap-xs text-sm text-muted-foreground flex-wrap">
+                      <Calendar className="h-4 w-4 shrink-0" />
+                      <span>{age} anos</span>
+                      {student.birth_date && (
+                        <>
+                          <span className="hidden sm:inline">•</span>
+                          <span className="hidden sm:inline">{(() => {
+                            const [year, month, day] = student.birth_date.split('-');
+                            return `${day}/${month}/${year}`;
+                          })()}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Badges Row com stagger animation */}
+                  <div className="flex flex-wrap gap-xs">
+                    {student.fitness_level && (
+                      <Badge 
+                        variant="secondary" 
+                        className="gap-xs animate-fade-in"
+                        style={{ animationDelay: '0ms' }}
+                      >
+                        <TrendingUp className="h-3 w-3" />
+                        {student.fitness_level}
+                      </Badge>
+                    )}
+                    {ouraConnection?.is_active && (
+                      <Badge 
+                        variant="default" 
+                        className="gap-xs animate-fade-in shimmer-border"
+                        style={{ animationDelay: '100ms' }}
+                      >
+                        <Activity className="h-3 w-3 animate-pulse" />
+                        Oura Conectado
+                      </Badge>
+                    )}
+                    {student.objectives?.slice(0, 2).map((obj, index) => (
+                      <Badge 
+                        key={obj}
+                        variant="outline" 
+                        className="gap-xs animate-fade-in"
+                        style={{ animationDelay: `${(index + 2) * 100}ms` }}
+                      >
+                        {getObjectiveLabel(obj)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Coluna 2: Ações */}
+              <div className="flex flex-col sm:flex-row gap-sm w-full md:w-auto">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        onClick={() => navigate(ROUTES.studentReports(id!))} 
+                        className="gap-2 w-full sm:w-auto"
+                        variant="outline"
+                        aria-label="Ver Relatórios"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Relatórios
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Visualizar e gerar relatórios periódicos de evolução</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        onClick={() => setRecordSessionOpen(true)} 
+                        className="gap-2 animate-pulse hover:animate-none w-full sm:w-auto"
+                        variant="gradient"
+                        aria-label={NAV_LABELS.recordSession}
+                      >
+                        <Mic className="h-4 w-4" />
+                        {NAV_LABELS.recordSession}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Grave uma sessão de treino usando sua voz</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Alerta de Dados Incompletos - Detalhado */}
       {hasIncompleteData && (
