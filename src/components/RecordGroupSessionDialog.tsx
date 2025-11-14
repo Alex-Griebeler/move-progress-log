@@ -266,13 +266,11 @@ export function RecordGroupSessionDialog({
   };
 
   const handleStudentCreated = (newStudent: any) => {
-    // Verificar se tem prescrição ativa
-    const hasActivePrescription = assignments?.some(a => a.student_id === newStudent.id) || false;
-    
-    // Enriquecer com informação de prescrição ativa
+    // Aluno recém-criado não tem prescrição ativa ainda
+    // (assignments só contém prescrições já atribuídas)
     const enrichedStudent = {
       ...newStudent,
-      has_active_prescription: hasActivePrescription,
+      has_active_prescription: false,
     };
     
     // Adicionar à lista de alunos selecionados
