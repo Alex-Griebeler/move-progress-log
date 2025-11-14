@@ -198,12 +198,16 @@ export function ManualSessionEntry({
     const student = selectedStudents.find(s => s.id === studentId);
     let calculatedLoad: number | null = null;
 
+    console.log('[DEBUG] Calculando carga para:', description);
+
     // Peso corporal
     if (description.includes('peso corporal') || description.includes('corporal')) {
+      console.log('[DEBUG] Padrão identificado: Peso Corporal');
       calculatedLoad = student?.weight_kg || null;
     }
     // Elástico/banda - não tem peso mensurável
     else if (description.includes('elástico') || description.includes('banda')) {
+      console.log('[DEBUG] Padrão identificado: Elástico/Banda');
       calculatedLoad = null;
     }
     // Formato: "2x10kg" ou "2 x 10kg"
@@ -213,6 +217,7 @@ export function ManualSessionEntry({
         const quantity = parseInt(match[1]);
         const weight = parseFloat(match[2]);
         calculatedLoad = quantity * weight;
+        console.log('[DEBUG] Padrão identificado: NxPkg - Quantidade:', quantity, 'Peso:', weight, 'Total:', calculatedLoad);
       }
     }
     // Formato: "10kg cada lado" ou "10kg each side"
@@ -220,6 +225,7 @@ export function ManualSessionEntry({
       const match = description.match(/(\d+(?:\.\d+)?)\s*kg/i);
       if (match) {
         calculatedLoad = parseFloat(match[1]) * 2;
+        console.log('[DEBUG] Padrão identificado: Cada Lado - Peso por lado:', match[1], 'Total:', calculatedLoad);
       }
     }
     // Formato simples: "20kg" ou "20.5kg"
@@ -227,6 +233,7 @@ export function ManualSessionEntry({
       const match = description.match(/(\d+(?:\.\d+)?)\s*kg/i);
       if (match) {
         calculatedLoad = parseFloat(match[1]);
+        console.log('[DEBUG] Padrão identificado: Simples - Peso:', calculatedLoad);
       }
     }
     // Formato em libras: "20lb" ou "20lbs"
@@ -235,8 +242,11 @@ export function ManualSessionEntry({
       if (match) {
         // Converter libras para kg (1 lb = 0.453592 kg)
         calculatedLoad = parseFloat(match[1]) * 0.453592;
+        console.log('[DEBUG] Padrão identificado: Libras - Libras:', match[1], 'Kg:', calculatedLoad);
       }
     }
+
+    console.log('[DEBUG] Carga calculada final:', calculatedLoad);
 
     // Atualizar o campo load_kg com o valor calculado
     if (calculatedLoad !== null) {
