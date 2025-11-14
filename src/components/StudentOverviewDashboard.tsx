@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Dumbbell, Calendar, TrendingUp, Target, AlertCircle, Activity, Heart, User, Flame, Zap } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { format, differenceInYears, differenceInMonths } from "date-fns";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { format, differenceInYears, differenceInMonths, isToday, isYesterday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Student } from "@/hooks/useStudents";
 import StatCard from "./StatCard";
@@ -12,6 +13,7 @@ import TrainingZonesCard from "./TrainingZonesCard";
 import { StudentObservationsCard } from "./StudentObservationsCard";
 import ProtocolRecommendationsCard from "./ProtocolRecommendationsCard";
 import { OuraConnectionStatus } from "./OuraConnectionStatus";
+import { useOuraTrends } from "@/hooks/useOuraTrends";
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
@@ -129,6 +131,19 @@ export const StudentOverviewDashboard = ({
     return differenceInMonths(new Date(), new Date(student.created_at));
   }, [student.created_at]);
 
+  // Fetch Oura trends
+  const { data: ouraTrends } = useOuraTrends(student.id);
+
+  // Format Oura date
+  const ouraDateLabel = useMemo(() => {
+    if (!latestOuraMetrics?.date) return null;
+    
+    const date = parseISO(latestOuraMetrics.date);
+    if (isToday(date)) return "Hoje";
+    if (isYesterday(date)) return "Ontem";
+    return format(date, "d 'de' MMMM", { locale: ptBR });
+  }, [latestOuraMetrics?.date]);
+
   // Key statistics
   const totalSessions = useMemo(() => sessions?.length || 0, [sessions]);
   
@@ -138,6 +153,10 @@ export const StudentOverviewDashboard = ({
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     return sessions.filter(s => new Date(s.date) >= firstDayOfMonth).length;
   }, [sessions]);
+
+  // Calculate monthly goal and progress
+  const monthlyGoal = student.weekly_sessions_proposed ? student.weekly_sessions_proposed * 4 : null;
+  const monthlyProgress = monthlyGoal ? (sessionsThisMonth / monthlyGoal) * 100 : undefined;
 
   const uniqueExercises = useMemo(() => {
     if (!sessions) return 0;
@@ -292,12 +311,10 @@ export const StudentOverviewDashboard = ({
               💍 Oura Ring
             </CardTitle>
             <CardDescription>
-              {latestOuraMetrics?.date 
-                ? `Hoje, ${format(new Date(latestOuraMetrics.date), "d 'de' MMMM", { locale: ptBR })}`
-                : ouraConnection?.is_active
-                  ? "Conectado, aguardando dados"
-                  : "Não conectado"
-              }
+              {ouraDateLabel || (ouraConnection?.is_active
+                ? "Conectado, aguardando dados"
+                : "Não conectado"
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -305,74 +322,149 @@ export const StudentOverviewDashboard = ({
               latestOuraMetrics ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-lg">
                   {/* Readiness Ring */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-24 h-24 mb-sm">
-                      <CircularProgressbar
-                        value={latestOuraMetrics.readiness_score || 0}
-                        text={`${latestOuraMetrics.readiness_score || 0}`}
-                        styles={buildStyles({
-                          pathColor: getProgressColor(latestOuraMetrics.readiness_score),
-                          textColor: 'hsl(var(--foreground))',
-                          trailColor: 'hsl(var(--muted))',
-                          textSize: '24px',
-                        })}
-                      />
-                    </div>
-                    <p className="text-sm font-semibold mb-xs">Prontidão</p>
-                    <p className={`text-xs font-medium ${getScoreColor(latestOuraMetrics.readiness_score)}`}>
-                      {getScoreLabel(latestOuraMetrics.readiness_score)}
-                    </p>
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex flex-col items-center">
+                          <div className="w-24 h-24 mb-sm">
+                            <CircularProgressbar
+                              value={latestOuraMetrics.readiness_score || 0}
+                              text={`${latestOuraMetrics.readiness_score || 0}`}
+                              styles={buildStyles({
+                                pathColor: getProgressColor(latestOuraMetrics.readiness_score),
+                                textColor: 'hsl(var(--foreground))',
+                                trailColor: 'hsl(var(--muted))',
+                                textSize: '24px',
+                              })}
+                            />
+                          </div>
+                          <p className="text-sm font-semibold mb-xs">Prontidão</p>
+                          <p className={`text-xs font-medium ${getScoreColor(latestOuraMetrics.readiness_score)}`}>
+                            {getScoreLabel(latestOuraMetrics.readiness_score)}
+                          </p>
+                          {ouraTrends?.readiness && (
+                            <Badge variant="secondary" className="mt-xs text-xs">
+                              {ouraTrends.readiness.changeLabel}
+                            </Badge>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      {ouraTrends?.readiness && (
+                        <TooltipContent>
+                          <p className="text-xs">
+                            Média 7 dias: {ouraTrends.readiness.average7d} 
+                            {ouraTrends.readiness.vsAverage && ` (${ouraTrends.readiness.vsAverage > 0 ? '+' : ''}${ouraTrends.readiness.vsAverage})`}
+                          </p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
 
                   {/* Sleep Ring */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-24 h-24 mb-sm">
-                      <CircularProgressbar
-                        value={latestOuraMetrics.sleep_score || 0}
-                        text={`${latestOuraMetrics.sleep_score || 0}`}
-                        styles={buildStyles({
-                          pathColor: getProgressColor(latestOuraMetrics.sleep_score),
-                          textColor: 'hsl(var(--foreground))',
-                          trailColor: 'hsl(var(--muted))',
-                          textSize: '24px',
-                        })}
-                      />
-                    </div>
-                    <p className="text-sm font-semibold mb-xs">Sono</p>
-                    <p className={`text-xs font-medium ${getScoreColor(latestOuraMetrics.sleep_score)}`}>
-                      {getScoreLabel(latestOuraMetrics.sleep_score)}
-                    </p>
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex flex-col items-center">
+                          <div className="w-24 h-24 mb-sm">
+                            <CircularProgressbar
+                              value={latestOuraMetrics.sleep_score || 0}
+                              text={`${latestOuraMetrics.sleep_score || 0}`}
+                              styles={buildStyles({
+                                pathColor: getProgressColor(latestOuraMetrics.sleep_score),
+                                textColor: 'hsl(var(--foreground))',
+                                trailColor: 'hsl(var(--muted))',
+                                textSize: '24px',
+                              })}
+                            />
+                          </div>
+                          <p className="text-sm font-semibold mb-xs">Sono</p>
+                          <p className={`text-xs font-medium ${getScoreColor(latestOuraMetrics.sleep_score)}`}>
+                            {getScoreLabel(latestOuraMetrics.sleep_score)}
+                          </p>
+                          {ouraTrends?.sleep && (
+                            <Badge variant="secondary" className="mt-xs text-xs">
+                              {ouraTrends.sleep.changeLabel}
+                            </Badge>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      {ouraTrends?.sleep && (
+                        <TooltipContent>
+                          <p className="text-xs">
+                            Média 7 dias: {ouraTrends.sleep.average7d}
+                            {ouraTrends.sleep.vsAverage && ` (${ouraTrends.sleep.vsAverage > 0 ? '+' : ''}${ouraTrends.sleep.vsAverage})`}
+                          </p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
 
                   {/* Activity Ring */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-24 h-24 mb-sm">
-                      <CircularProgressbar
-                        value={latestOuraMetrics.activity_score || 0}
-                        text={`${latestOuraMetrics.activity_score || 0}`}
-                        styles={buildStyles({
-                          pathColor: getProgressColor(latestOuraMetrics.activity_score),
-                          textColor: 'hsl(var(--foreground))',
-                          trailColor: 'hsl(var(--muted))',
-                          textSize: '24px',
-                        })}
-                      />
-                    </div>
-                    <p className="text-sm font-semibold mb-xs">Atividade</p>
-                    <p className={`text-xs font-medium ${getScoreColor(latestOuraMetrics.activity_score)}`}>
-                      {getScoreLabel(latestOuraMetrics.activity_score)}
-                    </p>
-                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex flex-col items-center">
+                          <div className="w-24 h-24 mb-sm">
+                            <CircularProgressbar
+                              value={latestOuraMetrics.activity_score || 0}
+                              text={`${latestOuraMetrics.activity_score || 0}`}
+                              styles={buildStyles({
+                                pathColor: getProgressColor(latestOuraMetrics.activity_score),
+                                textColor: 'hsl(var(--foreground))',
+                                trailColor: 'hsl(var(--muted))',
+                                textSize: '24px',
+                              })}
+                            />
+                          </div>
+                          <p className="text-sm font-semibold mb-xs">Atividade</p>
+                          <p className={`text-xs font-medium ${getScoreColor(latestOuraMetrics.activity_score)}`}>
+                            {getScoreLabel(latestOuraMetrics.activity_score)}
+                          </p>
+                          {ouraTrends?.activity && (
+                            <Badge variant="secondary" className="mt-xs text-xs">
+                              {ouraTrends.activity.changeLabel}
+                            </Badge>
+                          )}
+                        </div>
+                      </TooltipTrigger>
+                      {ouraTrends?.activity && (
+                        <TooltipContent>
+                          <p className="text-xs">
+                            Média 7 dias: {ouraTrends.activity.average7d}
+                            {ouraTrends.activity.vsAverage && ` (${ouraTrends.activity.vsAverage > 0 ? '+' : ''}${ouraTrends.activity.vsAverage})`}
+                          </p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
 
                   {/* Stress Minutes */}
                   {latestOuraMetrics.stress_high_time !== null && (
-                    <div className="flex flex-col items-center justify-center">
-                      <div className="text-display-md text-display-number text-gradient-primary mb-xs">
-                        {Math.round((latestOuraMetrics.stress_high_time || 0) / 60)}
-                      </div>
-                      <p className="text-sm font-semibold mb-xs">Estresse</p>
-                      <p className="text-xs text-muted-foreground">minutos alto</p>
-                    </div>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="text-display-md text-display-number text-gradient-primary mb-xs">
+                              {Math.round((latestOuraMetrics.stress_high_time || 0) / 60)}
+                            </div>
+                            <p className="text-sm font-semibold mb-xs">Estresse</p>
+                            <p className="text-xs text-muted-foreground">minutos alto</p>
+                            {ouraTrends?.stress && ouraTrends.stress.changeLabel && (
+                              <Badge variant="secondary" className="mt-xs text-xs">
+                                {ouraTrends.stress.changeLabel}
+                              </Badge>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        {ouraTrends?.stress && (
+                          <TooltipContent>
+                            <p className="text-xs">
+                              Média 7 dias: {Math.round((ouraTrends.stress.average7d || 0))} min
+                            </p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
                 </div>
               ) : (
@@ -404,24 +496,34 @@ export const StudentOverviewDashboard = ({
           value={totalSessions}
           icon={Dumbbell}
           gradient
+          subtitle={`${sessionsThisMonth} este mês`}
         />
         <StatCard
           title="Sessões este Mês"
           value={sessionsThisMonth}
           icon={Calendar}
-          subtitle={`Meta: ${student.weekly_sessions_proposed ? student.weekly_sessions_proposed * 4 : '?'} sessões/mês`}
+          subtitle={monthlyGoal ? `Meta: ${monthlyGoal} sessões/mês` : undefined}
+          progress={monthlyProgress}
+          badge={
+            monthlyGoal && sessionsThisMonth >= monthlyGoal 
+              ? "🎯 Meta atingida!" 
+              : sessionsThisMonth >= (monthlyGoal || 0) * 0.75 
+                ? "🔥 Quase lá!" 
+                : undefined
+          }
         />
         <StatCard
           title="Exercícios Únicos"
           value={uniqueExercises}
           icon={TrendingUp}
-          subtitle="Variedade de exercícios"
+          subtitle="Variedade no treinamento"
+          badge={uniqueExercises > 50 ? "💪 Alta variedade" : undefined}
         />
         <StatCard
           title="Prescrições Ativas"
           value={activePrescriptions}
           icon={Target}
-          subtitle="Atualmente atribuídas"
+          subtitle="Planos de treino ativos"
         />
       </motion.div>
 
