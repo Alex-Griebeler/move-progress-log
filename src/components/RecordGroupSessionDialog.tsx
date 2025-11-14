@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
+import { NAV_LABELS } from "@/constants/navigation";
 
 interface RecordGroupSessionDialogProps {
   open: boolean;
@@ -1071,11 +1072,11 @@ export function RecordGroupSessionDialog({
       <DialogContent forceMount className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-            {dialogState === 'context-setup' && "Configurar Sessão"}
+            {dialogState === 'context-setup' && NAV_LABELS.recordGroupSession}
             {dialogState === 'mode-selection' && (
               <>
                 <User className="h-5 w-5" />
-                Escolher Modo de Registro
+                Escolher modo de registro
               </>
             )}
             {dialogState === 'recording' && (
@@ -1087,11 +1088,11 @@ export function RecordGroupSessionDialog({
             {dialogState === 'manual-entry' && (
               <>
                 <BookOpen className="h-5 w-5" />
-                Registro Manual da Sessão
+                Registro manual da sessão
               </>
             )}
             {dialogState === 'processing' && 'Processando...'}
-            {dialogState === 'preview' && 'Preview da Sessão'}
+            {dialogState === 'preview' && 'Preview da sessão'}
             {dialogState === 'edit' && `Editando: ${mergedStudents[editingStudentIndex]?.student_name}`}
           </DialogTitle>
         </DialogHeader>
@@ -1123,7 +1124,7 @@ export function RecordGroupSessionDialog({
               >
                 <Mic className="h-12 w-12" />
                 <div className="text-center">
-                  <div className="font-semibold">Registro por Voz Contínuo</div>
+                  <div className="font-semibold">{NAV_LABELS.recordByVoice}</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     Grave uma única sessão contínua e processe no final
                   </div>
@@ -1138,7 +1139,7 @@ export function RecordGroupSessionDialog({
               >
                 <BookOpen className="h-12 w-12" />
                 <div className="text-center">
-                  <div className="font-semibold">Registro Manual</div>
+                  <div className="font-semibold">{NAV_LABELS.fillManually}</div>
                   <div className="text-xs text-muted-foreground mt-1">
                     Preencha os dados da sessão manualmente
                   </div>

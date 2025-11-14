@@ -24,8 +24,26 @@ export const NAV_LABELS = {
   importExercises: "Importar exercícios",
   newPrescription: "Nova prescrição",
   recordSession: "Registrar sessão",
+  recordIndividualSession: "Registrar sessão",
+  recordGroupSession: "Registrar sessão em grupo",
   signOut: "Sair",
   back: "Voltar",
+  
+  // Ações de autenticação
+  signIn: "Entrar",
+  signUp: "Criar conta",
+  continueWithGoogle: "Continuar com Google",
+  forgotPassword: "Esqueceu a senha?",
+  rememberMe: "Lembrar de mim",
+  
+  // Botões contextuais
+  saveStudent: "Salvar aluno",
+  saveSession: "Salvar sessão",
+  saveReport: "Salvar relatório",
+  generateReport: "Gerar relatório",
+  startRecording: "Iniciar gravação",
+  recordByVoice: "Gravar por voz",
+  fillManually: "Preencher manualmente",
   
   // Tabs
   tabTraining: "Treinamento",
