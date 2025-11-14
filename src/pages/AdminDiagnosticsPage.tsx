@@ -9,7 +9,7 @@ import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { AppHeader } from "@/components/AppHeader";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { NAV_LABELS } from "@/constants/navigation";
+import { NAV_LABELS, ROUTES } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
