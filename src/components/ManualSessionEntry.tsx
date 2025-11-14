@@ -189,68 +189,110 @@ export function ManualSessionEntry({
     });
   };
 
-  // Função para calcular a carga baseada na descrição
+  // Função auxiliar de arredondamento para 1 casa decimal
+  const roundToOneDecimal = (value: number): number => {
+    return Math.round(value * 10) / 10;
+  };
+
+  // Função para calcular a carga baseada na descrição (alinhada com registro por voz)
   const calculateLoadFromDescription = (studentId: string, exerciseIndex: number) => {
     const exercise = studentExercises[studentId]?.[exerciseIndex];
     if (!exercise?.load_breakdown) return;
 
-    const description = exercise.load_breakdown.toLowerCase().trim();
+    const breakdown = exercise.load_breakdown.trim();
     const student = selectedStudents.find(s => s.id === studentId);
-    let calculatedLoad: number | null = null;
+    
+    try {
+      let total = 0;
+      let processedEachSide = false;
 
-    console.log('[DEBUG] Calculando carga para:', description);
+      // 1. PESO CORPORAL COM VALOR EXPLÍCITO
+      const bodyCorporalWithValue = breakdown.match(/Peso corporal\s*=\s*(\d+(?:[.,]\d+)?)\s*kg/i);
+      if (bodyCorporalWithValue) {
+        const value = parseFloat(bodyCorporalWithValue[1].replace(',', '.'));
+        updateExercise(studentId, exerciseIndex, 'load_kg', roundToOneDecimal(value));
+        return;
+      }
 
-    // Peso corporal
-    if (description.includes('peso corporal') || description.includes('corporal')) {
-      console.log('[DEBUG] Padrão identificado: Peso Corporal');
-      calculatedLoad = student?.weight_kg || null;
-    }
-    // Elástico/banda - não tem peso mensurável
-    else if (description.includes('elástico') || description.includes('banda')) {
-      console.log('[DEBUG] Padrão identificado: Elástico/Banda');
-      calculatedLoad = null;
-    }
-    // Formato: "2x10kg" ou "2 x 10kg"
-    else if (/(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*kg/i.test(description)) {
-      const match = description.match(/(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*kg/i);
-      if (match) {
-        const quantity = parseInt(match[1]);
-        const weight = parseFloat(match[2]);
-        calculatedLoad = quantity * weight;
-        console.log('[DEBUG] Padrão identificado: NxPkg - Quantidade:', quantity, 'Peso:', weight, 'Total:', calculatedLoad);
+      // 2. PESO CORPORAL SEM VALOR → usar peso do aluno
+      if (/peso\s*corporal/i.test(breakdown) && !bodyCorporalWithValue) {
+        updateExercise(studentId, exerciseIndex, 'load_kg', student?.weight_kg ? roundToOneDecimal(student.weight_kg) : null);
+        return;
       }
-    }
-    // Formato: "10kg cada lado" ou "10kg each side"
-    else if (/(\d+(?:\.\d+)?)\s*kg\s*(cada|each)/i.test(description)) {
-      const match = description.match(/(\d+(?:\.\d+)?)\s*kg/i);
-      if (match) {
-        calculatedLoad = parseFloat(match[1]) * 2;
-        console.log('[DEBUG] Padrão identificado: Cada Lado - Peso por lado:', match[1], 'Total:', calculatedLoad);
-      }
-    }
-    // Formato simples: "20kg" ou "20.5kg"
-    else if (/(\d+(?:\.\d+)?)\s*kg/i.test(description)) {
-      const match = description.match(/(\d+(?:\.\d+)?)\s*kg/i);
-      if (match) {
-        calculatedLoad = parseFloat(match[1]);
-        console.log('[DEBUG] Padrão identificado: Simples - Peso:', calculatedLoad);
-      }
-    }
-    // Formato em libras: "20lb" ou "20lbs"
-    else if (/(\d+(?:\.\d+)?)\s*lbs?/i.test(description)) {
-      const match = description.match(/(\d+(?:\.\d+)?)\s*lbs?/i);
-      if (match) {
-        // Converter libras para kg (1 lb = 0.453592 kg)
-        calculatedLoad = parseFloat(match[1]) * 0.453592;
-        console.log('[DEBUG] Padrão identificado: Libras - Libras:', match[1], 'Kg:', calculatedLoad);
-      }
-    }
 
-    console.log('[DEBUG] Carga calculada final:', calculatedLoad);
+      // 3. ELÁSTICO/BANDA → null
+      if (/elástico|banda|elastic|band/i.test(breakdown)) {
+        updateExercise(studentId, exerciseIndex, 'load_kg', null);
+        return;
+      }
 
-    // Atualizar o campo load_kg com o valor calculado
-    if (calculatedLoad !== null) {
-      updateExercise(studentId, exerciseIndex, 'load_kg', calculatedLoad);
+      // 4. DETECTAR "DE CADA LADO" (PRIORIDADE)
+      const eachSideMatch = breakdown.match(/\((.*?)\)\s*de\s*cada\s*lado/i);
+      if (eachSideMatch) {
+        const content = eachSideMatch[1];
+        processedEachSide = true;
+
+        // KG dentro do parêntese
+        const kgMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
+        for (const m of kgMatches) {
+          const value = parseFloat(m[1].replace(',', '.'));
+          total += value * 2;
+        }
+
+        // LB dentro do parêntese (converter para kg: 1 lb = 0.45 kg)
+        const lbMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
+        for (const m of lbMatches) {
+          const value = parseFloat(m[1].replace(',', '.'));
+          const kg = value * 0.45;
+          total += kg * 2;
+        }
+      }
+
+      // 5. KETTLEBELLS/HALTERES DUPLOS (multiplicar por 2)
+      const multiKbMatch = breakdown.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:[.,]\d+)?)\s*(kg|lb)/i);
+      if (multiKbMatch && !processedEachSide) {
+        const value = parseFloat(multiKbMatch[2].replace(',', '.'));
+        const unit = multiKbMatch[3].toLowerCase();
+        const kg = unit === 'lb' ? value * 0.45 : value;
+        total += kg * 2;
+      }
+
+      // 6. BARRA (sempre fora do "de cada lado")
+      const barraMatch = breakdown.match(/barra\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*kg/i);
+      if (barraMatch) {
+        const value = parseFloat(barraMatch[1].replace(',', '.'));
+        total += value;
+      }
+
+      // 7. PESOS SIMPLES (se não processou "de cada lado")
+      if (!processedEachSide && !multiKbMatch) {
+        // KG simples
+        const kgMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
+        for (const m of kgMatches) {
+          // Ignorar se faz parte de "barra X kg"
+          const beforeMatch = breakdown.substring(Math.max(0, m.index! - 10), m.index!);
+          if (!/barra\s*(?:de\s*)?$/i.test(beforeMatch)) {
+            const value = parseFloat(m[1].replace(',', '.'));
+            total += value;
+          }
+        }
+
+        // LB simples (converter: 1 lb = 0.45 kg)
+        const lbMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
+        for (const m of lbMatches) {
+          const value = parseFloat(m[1].replace(',', '.'));
+          const kg = value * 0.45;
+          total += kg;
+        }
+      }
+
+      // 8. ARREDONDAR PARA 1 CASA DECIMAL
+      const finalLoad = total > 0 ? roundToOneDecimal(total) : null;
+      updateExercise(studentId, exerciseIndex, 'load_kg', finalLoad);
+
+    } catch (error) {
+      console.error('Erro ao calcular carga:', error);
+      updateExercise(studentId, exerciseIndex, 'load_kg', null);
     }
   };
 
