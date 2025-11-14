@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2, History, UserPlus } from "lucide-react";
+import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2, History, UserPlus, AlertTriangle } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { useSessionDraft } from "@/hooks/useSessionDraft";
 import { DraftHistoryDialog } from "./DraftHistoryDialog";
@@ -308,6 +308,16 @@ export function ManualSessionEntry({
     }
   };
 
+  // Função para verificar se um exercício precisa de revisão manual
+  const needsManualReview = (exercise: typeof studentExercises[string][0]): boolean => {
+    return !!exercise.load_breakdown && exercise.load_kg === null;
+  };
+
+  // Contar exercícios que precisam de revisão manual para o aluno atual
+  const getManualReviewCount = (studentId: string): number => {
+    return studentExercises[studentId]?.filter(ex => needsManualReview(ex)).length || 0;
+  };
+
   const handleSubmit = async () => {
     if (isSubmitting) {
       console.warn('⚠️ Salvamento já em progresso, ignorando clique');
@@ -481,16 +491,25 @@ export function ManualSessionEntry({
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Exercícios - {currentStudent.name}</span>
-            <Badge variant="secondary">
-              {studentExercises[currentStudent.id]?.length || 0} exercícios
-            </Badge>
+            <div className="flex gap-2">
+              {getManualReviewCount(currentStudent.id) > 0 && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {getManualReviewCount(currentStudent.id)} para revisar
+                </Badge>
+              )}
+              <Badge variant="secondary">
+                {studentExercises[currentStudent.id]?.length || 0} exercícios
+              </Badge>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {studentExercises[currentStudent.id]?.map((exercise, idx) => {
               const prescribedEx = prescriptionExercises[idx];
+              const requiresReview = needsManualReview(exercise);
               return (
-                <div key={idx} className="border-b pb-4 last:border-0 last:pb-0">
+                <div key={idx} className={`border-b pb-4 last:border-0 last:pb-0 ${requiresReview ? 'bg-amber-50/50 dark:bg-amber-950/20 rounded-lg p-3 -mx-3' : ''}`}>
                    <div className="flex items-start justify-between mb-3">
                      <div className="flex-1 space-y-2">
                        <div className="flex items-center justify-between">
@@ -590,14 +609,29 @@ export function ManualSessionEntry({
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">Carga (kg)</Label>
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs">Carga (kg)</Label>
+                        {requiresReview && (
+                          <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600 dark:text-amber-400 dark:border-amber-400">
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            Revisar
+                          </Badge>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         step="0.1"
                         value={exercise.load_kg || ''}
                         onChange={(e) => updateExercise(currentStudent.id, idx, 'load_kg', parseFloat(e.target.value) || null)}
                         disabled={exercise.load_breakdown.toLowerCase().includes('peso corporal')}
+                        className={requiresReview ? 'border-amber-500 focus-visible:ring-amber-500' : ''}
                       />
+                      {requiresReview && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          Carga não calculada. Insira manualmente.
+                        </p>
+                      )}
                     </div>
                   </div>
 
