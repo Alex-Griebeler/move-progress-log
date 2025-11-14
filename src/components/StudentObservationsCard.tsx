@@ -108,11 +108,11 @@ export function StudentObservationsCard({ studentId }: StudentObservationsCardPr
         {!observations || observations.length === 0 ? (
           <p className="text-muted-foreground text-sm">Nenhuma observação registrada</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-md">
             {observations.map(obs => (
               <div 
                 key={obs.id} 
-                className={`p-3 rounded-lg border ${getSeverityColor(obs.severity)}`}
+                className={`p-md rounded-radius-lg border ${getSeverityColor(obs.severity)}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">

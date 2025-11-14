@@ -208,7 +208,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
               ))}
             </div>
 
-            <div className="p-3 rounded-lg bg-muted">
+            <div className="p-md rounded-radius-lg bg-muted">
               <p className="text-xs text-muted-foreground">
                 <strong>📌 Problema principal identificado:</strong> O endpoint{" "}
                 <code className="bg-background px-1 py-0.5 rounded">

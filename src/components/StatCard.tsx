@@ -11,7 +11,7 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, icon: Icon, subtitle, gradient }: StatCardProps) => {
   return (
-    <Card className={`hover:shadow-md transition-all duration-300 ${gradient ? 'bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20' : ''}`}>
+    <Card className={`hover:shadow-premium transition-smooth ${gradient ? 'bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20' : ''}`}>
       <CardHeader className="pb-sm">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-muted-foreground leading-normal">{title}</CardTitle>
