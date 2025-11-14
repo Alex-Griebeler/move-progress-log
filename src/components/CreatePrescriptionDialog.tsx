@@ -343,24 +343,6 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     setExercises(draftData.exercises);
     restoreDraft(draftData);
   };
-    setExercises([
-      {
-        id: crypto.randomUUID(),
-        exercise_library_id: "",
-        sets: "",
-        reps: "",
-        interval_seconds: "",
-        pse: "",
-        training_method: "",
-        observations: "",
-        group_with_previous: false,
-        should_track: true,
-        adaptations: [],
-        showAdaptations: false,
-      },
-    ]);
-    onOpenChange(false);
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
