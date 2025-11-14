@@ -373,6 +373,7 @@ const StudentDetailPage = () => {
                     name={session.workout_name || `Treino - ${session.time}`}
                     exercises={session.exercises?.length || 0}
                     date={session.date}
+                    sessionType={session.session_type as 'individual' | 'group'}
                     totalVolume={totalVolume}
                     isFinalized={session.is_finalized}
                     canReopen={session.can_reopen}

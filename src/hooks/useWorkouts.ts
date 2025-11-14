@@ -11,6 +11,7 @@ export interface WorkoutSession {
   student_id: string;
   date: string;
   time: string;
+  session_type?: 'individual' | 'group';
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +55,7 @@ export const useWorkouts = () => {
         student_id: workout.student_id,
         date: workout.date,
         time: workout.time,
+        session_type: workout.session_type,
         student_name: workout.students.name?.trim() || 'Sem nome',
         total_exercises: workout.exercises.length,
         total_volume: workout.exercises.reduce((sum: number, ex: any) => sum + (ex.load_kg || 0), 0),

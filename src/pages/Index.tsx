@@ -280,6 +280,7 @@ const Index = () => {
                   name={workout.student_name}
                   exercises={workout.total_exercises}
                   date={workout.date}
+                  sessionType={workout.session_type}
                   totalVolume={workout.total_volume}
                 />
               ))
