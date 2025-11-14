@@ -740,6 +740,66 @@ export type Database = {
         }
         Relationships: []
       }
+      report_tracked_exercises: {
+        Row: {
+          created_at: string
+          exercise_library_id: string | null
+          exercise_name: string
+          final_load: number | null
+          final_total_work: number | null
+          id: string
+          initial_load: number | null
+          initial_total_work: number | null
+          load_variation_percentage: number | null
+          report_id: string
+          weekly_progression: Json | null
+          work_variation_percentage: number | null
+        }
+        Insert: {
+          created_at?: string
+          exercise_library_id?: string | null
+          exercise_name: string
+          final_load?: number | null
+          final_total_work?: number | null
+          id?: string
+          initial_load?: number | null
+          initial_total_work?: number | null
+          load_variation_percentage?: number | null
+          report_id: string
+          weekly_progression?: Json | null
+          work_variation_percentage?: number | null
+        }
+        Update: {
+          created_at?: string
+          exercise_library_id?: string | null
+          exercise_name?: string
+          final_load?: number | null
+          final_total_work?: number | null
+          id?: string
+          initial_load?: number | null
+          initial_total_work?: number | null
+          load_variation_percentage?: number | null
+          report_id?: string
+          weekly_progression?: Json | null
+          work_variation_percentage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_tracked_exercises_exercise_library_id_fkey"
+            columns: ["exercise_library_id"]
+            isOneToOne: false
+            referencedRelation: "exercises_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_tracked_exercises_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "student_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_audio_segments: {
         Row: {
           audio_duration_seconds: number | null
@@ -896,6 +956,83 @@ export type Database = {
           },
           {
             foreignKeyName: "student_observations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      student_reports: {
+        Row: {
+          adherence_percentage: number | null
+          attention_points: string | null
+          consistency_analysis: string | null
+          created_at: string
+          generated_at: string | null
+          id: string
+          next_cycle_plan: string | null
+          oura_data: Json | null
+          period_end: string
+          period_start: string
+          report_type: string
+          sessions_proposed: number | null
+          status: string
+          strength_analysis: string | null
+          student_id: string
+          total_sessions: number
+          trainer_highlights: string | null
+          trainer_id: string
+          updated_at: string
+          weekly_average: number | null
+        }
+        Insert: {
+          adherence_percentage?: number | null
+          attention_points?: string | null
+          consistency_analysis?: string | null
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          next_cycle_plan?: string | null
+          oura_data?: Json | null
+          period_end: string
+          period_start: string
+          report_type: string
+          sessions_proposed?: number | null
+          status?: string
+          strength_analysis?: string | null
+          student_id: string
+          total_sessions?: number
+          trainer_highlights?: string | null
+          trainer_id: string
+          updated_at?: string
+          weekly_average?: number | null
+        }
+        Update: {
+          adherence_percentage?: number | null
+          attention_points?: string | null
+          consistency_analysis?: string | null
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          next_cycle_plan?: string | null
+          oura_data?: Json | null
+          period_end?: string
+          period_start?: string
+          report_type?: string
+          sessions_proposed?: number | null
+          status?: string
+          strength_analysis?: string | null
+          student_id?: string
+          total_sessions?: number
+          trainer_highlights?: string | null
+          trainer_id?: string
+          updated_at?: string
+          weekly_average?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_reports_student_id_fkey"
             columns: ["student_id"]
             isOneToOne: false
             referencedRelation: "students"
@@ -1079,6 +1216,7 @@ export type Database = {
           is_finalized: boolean | null
           prescription_id: string | null
           room_name: string | null
+          session_type: string
           student_id: string
           time: string
           trainer_name: string | null
@@ -1093,6 +1231,7 @@ export type Database = {
           is_finalized?: boolean | null
           prescription_id?: string | null
           room_name?: string | null
+          session_type: string
           student_id: string
           time: string
           trainer_name?: string | null
@@ -1107,6 +1246,7 @@ export type Database = {
           is_finalized?: boolean | null
           prescription_id?: string | null
           room_name?: string | null
+          session_type?: string
           student_id?: string
           time?: string
           trainer_name?: string | null

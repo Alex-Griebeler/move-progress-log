@@ -1071,6 +1071,7 @@ export function RecordGroupSessionDialog({
             prescription_id: prescriptionId,
             date,
             time,
+            session_type: 'group',
             trainer_name: trainer,
             is_finalized: true,
             can_reopen: true,

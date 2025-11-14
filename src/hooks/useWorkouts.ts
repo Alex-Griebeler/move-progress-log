@@ -87,7 +87,12 @@ export const useCreateWorkout = () => {
       // Criar sessão
       const { data: session, error: sessionError } = await supabase
         .from("workout_sessions")
-        .insert({ student_id: studentId, date, time })
+        .insert({ 
+          student_id: studentId, 
+          date, 
+          time,
+          session_type: 'individual'
+        })
         .select()
         .single();
       

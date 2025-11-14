@@ -11,6 +11,7 @@ export interface WorkoutSession {
   student_id: string;
   date: string;
   time: string;
+  session_type: 'individual' | 'group';
   workout_name?: string;
   room_name?: string;
   trainer_name?: string;
@@ -99,6 +100,7 @@ export const useCreateWorkoutSession = () => {
           student_id: data.student_id,
           date: data.date,
           time: data.time,
+          session_type: 'individual',
         })
         .select()
         .single();
@@ -177,6 +179,7 @@ export const useCreateGroupWorkoutSessions = () => {
               prescription_id: data.prescriptionId,
               date: data.date,
               time: data.time,
+              session_type: 'group',
             })
             .select()
             .single();

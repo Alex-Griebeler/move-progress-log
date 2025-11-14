@@ -403,7 +403,10 @@ export function RecordIndividualSessionDialog({
 
         const { data: session, error: sessionError } = await supabase
           .from('workout_sessions')
-          .insert(workoutSession)
+          .insert({
+            ...workoutSession,
+            session_type: 'individual'
+          })
           .select()
           .single();
 

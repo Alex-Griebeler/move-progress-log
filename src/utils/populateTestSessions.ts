@@ -187,6 +187,7 @@ export const populateTestSessions = async () => {
             student_id: session.studentId,
             date: session.date,
             time: session.time,
+            session_type: 'individual',
           })
           .select()
           .single();
