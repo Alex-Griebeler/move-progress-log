@@ -5,9 +5,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2 } from "lucide-react";
+import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2, History } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { useSessionDraft } from "@/hooks/useSessionDraft";
+import { DraftHistoryDialog } from "./DraftHistoryDialog";
+import { SessionDraft } from "@/hooks/useSessionDraftHistory";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -58,8 +60,9 @@ export function ManualSessionEntry({
   onCancel,
 }: ManualSessionEntryProps) {
   
-  const { draft, saveDraft, clearDraft, isSaving, lastSaved } = useSessionDraft();
+  const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = useSessionDraft();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   
   // Estado para controlar o aluno atual (visualização página por página)
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
@@ -293,6 +296,15 @@ export function ManualSessionEntry({
     setSelectedExerciseForReplacement(null);
   };
 
+  const handleRestoreDraft = (historicalDraft: SessionDraft) => {
+    // Restaurar o rascunho do histórico
+    restoreDraft(historicalDraft);
+    
+    // Atualizar o estado local com os dados restaurados
+    setStudentExercises(historicalDraft.studentExercises);
+    setCurrentStudentIndex(0); // Reset para o primeiro aluno
+  };
+
   return (
     <div className="space-y-6">
       {/* Indicador de rascunho e auto-save */}
@@ -313,15 +325,26 @@ export function ManualSessionEntry({
               </>
             ) : null}
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearDraft}
-            className="h-7 text-xs"
-          >
-            <Trash className="h-3 w-3 mr-1" />
-            Limpar rascunho
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setHistoryDialogOpen(true)}
+              className="h-7 text-xs gap-1"
+            >
+              <History className="h-3 w-3" />
+              Histórico
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearDraft}
+              className="h-7 text-xs"
+            >
+              <Trash className="h-3 w-3 mr-1" />
+              Limpar rascunho
+            </Button>
+          </div>
         </div>
       )}
       
@@ -537,6 +560,13 @@ export function ManualSessionEntry({
         currentExerciseName={selectedExerciseForReplacement?.currentName || ""}
         onExerciseSelected={handleExerciseSelected}
         autoSuggest={false}
+      />
+
+      {/* Dialog de histórico de rascunhos */}
+      <DraftHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        onRestoreDraft={handleRestoreDraft}
       />
     </div>
   );
