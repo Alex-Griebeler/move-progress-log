@@ -111,7 +111,7 @@ export const NAV_LABELS = {
   tabSessions: "Sessões",
   tabExercises: "Exercícios",
   tabPrescriptions: "Prescrições",
-  tabOura: "Métricas Oura",
+  tabOura: "Oura - Histórico",
   
   // Stats cards
   statTotalSessions: "Sessões registradas",

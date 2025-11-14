@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dumbbell, Calendar, TrendingUp, Target, AlertCircle, Activity, Heart, User, Flame, Zap } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
@@ -10,6 +11,7 @@ import StatCard from "./StatCard";
 import TrainingZonesCard from "./TrainingZonesCard";
 import { StudentObservationsCard } from "./StudentObservationsCard";
 import ProtocolRecommendationsCard from "./ProtocolRecommendationsCard";
+import { OuraConnectionStatus } from "./OuraConnectionStatus";
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
@@ -260,12 +262,26 @@ export const StudentOverviewDashboard = ({
               {monthsAtFabrik > 0 && (
                 <div className="text-muted-foreground font-medium">
                   {monthsAtFabrik} {monthsAtFabrik === 1 ? 'mês' : 'meses'} na Fabrik
+                  </div>
+                )}
+              </div>
+
+              {/* CTA para análise histórica completa */}
+              {ouraConnection?.isConnected && (
+                <div className="mt-6 pt-6 border-t border-border/50">
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 hover:bg-primary/10 hover:border-primary transition-all"
+                    onClick={onNavigateToOura}
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                    Ver histórico completo e análise detalhada
+                  </Button>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
       {/* Oura Ring Metrics - Premium Ring Progress */}
       <motion.div variants={cardVariants}>
