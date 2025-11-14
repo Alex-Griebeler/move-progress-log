@@ -206,15 +206,14 @@ export const StudentOverviewDashboard = ({
           <CardHeader>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-md">
-                <Avatar className="h-24 w-24 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
+                <Avatar className="h-20 w-20 ring-2 ring-primary/20 ring-offset-2 ring-offset-background">
                   <AvatarImage src={student.avatar_url || undefined} />
                   <AvatarFallback>
-                    <User className="h-12 w-12" />
+                    <User className="h-10 w-10" />
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <CardTitle className="text-3xl font-bold mb-xs">{student.name}</CardTitle>
-                  <CardDescription className="text-base">
+                  <CardDescription className="text-lg font-semibold">
                     {age ? `${age} anos` : "Idade não informada"}
                     {student.fitness_level && ` • ${student.fitness_level}`}
                   </CardDescription>

@@ -60,7 +60,7 @@ export const ROUTE_CONFIG: RouteDefinition[] = [
   { path: ROUTES.prescriptions, label: "Prescrições", icon: FileText },
   { path: ROUTES.protocols, label: "Protocolos", icon: Heart },
   { path: ROUTES.adminUsers, label: "Usuários", icon: UserCog, requiresAdmin: true },
-  { path: ROUTES.adminDiagnostics, label: "Diagnóstico Oura", icon: Shield, requiresAdmin: true },
+  { path: ROUTES.adminDiagnostics, label: "Admin - Diagnóstico Oura", icon: Shield, requiresAdmin: true },
 ];
 
 export const NAV_LABELS = {
@@ -74,7 +74,7 @@ export const NAV_LABELS = {
   // Páginas secundárias
   studentsComparison: "Comparar alunos",
   adminUsers: "Usuários",
-  adminDiagnostics: "Diagnóstico Oura",
+  adminDiagnostics: "Admin - Diagnóstico Oura",
   
   // Ações comuns
   addStudent: "Adicionar aluno",
