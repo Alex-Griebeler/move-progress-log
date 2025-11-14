@@ -2,7 +2,10 @@
 
 ## 📋 Visão Geral
 
-Este documento explica como implementar o sistema de microcopy padronizado na aplicação Fabrik Performance.
+Este documento explica **como implementar tecnicamente** o sistema de microcopy padronizado na aplicação Fabrik Performance.
+
+> **Leia primeiro**: [MICROCOPY_GUIDE.md](./MICROCOPY_GUIDE.md) para entender voz, tom e regras de escrita.  
+> **Valide com**: [MICROCOPY_CHECKLIST.md](./MICROCOPY_CHECKLIST.md) após implementar.
 
 ---
 

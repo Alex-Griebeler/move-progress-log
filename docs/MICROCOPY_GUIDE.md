@@ -2,7 +2,10 @@
 
 ## 📋 Visão Geral
 
-Este documento define os padrões de linguagem, tom e estilo para toda a interface da Fabrik Performance. O objetivo é criar uma experiência consistente, clara e profissional em todos os pontos de contato com o usuário.
+Este documento define os **padrões de linguagem, tom e estilo** para toda a interface da Fabrik Performance. O objetivo é criar uma experiência consistente, clara e profissional em todos os pontos de contato com o usuário.
+
+> **Implemente com**: [MICROCOPY_IMPLEMENTATION.md](./MICROCOPY_IMPLEMENTATION.md) para detalhes técnicos.  
+> **Valide com**: [MICROCOPY_CHECKLIST.md](./MICROCOPY_CHECKLIST.md) antes de commit.
 
 ---
 

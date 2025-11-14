@@ -1,7 +1,12 @@
 # Nomenclatura Padronizada - Relatório de Implementação
 
-## Objetivo
+## 📋 Visão Geral
+
 Padronizar todos os nomes de abas/menus, títulos de página e labels de navegação, garantindo rótulos curtos, descritivos e consistentes em toda a aplicação.
+
+> **Sistema centralizado**: `src/constants/navigation.ts`  
+> **Veja auditoria**: [AUDIT_NOMENCLATURA_E_DUPLICACOES.md](./AUDIT_NOMENCLATURA_E_DUPLICACOES.md)  
+> **Relacionado**: [MICROCOPY_GUIDE.md](./MICROCOPY_GUIDE.md)
 
 ## Regras Aplicadas
 1. **Sentence case** (primeira letra maiúscula, restante minúscula)
