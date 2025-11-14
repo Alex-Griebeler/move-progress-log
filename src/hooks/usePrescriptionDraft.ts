@@ -1,0 +1,141 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { notify } from '@/lib/notify';
+import { usePrescriptionDraftHistory } from './usePrescriptionDraftHistory';
+
+interface PrescriptionDraft {
+  timestamp: string;
+  name: string;
+  objective: string;
+  exercises: Array<{
+    id: string;
+    exercise_library_id: string;
+    sets: string;
+    reps: string;
+    interval_seconds: string;
+    pse: string;
+    training_method: string;
+    observations: string;
+    group_with_previous: boolean;
+    should_track: boolean;
+    adaptations: Array<{
+      type: "regression_1" | "regression_2" | "regression_3";
+      exercise_library_id: string;
+    }>;
+    showAdaptations: boolean;
+  }>;
+}
+
+const DEBOUNCE_MS = 1000;
+const SAVE_TO_HISTORY_INTERVAL = 60000; // 60 segundos
+
+export function usePrescriptionDraft(draftKey: string = 'prescription-draft') {
+  const { saveDraftToHistory } = usePrescriptionDraftHistory();
+  const [draft, setDraft] = useState<PrescriptionDraft | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [lastHistorySave, setLastHistorySave] = useState<Date | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Carregar rascunho ao montar
+  useEffect(() => {
+    const stored = localStorage.getItem(draftKey);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as PrescriptionDraft;
+        setDraft(parsed);
+        setLastSaved(new Date(parsed.timestamp));
+        
+        notify.info("Rascunho encontrado", {
+          description: "Seus dados foram restaurados automaticamente",
+        });
+      } catch (error) {
+        console.error('Erro ao carregar rascunho:', error);
+        localStorage.removeItem(draftKey);
+      }
+    }
+  }, [draftKey]);
+
+  // Salvar rascunho com debounce
+  const saveDraft = useCallback((data: Partial<PrescriptionDraft>) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    setIsSaving(true);
+
+    saveTimeoutRef.current = setTimeout(() => {
+      const draftData: PrescriptionDraft = {
+        timestamp: new Date().toISOString(),
+        name: data.name || '',
+        objective: data.objective || '',
+        exercises: data.exercises || [],
+      };
+
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
+      setDraft(draftData);
+      setLastSaved(new Date());
+      setIsSaving(false);
+
+      // Verificar se deve salvar no histórico (a cada 60 segundos)
+      const now = Date.now();
+      const shouldSaveToHistory = !lastHistorySave || 
+        (now - lastHistorySave.getTime() > SAVE_TO_HISTORY_INTERVAL);
+
+      if (shouldSaveToHistory && draftData.exercises.length > 0) {
+        saveDraftToHistory(draftData);
+        setLastHistorySave(new Date());
+      }
+    }, DEBOUNCE_MS);
+  }, [draftKey, lastHistorySave, saveDraftToHistory]);
+
+  // Limpar rascunho
+  const clearDraft = useCallback(() => {
+    localStorage.removeItem(draftKey);
+    setDraft(null);
+    setLastSaved(null);
+    setLastHistorySave(null);
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+  }, [draftKey]);
+
+  // Verificar se há mudanças não salvas
+  const hasUnsavedChanges = useCallback((currentData: Partial<PrescriptionDraft>) => {
+    if (!draft) return false;
+    
+    return (
+      currentData.name !== draft.name ||
+      currentData.objective !== draft.objective ||
+      JSON.stringify(currentData.exercises) !== JSON.stringify(draft.exercises)
+    );
+  }, [draft]);
+
+  // Restaurar de um rascunho do histórico
+  const restoreDraft = useCallback((draftData: PrescriptionDraft) => {
+    localStorage.setItem(draftKey, JSON.stringify(draftData));
+    setDraft(draftData);
+    setLastSaved(new Date(draftData.timestamp));
+    notify.success("Rascunho restaurado", {
+      description: "Os dados foram carregados do histórico",
+    });
+  }, [draftKey]);
+
+  // Cleanup ao desmontar
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  return {
+    draft,
+    saveDraft,
+    clearDraft,
+    restoreDraft,
+    isSaving,
+    lastSaved,
+    hasUnsavedChanges,
+  };
+}
