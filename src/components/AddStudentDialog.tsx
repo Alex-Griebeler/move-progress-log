@@ -52,10 +52,26 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+interface Student {
+  id: string;
+  name: string;
+  weight_kg?: number | null;
+  height_cm?: number | null;
+  birth_date?: string | null;
+  objectives?: string | null;
+  limitations?: string | null;
+  preferences?: string | null;
+  injury_history?: string | null;
+  fitness_level?: string | null;
+  max_heart_rate?: number | null;
+  weekly_sessions_proposed?: number;
+  avatar_url?: string | null;
+}
+
 interface AddStudentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStudentCreated?: (student: any) => void;
+  onStudentCreated?: (student: Student) => void;
 }
 
 export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddStudentDialogProps) => {
