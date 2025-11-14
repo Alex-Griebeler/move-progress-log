@@ -106,6 +106,7 @@ export function RecordGroupSessionDialog({
   const [dialogState, setDialogState] = useState<DialogState>(isReopening ? 'mode-selection' : 'context-setup');
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [date, setDate] = useState(reopenDate || new Date().toISOString().split('T')[0]);
+  const [isSaving, setIsSaving] = useState(false);
   const [time, setTime] = useState(reopenTime || new Date().toTimeString().slice(0, 5));
   const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording[]>([]);
   const [currentRecordingNumber, setCurrentRecordingNumber] = useState(1);
@@ -980,14 +981,26 @@ export function RecordGroupSessionDialog({
         observations: string;
       }>;
     }>;
-  }) => {
+  }): Promise<void> => {
+    const requestId = Date.now();
+    console.log(`🚀 [${requestId}] Iniciando salvamento:`, {
+      studentsCount: data.studentExercises.length,
+      trainer,
+      prescriptionId,
+      date,
+      time,
+      timestamp: new Date().toISOString(),
+    });
+    
+    setIsSaving(true);
+    
     try {
       // ✅ VALIDAÇÃO 1: Verificar se trainer não está vazio
       if (!trainer || trainer.trim() === '') {
         notify.error("Campo obrigatório", {
           description: "Nome do treinador é obrigatório",
         });
-        return;
+        throw new Error("Nome do treinador é obrigatório");
       }
 
       // ✅ VALIDAÇÃO 2: Verificar se há pelo menos 1 aluno com exercícios
@@ -995,7 +1008,7 @@ export function RecordGroupSessionDialog({
         notify.error("Nenhum aluno selecionado", {
           description: "É necessário ter pelo menos 1 aluno com exercícios",
         });
-        return;
+        throw new Error("Nenhum aluno selecionado");
       }
 
       // ✅ VALIDAÇÃO 3: Verificar se todos os exercícios têm campos obrigatórios
@@ -1028,17 +1041,9 @@ export function RecordGroupSessionDialog({
         notify.error("Dados incompletos", {
           description: validationErrors.slice(0, 3).join('; ') + (validationErrors.length > 3 ? '...' : ''),
         });
-        console.error('❌ Erros de validação:', validationErrors);
-        return;
+        console.error(`❌ [${requestId}] Erros de validação:`, validationErrors);
+        throw new Error("Dados incompletos");
       }
-
-      console.log('💾 Iniciando salvamento:', {
-        studentsCount: data.studentExercises.length,
-        trainer,
-        prescriptionId,
-        date,
-        time,
-      });
 
       const sessionsToCreate = data.studentExercises.map(se => {
         const student = selectedStudents.find(s => s.id === se.studentId);
@@ -1098,8 +1103,7 @@ export function RecordGroupSessionDialog({
         description: `${sessionsToCreate.length} sessão(ões) criada(s) manualmente`,
       });
 
-      // Limpar rascunho após sucesso
-      clearDraft();
+      console.log(`✅ [${requestId}] Salvamento concluído com sucesso`);
 
       // Reset completo de estados
       setDialogState('context-setup');
@@ -1110,7 +1114,7 @@ export function RecordGroupSessionDialog({
       setHasAutoSelected(false);
       onOpenChange(false);
     } catch (error) {
-      console.error("❌ Error saving manual sessions:", error);
+      console.error(`❌ [${requestId}] Erro no salvamento:`, error);
       
       // Mensagens de erro mais específicas
       let errorMessage = "Erro desconhecido";
@@ -1127,6 +1131,10 @@ export function RecordGroupSessionDialog({
       notify.error("Erro ao salvar sessões", {
         description: errorMessage,
       });
+      
+      throw error; // Re-throw para o ManualSessionEntry saber que falhou
+    } finally {
+      setIsSaving(false);
     }
   };
 
