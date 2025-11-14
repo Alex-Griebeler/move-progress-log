@@ -84,8 +84,8 @@ export function SortableExerciseItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`space-y-4 p-4 border rounded-lg bg-muted/30 transition-all ${
-        isFocused ? 'ring-2 ring-primary shadow-lg' : ''
+      className={`space-y-md p-lg border rounded-radius-lg bg-muted/30 transition-smooth ${
+        isFocused ? 'ring-2 ring-primary shadow-premium' : ''
       }`}
       onClick={onFocus}
     >

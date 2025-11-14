@@ -50,7 +50,7 @@ const EmptyState = ({
       aria-live="polite"
     >
       {/* Ícone com background premium */}
-      <div className="rounded-xl bg-muted/50 p-lg shadow-sm">
+      <div className="rounded-radius-xl bg-muted/50 p-lg shadow-subtle">
         {icon || <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />}
       </div>
       
