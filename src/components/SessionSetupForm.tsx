@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useTrainers } from "@/hooks/useTrainers";
 import { useStudents } from "@/hooks/useStudents";
+import { useStudentsWithActivePrescriptions } from "@/hooks/useStudentDetail";
 import { format } from "date-fns";
 import { Search, UserPlus } from "lucide-react";
 import { AddStudentDialog } from "./AddStudentDialog";
@@ -43,22 +44,14 @@ export function SessionSetupForm({
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
 
-  // Converter date de YYYY-MM-DD para DD/MM/YYYY para exibição
-  const dateForDisplay = date ? format(new Date(date + 'T00:00:00'), 'dd/MM/yyyy') : '';
-  
-  const handleDateChange = (displayDate: string) => {
-    // Converter de DD/MM/YYYY para YYYY-MM-DD
-    const parts = displayDate.split('/');
-    if (parts.length === 3) {
-      const [day, month, year] = parts;
-      onDateChange(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
-    }
-  };
+  // Buscar prescrições ativas de todos os alunos
+  const studentIds = students?.map(s => s.id) || [];
+  const { data: activeStudentIds } = useStudentsWithActivePrescriptions(studentIds);
 
   // Enriquecer estudantes com informação de prescrição ativa
   const enrichedStudents = students?.map(student => ({
     ...student,
-    has_active_prescription: false, // TODO: buscar da tabela prescription_assignments
+    has_active_prescription: activeStudentIds?.has(student.id) || false,
   }));
 
   // Filtrar estudantes baseado no termo de busca

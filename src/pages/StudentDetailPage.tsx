@@ -34,7 +34,7 @@ import { EditSessionDialog } from "@/components/EditSessionDialog";
 import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useReopenWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -44,6 +44,7 @@ import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getPersonSchema } from "@/utils/structuredData";
+import { ErrorState } from "@/components/ErrorState";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -59,6 +60,7 @@ const StudentDetailPage = () => {
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [studentNotFound, setStudentNotFound] = useState(false);
   const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'individual' | 'group'>('all');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const deleteAssignment = useDeletePrescriptionAssignment();
@@ -94,11 +96,13 @@ const StudentDetailPage = () => {
 
   if (!student) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Aluno não encontrado</h2>
-          <Button onClick={() => navigate(ROUTES.students)}>Voltar</Button>
-        </div>
+      <div className="container mx-auto p-6 flex items-center justify-center min-h-[60vh]">
+        <ErrorState
+          title="Aluno não encontrado"
+          description="O aluno que você está procurando não existe ou foi removido."
+          onRetry={() => navigate(ROUTES.students)}
+          retryLabel="Voltar para Alunos"
+        />
       </div>
     );
   }
