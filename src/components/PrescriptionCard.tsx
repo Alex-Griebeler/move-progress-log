@@ -110,9 +110,9 @@ const PrescriptionCardComponent = ({
   return (
     <Card className="animate-fade-in hover:shadow-premium transition-smooth">
       <CardHeader>
-        <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="flex items-start justify-between gap-sm flex-wrap">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-sm mb-2">
               <CardTitle className="text-2xl">{prescription.name}</CardTitle>
               {getAssignmentBadge(prescription.assigned_students_count || 0)}
             </div>
@@ -121,14 +121,14 @@ const PrescriptionCardComponent = ({
                 {prescription.objective}
               </CardDescription>
             )}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-3">
+            <div className="flex items-center gap-xs text-sm text-muted-foreground mt-3">
               <Calendar className="h-4 w-4" />
               <span>
                 Criada em {format(new Date(prescription.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </span>
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-xs flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -212,7 +212,7 @@ const PrescriptionCardComponent = ({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-sm">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />

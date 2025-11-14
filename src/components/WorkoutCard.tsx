@@ -58,13 +58,13 @@ const WorkoutCard = memo(({
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-gradient-to-br from-primary/20 to-accent/20 group-hover:from-primary/30 group-hover:to-accent/30 transition-colors">
+          <div className="flex items-center gap-sm">
+            <div className="p-xs rounded-md bg-gradient-to-br from-primary/20 to-accent/20 group-hover:from-primary/30 group-hover:to-accent/30 transition-colors">
               <Dumbbell className="h-5 w-5 text-primary" />
             </div>
             <div className="flex flex-col">
               <CardTitle className="text-lg">{displayName}</CardTitle>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <div className="flex items-center gap-xs mt-1 flex-wrap">
                 <span className="text-xs text-muted-foreground">{exercises} exercícios</span>
                 {sessionTypeBadge && (
                   <>
@@ -91,11 +91,11 @@ const WorkoutCard = memo(({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-sm">
         {totalVolume && (
-          <div className="flex items-center justify-between p-3 rounded-md bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10">
+          <div className="flex items-center justify-between p-sm rounded-md bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10">
             <span className="text-sm font-medium text-muted-foreground">Volume Total</span>
-            <div className="flex items-center gap-2 text-primary">
+            <div className="flex items-center gap-xs text-primary">
               <TrendingUp className="h-4 w-4" />
               <span className="text-lg font-bold">{totalVolume.toLocaleString('pt-BR')}kg</span>
             </div>
@@ -103,12 +103,12 @@ const WorkoutCard = memo(({
         )}
         
         {isFinalized && (
-          <div className="flex items-center justify-between pt-2 border-t border-border">
-            <div className="flex items-center gap-2 text-muted-foreground">
+          <div className="flex items-center justify-between pt-xs border-t border-border">
+            <div className="flex items-center gap-xs text-muted-foreground">
               <Lock className="h-4 w-4" />
               <span className="text-sm">Sessão finalizada</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-xs">
               {canReopen && onReopen && (
                 <Button 
                   variant="outline" 

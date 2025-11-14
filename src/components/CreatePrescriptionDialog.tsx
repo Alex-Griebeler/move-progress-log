@@ -350,7 +350,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>Criar Nova Prescrição</DialogTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-xs">
               {lastSaved && (
                 <Badge variant="outline" className="gap-1">
                   <Save className="h-3 w-3" />
@@ -380,7 +380,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
             </div>
           </div>
           {exercises.length > 0 && (
-            <div className="flex items-center gap-2 pt-2">
+            <div className="flex items-center gap-xs pt-xs">
               <Badge variant="secondary" className="text-sm">
                 {exercises.filter(ex => ex.should_track !== false).length} de {exercises.length} exercício(s) para registro
               </Badge>
@@ -394,7 +394,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         </DialogHeader>
 
         <TooltipProvider>
-          <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
+          <ScrollArea className="max-h-[calc(90vh-120px)] pr-md">
           <div className="space-y-lg">
             <div className="space-y-md">
               <div className="space-y-sm">
