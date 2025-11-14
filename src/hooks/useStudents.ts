@@ -8,7 +8,7 @@ export interface Student {
   name: string;
   weekly_sessions_proposed: number;
   birth_date: string | null;
-  objectives: string | null;
+  objectives: string[] | null;
   limitations: string | null;
   preferences: string | null;
   max_heart_rate: number | null;
