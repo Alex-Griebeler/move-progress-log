@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2, History } from "lucide-react";
+import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2, History, UserPlus } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { useSessionDraft } from "@/hooks/useSessionDraft";
 import { DraftHistoryDialog } from "./DraftHistoryDialog";
@@ -47,6 +47,7 @@ interface ManualSessionEntryProps {
     }>;
   }) => Promise<void>;
   onCancel?: () => void;
+  onAddStudent?: () => void;
 }
 
 export function ManualSessionEntry({
@@ -58,6 +59,7 @@ export function ManualSessionEntry({
   prescriptionId,
   onSave,
   onCancel,
+  onAddStudent,
 }: ManualSessionEntryProps) {
   
   const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = useSessionDraft();
@@ -348,6 +350,22 @@ export function ManualSessionEntry({
         </div>
       )}
       
+      {/* Botão de adicionar aluno */}
+      {onAddStudent && (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onAddStudent}
+            className="gap-1.5"
+          >
+            <UserPlus className="h-4 w-4" />
+            Adicionar Aluno
+          </Button>
+        </div>
+      )}
+
       {/* Navegação entre alunos */}
       <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
         <Button

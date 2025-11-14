@@ -1254,21 +1254,9 @@ export function RecordGroupSessionDialog({
 
         {dialogState === 'mode-selection' && (
           <div className="space-y-6 py-8">
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-muted-foreground">
-                Escolha como deseja registrar a sessão em grupo:
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAddStudentDialog(true)}
-                className="gap-1.5"
-              >
-                <UserPlus className="h-4 w-4" />
-                Adicionar Aluno
-              </Button>
-            </div>
+            <p className="text-center text-muted-foreground">
+              Escolha como deseja registrar a sessão em grupo:
+            </p>
             <div className="grid gap-4 md:grid-cols-2">
               <Button
                 variant="outline"
@@ -1527,6 +1515,7 @@ export function RecordGroupSessionDialog({
             prescriptionId={prescriptionId || null}
             onSave={handleSaveManual}
             onCancel={() => setDialogState('mode-selection')}
+            onAddStudent={() => setShowAddStudentDialog(true)}
           />
         )}
 
