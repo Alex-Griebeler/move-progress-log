@@ -15,6 +15,18 @@ const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY')!;
 const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY);
 
+/**
+ * CONSTANTES DE UNIDADES - Fonte única de verdade
+ * Mantém sincronizado com src/constants/units.ts
+ */
+const POUND_TO_KG_CONVERSION = 0.45;
+const DECIMAL_PLACES = 1;
+
+const roundToDecimal = (value: number, decimals: number = DECIMAL_PLACES): number => {
+  const multiplier = Math.pow(10, decimals);
+  return Math.round(value * multiplier) / multiplier;
+};
+
 // Processar base64 em chunks para prevenir problemas de memória
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
   const chunks: Uint8Array[] = [];
@@ -594,7 +606,7 @@ FORMATO DE SAÍDA:
         if (bodyCorporalWithValue) {
           const value = parseFloat(bodyCorporalWithValue[1]);
           console.log(`✅ Peso corporal detectado: ${value} kg`);
-          return Math.round(value * 10) / 10;
+          return roundToDecimal(value);
         }
         
         // 2. DETECTAR PESO CORPORAL SEM VALOR
@@ -631,9 +643,9 @@ FORMATO DE SAÍDA:
           const lbMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
           for (const m of lbMatches) {
             const value = parseFloat(m[1].replace(',', '.'));
-            const kg = value * 0.45;
+            const kg = value * POUND_TO_KG_CONVERSION;
             total += kg * 2;
-            console.log(`  + ${value} lb × 0.45 × 2 lados = ${kg * 2} kg`);
+            console.log(`  + ${value} lb × ${POUND_TO_KG_CONVERSION} × 2 lados = ${kg * 2} kg`);
           }
         }
         
@@ -642,7 +654,7 @@ FORMATO DE SAÍDA:
         if (multiKbMatch && !processedEachSide) {
           const value = parseFloat(multiKbMatch[2].replace(',', '.'));
           const unit = multiKbMatch[3].toLowerCase();
-          const kg = unit === 'lb' ? value * 0.45 : value;
+          const kg = unit === 'lb' ? value * POUND_TO_KG_CONVERSION : value;
           total += kg * 2;
           console.log(`  + 2 kettlebells/halteres de ${value} ${unit} = ${kg * 2} kg`);
         }
@@ -671,13 +683,13 @@ FORMATO DE SAÍDA:
           const lbMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
           for (const m of lbMatches) {
             const value = parseFloat(m[1].replace(',', '.'));
-            const kg = value * 0.45;
+            const kg = value * POUND_TO_KG_CONVERSION;
             total += kg;
             console.log(`  + ${value} lb = ${kg} kg`);
           }
         }
         
-        const result = total > 0 ? Math.round(total * 10) / 10 : null;
+        const result = total > 0 ? roundToDecimal(total) : null;
         console.log(`✅ Carga total: ${result} kg`);
         return result;
       } catch (err) {
