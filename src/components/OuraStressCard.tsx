@@ -105,7 +105,7 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
       <CardContent className="space-y-6">
         {/* Stress Balance Overview */}
         {totalTime > 0 && (
-          <div className="p-4 rounded-lg bg-card border">
+          <div className="p-lg rounded-radius-lg bg-card border">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium">Balanço Estresse/Recuperação</p>
               <Badge variant={Number(stressPercentage) > 50 ? "destructive" : "default"}>
@@ -140,14 +140,14 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
 
         {/* Detailed Time Metrics */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+          <div className="flex items-center gap-md p-md rounded-radius-lg bg-destructive/10 border border-destructive/20">
             <TrendingUp className="h-8 w-8 text-destructive" />
             <div>
               <p className="text-sm text-muted-foreground">Tempo em Estresse Alto</p>
               <p className="text-xl font-bold">{formatTime(metrics.stress_high_time)}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-chart-3/10 border border-chart-3/20">
+          <div className="flex items-center gap-md p-md rounded-radius-lg bg-chart-3/10 border border-chart-3/20">
             <TrendingDown className="h-8 w-8 text-chart-3" />
             <div>
               <p className="text-sm text-muted-foreground">Tempo em Recuperação Alta</p>
@@ -158,7 +158,7 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
 
         {/* Recommendations */}
         {metrics.stress_high_time && metrics.stress_high_time > 7200 && (
-          <div className="p-3 bg-secondary border rounded-lg">
+          <div className="p-md bg-secondary border rounded-radius-lg">
             <p className="text-sm text-secondary-foreground font-medium mb-1">
               ⚠️ Nível de estresse elevado detectado
             </p>
@@ -169,7 +169,7 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
         )}
 
         {metrics.recovery_high_time && metrics.recovery_high_time > 14400 && (
-          <div className="p-3 bg-primary/10 border border-primary/20 rounded-lg">
+          <div className="p-md bg-primary/10 border border-primary/20 rounded-radius-lg">
             <p className="text-sm text-primary font-medium">
               ✓ Excelente recuperação detectada - momento ideal para treinos intensos!
             </p>

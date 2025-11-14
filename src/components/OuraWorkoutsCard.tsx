@@ -112,8 +112,8 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
 
               {/* Calories */}
               {workout.calories && (
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-accent/50">
+                <div className="flex items-center gap-sm">
+                  <div className="p-sm rounded-radius-lg bg-accent/50">
                     <Flame className="h-4 w-4 text-destructive" />
                   </div>
                   <div>
@@ -125,8 +125,8 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
 
               {/* Heart Rate */}
               {workout.average_heart_rate && (
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-destructive/10">
+                <div className="flex items-center gap-sm">
+                  <div className="p-sm rounded-radius-lg bg-destructive/10">
                     <Heart className="h-4 w-4 text-destructive" />
                   </div>
                   <div>
@@ -145,8 +145,8 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
 
               {/* Distance */}
               {workout.distance && (
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-primary/10">
+                <div className="flex items-center gap-sm">
+                  <div className="p-sm rounded-radius-lg bg-primary/10">
                     <MapPin className="h-4 w-4 text-primary" />
                   </div>
                   <div>
@@ -159,7 +159,7 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
 
             {/* Source */}
             {workout.source && (
-              <div className="mt-3 pt-3 border-t">
+              <div className="mt-md pt-md border-t">
                 <p className="text-xs text-muted-foreground">
                   Fonte: <span>{translateActivity(workout.source)}</span>
                 </p>
