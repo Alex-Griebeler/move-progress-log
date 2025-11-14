@@ -205,7 +205,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                 <AvatarImage src={avatarPreview || undefined} className="object-cover" />
                 <AvatarFallback>?</AvatarFallback>
               </Avatar>
-              <div className="flex gap-sm">
+              <div className="flex gap-xs">
                 <Button
                   type="button"
                   variant="outline"

@@ -449,7 +449,7 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
                 </FormItem>
               )}
             />
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-xs pt-md">
               <Button
                 type="button"
                 variant="outline"
