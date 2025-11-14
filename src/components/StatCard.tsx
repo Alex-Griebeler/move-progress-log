@@ -11,17 +11,17 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, icon: Icon, subtitle, gradient }: StatCardProps) => {
   return (
-    <Card className={`hover:shadow-premium transition-smooth ${gradient ? 'bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20' : ''}`}>
+    <Card className={`hover:shadow-premium transition-smooth ${gradient ? 'bg-gradient-card border-primary/20' : ''}`}>
       <CardHeader className="pb-sm">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-muted-foreground leading-normal">{title}</CardTitle>
-          <div className={`p-sm rounded-radius-md ${gradient ? 'bg-gradient-to-br from-primary to-accent' : 'bg-secondary'}`}>
+          <div className={`p-sm rounded-md ${gradient ? 'bg-gradient-primary' : 'bg-secondary'}`}>
             <Icon className={`h-4 w-4 ${gradient ? 'text-primary-foreground' : 'text-primary'}`} />
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-3xl font-bold leading-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+        <div className="text-3xl font-bold leading-tight text-gradient-primary">
           {value}
         </div>
         {subtitle && <p className="text-xs text-muted-foreground mt-xs leading-normal">{subtitle}</p>}

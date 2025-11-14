@@ -163,7 +163,7 @@ const StudentsPage = () => {
 
               {/* Readiness Oura Ring - Destaque maior */}
               {readinessScore ? (
-                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div className="flex items-center justify-between p-2 rounded-md bg-muted/30">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">Prontidão</span>
                     <Badge variant="secondary" className="text-xs">
@@ -175,7 +175,7 @@ const StudentsPage = () => {
                   </span>
                 </div>
               ) : ouraStatus?.isConnected && ouraStatus.hasIssues ? (
-                <div className="flex items-center justify-between p-2 rounded-lg bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
+                <div className="flex items-center justify-between p-2 rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
                   <div className="flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
                     <span className="text-xs text-yellow-700 dark:text-yellow-400 font-medium">
@@ -184,7 +184,7 @@ const StudentsPage = () => {
                   </div>
                 </div>
               ) : ouraStatus?.isConnected ? (
-                <div className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-dashed">
+                <div className="flex items-center justify-between p-2 rounded-md bg-muted/20 border border-dashed">
                   <span className="text-xs text-muted-foreground">Aguardando dados Oura</span>
                 </div>
               ) : null}
@@ -277,7 +277,7 @@ const StudentsPage = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setEditingStudent(student)}
-                aria-label={`Editar dados de ${student.name}`}
+                aria-label={`Editar informações de ${student.name}`}
                 title="Editar aluno"
               >
                 <Edit className="h-4 w-4" />
@@ -286,7 +286,7 @@ const StudentsPage = () => {
                 variant="destructive"
                 size="sm"
                 onClick={() => setDeletingStudentId(student.id)}
-                aria-label={`Excluir ${student.name}`}
+                aria-label={`Excluir aluno ${student.name}`}
                 title="Excluir aluno"
               >
                 <Trash2 className="h-4 w-4" />

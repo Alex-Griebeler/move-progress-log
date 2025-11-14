@@ -58,7 +58,7 @@ const WorkoutCard = ({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 group-hover:from-primary/30 group-hover:to-accent/30 transition-colors">
+            <div className="p-2 rounded-md bg-gradient-to-br from-primary/20 to-accent/20 group-hover:from-primary/30 group-hover:to-accent/30 transition-colors">
               <Dumbbell className="h-5 w-5 text-primary" />
             </div>
             <div className="flex flex-col">
@@ -92,7 +92,7 @@ const WorkoutCard = ({
       </CardHeader>
       <CardContent className="space-y-3">
         {totalVolume && (
-          <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10">
+          <div className="flex items-center justify-between p-3 rounded-md bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10">
             <span className="text-sm font-medium text-muted-foreground">Volume Total</span>
             <div className="flex items-center gap-2 text-primary">
               <TrendingUp className="h-4 w-4" />
@@ -102,50 +102,56 @@ const WorkoutCard = ({
         )}
         
         {isFinalized && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Lock className="h-3 w-3" />
-              <span>Sessão Finalizada</span>
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Lock className="h-4 w-4" />
+              <span className="text-sm">Sessão finalizada</span>
             </div>
             <div className="flex gap-2">
-              {onEdit && (
-                <Button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit();
-                  }}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-2"
-                >
-                  <Edit className="h-3 w-3" />
-                  Editar
-                </Button>
-              )}
               {canReopen && onReopen && (
                 <Button 
+                  variant="outline" 
+                  size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
                     onReopen();
                   }}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-2"
+                  aria-label="Reabrir sessão finalizada"
                 >
-                  <FolderOpen className="h-3 w-3" />
+                  <FolderOpen className="h-4 w-4 mr-2" />
                   Reabrir
                 </Button>
               )}
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // View details (handled by card onClick)
+                }}
+                aria-label="Ver detalhes da sessão"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Ver Detalhes
+              </Button>
             </div>
           </div>
         )}
-        
-        {onClick && (
-          <div className="flex items-center justify-center pt-2 border-t">
-            <Eye className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground ml-1">
-              Clique para ver detalhes completos
-            </span>
+
+        {!isFinalized && onEdit && (
+          <div className="flex justify-end pt-2 border-t border-border">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              aria-label="Editar sessão de treino"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Editar
+            </Button>
           </div>
         )}
       </CardContent>
