@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ErrorStateProps {
   title: string;
@@ -8,11 +9,12 @@ interface ErrorStateProps {
   onDetails?: () => void;
   retryLabel?: string;
   detailsLabel?: string;
+  className?: string;
 }
 
 /**
- * Componente para exibir estados de erro com ações claras
- * Usado quando uma operação falha ou dados não podem ser carregados
+ * ErrorState - Componente premium para estados de erro
+ * Atualizado com tokens de spacing, typography e design system (Etapa 3)
  * 
  * @example
  * <ErrorState
@@ -28,32 +30,39 @@ export function ErrorState({
   onDetails,
   retryLabel = "Tentar novamente",
   detailsLabel = "Ver detalhes",
+  className,
 }: ErrorStateProps) {
   return (
     <div 
-      className="flex flex-col items-center justify-center text-center gap-4 py-12 px-4"
+      className={cn(
+        "flex flex-col items-center justify-center text-center gap-md py-xl px-lg",
+        className
+      )}
       role="alert"
       aria-live="polite"
     >
-      <div className="rounded-full bg-destructive/10 p-3">
-        <AlertCircle className="h-6 w-6 text-destructive" aria-hidden="true" />
+      {/* Ícone com background premium */}
+      <div className="rounded-xl bg-destructive/10 p-lg shadow-sm">
+        <AlertCircle className="h-8 w-8 text-destructive" aria-hidden="true" />
       </div>
       
-      <div className="space-y-2">
+      {/* Título e descrição com typography premium */}
+      <div className="space-y-sm">
         <h3 className="text-lg font-semibold text-foreground">
           {title}
         </h3>
         
         {description && (
-          <p className="text-sm text-muted-foreground max-w-md">
+          <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
             {description}
           </p>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center mt-2">
+      {/* Actions com spacing premium */}
+      <div className="flex flex-wrap gap-sm justify-center mt-sm">
         {onRetry && (
-          <Button onClick={onRetry} size="sm">
+          <Button onClick={onRetry} size="sm" variant="destructive">
             {retryLabel}
           </Button>
         )}
