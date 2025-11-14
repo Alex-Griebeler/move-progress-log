@@ -20,6 +20,9 @@ export default {
         'pos-0': '0% 0%',
         'pos-100': '100% 100%',
       },
+      /* ========================================
+         DESIGN SYSTEM FOUNDATION - ETAPA 3
+         ======================================== */
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -64,11 +67,70 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        /* Premium tokens - Success/Info/Warning */
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
       },
+      /* Premium Spacing System */
+      spacing: {
+        'xs': 'var(--spacing-xs)',
+        'sm': 'var(--spacing-sm)',
+        'md': 'var(--spacing-md)',
+        'lg': 'var(--spacing-lg)',
+        'xl': 'var(--spacing-xl)',
+        '2xl': 'var(--spacing-2xl)',
+        '3xl': 'var(--spacing-3xl)',
+      },
+      /* Premium Typography System */
+      fontSize: {
+        'xs': ['var(--font-size-xs)', { lineHeight: 'var(--leading-normal)' }],
+        'sm': ['var(--font-size-sm)', { lineHeight: 'var(--leading-normal)' }],
+        'base': ['var(--font-size-base)', { lineHeight: 'var(--leading-normal)' }],
+        'lg': ['var(--font-size-lg)', { lineHeight: 'var(--leading-normal)' }],
+        'xl': ['var(--font-size-xl)', { lineHeight: 'var(--leading-tight)' }],
+        '2xl': ['var(--font-size-2xl)', { lineHeight: 'var(--leading-tight)' }],
+        '3xl': ['var(--font-size-3xl)', { lineHeight: 'var(--leading-tight)' }],
+        '4xl': ['var(--font-size-4xl)', { lineHeight: 'var(--leading-tight)' }],
+        /* Premium hierarchy tokens */
+        'display': ['var(--font-size-4xl)', { lineHeight: 'var(--leading-tight)', fontWeight: 'var(--font-weight-bold)' }],
+        'h1': ['var(--font-size-3xl)', { lineHeight: 'var(--leading-tight)', fontWeight: 'var(--font-weight-semibold)' }],
+        'h2': ['var(--font-size-2xl)', { lineHeight: 'var(--leading-tight)', fontWeight: 'var(--font-weight-semibold)' }],
+        'h3': ['var(--font-size-xl)', { lineHeight: 'var(--leading-normal)', fontWeight: 'var(--font-weight-medium)' }],
+        'body-lg': ['var(--font-size-lg)', { lineHeight: 'var(--leading-relaxed)' }],
+        'body': ['var(--font-size-base)', { lineHeight: 'var(--leading-normal)' }],
+        'body-sm': ['var(--font-size-sm)', { lineHeight: 'var(--leading-normal)' }],
+        'caption': ['var(--font-size-xs)', { lineHeight: 'var(--leading-normal)' }],
+      },
+      /* Premium Shadow System */
+      boxShadow: {
+        'xs': 'var(--shadow-xs)',
+        'sm': 'var(--shadow-sm)',
+        'md': 'var(--shadow-md)',
+        'lg': 'var(--shadow-lg)',
+        'xl': 'var(--shadow-xl)',
+        '2xl': 'var(--shadow-2xl)',
+        'primary': 'var(--shadow-primary)',
+        'card': 'var(--shadow-card)',
+      },
+      /* Premium Border Radius System */
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        'xs': 'var(--radius-xs)',
+        'sm': 'var(--radius-sm)',
+        'md': 'var(--radius-md)',
+        'lg': 'var(--radius-lg)',
+        'xl': 'var(--radius-xl)',
+        '2xl': 'var(--radius-2xl)',
+        'full': 'var(--radius-full)',
       },
       keyframes: {
         "accordion-down": {
