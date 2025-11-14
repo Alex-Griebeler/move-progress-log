@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2, History, UserPlus, AlertTriangle } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { useSessionDraft } from "@/hooks/useSessionDraft";
@@ -616,10 +617,20 @@ export function ManualSessionEntry({
                       <div className="flex items-center gap-1.5">
                         <Label className="text-xs">Carga (kg)</Label>
                         {requiresReview && (
-                          <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600 dark:text-amber-400 dark:border-amber-400">
-                            <AlertTriangle className="h-2.5 w-2.5" />
-                            Revisar
-                          </Badge>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600 dark:text-amber-400 dark:border-amber-400 cursor-help">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                Revisar
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="font-medium">Carga não calculada automaticamente</p>
+                              <p className="text-muted-foreground text-xs mt-1">
+                                Verifique a descrição da carga e insira o valor manualmente.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                       </div>
                       <Input

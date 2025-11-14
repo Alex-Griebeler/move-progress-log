@@ -285,6 +285,7 @@ const Index = () => {
                     size="sm"
                     onClick={() => setSessionTypeFilter('all')}
                     className="gap-1.5"
+                    aria-label="Mostrar todas as sessões"
                   >
                     Todas
                     <Badge variant={sessionTypeFilter === 'all' ? 'secondary' : 'outline'} className="ml-1">
@@ -296,6 +297,7 @@ const Index = () => {
                     size="sm"
                     onClick={() => setSessionTypeFilter('individual')}
                     className="gap-1.5"
+                    aria-label="Filtrar apenas sessões individuais"
                   >
                     <User className="h-3.5 w-3.5" />
                     Individual
@@ -308,6 +310,7 @@ const Index = () => {
                     size="sm"
                     onClick={() => setSessionTypeFilter('group')}
                     className="gap-1.5"
+                    aria-label="Filtrar apenas sessões em grupo"
                   >
                     <Users className="h-3.5 w-3.5" />
                     Grupo
@@ -351,7 +354,7 @@ const Index = () => {
               ) : (
                 <Card className="border-dashed col-span-full">
                   <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
-                    <div className="rounded-full bg-muted p-4">
+                    <div className="rounded-md bg-muted p-4">
                       <Calendar className="h-12 w-12 text-muted-foreground" />
                     </div>
                     <div className="text-center space-y-2">
@@ -375,7 +378,7 @@ const Index = () => {
             ) : (
               <Card className="border-dashed col-span-full">
                 <CardContent className="flex flex-col items-center justify-center py-16 space-y-6">
-                  <div className="rounded-full bg-primary/10 p-6">
+                  <div className="rounded-md bg-primary/10 p-6">
                     <Dumbbell className="h-16 w-16 text-primary" />
                   </div>
                   <div className="text-center space-y-3 max-w-md">
