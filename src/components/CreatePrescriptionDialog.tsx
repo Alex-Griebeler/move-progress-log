@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
-import { Plus } from "lucide-react";
+import { usePrescriptionDraft } from "@/hooks/usePrescriptionDraft";
+import { Plus, Save, History, Trash2 } from "lucide-react";
+import { PrescriptionDraftHistoryDialog } from "@/components/PrescriptionDraftHistoryDialog";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -75,9 +79,41 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
   ]);
   const [loadingRegressions, setLoadingRegressions] = useState<number | null>(null);
   const [focusedExerciseIndex, setFocusedExerciseIndex] = useState<number | null>(null);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
   const { data: exercisesLibrary } = useExercisesLibrary();
   const createPrescription = useCreatePrescription();
+  const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = usePrescriptionDraft();
+
+  // Carregar rascunho ao abrir dialog
+  useEffect(() => {
+    if (open && draft) {
+      setName(draft.name);
+      setObjective(draft.objective);
+      setExercises(draft.exercises);
+    }
+  }, [open, draft]);
+
+  // Auto-save quando dados mudarem
+  useEffect(() => {
+    if (open && (name || objective || exercises.some(ex => ex.exercise_library_id))) {
+      saveDraft({ name, objective, exercises });
+    }
+  }, [name, objective, exercises, open, saveDraft]);
+
+  // Proteção ao navegar
+  useEffect(() => {
+    if (!open) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      if (name || objective || exercises.some(ex => ex.exercise_library_id)) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [open, name, objective, exercises]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -264,8 +300,49 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       })),
     });
 
+    // Limpar rascunho após sucesso
+    clearDraft();
+
     setName("");
     setObjective("");
+    setExercises([
+      {
+        id: crypto.randomUUID(),
+        exercise_library_id: "",
+        sets: "",
+        reps: "",
+        interval_seconds: "",
+        pse: "",
+        training_method: "",
+        observations: "",
+        group_with_previous: false,
+        should_track: true,
+        adaptations: [],
+        showAdaptations: false,
+      },
+    ]);
+    onOpenChange(false);
+  };
+
+  const handleClose = () => {
+    const hasContent = name || objective || exercises.some(ex => ex.exercise_library_id);
+    
+    if (hasContent) {
+      const confirmed = confirm(
+        'Você tem dados não salvos. Seu rascunho foi salvo automaticamente. Deseja sair?'
+      );
+      if (!confirmed) return;
+    }
+    
+    onOpenChange(false);
+  };
+
+  const handleRestoreDraft = (draftData: any) => {
+    setName(draftData.name);
+    setObjective(draftData.objective);
+    setExercises(draftData.exercises);
+    restoreDraft(draftData);
+  };
     setExercises([
       {
         id: crypto.randomUUID(),
@@ -289,7 +366,37 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Criar Nova Prescrição</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Criar Nova Prescrição</DialogTitle>
+            <div className="flex items-center gap-2">
+              {lastSaved && (
+                <Badge variant="outline" className="gap-1">
+                  <Save className="h-3 w-3" />
+                  {formatDistanceToNow(lastSaved, { locale: ptBR, addSuffix: true })}
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setHistoryDialogOpen(true)}
+                className="gap-2"
+              >
+                <History className="h-4 w-4" />
+                Histórico
+              </Button>
+              {draft && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearDraft}
+                  className="gap-2 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Limpar
+                </Button>
+              )}
+            </div>
+          </div>
           {exercises.length > 0 && (
             <div className="flex items-center gap-2 pt-2">
               <Badge variant="secondary" className="text-sm">
@@ -381,7 +488,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         </ScrollArea>
 
         <div className="flex justify-end gap-sm pt-lg border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
           <Button onClick={handleSubmit} disabled={createPrescription.isPending}>
@@ -390,6 +497,12 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         </div>
         </TooltipProvider>
       </DialogContent>
+
+      <PrescriptionDraftHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        onRestoreDraft={handleRestoreDraft}
+      />
     </Dialog>
   );
 }
