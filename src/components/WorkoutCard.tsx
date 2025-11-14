@@ -53,7 +53,7 @@ const WorkoutCard = memo(({
   
   return (
     <Card 
-      className={`hover:shadow-premium transition-smooth border-border/50 backdrop-blur-sm group ${onClick ? 'cursor-pointer' : ''}`}
+      className={`animate-fade-in hover:shadow-premium transition-smooth border-border/50 backdrop-blur-sm group ${onClick ? 'cursor-pointer' : ''}`}
       onClick={onClick}
     >
       <CardHeader className="pb-3">
