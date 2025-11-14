@@ -18,6 +18,7 @@ import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { useQuery } from "@tanstack/react-query";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
+import { NAV_LABELS } from "@/constants/navigation";
 
 interface RecordIndividualSessionDialogProps {
   open: boolean;
@@ -614,9 +615,9 @@ export function RecordIndividualSessionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Mic className="h-5 w-5" />
-            {dialogState === 'setup' && (isReopening ? `Continuar Sessão - ${studentName}` : `Registrar Sessão Individual (Voz) - ${studentName}`)}
+            {dialogState === 'setup' && (isReopening ? `Continuar sessão - ${studentName}` : `${NAV_LABELS.recordIndividualSession} - ${studentName}`)}
             {dialogState === 'recording' && `🎤 Gravação ${currentRecordingNumber} - ${studentName}`}
-            {dialogState === 'preview' && (isReopening ? `Atualizando Sessão - ${studentName}` : `Preview da Sessão - ${studentName}`)}
+            {dialogState === 'preview' && (isReopening ? `Atualizando sessão - ${studentName}` : `Preview da sessão - ${studentName}`)}
           </DialogTitle>
         </DialogHeader>
 

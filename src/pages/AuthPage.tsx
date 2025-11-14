@@ -15,6 +15,8 @@ import { checkRateLimit, recordFailedAttempt, type RateLimitAction } from "@/lib
 import { logger } from "@/utils/logger";
 import { Enable2FADialog } from "@/components/Enable2FADialog";
 import { Verify2FADialog } from "@/components/Verify2FADialog";
+import { NAV_LABELS } from "@/constants/navigation";
+import i18n from "@/i18n/pt-BR.json";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -52,22 +54,22 @@ export default function AuthPage() {
     const message = error.message.toLowerCase();
     
     if (message.includes('email') && message.includes('already')) {
-      return "Este email já está cadastrado. Tente fazer login ou use outro email.";
+      return i18n.errors.emailAlreadyRegistered;
     }
     if (message.includes('invalid email')) {
-      return "Email inválido. Verifique o formato do email.";
+      return i18n.errors.invalidEmailFormat;
     }
     if (message.includes('password') && message.includes('short')) {
-      return "A senha deve ter pelo menos 6 caracteres.";
+      return i18n.errors.passwordTooShort;
     }
     if (message.includes('invalid login credentials')) {
-      return "Email ou senha incorretos. Verifique seus dados e tente novamente.";
+      return i18n.errors.invalidCredentials;
     }
     if (message.includes('email not confirmed')) {
-      return "Email não confirmado. Verifique sua caixa de entrada.";
+      return i18n.errors.emailNotConfirmed;
     }
     if (message.includes('too many requests')) {
-      return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+      return i18n.errors.tooManyRequests;
     }
     
     return error.message;
@@ -296,7 +298,7 @@ export default function AuthPage() {
       // Login sem 2FA
       setRateLimitWarning(null);
       toast({
-        title: "✅ Login realizado com sucesso!",
+        title: "Login realizado com sucesso",
         description: "Redirecionando para o sistema...",
       });
       navigate("/");
@@ -315,8 +317,8 @@ export default function AuthPage() {
         <CardContent>
           <Tabs defaultValue="signin">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Entrar</TabsTrigger>
-              <TabsTrigger value="signup">Cadastrar</TabsTrigger>
+              <TabsTrigger value="signin">{NAV_LABELS.signIn}</TabsTrigger>
+              <TabsTrigger value="signup">{NAV_LABELS.signUp}</TabsTrigger>
             </TabsList>
             
             <TabsContent value="signin">
@@ -361,15 +363,15 @@ export default function AuthPage() {
                       className="h-4 w-4 rounded border-input"
                     />
                     <Label htmlFor="remember-me" className="text-sm cursor-pointer">
-                      Lembrar-me
+                      {NAV_LABELS.rememberMe}
                     </Label>
                   </div>
                   <a href="/reset-password" className="text-sm text-primary hover:underline">
-                    Esqueceu a senha?
+                    {NAV_LABELS.forgotPassword}
                   </a>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Entrando..." : "Entrar"}
+                  {loading ? "Entrando..." : NAV_LABELS.signIn}
                 </Button>
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -388,7 +390,7 @@ export default function AuthPage() {
                   disabled={loading}
                   onClick={handleGoogleSignIn}
                 >
-                  Entrar com Google
+                  {NAV_LABELS.continueWithGoogle}
                 </Button>
               </form>
             </TabsContent>
@@ -582,12 +584,12 @@ export default function AuthPage() {
                     !acceptTerms
                   }
                 >
-                  {loading ? "Cadastrando..." : 
+                  {loading ? "Criando conta..." : 
                    checking ? "Verificando senha..." :
                    !passwordSecurity?.isSecure ? "Senha não segura" :
                    password !== confirmPassword ? "Senhas não coincidem" :
                    !acceptTerms ? "Aceite os termos" :
-                   "Cadastrar"}
+                   NAV_LABELS.signUp}
                 </Button>
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -606,7 +608,7 @@ export default function AuthPage() {
                   disabled={loading}
                   onClick={handleGoogleSignIn}
                 >
-                  Cadastrar com Google
+                  {NAV_LABELS.continueWithGoogle}
                 </Button>
               </form>
             </TabsContent>

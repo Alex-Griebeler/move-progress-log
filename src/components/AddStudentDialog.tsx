@@ -28,6 +28,7 @@ import { useCreateStudent } from "@/hooks/useStudents";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { STUDENT_OBJECTIVES } from "@/constants/objectives";
+import { NAV_LABELS } from "@/constants/navigation";
 
 const formSchema = z.object({
   name: z.string().trim().min(1, i18n.errors.required).max(100, i18n.errors.maxLength.replace("{{max}}", "100")),
@@ -176,7 +177,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Adicionar Aluno</DialogTitle>
+          <DialogTitle>{NAV_LABELS.addStudent}</DialogTitle>
           <DialogDescription>
             Cadastre um novo aluno no sistema
           </DialogDescription>
@@ -452,7 +453,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                       {i18n.feedback.saving}
                     </>
                   ) : (
-                    i18n.actions.save
+                    NAV_LABELS.saveStudent
                   )}
                 </Button>
             </div>
