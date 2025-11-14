@@ -4,13 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSessionDetail } from "@/hooks/useSessionDetail";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar, Clock, Users, Dumbbell, TrendingUp, User, Award } from "lucide-react";
+import { Calendar, Clock, Users, Dumbbell, TrendingUp, User, Award, Filter } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { LoadingState } from "./LoadingState";
 import { ErrorState } from "./ErrorState";
+import { useState, useMemo } from "react";
 
 interface SessionDetailDialogProps {
   sessionId: string | null;
@@ -27,6 +29,8 @@ export const SessionDetailDialog = ({
 }: SessionDetailDialogProps) => {
   const navigate = useNavigate();
   const { data: session, isLoading, error } = useSessionDetail(sessionId);
+  const [movementPatternFilter, setMovementPatternFilter] = useState<string>("all");
+  const [intensityFilter, setIntensityFilter] = useState<string>("all");
 
   if (!open) return null;
 
@@ -59,6 +63,53 @@ export const SessionDetailDialog = ({
     if (volume > 2000) return { label: "Moderada", variant: "default" as const };
     return { label: "Leve", variant: "secondary" as const };
   };
+
+  const getExerciseIntensity = (exercise: any) => {
+    const volume = (exercise.load_kg || 0) * (exercise.sets || 0) * (exercise.reps || 0);
+    if (volume > 500) return "alta";
+    if (volume > 200) return "moderada";
+    return "leve";
+  };
+
+  const filteredExercises = useMemo(() => {
+    if (!session?.exercises) return [];
+    
+    let filtered = [...session.exercises];
+
+    // Filtro por padrão de movimento (simulado - idealmente viria do banco)
+    if (movementPatternFilter !== "all") {
+      filtered = filtered.filter(ex => {
+        const name = ex.exercise_name.toLowerCase();
+        switch (movementPatternFilter) {
+          case "empurrar": return name.includes("press") || name.includes("supino") || name.includes("development");
+          case "puxar": return name.includes("pull") || name.includes("remada") || name.includes("barra fixa");
+          case "agachar": return name.includes("squat") || name.includes("agachamento") || name.includes("leg press");
+          case "rotacao": return name.includes("twist") || name.includes("rotação") || name.includes("chop");
+          default: return true;
+        }
+      });
+    }
+
+    // Filtro por intensidade
+    if (intensityFilter !== "all") {
+      filtered = filtered.filter(ex => getExerciseIntensity(ex) === intensityFilter);
+    }
+
+    return filtered;
+  }, [session?.exercises, movementPatternFilter, intensityFilter]);
+
+  const movementPatterns = useMemo(() => {
+    if (!session?.exercises) return [];
+    const patterns = new Set<string>();
+    session.exercises.forEach(ex => {
+      const name = ex.exercise_name.toLowerCase();
+      if (name.includes("press") || name.includes("supino") || name.includes("development")) patterns.add("empurrar");
+      if (name.includes("pull") || name.includes("remada") || name.includes("barra fixa")) patterns.add("puxar");
+      if (name.includes("squat") || name.includes("agachamento") || name.includes("leg press")) patterns.add("agachar");
+      if (name.includes("twist") || name.includes("rotação") || name.includes("chop")) patterns.add("rotacao");
+    });
+    return Array.from(patterns);
+  }, [session?.exercises]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -199,12 +250,44 @@ export const SessionDetailDialog = ({
               {/* Lista de Exercícios */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Exercícios Realizados</CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Filter className="h-5 w-5" />
+                      Exercícios Realizados
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Select value={movementPatternFilter} onValueChange={setMovementPatternFilter}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Padrão de movimento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todos os padrões</SelectItem>
+                          {movementPatterns.includes("empurrar") && <SelectItem value="empurrar">Empurrar</SelectItem>}
+                          {movementPatterns.includes("puxar") && <SelectItem value="puxar">Puxar</SelectItem>}
+                          {movementPatterns.includes("agachar") && <SelectItem value="agachar">Agachar</SelectItem>}
+                          {movementPatterns.includes("rotacao") && <SelectItem value="rotacao">Rotação</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                      <Select value={intensityFilter} onValueChange={setIntensityFilter}>
+                        <SelectTrigger className="w-[150px]">
+                          <SelectValue placeholder="Intensidade" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas</SelectItem>
+                          <SelectItem value="alta">Alta</SelectItem>
+                          <SelectItem value="moderada">Moderada</SelectItem>
+                          <SelectItem value="leve">Leve</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {session.exercises.length === 0 ? (
+                  {filteredExercises.length === 0 ? (
                     <p className="text-muted-foreground text-center py-8">
-                      Nenhum exercício registrado nesta sessão.
+                      {session.exercises.length === 0 
+                        ? "Nenhum exercício registrado nesta sessão."
+                        : "Nenhum exercício corresponde aos filtros selecionados."}
                     </p>
                   ) : (
                     <div className="overflow-x-auto">
@@ -215,11 +298,12 @@ export const SessionDetailDialog = ({
                             <TableHead className="text-center">Séries</TableHead>
                             <TableHead className="text-center">Reps</TableHead>
                             <TableHead className="text-center">Carga</TableHead>
+                            <TableHead className="text-center">Intensidade</TableHead>
                             <TableHead>Observações</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {session.exercises.map((exercise) => (
+                          {filteredExercises.map((exercise) => (
                             <TableRow key={exercise.id}>
                               <TableCell className="font-medium">
                                 <div className="flex items-center gap-2">
@@ -248,6 +332,18 @@ export const SessionDetailDialog = ({
                                     </p>
                                   )}
                                 </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge 
+                                  variant={
+                                    getExerciseIntensity(exercise) === "alta" ? "destructive" : 
+                                    getExerciseIntensity(exercise) === "moderada" ? "default" : 
+                                    "secondary"
+                                  }
+                                  className="capitalize"
+                                >
+                                  {getExerciseIntensity(exercise)}
+                                </Badge>
                               </TableCell>
                               <TableCell>
                                 {exercise.observations ? (
