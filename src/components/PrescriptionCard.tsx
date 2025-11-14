@@ -18,6 +18,7 @@ import { Calendar, Users, ClipboardList, Pencil, Clock, Dumbbell, MoreVertical, 
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
+import { memo } from "react";
 
 // Agrupa exercícios baseado no campo group_with_previous
 const groupExercises = (exercises: PrescriptionExercise[]) => {
@@ -95,14 +96,14 @@ const formatInterval = (seconds: number | null) => {
   return `${seconds}s`;
 };
 
-export function PrescriptionCard({ 
+const PrescriptionCardComponent = ({ 
   prescription, 
   onEdit, 
   onAssign, 
   onAddSession,
   onMoveToFolder,
   onRemoveFromFolder 
-}: PrescriptionCardProps) {
+}: PrescriptionCardProps) => {
   const { data: details, isLoading } = usePrescriptionDetails(prescription.id);
   const { data: folders } = useFolders();
 
@@ -311,4 +312,15 @@ export function PrescriptionCard({
       </CardContent>
     </Card>
   );
-}
+};
+
+export const PrescriptionCard = memo(PrescriptionCardComponent, (prevProps, nextProps) => {
+  // Custom comparison function for memo
+  return (
+    prevProps.prescription.id === nextProps.prescription.id &&
+    prevProps.prescription.name === nextProps.prescription.name &&
+    prevProps.prescription.objective === nextProps.prescription.objective &&
+    prevProps.prescription.folder_id === nextProps.prescription.folder_id &&
+    prevProps.prescription.updated_at === nextProps.prescription.updated_at
+  );
+});

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import StatCard from "@/components/StatCard";
 import WorkoutCard from "@/components/WorkoutCard";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
@@ -44,6 +44,7 @@ const Index = () => {
     url: true,
   });
   
+  const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [isPopulating, setIsPopulating] = useState(false);
@@ -255,6 +256,7 @@ const Index = () => {
             value={statsLoading ? "..." : stats?.activeStudents || 0}
             icon={Users}
             subtitle="Com treinos regulares"
+            onClick={() => navigate('/students')}
           />
           <StatCard
             title={NAV_LABELS.statAvgLoad}

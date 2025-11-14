@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { useStudents, useDeleteStudent } from "@/hooks/useStudents";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,7 +80,7 @@ const StudentsPage = () => {
     setDeletingStudentId(null);
   };
 
-  const StudentCard = ({ student }: { student: Student }) => {
+  const StudentCard = memo(({ student }: { student: Student }) => {
     const { data: ouraMetrics } = useLatestOuraMetrics(student.id);
     const { data: importantObservations } = useStudentImportantObservations(student.id);
     const { data: ouraStatus } = useOuraConnectionStatus(student.id);
@@ -304,7 +304,14 @@ const StudentsPage = () => {
         />
       </>
     );
-  };
+  }, (prevProps, nextProps) => {
+    // Custom comparison function for memo
+    return prevProps.student.id === nextProps.student.id &&
+      prevProps.student.name === nextProps.student.name &&
+      prevProps.student.updated_at === nextProps.student.updated_at;
+  });
+
+  StudentCard.displayName = 'StudentCard';
 
   const filteredStudents = students?.filter(student =>
     student.name.toLowerCase().includes(searchTerm.toLowerCase())

@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dumbbell, TrendingUp, FolderOpen, Lock, Edit, User, Users, Eye } from "lucide-react";
+import { memo } from "react";
 
 interface WorkoutCardProps {
   name: string;
@@ -17,7 +18,7 @@ interface WorkoutCardProps {
   onClick?: () => void;
 }
 
-const WorkoutCard = ({ 
+const WorkoutCard = memo(({ 
   name, 
   exercises, 
   date, 
@@ -157,6 +158,20 @@ const WorkoutCard = ({
       </CardContent>
     </Card>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function for memo
+  return (
+    prevProps.name === nextProps.name &&
+    prevProps.exercises === nextProps.exercises &&
+    prevProps.date === nextProps.date &&
+    prevProps.sessionType === nextProps.sessionType &&
+    prevProps.totalVolume === nextProps.totalVolume &&
+    prevProps.isFinalized === nextProps.isFinalized &&
+    prevProps.canReopen === nextProps.canReopen &&
+    prevProps.sessionId === nextProps.sessionId
+  );
+});
+
+WorkoutCard.displayName = 'WorkoutCard';
 
 export default WorkoutCard;
