@@ -319,19 +319,27 @@ export default function ExercisesLibraryPage() {
       {isLoading ? (
         <LoadingSpinner text="Carregando exercícios..." />
       ) : !filteredExercises || filteredExercises.length === 0 ? (
-        <EmptyState
-          icon={<Database className="h-6 w-6" />}
-          title={hasActiveFilters ? "Nenhum exercício encontrado" : "Nenhum exercício cadastrado"}
-          description={
-            hasActiveFilters
-              ? "Tente ajustar os filtros ou limpar para ver todos os exercícios disponíveis."
-              : "Adicione exercícios à biblioteca ou importe exercícios pré-configurados para começar."
-          }
-          primaryAction={hasActiveFilters ? undefined : {
-            label: "Importar Exercícios",
-            onClick: handlePopulateDatabase
-          }}
-        />
+        hasActiveFilters ? (
+          <EmptyState
+            icon={<Search className="h-6 w-6" />}
+            title="Nenhum exercício encontrado"
+            description="Não encontramos exercícios com os filtros aplicados. Tente ajustar sua busca ou limpar os filtros."
+            primaryAction={{
+              label: "Limpar Filtros",
+              onClick: clearFilters
+            }}
+          />
+        ) : (
+          <EmptyState
+            icon={<Database className="h-6 w-6" />}
+            title="Nenhum exercício cadastrado"
+            description="Adicione exercícios à biblioteca ou importe exercícios pré-configurados para começar."
+            primaryAction={{
+              label: "Importar Exercícios",
+              onClick: handlePopulateDatabase
+            }}
+          />
+        )
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredExercises.map((exercise) => (

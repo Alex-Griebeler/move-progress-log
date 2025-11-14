@@ -381,6 +381,16 @@ export default function PrescriptionsPage() {
               )}
             </div>
           </DndContext>
+        ) : hasActiveSearch ? (
+          <EmptyState
+            icon={<Search className="h-6 w-6" />}
+            title="Nenhuma prescrição encontrada"
+            description="Não encontramos prescrições com os filtros aplicados. Tente ajustar sua busca ou limpar os filtros."
+            primaryAction={{
+              label: "Limpar Filtros",
+              onClick: () => setSearchFilters({})
+            }}
+          />
         ) : (
           <EmptyState
             icon={<Plus className="h-6 w-6" />}
