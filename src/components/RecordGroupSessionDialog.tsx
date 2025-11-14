@@ -23,6 +23,7 @@ import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { NAV_LABELS } from "@/constants/navigation";
+import { useSessionDraft } from "@/hooks/useSessionDraft";
 
 interface RecordGroupSessionDialogProps {
   open: boolean;
@@ -101,6 +102,7 @@ export function RecordGroupSessionDialog({
   reopenTime,
 }: RecordGroupSessionDialogProps) {
   const isReopening = !!(reopenDate && reopenTime);
+  const { hasUnsavedChanges, clearDraft } = useSessionDraft();
   const [dialogState, setDialogState] = useState<DialogState>(isReopening ? 'mode-selection' : 'context-setup');
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [date, setDate] = useState(reopenDate || new Date().toISOString().split('T')[0]);
@@ -980,6 +982,64 @@ export function RecordGroupSessionDialog({
     }>;
   }) => {
     try {
+      // ✅ VALIDAÇÃO 1: Verificar se trainer não está vazio
+      if (!trainer || trainer.trim() === '') {
+        notify.error("Campo obrigatório", {
+          description: "Nome do treinador é obrigatório",
+        });
+        return;
+      }
+
+      // ✅ VALIDAÇÃO 2: Verificar se há pelo menos 1 aluno com exercícios
+      if (data.studentExercises.length === 0) {
+        notify.error("Nenhum aluno selecionado", {
+          description: "É necessário ter pelo menos 1 aluno com exercícios",
+        });
+        return;
+      }
+
+      // ✅ VALIDAÇÃO 3: Verificar se todos os exercícios têm campos obrigatórios
+      const validationErrors: string[] = [];
+      data.studentExercises.forEach((se, idx) => {
+        const student = selectedStudents.find(s => s.id === se.studentId);
+        const studentName = student?.name || `Aluno ${idx + 1}`;
+        
+        if (se.exercises.length === 0) {
+          validationErrors.push(`${studentName}: nenhum exercício registrado`);
+        }
+        
+        se.exercises.forEach((ex, exIdx) => {
+          if (!ex.exercise_name || ex.exercise_name.trim() === '') {
+            validationErrors.push(`${studentName} - Exercício ${exIdx + 1}: nome obrigatório`);
+          }
+          if (ex.sets <= 0) {
+            validationErrors.push(`${studentName} - ${ex.exercise_name}: séries deve ser maior que 0`);
+          }
+          if (ex.reps <= 0) {
+            validationErrors.push(`${studentName} - ${ex.exercise_name}: reps deve ser maior que 0`);
+          }
+          if (!ex.load_breakdown || ex.load_breakdown.trim() === '') {
+            validationErrors.push(`${studentName} - ${ex.exercise_name}: descrição da carga obrigatória`);
+          }
+        });
+      });
+
+      if (validationErrors.length > 0) {
+        notify.error("Dados incompletos", {
+          description: validationErrors.slice(0, 3).join('; ') + (validationErrors.length > 3 ? '...' : ''),
+        });
+        console.error('❌ Erros de validação:', validationErrors);
+        return;
+      }
+
+      console.log('💾 Iniciando salvamento:', {
+        studentsCount: data.studentExercises.length,
+        trainer,
+        prescriptionId,
+        date,
+        time,
+      });
+
       const sessionsToCreate = data.studentExercises.map(se => {
         const student = selectedStudents.find(s => s.id === se.studentId);
         return {
@@ -1032,9 +1092,14 @@ export function RecordGroupSessionDialog({
         if (exercisesError) throw exercisesError;
       }
 
+      console.log('✅ Sessões criadas com sucesso');
+      
       notify.success("Sessões registradas com sucesso", {
         description: `${sessionsToCreate.length} sessão(ões) criada(s) manualmente`,
       });
+
+      // Limpar rascunho após sucesso
+      clearDraft();
 
       // Reset completo de estados
       setDialogState('context-setup');
@@ -1045,12 +1110,67 @@ export function RecordGroupSessionDialog({
       setHasAutoSelected(false);
       onOpenChange(false);
     } catch (error) {
-      console.error("Error saving manual sessions:", error);
+      console.error("❌ Error saving manual sessions:", error);
+      
+      // Mensagens de erro mais específicas
+      let errorMessage = "Erro desconhecido";
+      if (error instanceof Error) {
+        if (error.message.includes('connection')) {
+          errorMessage = "Erro de conexão com o banco de dados";
+        } else if (error.message.includes('foreign key')) {
+          errorMessage = "Erro: aluno ou prescrição não encontrados";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       notify.error("Erro ao salvar sessões", {
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        description: errorMessage,
       });
     }
   };
+
+  // Proteção contra perda de dados ao fechar
+  const handleCloseAttempt = (shouldClose: boolean) => {
+    if (dialogState === 'manual-entry' && hasUnsavedChanges({
+      date,
+      time,
+      trainer,
+      prescriptionId,
+      selectedStudents,
+      studentExercises: {},
+    })) {
+      const confirmed = window.confirm(
+        '⚠️ Você tem alterações não salvas. Seu rascunho foi salvo automaticamente e estará disponível quando você reabrir. Deseja sair mesmo assim?'
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    onOpenChange(shouldClose);
+  };
+
+  // Proteção ao navegar para outra página
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (dialogState === 'manual-entry' && hasUnsavedChanges({
+        date,
+        time,
+        trainer,
+        prescriptionId,
+        selectedStudents,
+        studentExercises: {},
+      })) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    
+    if (open) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+  }, [open, dialogState, date, time, trainer, prescriptionId, selectedStudents, hasUnsavedChanges]);
 
   useEffect(() => {
     if (!open) {
@@ -1068,7 +1188,7 @@ export function RecordGroupSessionDialog({
   }, [open]);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleCloseAttempt}>
       <DialogContent forceMount className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1357,6 +1477,10 @@ export function RecordGroupSessionDialog({
               })) || []
             }
             selectedStudents={selectedStudents}
+            date={date}
+            time={time}
+            trainer={trainer}
+            prescriptionId={prescriptionId || null}
             onSave={handleSaveManual}
             onCancel={() => setDialogState('mode-selection')}
           />
