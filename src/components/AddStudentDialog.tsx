@@ -55,7 +55,7 @@ type FormData = z.infer<typeof formSchema>;
 interface AddStudentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStudentCreated?: (student: { id: string; name: string }) => void;
+  onStudentCreated?: (student: any) => void;
 }
 
 export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddStudentDialogProps) => {
@@ -164,7 +164,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
       
       // Notify parent component about the new student
       if (onStudentCreated && newStudent) {
-        onStudentCreated({ id: newStudent.id, name: newStudent.name });
+        onStudentCreated(newStudent);
       }
     } catch (error: any) {
       loader.error(i18n.modules.students.errorCreate, error.message);

@@ -265,13 +265,18 @@ export function RecordGroupSessionDialog({
     });
   };
 
-  const handleStudentCreated = (newStudent: { id: string; name: string }) => {
-    // Auto-select the newly created student
-    const studentToAdd = {
+  const handleStudentCreated = (newStudent: any) => {
+    // Verificar se tem prescrição ativa
+    const hasActivePrescription = assignments?.some(a => a.student_id === newStudent.id) || false;
+    
+    // Enriquecer com informação de prescrição ativa
+    const enrichedStudent = {
       ...newStudent,
-      has_active_prescription: false,
-    } as Student;
-    toggleStudent(studentToAdd);
+      has_active_prescription: hasActivePrescription,
+    };
+    
+    // Adicionar à lista de alunos selecionados
+    toggleStudent(enrichedStudent);
   };
 
   const isContextValid = date && time && trainer && selectedStudents.length > 0;
