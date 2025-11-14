@@ -131,7 +131,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
 
           <TabsContent value="manual" id="manual-tab" className="mt-4">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-md">
                 <FormField
                   control={form.control}
                   name="student_id"
@@ -158,7 +158,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                   )}
                 />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-md">
                   <FormField
                     control={form.control}
                     name="date"
@@ -190,7 +190,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                   />
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-md">
                   <div className="flex items-center justify-between">
                     <h4 className="font-semibold">Exercícios Realizados</h4>
                     <Button type="button" variant="outline" size="sm" onClick={addExercise}>
@@ -199,7 +199,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                   </div>
 
                   {Array.from({ length: exerciseCount }).map((_, index) => (
-                    <div key={index} className="border rounded-lg p-4 space-y-3">
+                    <div key={index} className="border rounded-radius-lg p-lg space-y-md">
                       <div className="flex items-center justify-between">
                         <span className="font-medium text-sm">Exercício {index + 1}</span>
                         {exerciseCount > 1 && (
@@ -229,7 +229,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                         )}
                       />
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-md">
                         <FormField
                           control={form.control}
                           name={`exercises.${index}.sets`}
@@ -269,13 +269,13 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-md">
                         <FormField
                           control={form.control}
                           name={`exercises.${index}.load_kg`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center gap-2">
+                              <FormLabel className="flex items-center gap-sm">
                                 {i18n.forms.loadTotal}
                                 <TooltipProvider>
                                   <Tooltip>

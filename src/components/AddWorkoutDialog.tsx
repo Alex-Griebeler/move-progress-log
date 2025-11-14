@@ -125,14 +125,14 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="gradient" size="lg" className="gap-2">
+        <Button variant="gradient" size="lg" className="gap-sm">
           <FileEdit className="h-5 w-5" />
           Registrar Sessão
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl flex items-center gap-2">
+          <DialogTitle className="text-2xl flex items-center gap-sm">
             <Dumbbell className="h-6 w-6 text-primary" />
             Registrar Sessão de Treino (Manual)
           </DialogTitle>
@@ -140,9 +140,9 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
             Padrão Fabrik Performance - registre apenas a maior carga de cada exercício
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-lg">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-md">
+            <div className="space-y-sm">
               <Label htmlFor="student-name">Nome do Aluno</Label>
               <Input
                 id="student-name"
@@ -151,7 +151,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
                 onChange={(e) => setStudentName(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-sm">
               <Label htmlFor="date">Data</Label>
               <Input
                 id="date"
@@ -160,8 +160,8 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
                 onChange={(e) => setDate(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="time" className="flex items-center gap-1">
+            <div className="space-y-sm">
+              <Label htmlFor="time" className="flex items-center gap-xs">
                 <Clock className="h-3 w-3" />
                 Horário
               </Label>
@@ -174,30 +174,30 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-md">
             <div className="flex items-center justify-between">
-              <Label className="text-base">Exercícios</Label>
+              <Label className="text-base-lg">Exercícios</Label>
               <Button type="button" variant="outline" size="sm" onClick={addExercise}>
-                <Plus className="h-4 w-4 mr-1" />
+                <Plus className="h-4 w-4 mr-2" />
                 Adicionar
               </Button>
             </div>
 
             {exercises.map((exercise, index) => (
-              <div key={index} className="p-4 border rounded-lg space-y-3 relative bg-muted/30">
+              <div key={index} className="p-lg border rounded-radius-lg space-y-md relative bg-muted/30">
                 {exercises.length > 1 && (
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="absolute top-2 right-2 h-6 w-6"
+                    className="absolute top-sm right-sm h-6 w-6"
                     onClick={() => removeExercise(index)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 )}
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
                   <div>
                     <Label htmlFor={`exercise-${index}`} className="text-xs font-medium">
                       Exercício
@@ -225,7 +225,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-md">
                   <div>
                     <Label htmlFor={`reps-${index}`} className="text-xs font-medium">Nº Repetições</Label>
                     <Input

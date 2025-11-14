@@ -95,11 +95,11 @@ export function AssignPrescriptionDialog({
           <DialogTitle>Atribuir Prescrição aos Alunos</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="space-y-4">
+        <div className="space-y-lg">
+          <div className="space-y-md">
             <Label>Selecione os Alunos</Label>
-            <ScrollArea className="h-[200px] border rounded-md p-4">
-              <div className="space-y-3">
+            <ScrollArea className="h-[200px] border rounded-radius-md p-lg">
+              <div className="space-y-md">
                 {students?.map((student) => (
                   <div key={student.id} className="flex items-center space-x-2">
                     <Checkbox
@@ -119,7 +119,7 @@ export function AssignPrescriptionDialog({
             </ScrollArea>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-sm">
             <Label>Período da Prescrição (opcional)</Label>
             <Popover>
               <PopoverTrigger asChild>
@@ -157,12 +157,12 @@ export function AssignPrescriptionDialog({
             </Popover>
           </div>
 
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
+          <div className="space-y-sm">
+            <Label className="flex items-center gap-sm">
               <CalendarIcon className="h-4 w-4" />
               Dias da Semana
             </Label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-sm">
               {weekdays.map((day) => (
                 <Badge
                   key={day.value}
@@ -179,7 +179,7 @@ export function AssignPrescriptionDialog({
             </p>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-sm">
             <Label htmlFor="time">Horário do Treino (opcional)</Label>
             <Input
               id="time"
@@ -194,7 +194,7 @@ export function AssignPrescriptionDialog({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
+        <div className="flex justify-end gap-sm pt-lg border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>

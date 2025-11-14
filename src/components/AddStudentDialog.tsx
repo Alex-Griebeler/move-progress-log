@@ -183,13 +183,13 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-            <div className="flex flex-col items-center gap-4 pb-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-md max-h-[70vh] overflow-y-auto pr-sm">
+            <div className="flex flex-col items-center gap-md pb-lg">
               <Avatar className="h-24 w-24">
                 <AvatarImage src={avatarPreview || undefined} className="object-cover" />
                 <AvatarFallback>?</AvatarFallback>
               </Avatar>
-              <div className="flex gap-2">
+              <div className="flex gap-sm">
                 <Button
                   type="button"
                   variant="outline"
@@ -239,7 +239,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-md">
               <FormField
                 control={form.control}
                 name="birth_date"
@@ -268,7 +268,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-md">
               <FormField
                 control={form.control}
                 name="weight_kg"
@@ -432,7 +432,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                 </FormItem>
               )}
             />
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-sm pt-lg">
                 <Button
                   type="button"
                   variant="outline"

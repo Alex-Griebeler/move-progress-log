@@ -105,7 +105,7 @@ export function CreateSubfolderDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-sm">
             <FolderPlus className="h-5 w-5" />
             {parentId ? "Criar Subpasta" : "Criar Pasta"}
           </DialogTitle>
@@ -116,9 +116,9 @@ export function CreateSubfolderDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-md">
           {/* Parent folder selection */}
-          <div className="space-y-2">
+          <div className="space-y-sm">
             <Label htmlFor="parent-folder">Pasta pai (opcional)</Label>
             <Select
               value={parentId || "root"}
@@ -145,7 +145,7 @@ export function CreateSubfolderDialog({
           </div>
 
           {/* Folder name */}
-          <div className="space-y-2">
+          <div className="space-y-sm">
             <Label htmlFor="folder-name">
               Nome da {parentId ? "subpasta" : "pasta"}
             </Label>
