@@ -33,8 +33,6 @@ export interface WorkoutWithDetails extends WorkoutSession {
   total_exercises: number;
   total_volume: number;
   has_important_observations: boolean;
-  is_finalized?: boolean;
-  can_reopen?: boolean;
 }
 
 export const useWorkouts = () => {
@@ -78,8 +76,6 @@ export const useWorkouts = () => {
         total_exercises: workout.exercises.length,
         total_volume: workout.exercises.reduce((sum: number, ex: any) => sum + (ex.load_kg || 0), 0),
         has_important_observations: sessionsWithObservations.has(workout.id),
-        is_finalized: workout.is_finalized,
-        can_reopen: workout.can_reopen,
         created_at: workout.created_at,
         updated_at: workout.updated_at,
       })) as WorkoutWithDetails[];

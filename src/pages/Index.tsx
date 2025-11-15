@@ -29,7 +29,6 @@ import { populateTestSessions } from "@/utils/populateTestSessions";
 import { clearTestSessions } from "@/utils/clearTestSessions";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
@@ -62,34 +61,6 @@ const Index = () => {
 
   const handleWorkoutAdded = () => {
     setRefreshKey(prev => prev + 1);
-  };
-
-  const handleEditSession = (sessionId: string) => {
-    setSelectedSessionId(sessionId);
-  };
-
-  const handleReopenSession = async (sessionId: string) => {
-    try {
-      const { error } = await supabase
-        .from('workout_sessions')
-        .update({ is_finalized: false })
-        .eq('id', sessionId);
-      
-      if (error) throw error;
-      
-      await queryClient.invalidateQueries({ queryKey: ['workouts'] });
-      toast({
-        title: "✅ Sessão reaberta",
-        description: "A sessão pode ser editada novamente",
-      });
-    } catch (error) {
-      console.error('Error reopening session:', error);
-      toast({ 
-        title: "❌ Erro ao reabrir sessão", 
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive" 
-      });
-    }
   };
 
   const handlePopulateTestData = async () => {
@@ -259,7 +230,7 @@ const Index = () => {
                 title={NAV_LABELS.statThisMonth}
                 value={stats?.thisMonth || 0}
                 icon={Calendar}
-                subtitle={`Sessões em ${new Date().toLocaleDateString('pt-BR', { month: 'long' })}`}
+                subtitle="Sessões em outubro"
               />
               <StatCard
                 title={NAV_LABELS.statActiveStudents}
@@ -345,17 +316,20 @@ const Index = () => {
                 <WorkoutCardSkeleton />
               </>
             ) : recentWorkouts && recentWorkouts.length > 0 ? (
-              (() => {
-                const filteredWorkouts = recentWorkouts.filter(workout => {
+              recentWorkouts
+                .filter(workout => {
                   if (sessionTypeFilter === 'all') return true;
                   return workout.session_type === sessionTypeFilter;
-                });
-                
-                return filteredWorkouts.length > 0 ? (
-                  filteredWorkouts.map((workout) => (
+                })
+                .length > 0 ? (
+                recentWorkouts
+                  .filter(workout => {
+                    if (sessionTypeFilter === 'all') return true;
+                    return workout.session_type === sessionTypeFilter;
+                  })
+                  .map((workout) => (
                     <WorkoutCard
                       key={workout.id}
-                      sessionId={workout.id}
                       name={workout.student_name}
                       avatarUrl={workout.avatar_url}
                       exercises={workout.total_exercises}
@@ -363,14 +337,10 @@ const Index = () => {
                       sessionType={workout.session_type}
                       totalVolume={workout.total_volume}
                       hasImportantObservations={workout.has_important_observations}
-                      isFinalized={workout.is_finalized}
-                      canReopen={workout.can_reopen}
-                      onEdit={() => handleEditSession(workout.id)}
-                      onReopen={() => handleReopenSession(workout.id)}
                       onClick={() => setSelectedSessionId(workout.id)}
                     />
                   ))
-                ) : (
+              ) : (
                 <Card className="border-dashed col-span-full">
                   <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
                     <div className="rounded-md bg-muted p-4">
@@ -389,12 +359,11 @@ const Index = () => {
                       onClick={() => setSessionTypeFilter('all')}
                       className="gap-2 mt-4"
                     >
-                       Ver todas as sessões
+                      Ver todas as sessões
                     </Button>
                   </CardContent>
                 </Card>
-                );
-              })()
+              )
             ) : (
               <Card className="border-dashed col-span-full">
                 <CardContent className="flex flex-col items-center justify-center py-16 space-y-6">
