@@ -144,36 +144,6 @@ const Index = () => {
         <AppHeader
           actions={
             <>
-              <Link to="/alunos">
-                <Button variant="outline" aria-label={NAV_LABELS.students}>
-                  <Users className="h-4 w-4 mr-2" />
-                  {NAV_LABELS.students}
-                </Button>
-              </Link>
-              <Link to="/alunos-comparacao">
-                <Button variant="outline" aria-label={NAV_LABELS.studentsComparison}>
-                  <Users className="h-4 w-4 mr-2" />
-                  {NAV_LABELS.studentsComparison}
-                </Button>
-              </Link>
-              <Link to="/exercicios">
-                <Button variant="outline" aria-label={NAV_LABELS.exercises}>
-                  <Library className="h-4 w-4 mr-2" />
-                  {NAV_LABELS.exercises}
-                </Button>
-              </Link>
-              <Link to="/prescricoes">
-                <Button variant="outline" aria-label={NAV_LABELS.prescriptions}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  {NAV_LABELS.prescriptions}
-                </Button>
-              </Link>
-              <Link to="/protocolos">
-                <Button variant="outline" aria-label={NAV_LABELS.protocols}>
-                  <Heart className="h-4 w-4 mr-2" />
-                  {NAV_LABELS.protocols}
-                </Button>
-              </Link>
               <Button variant="outline" onClick={() => setImportDialogOpen(true)} aria-label={NAV_LABELS.importExcel}>
                 <Upload className="h-4 w-4 mr-2" />
                 {NAV_LABELS.importExcel}
