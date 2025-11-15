@@ -46,19 +46,12 @@ const WorkoutCard = memo(({
   const displayName = name?.trim() || 'Aluno Desconhecido';
   const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   
-  const getSessionTypeBadge = () => {
-    if (!sessionType) return null;
-    if (sessionType === 'group') {
-      return { icon: Users, label: 'Grupo', variant: 'default' as const };
-    }
-    return { icon: User, label: 'Individual', variant: 'secondary' as const };
-  };
-
-  const sessionTypeBadge = getSessionTypeBadge();
+  const sessionTypeIcon = sessionType === 'group' ? Users : User;
+  const sessionTypeLabel = sessionType === 'group' ? 'Grupo' : 'Individual';
   
   return (
     <Card 
-      className={`animate-fade-in ${onClick ? 'card-interactive' : ''} card-glass-hover group`}
+      className={`${onClick ? 'card-interactive' : ''} overflow-hidden`}
       onClick={onClick}
     >
       <CardHeader className="space-y-md pb-sm">
@@ -72,22 +65,22 @@ const WorkoutCard = memo(({
             </Avatar>
             
             <div className="flex flex-col gap-xs flex-1 min-w-0">
-              <CardTitle className="text-lg truncate">{displayName}</CardTitle>
+              <span className="text-lg font-semibold truncate">{displayName}</span>
               
-              <div className="flex items-center gap-xs flex-wrap">
-                {sessionTypeBadge && (
-                  <Badge variant={sessionTypeBadge.variant} className="text-xs h-5 gap-xs">
-                    <sessionTypeBadge.icon className="h-3 w-3" />
-                    {sessionTypeBadge.label}
+              <div className="flex items-center gap-xs flex-wrap mt-1">
+                {sessionType && (
+                  <Badge variant="outline" className="text-xs capitalize w-fit opacity-70 gap-xs">
+                    {sessionType === 'group' ? <Users className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                    {sessionTypeLabel}
                   </Badge>
                 )}
                 
-                <Badge variant="secondary" className="text-xs h-5">
+                <Badge variant="outline" className="text-xs capitalize w-fit opacity-70">
                   {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                 </Badge>
                 
                 {hasImportantObservations && (
-                  <Badge variant="outline" className="text-xs h-5 gap-xs">
+                  <Badge variant="outline" className="text-xs capitalize w-fit opacity-70 gap-xs">
                     <FileText className="h-3 w-3" />
                     Observações
                   </Badge>
@@ -99,9 +92,9 @@ const WorkoutCard = memo(({
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
               <Button 
-                variant="outline" 
+                variant="ghost" 
                 size="icon"
-                className="h-9 w-9 shrink-0"
+                className="h-8 w-8 shrink-0"
                 aria-label="Menu de ações da sessão"
               >
                 <MoreVertical className="h-4 w-4" />
