@@ -69,7 +69,7 @@ interface PrescriptionCardProps {
 const getAssignmentBadge = (count: number) => {
   if (count === 0) {
     return (
-      <Badge variant="outline" className="gap-1.5 border-destructive/50 text-destructive">
+      <Badge variant="outline" className="gap-xs border-destructive/50 text-destructive">
         <div className="h-2 w-2 rounded-full bg-destructive" />
         Não atribuída
       </Badge>
@@ -77,15 +77,15 @@ const getAssignmentBadge = (count: number) => {
   }
   if (count === 1) {
     return (
-      <Badge variant="outline" className="gap-1.5 border-yellow-500/50 text-yellow-600 dark:text-yellow-500">
-        <div className="h-2 w-2 rounded-full bg-yellow-500" />
+      <Badge variant="outline-warning" className="gap-xs">
+        <div className="h-2 w-2 rounded-full bg-warning" />
         1 aluno
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="gap-1.5 border-green-500/50 text-green-600 dark:text-green-500">
-      <div className="h-2 w-2 rounded-full bg-green-500" />
+    <Badge variant="outline-success" className="gap-xs">
+      <div className="h-2 w-2 rounded-full bg-success" />
       {count} alunos
     </Badge>
   );
@@ -108,8 +108,8 @@ const PrescriptionCardComponent = ({
   const { data: folders } = useFolders();
 
   return (
-    <Card className="animate-fade-in hover:shadow-premium transition-smooth">
-      <CardHeader>
+    <Card className="animate-fade-in card-interactive card-glass-hover">
+      <CardHeader className="pb-sm">
         <div className="flex items-start justify-between gap-sm flex-wrap">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-sm mb-2">
