@@ -336,7 +336,7 @@ const Index = () => {
                       date={workout.date}
                       sessionType={workout.session_type}
                       totalVolume={workout.total_volume}
-                      hasObservations={workout.has_observations}
+                      hasImportantObservations={workout.has_important_observations}
                       onClick={() => setSelectedSessionId(workout.id)}
                     />
                   ))

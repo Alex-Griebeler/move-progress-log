@@ -20,7 +20,7 @@ interface WorkoutCardProps {
   date: string;
   sessionType?: 'individual' | 'group';
   totalVolume?: number;
-  hasObservations?: boolean;
+  hasImportantObservations?: boolean;
   isFinalized?: boolean;
   canReopen?: boolean;
   onReopen?: () => void;
@@ -36,8 +36,8 @@ const WorkoutCard = memo(({
   date, 
   sessionType, 
   totalVolume, 
-  hasObservations,
-  isFinalized, 
+  hasImportantObservations,
+  isFinalized,
   canReopen, 
   onReopen, 
   onEdit, 
@@ -86,7 +86,7 @@ const WorkoutCard = memo(({
                   {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                 </Badge>
                 
-                {hasObservations && (
+                {hasImportantObservations && (
                   <Badge variant="outline" className="text-xs h-5 gap-xs">
                     <FileText className="h-3 w-3" />
                     Observações
@@ -162,7 +162,7 @@ const WorkoutCard = memo(({
     prevProps.date === nextProps.date &&
     prevProps.sessionType === nextProps.sessionType &&
     prevProps.totalVolume === nextProps.totalVolume &&
-    prevProps.hasObservations === nextProps.hasObservations &&
+    prevProps.hasImportantObservations === nextProps.hasImportantObservations &&
     prevProps.isFinalized === nextProps.isFinalized &&
     prevProps.canReopen === nextProps.canReopen &&
     prevProps.sessionId === nextProps.sessionId
