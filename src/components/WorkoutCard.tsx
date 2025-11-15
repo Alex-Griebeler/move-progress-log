@@ -53,23 +53,23 @@ const WorkoutCard = memo(({
   
   return (
     <Card 
-      className={`animate-fade-in hover:shadow-premium transition-smooth border-border/50 backdrop-blur-sm group ${onClick ? 'cursor-pointer' : ''}`}
+      className={`animate-fade-in ${onClick ? 'card-interactive' : ''} card-glass-hover group`}
       onClick={onClick}
     >
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-sm">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-sm">
-            <div className="p-xs rounded-md bg-gradient-to-br from-primary/20 to-accent/20 group-hover:from-primary/30 group-hover:to-accent/30 transition-colors">
+            <div className="p-xs rounded-md gradient-card-emphasis group-hover:opacity-90 transition-smooth">
               <Dumbbell className="h-5 w-5 text-primary" />
             </div>
             <div className="flex flex-col">
               <CardTitle className="text-lg">{displayName}</CardTitle>
-              <div className="flex items-center gap-xs mt-1 flex-wrap">
+              <div className="flex items-center gap-xs mt-xs flex-wrap">
                 <span className="text-xs text-muted-foreground">{exercises} exercícios</span>
                 {sessionTypeBadge && (
                   <>
                     <span className="text-xs text-muted-foreground">•</span>
-                    <Badge variant={sessionTypeBadge.variant} className="text-xs h-5 gap-1">
+                    <Badge variant={sessionTypeBadge.variant} className="text-xs h-5 gap-xs">
                       <sessionTypeBadge.icon className="h-3 w-3" />
                       {sessionTypeBadge.label}
                     </Badge>
@@ -93,7 +93,7 @@ const WorkoutCard = memo(({
       </CardHeader>
       <CardContent className="space-y-sm">
         {totalVolume && (
-          <div className="flex items-center justify-between p-sm rounded-md bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10">
+          <div className="flex items-center justify-between p-sm rounded-md gradient-card-subtle border border-primary/10">
             <span className="text-sm font-medium text-muted-foreground">Volume Total</span>
             <div className="flex items-center gap-xs text-primary">
               <TrendingUp className="h-4 w-4" />

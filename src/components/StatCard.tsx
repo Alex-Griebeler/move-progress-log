@@ -31,7 +31,7 @@ const StatCard = ({
 }: StatCardProps) => {
   return (
     <Card 
-      className={`animate-fade-in card-glass-hover transition-smooth ${gradient ? 'bg-gradient-card border-primary/20' : ''} ${onClick ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98]' : ''}`}
+      className={`animate-fade-in card-glass-hover ${gradient ? 'gradient-card-subtle border-primary/20' : ''} ${onClick ? 'card-interactive' : ''}`}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -45,18 +45,18 @@ const StatCard = ({
       <CardHeader className="pb-sm">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-muted-foreground leading-normal">{title}</CardTitle>
-          <div className={`p-sm rounded-md ${gradient ? 'bg-gradient-primary' : 'bg-secondary'}`}>
-            <Icon className={`h-4 w-4 ${gradient ? 'text-primary-foreground' : 'text-primary'}`} />
+          <div className={`p-sm rounded-md ${gradient ? 'gradient-card-emphasis' : 'bg-secondary'}`}>
+            <Icon className={`h-4 w-4 ${gradient ? 'text-primary' : 'text-primary'}`} />
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-sm">
+      <CardContent className="space-y-md">
         <div className="flex items-baseline gap-xs">
-          <div className="text-3xl font-bold leading-tight text-gradient-primary">
+          <div className="text-4xl font-bold leading-tight text-gradient-primary">
             {value}
           </div>
           {trend && (
-            <div className={`flex items-center gap-0.5 text-xs font-semibold ${
+            <div className={`flex items-center gap-xs text-xs font-semibold ${
               trend.value > 0 ? 'text-success' : trend.value < 0 ? 'text-destructive' : 'text-muted-foreground'
             }`}>
               {trend.value > 0 ? (
