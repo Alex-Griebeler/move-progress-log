@@ -87,9 +87,9 @@ const WorkoutCard = memo(({
                 </Badge>
                 
                 {hasObservations && (
-                  <Badge variant="outline" className="text-xs h-5 gap-xs border-amber-500/50 text-amber-700 dark:text-amber-400">
+                  <Badge variant="outline" className="text-xs h-5 gap-xs">
                     <FileText className="h-3 w-3" />
-                    Possui Observações
+                    Observações
                   </Badge>
                 )}
               </div>
