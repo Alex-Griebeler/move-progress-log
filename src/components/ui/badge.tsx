@@ -15,6 +15,10 @@ const badgeVariants = cva(
         success: "border-transparent bg-success text-success-foreground hover:bg-success/80",
         info: "border-transparent bg-info text-info-foreground hover:bg-info/80",
         warning: "border-transparent bg-warning text-warning-foreground hover:bg-warning/80",
+        // Outline semantic variants
+        "outline-success": "border-success/50 text-success bg-success/5 hover:bg-success/10",
+        "outline-warning": "border-warning/50 text-warning bg-warning/5 hover:bg-warning/10",
+        "outline-info": "border-info/50 text-info bg-info/5 hover:bg-info/10",
       },
     },
     defaultVariants: {
