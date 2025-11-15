@@ -29,8 +29,10 @@ export interface Exercise {
 
 export interface WorkoutWithDetails extends WorkoutSession {
   student_name: string;
+  avatar_url?: string;
   total_exercises: number;
   total_volume: number;
+  has_observations: boolean;
 }
 
 export const useWorkouts = () => {
@@ -41,8 +43,8 @@ export const useWorkouts = () => {
         .from("workout_sessions")
         .select(`
           *,
-          students!inner(name),
-          exercises(id, load_kg)
+          students!inner(name, avatar_url),
+          exercises(id, load_kg, observations)
         `)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
@@ -57,8 +59,10 @@ export const useWorkouts = () => {
         time: workout.time,
         session_type: workout.session_type,
         student_name: workout.students.name?.trim() || 'Sem nome',
+        avatar_url: workout.students.avatar_url,
         total_exercises: workout.exercises.length,
         total_volume: workout.exercises.reduce((sum: number, ex: any) => sum + (ex.load_kg || 0), 0),
+        has_observations: workout.exercises.some((ex: any) => ex.observations && ex.observations.trim() !== ''),
         created_at: workout.created_at,
         updated_at: workout.updated_at,
       })) as WorkoutWithDetails[];

@@ -1,15 +1,26 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator 
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, TrendingUp, FolderOpen, Lock, Edit, User, Users, Eye } from "lucide-react";
+import { User, Users, MoreVertical, Eye, Edit, FolderOpen, FileText } from "lucide-react";
 import { memo } from "react";
 
 interface WorkoutCardProps {
   name: string;
+  avatarUrl?: string;
   exercises: number;
   date: string;
   sessionType?: 'individual' | 'group';
   totalVolume?: number;
+  hasObservations?: boolean;
   isFinalized?: boolean;
   canReopen?: boolean;
   onReopen?: () => void;
@@ -20,10 +31,12 @@ interface WorkoutCardProps {
 
 const WorkoutCard = memo(({ 
   name, 
+  avatarUrl,
   exercises, 
   date, 
   sessionType, 
   totalVolume, 
+  hasObservations,
   isFinalized, 
   canReopen, 
   onReopen, 
@@ -31,15 +44,7 @@ const WorkoutCard = memo(({
   onClick 
 }: WorkoutCardProps) => {
   const displayName = name?.trim() || 'Aluno Desconhecido';
-  
-  const getIntensityBadge = (volume: number | undefined) => {
-    if (!volume) return null;
-    if (volume >= 5000) return { label: 'Alta', variant: 'destructive' as const };
-    if (volume >= 3000) return { label: 'Média', variant: 'default' as const };
-    return { label: 'Leve', variant: 'secondary' as const };
-  };
-
-  const intensity = getIntensityBadge(totalVolume);
+  const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   
   const getSessionTypeBadge = () => {
     if (!sessionType) return null;
@@ -56,116 +61,108 @@ const WorkoutCard = memo(({
       className={`animate-fade-in ${onClick ? 'card-interactive' : ''} card-glass-hover group`}
       onClick={onClick}
     >
-      <CardHeader className="pb-sm">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-sm">
-            <div className="p-xs rounded-md gradient-card-emphasis group-hover:opacity-90 transition-smooth">
-              <Dumbbell className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex flex-col">
-              <CardTitle className="text-lg">{displayName}</CardTitle>
-              <div className="flex items-center gap-xs mt-xs flex-wrap">
-                <span className="text-xs text-muted-foreground">{exercises} exercícios</span>
+      <CardHeader className="space-y-md pb-sm">
+        <div className="flex items-start justify-between gap-sm">
+          <div className="flex items-center gap-sm flex-1 min-w-0">
+            <Avatar className="h-16 w-16 shrink-0">
+              <AvatarImage src={avatarUrl || undefined} />
+              <AvatarFallback className="bg-primary/10 text-foreground text-lg font-semibold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            
+            <div className="flex flex-col gap-xs flex-1 min-w-0">
+              <CardTitle className="text-lg truncate">{displayName}</CardTitle>
+              
+              <div className="flex items-center gap-xs flex-wrap">
                 {sessionTypeBadge && (
-                  <>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <Badge variant={sessionTypeBadge.variant} className="text-xs h-5 gap-xs">
-                      <sessionTypeBadge.icon className="h-3 w-3" />
-                      {sessionTypeBadge.label}
-                    </Badge>
-                  </>
+                  <Badge variant={sessionTypeBadge.variant} className="text-xs h-5 gap-xs">
+                    <sessionTypeBadge.icon className="h-3 w-3" />
+                    {sessionTypeBadge.label}
+                  </Badge>
                 )}
-                {intensity && (
-                  <>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <Badge variant={intensity.variant} className="text-xs h-5">
-                      {intensity.label}
-                    </Badge>
-                  </>
+                
+                <Badge variant="secondary" className="text-xs h-5">
+                  {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                </Badge>
+                
+                {hasObservations && (
+                  <Badge variant="outline" className="text-xs h-5 gap-xs border-amber-500/50 text-amber-700 dark:text-amber-400">
+                    <FileText className="h-3 w-3" />
+                    Possui Observações
+                  </Badge>
                 )}
               </div>
             </div>
           </div>
-          <Badge variant="secondary" className="text-xs">
-            {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-sm">
-        {totalVolume && (
-          <div className="flex items-center justify-between p-sm rounded-md gradient-card-subtle border border-primary/10">
-            <span className="text-sm font-medium text-muted-foreground">Volume Total</span>
-            <div className="flex items-center gap-xs text-primary">
-              <TrendingUp className="h-4 w-4" />
-              <span className="text-lg font-bold">{totalVolume.toLocaleString('pt-BR')}kg</span>
-            </div>
-          </div>
-        )}
-        
-        {isFinalized && (
-          <div className="flex items-center justify-between pt-xs border-t border-border">
-            <div className="flex items-center gap-xs text-muted-foreground">
-              <Lock className="h-4 w-4" />
-              <span className="text-sm">Sessão finalizada</span>
-            </div>
-            <div className="flex gap-xs">
-              {canReopen && onReopen && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button 
+                variant="outline" 
+                size="icon"
+                className="h-9 w-9 shrink-0"
+                aria-label="Menu de ações da sessão"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Informações</DropdownMenuLabel>
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                {exercises} exercícios • {totalVolume?.toLocaleString('pt-BR')}kg
+              </div>
+              
+              <DropdownMenuSeparator />
+              
+              {!isFinalized && onEdit && (
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit();
+                  }}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar Sessão
+                </DropdownMenuItem>
+              )}
+              
+              <DropdownMenuItem 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick?.();
+                }}
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Ver Detalhes
+              </DropdownMenuItem>
+              
+              {isFinalized && canReopen && onReopen && (
+                <DropdownMenuItem 
                   onClick={(e) => {
                     e.stopPropagation();
                     onReopen();
                   }}
-                  aria-label="Reabrir sessão finalizada"
                 >
                   <FolderOpen className="h-4 w-4 mr-2" />
-                  Reabrir
-                </Button>
+                  Reabrir Sessão
+                </DropdownMenuItem>
               )}
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // View details (handled by card onClick)
-                }}
-                aria-label="Ver detalhes da sessão"
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Ver Detalhes
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {!isFinalized && onEdit && (
-          <div className="flex justify-end pt-2 border-t border-border">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              aria-label="Editar sessão de treino"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Editar
-            </Button>
-          </div>
-        )}
-      </CardContent>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </CardHeader>
     </Card>
   );
 }, (prevProps, nextProps) => {
-  // Custom comparison function for memo
   return (
     prevProps.name === nextProps.name &&
+    prevProps.avatarUrl === nextProps.avatarUrl &&
     prevProps.exercises === nextProps.exercises &&
     prevProps.date === nextProps.date &&
     prevProps.sessionType === nextProps.sessionType &&
     prevProps.totalVolume === nextProps.totalVolume &&
+    prevProps.hasObservations === nextProps.hasObservations &&
     prevProps.isFinalized === nextProps.isFinalized &&
     prevProps.canReopen === nextProps.canReopen &&
     prevProps.sessionId === nextProps.sessionId
