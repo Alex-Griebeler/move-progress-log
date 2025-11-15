@@ -586,6 +586,15 @@ All colors MUST be HSL.
     color: hsl(48 96% 70%);
   }
 
+  /* Card Interactive - Premium hover state */
+  .card-interactive {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-interactive:hover {
+    box-shadow: var(--shadow-lg);
+  }
+
   /* Pulse animation for alerts */
   @keyframes pulse-slow {
     0%, 100% { opacity: 1; }
