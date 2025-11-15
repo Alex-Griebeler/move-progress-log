@@ -8,7 +8,7 @@ import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
 import { StudentCardSkeleton } from "@/components/skeletons/StudentCardSkeleton";
-import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen } from "lucide-react";
+import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
@@ -25,6 +25,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useStudentImportantObservations } from "@/hooks/useStudentImportantObservations";
@@ -131,128 +132,118 @@ const StudentsPage = () => {
 
     return (
       <>
-        <Card className="animate-fade-in hover:shadow-lg transition-shadow">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-sm">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={student.avatar_url || undefined} />
-                <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <span className="flex-1">{student.name}</span>
-            </CardTitle>
-            
-            <CardDescription className="space-y-sm">
-              <div className="grid grid-cols-2 gap-xs">
-                {/* Nível de Fitness */}
-                {student.fitness_level && (
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">Nível</span>
-                    <Badge variant="outline" className="capitalize w-fit mt-1">
+        <Card className="card-interactive overflow-hidden">
+          <CardHeader className="space-y-md pb-sm">
+            <CardTitle className="flex items-center justify-between gap-sm">
+              <div className="flex items-center gap-sm">
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={student.avatar_url || undefined} />
+                  <AvatarFallback className="bg-gradient-card-subtle text-base font-medium">
+                    {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                  <span className="text-lg font-semibold">{student.name}</span>
+                  {student.fitness_level && (
+                    <Badge variant="outline" className="text-xs capitalize w-fit mt-1 opacity-70">
                       {student.fitness_level}
                     </Badge>
-                  </div>
-                )}
-                
-                {/* IMC */}
-                {imc && (
-                  <div className="flex flex-col">
-                    <span className="text-xs text-muted-foreground">IMC</span>
-                    <span className="text-sm font-semibold mt-1">{imc}</span>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-
-              {/* Readiness Oura Ring - Destaque maior */}
-              {readinessScore ? (
-                <div className="flex items-center justify-between p-xs rounded-md bg-muted/30">
-                  <div className="flex items-center gap-xs">
-                    <span className="text-sm font-medium">Prontidão</span>
-                    <Badge variant="secondary" className="text-xs">
-                      {getReadinessLabel(readinessScore)}
-                    </Badge>
-                  </div>
-                  <span className={`text-xl font-bold ${getReadinessColor(readinessScore)}`}>
-                    {readinessScore}%
-                  </span>
-                </div>
-              ) : ouraStatus?.isConnected && ouraStatus.hasIssues ? (
-                <div className="flex items-center justify-between p-xs rounded-md bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
-                  <div className="flex items-center gap-xs">
-                    <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
-                    <span className="text-xs text-yellow-700 dark:text-yellow-400 font-medium">
-                      Problema na sync Oura
-                    </span>
-                  </div>
-                </div>
-              ) : ouraStatus?.isConnected ? (
-                <div className="flex items-center justify-between p-xs rounded-md bg-muted/20 border border-dashed">
-                  <span className="text-xs text-muted-foreground">Aguardando dados Oura</span>
-                </div>
-              ) : null}
               
-              {/* Alerta de Dados Incompletos - Ícone Minimalista */}
+              {/* Ícone discreto de dados incompletos */}
               {hasIncompleteData && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => setEditingStudent(student)}
-                        className="inline-flex items-center justify-center rounded-full p-1.5 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
-                        aria-label={`Dados incompletos - Clique para completar dados de ${student.name}`}
+                        className="inline-flex items-center justify-center rounded-full p-1.5 hover:bg-muted transition-colors"
+                        aria-label={`Dados incompletos`}
                       >
-                        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">Dados incompletos - Clique para completar</p>
+                    <TooltipContent>
+                      <p className="text-xs">Dados incompletos</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
+            </CardTitle>
+            
+            <CardDescription className="space-y-sm">
+              {/* Readiness Oura Ring - Layout limpo */}
+              {readinessScore ? (
+                <div className="flex items-center justify-between py-sm border-b border-border/50">
+                  <div className="flex flex-col gap-xs">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Prontidão</span>
+                    <span className={`text-2xl font-semibold tabular-nums ${getReadinessColor(readinessScore)}`}>
+                      {readinessScore}%
+                    </span>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {getReadinessLabel(readinessScore)}
+                  </Badge>
+                </div>
+              ) : ouraStatus?.isConnected && ouraStatus.hasIssues ? (
+                <Alert className="border-muted bg-transparent py-xs px-sm">
+                  <AlertCircle className="h-3 w-3 text-muted-foreground" />
+                  <AlertDescription className="text-xs text-muted-foreground">
+                    Dados Oura indisponíveis
+                  </AlertDescription>
+                </Alert>
+              ) : ouraStatus?.isConnected ? (
+                <div className="flex items-center justify-between py-xs px-sm rounded-md border border-dashed">
+                  <span className="text-xs text-muted-foreground">Aguardando dados Oura</span>
+                </div>
+              ) : null}
               
-              {/* Observações Importantes */}
+              {/* Observações Importantes - Mais discretas */}
               {hasImportantObservations && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="w-full h-9 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-500 dark:hover:text-amber-400 dark:hover:bg-amber-950/30 border border-amber-200 dark:border-amber-800"
+                  className="w-full h-9 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                   onClick={() => setShowObservationsDialog(true)}
-                  aria-label={`Ver ${importantObservations.length} observações importantes de ${student.name}`}
+                  aria-label={`Ver ${importantObservations.length} observações importantes`}
                 >
-                  <AlertCircle className="h-4 w-4 mr-2" />
-                  <span className="text-xs font-medium">
-                    {importantObservations.length} observação{importantObservations.length !== 1 ? 'ões' : ''} importante{importantObservations.length !== 1 ? 's' : ''}
+                  <Info className="h-3 w-3 mr-2" />
+                  <span className="text-xs">
+                    {importantObservations.length} observação{importantObservations.length !== 1 ? 'ões' : ''}
                   </span>
-                  <Info className="h-3 w-3 ml-2 opacity-70" />
                 </Button>
               )}
             </CardDescription>
           </CardHeader>
           
-          <CardContent>
-            <div className="flex gap-2">
+          <CardContent className="pt-sm pb-md">
+            <div className="flex gap-xs">
+              {/* Botão principal - Detalhes */}
               <Button
                 variant="default"
-                size="sm"
-                className="flex-1"
+                size="default"
+                className="flex-1 shadow-sm hover:shadow-md transition-shadow"
                 onClick={() => navigate(ROUTES.studentDetail(student.id))}
                 aria-label={`Ver detalhes de ${student.name}`}
               >
                 <Eye className="h-4 w-4 mr-2" />
                 Detalhes
               </Button>
+              
+              {/* Menu de ações secundárias */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant="secondary"
-                    size="sm"
-                    aria-label={`Registrar sessão para ${student.name}`}
-                    title="Registrar sessão"
+                    variant="outline"
+                    size="icon"
+                    aria-label="Mais ações"
                   >
-                    <NotebookPen className="h-4 w-4" />
+                    <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem
                     onClick={() => {
                       setRecordingStudentId(student.id);
@@ -264,34 +255,28 @@ const StudentsPage = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => {
-                      // Abre o dialog de grupo com apenas esse aluno pré-selecionado
                       setIsGroupSessionDialogOpen(true);
-                      // TODO: Pre-selecionar esse aluno no dialog
                     }}
                   >
-                    <Edit className="h-4 w-4 mr-2" />
+                    <NotebookPen className="h-4 w-4 mr-2" />
                     Registro Manual
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setEditingStudent(student)}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar Aluno
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setDeletingStudentId(student.id)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir Aluno
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditingStudent(student)}
-                aria-label={`Editar informações de ${student.name}`}
-                title="Editar aluno"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => setDeletingStudentId(student.id)}
-                aria-label={`Excluir aluno ${student.name}`}
-                title="Excluir aluno"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
             </div>
           </CardContent>
         </Card>
