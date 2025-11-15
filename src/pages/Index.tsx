@@ -63,6 +63,36 @@ const Index = () => {
     setRefreshKey(prev => prev + 1);
   };
 
+  const handleEditSession = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+  };
+
+  const handleReopenSession = async (sessionId: string) => {
+    try {
+      const { error } = await import("@/integrations/supabase/client").then(m => 
+        m.supabase
+          .from('workout_sessions')
+          .update({ is_finalized: false })
+          .eq('id', sessionId)
+      );
+      
+      if (error) throw error;
+      
+      await queryClient.invalidateQueries({ queryKey: ['workouts'] });
+      toast({ 
+        title: "Sessão reaberta com sucesso",
+        description: "A sessão foi reaberta e pode ser editada novamente."
+      });
+    } catch (error) {
+      console.error('Erro ao reabrir sessão:', error);
+      toast({ 
+        title: "Erro ao reabrir sessão", 
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive" 
+      });
+    }
+  };
+
   const handlePopulateTestData = async () => {
     setIsPopulating(true);
     try {
@@ -230,7 +260,7 @@ const Index = () => {
                 title={NAV_LABELS.statThisMonth}
                 value={stats?.thisMonth || 0}
                 icon={Calendar}
-                subtitle="Sessões em outubro"
+                subtitle={`Sessões em ${new Date().toLocaleDateString('pt-BR', { month: 'long' })}`}
               />
               <StatCard
                 title={NAV_LABELS.statActiveStudents}
@@ -316,20 +346,17 @@ const Index = () => {
                 <WorkoutCardSkeleton />
               </>
             ) : recentWorkouts && recentWorkouts.length > 0 ? (
-              recentWorkouts
-                .filter(workout => {
+              (() => {
+                const filteredWorkouts = recentWorkouts.filter(workout => {
                   if (sessionTypeFilter === 'all') return true;
                   return workout.session_type === sessionTypeFilter;
-                })
-                .length > 0 ? (
-                recentWorkouts
-                  .filter(workout => {
-                    if (sessionTypeFilter === 'all') return true;
-                    return workout.session_type === sessionTypeFilter;
-                  })
-                  .map((workout) => (
+                });
+                
+                return filteredWorkouts.length > 0 ? (
+                  filteredWorkouts.map((workout) => (
                     <WorkoutCard
                       key={workout.id}
+                      sessionId={workout.id}
                       name={workout.student_name}
                       avatarUrl={workout.avatar_url}
                       exercises={workout.total_exercises}
@@ -337,33 +364,38 @@ const Index = () => {
                       sessionType={workout.session_type}
                       totalVolume={workout.total_volume}
                       hasImportantObservations={workout.has_important_observations}
+                      isFinalized={workout.is_finalized}
+                      canReopen={workout.can_reopen}
+                      onEdit={workout.is_finalized ? undefined : () => handleEditSession(workout.id)}
+                      onReopen={workout.is_finalized && workout.can_reopen ? () => handleReopenSession(workout.id) : undefined}
                       onClick={() => setSelectedSessionId(workout.id)}
                     />
                   ))
-              ) : (
-                <Card className="border-dashed col-span-full">
-                  <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
-                    <div className="rounded-md bg-muted p-4">
-                      <Calendar className="h-12 w-12 text-muted-foreground" />
-                    </div>
-                    <div className="text-center space-y-2">
-                      <h3 className="text-lg font-semibold">
-                        Nenhuma sessão {sessionTypeFilter === 'individual' ? 'individual' : 'em grupo'} encontrada
-                      </h3>
-                      <p className="text-muted-foreground text-sm max-w-md">
-                        Não há sessões {sessionTypeFilter === 'individual' ? 'individuais' : 'em grupo'} registradas
-                      </p>
-                    </div>
-                    <Button 
-                      variant="outline"
-                      onClick={() => setSessionTypeFilter('all')}
-                      className="gap-2 mt-4"
-                    >
-                      Ver todas as sessões
-                    </Button>
-                  </CardContent>
-                </Card>
-              )
+                ) : (
+                  <Card className="border-dashed col-span-full">
+                    <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+                      <div className="rounded-md bg-muted p-4">
+                        <Calendar className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                      <div className="text-center space-y-2">
+                        <h3 className="text-lg font-semibold">
+                          Nenhuma sessão {sessionTypeFilter === 'individual' ? 'individual' : 'em grupo'} encontrada
+                        </h3>
+                        <p className="text-muted-foreground text-sm max-w-md">
+                          Não há sessões {sessionTypeFilter === 'individual' ? 'individuais' : 'em grupo'} registradas
+                        </p>
+                      </div>
+                      <Button 
+                        variant="outline"
+                        onClick={() => setSessionTypeFilter('all')}
+                        className="gap-2 mt-4"
+                      >
+                        Ver todas as sessões
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })()
             ) : (
               <Card className="border-dashed col-span-full">
                 <CardContent className="flex flex-col items-center justify-center py-16 space-y-6">
