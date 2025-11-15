@@ -331,10 +331,12 @@ const Index = () => {
                     <WorkoutCard
                       key={workout.id}
                       name={workout.student_name}
+                      avatarUrl={workout.avatar_url}
                       exercises={workout.total_exercises}
                       date={workout.date}
                       sessionType={workout.session_type}
                       totalVolume={workout.total_volume}
+                      hasObservations={workout.has_observations}
                       onClick={() => setSelectedSessionId(workout.id)}
                     />
                   ))
