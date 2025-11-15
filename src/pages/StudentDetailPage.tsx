@@ -215,15 +215,6 @@ const StudentDetailPage = () => {
                     <div className="flex items-center gap-xs text-sm text-muted-foreground flex-wrap">
                       <Calendar className="h-4 w-4 shrink-0" />
                       <span>{age} anos</span>
-                      {student.birth_date && (
-                        <>
-                          <span className="hidden sm:inline">•</span>
-                          <span className="hidden sm:inline">{(() => {
-                            const [year, month, day] = student.birth_date.split('-');
-                            return `${day}/${month}/${year}`;
-                          })()}</span>
-                        </>
-                      )}
                     </div>
                   </div>
                   
