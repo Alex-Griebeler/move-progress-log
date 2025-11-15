@@ -20,6 +20,12 @@ export default {
         'pos-0': '0% 0%',
         'pos-100': '100% 100%',
       },
+      /* Premium Shadows */
+      boxShadow: {
+        'premium': 'var(--shadow-xl)',
+        'card': 'var(--shadow-card)',
+        'primary': 'var(--shadow-primary)',
+      },
       /* ========================================
          DESIGN SYSTEM FOUNDATION - ETAPA 3
          ======================================== */
