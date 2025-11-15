@@ -32,7 +32,7 @@ export interface WorkoutWithDetails extends WorkoutSession {
   avatar_url?: string;
   total_exercises: number;
   total_volume: number;
-  has_observations: boolean;
+  has_important_observations: boolean;
 }
 
 export const useWorkouts = () => {
@@ -44,13 +44,26 @@ export const useWorkouts = () => {
         .select(`
           *,
           students!inner(name, avatar_url),
-          exercises(id, load_kg, observations)
+          exercises(id, load_kg)
         `)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
         .limit(20);
       
       if (error) throw error;
+
+      // Buscar observações importantes para todas as sessões
+      const sessionIds = data.map(s => s.id);
+      const { data: observations } = await supabase
+        .from('student_observations')
+        .select('session_id')
+        .in('session_id', sessionIds)
+        .eq('is_resolved', false)
+        .in('severity', ['baixa', 'média', 'alta']);
+
+      const sessionsWithObservations = new Set(
+        observations?.map(o => o.session_id).filter(Boolean) || []
+      );
       
       return data.map((workout: any) => ({
         id: workout.id,
@@ -62,7 +75,7 @@ export const useWorkouts = () => {
         avatar_url: workout.students.avatar_url,
         total_exercises: workout.exercises.length,
         total_volume: workout.exercises.reduce((sum: number, ex: any) => sum + (ex.load_kg || 0), 0),
-        has_observations: workout.exercises.some((ex: any) => ex.observations && ex.observations.trim() !== ''),
+        has_important_observations: sessionsWithObservations.has(workout.id),
         created_at: workout.created_at,
         updated_at: workout.updated_at,
       })) as WorkoutWithDetails[];
