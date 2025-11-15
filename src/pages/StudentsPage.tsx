@@ -138,9 +138,9 @@ const StudentsPage = () => {
               <div className="flex items-center gap-sm">
                 <Avatar className="h-12 w-12">
                   <AvatarImage src={student.avatar_url || undefined} />
-                  <AvatarFallback className="bg-gradient-card-subtle text-base font-medium">
-                    {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-primary text-base font-semibold">
+                {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col">
                   <span className="text-lg font-semibold">{student.name}</span>
