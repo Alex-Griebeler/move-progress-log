@@ -162,11 +162,18 @@ const StudentsPage = () => {
                         className="inline-flex items-center justify-center rounded-full p-1.5 hover:bg-muted transition-colors"
                         aria-label={`Dados incompletos`}
                       >
-                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                        <AlertCircle className="h-4 w-4 text-yellow-500" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">Dados incompletos</p>
+                    <TooltipContent className="max-w-xs">
+                      <p className="text-xs font-semibold mb-1">Dados incompletos:</p>
+                      <ul className="text-xs list-disc list-inside space-y-0.5">
+                        {!student.birth_date && <li>Data de nascimento</li>}
+                        {!student.weight_kg && <li>Peso</li>}
+                        {!student.height_cm && <li>Altura</li>}
+                        {!student.fitness_level && <li>Nível de condicionamento</li>}
+                        {!student.max_heart_rate && <li>FC máxima</li>}
+                      </ul>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -174,6 +181,17 @@ const StudentsPage = () => {
             </CardTitle>
             
             <CardDescription className="space-y-sm">
+              {/* Objetivos */}
+              {student.objectives && student.objectives.length > 0 && (
+                <div className="flex gap-1 flex-wrap pb-sm border-b border-border/50">
+                  {student.objectives.map((obj, idx) => (
+                    <Badge key={idx} variant="outline" className="text-xs capitalize opacity-70">
+                      {obj}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              
               {/* Readiness Oura Ring - Layout limpo */}
               {readinessScore ? (
                 <div className="flex items-center justify-between py-sm border-b border-border/50">
