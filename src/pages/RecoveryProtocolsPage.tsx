@@ -70,7 +70,15 @@ const RecoveryProtocolsPage = () => {
         <div className="space-y-6">
 
       {isLoading ? (
-        <LoadingSpinner text="Carregando protocolos..." />
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="animate-fade-in">
+              <CardContent className="pt-6">
+                <Skeleton className="h-20 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : !protocols || protocols.length === 0 ? (
         <EmptyState
           icon={<Heart className="h-6 w-6" />}
@@ -79,8 +87,12 @@ const RecoveryProtocolsPage = () => {
         />
       ) : (
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all" onClick={() => setSelectedCategory(undefined)}>
+          <TabsList className="grid w-full grid-cols-5 bg-primary/5">
+            <TabsTrigger 
+              value="all" 
+              onClick={() => setSelectedCategory(undefined)}
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
               Todos ({protocols?.length || 0})
             </TabsTrigger>
             {categories.map((category) => (
@@ -88,6 +100,7 @@ const RecoveryProtocolsPage = () => {
                 key={category}
                 value={category}
                 onClick={() => setSelectedCategory(category)}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 {category} ({getProtocolsByCategory(category).length})
               </TabsTrigger>
