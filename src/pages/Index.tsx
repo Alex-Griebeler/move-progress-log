@@ -8,7 +8,13 @@ import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { StatCardSkeleton } from "@/components/skeletons/StatCardSkeleton";
 import { WorkoutCardSkeleton } from "@/components/skeletons/WorkoutCardSkeleton";
 import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
-import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit, Info, Database, Trash2, User, Filter } from "lucide-react";
+import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit, Info, Database, Trash2, User, Filter, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
 import { Button } from "@/components/ui/button";
@@ -161,13 +167,23 @@ const Index = () => {
         <AppHeader 
           title={NAV_LABELS.dashboard}
           actions={
-            <>
-              <Button variant="outline" onClick={() => setImportDialogOpen(true)} aria-label={NAV_LABELS.importExcel}>
-                <Upload className="h-4 w-4 mr-2" />
-                {NAV_LABELS.importExcel}
-              </Button>
+            <div className="flex gap-xs">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" aria-label="Ações secundárias">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    {NAV_LABELS.importExcel}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
               <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />
-            </>
+            </div>
           }
         />
 
