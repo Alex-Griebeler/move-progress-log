@@ -171,8 +171,33 @@ export default function PrescriptionsPage() {
   };
 
   const handleMoveToFolder = (prescriptionId: string) => {
-    // Placeholder - will be enhanced with folder selection menu
-    console.log("Move to folder:", prescriptionId);
+    // Listen to custom event with folder id
+    const handleMoveEvent = async (e: CustomEvent) => {
+      if (e.detail.prescriptionId === prescriptionId) {
+        const targetFolderId = e.detail.folderId;
+        
+        // Get prescriptions in target folder
+        const targetFolderPrescriptions = prescriptions?.filter(
+          p => p.folder_id === targetFolderId
+        ) || [];
+        
+        const maxOrder = targetFolderPrescriptions.length > 0
+          ? Math.max(...targetFolderPrescriptions.map(p => p.order_index))
+          : -1;
+
+        await movePrescription.mutateAsync({
+          prescriptionId: e.detail.prescriptionId,
+          folderId: targetFolderId,
+          orderIndex: maxOrder + 1,
+        });
+      }
+    };
+    
+    window.addEventListener('move-to-folder', handleMoveEvent as EventListener);
+    // Cleanup listener after use
+    setTimeout(() => {
+      window.removeEventListener('move-to-folder', handleMoveEvent as EventListener);
+    }, 100);
   };
 
   const handleRemoveFromFolder = async (prescriptionId: string) => {

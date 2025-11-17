@@ -182,8 +182,15 @@ const PrescriptionCardComponent = ({
                         .map(folder => (
                           <DropdownMenuItem
                             key={folder.id}
-                            onClick={() => onMoveToFolder(prescription.id)}
-                            data-folder-id={folder.id}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onMoveToFolder(prescription.id);
+                              // Dispatch custom event with folder id
+                              const event = new CustomEvent('move-to-folder', { 
+                                detail: { prescriptionId: prescription.id, folderId: folder.id }
+                              });
+                              window.dispatchEvent(event);
+                            }}
                           >
                             {folder.name}
                           </DropdownMenuItem>
