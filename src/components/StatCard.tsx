@@ -42,15 +42,15 @@ const StatCard = ({
         }
       } : undefined}
     >
-      <CardHeader className="pb-sm">
+      <CardHeader className="pb-sm p-lg">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium text-muted-foreground leading-normal">{title}</CardTitle>
+          <CardTitle className="text-base font-medium text-muted-foreground leading-normal">{title}</CardTitle>
           <div className={`p-sm rounded-md ${gradient ? 'gradient-card-emphasis' : 'bg-secondary'}`}>
             <Icon className={`h-4 w-4 ${gradient ? 'text-primary' : 'text-primary'}`} />
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-md">
+      <CardContent className="space-y-md p-lg pt-0">
         <div className="flex items-baseline gap-xs">
           <div className="text-4xl font-bold leading-tight text-gradient-primary">
             {value}
@@ -69,12 +69,12 @@ const StatCard = ({
           )}
         </div>
 
-        {subtitle && <p className="text-xs text-muted-foreground leading-normal">{subtitle}</p>}
+        {subtitle && <p className="text-sm text-muted-foreground leading-relaxed">{subtitle}</p>}
         
         {progress !== undefined && (
           <div className="space-y-xs">
             <Progress value={progress} className="h-1.5" />
-            <p className="text-xs text-muted-foreground">{progress.toFixed(0)}% da meta</p>
+            <p className="text-sm text-muted-foreground">{progress.toFixed(0)}% da meta</p>
           </div>
         )}
 

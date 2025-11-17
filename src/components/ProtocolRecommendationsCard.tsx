@@ -57,10 +57,10 @@ const ProtocolRecommendationsCard = ({ studentId }: ProtocolRecommendationsCardP
   ) || [];
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="rounded-lg">
+      <CardHeader className="p-lg space-y-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-sm">
             <Sparkles className="h-5 w-5 text-primary" />
             <CardTitle>Recomendações de Recuperação</CardTitle>
           </div>
@@ -68,7 +68,7 @@ const ProtocolRecommendationsCard = ({ studentId }: ProtocolRecommendationsCardP
             onClick={handleGenerate}
             disabled={generateMutation.isPending}
             size="sm"
-            className="gap-2"
+            className="gap-sm"
           >
             {generateMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -79,7 +79,7 @@ const ProtocolRecommendationsCard = ({ studentId }: ProtocolRecommendationsCardP
           </Button>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-lg pt-0">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -95,15 +95,15 @@ const ProtocolRecommendationsCard = ({ studentId }: ProtocolRecommendationsCardP
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-md">
             {todayRecommendations.map((recommendation) => (
               <div
                 key={recommendation.id}
-                className={`border rounded-lg p-4 transition-all ${
+                className={`border rounded-lg p-md transition-all ${
                   recommendation.applied ? 'bg-muted/30 border-muted' : 'bg-card border-border'
                 }`}
               >
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-md">
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="font-semibold">{recommendation.protocol.name}</h4>

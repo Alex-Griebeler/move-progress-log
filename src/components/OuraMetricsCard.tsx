@@ -25,10 +25,10 @@ const OuraMetricsCard = ({ metrics }: OuraMetricsCardProps) => {
 
 
   return (
-    <Card className="hover:shadow-premium transition-smooth">
-      <CardHeader>
+    <Card className="hover:shadow-premium transition-smooth rounded-lg">
+      <CardHeader className="p-lg space-y-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-sm">
             <Calendar className="h-5 w-5 text-primary" />
             <CardTitle className="text-lg">{formatLocalDate(metrics.date)}</CardTitle>
           </div>
@@ -37,35 +37,35 @@ const OuraMetricsCard = ({ metrics }: OuraMetricsCardProps) => {
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-md p-lg pt-0">
         {/* Readiness Score */}
-        <div className="space-y-2">
+        <div className="space-y-sm">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-sm">
               <Activity className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Prontidão</span>
+              <span className="text-base font-medium">Prontidão</span>
             </div>
             <Badge className={getScoreColor(metrics.readiness_score)}>
               {metrics.readiness_score || "N/A"}
             </Badge>
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             {getScoreLabel(metrics.readiness_score)}
           </div>
         </div>
 
         {/* Sleep Score */}
-        <div className="space-y-2">
+        <div className="space-y-sm">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-sm">
               <Moon className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Sono</span>
+              <span className="text-base font-medium">Sono</span>
             </div>
             <Badge className={getScoreColor(metrics.sleep_score)}>
               {metrics.sleep_score || "N/A"}
             </Badge>
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-sm text-muted-foreground">
             {getScoreLabel(metrics.sleep_score)}
           </div>
         </div>
