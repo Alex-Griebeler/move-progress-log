@@ -3,24 +3,30 @@ project_id = "zrgfrdmywxlemcuiqtqg"
 [functions.generate-protocol-recommendations]
 verify_jwt = true
 
+# Public endpoint - uses service role authentication internally
 [functions.oura-sync-all]
 verify_jwt = false
 
+# Public endpoint - validates invite token from URL parameters
 [functions.validate-student-invite]
 verify_jwt = false
 
+# Public endpoint - validates invite token before creating student
 [functions.create-student-from-invite]
 verify_jwt = false
 
 [functions.generate-student-invite]
 verify_jwt = true
 
+# OAuth callback - validates authorization code with Oura API
 [functions.oura-callback]
 verify_jwt = false
 
+# Service role endpoint - uses internal authentication
 [functions.oura-sync]
 verify_jwt = false
 
+# Service role endpoint - uses internal authentication for testing
 [functions.oura-sync-test]
 verify_jwt = false
 
@@ -36,9 +42,11 @@ verify_jwt = true
 [functions.process-voice-session]
 verify_jwt = true
 
+# Public endpoint - rate limiting check available to all requests
 [functions.check-rate-limit]
 verify_jwt = false
 
+# Scheduled cron job - triggered by pg_cron, uses service role
 [functions.oura-sync-scheduled]
 verify_jwt = false
 
