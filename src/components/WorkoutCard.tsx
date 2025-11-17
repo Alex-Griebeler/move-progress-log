@@ -51,10 +51,10 @@ const WorkoutCard = memo(({
   
   return (
     <Card 
-      className={`${onClick ? 'card-interactive hover:shadow-premium' : ''} overflow-hidden transition-smooth`}
+      className={`h-[140px] ${onClick ? 'card-interactive hover:shadow-premium' : ''} overflow-hidden transition-smooth`}
       onClick={onClick}
     >
-      <CardHeader className="space-y-md pb-sm">
+      <CardHeader className="h-full flex flex-col justify-between p-lg pb-sm">
         <div className="flex items-start justify-between gap-sm">
           <div className="flex items-center gap-sm flex-1 min-w-0">
             <Avatar className="h-16 w-16 shrink-0">
@@ -67,20 +67,20 @@ const WorkoutCard = memo(({
             <div className="flex flex-col gap-xs flex-1 min-w-0">
               <span className="text-lg font-semibold truncate">{displayName}</span>
               
-              <div className="flex items-center gap-xs flex-wrap mt-1">
+              <div className="flex items-center gap-xs overflow-hidden">
                 {sessionType && (
-                  <Badge variant="outline" className="text-xs capitalize w-fit opacity-70 gap-xs">
+                  <Badge variant="outline" className="text-xs capitalize shrink-0 opacity-70 gap-xs">
                     {sessionType === 'group' ? <Users className="h-3 w-3" /> : <User className="h-3 w-3" />}
                     {sessionTypeLabel}
                   </Badge>
                 )}
                 
-                <Badge variant="outline" className="text-xs capitalize w-fit opacity-70">
+                <Badge variant="outline" className="text-xs capitalize shrink-0 opacity-70">
                   {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                 </Badge>
                 
                 {hasImportantObservations && (
-                  <Badge variant="outline" className="text-xs capitalize w-fit opacity-70 gap-xs">
+                  <Badge variant="outline" className="text-xs capitalize shrink-0 opacity-70 gap-xs">
                     <FileText className="h-3 w-3" />
                     Observações
                   </Badge>
@@ -101,13 +101,6 @@ const WorkoutCard = memo(({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Informações</DropdownMenuLabel>
-              <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                {exercises} exercícios • {totalVolume?.toLocaleString('pt-BR')}kg
-              </div>
-              
-              <DropdownMenuSeparator />
-              
               {!isFinalized && onEdit && (
                 <DropdownMenuItem 
                   onClick={(e) => {
