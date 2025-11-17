@@ -167,43 +167,43 @@ All colors MUST be HSL.
   }
 
   .dark {
-    /* Base Colors - Dark Mode com contraste WCAG AA (4.5:1) */
+    /* Base Colors - Dark Mode */
     --background: 0 0% 10%;
     --foreground: 0 0% 98%;
 
-    --card: 0 0% 14%;
+    --card: 0 0% 15%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 14%;
+    --popover: 0 0% 15%;
     --popover-foreground: 0 0% 98%;
 
-    /* Fabrik Terracota - ajustado para contraste AA */
-    --primary: 7 60% 58%;
+    /* Fabrik Terracota - mais vibrante no dark */
+    --primary: 7 55% 52%;
     --primary-foreground: 0 0% 100%;
 
-    /* Cinza Grafite claro - contraste aumentado */
-    --secondary: 0 0% 30%;
+    /* Cinza Grafite claro */
+    --secondary: 0 0% 25%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 0 0% 22%;
-    --muted-foreground: 0 0% 75%; /* ✅ 4.5:1 contrast ratio */
+    --muted: 0 0% 20%;
+    --muted-foreground: 0 0% 72%; /* ✅ Aumentado para contraste WCAG AA (4.5:1) */
 
-    --accent: 0 0% 32%;
+    --accent: 0 0% 30%;
     --accent-foreground: 0 0% 98%;
 
-    --destructive: 0 68% 42%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 28%;
-    --input: 0 0% 22%;
-    --ring: 7 60% 58%;
+    --border: 0 0% 25%;
+    --input: 0 0% 20%;
+    --ring: 7 55% 52%;
 
-    /* Success/Info/Warning Tokens - Dark Mode com contraste AA */
-    --success: 142 76% 48%;
+    /* Success/Info/Warning Tokens - Dark Mode */
+    --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
-    --info: 199 95% 52%;
+    --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
-    --warning: 38 96% 56%;
+    --warning: 38 92% 50%;
     --warning-foreground: 0 0% 10%;
 
     /* Shadow System - Dark Mode (mais sutis) */
@@ -215,9 +215,9 @@ All colors MUST be HSL.
     --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.6);
 
     /* Legacy tokens (mantidos para compatibilidade) */
-    --gradient-primary: linear-gradient(135deg, hsl(7 60% 58%), hsl(0 0% 32%));
-    --gradient-card: linear-gradient(135deg, hsl(7 60% 58% / 0.12), hsl(0 0% 32% / 0.08));
-    --shadow-primary: 0 8px 24px -4px hsl(7 60% 58% / 0.3);
+    --gradient-primary: linear-gradient(135deg, hsl(7 55% 52%), hsl(0 0% 30%));
+    --gradient-card: linear-gradient(135deg, hsl(7 55% 52% / 0.12), hsl(0 0% 30% / 0.08));
+    --shadow-primary: 0 8px 24px -4px hsl(7 55% 52% / 0.3);
     --shadow-card: 0 2px 12px -2px hsl(0 0% 100% / 0.08);
 
     /* Sidebar tokens - Dark Mode */
@@ -428,74 +428,6 @@ All colors MUST be HSL.
     overflow: visible;
     clip: auto;
     white-space: normal;
-  }
-
-  /* ===========================
-     ACESSIBILIDADE WCAG AA
-     =========================== */
-
-  /* Focus Visible - Estado de foco Premium */
-  *:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px hsl(var(--background)),
-                0 0 0 4px hsl(var(--ring));
-    border-radius: 4px;
-  }
-
-  /* Focus para botões e links */
-  button:focus-visible,
-  a:focus-visible,
-  [role="button"]:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px hsl(var(--background)),
-                0 0 0 4px hsl(var(--ring));
-  }
-
-  /* Focus para inputs e selects */
-  input:focus-visible,
-  textarea:focus-visible,
-  select:focus-visible,
-  [role="textbox"]:focus-visible {
-    outline: none;
-    border-color: hsl(var(--ring));
-    box-shadow: 0 0 0 1px hsl(var(--ring)),
-                0 0 0 3px hsl(var(--ring) / 0.2);
-  }
-
-  /* Focus para cards interativos */
-  .card-interactive:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px hsl(var(--background)),
-                0 0 0 4px hsl(var(--ring)),
-                var(--shadow-lg);
-  }
-
-  /* Skip to content - visível apenas no foco */
-  .skip-to-content {
-    position: fixed;
-    top: -100px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 9999;
-    padding: 1rem 2rem;
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-    font-weight: 600;
-    border-radius: 0 0 0.5rem 0.5rem;
-    box-shadow: var(--shadow-lg);
-    transition: top 0.3s ease-out;
-  }
-
-  .skip-to-content:focus {
-    top: 0;
-    outline: 3px solid hsl(var(--ring));
-    outline-offset: 2px;
-  }
-
-  /* Indicadores de navegação por teclado */
-  body.keyboard-navigation *:focus {
-    outline: 2px solid hsl(var(--ring));
-    outline-offset: 2px;
   }
 
   /* ===========================

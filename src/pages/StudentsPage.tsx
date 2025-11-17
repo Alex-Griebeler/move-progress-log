@@ -134,8 +134,8 @@ const StudentsPage = () => {
 
     return (
       <>
-        <Card className="card-interactive overflow-hidden h-full flex flex-col">
-          <CardHeader className="space-y-md pb-sm flex-shrink-0">
+        <Card className="card-interactive overflow-hidden">
+          <CardHeader className="space-y-md pb-sm">
             <CardTitle className="flex items-center justify-between gap-sm">
               <div className="flex items-center gap-sm">
                 <Avatar className="h-16 w-16">
@@ -188,7 +188,7 @@ const StudentsPage = () => {
               )}
             </CardTitle>
             
-            <CardDescription className="space-y-sm flex-1 flex flex-col">
+            <CardDescription className="space-y-sm">
               {/* Readiness Oura Ring - Layout limpo */}
               {readinessScore ? (
                 <div className="flex items-center justify-between py-sm border-b border-border/50">
@@ -233,7 +233,7 @@ const StudentsPage = () => {
             </CardDescription>
           </CardHeader>
           
-          <CardContent className="pt-sm pb-md flex-shrink-0 mt-auto">
+          <CardContent className="pt-sm pb-md">
             <div className="flex gap-xs">
               {/* Botão principal - Detalhes */}
               <Button
@@ -432,11 +432,11 @@ const StudentsPage = () => {
             ))}
           </div>
         ) : filteredStudents && filteredStudents.length > 0 ? (
-          <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3 auto-rows-fr">
+          <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
             {filteredStudents.map((student, index) => (
               <div 
                 key={student.id}
-                className={`h-full animate-fade-in stagger-item-${Math.min(index + 1, 8)}`}
+                className={`animate-fade-in stagger-item-${Math.min(index + 1, 8)}`}
               >
                 <StudentCard student={student} />
               </div>

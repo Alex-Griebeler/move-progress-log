@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SkipToContent } from "@/components/SkipToContent";
 import { TrainingProvider } from "@/contexts/TrainingContext";
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense } from "react";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -34,30 +34,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
-const App = () => {
-  // Detecta navegação por teclado para estados de foco mais visíveis
-  useEffect(() => {
-    const handleFirstTab = (e: KeyboardEvent) => {
-      if (e.key === 'Tab') {
-        document.body.classList.add('keyboard-navigation');
-        window.removeEventListener('keydown', handleFirstTab);
-      }
-    };
-    
-    const handleMouseDown = () => {
-      document.body.classList.remove('keyboard-navigation');
-    };
-
-    window.addEventListener('keydown', handleFirstTab);
-    window.addEventListener('mousedown', handleMouseDown);
-
-    return () => {
-      window.removeEventListener('keydown', handleFirstTab);
-      window.removeEventListener('mousedown', handleMouseDown);
-    };
-  }, []);
-
-  return (
+const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <TrainingProvider>
@@ -112,7 +89,6 @@ const App = () => {
       </TrainingProvider>
     </TooltipProvider>
   </QueryClientProvider>
-  );
-};
+);
 
 export default App;
