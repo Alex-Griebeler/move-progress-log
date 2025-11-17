@@ -365,7 +365,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>Criar Nova Prescrição</DialogTitle>
@@ -412,9 +412,10 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           )}
         </DialogHeader>
 
-        <TooltipProvider>
-          <ScrollArea className="max-h-[calc(90vh-120px)] pr-md">
-          <div className="space-y-lg">
+        <div className="flex-1 overflow-hidden">
+          <TooltipProvider>
+            <ScrollArea className="h-full pr-md">
+            <div className="space-y-lg">
             <div className="space-y-md">
               <div className="space-y-sm">
                 <Label htmlFor="name">Nome da Prescrição *</Label>
@@ -485,9 +486,10 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
                 </SortableContext>
               </DndContext>
             </div>
-          </div>
-        </ScrollArea>
-        </TooltipProvider>
+            </div>
+          </ScrollArea>
+          </TooltipProvider>
+        </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
