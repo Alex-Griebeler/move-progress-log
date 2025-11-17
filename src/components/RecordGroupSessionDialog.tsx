@@ -174,6 +174,27 @@ export function RecordGroupSessionDialog({
     return a.name.localeCompare(b.name);
   });
 
+  const handleModeSelection = (mode: 'voice' | 'manual') => {
+    if (!trainerName.trim()) {
+      notify.error("Por favor, selecione o treinador antes de continuar");
+      return;
+    }
+    if (!date || !time) {
+      notify.error("Por favor, preencha data e horário antes de continuar");
+      return;
+    }
+    if (selectedStudents.length === 0) {
+      notify.error("Por favor, selecione pelo menos um aluno antes de continuar");
+      return;
+    }
+    setSelectedMode(mode);
+    if (mode === 'voice') {
+      setDialogState('recording');
+    } else {
+      setDialogState('manual-entry');
+    }
+  };
+
   // Carregar sessões existentes quando reabrindo
   useEffect(() => {
     if (isReopening && prescriptionId && reopenDate && reopenTime && open) {
@@ -434,7 +455,6 @@ export function RecordGroupSessionDialog({
           
           const wasExecuted = student.exercises.some(ex => {
             const executedName = ex.executed_exercise_name.toLowerCase().trim();
-            // Verificar se os nomes são semelhantes (contém um ao outro)
             return executedName.includes(prescribedName) || 
                    prescribedName.includes(executedName) ||
                    executedName === prescribedName;
