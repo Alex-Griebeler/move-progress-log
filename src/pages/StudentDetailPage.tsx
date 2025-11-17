@@ -651,7 +651,7 @@ const StudentDetailPage = () => {
                 <TabsTrigger value="advanced">Avançado</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="space-y-4 mt-6">
+              <TabsContent value="overview" className="space-y-4 mt-6 animate-fade-in">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {ouraMetrics.slice(0, 7).map((metrics) => (
                     <OuraMetricsCard key={metrics.id} metrics={metrics} />
@@ -659,7 +659,7 @@ const StudentDetailPage = () => {
                 </div>
               </TabsContent>
 
-              <TabsContent value="activity" className="space-y-4 mt-6">
+              <TabsContent value="activity" className="space-y-4 mt-6 animate-fade-in">
                 {ouraMetrics[0] && <OuraActivityCard metrics={ouraMetrics[0]} />}
                 {ouraMetrics.length > 1 && (
                   <div className="mt-4">
@@ -673,7 +673,7 @@ const StudentDetailPage = () => {
                 )}
               </TabsContent>
 
-              <TabsContent value="sleep" className="space-y-4 mt-6">
+              <TabsContent value="sleep" className="space-y-4 mt-6 animate-fade-in">
                 {ouraMetrics[0] && <OuraSleepDetailCard metrics={ouraMetrics[0]} />}
                 {ouraMetrics.length > 1 && (
                   <div className="mt-4">
@@ -687,7 +687,7 @@ const StudentDetailPage = () => {
                 )}
               </TabsContent>
 
-              <TabsContent value="stress" className="space-y-4 mt-6">
+              <TabsContent value="stress" className="space-y-4 mt-6 animate-fade-in">
                 {ouraMetrics[0] && <OuraStressCard metrics={ouraMetrics[0]} />}
                 {ouraMetrics.length > 1 && (
                   <div className="mt-4">
@@ -701,11 +701,11 @@ const StudentDetailPage = () => {
                 )}
               </TabsContent>
 
-              <TabsContent value="workouts" className="space-y-4 mt-6">
+              <TabsContent value="workouts" className="space-y-4 mt-6 animate-fade-in">
                 <OuraWorkoutsCard studentId={id!} limit={20} />
               </TabsContent>
 
-              <TabsContent value="advanced" className="space-y-4 mt-6">
+              <TabsContent value="advanced" className="space-y-4 mt-6 animate-fade-in">
                 {ouraMetrics[0] && <OuraAdvancedMetricsCard metrics={ouraMetrics[0]} />}
                 {ouraMetrics.length > 1 && (
                   <div className="mt-4">

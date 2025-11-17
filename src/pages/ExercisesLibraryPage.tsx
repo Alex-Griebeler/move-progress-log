@@ -152,15 +152,23 @@ export default function ExercisesLibraryPage() {
         subtitle={NAV_LABELS.subtitleExercises}
         actions={
           <div className="flex gap-xs">
-            <Button
-              variant="outline"
-              onClick={handlePopulateDatabase}
-              disabled={isPopulating}
-              aria-label={NAV_LABELS.importExercises}
-            >
-              <Database className="h-4 w-4 mr-2" />
-              {isPopulating ? "Importando..." : NAV_LABELS.importExercises}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Ações secundárias">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-popover">
+                <DropdownMenuItem
+                  onClick={handlePopulateDatabase}
+                  disabled={isPopulating}
+                  className="gap-xs"
+                >
+                  <Database className="h-4 w-4" />
+                  {isPopulating ? "Importando..." : NAV_LABELS.importExercises}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <AddExerciseDialog />
           </div>
         }
