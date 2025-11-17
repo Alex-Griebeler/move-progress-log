@@ -412,9 +412,9 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           )}
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1">
           <TooltipProvider>
-            <ScrollArea className="h-full pr-md">
+            <ScrollArea className="max-h-[60vh] pr-md">
             <div className="space-y-lg">
             <div className="space-y-md">
               <div className="space-y-sm">
