@@ -1,35 +1,42 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+/**
+ * PrescriptionCardSkeleton - Premium loading state para cards de prescrição
+ * 
+ * Features:
+ * - Shimmer effect elegante em header + exercises
+ * - Layout fidedigno ao card real
+ * - Suporta layout drag-and-drop com handle
+ */
 export const PrescriptionCardSkeleton = () => {
   return (
-    <Card className="animate-fade-in">
+    <Card className="animate-fade-in card-glass">
       <CardHeader>
         <div className="flex items-start justify-between gap-sm flex-wrap">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-sm mb-xs">
-              <Skeleton className="h-7 w-48" />
-              <Skeleton className="h-5 w-20 rounded-full" />
+          <div className="flex-1 min-w-0 space-y-sm">
+            <div className="flex items-center gap-sm">
+              <Skeleton className="h-7 w-56 rounded-radius-sm" />
+              <Skeleton className="h-5 w-24 rounded-full" />
             </div>
-            <div className="flex items-center gap-xs text-sm">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-24" />
+            <div className="flex items-center gap-xs">
+              <Skeleton className="h-4 w-36 rounded-radius-sm" />
+              <Skeleton className="h-4 w-28 rounded-radius-sm" />
             </div>
           </div>
-          <div className="flex gap-xs">
-            <Skeleton className="h-9 w-20" />
-            <Skeleton className="h-9 w-24" />
-            <Skeleton className="h-9 w-9" />
+          <div className="flex gap-xs shrink-0">
+            <Skeleton className="h-9 w-24 rounded-radius-md" />
+            <Skeleton className="h-9 w-28 rounded-radius-md" />
+            <Skeleton className="h-9 w-9 rounded-radius-md" />
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-xs">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-16 w-full" />
-        </div>
+      <CardContent className="space-y-xs">
+        {/* Exercise rows */}
+        <Skeleton className="h-12 w-full rounded-radius-md" />
+        <Skeleton className="h-20 w-full rounded-radius-md" />
+        <Skeleton className="h-20 w-full rounded-radius-md" />
+        <Skeleton className="h-16 w-full rounded-radius-md" />
       </CardContent>
     </Card>
   );
