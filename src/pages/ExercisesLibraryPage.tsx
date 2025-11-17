@@ -21,7 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Trash2, Filter, X, Database, Search } from "lucide-react";
+import { Pencil, Trash2, Filter, X, Database, Search, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { AddExerciseDialog } from "@/components/AddExerciseDialog";
 import { EditExerciseLibraryDialog } from "@/components/EditExerciseLibraryDialog";

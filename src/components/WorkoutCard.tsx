@@ -51,7 +51,7 @@ const WorkoutCard = memo(({
   
   return (
     <Card 
-      className={`${onClick ? 'card-interactive' : ''} overflow-hidden`}
+      className={`${onClick ? 'card-interactive hover:shadow-premium' : ''} overflow-hidden transition-smooth`}
       onClick={onClick}
     >
       <CardHeader className="space-y-md pb-sm">
