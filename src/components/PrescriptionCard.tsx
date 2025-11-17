@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePrescriptionDetails, WorkoutPrescription, PrescriptionExercise } from "@/hooks/usePrescriptions";
 import { useFolders } from "@/hooks/useFolders";
-import { Calendar, Users, ClipboardList, Pencil, Clock, Dumbbell, MoreVertical, FolderInput, FolderX } from "lucide-react";
+import { Calendar, Users, ClipboardList, Pencil, Clock, Dumbbell, MoreVertical, FolderInput, FolderX, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -62,8 +62,9 @@ interface PrescriptionCardProps {
   onEdit: (id: string) => void;
   onAssign: (id: string) => void;
   onAddSession: (id: string) => void;
-  onMoveToFolder: (prescriptionId: string) => void;
+  onMoveToFolder: (prescriptionId: string, folderId: string) => void;
   onRemoveFromFolder: (prescriptionId: string) => void;
+  onDelete?: (prescriptionId: string) => void;
 }
 
 const getAssignmentBadge = (count: number) => {
@@ -102,7 +103,8 @@ const PrescriptionCardComponent = ({
   onAssign, 
   onAddSession,
   onMoveToFolder,
-  onRemoveFromFolder 
+  onRemoveFromFolder,
+  onDelete
 }: PrescriptionCardProps) => {
   const { data: details, isLoading } = usePrescriptionDetails(prescription.id);
   const { data: folders } = useFolders();
@@ -169,28 +171,20 @@ const PrescriptionCardComponent = ({
                   <span className="sr-only">Menu da prescrição</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 bg-background z-50">
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <FolderInput className="h-4 w-4 mr-2" />
                     Mover para Pasta
                   </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
+                  <DropdownMenuSubContent className="bg-background z-50">
                     {folders && folders.length > 0 ? (
                       folders
                         .filter(f => f.id !== prescription.folder_id)
                         .map(folder => (
                           <DropdownMenuItem
                             key={folder.id}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              onMoveToFolder(prescription.id);
-                              // Dispatch custom event with folder id
-                              const event = new CustomEvent('move-to-folder', { 
-                                detail: { prescriptionId: prescription.id, folderId: folder.id }
-                              });
-                              window.dispatchEvent(event);
-                            }}
+                            onClick={() => onMoveToFolder(prescription.id, folder.id)}
                           >
                             {folder.name}
                           </DropdownMenuItem>
@@ -209,6 +203,19 @@ const PrescriptionCardComponent = ({
                     <DropdownMenuItem onClick={() => onRemoveFromFolder(prescription.id)}>
                       <FolderX className="h-4 w-4 mr-2" />
                       Remover da Pasta
+                    </DropdownMenuItem>
+                  </>
+                )}
+                
+                {onDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => onDelete(prescription.id)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir Prescrição
                     </DropdownMenuItem>
                   </>
                 )}

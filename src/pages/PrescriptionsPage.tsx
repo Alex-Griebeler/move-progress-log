@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Search } from "lucide-react";
-import { usePrescriptions } from "@/hooks/usePrescriptions";
+import { usePrescriptions, useDeletePrescription } from "@/hooks/usePrescriptions";
 import { useFolders, useMovePrescription, useReorderPrescriptions, useDeleteFolder, PrescriptionFolder } from "@/hooks/useFolders";
 import { usePrescriptionSearch } from "@/hooks/usePrescriptionSearch";
 import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog";
@@ -45,6 +45,7 @@ export default function PrescriptionsPage() {
   const movePrescription = useMovePrescription();
   const reorderPrescriptions = useReorderPrescriptions();
   const deleteFolder = useDeleteFolder();
+  const deletePrescription = useDeletePrescription();
 
   // Search and filter states
   const [searchFilters, setSearchFilters] = useState<{
@@ -170,34 +171,21 @@ export default function PrescriptionsPage() {
     setSelectedFolder(null);
   };
 
-  const handleMoveToFolder = (prescriptionId: string) => {
-    // Listen to custom event with folder id
-    const handleMoveEvent = async (e: CustomEvent) => {
-      if (e.detail.prescriptionId === prescriptionId) {
-        const targetFolderId = e.detail.folderId;
-        
-        // Get prescriptions in target folder
-        const targetFolderPrescriptions = prescriptions?.filter(
-          p => p.folder_id === targetFolderId
-        ) || [];
-        
-        const maxOrder = targetFolderPrescriptions.length > 0
-          ? Math.max(...targetFolderPrescriptions.map(p => p.order_index))
-          : -1;
-
-        await movePrescription.mutateAsync({
-          prescriptionId: e.detail.prescriptionId,
-          folderId: targetFolderId,
-          orderIndex: maxOrder + 1,
-        });
-      }
-    };
+  const handleMoveToFolder = async (prescriptionId: string, folderId: string) => {
+    // Get prescriptions in target folder
+    const targetFolderPrescriptions = prescriptions?.filter(
+      p => p.folder_id === folderId
+    ) || [];
     
-    window.addEventListener('move-to-folder', handleMoveEvent as EventListener);
-    // Cleanup listener after use
-    setTimeout(() => {
-      window.removeEventListener('move-to-folder', handleMoveEvent as EventListener);
-    }, 100);
+    const maxOrder = targetFolderPrescriptions.length > 0
+      ? Math.max(...targetFolderPrescriptions.map(p => p.order_index))
+      : -1;
+
+    await movePrescription.mutateAsync({
+      prescriptionId,
+      folderId,
+      orderIndex: maxOrder + 1,
+    });
   };
 
   const handleRemoveFromFolder = async (prescriptionId: string) => {
@@ -215,6 +203,13 @@ export default function PrescriptionsPage() {
       folderId: null,
       orderIndex: maxOrder + 1,
     });
+  };
+
+  const handleDeletePrescription = async (prescriptionId: string) => {
+    const confirmed = confirm("Tem certeza que deseja excluir esta prescrição? Esta ação não pode ser desfeita.");
+    if (!confirmed) return;
+    
+    await deletePrescription.mutateAsync(prescriptionId);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -387,6 +382,7 @@ export default function PrescriptionsPage() {
                   onAddSession={handleAddSession}
                   onMoveToFolder={handleMoveToFolder}
                   onRemoveFromFolder={handleRemoveFromFolder}
+                  onDeletePrescription={handleDeletePrescription}
                 />
               )}
 
@@ -402,6 +398,7 @@ export default function PrescriptionsPage() {
                   onAddSession={handleAddSession}
                   onMoveToFolder={handleMoveToFolder}
                   onRemoveFromFolder={handleRemoveFromFolder}
+                  onDeletePrescription={handleDeletePrescription}
                 />
               )}
             </div>

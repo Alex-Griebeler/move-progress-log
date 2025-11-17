@@ -25,8 +25,9 @@ interface FolderTreeProps {
   onEditPrescription: (id: string) => void;
   onAssignPrescription: (id: string) => void;
   onAddSession: (id: string) => void;
-  onMoveToFolder: (prescriptionId: string) => void;
+  onMoveToFolder: (prescriptionId: string, folderId: string) => void;
   onRemoveFromFolder: (prescriptionId: string) => void;
+  onDeletePrescription?: (prescriptionId: string) => void;
   level?: number;
 }
 
@@ -43,6 +44,7 @@ export function FolderTree({
   onAddSession,
   onMoveToFolder,
   onRemoveFromFolder,
+  onDeletePrescription,
   level = 0,
 }: FolderTreeProps) {
   if (folders.length === 0) return null;
@@ -64,6 +66,7 @@ export function FolderTree({
           onAddSession={onAddSession}
           onMoveToFolder={onMoveToFolder}
           onRemoveFromFolder={onRemoveFromFolder}
+          onDeletePrescription={onDeletePrescription}
           level={level}
         >
           {folder.children && folder.children.length > 0 && (
@@ -80,6 +83,7 @@ export function FolderTree({
               onAddSession={onAddSession}
               onMoveToFolder={onMoveToFolder}
               onRemoveFromFolder={onRemoveFromFolder}
+              onDeletePrescription={onDeletePrescription}
               level={level + 1}
             />
           )}
@@ -100,8 +104,9 @@ interface FolderTreeNodeProps {
   onEditPrescription: (id: string) => void;
   onAssignPrescription: (id: string) => void;
   onAddSession: (id: string) => void;
-  onMoveToFolder: (prescriptionId: string) => void;
+  onMoveToFolder: (prescriptionId: string, folderId: string) => void;
   onRemoveFromFolder: (prescriptionId: string) => void;
+  onDeletePrescription?: (prescriptionId: string) => void;
   level: number;
   children?: React.ReactNode;
 }
@@ -119,6 +124,7 @@ function FolderTreeNode({
   onAddSession,
   onMoveToFolder,
   onRemoveFromFolder,
+  onDeletePrescription,
   level,
   children,
 }: FolderTreeNodeProps) {
@@ -245,6 +251,7 @@ function FolderTreeNode({
                     onAddSession={onAddSession}
                     onMoveToFolder={onMoveToFolder}
                     onRemoveFromFolder={onRemoveFromFolder}
+                    onDelete={onDeletePrescription}
                   />
                 ))}
               </div>
