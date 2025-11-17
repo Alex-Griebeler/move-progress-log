@@ -8,6 +8,7 @@ import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
 import { StudentCardSkeleton } from "@/components/skeletons/StudentCardSkeleton";
+import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
@@ -152,21 +153,34 @@ const StudentsPage = () => {
                 </div>
               </div>
               
-              {/* Ícone discreto de dados incompletos */}
+              {/* Ícone de dados incompletos com lista de campos */}
               {hasIncompleteData && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => setEditingStudent(student)}
-                        className="inline-flex items-center justify-center rounded-full p-1.5 hover:bg-muted transition-colors"
-                        aria-label={`Dados incompletos`}
+                        className="inline-flex items-center justify-center rounded-full p-2 hover:bg-warning/10 transition-colors border border-warning/20"
+                        aria-label="Dados incompletos - clique para completar"
                       >
-                        <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                        <AlertCircle className="h-4 w-4 text-warning" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">Dados incompletos</p>
+                    <TooltipContent side="left" className="max-w-xs">
+                      <div className="space-y-2">
+                        <p className="font-semibold text-xs">Campos a preencher:</p>
+                        <ul className="text-xs space-y-1">
+                          {missingFields.map((field) => (
+                            <li key={field} className="flex items-start gap-1">
+                              <span className="text-warning">•</span>
+                              <span>{field}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-xs text-muted-foreground italic pt-1">
+                          Clique para editar o perfil
+                        </p>
+                      </div>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -340,7 +354,6 @@ const StudentsPage = () => {
         
         <AppHeader
           title={NAV_LABELS.students}
-          subtitle={NAV_LABELS.subtitleStudents}
           actions={
             <>
               <OuraSyncAllButton />
