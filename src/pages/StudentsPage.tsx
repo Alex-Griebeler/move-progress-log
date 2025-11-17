@@ -436,7 +436,7 @@ const StudentsPage = () => {
             {filteredStudents.map((student, index) => (
               <div 
                 key={student.id}
-                className={`animate-fade-in stagger-item-${Math.min(index + 1, 8)}`}
+                className={`h-full animate-fade-in stagger-item-${Math.min(index + 1, 8)}`}
               >
                 <StudentCard student={student} />
               </div>
