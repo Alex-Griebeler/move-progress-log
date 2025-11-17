@@ -29,6 +29,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { populateTestSessions } from "@/utils/populateTestSessions";
 import { clearTestSessions } from "@/utils/clearTestSessions";
 import { useToast } from "@/hooks/use-toast";
+import { notify } from "@/lib/notify";
 import { useQueryClient } from "@tanstack/react-query";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -80,44 +81,36 @@ const Index = () => {
       if (error) throw error;
       
       await queryClient.invalidateQueries({ queryKey: ['workouts'] });
-      toast({ 
-        title: "Sessão reaberta com sucesso",
-        description: "A sessão foi reaberta e pode ser editada novamente."
-      });
+      notify.success(
+        "Sessão reaberta com sucesso", 
+        { description: "Agora você pode editar os dados da sessão novamente." }
+      );
     } catch (error) {
       console.error('Erro ao reabrir sessão:', error);
-      toast({ 
-        title: "Erro ao reabrir sessão", 
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive" 
-      });
+      notify.error(
+        "Não foi possível reabrir a sessão", 
+        { description: error instanceof Error ? error.message : "Tente novamente ou contate o suporte." }
+      );
     }
   };
 
   const handlePopulateTestData = async () => {
     setIsPopulating(true);
+    const loader = notify.loading("Gerando sessões de teste...");
+    
     try {
-      toast({
-        title: "Criando dados de teste...",
-        description: "Por favor, aguarde enquanto geramos as sessões.",
-      });
-
       const result = await populateTestSessions();
       
       await queryClient.invalidateQueries({ queryKey: ['workouts'] });
       await queryClient.invalidateQueries({ queryKey: ['stats'] });
 
-      toast({
-        title: "✅ Dados criados com sucesso!",
-        description: result.message,
-      });
+      loader.success("Dados de teste criados!", result.message);
     } catch (error) {
       console.error('Erro ao popular dados:', error);
-      toast({
-        title: "❌ Erro ao criar dados",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      });
+      loader.error(
+        "Falha ao criar dados de teste", 
+        error instanceof Error ? error.message : "Tente novamente ou contate o suporte."
+      );
     } finally {
       setIsPopulating(false);
     }
@@ -125,28 +118,21 @@ const Index = () => {
 
   const handleClearTestData = async () => {
     setIsClearing(true);
+    const loader = notify.loading("Removendo dados de teste...");
+    
     try {
-      toast({
-        title: "Limpando dados de teste...",
-        description: "Deletando todas as sessões...",
-      });
-
       const result = await clearTestSessions();
       
       await queryClient.invalidateQueries({ queryKey: ['workouts'] });
       await queryClient.invalidateQueries({ queryKey: ['stats'] });
 
-      toast({
-        title: "✅ Dados limpos com sucesso!",
-        description: result.message,
-      });
+      loader.success("Dados removidos com sucesso!", result.message);
     } catch (error) {
       console.error('Erro ao limpar dados:', error);
-      toast({
-        title: "❌ Erro ao limpar dados",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
-        variant: "destructive",
-      });
+      loader.error(
+        "Falha ao remover dados", 
+        error instanceof Error ? error.message : "Tente novamente ou contate o suporte."
+      );
     } finally {
       setIsClearing(false);
     }

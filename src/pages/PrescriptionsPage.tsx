@@ -407,17 +407,21 @@ export default function PrescriptionsPage() {
           <EmptyState
             icon={<Search className="h-6 w-6" />}
             title="Nenhuma prescrição encontrada"
-            description="Não encontramos prescrições com os filtros aplicados. Tente ajustar sua busca ou limpar os filtros."
+            description="Nenhuma prescrição corresponde aos critérios de busca. Tente ajustar os termos de busca, limpar os filtros ou criar uma nova prescrição."
             primaryAction={{
               label: "Limpar Filtros",
               onClick: () => setSearchFilters({})
+            }}
+            secondaryAction={{
+              label: "Nova Prescrição",
+              onClick: () => setCreateDialogOpen(true)
             }}
           />
         ) : (
           <EmptyState
             icon={<Plus className="h-6 w-6" />}
-            title="Nenhuma prescrição criada"
-            description="Crie sua primeira prescrição de treino para começar a atribuir exercícios e monitorar o progresso dos seus alunos."
+            title="Comece criando sua primeira prescrição"
+            description="Prescrições são templates de treino que você pode atribuir aos seus alunos. Organize exercícios, defina séries e repetições, e acompanhe a evolução de forma estruturada."
             primaryAction={{
               label: "Criar Primeira Prescrição",
               onClick: () => setCreateDialogOpen(true)
