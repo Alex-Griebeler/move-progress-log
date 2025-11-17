@@ -134,8 +134,8 @@ const StudentsPage = () => {
 
     return (
       <>
-        <Card className="card-interactive overflow-hidden">
-          <CardHeader className="space-y-md pb-sm">
+        <Card className="card-interactive overflow-hidden h-full flex flex-col">
+          <CardHeader className="space-y-md pb-sm flex-shrink-0">
             <CardTitle className="flex items-center justify-between gap-sm">
               <div className="flex items-center gap-sm">
                 <Avatar className="h-16 w-16">
@@ -233,7 +233,7 @@ const StudentsPage = () => {
             </CardDescription>
           </CardHeader>
           
-          <CardContent className="pt-sm pb-md">
+          <CardContent className="pt-sm pb-md flex-shrink-0 mt-auto">
             <div className="flex gap-xs">
               {/* Botão principal - Detalhes */}
               <Button
