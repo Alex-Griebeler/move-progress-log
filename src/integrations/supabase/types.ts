@@ -1280,6 +1280,11 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limit_attempts: { Args: never; Returns: undefined }
+      get_oura_access_token: { Args: { p_student_id: string }; Returns: string }
+      get_oura_refresh_token: {
+        Args: { p_student_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1287,7 +1292,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      migrate_oura_tokens_to_vault: { Args: never; Returns: undefined }
       normalize_objective: { Args: { obj: string }; Returns: string }
+      store_oura_tokens: {
+        Args: {
+          p_access_token: string
+          p_refresh_token: string
+          p_student_id: string
+          p_token_expires_at: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "trainer" | "moderator"

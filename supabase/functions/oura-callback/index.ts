@@ -79,12 +79,12 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { error: insertError } = await supabaseClient.from('oura_connections').insert({
-      student_id,
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
-      token_expires_at: expiresAt.toISOString(),
-      is_active: true,
+    // Store tokens securely in Vault using database function
+    const { error: insertError } = await supabaseClient.rpc('store_oura_tokens', {
+      p_student_id: student_id,
+      p_access_token: tokenData.access_token,
+      p_refresh_token: tokenData.refresh_token,
+      p_token_expires_at: expiresAt.toISOString(),
     });
 
     if (insertError) {
