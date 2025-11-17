@@ -273,55 +273,74 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
   };
 
   const handleSubmit = async () => {
+    console.log('[CreatePrescription] Iniciando submit', { name, exerciseCount: exercises.length });
+    
     if (!name.trim()) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Por favor, informe o nome da prescrição.",
+        variant: "destructive",
+      });
       return;
     }
 
     const validExercises = exercises.filter((ex) => ex.exercise_library_id && ex.sets && ex.reps);
+    console.log('[CreatePrescription] Exercícios válidos:', validExercises.length);
 
     if (validExercises.length === 0) {
+      toast({
+        title: "Exercícios obrigatórios",
+        description: "Adicione pelo menos um exercício válido com nome, séries e repetições.",
+        variant: "destructive",
+      });
       return;
     }
 
-    await createPrescription.mutateAsync({
-      name,
-      objective,
-      exercises: validExercises.map((ex, index) => ({
-        exercise_library_id: ex.exercise_library_id,
-        sets: ex.sets,
-        reps: ex.reps,
-        interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
-        pse: ex.pse || undefined,
-        training_method: ex.training_method || undefined,
-        observations: ex.observations || undefined,
-        group_with_previous: index > 0 ? ex.group_with_previous : false,
-        should_track: ex.should_track ?? true,
-        adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
-      })),
-    });
+    try {
+      await createPrescription.mutateAsync({
+        name,
+        objective,
+        exercises: validExercises.map((ex, index) => ({
+          exercise_library_id: ex.exercise_library_id,
+          sets: ex.sets,
+          reps: ex.reps,
+          interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
+          pse: ex.pse || undefined,
+          training_method: ex.training_method || undefined,
+          observations: ex.observations || undefined,
+          group_with_previous: index > 0 ? ex.group_with_previous : false,
+          should_track: ex.should_track ?? true,
+          adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
+        })),
+      });
 
-    // Limpar rascunho após sucesso
-    clearDraft();
+      console.log('[CreatePrescription] Prescrição criada com sucesso');
+      
+      // Limpar rascunho após sucesso
+      clearDraft();
 
-    setName("");
-    setObjective("");
-    setExercises([
-      {
-        id: crypto.randomUUID(),
-        exercise_library_id: "",
-        sets: "",
-        reps: "",
-        interval_seconds: "",
-        pse: "",
-        training_method: "",
-        observations: "",
-        group_with_previous: false,
-        should_track: true,
-        adaptations: [],
-        showAdaptations: false,
-      },
-    ]);
-    onOpenChange(false);
+      setName("");
+      setObjective("");
+      setExercises([
+        {
+          id: crypto.randomUUID(),
+          exercise_library_id: "",
+          sets: "",
+          reps: "",
+          interval_seconds: "",
+          pse: "",
+          training_method: "",
+          observations: "",
+          group_with_previous: false,
+          should_track: true,
+          adaptations: [],
+          showAdaptations: false,
+        },
+      ]);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('[CreatePrescription] Erro ao criar prescrição:', error);
+    }
   };
 
   const handleClose = () => {
