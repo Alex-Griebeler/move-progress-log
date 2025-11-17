@@ -433,8 +433,13 @@ const StudentsPage = () => {
           </div>
         ) : filteredStudents && filteredStudents.length > 0 ? (
           <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
-            {filteredStudents.map((student) => (
-              <StudentCard key={student.id} student={student} />
+            {filteredStudents.map((student, index) => (
+              <div 
+                key={student.id}
+                className={`animate-fade-in stagger-item-${Math.min(index + 1, 8)}`}
+              >
+                <StudentCard student={student} />
+              </div>
             ))}
           </div>
         ) : searchTerm ? (
