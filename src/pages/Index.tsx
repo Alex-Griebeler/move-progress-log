@@ -231,7 +231,7 @@ const Index = () => {
           </Card>
         )}
 
-        {/* Stats Grid com stagger animation */}
+        {/* Stats Grid */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
           {statsLoading ? (
             <>
@@ -242,40 +242,32 @@ const Index = () => {
             </>
           ) : (
             <>
-              <div className="animate-fade-in stagger-item-1">
-                <StatCard
-                  title={NAV_LABELS.statTotalSessions}
-                  value={stats?.totalSessions || 0}
-                  icon={Dumbbell}
-                  subtitle="Total consolidado"
-                  gradient
-                />
-              </div>
-              <div className="animate-fade-in stagger-item-2">
-                <StatCard
-                  title={NAV_LABELS.statThisMonth}
-                  value={stats?.thisMonth || 0}
-                  icon={Calendar}
-                  subtitle={`Sessões em ${new Date().toLocaleDateString('pt-BR', { month: 'long' })}`}
-                />
-              </div>
-              <div className="animate-fade-in stagger-item-3">
-                <StatCard
-                  title={NAV_LABELS.statActiveStudents}
-                  value={stats?.activeStudents || 0}
-                  icon={Users}
-                  subtitle="Com treinos regulares"
-                  onClick={() => navigate('/students')}
-                />
-              </div>
-              <div className="animate-fade-in stagger-item-4">
-                <StatCard
-                  title={NAV_LABELS.statAvgLoad}
-                  value={`${stats?.avgLoad || 0}kg`}
-                  icon={TrendingUp}
-                  subtitle="Por sessão"
-                />
-              </div>
+              <StatCard
+                title={NAV_LABELS.statTotalSessions}
+                value={stats?.totalSessions || 0}
+                icon={Dumbbell}
+                subtitle="Total consolidado"
+                gradient
+              />
+              <StatCard
+                title={NAV_LABELS.statThisMonth}
+                value={stats?.thisMonth || 0}
+                icon={Calendar}
+                subtitle={`Sessões em ${new Date().toLocaleDateString('pt-BR', { month: 'long' })}`}
+              />
+              <StatCard
+                title={NAV_LABELS.statActiveStudents}
+                value={stats?.activeStudents || 0}
+                icon={Users}
+                subtitle="Com treinos regulares"
+                onClick={() => navigate('/students')}
+              />
+              <StatCard
+                title={NAV_LABELS.statAvgLoad}
+                value={`${stats?.avgLoad || 0}kg`}
+                icon={TrendingUp}
+                subtitle="Por sessão"
+              />
             </>
           )}
         </section>
@@ -354,27 +346,23 @@ const Index = () => {
                 });
                 
                 return filteredWorkouts.length > 0 ? (
-                  filteredWorkouts.map((workout, index) => (
-                    <div 
+                  filteredWorkouts.map((workout) => (
+                    <WorkoutCard
                       key={workout.id}
-                      className={`animate-fade-in stagger-item-${Math.min(index + 1, 8)}`}
-                    >
-                      <WorkoutCard
-                        sessionId={workout.id}
-                        name={workout.student_name}
-                        avatarUrl={workout.avatar_url}
-                        exercises={workout.total_exercises}
-                        date={workout.date}
-                        sessionType={workout.session_type}
-                        totalVolume={workout.total_volume}
-                        hasImportantObservations={workout.has_important_observations}
-                        isFinalized={workout.is_finalized}
-                        canReopen={workout.can_reopen}
-                        onEdit={workout.is_finalized ? undefined : () => handleEditSession(workout.id)}
-                        onReopen={workout.is_finalized && workout.can_reopen ? () => handleReopenSession(workout.id) : undefined}
-                        onClick={() => setSelectedSessionId(workout.id)}
-                      />
-                    </div>
+                      sessionId={workout.id}
+                      name={workout.student_name}
+                      avatarUrl={workout.avatar_url}
+                      exercises={workout.total_exercises}
+                      date={workout.date}
+                      sessionType={workout.session_type}
+                      totalVolume={workout.total_volume}
+                      hasImportantObservations={workout.has_important_observations}
+                      isFinalized={workout.is_finalized}
+                      canReopen={workout.can_reopen}
+                      onEdit={workout.is_finalized ? undefined : () => handleEditSession(workout.id)}
+                      onReopen={workout.is_finalized && workout.can_reopen ? () => handleReopenSession(workout.id) : undefined}
+                      onClick={() => setSelectedSessionId(workout.id)}
+                    />
                   ))
                 ) : (
                   <Card className="border-dashed col-span-full">
