@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import logoFabrik from "@/assets/logo-fabrik.webp";
 import { NAV_LABELS } from "@/constants/navigation";
-import { GlobalSearch } from "@/components/GlobalSearch";
 
 interface AppHeaderProps {
   title?: string;
@@ -49,7 +48,6 @@ export const AppHeader = ({
               )}
             </div>
             <div className="flex gap-xs items-center flex-wrap">
-              <GlobalSearch />
               {actions}
             </div>
           </div>

@@ -12,6 +12,7 @@ import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ROUTES } from "@/constants/navigation";
+import { GlobalSearch } from "@/components/GlobalSearch";
 
 // AUD-009: Code splitting por rota para reduzir bundle size inicial
 const Index = lazy(() => import("./pages/Index"));
@@ -42,6 +43,7 @@ const App = () => (
         <Sonner />
         <AuthDebugPanel />
         <BrowserRouter>
+          <GlobalSearch />
           <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>
             <Routes>
               {/* Public routes without sidebar */}

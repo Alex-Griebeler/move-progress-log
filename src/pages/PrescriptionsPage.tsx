@@ -1,6 +1,12 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, FolderPlus, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { usePrescriptions, useDeletePrescription } from "@/hooks/usePrescriptions";
 import { useFolders, useMovePrescription, useReorderPrescriptions, useDeleteFolder, PrescriptionFolder } from "@/hooks/useFolders";
 import { usePrescriptionSearch } from "@/hooks/usePrescriptionSearch";
@@ -305,28 +311,30 @@ export default function PrescriptionsPage() {
           title={NAV_LABELS.prescriptions} 
           actions={
             <div className="flex gap-xs">
-              <Button
-                onClick={() => setShowSearch(!showSearch)}
-                variant={showSearch ? "default" : "outline"}
-                size="sm"
-                aria-label="Buscar prescrições"
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={() => {
-                  setSelectedParentFolderId(null);
-                  setCreateSubfolderDialogOpen(true);
-                }}
-                variant="outline"
-                size="sm"
-                aria-label="Nova pasta"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Pasta
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" aria-label="Ações secundárias">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setShowSearch(!showSearch)}>
+                    <Search className="h-4 w-4 mr-2" />
+                    Buscar prescrições
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    setSelectedParentFolderId(null);
+                    setCreateSubfolderDialogOpen(true);
+                  }}>
+                    <FolderPlus className="h-4 w-4 mr-2" />
+                    Nova pasta
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
               <Button
                 onClick={() => setCreateDialogOpen(true)}
+                variant="gradient"
                 size="sm"
                 aria-label="Nova prescrição"
               >
