@@ -188,7 +188,7 @@ const StudentsPage = () => {
               )}
             </CardTitle>
             
-            <CardDescription className="space-y-sm">
+            <CardDescription className="space-y-sm flex-1 flex flex-col">
               {/* Readiness Oura Ring - Layout limpo */}
               {readinessScore ? (
                 <div className="flex items-center justify-between py-sm border-b border-border/50">
@@ -432,7 +432,7 @@ const StudentsPage = () => {
             ))}
           </div>
         ) : filteredStudents && filteredStudents.length > 0 ? (
-          <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3 items-stretch">
+          <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3 auto-rows-fr">
             {filteredStudents.map((student, index) => (
               <div 
                 key={student.id}
