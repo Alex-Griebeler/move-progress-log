@@ -9,7 +9,7 @@ import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
 import { StudentCardSkeleton } from "@/components/skeletons/StudentCardSkeleton";
 import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
-import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical } from "lucide-react";
+import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
@@ -35,7 +35,7 @@ import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
 import { Input } from "@/components/ui/input";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { OuraSyncAllButton } from "@/components/OuraSyncAllButton";
+import { useOuraSyncAll } from "@/hooks/useOuraSyncAll";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -68,6 +68,7 @@ const StudentsPage = () => {
   const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();
   const { isAdmin } = useIsAdmin();
+  const { mutate: syncAll, isPending: isSyncing } = useOuraSyncAll();
   const deleteStudent = useDeleteStudent();
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
@@ -356,33 +357,54 @@ const StudentsPage = () => {
           title={NAV_LABELS.students}
           actions={
             <>
-              <OuraSyncAllButton />
-              {isAdmin && (
-                <Link to="/admin/diagnostico-oura">
-                  <Button variant="outline" aria-label={NAV_LABELS.adminDiagnostics}>
-                    <Shield className="h-4 w-4 mr-2" />
-                    {NAV_LABELS.adminDiagnostics}
-                  </Button>
-                </Link>
-              )}
               <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)} aria-label={NAV_LABELS.addStudent}>
                 <Plus className="h-4 w-4 mr-2" />
                 {NAV_LABELS.addStudent}
               </Button>
-              <Button variant="default" onClick={() => setIsGroupSessionDialogOpen(true)} aria-label={NAV_LABELS.groupSession}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                {NAV_LABELS.groupSession}
-              </Button>
-              <Button variant="outline" onClick={() => setIsInviteDialogOpen(true)} aria-label={NAV_LABELS.generateInvite}>
-                <Link2 className="h-4 w-4 mr-2" />
-                {NAV_LABELS.generateInvite}
-              </Button>
-              <Link to="/alunos-comparacao">
-                <Button variant="outline" aria-label={NAV_LABELS.studentsComparison}>
-                  <GitCompare className="h-4 w-4 mr-2" />
-                  {NAV_LABELS.studentsComparison}
-                </Button>
-              </Link>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" aria-label="Mais ações">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-popover">
+                  <DropdownMenuItem 
+                    onClick={() => syncAll()}
+                    disabled={isSyncing}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Sincronizando...' : 'Sincronizar Todos Agora'}
+                  </DropdownMenuItem>
+                  
+                  {isAdmin && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/diagnostico-oura" className="flex items-center w-full">
+                        <Shield className="h-4 w-4 mr-2" />
+                        {NAV_LABELS.adminDiagnostics}
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  
+                  <DropdownMenuItem onClick={() => setIsGroupSessionDialogOpen(true)}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    {NAV_LABELS.groupSession}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem onClick={() => setIsInviteDialogOpen(true)}>
+                    <Link2 className="h-4 w-4 mr-2" />
+                    {NAV_LABELS.generateInvite}
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem asChild>
+                    <Link to="/alunos-comparacao" className="flex items-center w-full">
+                      <GitCompare className="h-4 w-4 mr-2" />
+                      {NAV_LABELS.studentsComparison}
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Link to="/">
                 <Button variant="ghost" size="icon" aria-label="Voltar para página inicial">
                   <ArrowLeft className="h-5 w-5" />
