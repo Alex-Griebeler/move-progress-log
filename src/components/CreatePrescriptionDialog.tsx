@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -468,16 +468,16 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
             </div>
           </div>
         </ScrollArea>
+        </TooltipProvider>
 
-        <div className="flex justify-end gap-sm pt-lg border-t">
+        <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
           <Button onClick={handleSubmit} disabled={createPrescription.isPending}>
             {createPrescription.isPending ? "Criando..." : "Criar Prescrição"}
           </Button>
-        </div>
-        </TooltipProvider>
+        </DialogFooter>
       </DialogContent>
 
       <PrescriptionDraftHistoryDialog
