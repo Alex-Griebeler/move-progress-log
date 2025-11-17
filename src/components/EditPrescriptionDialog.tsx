@@ -419,9 +419,9 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
           )}
         </DialogHeader>
 
-        <div className="flex-1">
+        <div className="flex-1 overflow-hidden">
           <TooltipProvider>
-            <ScrollArea className="max-h-[60vh] pr-md">
+            <ScrollArea className="h-full pr-md">
             <div className="space-y-lg">
             <div className="space-y-md">
               <div className="space-y-sm">
