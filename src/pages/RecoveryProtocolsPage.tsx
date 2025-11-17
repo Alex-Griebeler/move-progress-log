@@ -82,8 +82,8 @@ const RecoveryProtocolsPage = () => {
       ) : !protocols || protocols.length === 0 ? (
         <EmptyState
           icon={<Heart className="h-6 w-6" />}
-          title="Nenhum protocolo disponível"
-          description="Os protocolos de recuperação baseados em evidências científicas serão carregados em breve."
+          title="Carregando protocolos de recuperação"
+          description="Os protocolos baseados em evidências científicas para otimização da recuperação e performance estão sendo carregados. Inclui protocolos de frio, calor, respiração e muito mais."
         />
       ) : (
         <Tabs defaultValue="all" className="space-y-6">

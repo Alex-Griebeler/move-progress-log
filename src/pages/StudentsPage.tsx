@@ -440,8 +440,12 @@ const StudentsPage = () => {
         ) : searchTerm ? (
           <EmptyState
             icon={<Search className="h-6 w-6" />}
-            title={i18n.empty.filtered.title}
-            description={i18n.empty.filtered.description}
+            title="Nenhum aluno encontrado"
+            description="Nenhum aluno corresponde aos termos de busca. Verifique a ortografia ou limpe a busca para ver todos os alunos cadastrados."
+            primaryAction={{
+              label: "Limpar busca",
+              onClick: () => setSearchTerm(""),
+            }}
             secondaryAction={{
               label: i18n.filters.clear,
               onClick: () => setSearchTerm("")
@@ -450,8 +454,8 @@ const StudentsPage = () => {
         ) : (
           <EmptyState
             icon={<Users className="h-6 w-6" />}
-            title={i18n.empty.students.title}
-            description={i18n.empty.students.description}
+            title="Adicione seu primeiro aluno"
+            description="Cadastre alunos para começar a criar prescrições personalizadas, registrar sessões de treino e acompanhar a evolução com dados do Oura Ring. Seu hub completo de gestão de alunos."
             primaryAction={{
               label: i18n.actions.create,
               onClick: () => setIsAddDialogOpen(true)

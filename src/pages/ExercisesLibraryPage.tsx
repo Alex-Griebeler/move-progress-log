@@ -350,17 +350,21 @@ export default function ExercisesLibraryPage() {
           <EmptyState
             icon={<Search className="h-6 w-6" />}
             title="Nenhum exercício encontrado"
-            description="Não encontramos exercícios com os filtros aplicados. Tente ajustar sua busca ou limpar os filtros."
+            description="Ajuste seus filtros ou limpe-os para ver todos os exercícios disponíveis. Você também pode adicionar novos exercícios à biblioteca."
             primaryAction={{
               label: "Limpar Filtros",
               onClick: clearFilters
+            }}
+            secondaryAction={{
+              label: "Adicionar exercício",
+              onClick: () => document.querySelector('[aria-label="Adicionar Exercício"]')?.dispatchEvent(new Event('click', { bubbles: true })),
             }}
           />
         ) : (
           <EmptyState
             icon={<Database className="h-6 w-6" />}
-            title="Nenhum exercício cadastrado"
-            description="Adicione exercícios à biblioteca ou importe exercícios pré-configurados para começar."
+            title="Biblioteca de exercícios vazia"
+            description="Comece sua biblioteca importando exercícios pré-configurados ou adicione seus próprios exercícios personalizados. Uma biblioteca bem organizada facilita a criação de prescrições eficazes."
             primaryAction={{
               label: "Importar Exercícios",
               onClick: handlePopulateDatabase
