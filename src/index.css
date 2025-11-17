@@ -447,6 +447,73 @@ All colors MUST be HSL.
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
+  /* ===========================
+     MICROINTERAÇÕES PREMIUM
+     =========================== */
+
+  /* Interactive Card Hover - Smooth scale + shadow elevation */
+  .card-interactive {
+    transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-interactive:hover {
+    transform: scale(1.02);
+    box-shadow: 0 20px 25px -5px hsl(0 0% 0% / 0.15), 
+                0 8px 10px -6px hsl(0 0% 0% / 0.15);
+  }
+
+  .card-interactive:active {
+    transform: scale(0.98);
+  }
+
+  /* Button Active Feedback */
+  .button-feedback {
+    transition: transform 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .button-feedback:active {
+    transform: scale(0.98);
+  }
+
+  /* Smooth Tab Transitions */
+  .tab-smooth {
+    transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Stagger Animation Utilities */
+  .stagger-item-1 { animation-delay: 0ms; }
+  .stagger-item-2 { animation-delay: 100ms; }
+  .stagger-item-3 { animation-delay: 200ms; }
+  .stagger-item-4 { animation-delay: 300ms; }
+  .stagger-item-5 { animation-delay: 400ms; }
+  .stagger-item-6 { animation-delay: 500ms; }
+  .stagger-item-7 { animation-delay: 600ms; }
+  .stagger-item-8 { animation-delay: 700ms; }
+
+  /* Disable interactions on reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .card-interactive:hover {
+      transform: none;
+    }
+    .card-interactive:active {
+      transform: none;
+    }
+    .button-feedback:active {
+      transform: none;
+    }
+    .stagger-item-1,
+    .stagger-item-2,
+    .stagger-item-3,
+    .stagger-item-4,
+    .stagger-item-5,
+    .stagger-item-6,
+    .stagger-item-7,
+    .stagger-item-8 {
+      animation-delay: 0ms !important;
+    }
+  }
+
 
   /* Premium Typography */
   .text-display-xl {
