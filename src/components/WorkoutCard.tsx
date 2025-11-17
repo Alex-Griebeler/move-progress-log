@@ -1,4 +1,4 @@
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { 
@@ -6,11 +6,10 @@ import {
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger,
-  DropdownMenuLabel,
   DropdownMenuSeparator 
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { User, Users, MoreVertical, Eye, Edit, FolderOpen, FileText } from "lucide-react";
+import { User, Users, MoreVertical, Eye, Edit, FolderOpen, FileText, Dumbbell } from "lucide-react";
 import { memo } from "react";
 
 interface WorkoutCardProps {
@@ -101,13 +100,6 @@ const WorkoutCard = memo(({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Informações</DropdownMenuLabel>
-              <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                {exercises} exercícios • {totalVolume?.toLocaleString('pt-BR')}kg
-              </div>
-              
-              <DropdownMenuSeparator />
-              
               {!isFinalized && onEdit && (
                 <DropdownMenuItem 
                   onClick={(e) => {
@@ -131,20 +123,35 @@ const WorkoutCard = memo(({
               </DropdownMenuItem>
               
               {isFinalized && canReopen && onReopen && (
-                <DropdownMenuItem 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onReopen();
-                  }}
-                >
-                  <FolderOpen className="h-4 w-4 mr-2" />
-                  Reabrir Sessão
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReopen();
+                    }}
+                  >
+                    <FolderOpen className="h-4 w-4 mr-2" />
+                    Reabrir Sessão
+                  </DropdownMenuItem>
+                </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </CardHeader>
+      
+      <CardContent className="pt-0 pb-sm">
+        <div className="flex items-center justify-between p-sm rounded-radius-md border border-border/50 bg-muted/30">
+          <div className="flex items-center gap-xs text-sm text-muted-foreground">
+            <Dumbbell className="h-4 w-4" />
+            <span>{exercises} exercícios</span>
+          </div>
+          <div className="text-sm font-medium">
+            <span>{totalVolume?.toLocaleString('pt-BR')}kg</span>
+          </div>
+        </div>
+      </CardContent>
     </Card>
   );
 }, (prevProps, nextProps) => {
