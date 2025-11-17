@@ -15,6 +15,10 @@ interface EmptyStateProps {
   };
   icon?: React.ReactNode;
   className?: string;
+  /**
+   * Variant para diferentes contextos
+   */
+  variant?: "default" | "info" | "warning";
 }
 
 /**
@@ -38,8 +42,15 @@ const EmptyState = ({
   primaryAction,
   secondaryAction,
   icon,
-  className
+  className,
+  variant = "default"
 }: EmptyStateProps) => {
+  
+  const variantStyles = {
+    default: "bg-muted/50",
+    info: "bg-primary/10",
+    warning: "bg-warning/10"
+  };
   return (
     <div 
       className={cn(
@@ -50,7 +61,10 @@ const EmptyState = ({
       aria-live="polite"
     >
       {/* Ícone com background premium */}
-      <div className="rounded-radius-xl bg-muted/50 p-lg shadow-subtle">
+      <div className={cn(
+        "rounded-radius-xl p-lg shadow-subtle",
+        variantStyles[variant]
+      )}>
         {icon || <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />}
       </div>
       

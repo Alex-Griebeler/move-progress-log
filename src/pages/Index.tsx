@@ -7,6 +7,7 @@ import { ImportSessionsDialog } from "@/components/ImportSessionsDialog";
 import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { StatCardSkeleton } from "@/components/skeletons/StatCardSkeleton";
 import { WorkoutCardSkeleton } from "@/components/skeletons/WorkoutCardSkeleton";
+import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { Dumbbell, TrendingUp, Calendar, Users, Library, FileText, Upload, Heart, FileEdit, Info, Database, Trash2, User, Filter } from "lucide-react";
 import { useStats } from "@/hooks/useStats";
 import { useWorkouts } from "@/hooks/useWorkouts";
@@ -171,7 +172,8 @@ const Index = () => {
       
       <div id="main-content" className="container mx-auto px-4 py-8 max-w-7xl animate-fade-in" role="main">
         {/* Header */}
-        <AppHeader
+        <AppHeader 
+          title={NAV_LABELS.dashboard}
           actions={
             <>
               <Button variant="outline" onClick={() => setImportDialogOpen(true)} aria-label={NAV_LABELS.importExcel}>

@@ -37,18 +37,20 @@ export const AppHeader = ({
   };
 
   return (
-    <header className="mb-lg pb-md border-b border-border">
-      <div className="flex items-center justify-between flex-wrap gap-md">
-        <div className="space-y-xs">
-          <h1 className="text-4xl font-bold text-primary tracking-tight leading-tight">
-            {title}
-          </h1>
-          <p className="text-base text-muted-foreground leading-normal">{subtitle}</p>
-        </div>
-        <div className="flex gap-xs items-center flex-wrap">
-          {actions}
-        </div>
-      </div>
-    </header>
+        <header className="mb-lg pb-md border-b border-primary/10 bg-gradient-to-r from-primary/5 via-transparent to-primary/5">
+          <div className="flex items-center justify-between flex-wrap gap-md">
+            <div className="space-y-xs">
+              <h1 className="text-4xl font-bold text-gradient-primary tracking-tight leading-tight">
+                {title}
+              </h1>
+              {subtitle && (
+                <p className="text-base text-muted-foreground/80 leading-normal">{subtitle}</p>
+              )}
+            </div>
+            <div className="flex gap-xs items-center flex-wrap">
+              {actions}
+            </div>
+          </div>
+        </header>
   );
 };

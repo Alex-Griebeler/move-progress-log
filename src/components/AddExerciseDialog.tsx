@@ -75,11 +75,13 @@ export const AddExerciseDialog = () => {
           Adicionar Exercício
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Novo Exercício</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-md">
+        
+        <div className="flex-1 overflow-y-auto pr-2">
+          <form onSubmit={handleSubmit} className="space-y-md" id="add-exercise-form">
           <div className="space-y-sm">
             <Label htmlFor="name">Nome do Exercício *</Label>
             <Input
@@ -186,10 +188,19 @@ export const AddExerciseDialog = () => {
             />
           </div>
 
-          <Button type="submit" className="w-full" disabled={createExercise.isPending}>
+          </form>
+        </div>
+
+        <div className="pt-4 border-t border-border">
+          <Button 
+            type="submit" 
+            form="add-exercise-form"
+            className="w-full" 
+            disabled={createExercise.isPending}
+          >
             {createExercise.isPending ? "Criando..." : "Criar Exercício"}
           </Button>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

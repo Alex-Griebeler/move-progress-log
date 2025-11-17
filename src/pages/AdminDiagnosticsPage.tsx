@@ -1,6 +1,7 @@
 import { useStudents } from "@/hooks/useStudents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { OuraApiDiagnosticsCard } from "@/components/OuraApiDiagnosticsCard";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Shield } from "lucide-react";
@@ -30,12 +31,7 @@ const AdminDiagnosticsPage = () => {
   const { isAdmin, isLoading: isLoadingRole } = useIsAdmin();
 
   if (isLoadingRole) {
-    return (
-      <div className="container mx-auto p-6 space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
+    return <PageLoadingSkeleton layout="list" />;
   }
 
   if (!isAdmin) {
@@ -65,7 +61,6 @@ const AdminDiagnosticsPage = () => {
         
         <AppHeader
           title={NAV_LABELS.adminDiagnostics}
-          subtitle={NAV_LABELS.subtitleDiagnostics}
           actions={
             <Button variant="ghost" size="icon" onClick={() => navigate(ROUTES.students)}>
               <ArrowLeft className="h-5 w-5" />

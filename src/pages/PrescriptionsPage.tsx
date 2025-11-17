@@ -15,6 +15,7 @@ import { PrescriptionSearchBar } from "@/components/PrescriptionSearchBar";
 import { FolderSection } from "@/components/FolderSection";
 import { AppHeader } from "@/components/AppHeader";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { PrescriptionCardSkeleton } from "@/components/skeletons/PrescriptionCardSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -300,9 +301,8 @@ export default function PrescriptionsPage() {
       <div className="max-w-7xl mx-auto space-y-xl">
         <Breadcrumbs items={[{ label: NAV_LABELS.prescriptions }]} />
         
-        <AppHeader
-          title={NAV_LABELS.prescriptions}
-          subtitle={NAV_LABELS.subtitlePrescriptions}
+        <AppHeader 
+          title={NAV_LABELS.prescriptions} 
           actions={
             <div className="flex gap-xs">
               <Button
