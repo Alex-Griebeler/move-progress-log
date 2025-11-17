@@ -372,7 +372,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>Editar Prescrição</DialogTitle>
@@ -419,9 +419,10 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
           )}
         </DialogHeader>
 
-        <TooltipProvider>
-          <ScrollArea className="max-h-[calc(90vh-120px)] pr-md">
-          <div className="space-y-lg">
+        <div className="flex-1 overflow-hidden">
+          <TooltipProvider>
+            <ScrollArea className="h-full pr-md">
+            <div className="space-y-lg">
             <div className="space-y-md">
               <div className="space-y-sm">
                 <Label htmlFor="name">Nome da Prescrição *</Label>
@@ -494,9 +495,10 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                 </SortableContext>
               </DndContext>
             </div>
-          </div>
-        </ScrollArea>
-        </TooltipProvider>
+            </div>
+          </ScrollArea>
+          </TooltipProvider>
+        </div>
 
         <DialogFooter className="mt-md">
           <Button variant="outline" onClick={handleClose}>
