@@ -10,8 +10,9 @@ interface DraggablePrescriptionCardProps {
   onEdit: (id: string) => void;
   onAssign: (id: string) => void;
   onAddSession: (id: string) => void;
-  onMoveToFolder: (prescriptionId: string) => void;
+  onMoveToFolder: (prescriptionId: string, folderId: string) => void;
   onRemoveFromFolder: (prescriptionId: string) => void;
+  onDelete?: (prescriptionId: string) => void;
 }
 
 export function DraggablePrescriptionCard({
@@ -21,6 +22,7 @@ export function DraggablePrescriptionCard({
   onAddSession,
   onMoveToFolder,
   onRemoveFromFolder,
+  onDelete,
 }: DraggablePrescriptionCardProps) {
   const {
     attributes,
@@ -70,6 +72,7 @@ export function DraggablePrescriptionCard({
           onAddSession={onAddSession}
           onMoveToFolder={onMoveToFolder}
           onRemoveFromFolder={onRemoveFromFolder}
+          onDelete={onDelete}
         />
       </div>
     </div>

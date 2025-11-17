@@ -443,3 +443,55 @@ export const useDeletePrescriptionAssignment = () => {
     },
   });
 };
+
+export const useDeletePrescription = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (prescriptionId: string) => {
+      // Delete adaptations first
+      const { data: exercises } = await supabase
+        .from("prescription_exercises")
+        .select("id")
+        .eq("prescription_id", prescriptionId);
+
+      if (exercises && exercises.length > 0) {
+        const exerciseIds = exercises.map((ex) => ex.id);
+        
+        await supabase
+          .from("exercise_adaptations")
+          .delete()
+          .in("prescription_exercise_id", exerciseIds);
+
+        await supabase
+          .from("prescription_exercises")
+          .delete()
+          .eq("prescription_id", prescriptionId);
+      }
+
+      // Delete assignments
+      await supabase
+        .from("prescription_assignments")
+        .delete()
+        .eq("prescription_id", prescriptionId);
+
+      // Delete prescription
+      const { error } = await supabase
+        .from("workout_prescriptions")
+        .delete()
+        .eq("id", prescriptionId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      notify.success("Prescrição excluída com sucesso");
+    },
+    onError: (error) => {
+      notify.error("Erro ao excluir prescrição", {
+        description: error.message
+      });
+    },
+  });
+};

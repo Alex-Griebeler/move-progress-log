@@ -26,8 +26,9 @@ interface FolderSectionProps {
   onEdit: (id: string) => void;
   onAssign: (id: string) => void;
   onAddSession: (id: string) => void;
-  onMoveToFolder: (prescriptionId: string) => void;
+  onMoveToFolder: (prescriptionId: string, folderId: string) => void;
   onRemoveFromFolder: (prescriptionId: string) => void;
+  onDeletePrescription?: (prescriptionId: string) => void;
 }
 
 export function FolderSection({
@@ -42,6 +43,7 @@ export function FolderSection({
   onAddSession,
   onMoveToFolder,
   onRemoveFromFolder,
+  onDeletePrescription,
 }: FolderSectionProps) {
   const folderId = folder?.id || "no-folder";
   const folderName = folder?.name || "Sem Pasta";
@@ -147,6 +149,7 @@ export function FolderSection({
                   onAddSession={onAddSession}
                   onMoveToFolder={onMoveToFolder}
                   onRemoveFromFolder={onRemoveFromFolder}
+                  onDelete={onDeletePrescription}
                 />
               ))}
             </SortableContext>
