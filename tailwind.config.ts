@@ -97,6 +97,10 @@ export default {
         '2xl': 'var(--spacing-2xl)',
         '3xl': 'var(--spacing-3xl)',
       },
+      /* Grid System - Equal Height Rows */
+      gridAutoRows: {
+        'fr': 'minmax(0, 1fr)',
+      },
       /* Premium Typography System */
       fontSize: {
         'xs': ['var(--font-size-xs)', { lineHeight: 'var(--leading-normal)' }],
