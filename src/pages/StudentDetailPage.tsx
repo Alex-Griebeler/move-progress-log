@@ -322,7 +322,7 @@ const StudentDetailPage = () => {
           <TabsTrigger value="oura">{NAV_LABELS.tabOura}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="training" className="space-y-6">
+        <TabsContent value="training" className="space-y-6 animate-fade-in">
           <PersonalizedTrainingDashboard
             latestMetrics={latestOuraMetrics}
             recentMetrics={ouraMetrics || []}
@@ -332,7 +332,7 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value="overview" className="space-y-6 animate-fade-in">
           <StudentOverviewDashboard
             student={student}
             sessions={sessions || []}
@@ -347,7 +347,7 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="sessions" className="space-y-4">
+        <TabsContent value="sessions" className="space-y-4 animate-fade-in">
           {/* Filtros de tipo de sessão */}
           <Card className="p-4">
             <div className="flex items-center gap-4">
@@ -495,7 +495,7 @@ const StudentDetailPage = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="exercises" className="space-y-4">
+        <TabsContent value="exercises" className="space-y-4 animate-fade-in">
           <div className="mb-4">
             <h3 className="text-lg font-semibold mb-2">Selecione um exercício para ver o histórico:</h3>
             <div className="flex flex-wrap gap-2">
@@ -523,7 +523,7 @@ const StudentDetailPage = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="prescriptions" className="space-y-4">
+        <TabsContent value="prescriptions" className="space-y-4 animate-fade-in">
           {loadingAssignments ? (
             <Skeleton className="h-32" />
           ) : assignments && assignments.length > 0 ? (
@@ -604,7 +604,7 @@ const StudentDetailPage = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="oura" className="space-y-6">
+        <TabsContent value="oura" className="space-y-6 animate-fade-in">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold">Métricas do Oura Ring</h3>

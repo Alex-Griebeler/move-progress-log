@@ -185,7 +185,7 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 98%;
 
     --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 70%;
+    --muted-foreground: 0 0% 72%; /* ✅ Aumentado para contraste WCAG AA (4.5:1) */
 
     --accent: 0 0% 30%;
     --accent-foreground: 0 0% 98%;
@@ -593,6 +593,16 @@ All colors MUST be HSL.
 
   .card-interactive:hover {
     box-shadow: var(--shadow-lg);
+    transform: scale(1.01);
+  }
+
+  .card-interactive:active {
+    transform: scale(0.99);
+  }
+
+  /* ✅ NOVA: Classe global para estados de foco acessíveis (WCAG AA) */
+  .focus-visible-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
   }
 
   /* Pulse animation for alerts */

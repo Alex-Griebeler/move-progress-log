@@ -146,7 +146,7 @@ function FolderTreeNode({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex items-center gap-2 p-3 rounded-lg border bg-card transition-colors",
+          "flex items-center gap-2 p-3 rounded-lg border bg-card transition-smooth",
           isOver && "bg-accent border-primary"
         )}
       >
@@ -155,7 +155,7 @@ function FolderTreeNode({
           variant="ghost"
           size="sm"
           onClick={onToggle}
-          className="h-6 w-6 p-0"
+          className="h-6 w-6 p-0 transition-smooth hover:scale-110 focus-visible-ring"
           aria-label={isExpanded ? "Recolher pasta" : "Expandir pasta"}
         >
           {isExpanded ? (
@@ -234,7 +234,7 @@ function FolderTreeNode({
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="ml-8 space-y-2">
+        <div className="ml-8 space-y-2 animate-accordion-down">
           {/* Prescriptions in this folder */}
           {hasPrescriptions && (
             <SortableContext
