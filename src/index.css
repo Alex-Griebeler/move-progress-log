@@ -150,6 +150,7 @@ All colors MUST be HSL.
   .card-glass-hover {
     @apply backdrop-blur-sm border-border/50;
     @apply hover:border-primary/20 transition-smooth;
+    @apply hover:-translate-y-0.5;
   }
 
   .text-gradient-primary {
@@ -446,20 +447,6 @@ All colors MUST be HSL.
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
 
-  .card-glass-hover {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .card-glass-hover:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: hsl(var(--primary) / 0.3);
-    transform: translateY(-2px);
-    box-shadow: 0 12px 48px 0 hsl(var(--primary) / 0.15);
-  }
-
-  .dark .card-glass-hover:hover {
-    background: rgba(0, 0, 0, 0.08);
-  }
 
   /* Premium Typography */
   .text-display-xl {
