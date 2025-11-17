@@ -183,10 +183,21 @@ export default {
             transform: "translateX(0)",
           },
         },
+        /* Premium Shimmer Animation */
+        "shimmer": {
+          "0%": { 
+            backgroundPosition: "-200% 0",
+          },
+          "100%": { 
+            backgroundPosition: "200% 0",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        /* Premium Shimmer Effect - 2.5s smooth loop */
+        "shimmer": "shimmer 2.5s ease-in-out infinite",
         "fade-in": "fade-in 0.3s ease-out",
         "scale-in": "scale-in 0.2s ease-out",
         "slide-in-from-right": "slide-in-from-right 0.3s ease-out",
