@@ -215,17 +215,9 @@ export function RecordIndividualSessionDialog({
     const longer = n1.length >= n2.length ? n1 : n2;
     
     return longer.includes(shorter) && (shorter.length / longer.length) > 0.8;
-  const handleStartRecording = () => {
-    if (!trainerName.trim()) {
-      notify.error("Por favor, selecione o treinador antes de continuar");
-      return;
-    }
-    if (!date || !time) {
-      notify.error("Por favor, preencha data e horário antes de continuar");
-      return;
-    }
-    setDialogState('recording');
   };
+
+  const mergeAllRecordings = (recordings: AccumulatedRecording[]): MergedData => {
     console.log('🔍 [Individual] mergeAllRecordings chamado com', recordings.length, 'recordings');
     
     const allObservations: Array<{
@@ -278,6 +270,18 @@ export function RecordIndividualSessionDialog({
       clinical_observations: allObservations,
       exercises: allExercises
     };
+  };
+
+  const handleStartRecording = () => {
+    if (!trainerName.trim()) {
+      notify.error("Por favor, selecione o treinador antes de continuar");
+      return;
+    }
+    if (!date || !time) {
+      notify.error("Por favor, preencha data e horário antes de continuar");
+      return;
+    }
+    setDialogState('recording');
   };
 
   useEffect(() => {

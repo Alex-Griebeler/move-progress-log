@@ -175,7 +175,7 @@ export function RecordGroupSessionDialog({
   });
 
   const handleModeSelection = (mode: 'voice' | 'manual') => {
-    if (!trainerName.trim()) {
+    if (!trainer.trim()) {
       notify.error("Por favor, selecione o treinador antes de continuar");
       return;
     }
@@ -187,7 +187,6 @@ export function RecordGroupSessionDialog({
       notify.error("Por favor, selecione pelo menos um aluno antes de continuar");
       return;
     }
-    setSelectedMode(mode);
     if (mode === 'voice') {
       setDialogState('recording');
     } else {
