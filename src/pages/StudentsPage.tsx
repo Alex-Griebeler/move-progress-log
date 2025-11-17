@@ -432,7 +432,7 @@ const StudentsPage = () => {
             ))}
           </div>
         ) : filteredStudents && filteredStudents.length > 0 ? (
-          <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3 items-stretch">
             {filteredStudents.map((student, index) => (
               <div 
                 key={student.id}
