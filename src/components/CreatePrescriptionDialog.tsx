@@ -412,82 +412,80 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           )}
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto pr-md">
           <TooltipProvider>
-            <ScrollArea className="h-full pr-md">
             <div className="space-y-lg">
-            <div className="space-y-md">
-              <div className="space-y-sm">
-                <Label htmlFor="name">Nome da Prescrição *</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Treino 1 - Potência/Força"
-                />
+              <div className="space-y-md">
+                <div className="space-y-sm">
+                  <Label htmlFor="name">Nome da Prescrição *</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ex: Treino 1 - Potência/Força"
+                  />
+                </div>
+
+                <div className="space-y-sm">
+                  <Label htmlFor="objective">Objetivo</Label>
+                  <Textarea
+                    id="objective"
+                    value={objective}
+                    onChange={(e) => setObjective(e.target.value)}
+                    placeholder="Ex: Desenvolvimento de potência e força com ênfase em membros inferiores"
+                    rows={2}
+                  />
+                </div>
               </div>
 
-              <div className="space-y-sm">
-                <Label htmlFor="objective">Objetivo</Label>
-                <Textarea
-                  id="objective"
-                  value={objective}
-                  onChange={(e) => setObjective(e.target.value)}
-                  placeholder="Ex: Desenvolvimento de potência e força com ênfase em membros inferiores"
-                  rows={2}
-                />
-              </div>
-            </div>
+              <Separator />
 
-            <Separator />
+              <div className="space-y-md">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base">Exercícios</Label>
+                  <Button 
+                    onClick={() => addExercise(focusedExerciseIndex ?? undefined)} 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Adicionar Exercício
+                  </Button>
+                </div>
 
-            <div className="space-y-md">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Exercícios</Label>
-                <Button 
-                  onClick={() => addExercise(focusedExerciseIndex ?? undefined)} 
-                  variant="outline" 
-                  size="sm" 
-                  className="gap-2"
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
                 >
-                  <Plus className="h-4 w-4" />
-                  Adicionar Exercício
-                </Button>
+                  <SortableContext
+                    items={exercises.map((ex) => ex.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {exercises.map((exercise, exerciseIndex) => (
+                      <SortableExerciseItem
+                        key={exercise.id}
+                        exercise={exercise}
+                        index={exerciseIndex}
+                        total={exercises.length}
+                        exercisesLibrary={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
+                        onUpdate={(field, value) => updateExercise(exerciseIndex, field, value)}
+                        onRemove={() => removeExercise(exerciseIndex)}
+                        onToggleAdaptations={() => toggleAdaptations(exerciseIndex)}
+                        onAddAdaptation={() => addAdaptation(exerciseIndex)}
+                        onRemoveAdaptation={(adaptIndex) => removeAdaptation(exerciseIndex, adaptIndex)}
+                        onUpdateAdaptation={(adaptIndex, exerciseId) => updateAdaptation(exerciseIndex, adaptIndex, exerciseId)}
+                        onSuggestRegressions={() => suggestRegressions(exerciseIndex)}
+                        loadingRegressions={loadingRegressions === exerciseIndex}
+                        onFocus={() => setFocusedExerciseIndex(exerciseIndex)}
+                        isFocused={focusedExerciseIndex === exerciseIndex}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
-
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={exercises.map((ex) => ex.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {exercises.map((exercise, exerciseIndex) => (
-                    <SortableExerciseItem
-                      key={exercise.id}
-                      exercise={exercise}
-                      index={exerciseIndex}
-                      total={exercises.length}
-                      exercisesLibrary={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
-                      onUpdate={(field, value) => updateExercise(exerciseIndex, field, value)}
-                      onRemove={() => removeExercise(exerciseIndex)}
-                      onToggleAdaptations={() => toggleAdaptations(exerciseIndex)}
-                      onAddAdaptation={() => addAdaptation(exerciseIndex)}
-                      onRemoveAdaptation={(adaptIndex) => removeAdaptation(exerciseIndex, adaptIndex)}
-                      onUpdateAdaptation={(adaptIndex, exerciseId) => updateAdaptation(exerciseIndex, adaptIndex, exerciseId)}
-                      onSuggestRegressions={() => suggestRegressions(exerciseIndex)}
-                      loadingRegressions={loadingRegressions === exerciseIndex}
-                      onFocus={() => setFocusedExerciseIndex(exerciseIndex)}
-                      isFocused={focusedExerciseIndex === exerciseIndex}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
             </div>
-            </div>
-            </ScrollArea>
           </TooltipProvider>
         </div>
 
