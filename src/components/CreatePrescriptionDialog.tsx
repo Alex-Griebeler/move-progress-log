@@ -414,7 +414,8 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
 
         <div className="flex-1 overflow-hidden">
           <TooltipProvider>
-            <ScrollArea className="h-full pr-md">
+            <div className="h-full overflow-hidden">
+              <ScrollArea className="h-full pr-md">
             <div className="space-y-lg">
             <div className="space-y-md">
               <div className="space-y-sm">
@@ -487,7 +488,8 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
               </DndContext>
             </div>
             </div>
-          </ScrollArea>
+              </ScrollArea>
+            </div>
           </TooltipProvider>
         </div>
 
