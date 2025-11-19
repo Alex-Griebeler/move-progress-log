@@ -13,7 +13,6 @@ import { PrescriptionDraftHistoryDialog } from "@/components/PrescriptionDraftHi
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -419,9 +418,8 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
           )}
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto pr-md">
           <TooltipProvider>
-            <ScrollArea className="h-full pr-md">
             <div className="space-y-lg">
             <div className="space-y-md">
               <div className="space-y-sm">
@@ -496,7 +494,6 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
               </DndContext>
             </div>
             </div>
-          </ScrollArea>
           </TooltipProvider>
         </div>
 
