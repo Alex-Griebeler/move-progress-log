@@ -43,37 +43,57 @@ export const useSessionDetail = (sessionId: string | null) => {
     queryFn: async () => {
       if (!sessionId) return null;
 
-      const { data: sessionData, error: sessionError } = await supabase
-        .from("workout_sessions")
-        .select("*")
-        .eq("id", sessionId)
-        .single();
+      try {
+        const { data: sessionData, error: sessionError } = await supabase
+          .from("workout_sessions")
+          .select("*")
+          .eq("id", sessionId)
+          .single();
 
-      if (sessionError) throw sessionError;
-      if (!sessionData) throw new Error("Sessão não encontrada");
+        if (sessionError) {
+          console.error("Erro ao buscar sessão", sessionError);
+          throw sessionError;
+        }
+        if (!sessionData) {
+          console.error("Sessão não encontrada", { sessionId });
+          throw new Error("Sessão não encontrada");
+        }
 
-      const { data: studentData, error: studentError } = await supabase
-        .from("students")
-        .select("id, name, avatar_url, birth_date")
-        .eq("id", sessionData.student_id)
-        .single();
+        const { data: studentData, error: studentError } = await supabase
+          .from("students")
+          .select("id, name, avatar_url, birth_date")
+          .eq("id", sessionData.student_id)
+          .single();
 
-      if (studentError) throw studentError;
-      if (!studentData) throw new Error("Aluno não encontrado");
+        if (studentError) {
+          console.error("Erro ao buscar aluno da sessão", studentError);
+          throw studentError;
+        }
+        if (!studentData) {
+          console.error("Aluno não encontrado para sessão", { sessionId, studentId: sessionData.student_id });
+          throw new Error("Aluno não encontrado");
+        }
 
-      const { data: exercisesData, error: exercisesError } = await supabase
-        .from("exercises")
-        .select("*")
-        .eq("session_id", sessionId)
-        .order("created_at", { ascending: true });
+        const { data: exercisesData, error: exercisesError } = await supabase
+          .from("exercises")
+          .select("*")
+          .eq("session_id", sessionId)
+          .order("created_at", { ascending: true });
 
-      if (exercisesError) throw exercisesError;
+        if (exercisesError) {
+          console.error("Erro ao buscar exercícios da sessão", exercisesError);
+          throw exercisesError;
+        }
 
-      return {
-        ...sessionData,
-        student: studentData,
-        exercises: exercisesData || [],
-      } as SessionDetail;
+        return {
+          ...sessionData,
+          student: studentData,
+          exercises: exercisesData || [],
+        } as SessionDetail;
+      } catch (e) {
+        console.error("Erro inesperado no carregamento de detalhes da sessão", e);
+        throw e;
+      }
     },
   });
 };
