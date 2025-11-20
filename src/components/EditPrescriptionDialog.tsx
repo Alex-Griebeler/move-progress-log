@@ -17,6 +17,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
+import { notify } from "@/lib/notify";
 import {
   DndContext,
   closestCenter,
@@ -316,37 +317,87 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !prescriptionId) {
+    console.log('[EditPrescription] Iniciando submit', { name, exerciseCount: exercises.length });
+    
+    // Validação de ID da prescrição
+    if (!prescriptionId) {
+      notify.error("Erro interno", {
+        description: "ID da prescrição não encontrado. Recarregue a página e tente novamente."
+      });
+      return;
+    }
+
+    // Validação de nome
+    if (!name.trim()) {
+      notify.error("Nome obrigatório", {
+        description: "Por favor, informe o nome da prescrição antes de salvar."
+      });
+      return;
+    }
+
+    // Validação detalhada de exercícios
+    const invalidExercises: string[] = [];
+    
+    exercises.forEach((ex, index) => {
+      const exerciseName = exercisesLibrary?.find(e => e.id === ex.exercise_library_id)?.name || `Exercício ${index + 1}`;
+      
+      if (!ex.exercise_library_id) {
+        invalidExercises.push(`${exerciseName}: selecione um exercício`);
+      } else if (!ex.sets) {
+        invalidExercises.push(`${exerciseName}: informe as séries`);
+      } else if (!ex.reps) {
+        invalidExercises.push(`${exerciseName}: informe as repetições`);
+      }
+    });
+
+    if (invalidExercises.length > 0) {
+      notify.error("Exercícios incompletos", {
+        description: `Corrija os seguintes campos:\n${invalidExercises.slice(0, 3).join('\n')}${invalidExercises.length > 3 ? `\n...e mais ${invalidExercises.length - 3}` : ''}`
+      });
       return;
     }
 
     const validExercises = exercises.filter((ex) => ex.exercise_library_id && ex.sets && ex.reps);
+    console.log('[EditPrescription] Exercícios válidos:', validExercises.length);
 
     if (validExercises.length === 0) {
+      notify.error("Exercícios obrigatórios", {
+        description: "Adicione pelo menos um exercício válido com nome, séries e repetições."
+      });
       return;
     }
 
-    await updatePrescription.mutateAsync({
-      id: prescriptionId,
-      name,
-      objective,
-      exercises: validExercises.map((ex, index) => ({
-        exercise_library_id: ex.exercise_library_id,
-        sets: ex.sets,
-        reps: ex.reps,
-        interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
-        pse: ex.pse || undefined,
-        training_method: ex.training_method || undefined,
-        observations: ex.observations || undefined,
-        group_with_previous: index > 0 ? ex.group_with_previous : false,
-        adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
-      })),
-    });
+    try {
+      await updatePrescription.mutateAsync({
+        id: prescriptionId,
+        name,
+        objective,
+        exercises: validExercises.map((ex, index) => ({
+          exercise_library_id: ex.exercise_library_id,
+          sets: ex.sets,
+          reps: ex.reps,
+          interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
+          pse: ex.pse || undefined,
+          training_method: ex.training_method || undefined,
+          observations: ex.observations || undefined,
+          group_with_previous: index > 0 ? ex.group_with_previous : false,
+          should_track: ex.should_track ?? true,
+          adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
+        })),
+      });
 
-    // Limpar rascunho após sucesso
-    clearDraft();
-    
-    onOpenChange(false);
+      console.log('[EditPrescription] Prescrição atualizada com sucesso');
+
+      // Limpar rascunho após sucesso
+      clearDraft();
+      
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('[EditPrescription] Erro ao atualizar prescrição:', error);
+      notify.error("Erro ao atualizar prescrição", {
+        description: error?.message || "Ocorreu um erro inesperado. Tente novamente."
+      });
+    }
   };
 
   const handleClose = () => {
