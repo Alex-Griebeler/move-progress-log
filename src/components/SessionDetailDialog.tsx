@@ -28,7 +28,13 @@ export const SessionDetailDialog = ({
   onReopenSession 
 }: SessionDetailDialogProps) => {
   const navigate = useNavigate();
+  
+  console.log("SessionDetailDialog RENDER - sessionId:", sessionId, "open:", open);
+  
   const { data: session, isLoading, error } = useSessionDetail(sessionId);
+  
+  console.log("SessionDetailDialog QUERY - session:", session, "isLoading:", isLoading, "error:", error);
+  
   const [movementPatternFilter, setMovementPatternFilter] = useState<string>("all");
   const [intensityFilter, setIntensityFilter] = useState<string>("all");
 
