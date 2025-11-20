@@ -43,18 +43,37 @@ export const useSessionDetail = (sessionId: string | null) => {
     queryFn: async () => {
       if (!sessionId) return null;
 
-      const { data, error } = await supabase
+      const { data: sessionData, error: sessionError } = await supabase
         .from("workout_sessions")
-        .select(`
-          *,
-          student:students(id, name, avatar_url, birth_date),
-          exercises(*)
-        `)
+        .select("*")
         .eq("id", sessionId)
         .single();
 
-      if (error) throw error;
-      return data as SessionDetail;
+      if (sessionError) throw sessionError;
+      if (!sessionData) throw new Error("Sessão não encontrada");
+
+      const { data: studentData, error: studentError } = await supabase
+        .from("students")
+        .select("id, name, avatar_url, birth_date")
+        .eq("id", sessionData.student_id)
+        .single();
+
+      if (studentError) throw studentError;
+      if (!studentData) throw new Error("Aluno não encontrado");
+
+      const { data: exercisesData, error: exercisesError } = await supabase
+        .from("exercises")
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("created_at", { ascending: true });
+
+      if (exercisesError) throw exercisesError;
+
+      return {
+        ...sessionData,
+        student: studentData,
+        exercises: exercisesData || [],
+      } as SessionDetail;
     },
   });
 };
