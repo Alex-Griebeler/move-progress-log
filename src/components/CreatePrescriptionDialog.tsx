@@ -17,6 +17,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
+import { notify } from "@/lib/notify";
 import {
   DndContext,
   closestCenter,
@@ -274,11 +275,32 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
   const handleSubmit = async () => {
     console.log('[CreatePrescription] Iniciando submit', { name, exerciseCount: exercises.length });
     
+    // Validação de nome
     if (!name.trim()) {
-      toast({
-        title: "Nome obrigatório",
-        description: "Por favor, informe o nome da prescrição.",
-        variant: "destructive",
+      notify.error("Nome obrigatório", {
+        description: "Por favor, informe o nome da prescrição antes de salvar."
+      });
+      return;
+    }
+
+    // Validação detalhada de exercícios
+    const invalidExercises: string[] = [];
+    
+    exercises.forEach((ex, index) => {
+      const exerciseName = exercisesLibrary?.find(e => e.id === ex.exercise_library_id)?.name || `Exercício ${index + 1}`;
+      
+      if (!ex.exercise_library_id) {
+        invalidExercises.push(`${exerciseName}: selecione um exercício`);
+      } else if (!ex.sets) {
+        invalidExercises.push(`${exerciseName}: informe as séries`);
+      } else if (!ex.reps) {
+        invalidExercises.push(`${exerciseName}: informe as repetições`);
+      }
+    });
+
+    if (invalidExercises.length > 0) {
+      notify.error("Exercícios incompletos", {
+        description: `Corrija os seguintes campos:\n${invalidExercises.slice(0, 3).join('\n')}${invalidExercises.length > 3 ? `\n...e mais ${invalidExercises.length - 3}` : ''}`
       });
       return;
     }
@@ -287,10 +309,8 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     console.log('[CreatePrescription] Exercícios válidos:', validExercises.length);
 
     if (validExercises.length === 0) {
-      toast({
-        title: "Exercícios obrigatórios",
-        description: "Adicione pelo menos um exercício válido com nome, séries e repetições.",
-        variant: "destructive",
+      notify.error("Exercícios obrigatórios", {
+        description: "Adicione pelo menos um exercício válido com nome, séries e repetições."
       });
       return;
     }
@@ -337,8 +357,11 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         },
       ]);
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('[CreatePrescription] Erro ao criar prescrição:', error);
+      notify.error("Erro ao criar prescrição", {
+        description: error?.message || "Ocorreu um erro inesperado. Tente novamente."
+      });
     }
   };
 
