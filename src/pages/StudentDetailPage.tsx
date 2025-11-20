@@ -442,7 +442,10 @@ const StudentDetailPage = () => {
                         }
                       });
                     }}
-                    onClick={() => setSelectedSessionId(session.id)}
+                    onClick={() => {
+                      console.log("CLICOU NO CARD - Session ID:", session.id, "Session:", session);
+                      setSelectedSessionId(session.id);
+                    }}
                   />
                 );
               })}
@@ -776,7 +779,10 @@ const StudentDetailPage = () => {
       <SessionDetailDialog
         sessionId={selectedSessionId}
         open={!!selectedSessionId}
-        onOpenChange={(open) => !open && setSelectedSessionId(null)}
+        onOpenChange={(open) => {
+          console.log("DIALOG ONCHANGE - open:", open, "selectedSessionId:", selectedSessionId);
+          if (!open) setSelectedSessionId(null);
+        }}
         onReopenSession={(sessionId) => {
           reopenSession.mutate(sessionId, {
             onSuccess: () => {
