@@ -116,7 +116,12 @@ const WorkoutCard = memo(({
               <DropdownMenuItem 
                 onClick={(e) => {
                   e.stopPropagation();
-                  onClick?.();
+                  console.log("MENU VER DETALHES CLICADO");
+                  if (onClick) {
+                    onClick();
+                  } else {
+                    console.error("onClick não está definido no WorkoutCard");
+                  }
                 }}
               >
                 <Eye className="h-4 w-4 mr-2" />
