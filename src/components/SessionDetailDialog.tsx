@@ -129,6 +129,15 @@ export const SessionDetailDialog = ({
           </div>
         )}
 
+        {!isLoading && !error && !session && (
+          <div className="py-8">
+            <ErrorState
+              title="Sessão não encontrada"
+              description="Não foi possível encontrar os dados desta sessão. Tente novamente ou recarregue a página."
+            />
+          </div>
+        )}
+
         {session && (
           <>
             <DialogHeader>
