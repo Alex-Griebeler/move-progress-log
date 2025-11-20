@@ -38,8 +38,6 @@ export const SessionDetailDialog = ({
   const [movementPatternFilter, setMovementPatternFilter] = useState<string>("all");
   const [intensityFilter, setIntensityFilter] = useState<string>("all");
 
-  if (!open) return null;
-
   const handleGoToStudent = () => {
     if (session?.student.id) {
       onOpenChange(false);
@@ -117,6 +115,8 @@ export const SessionDetailDialog = ({
     return Array.from(patterns);
   }, [session?.exercises]);
 
+  console.log("SessionDetailDialog ANTES DO RETURN - open:", open, "session:", session, "isLoading:", isLoading, "error:", error);
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
