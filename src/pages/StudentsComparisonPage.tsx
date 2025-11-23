@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useStudents } from "@/hooks/useStudents";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,11 +53,23 @@ const StudentsComparisonPage = () => {
     url: true,
   });
   
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [startDate, setStartDate] = useState<Date | undefined>();
-  const [endDate, setEndDate] = useState<Date | undefined>();
+  const [searchParams] = useSearchParams();
+  
+  // Read query params and initialize state
+  const initialStudents = searchParams.get('students')?.split(',').filter(Boolean) || [];
+  const initialPrescription = searchParams.get('prescription') || 'all';
+  const initialStartDateStr = searchParams.get('startDate');
+  const initialEndDateStr = searchParams.get('endDate');
+  
+  const [selectedStudents, setSelectedStudents] = useState<string[]>(initialStudents);
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    initialStartDateStr ? new Date(initialStartDateStr) : undefined
+  );
+  const [endDate, setEndDate] = useState<Date | undefined>(
+    initialEndDateStr ? new Date(initialEndDateStr) : undefined
+  );
   const [selectedExercise, setSelectedExercise] = useState<string>("all");
-  const [selectedPrescription, setSelectedPrescription] = useState<string>("all");
+  const [selectedPrescription, setSelectedPrescription] = useState<string>(initialPrescription);
   const [searchQuery, setSearchQuery] = useState<string>("");
   
   const { data: students, isLoading: studentsLoading } = useStudents();
