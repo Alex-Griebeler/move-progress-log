@@ -1271,6 +1271,7 @@ export function RecordGroupSessionDialog({
             onTimeChange={setTime}
             onTrainerNameChange={setTrainer}
             onStudentToggle={toggleStudent}
+            prescriptionId={prescriptionId}
           />
         )}
 

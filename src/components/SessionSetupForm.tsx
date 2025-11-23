@@ -9,8 +9,9 @@ import { useTrainers } from "@/hooks/useTrainers";
 import { useStudents } from "@/hooks/useStudents";
 import { useStudentsWithActivePrescriptions } from "@/hooks/useStudentDetail";
 import { format } from "date-fns";
-import { Search, UserPlus } from "lucide-react";
+import { Search, UserPlus, GitCompare } from "lucide-react";
 import { AddStudentDialog } from "./AddStudentDialog";
+import { ROUTES } from "@/constants/navigation";
 
 interface Student {
   id: string;
@@ -27,6 +28,7 @@ interface SessionSetupFormProps {
   onTimeChange: (time: string) => void;
   onTrainerNameChange: (trainer: string) => void;
   onStudentToggle: (student: Student) => void;
+  prescriptionId?: string | null;
 }
 
 export function SessionSetupForm({
@@ -38,6 +40,7 @@ export function SessionSetupForm({
   onTimeChange,
   onTrainerNameChange,
   onStudentToggle,
+  prescriptionId,
 }: SessionSetupFormProps) {
   const { data: trainers } = useTrainers();
   const { data: students } = useStudents();
@@ -63,6 +66,27 @@ export function SessionSetupForm({
     // Auto-select the newly created student
     onStudentToggle(newStudent as Student);
   };
+
+  const handleOpenComparison = () => {
+    const studentIds = selectedStudents.map(s => s.id).join(',');
+    const params = new URLSearchParams();
+    
+    if (studentIds) params.set('students', studentIds);
+    if (prescriptionId) params.set('prescription', prescriptionId);
+    if (date) {
+      // Set date range: 30 days before session date
+      const sessionDate = new Date(date);
+      const startDate = new Date(sessionDate);
+      startDate.setDate(startDate.getDate() - 30);
+      params.set('startDate', startDate.toISOString().split('T')[0]);
+      params.set('endDate', date);
+    }
+    
+    const url = `${ROUTES.studentsComparison}?${params.toString()}`;
+    window.open(url, '_blank');
+  };
+
+  const canOpenComparison = selectedStudents.length > 0;
 
   return (
     <div className="space-y-6">
@@ -108,16 +132,30 @@ export function SessionSetupForm({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Label>Alunos * (máximo 10)</Label>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAddStudentDialog(true)}
-              className="h-7 gap-1.5 text-xs"
-            >
-              <UserPlus className="h-3.5 w-3.5" />
-              Novo
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleOpenComparison}
+                disabled={!canOpenComparison}
+                className="h-7 gap-1.5 text-xs"
+                title={canOpenComparison ? "Abrir histórico dos alunos selecionados em nova aba" : "Selecione pelo menos um aluno"}
+              >
+                <GitCompare className="h-3.5 w-3.5" />
+                Histórico
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddStudentDialog(true)}
+                className="h-7 gap-1.5 text-xs"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                Novo
+              </Button>
+            </div>
           </div>
           {selectedStudents.length > 0 && (
             <Badge variant="secondary">
