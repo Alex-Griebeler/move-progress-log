@@ -69,9 +69,10 @@ const StudentsComparisonPage = () => {
   const [endDate, setEndDate] = useState<Date | undefined>(
     initialEndDateStr ? new Date(initialEndDateStr) : undefined
   );
-  const [selectedExercise, setSelectedExercise] = useState<string>("all");
+  const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
   const [selectedPrescription, setSelectedPrescription] = useState<string>(initialPrescription);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [exerciseSearchQuery, setExerciseSearchQuery] = useState<string>("");
   
   const { data: students, isLoading: studentsLoading } = useStudents();
 
@@ -98,7 +99,7 @@ const StudentsComparisonPage = () => {
   });
 
   const { data: studentsStats, isLoading: statsLoading } = useQuery({
-    queryKey: ["students-comparison-stats", selectedStudents, startDate, endDate, selectedExercise, selectedPrescription],
+    queryKey: ["students-comparison-stats", selectedStudents, startDate, endDate, selectedExercises, selectedPrescription],
     enabled: selectedStudents.length > 0,
     queryFn: async () => {
       const stats = await Promise.all(
@@ -154,8 +155,8 @@ const StudentsComparisonPage = () => {
             .select("load_kg, reps, session_id, exercise_name, load_description")
             .in("session_id", filteredSessions.map(s => s.id));
 
-          if (selectedExercise !== "all") {
-            exercisesQuery = exercisesQuery.eq("exercise_name", selectedExercise);
+          if (selectedExercises.length > 0) {
+            exercisesQuery = exercisesQuery.in("exercise_name", selectedExercises);
           }
 
           const { data: exercisesData } = await exercisesQuery;
@@ -327,20 +328,84 @@ const StudentsComparisonPage = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Exercício</label>
-                <Select value={selectedExercise} onValueChange={setSelectedExercise}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os exercícios" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os exercícios</SelectItem>
-                    {exercises?.map((exercise) => (
-                      <SelectItem key={exercise.id} value={exercise.name}>
-                        {exercise.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">
+                  Exercícios {selectedExercises.length > 0 && `(${selectedExercises.length}/10)`}
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <Dumbbell className="mr-2 h-4 w-4" />
+                      {selectedExercises.length === 0
+                        ? "Todos os exercícios"
+                        : selectedExercises.length === 1
+                        ? selectedExercises[0]
+                        : `${selectedExercises.length} selecionados`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <div className="p-2 border-b">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar exercício..."
+                          value={exerciseSearchQuery}
+                          onChange={(e) => setExerciseSearchQuery(e.target.value)}
+                          className="pl-8 h-9"
+                        />
+                      </div>
+                    </div>
+                    <ScrollArea className="h-[280px]">
+                      <div className="p-2 space-y-1">
+                        {exercises
+                          ?.filter((ex) =>
+                            ex.name.toLowerCase().includes(exerciseSearchQuery.toLowerCase())
+                          )
+                          .map((exercise) => (
+                            <div
+                              key={exercise.id}
+                              className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent transition-colors"
+                            >
+                              <Checkbox
+                                checked={selectedExercises.includes(exercise.name)}
+                                onCheckedChange={() => {
+                                  setSelectedExercises((prev) => {
+                                    if (prev.includes(exercise.name)) {
+                                      return prev.filter((e) => e !== exercise.name);
+                                    } else if (prev.length < 10) {
+                                      return [...prev, exercise.name];
+                                    }
+                                    return prev;
+                                  });
+                                }}
+                                disabled={
+                                  !selectedExercises.includes(exercise.name) &&
+                                  selectedExercises.length >= 10
+                                }
+                              />
+                              <label className="flex-1 cursor-pointer text-sm">
+                                {exercise.name}
+                              </label>
+                            </div>
+                          ))}
+                      </div>
+                    </ScrollArea>
+                    {selectedExercises.length > 0 && (
+                      <div className="p-2 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setSelectedExercises([])}
+                        >
+                          Limpar seleção
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
@@ -361,7 +426,7 @@ const StudentsComparisonPage = () => {
               </div>
             </div>
 
-            {(startDate || endDate || selectedExercise !== "all" || selectedPrescription !== "all") && (
+            {(startDate || endDate || selectedExercises.length > 0 || selectedPrescription !== "all") && (
               <Button
                 variant="outline"
                 size="sm"
@@ -369,7 +434,7 @@ const StudentsComparisonPage = () => {
                 onClick={() => {
                   setStartDate(undefined);
                   setEndDate(undefined);
-                  setSelectedExercise("all");
+                  setSelectedExercises([]);
                   setSelectedPrescription("all");
                 }}
               >
