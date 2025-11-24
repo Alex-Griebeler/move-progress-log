@@ -39,6 +39,7 @@ interface StudentStats {
     reps: number;
     date: string;
     prescription: string | null;
+    loadDescription: string | null;
   }>;
 }
 
@@ -150,7 +151,7 @@ const StudentsComparisonPage = () => {
 
           let exercisesQuery = supabase
             .from("exercises")
-            .select("load_kg, reps, session_id, exercise_name")
+            .select("load_kg, reps, session_id, exercise_name, load_description")
             .in("session_id", filteredSessions.map(s => s.id));
 
           if (selectedExercise !== "all") {
@@ -177,6 +178,7 @@ const StudentsComparisonPage = () => {
                 reps: exercise.reps || 0,
                 date: session?.date || "",
                 prescription: assignment?.prescription?.name || "Sem prescrição",
+                loadDescription: exercise.load_description || null,
               };
             })
           );
@@ -517,23 +519,27 @@ const StudentsComparisonPage = () => {
                               {stats?.exerciseDetails && stats.exerciseDetails.length > 0 ? (
                                 <div className="rounded-md border">
                                   <Table>
-                                    <TableHeader>
+                                     <TableHeader>
                                       <TableRow>
                                         <TableHead>Data</TableHead>
                                         <TableHead>Exercício</TableHead>
                                         <TableHead>Carga</TableHead>
+                                        <TableHead>Descrição Carga</TableHead>
                                         <TableHead>Reps</TableHead>
                                         <TableHead>Treino</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {stats.exerciseDetails.map((detail, idx) => (
+                                       {stats.exerciseDetails.map((detail, idx) => (
                                         <TableRow key={idx}>
                                           <TableCell className="font-medium">
                                             {new Date(detail.date).toLocaleDateString('pt-BR')}
                                           </TableCell>
                                           <TableCell>{detail.exerciseName}</TableCell>
                                           <TableCell>{detail.load} kg</TableCell>
+                                          <TableCell className="text-muted-foreground text-sm">
+                                            {detail.loadDescription || "—"}
+                                          </TableCell>
                                           <TableCell>{detail.reps}</TableCell>
                                           <TableCell>
                                             <Badge variant="outline">{detail.prescription}</Badge>
