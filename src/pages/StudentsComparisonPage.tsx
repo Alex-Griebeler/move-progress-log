@@ -9,7 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AppHeader } from "@/components/AppHeader";
-import { ArrowLeft, Users, TrendingUp, Calendar, Dumbbell, Filter, Search } from "lucide-react";
+import { ArrowLeft, Users, TrendingUp, Calendar, Dumbbell, Filter, Search, FileEdit } from "lucide-react";
+import { EditSessionDialog } from "@/components/EditSessionDialog";
+import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,6 +42,7 @@ interface StudentStats {
     date: string;
     prescription: string | null;
     loadDescription: string | null;
+    sessionId: string;
   }>;
 }
 
@@ -73,7 +76,9 @@ const StudentsComparisonPage = () => {
   const [selectedPrescription, setSelectedPrescription] = useState<string>(initialPrescription);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [exerciseSearchQuery, setExerciseSearchQuery] = useState<string>("");
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   
+  const queryClient = useQueryClient();
   const { data: students, isLoading: studentsLoading } = useStudents();
 
   const { data: exercises } = useQuery({
@@ -180,6 +185,7 @@ const StudentsComparisonPage = () => {
                 date: session?.date || "",
                 prescription: assignment?.prescription?.name || "Sem prescrição",
                 loadDescription: exercise.load_description || null,
+                sessionId: exercise.session_id,
               };
             })
           );
@@ -592,6 +598,7 @@ const StudentsComparisonPage = () => {
                                         <TableHead>Descrição Carga</TableHead>
                                         <TableHead>Reps</TableHead>
                                         <TableHead>Treino</TableHead>
+                                        <TableHead className="w-[80px]">Ações</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -608,6 +615,15 @@ const StudentsComparisonPage = () => {
                                           <TableCell>{detail.reps}</TableCell>
                                           <TableCell>
                                             <Badge variant="outline">{detail.prescription}</Badge>
+                                          </TableCell>
+                                          <TableCell>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => setEditingSessionId(detail.sessionId)}
+                                            >
+                                              <FileEdit className="h-4 w-4" />
+                                            </Button>
                                           </TableCell>
                                         </TableRow>
                                       ))}
@@ -631,6 +647,16 @@ const StudentsComparisonPage = () => {
           </div>
         </div>
       </div>
+
+      <EditSessionDialog
+        open={!!editingSessionId}
+        onOpenChange={(open) => !open && setEditingSessionId(null)}
+        sessionId={editingSessionId || ""}
+        onSuccess={() => {
+          setEditingSessionId(null);
+          queryClient.invalidateQueries({ queryKey: ["students-comparison-stats"] });
+        }}
+      />
     </div>
   );
 };
