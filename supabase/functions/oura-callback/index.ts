@@ -32,11 +32,24 @@ Deno.serve(async (req) => {
     const ouraClientId = Deno.env.get('OURA_CLIENT_ID');
     const ouraClientSecret = Deno.env.get('OURA_CLIENT_SECRET');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://fabrik-performance.lovable.app';
     const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
+    
+    // Get frontend URL from request origin
+    const origin = req.headers.get('origin') || req.headers.get('referer');
+    let frontendUrl = 'https://move-progress-log.lovable.app';
+    
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        frontendUrl = originUrl.origin;
+      } catch (e) {
+        console.log('Could not parse origin, using default:', frontendUrl);
+      }
+    }
 
     console.log('Token exchange attempt:', {
       redirectUri,
+      frontendUrl,
       clientIdPresent: !!ouraClientId,
       clientSecretPresent: !!ouraClientSecret,
     });
@@ -135,11 +148,13 @@ Deno.serve(async (req) => {
     }
 
     // Redirect based on origin
-    if (invite_token) {
+    if (invite_token && invite_token !== 'retry') {
       // Came from student onboarding
+      console.log('Redirecting to onboarding success');
       return Response.redirect(`${frontendUrl}/onboarding/success?student_id=${student_id}`, 302);
     } else {
-      // Came from trainer interface
+      // Came from trainer interface or retry
+      console.log('Redirecting to student detail');
       return Response.redirect(`${frontendUrl}/alunos/${student_id}`, 302);
     }
   } catch (error) {
