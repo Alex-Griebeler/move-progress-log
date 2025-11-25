@@ -128,6 +128,16 @@ Deno.serve(async (req) => {
 
     const studentToUpdate = existingStudent || orphanStudent;
 
+    // Helper to convert objectives string to array if needed
+    const normalizeObjectives = (objectives: any): string[] | null => {
+      if (!objectives) return null;
+      if (Array.isArray(objectives)) return objectives;
+      if (typeof objectives === 'string') {
+        return objectives.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+      }
+      return null;
+    };
+
     let student;
     if (studentToUpdate) {
       // Update existing student OR adopt orphan
@@ -142,7 +152,7 @@ Deno.serve(async (req) => {
           weight_kg: student_data.weight_kg || null,
           height_cm: student_data.height_cm || null,
           fitness_level: student_data.fitness_level || null,
-          objectives: student_data.objectives || null,
+          objectives: normalizeObjectives(student_data.objectives),
           limitations: student_data.limitations || null,
           injury_history: student_data.injury_history || null,
           preferences: student_data.preferences || null,
@@ -175,7 +185,7 @@ Deno.serve(async (req) => {
           weight_kg: student_data.weight_kg || null,
           height_cm: student_data.height_cm || null,
           fitness_level: student_data.fitness_level || null,
-          objectives: student_data.objectives || null,
+          objectives: normalizeObjectives(student_data.objectives),
           limitations: student_data.limitations || null,
           injury_history: student_data.injury_history || null,
           preferences: student_data.preferences || null,
