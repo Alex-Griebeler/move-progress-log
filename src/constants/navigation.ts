@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Home, Users, Library, FileText, Heart, UserCog, Shield } from "lucide-react";
+import { Home, Users, ClipboardList, Library, FileText, Heart, UserCog, Shield } from "lucide-react";
 
 /**
  * Constantes de navegação e nomenclaturas
@@ -25,6 +25,7 @@ export const ROUTES = {
   studentDetail: (id: string) => `/alunos/${id}`,
   studentReports: (id: string) => `/alunos/${id}/relatorios`,
   studentsComparison: "/alunos-comparacao",
+  sessions: "/sessoes",
   exercises: "/exercicios",
   prescriptions: "/prescricoes",
   protocols: "/protocolos",
@@ -56,6 +57,7 @@ export interface RouteDefinition {
 export const ROUTE_CONFIG: RouteDefinition[] = [
   { path: ROUTES.dashboard, label: "Dashboard", icon: Home },
   { path: ROUTES.students, label: "Alunos", icon: Users },
+  { path: ROUTES.sessions, label: "Sessões", icon: ClipboardList },
   { path: ROUTES.exercises, label: "Exercícios", icon: Library },
   { path: ROUTES.prescriptions, label: "Prescrições", icon: FileText },
   { path: ROUTES.protocols, label: "Protocolos", icon: Heart },
@@ -67,6 +69,7 @@ export const NAV_LABELS = {
   // Navegação principal
   dashboard: "Dashboard",
   students: "Alunos",
+  sessions: "Sessões",
   exercises: "Exercícios",
   prescriptions: "Prescrições",
   protocols: "Protocolos",
@@ -131,6 +134,7 @@ export const NAV_LABELS = {
   // Subtítulos padrão
   subtitleDefault: "Sistema de registro e acompanhamento",
   subtitleStudents: "Gerencie os dados dos seus alunos",
+  subtitleSessions: "Visualize e filtre todas as sessões registradas no sistema",
   subtitleExercises: "Gerencie exercícios com classificações por padrões de movimento",
   subtitlePrescriptions: "Crie e gerencie prescrições de treino para seus alunos",
   subtitleProtocols: "Biblioteca completa baseada em evidências científicas",
