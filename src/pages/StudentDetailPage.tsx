@@ -767,7 +767,8 @@ const StudentDetailPage = () => {
         onOpenChange={(open) => !open && setEditingSessionId(null)}
         sessionId={editingSessionId}
         onSuccess={() => {
-          window.location.reload();
+          // Não fazer reload - as queries são invalidadas automaticamente
+          setEditingSessionId(null);
         }}
         onReopenForRecording={(sessionId) => {
           setEditingSessionId(null);

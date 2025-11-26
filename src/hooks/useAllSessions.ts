@@ -114,13 +114,22 @@ export function useReopenSession() {
     mutationFn: async (sessionId: string) => {
       const { error } = await supabase
         .from("workout_sessions")
-        .update({ is_finalized: false })
+        .update({ 
+          is_finalized: false,
+          updated_at: new Date().toISOString()
+        })
         .eq("id", sessionId);
 
       if (error) throw error;
     },
     onSuccess: () => {
+      // Invalidar TODAS as queries relacionadas a sessões
       queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["session-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+      
       toast({
         title: "Sessão reaberta",
         description: "A sessão foi reaberta para edição.",

@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { Trash, Loader2, Mic } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EditSessionDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ export function EditSessionDialog({
   onSuccess,
   onReopenForRecording,
 }: EditSessionDialogProps) {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [sessionData, setSessionData] = useState<any>(null);
@@ -122,6 +124,13 @@ export function EditSessionDialog({
 
         if (error) throw error;
       }
+
+      // Invalidar todas as queries relacionadas
+      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["session-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
 
       notify.success("Sessão atualizada", {
         description: "As alterações foram salvas com sucesso.",
