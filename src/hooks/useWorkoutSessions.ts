@@ -298,8 +298,13 @@ export const useReopenWorkoutSession = () => {
       return data;
     },
     onSuccess: () => {
+      // Invalidar TODAS as queries relacionadas a sessões
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["session-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+      
       notify.success("Sessão reaberta com sucesso", {
         description: "Você pode continuar editando esta sessão",
       });
