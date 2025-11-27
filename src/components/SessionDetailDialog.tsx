@@ -19,13 +19,15 @@ interface SessionDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onReopenSession?: (sessionId: string) => void;
+  onEditSession?: (sessionId: string) => void;
 }
 
 export const SessionDetailDialog = ({ 
   sessionId, 
   open, 
   onOpenChange,
-  onReopenSession 
+  onReopenSession,
+  onEditSession,
 }: SessionDetailDialogProps) => {
   const navigate = useNavigate();
   
@@ -387,11 +389,16 @@ export const SessionDetailDialog = ({
                 Ver Perfil do Aluno
               </Button>
               {!session.is_finalized && (
-                <Button onClick={() => {
-                  onOpenChange(false);
-                  // Navegar para a página do aluno onde pode editar
-                  navigate(`/alunos/${session.student.id}`);
-                }}>
+                <Button
+                  onClick={() => {
+                    if (onEditSession) {
+                      onEditSession(session.id);
+                    } else {
+                      onOpenChange(false);
+                      navigate(`/alunos/${session.student.id}`);
+                    }
+                  }}
+                >
                   Editar Sessão
                 </Button>
               )}
