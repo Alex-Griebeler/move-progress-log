@@ -792,6 +792,10 @@ const StudentDetailPage = () => {
             }
           });
         }}
+        onEditSession={(sessionId) => {
+          setSelectedSessionId(null);
+          setEditingSessionId(sessionId);
+        }}
       />
 
       <EditStudentDialog
