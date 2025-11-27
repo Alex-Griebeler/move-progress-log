@@ -386,6 +386,15 @@ export const SessionDetailDialog = ({
               <Button variant="secondary" onClick={handleGoToStudent}>
                 Ver Perfil do Aluno
               </Button>
+              {!session.is_finalized && (
+                <Button onClick={() => {
+                  onOpenChange(false);
+                  // Navegar para a página do aluno onde pode editar
+                  navigate(`/alunos/${session.student.id}`);
+                }}>
+                  Editar Sessão
+                </Button>
+              )}
               {session.is_finalized && session.can_reopen && onReopenSession && (
                 <Button onClick={handleReopen}>
                   Reabrir Sessão

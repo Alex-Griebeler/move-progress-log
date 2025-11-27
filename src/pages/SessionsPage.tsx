@@ -55,6 +55,7 @@ import { usePrescriptions } from "@/hooks/usePrescriptions";
 import { useReopenSession } from "@/hooks/useAllSessions";
 import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
+import { EditSessionDialog } from "@/components/EditSessionDialog";
 import EmptyState from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
@@ -79,6 +80,7 @@ export default function SessionsPage() {
   // Dialog states
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [studentSelectionOpen, setStudentSelectionOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
 
@@ -144,6 +146,11 @@ export default function SessionsPage() {
   const handleViewDetails = (sessionId: string) => {
     setSelectedSessionId(sessionId);
     setDetailDialogOpen(true);
+  };
+
+  const handleEditSession = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    setEditDialogOpen(true);
   };
 
   const handleReopen = async (sessionId: string) => {
@@ -525,6 +532,12 @@ export default function SessionsPage() {
                                   <Eye className="h-4 w-4 mr-2" />
                                   Ver Detalhes
                                 </DropdownMenuItem>
+                                {!session.is_finalized && (
+                                  <DropdownMenuItem onClick={() => handleEditSession(session.id)}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Editar Sessão
+                                  </DropdownMenuItem>
+                                )}
                                 {session.is_finalized && session.can_reopen && (
                                   <DropdownMenuItem onClick={() => handleReopen(session.id)}>
                                     <RotateCcw className="h-4 w-4 mr-2" />
@@ -555,6 +568,16 @@ export default function SessionsPage() {
             handleReopen(selectedSessionId);
             setDetailDialogOpen(false);
           }
+        }}
+      />
+
+      <EditSessionDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        sessionId={selectedSessionId}
+        onSuccess={() => {
+          setEditDialogOpen(false);
+          refetch();
         }}
       />
 
