@@ -98,14 +98,26 @@ export function EditSessionDialog({
     setLoading(true);
     try {
       // Deletar exercícios removidos
-      const currentExerciseIds = exercises.map(ex => ex.id);
-      const { error: deleteError } = await supabase
-        .from('exercises')
-        .delete()
-        .eq('session_id', sessionId)
-        .not('id', 'in', `(${currentExerciseIds.join(',')})`);
+      const currentExerciseIds = exercises.map(ex => ex.id).filter(Boolean);
+      
+      // Só deletar se houver IDs para manter
+      if (currentExerciseIds.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('exercises')
+          .delete()
+          .eq('session_id', sessionId)
+          .not('id', 'in', `(${currentExerciseIds.join(',')})`);
 
-      if (deleteError && deleteError.code !== 'PGRST116') throw deleteError;
+        if (deleteError && deleteError.code !== 'PGRST116') throw deleteError;
+      } else {
+        // Se não há exercícios para manter, deletar todos
+        const { error: deleteError } = await supabase
+          .from('exercises')
+          .delete()
+          .eq('session_id', sessionId);
+
+        if (deleteError) throw deleteError;
+      }
 
       // Atualizar exercícios existentes
       for (const exercise of exercises) {
