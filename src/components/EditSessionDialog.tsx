@@ -5,11 +5,15 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { Trash, Loader2, Mic } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface EditSessionDialogProps {
   open: boolean;
@@ -53,10 +57,17 @@ export function EditSessionDialog({
 
     setLoading(true);
     try {
-      // Buscar dados da sessão
+      // Buscar dados da sessão com informações do aluno
       const { data: session, error: sessionError } = await supabase
         .from('workout_sessions')
-        .select('*')
+        .select(`
+          *,
+          student:students!student_id (
+            id,
+            name,
+            avatar_url
+          )
+        `)
         .eq('id', sessionId)
         .single();
 
@@ -162,19 +173,39 @@ export function EditSessionDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle>Editar Sessão</DialogTitle>
-        </DialogHeader>
-
         {loading && !exercises.length ? (
           <div className="flex items-center justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
-        ) : (
-          <ScrollArea className="max-h-[calc(90vh-200px)] pr-4">
-            <div className="space-y-6">
-              {/* Info da sessão */}
-              {sessionData && (
+        ) : sessionData ? (
+          <>
+            <DialogHeader>
+              <div className="flex items-start gap-4">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={sessionData.student?.avatar_url || ""} />
+                  <AvatarFallback className="bg-primary/10 text-primary text-lg">
+                    {sessionData.student?.name?.substring(0, 2).toUpperCase() || "??"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <DialogTitle className="text-2xl mb-2">
+                    Editar Sessão de {sessionData.student?.name}
+                  </DialogTitle>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge variant={sessionData.session_type === "individual" ? "default" : "secondary"}>
+                      {sessionData.session_type === "individual" ? "Individual" : "Grupo"}
+                    </Badge>
+                    <Badge variant={sessionData.is_finalized ? "outline" : "default"}>
+                      {sessionData.is_finalized ? "Finalizada" : "Em edição"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <ScrollArea className="max-h-[calc(90vh-200px)] pr-4 mt-6">
+              <div className="space-y-6">
+                {/* Info da sessão */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-sm">Informações da Sessão</CardTitle>
@@ -183,20 +214,29 @@ export function EditSessionDialog({
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="font-semibold">Data:</span>{" "}
-                        {new Date(sessionData.date).toLocaleDateString('pt-BR')}
+                        {format(new Date(sessionData.date), "dd/MM/yyyy", { locale: ptBR })}
                       </div>
                       <div>
-                        <span className="font-semibold">Horário:</span> {sessionData.time}
+                        <span className="font-semibold">Horário:</span> {sessionData.time.substring(0, 5)}
                       </div>
                       {sessionData.workout_name && (
                         <div className="col-span-2">
                           <span className="font-semibold">Treino:</span> {sessionData.workout_name}
                         </div>
                       )}
+                      {sessionData.trainer_name && (
+                        <div className="col-span-2">
+                          <span className="font-semibold">Treinador:</span> {sessionData.trainer_name}
+                        </div>
+                      )}
+                      {sessionData.room_name && (
+                        <div className="col-span-2">
+                          <span className="font-semibold">Sala:</span> {sessionData.room_name}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
-              )}
 
               {/* Exercícios */}
               <div className="space-y-4">
@@ -290,6 +330,11 @@ export function EditSessionDialog({
               </div>
             </div>
           </ScrollArea>
+        </>
+        ) : (
+          <DialogHeader>
+            <DialogTitle>Editar Sessão</DialogTitle>
+          </DialogHeader>
         )}
 
         <DialogFooter className="gap-2">
