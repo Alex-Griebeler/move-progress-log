@@ -195,13 +195,11 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     };
 
     if (afterIndex !== undefined && afterIndex >= 0) {
-      console.log('Adding exercise after index:', afterIndex);
       const newExercises = [...exercises];
       newExercises.splice(afterIndex + 1, 0, newExercise);
       setExercises(newExercises);
       setTimeout(() => setFocusedExerciseIndex(afterIndex + 1), 0);
     } else {
-      console.log('Adding exercise at end');
       setExercises([...exercises, newExercise]);
       setTimeout(() => setFocusedExerciseIndex(exercises.length), 0);
     }
@@ -317,7 +315,6 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   };
 
   const handleSubmit = async () => {
-    console.log('[EditPrescription] Iniciando submit', { name, exerciseCount: exercises.length });
     
     // Validação de ID da prescrição
     if (!prescriptionId) {
@@ -357,8 +354,26 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       return;
     }
 
+    // Validação de adaptações: se showAdaptations está ativo, todas as adaptações devem ter exercício selecionado
+    const incompleteAdaptations: string[] = [];
+    exercises.forEach((ex, index) => {
+      if (ex.showAdaptations && ex.adaptations.length > 0) {
+        const exerciseName = exercisesLibrary?.find(e => e.id === ex.exercise_library_id)?.name || `Exercício ${index + 1}`;
+        const missingAdaptations = ex.adaptations.filter(a => !a.exercise_library_id);
+        if (missingAdaptations.length > 0) {
+          incompleteAdaptations.push(`${exerciseName}: ${missingAdaptations.length} adaptação(ões) sem exercício selecionado`);
+        }
+      }
+    });
+
+    if (incompleteAdaptations.length > 0) {
+      notify.error("Adaptações incompletas", {
+        description: `Selecione os exercícios para todas as adaptações ou desative-as:\n${incompleteAdaptations.slice(0, 3).join('\n')}${incompleteAdaptations.length > 3 ? `\n...e mais ${incompleteAdaptations.length - 3}` : ''}`
+      });
+      return;
+    }
+
     const validExercises = exercises.filter((ex) => ex.exercise_library_id && ex.sets && ex.reps);
-    console.log('[EditPrescription] Exercícios válidos:', validExercises.length);
 
     if (validExercises.length === 0) {
       notify.error("Exercícios obrigatórios", {
@@ -386,14 +401,11 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
         })),
       });
 
-      console.log('[EditPrescription] Prescrição atualizada com sucesso');
-
       // Limpar rascunho após sucesso
       clearDraft();
       
       onOpenChange(false);
     } catch (error: any) {
-      console.error('[EditPrescription] Erro ao atualizar prescrição:', error);
       notify.error("Erro ao atualizar prescrição", {
         description: error?.message || "Ocorreu um erro inesperado. Tente novamente."
       });
