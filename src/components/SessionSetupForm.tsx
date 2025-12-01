@@ -9,18 +9,15 @@ import { useTrainers } from "@/hooks/useTrainers";
 import { useStudents } from "@/hooks/useStudents";
 import { useStudentsWithActivePrescriptions } from "@/hooks/useStudentDetail";
 import { format } from "date-fns";
-import { Search, UserPlus, GitCompare, Filter } from "lucide-react";
+import { Search, UserPlus, GitCompare } from "lucide-react";
 import { AddStudentDialog } from "./AddStudentDialog";
 import { ROUTES } from "@/constants/navigation";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 interface Student {
   id: string;
   name: string;
   has_active_prescription?: boolean;
 }
-
-type PrescriptionFilter = 'all' | 'with' | 'without';
 
 interface SessionSetupFormProps {
   date: string;
@@ -48,7 +45,6 @@ export function SessionSetupForm({
   const { data: trainers } = useTrainers();
   const { data: students } = useStudents();
   const [searchTerm, setSearchTerm] = useState("");
-  const [prescriptionFilter, setPrescriptionFilter] = useState<PrescriptionFilter>('all');
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
 
   // Buscar prescrições ativas de todos os alunos
@@ -61,15 +57,10 @@ export function SessionSetupForm({
     has_active_prescription: activeStudentIds?.has(student.id) || false,
   }));
 
-  // Filtrar estudantes baseado no termo de busca e filtro de prescrição
-  const filteredStudents = enrichedStudents?.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesPrescription = 
-      prescriptionFilter === 'all' ? true :
-      prescriptionFilter === 'with' ? student.has_active_prescription :
-      !student.has_active_prescription;
-    return matchesSearch && matchesPrescription;
-  });
+  // Filtrar estudantes baseado no termo de busca
+  const filteredStudents = enrichedStudents?.filter(student =>
+    student.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleStudentCreated = (newStudent: { id: string; name: string }) => {
     // Auto-select the newly created student
@@ -173,44 +164,21 @@ export function SessionSetupForm({
             </Badge>
           )}
         </div>
-        
-        {/* Filtros */}
-        <div className="flex flex-col gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="session-student-search"
-              name="internal-session-student-filter"
-              type="text"
-              role="search"
-              autoComplete="chrome-off"
-              data-form-type="other"
-              data-lpignore="true"
-              placeholder="Buscar aluno..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <ToggleGroup 
-              type="single" 
-              value={prescriptionFilter} 
-              onValueChange={(value) => value && setPrescriptionFilter(value as PrescriptionFilter)}
-              className="justify-start"
-            >
-              <ToggleGroupItem value="all" size="sm" className="text-xs h-7 px-2">
-                Todos
-              </ToggleGroupItem>
-              <ToggleGroupItem value="with" size="sm" className="text-xs h-7 px-2">
-                Com prescrição
-              </ToggleGroupItem>
-              <ToggleGroupItem value="without" size="sm" className="text-xs h-7 px-2">
-                Sem prescrição
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
+        <div className="relative mb-2">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            id="session-student-search"
+            name="internal-session-student-filter"
+            type="text"
+            role="search"
+            autoComplete="chrome-off"
+            data-form-type="other"
+            data-lpignore="true"
+            placeholder="Buscar aluno..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
         </div>
         <div className="border rounded-md p-4 max-h-[300px] overflow-y-auto space-y-3">
           {filteredStudents?.map((student) => (
