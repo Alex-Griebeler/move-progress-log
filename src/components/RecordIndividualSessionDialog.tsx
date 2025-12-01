@@ -19,6 +19,7 @@ import i18n from "@/i18n/pt-BR.json";
 import { useQuery } from "@tanstack/react-query";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { NAV_LABELS } from "@/constants/navigation";
+import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 
 interface RecordIndividualSessionDialogProps {
   open: boolean;
@@ -528,30 +529,7 @@ export function RecordIndividualSessionDialog({
     setExercisesNeedingValidation([]);
   };
 
-  // Função para calcular load_kg automaticamente durante edição
-  const calculateLoadFromBreakdown = (breakdown: string): number | null => {
-    try {
-      let total = 0;
-      
-      const eachSideMatch = breakdown.match(/\((.*?)\)\s*de cada lado/i);
-      if (eachSideMatch) {
-        const content = eachSideMatch[1];
-        
-        const kgMatches = content.match(/(\d+(?:\.\d+)?)\s*kg/gi);
-        kgMatches?.forEach(m => { total += parseFloat(m) * 2; });
-        
-        const lbMatches = content.match(/(\d+(?:\.\d+)?)\s*lb/gi);
-        lbMatches?.forEach(m => { total += parseFloat(m) * 0.45 * 2; });
-      }
-      
-      const barraMatch = breakdown.match(/barra\s*(\d+(?:\.\d+)?)\s*kg/i);
-      if (barraMatch) total += parseFloat(barraMatch[1]);
-      
-      return total > 0 ? Math.round(total * 10) / 10 : null;
-    } catch {
-      return null;
-    }
-  };
+  // Função centralizada importada de @/utils/loadCalculation
 
   const validateExercisesBeforeSave = () => {
     const invalidExercises: number[] = [];
