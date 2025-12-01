@@ -316,3 +316,40 @@ export const useReopenWorkoutSession = () => {
     },
   });
 };
+
+export const useFinalizeWorkoutSession = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      const { data, error } = await supabase
+        .from("workout_sessions")
+        .update({ 
+          is_finalized: true,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", sessionId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["session-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+      
+      notify.success("Sessão finalizada", {
+        description: "A sessão foi salva e finalizada com sucesso",
+      });
+    },
+    onError: (error) => {
+      notify.error("Erro ao finalizar sessão", {
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+      });
+    },
+  });
+};
