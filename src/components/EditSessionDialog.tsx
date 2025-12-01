@@ -7,6 +7,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { Trash, Loader2, Mic } from "lucide-react";
@@ -34,6 +44,22 @@ interface Exercise {
   is_best_set: boolean;
 }
 
+interface SessionData {
+  id: string;
+  date: string;
+  time: string;
+  session_type: string;
+  workout_name: string | null;
+  trainer_name: string | null;
+  room_name: string | null;
+  is_finalized: boolean;
+  student: {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+  } | null;
+}
+
 export function EditSessionDialog({
   open,
   onOpenChange,
@@ -44,7 +70,8 @@ export function EditSessionDialog({
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [sessionData, setSessionData] = useState<any>(null);
+  const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
 
   useEffect(() => {
     if (open && sessionId) {
@@ -57,7 +84,6 @@ export function EditSessionDialog({
 
     setLoading(true);
     try {
-      // Buscar dados da sessão com informações do aluno
       const { data: session, error: sessionError } = await supabase
         .from('workout_sessions')
         .select(`
@@ -73,7 +99,6 @@ export function EditSessionDialog({
 
       if (sessionError) throw sessionError;
 
-      // Buscar exercícios da sessão
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('exercises')
         .select('*')
@@ -84,16 +109,17 @@ export function EditSessionDialog({
 
       setSessionData(session);
       setExercises(exercisesData || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       notify.error("Erro ao carregar sessão", {
-        description: error.message,
+        description: errorMessage,
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const updateExercise = (index: number, field: keyof Exercise, value: any) => {
+  const updateExercise = (index: number, field: keyof Exercise, value: string | number | boolean | null) => {
     const updated = [...exercises];
     updated[index] = { ...updated[index], [field]: value };
     setExercises(updated);
@@ -103,67 +129,79 @@ export function EditSessionDialog({
     setExercises(exercises.filter((_, i) => i !== index));
   };
 
+  const invalidateAllSessionQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
+    queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
+    queryClient.invalidateQueries({ queryKey: ["session-detail"] });
+    queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+    queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+  };
+
+  const deleteRemovedExercises = async (currentIds: string[]) => {
+    if (currentIds.length > 0) {
+      // Usar formato correto para o operador NOT IN
+      const { error } = await supabase
+        .from('exercises')
+        .delete()
+        .eq('session_id', sessionId!)
+        .not('id', 'in', `(${currentIds.join(',')})`);
+
+      if (error && error.code !== 'PGRST116') throw error;
+    } else {
+      // Se não há exercícios para manter, deletar todos da sessão
+      const { error } = await supabase
+        .from('exercises')
+        .delete()
+        .eq('session_id', sessionId!);
+
+      if (error) throw error;
+    }
+  };
+
+  const updateExistingExercises = async () => {
+    for (const exercise of exercises) {
+      if (!exercise.id) continue;
+      
+      const { error } = await supabase
+        .from('exercises')
+        .update({
+          exercise_name: exercise.exercise_name,
+          sets: exercise.sets,
+          reps: exercise.reps,
+          load_kg: exercise.load_kg,
+          load_breakdown: exercise.load_breakdown,
+          observations: exercise.observations,
+          is_best_set: exercise.is_best_set,
+        })
+        .eq('id', exercise.id);
+
+      if (error) throw error;
+    }
+  };
+
   const handleSave = async (finalize: boolean = false) => {
     if (!sessionId) return;
 
     setLoading(true);
     try {
-      // Deletar exercícios removidos
       const currentExerciseIds = exercises.map(ex => ex.id).filter(Boolean);
       
-      // Só deletar se houver IDs para manter
-      if (currentExerciseIds.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('exercises')
-          .delete()
-          .eq('session_id', sessionId)
-          .not('id', 'in', `(${currentExerciseIds.join(',')})`);
+      await deleteRemovedExercises(currentExerciseIds);
+      await updateExistingExercises();
 
-        if (deleteError && deleteError.code !== 'PGRST116') throw deleteError;
-      } else {
-        // Se não há exercícios para manter, deletar todos
-        const { error: deleteError } = await supabase
-          .from('exercises')
-          .delete()
-          .eq('session_id', sessionId);
-
-        if (deleteError) throw deleteError;
-      }
-
-      // Atualizar exercícios existentes
-      for (const exercise of exercises) {
-        const { error } = await supabase
-          .from('exercises')
-          .update({
-            exercise_name: exercise.exercise_name,
-            sets: exercise.sets,
-            reps: exercise.reps,
-            load_kg: exercise.load_kg,
-            load_breakdown: exercise.load_breakdown,
-            observations: exercise.observations,
-            is_best_set: exercise.is_best_set,
-          })
-          .eq('id', exercise.id);
-
-        if (error) throw error;
-      }
-
-      // Se finalize=true, marcar sessão como finalizada
       if (finalize) {
         const { error: updateError } = await supabase
           .from('workout_sessions')
-          .update({ is_finalized: true })
+          .update({ 
+            is_finalized: true,
+            updated_at: new Date().toISOString()
+          })
           .eq('id', sessionId);
 
         if (updateError) throw updateError;
       }
 
-      // Invalidar todas as queries relacionadas
-      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
-      queryClient.invalidateQueries({ queryKey: ["session-detail"] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+      invalidateAllSessionQueries();
 
       notify.success(finalize ? "Sessão finalizada" : "Sessão atualizada", {
         description: finalize 
@@ -173,223 +211,253 @@ export function EditSessionDialog({
 
       onSuccess?.();
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       notify.error("Erro ao salvar alterações", {
-        description: error.message,
+        description: errorMessage,
       });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleFinalizeClick = () => {
+    setShowFinalizeConfirm(true);
+  };
+
+  const handleConfirmFinalize = () => {
+    setShowFinalizeConfirm(false);
+    handleSave(true);
+  };
+
+  const studentName = sessionData?.student?.name || 'Aluno';
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
-        {loading && !exercises.length ? (
-          <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        ) : sessionData ? (
-          <>
-            <DialogHeader>
-              <div className="flex items-start gap-4">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={sessionData.student?.avatar_url || ""} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                    {sessionData.student?.name?.substring(0, 2).toUpperCase() || "??"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <DialogTitle className="text-2xl mb-2">
-                    Editar Sessão de {sessionData.student?.name}
-                  </DialogTitle>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant={sessionData.session_type === "individual" ? "default" : "secondary"}>
-                      {sessionData.session_type === "individual" ? "Individual" : "Grupo"}
-                    </Badge>
-                    <Badge variant={sessionData.is_finalized ? "outline" : "default"}>
-                      {sessionData.is_finalized ? "Finalizada" : "Em edição"}
-                    </Badge>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-4xl max-h-[90vh]">
+          {loading && !exercises.length ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : sessionData ? (
+            <>
+              <DialogHeader>
+                <div className="flex items-start gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={sessionData.student?.avatar_url || ""} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-lg">
+                      {sessionData.student?.name?.substring(0, 2).toUpperCase() || "??"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <DialogTitle className="text-2xl mb-2">
+                      Editar Sessão de {studentName}
+                    </DialogTitle>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant={sessionData.session_type === "individual" ? "default" : "secondary"}>
+                        {sessionData.session_type === "individual" ? "Individual" : "Grupo"}
+                      </Badge>
+                      <Badge variant={sessionData.is_finalized ? "outline" : "default"}>
+                        {sessionData.is_finalized ? "Finalizada" : "Em edição"}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </DialogHeader>
+              </DialogHeader>
 
-            <ScrollArea className="max-h-[calc(90vh-200px)] pr-4 mt-6">
-              <div className="space-y-6">
-                {/* Info da sessão */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">Informações da Sessão</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <span className="font-semibold">Data:</span>{" "}
-                        {format(new Date(sessionData.date), "dd/MM/yyyy", { locale: ptBR })}
-                      </div>
-                      <div>
-                        <span className="font-semibold">Horário:</span> {sessionData.time.substring(0, 5)}
-                      </div>
-                      {sessionData.workout_name && (
-                        <div className="col-span-2">
-                          <span className="font-semibold">Treino:</span> {sessionData.workout_name}
+              <ScrollArea className="max-h-[calc(90vh-200px)] pr-4 mt-6">
+                <div className="space-y-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm">Informações da Sessão</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="font-semibold">Data:</span>{" "}
+                          {format(new Date(sessionData.date), "dd/MM/yyyy", { locale: ptBR })}
                         </div>
-                      )}
-                      {sessionData.trainer_name && (
-                        <div className="col-span-2">
-                          <span className="font-semibold">Treinador:</span> {sessionData.trainer_name}
+                        <div>
+                          <span className="font-semibold">Horário:</span> {sessionData.time.substring(0, 5)}
                         </div>
-                      )}
-                      {sessionData.room_name && (
-                        <div className="col-span-2">
-                          <span className="font-semibold">Sala:</span> {sessionData.room_name}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-              {/* Exercícios */}
-              <div className="space-y-4">
-                <Label className="text-base">Exercícios ({exercises.length})</Label>
-                {exercises.map((exercise, idx) => {
-                  const needsAttention = exercise.sets === 0 || exercise.reps === 0;
-                  return (
-                    <Card key={exercise.id} className={needsAttention ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20' : ''}>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm">Exercício {idx + 1}</CardTitle>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeExercise(idx)}
-                            className="h-6 w-6 p-0 text-destructive"
-                          >
-                            <Trash className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {needsAttention && (
-                          <div className="mb-3 text-sm text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
-                            ⚠️ Exercício não registrado no áudio - preencher manualmente
+                        {sessionData.workout_name && (
+                          <div className="col-span-2">
+                            <span className="font-semibold">Treino:</span> {sessionData.workout_name}
                           </div>
                         )}
-                        <div className="space-y-2">
-                          <Label className="text-xs">Nome do Exercício *</Label>
-                          <Input
-                            value={exercise.exercise_name}
-                            onChange={(e) => updateExercise(idx, 'exercise_name', e.target.value)}
-                            placeholder="Nome do exercício"
-                          />
-                        </div>
-
-                        <div className="grid gap-3 md:grid-cols-4">
-                          <div className="space-y-2">
-                            <Label className="text-xs">Séries</Label>
-                            <Input
-                              type="number"
-                              value={exercise.sets}
-                              onChange={(e) => updateExercise(idx, 'sets', parseInt(e.target.value) || 0)}
-                              min="1"
-                            />
+                        {sessionData.trainer_name && (
+                          <div className="col-span-2">
+                            <span className="font-semibold">Treinador:</span> {sessionData.trainer_name}
                           </div>
-
-                          <div className="space-y-2">
-                            <Label className="text-xs">Reps</Label>
-                            <Input
-                              type="number"
-                              value={exercise.reps}
-                              onChange={(e) => updateExercise(idx, 'reps', parseInt(e.target.value) || 0)}
-                              min="1"
-                            />
+                        )}
+                        {sessionData.room_name && (
+                          <div className="col-span-2">
+                            <span className="font-semibold">Sala:</span> {sessionData.room_name}
                           </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
 
-                          <div className="space-y-2">
-                            <Label className="text-xs">Carga (kg)</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              value={exercise.load_kg || ''}
-                              onChange={(e) => updateExercise(idx, 'load_kg', parseFloat(e.target.value) || null)}
-                            />
-                          </div>
+                  <div className="space-y-4">
+                    <Label className="text-base">Exercícios ({exercises.length})</Label>
+                    {exercises.map((exercise, idx) => {
+                      const needsAttention = exercise.sets === 0 || exercise.reps === 0;
+                      return (
+                        <Card key={exercise.id} className={needsAttention ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20' : ''}>
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-sm">Exercício {idx + 1}</CardTitle>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeExercise(idx)}
+                                className="h-6 w-6 p-0 text-destructive"
+                              >
+                                <Trash className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            {needsAttention && (
+                              <div className="mb-3 text-sm text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
+                                ⚠️ Exercício não registrado no áudio - preencher manualmente
+                              </div>
+                            )}
+                            <div className="space-y-2">
+                              <Label className="text-xs">Nome do Exercício *</Label>
+                              <Input
+                                value={exercise.exercise_name}
+                                onChange={(e) => updateExercise(idx, 'exercise_name', e.target.value)}
+                                placeholder="Nome do exercício"
+                              />
+                            </div>
 
-                          <div className="space-y-2">
-                            <Label className="text-xs">Descrição Carga</Label>
-                            <Input
-                              value={exercise.load_breakdown}
-                              onChange={(e) => updateExercise(idx, 'load_breakdown', e.target.value)}
-                              placeholder="Ex: 20kg"
-                            />
-                          </div>
-                        </div>
+                            <div className="grid gap-3 md:grid-cols-4">
+                              <div className="space-y-2">
+                                <Label className="text-xs">Séries</Label>
+                                <Input
+                                  type="number"
+                                  value={exercise.sets}
+                                  onChange={(e) => updateExercise(idx, 'sets', parseInt(e.target.value) || 0)}
+                                  min="1"
+                                />
+                              </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-xs">Observações</Label>
-                          <Textarea
-                            value={exercise.observations || ''}
-                            onChange={(e) => updateExercise(idx, 'observations', e.target.value)}
-                            placeholder="Observações sobre a execução..."
-                            rows={2}
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          </ScrollArea>
-        </>
-        ) : (
-          <DialogHeader>
-            <DialogTitle>Editar Sessão</DialogTitle>
-          </DialogHeader>
-        )}
+                              <div className="space-y-2">
+                                <Label className="text-xs">Reps</Label>
+                                <Input
+                                  type="number"
+                                  value={exercise.reps}
+                                  onChange={(e) => updateExercise(idx, 'reps', parseInt(e.target.value) || 0)}
+                                  min="1"
+                                />
+                              </div>
 
-        <DialogFooter className="gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          {onReopenForRecording && sessionId && (
-            <Button
-              variant="secondary"
-              onClick={() => {
-                onReopenForRecording(sessionId);
-                onOpenChange(false);
-              }}
-              disabled={loading}
-            >
-              <Mic className="h-4 w-4 mr-2" />
-              Adicionar Gravações
-            </Button>
+                              <div className="space-y-2">
+                                <Label className="text-xs">Carga (kg)</Label>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={exercise.load_kg || ''}
+                                  onChange={(e) => updateExercise(idx, 'load_kg', parseFloat(e.target.value) || null)}
+                                />
+                              </div>
+
+                              <div className="space-y-2">
+                                <Label className="text-xs">Descrição Carga</Label>
+                                <Input
+                                  value={exercise.load_breakdown}
+                                  onChange={(e) => updateExercise(idx, 'load_breakdown', e.target.value)}
+                                  placeholder="Ex: 20kg"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <Label className="text-xs">Observações</Label>
+                              <Textarea
+                                value={exercise.observations || ''}
+                                onChange={(e) => updateExercise(idx, 'observations', e.target.value)}
+                                placeholder="Observações sobre a execução..."
+                                rows={2}
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              </ScrollArea>
+            </>
+          ) : (
+            <DialogHeader>
+              <DialogTitle>Editar Sessão</DialogTitle>
+            </DialogHeader>
           )}
-          <Button variant="outline" onClick={() => handleSave(false)} disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              "Salvar Rascunho"
+
+          <DialogFooter className="gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            {onReopenForRecording && sessionId && (
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  onReopenForRecording(sessionId);
+                  onOpenChange(false);
+                }}
+                disabled={loading}
+              >
+                <Mic className="h-4 w-4 mr-2" />
+                Adicionar Gravações
+              </Button>
             )}
-          </Button>
-          {sessionData && !sessionData.is_finalized && (
-            <Button onClick={() => handleSave(true)} disabled={loading}>
+            <Button variant="outline" onClick={() => handleSave(false)} disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Finalizando...
+                  Salvando...
                 </>
               ) : (
-                "Finalizar Sessão"
+                "Salvar Rascunho"
               )}
             </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            {sessionData && !sessionData.is_finalized && (
+              <Button onClick={handleFinalizeClick} disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Finalizando...
+                  </>
+                ) : (
+                  "Finalizar Sessão"
+                )}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showFinalizeConfirm} onOpenChange={setShowFinalizeConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finalizar sessão?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja finalizar esta sessão de <strong>{studentName}</strong>? 
+              Após finalizar, você ainda poderá reabrir a sessão se necessário.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmFinalize}>
+              Finalizar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

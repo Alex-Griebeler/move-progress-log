@@ -22,6 +22,17 @@ interface SessionDetailDialogProps {
   onEditSession?: (sessionId: string) => void;
 }
 
+interface SessionExercise {
+  id: string;
+  exercise_name: string;
+  sets: number | null;
+  reps: number | null;
+  load_kg: number | null;
+  load_breakdown: string | null;
+  observations: string | null;
+  is_best_set: boolean | null;
+}
+
 export const SessionDetailDialog = ({ 
   sessionId, 
   open, 
@@ -30,12 +41,7 @@ export const SessionDetailDialog = ({
   onEditSession,
 }: SessionDetailDialogProps) => {
   const navigate = useNavigate();
-  
-  console.log("SessionDetailDialog RENDER - sessionId:", sessionId, "open:", open);
-  
   const { data: session, isLoading, error } = useSessionDetail(sessionId);
-  
-  console.log("SessionDetailDialog QUERY - session:", session, "isLoading:", isLoading, "error:", error);
   
   const [movementPatternFilter, setMovementPatternFilter] = useState<string>("all");
   const [intensityFilter, setIntensityFilter] = useState<string>("all");
@@ -54,7 +60,14 @@ export const SessionDetailDialog = ({
     }
   };
 
-  const calculateTotalVolume = () => {
+  const handleEdit = () => {
+    if (sessionId && onEditSession) {
+      onEditSession(sessionId);
+      onOpenChange(false);
+    }
+  };
+
+  const calculateTotalVolume = (): number => {
     if (!session?.exercises) return 0;
     return session.exercises.reduce((total, exercise) => {
       const load = exercise.load_kg || 0;
@@ -70,7 +83,7 @@ export const SessionDetailDialog = ({
     return { label: "Leve", variant: "secondary" as const };
   };
 
-  const getExerciseIntensity = (exercise: any) => {
+  const getExerciseIntensity = (exercise: SessionExercise): string => {
     const volume = (exercise.load_kg || 0) * (exercise.sets || 0) * (exercise.reps || 0);
     if (volume > 500) return "alta";
     if (volume > 200) return "moderada";
@@ -82,7 +95,6 @@ export const SessionDetailDialog = ({
     
     let filtered = [...session.exercises];
 
-    // Filtro por padrão de movimento (simulado - idealmente viria do banco)
     if (movementPatternFilter !== "all") {
       filtered = filtered.filter(ex => {
         const name = ex.exercise_name.toLowerCase();
@@ -96,7 +108,6 @@ export const SessionDetailDialog = ({
       });
     }
 
-    // Filtro por intensidade
     if (intensityFilter !== "all") {
       filtered = filtered.filter(ex => getExerciseIntensity(ex) === intensityFilter);
     }
@@ -117,8 +128,6 @@ export const SessionDetailDialog = ({
     return Array.from(patterns);
   }, [session?.exercises]);
 
-  console.log("SessionDetailDialog ANTES DO RETURN - open:", open, "session:", session, "isLoading:", isLoading, "error:", error);
-  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -388,22 +397,13 @@ export const SessionDetailDialog = ({
               <Button variant="secondary" onClick={handleGoToStudent}>
                 Ver Perfil do Aluno
               </Button>
-              {!session.is_finalized && (
-                <Button
-                  onClick={() => {
-                    if (onEditSession) {
-                      onEditSession(session.id);
-                    } else {
-                      onOpenChange(false);
-                      navigate(`/alunos/${session.student.id}`);
-                    }
-                  }}
-                >
+              {!session.is_finalized && onEditSession && (
+                <Button variant="outline" onClick={handleEdit}>
                   Editar Sessão
                 </Button>
               )}
               {session.is_finalized && session.can_reopen && onReopenSession && (
-                <Button onClick={handleReopen}>
+                <Button variant="default" onClick={handleReopen}>
                   Reabrir Sessão
                 </Button>
               )}
