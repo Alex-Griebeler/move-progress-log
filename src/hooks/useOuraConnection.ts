@@ -11,6 +11,28 @@ interface OuraConnection {
   is_active: boolean;
 }
 
+// Configuração de timeout por tipo de operação
+const SYNC_TIMEOUT_CONFIG = {
+  singleDay: 30000,    // 30s para sync de 1 dia
+  multiDayBase: 45000, // 45s base para multi-day
+  perDayIncrement: 5000, // +5s por dia adicional
+  maxTimeout: 120000,  // máximo 2 minutos
+} as const;
+
+/**
+ * Calcula timeout dinâmico baseado no número de dias a sincronizar
+ */
+const calculateSyncTimeout = (days: number): number => {
+  if (days <= 1) {
+    return SYNC_TIMEOUT_CONFIG.singleDay;
+  }
+  
+  const calculated = SYNC_TIMEOUT_CONFIG.multiDayBase + 
+    (days - 1) * SYNC_TIMEOUT_CONFIG.perDayIncrement;
+  
+  return Math.min(calculated, SYNC_TIMEOUT_CONFIG.maxTimeout);
+};
+
 export const useOuraConnection = (studentId: string) => {
   return useQuery({
     queryKey: ["oura-connection", studentId],
@@ -30,14 +52,14 @@ export const useOuraConnection = (studentId: string) => {
 };
 
 /**
- * Helper function to invoke edge functions with timeout
+ * Helper function to invoke edge functions with configurable timeout
  * Previne requisições que ficam travadas indefinidamente
  */
 const invokeWithTimeout = async (
   functionName: string,
-  body: any,
-  timeoutMs = 15000
-) => {
+  body: Record<string, unknown>,
+  timeoutMs: number
+): Promise<unknown> => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -51,9 +73,11 @@ const invokeWithTimeout = async (
 
     if (error) throw error;
     return data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     clearTimeout(timeoutId);
-    if (error.name === "AbortError") {
+    
+    const isAbortError = error instanceof Error && error.name === "AbortError";
+    if (isAbortError) {
       throw new Error(
         "Timeout: A sincronização demorou muito. Verifique sua conexão com a internet."
       );
@@ -61,6 +85,23 @@ const invokeWithTimeout = async (
     throw error;
   }
 };
+
+interface SyncParams {
+  student_id: string;
+  date?: string;
+  days?: number;
+  onProgress?: (current: number, total: number) => void;
+}
+
+interface MultiDaySyncResult {
+  success: boolean;
+  total: number;
+  successful: number;
+  failed: number;
+  message: string;
+}
+
+type SyncResult = { status: "fulfilled"; value: unknown } | { status: "rejected"; reason: unknown };
 
 export const useSyncOura = () => {
   const queryClient = useQueryClient();
@@ -71,12 +112,7 @@ export const useSyncOura = () => {
       date,
       days = 1,
       onProgress,
-    }: {
-      student_id: string;
-      date?: string;
-      days?: number;
-      onProgress?: (current: number, total: number) => void;
-    }) => {
+    }: SyncParams): Promise<MultiDaySyncResult | unknown> => {
       // Detectar status offline ANTES de fazer requisição
       if (!navigator.onLine) {
         throw new Error(
@@ -84,17 +120,16 @@ export const useSyncOura = () => {
         );
       }
 
+      const timeout = calculateSyncTimeout(days);
+
       if (days === 1) {
         // Single day sync
         onProgress?.(1, 1);
-        const data = await invokeWithTimeout("oura-sync", {
-          student_id,
-          date,
-        });
+        const data = await invokeWithTimeout("oura-sync", { student_id, date }, timeout);
         return data;
       } else {
-        // Multiple days sync with progress tracking - FIXED: Use Brazil timezone
-        const results = [];
+        // Multiple days sync with progress tracking - Use Brazil timezone
+        const results: SyncResult[] = [];
         let completed = 0;
 
         for (let i = 0; i < days; i++) {
@@ -104,20 +139,13 @@ export const useSyncOura = () => {
           const syncDateBrazil = new Date(nowUTC.getTime() - brazilOffsetMinutes * 60 * 1000);
           syncDateBrazil.setDate(syncDateBrazil.getDate() - i);
           const dateStr = syncDateBrazil.toISOString().split("T")[0];
-          
-          console.log(`🔍 FRONTEND DATE (Brazil timezone, day ${i + 1}/${days}):`, {
-            iteration: i,
-            utc_time: nowUTC.toISOString(),
-            brazil_time: syncDateBrazil.toISOString(),
-            date_sent_to_api: dateStr,
-            offset_applied: '-3 hours (Brazil UTC-3)',
-          });
 
           try {
-            const data = await invokeWithTimeout("oura-sync", {
-              student_id,
-              date: dateStr,
-            });
+            const data = await invokeWithTimeout(
+              "oura-sync",
+              { student_id, date: dateStr },
+              timeout
+            );
 
             completed++;
             onProgress?.(completed, days);
@@ -129,8 +157,7 @@ export const useSyncOura = () => {
           }
         }
 
-        const successful = results.filter((r) => r.status === "fulfilled")
-          .length;
+        const successful = results.filter((r) => r.status === "fulfilled").length;
         const failed = results.filter((r) => r.status === "rejected").length;
 
         if (successful === 0) {
@@ -163,13 +190,14 @@ export const useSyncOura = () => {
         queryKey: ["oura-workouts", variables.student_id],
       });
 
-      if (variables.days && variables.days > 1) {
-        const message = data.message || `Sincronização concluída`;
-        const description = data.failed > 0
-          ? `${data.successful} dias sincronizados. Alguns dias podem não ter dados disponíveis ainda.`
-          : `${data.successful} dias sincronizados com sucesso!`;
+      const result = data as MultiDaySyncResult | undefined;
+      
+      if (variables.days && variables.days > 1 && result?.message) {
+        const description = result.failed > 0
+          ? `${result.successful} dias sincronizados. Alguns dias podem não ter dados disponíveis ainda.`
+          : `${result.successful} dias sincronizados com sucesso!`;
         
-        notify.success(message, { description });
+        notify.success(result.message, { description });
       } else {
         notify.success(i18n.modules.oura.dataUpdated, {
           description: i18n.modules.oura.synced
@@ -177,8 +205,6 @@ export const useSyncOura = () => {
       }
     },
     onError: (error: Error) => {
-      console.error("Oura sync error:", error);
-
       let title = "❌ Erro na sincronização";
       let description = "";
 
