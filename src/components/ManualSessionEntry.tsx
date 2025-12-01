@@ -209,7 +209,6 @@ export function ManualSessionEntry({
     
     try {
       let total = 0;
-      let processedEachSide = false;
 
       // 1. PESO CORPORAL COM VALOR EXPLÍCITO
       const bodyCorporalWithValue = breakdown.match(/Peso corporal\s*=\s*(\d+(?:[.,]\d+)?)\s*kg/i);
@@ -231,63 +230,73 @@ export function ManualSessionEntry({
         return;
       }
 
-      // 4. DETECTAR "DE CADA LADO" (PRIORIDADE)
-      const eachSideMatch = breakdown.match(/\((.*?)\)\s*de\s*cada\s*lado/i);
-      if (eachSideMatch) {
-        const content = eachSideMatch[1];
-        processedEachSide = true;
-
-        // KG dentro do parêntese
-        const kgMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
+      // 4. DETECTAR "DE CADA LADO" - com ou sem parênteses
+      const hasEachSide = /de\s*cada\s*lado/i.test(breakdown);
+      
+      if (hasEachSide) {
+        // Separar a parte "de cada lado" da parte da barra
+        // Tudo que vem ANTES de "de cada lado" (exceto barra) deve ser multiplicado por 2
+        const beforeEachSide = breakdown.split(/de\s*cada\s*lado/i)[0];
+        
+        // Extrair barra separadamente (não multiplica por 2)
+        const barraMatch = breakdown.match(/barra\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*kg/i);
+        if (barraMatch) {
+          total += parseFloat(barraMatch[1].replace(',', '.'));
+        }
+        
+        // Processar KG antes de "de cada lado" (multiplicar por 2)
+        // Remover a parte da barra do conteúdo para não contar duas vezes
+        const contentWithoutBarra = beforeEachSide.replace(/barra\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*kg/gi, '');
+        
+        const kgMatches = Array.from(contentWithoutBarra.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
         for (const m of kgMatches) {
           const value = parseFloat(m[1].replace(',', '.'));
           total += value * 2;
         }
 
-        // LB dentro do parêntese (usar constante global)
-        const lbMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
+        // Processar LB antes de "de cada lado" (multiplicar por 2)
+        const lbMatches = Array.from(contentWithoutBarra.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
         for (const m of lbMatches) {
           const value = parseFloat(m[1].replace(',', '.'));
           const kg = poundsToKg(value);
           total += kg * 2;
         }
-      }
-
-      // 5. KETTLEBELLS/HALTERES DUPLOS (multiplicar por 2)
-      const multiKbMatch = breakdown.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:[.,]\d+)?)\s*(kg|lb)/i);
-      if (multiKbMatch && !processedEachSide) {
-        const value = parseFloat(multiKbMatch[2].replace(',', '.'));
-        const unit = multiKbMatch[3].toLowerCase();
-        const kg = unit === 'lb' ? poundsToKg(value) : value;
-        total += kg * 2;
-      }
-
-      // 6. BARRA (sempre fora do "de cada lado")
-      const barraMatch = breakdown.match(/barra\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*kg/i);
-      if (barraMatch) {
-        const value = parseFloat(barraMatch[1].replace(',', '.'));
-        total += value;
-      }
-
-      // 7. PESOS SIMPLES (se não processou "de cada lado")
-      if (!processedEachSide && !multiKbMatch) {
-        // KG simples
-        const kgMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
-        for (const m of kgMatches) {
-          // Ignorar se faz parte de "barra X kg"
-          const beforeMatch = breakdown.substring(Math.max(0, m.index! - 10), m.index!);
-          if (!/barra\s*(?:de\s*)?$/i.test(beforeMatch)) {
-            const value = parseFloat(m[1].replace(',', '.'));
-            total += value;
-          }
+      } else {
+        // 5. KETTLEBELLS/HALTERES DUPLOS (multiplicar por 2)
+        const multiKbMatch = breakdown.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:[.,]\d+)?)\s*(kg|lb)/i);
+        if (multiKbMatch) {
+          const value = parseFloat(multiKbMatch[2].replace(',', '.'));
+          const unit = multiKbMatch[3].toLowerCase();
+          const kg = unit === 'lb' ? poundsToKg(value) : value;
+          total += kg * 2;
         }
 
-        // LB simples (usar constante global)
-        const lbMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
-        for (const m of lbMatches) {
-          const value = parseFloat(m[1].replace(',', '.'));
-          const kg = poundsToKg(value);
-          total += kg;
+        // 6. BARRA (sempre soma direta)
+        const barraMatch = breakdown.match(/barra\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*kg/i);
+        if (barraMatch) {
+          total += parseFloat(barraMatch[1].replace(',', '.'));
+        }
+
+        // 7. PESOS SIMPLES (se não processou "de cada lado" nem kettlebells duplos)
+        if (!multiKbMatch) {
+          // KG simples
+          const kgMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
+          for (const m of kgMatches) {
+            // Ignorar se faz parte de "barra X kg"
+            const beforeMatch = breakdown.substring(Math.max(0, m.index! - 10), m.index!);
+            if (!/barra\s*(?:de\s*)?$/i.test(beforeMatch)) {
+              const value = parseFloat(m[1].replace(',', '.'));
+              total += value;
+            }
+          }
+
+          // LB simples
+          const lbMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
+          for (const m of lbMatches) {
+            const value = parseFloat(m[1].replace(',', '.'));
+            const kg = poundsToKg(value);
+            total += kg;
+          }
         }
       }
 
@@ -296,7 +305,6 @@ export function ManualSessionEntry({
       updateExercise(studentId, exerciseIndex, 'load_kg', finalLoad);
 
     } catch (error) {
-      console.error('Erro ao calcular carga:', error);
       updateExercise(studentId, exerciseIndex, 'load_kg', null);
     }
   };
