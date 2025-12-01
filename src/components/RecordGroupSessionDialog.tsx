@@ -25,6 +25,7 @@ import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { NAV_LABELS } from "@/constants/navigation";
 import { useSessionDraft } from "@/hooks/useSessionDraft";
 import { AddStudentDialog } from "./AddStudentDialog";
+import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 
 interface RecordGroupSessionDialogProps {
   open: boolean;
@@ -900,59 +901,7 @@ export function RecordGroupSessionDialog({
     setEditableExercises(updatedMerged[newIndex].exercises || []);
   };
 
-  const calculateLoadFromBreakdown = (breakdown: string): number | null => {
-    try {
-      let total = 0;
-      let processedEachSide = false;
-      
-      const eachSideMatch = breakdown.match(/\((.*?)\)\s*de cada lado/i);
-      if (eachSideMatch) {
-        const content = eachSideMatch[1];
-        processedEachSide = true;
-        
-        const kgMatches = content.matchAll(/(\d+(?:\.\d+)?)\s*kg/gi);
-        for (const m of kgMatches) {
-          total += parseFloat(m[1]) * 2;
-        }
-        
-        const lbMatches = content.matchAll(/(\d+(?:\.\d+)?)\s*lb/gi);
-        for (const m of lbMatches) {
-          total += parseFloat(m[1]) * 0.45 * 2;
-        }
-      }
-      
-      const multiKbMatch = breakdown.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:\.\d+)?)\s*(kg|lb)/i);
-      if (multiKbMatch && !processedEachSide) {
-        const value = parseFloat(multiKbMatch[2]);
-        const unit = multiKbMatch[3].toLowerCase();
-        total += (unit === 'lb' ? value * 0.45 : value) * 2;
-      }
-      
-      const barraMatch = breakdown.match(/barra\s*(\d+(?:\.\d+)?)\s*kg/i);
-      if (barraMatch) {
-        total += parseFloat(barraMatch[1]);
-      }
-      
-      if (!processedEachSide && !multiKbMatch) {
-        const kgMatches = breakdown.matchAll(/(\d+(?:\.\d+)?)\s*kg/gi);
-        for (const m of kgMatches) {
-          if (!breakdown.substring(m.index!).includes('barra')) {
-            total += parseFloat(m[1]);
-          }
-        }
-        
-        const lbMatches = breakdown.matchAll(/(\d+(?:\.\d+)?)\s*lb/gi);
-        for (const m of lbMatches) {
-          total += parseFloat(m[1]) * 0.45;
-        }
-      }
-      
-      return total > 0 ? Math.round(total * 10) / 10 : null;
-    } catch (err) {
-      console.error('Erro ao calcular carga:', err);
-      return null;
-    }
-  };
+  // Função centralizada importada de @/utils/loadCalculation
 
   // Auto-selecionar alunos agendados para este dia/horário (apenas na primeira vez)
   useEffect(() => {
