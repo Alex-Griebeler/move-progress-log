@@ -38,7 +38,7 @@ import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState, useMemo, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useReopenWorkoutSession } from "@/hooks/useWorkoutSessions";
+import { useReopenWorkoutSession, useFinalizeWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -70,6 +70,7 @@ const StudentDetailPage = () => {
   const [editStudentOpen, setEditStudentOpen] = useState(false);
   const deleteAssignment = useDeletePrescriptionAssignment();
   const reopenSession = useReopenWorkoutSession();
+  const finalizeSession = useFinalizeWorkoutSession();
 
   const student = students?.find((s) => s.id === id);
   
@@ -442,6 +443,7 @@ const StudentDetailPage = () => {
                         }
                       });
                     }}
+                    onFinalize={() => finalizeSession.mutate(session.id)}
                     onClick={() => {
                       console.log("CLICOU NO CARD - Session ID:", session.id, "Session:", session);
                       setSelectedSessionId(session.id);

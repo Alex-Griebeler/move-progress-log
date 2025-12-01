@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator 
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { User, Users, MoreVertical, Eye, Edit, FolderOpen, FileText } from "lucide-react";
+import { User, Users, MoreVertical, Eye, Edit, FolderOpen, FileText, Check } from "lucide-react";
 import { memo } from "react";
 
 interface WorkoutCardProps {
@@ -25,6 +25,7 @@ interface WorkoutCardProps {
   canReopen?: boolean;
   onReopen?: () => void;
   onEdit?: () => void;
+  onFinalize?: () => void;
   sessionId?: string;
   onClick?: () => void;
 }
@@ -41,6 +42,7 @@ const WorkoutCard = memo(({
   canReopen, 
   onReopen, 
   onEdit, 
+  onFinalize,
   onClick 
 }: WorkoutCardProps) => {
   const displayName = name?.trim() || 'Aluno Desconhecido';
@@ -127,6 +129,18 @@ const WorkoutCard = memo(({
                 <Eye className="h-4 w-4 mr-2" />
                 Ver Detalhes
               </DropdownMenuItem>
+              
+              {!isFinalized && onFinalize && (
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onFinalize();
+                  }}
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Finalizar Sessão
+                </DropdownMenuItem>
+              )}
               
               {isFinalized && canReopen && onReopen && (
                 <DropdownMenuItem 
