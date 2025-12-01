@@ -1,14 +1,11 @@
-import { useState, memo } from "react";
+import { useState, memo, useMemo } from "react";
 import { useStudents, useDeleteStudent } from "@/hooks/useStudents";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
 import { StudentCardSkeleton } from "@/components/skeletons/StudentCardSkeleton";
-import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
@@ -28,9 +25,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
-import { useStudentImportantObservations } from "@/hooks/useStudentImportantObservations";
-import { useOuraConnectionStatus } from "@/hooks/useOuraConnectionStatus";
+import { useStudentsCardData, StudentCardData } from "@/hooks/useStudentsCardData";
 import type { Student } from "@/hooks/useStudents";
 import { AppHeader } from "@/components/AppHeader";
 import { Input } from "@/components/ui/input";
@@ -54,6 +49,225 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+// Funções auxiliares movidas para fora do componente (otimização)
+const getReadinessColor = (score: number | null | undefined) => {
+  if (!score) return 'text-muted-foreground';
+  if (score >= 85) return 'text-green-500';
+  if (score >= 70) return 'text-yellow-500';
+  return 'text-red-500';
+};
+
+const getReadinessLabel = (score: number | null | undefined) => {
+  if (!score) return 'Sem dados';
+  if (score >= 85) return 'Ótimo';
+  if (score >= 70) return 'Bom';
+  if (score >= 55) return 'Regular';
+  return 'Crítico';
+};
+
+const getMissingFields = (student: Student) => {
+  const missing: string[] = [];
+  if (!student.birth_date) missing.push('Data de nascimento');
+  if (!student.fitness_level) missing.push('Nível de fitness');
+  if (!student.objectives) missing.push('Objetivos');
+  if (!student.weight_kg || !student.height_cm) missing.push('Peso/Altura');
+  if (!student.max_heart_rate) missing.push('FC Máxima');
+  return missing;
+};
+
+// Interface para props do StudentCard
+interface StudentCardProps {
+  student: Student;
+  cardData: StudentCardData | undefined;
+  onEdit: (student: Student) => void;
+  onDelete: (id: string) => void;
+  onRecordSession: (id: string, name: string) => void;
+  onOpenGroupSession: () => void;
+}
+
+// Componente StudentCard otimizado - recebe dados via props em vez de fazer queries
+const StudentCard = memo(({ 
+  student, 
+  cardData, 
+  onEdit, 
+  onDelete, 
+  onRecordSession,
+  onOpenGroupSession 
+}: StudentCardProps) => {
+  const navigate = useNavigate();
+  const [showObservationsDialog, setShowObservationsDialog] = useState(false);
+  
+  // Dados vindos do batch hook (sem queries individuais)
+  const readinessScore = cardData?.ouraMetrics?.readiness_score ?? null;
+  const importantObservations = cardData?.importantObservations ?? [];
+  const ouraStatus = cardData?.ouraStatus ?? { isConnected: false, hasIssues: false };
+  const hasImportantObservations = importantObservations.length > 0;
+  
+  const missingFields = getMissingFields(student);
+  const hasIncompleteData = missingFields.length > 0;
+
+  return (
+    <>
+      <Card className="card-interactive overflow-hidden">
+        <CardHeader className="space-y-md pb-sm">
+          <CardTitle className="flex items-center justify-between gap-sm">
+            <div className="flex items-center gap-sm">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={student.avatar_url || undefined} />
+                <AvatarFallback className="bg-primary/10 text-foreground text-lg font-semibold">
+                  {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="text-lg font-semibold">{student.name}</span>
+                {student.fitness_level && (
+                  <Badge variant="outline" className="text-xs capitalize w-fit mt-1 opacity-70">
+                    {student.fitness_level}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            
+            {hasIncompleteData && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => onEdit(student)}
+                      className="inline-flex items-center justify-center rounded-full p-2 hover:bg-warning/10 transition-colors border border-warning/20"
+                      aria-label="Dados incompletos - clique para completar"
+                    >
+                      <AlertCircle className="h-4 w-4 text-warning" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs">
+                    <div className="space-y-2">
+                      <p className="font-semibold text-xs">Campos a preencher:</p>
+                      <ul className="text-xs space-y-1">
+                        {missingFields.map((field) => (
+                          <li key={field} className="flex items-start gap-1">
+                            <span className="text-warning">•</span>
+                            <span>{field}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-xs text-muted-foreground italic pt-1">
+                        Clique para editar o perfil
+                      </p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </CardTitle>
+          
+          <CardDescription className="space-y-sm">
+            {readinessScore ? (
+              <div className="flex items-center justify-between py-sm border-b border-border/50">
+                <div className="flex flex-col gap-xs">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Prontidão</span>
+                  <span className={`text-2xl font-semibold tabular-nums ${getReadinessColor(readinessScore)}`}>
+                    {readinessScore}%
+                  </span>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  {getReadinessLabel(readinessScore)}
+                </Badge>
+              </div>
+            ) : ouraStatus.isConnected && ouraStatus.hasIssues ? (
+              <Alert className="border-muted bg-transparent py-xs px-sm">
+                <AlertCircle className="h-3 w-3 text-muted-foreground" />
+                <AlertDescription className="text-xs text-muted-foreground">
+                  Dados Oura indisponíveis
+                </AlertDescription>
+              </Alert>
+            ) : ouraStatus.isConnected ? (
+              <div className="flex items-center justify-between py-xs px-sm rounded-md border border-dashed">
+                <span className="text-xs text-muted-foreground">Aguardando dados Oura</span>
+              </div>
+            ) : null}
+            
+            {hasImportantObservations && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-9 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                onClick={() => setShowObservationsDialog(true)}
+                aria-label={`Ver ${importantObservations.length} observações importantes`}
+              >
+                <Info className="h-3 w-3 mr-2" />
+                <span className="text-xs">
+                  {importantObservations.length} observação{importantObservations.length !== 1 ? 'ões' : ''}
+                </span>
+              </Button>
+            )}
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent className="pt-sm pb-md">
+          <div className="flex gap-xs">
+            <Button
+              variant="default"
+              size="default"
+              className="flex-1 shadow-sm hover:shadow-md transition-shadow"
+              onClick={() => navigate(ROUTES.studentDetail(student.id))}
+              aria-label={`Ver detalhes de ${student.name}`}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Detalhes
+            </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Mais ações">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={() => onRecordSession(student.id, student.name)}>
+                  <Mic className="h-4 w-4 mr-2" />
+                  Registro por Voz
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onOpenGroupSession}>
+                  <NotebookPen className="h-4 w-4 mr-2" />
+                  Registro Manual
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onEdit(student)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar Aluno
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onDelete(student.id)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir Aluno
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <StudentObservationsDialog
+        open={showObservationsDialog}
+        onOpenChange={setShowObservationsDialog}
+        studentName={student.name}
+        observations={importantObservations}
+      />
+    </>
+  );
+}, (prevProps, nextProps) => {
+  return prevProps.student.id === nextProps.student.id &&
+    prevProps.student.name === nextProps.student.name &&
+    prevProps.student.updated_at === nextProps.student.updated_at &&
+    prevProps.cardData === nextProps.cardData;
+});
+
+StudentCard.displayName = 'StudentCard';
+
+// Componente principal da página
 const StudentsPage = () => {
   usePageTitle(NAV_LABELS.students);
   useSEOHead(SEO_PRESETS.private);
@@ -70,6 +284,7 @@ const StudentsPage = () => {
   const { isAdmin } = useIsAdmin();
   const { mutate: syncAll, isPending: isSyncing } = useOuraSyncAll();
   const deleteStudent = useDeleteStudent();
+  
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [deletingStudentId, setDeletingStudentId] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -79,240 +294,19 @@ const StudentsPage = () => {
   const [isGroupSessionDialogOpen, setIsGroupSessionDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Batch hook - busca dados de todos os alunos em 3 queries em vez de N*3
+  const studentIds = useMemo(() => students?.map(s => s.id) ?? [], [students]);
+  const { data: studentsCardData } = useStudentsCardData(studentIds);
+
   const handleDelete = async (id: string) => {
     await deleteStudent.mutateAsync(id);
     setDeletingStudentId(null);
   };
 
-  const StudentCard = memo(({ student }: { student: Student }) => {
-    const { data: ouraMetrics } = useLatestOuraMetrics(student.id);
-    const { data: importantObservations } = useStudentImportantObservations(student.id);
-    const { data: ouraStatus } = useOuraConnectionStatus(student.id);
-    const [showObservationsDialog, setShowObservationsDialog] = useState(false);
-    
-    const readinessScore = ouraMetrics?.readiness_score;
-    const hasImportantObservations = importantObservations && importantObservations.length > 0;
-    
-    const getReadinessColor = (score: number | null | undefined) => {
-      if (!score) return 'text-muted-foreground';
-      if (score >= 85) return 'text-green-500';
-      if (score >= 70) return 'text-yellow-500';
-      return 'text-red-500';
-    };
-
-    const getReadinessLabel = (score: number | null | undefined) => {
-      if (!score) return 'Sem dados';
-      if (score >= 85) return 'Ótimo';
-      if (score >= 70) return 'Bom';
-      if (score >= 55) return 'Regular';
-      return 'Crítico';
-    };
-
-    const calculateIMC = () => {
-      if (student.weight_kg && student.height_cm) {
-        const heightM = student.height_cm / 100;
-        return (student.weight_kg / (heightM * heightM)).toFixed(1);
-      }
-      return null;
-    };
-
-    const getMissingFields = () => {
-      const missing: string[] = [];
-      
-      if (!student.birth_date) missing.push('Data de nascimento');
-      if (!student.fitness_level) missing.push('Nível de fitness');
-      if (!student.objectives) missing.push('Objetivos');
-      if (!student.weight_kg || !student.height_cm) missing.push('Peso/Altura');
-      if (!student.max_heart_rate) missing.push('FC Máxima');
-      
-      return missing;
-    };
-
-    const imc = calculateIMC();
-    const missingFields = getMissingFields();
-    const hasIncompleteData = missingFields.length > 0;
-
-    return (
-      <>
-        <Card className="card-interactive overflow-hidden">
-          <CardHeader className="space-y-md pb-sm">
-            <CardTitle className="flex items-center justify-between gap-sm">
-              <div className="flex items-center gap-sm">
-                <Avatar className="h-16 w-16">
-                  <AvatarImage src={student.avatar_url || undefined} />
-              <AvatarFallback className="bg-primary/10 text-foreground text-lg font-semibold">
-                {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-              </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col">
-                  <span className="text-lg font-semibold">{student.name}</span>
-                  {student.fitness_level && (
-                    <Badge variant="outline" className="text-xs capitalize w-fit mt-1 opacity-70">
-                      {student.fitness_level}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              {/* Ícone de dados incompletos com lista de campos */}
-              {hasIncompleteData && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => setEditingStudent(student)}
-                        className="inline-flex items-center justify-center rounded-full p-2 hover:bg-warning/10 transition-colors border border-warning/20"
-                        aria-label="Dados incompletos - clique para completar"
-                      >
-                        <AlertCircle className="h-4 w-4 text-warning" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left" className="max-w-xs">
-                      <div className="space-y-2">
-                        <p className="font-semibold text-xs">Campos a preencher:</p>
-                        <ul className="text-xs space-y-1">
-                          {missingFields.map((field) => (
-                            <li key={field} className="flex items-start gap-1">
-                              <span className="text-warning">•</span>
-                              <span>{field}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <p className="text-xs text-muted-foreground italic pt-1">
-                          Clique para editar o perfil
-                        </p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </CardTitle>
-            
-            <CardDescription className="space-y-sm">
-              {/* Readiness Oura Ring - Layout limpo */}
-              {readinessScore ? (
-                <div className="flex items-center justify-between py-sm border-b border-border/50">
-                  <div className="flex flex-col gap-xs">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Prontidão</span>
-                    <span className={`text-2xl font-semibold tabular-nums ${getReadinessColor(readinessScore)}`}>
-                      {readinessScore}%
-                    </span>
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {getReadinessLabel(readinessScore)}
-                  </Badge>
-                </div>
-              ) : ouraStatus?.isConnected && ouraStatus.hasIssues ? (
-                <Alert className="border-muted bg-transparent py-xs px-sm">
-                  <AlertCircle className="h-3 w-3 text-muted-foreground" />
-                  <AlertDescription className="text-xs text-muted-foreground">
-                    Dados Oura indisponíveis
-                  </AlertDescription>
-                </Alert>
-              ) : ouraStatus?.isConnected ? (
-                <div className="flex items-center justify-between py-xs px-sm rounded-md border border-dashed">
-                  <span className="text-xs text-muted-foreground">Aguardando dados Oura</span>
-                </div>
-              ) : null}
-              
-              {/* Observações Importantes - Mais discretas */}
-              {hasImportantObservations && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full h-9 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                  onClick={() => setShowObservationsDialog(true)}
-                  aria-label={`Ver ${importantObservations.length} observações importantes`}
-                >
-                  <Info className="h-3 w-3 mr-2" />
-                  <span className="text-xs">
-                    {importantObservations.length} observação{importantObservations.length !== 1 ? 'ões' : ''}
-                  </span>
-                </Button>
-              )}
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent className="pt-sm pb-md">
-            <div className="flex gap-xs">
-              {/* Botão principal - Detalhes */}
-              <Button
-                variant="default"
-                size="default"
-                className="flex-1 shadow-sm hover:shadow-md transition-shadow"
-                onClick={() => navigate(ROUTES.studentDetail(student.id))}
-                aria-label={`Ver detalhes de ${student.name}`}
-              >
-                <Eye className="h-4 w-4 mr-2" />
-                Detalhes
-              </Button>
-              
-              {/* Menu de ações secundárias */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="Mais ações"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setRecordingStudentId(student.id);
-                      setRecordingStudentName(student.name);
-                    }}
-                  >
-                    <Mic className="h-4 w-4 mr-2" />
-                    Registro por Voz
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      setIsGroupSessionDialogOpen(true);
-                    }}
-                  >
-                    <NotebookPen className="h-4 w-4 mr-2" />
-                    Registro Manual
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => setEditingStudent(student)}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar Aluno
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setDeletingStudentId(student.id)}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Excluir Aluno
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </CardContent>
-        </Card>
-        
-        {/* Dialog de Observações */}
-        <StudentObservationsDialog
-          open={showObservationsDialog}
-          onOpenChange={setShowObservationsDialog}
-          studentName={student.name}
-          observations={importantObservations || []}
-        />
-      </>
-    );
-  }, (prevProps, nextProps) => {
-    // Custom comparison function for memo
-    return prevProps.student.id === nextProps.student.id &&
-      prevProps.student.name === nextProps.student.name &&
-      prevProps.student.updated_at === nextProps.student.updated_at;
-  });
-
-  StudentCard.displayName = 'StudentCard';
+  const handleRecordSession = (id: string, name: string) => {
+    setRecordingStudentId(id);
+    setRecordingStudentName(name);
+  };
 
   const filteredStudents = students?.filter(student =>
     student.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -320,7 +314,6 @@ const StudentsPage = () => {
 
   return (
     <div className="min-h-screen bg-background animate-fade-in">
-      {/* Structured Data para SEO */}
       <StructuredData data={getOrganizationSchema()} id="org-schema" />
       <StructuredData 
         data={getWebPageSchema(
@@ -434,7 +427,15 @@ const StudentsPage = () => {
         ) : filteredStudents && filteredStudents.length > 0 ? (
           <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
             {filteredStudents.map((student) => (
-              <StudentCard key={student.id} student={student} />
+              <StudentCard 
+                key={student.id} 
+                student={student}
+                cardData={studentsCardData?.[student.id]}
+                onEdit={setEditingStudent}
+                onDelete={setDeletingStudentId}
+                onRecordSession={handleRecordSession}
+                onOpenGroupSession={() => setIsGroupSessionDialogOpen(true)}
+              />
             ))}
           </div>
         ) : searchTerm ? (
@@ -445,10 +446,6 @@ const StudentsPage = () => {
             primaryAction={{
               label: "Limpar busca",
               onClick: () => setSearchTerm(""),
-            }}
-            secondaryAction={{
-              label: i18n.filters.clear,
-              onClick: () => setSearchTerm("")
             }}
           />
         ) : (
