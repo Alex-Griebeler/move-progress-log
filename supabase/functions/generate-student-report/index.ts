@@ -41,8 +41,6 @@ serve(async (req) => {
 
     const { studentId, periodStart, periodEnd, trackedExercises, trainerNotes }: GenerateReportRequest = await req.json();
 
-    console.log('Generating report for student:', studentId, 'period:', periodStart, 'to', periodEnd);
-
     // Verify student belongs to trainer
     const { data: student, error: studentError } = await supabase
       .from('students')

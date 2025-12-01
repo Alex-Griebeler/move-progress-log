@@ -66,7 +66,6 @@ serve(async (req) => {
     // Verify user authentication
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
-      console.error('Authentication error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -92,8 +91,6 @@ serve(async (req) => {
       );
     }
 
-    console.log('Generating recommendations for student:', student_id, 'by user:', user.id);
-
     // Create service client for data operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -105,7 +102,6 @@ serve(async (req) => {
       .single();
 
     if (studentError || !student) {
-      console.error('Student not found:', studentError);
       return new Response(
         JSON.stringify({ error: 'Student not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -113,7 +109,6 @@ serve(async (req) => {
     }
 
     if (student.trainer_id !== user.id) {
-      console.error('Unauthorized access attempt:', user.id, 'to student:', student_id);
       return new Response(
         JSON.stringify({ error: 'Unauthorized access to student data' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -130,14 +125,11 @@ serve(async (req) => {
       .single();
 
     if (metricsError || !latestMetrics) {
-      console.log('No Oura metrics found for student:', student_id);
       return new Response(
         JSON.stringify({ message: 'No Oura metrics available for this student' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('Latest metrics:', latestMetrics);
 
     // Get all adaptation rules
     const { data: rules, error: rulesError } = await supabase
@@ -145,8 +137,6 @@ serve(async (req) => {
       .select('*');
 
     if (rulesError) throw rulesError;
-
-    console.log('Loaded adaptation rules:', rules?.length);
 
     // Get all protocols
     const { data: protocols, error: protocolsError } = await supabase
@@ -183,8 +173,6 @@ serve(async (req) => {
       }
 
       if (triggered) {
-        console.log(`Rule triggered: ${rule.metric_name} ${rule.condition} ${rule.threshold_value}, value: ${metricValue}`);
-
         // Generate protocol recommendations based on the rule
         const recommendedProtocols = getProtocolsForAction(rule.action_type, protocols as Protocol[]);
 
@@ -199,8 +187,6 @@ serve(async (req) => {
         }
       }
     }
-
-    console.log(`Generated ${recommendations.length} recommendations`);
 
     // Delete old recommendations for today (to avoid duplicates)
     await supabase
