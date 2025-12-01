@@ -103,7 +103,7 @@ export function EditSessionDialog({
     setExercises(exercises.filter((_, i) => i !== index));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (finalize: boolean = false) => {
     if (!sessionId) return;
 
     setLoading(true);
@@ -148,6 +148,16 @@ export function EditSessionDialog({
         if (error) throw error;
       }
 
+      // Se finalize=true, marcar sessão como finalizada
+      if (finalize) {
+        const { error: updateError } = await supabase
+          .from('workout_sessions')
+          .update({ is_finalized: true })
+          .eq('id', sessionId);
+
+        if (updateError) throw updateError;
+      }
+
       // Invalidar todas as queries relacionadas
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
@@ -155,8 +165,10 @@ export function EditSessionDialog({
       queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
 
-      notify.success("Sessão atualizada", {
-        description: "As alterações foram salvas com sucesso.",
+      notify.success(finalize ? "Sessão finalizada" : "Sessão atualizada", {
+        description: finalize 
+          ? "A sessão foi salva e finalizada com sucesso."
+          : "As alterações foram salvas com sucesso.",
       });
 
       onSuccess?.();
@@ -337,7 +349,7 @@ export function EditSessionDialog({
           </DialogHeader>
         )}
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 flex-wrap">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
@@ -354,16 +366,28 @@ export function EditSessionDialog({
               Adicionar Gravações
             </Button>
           )}
-          <Button onClick={handleSave} disabled={loading}>
+          <Button variant="outline" onClick={() => handleSave(false)} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Salvando...
               </>
             ) : (
-              "Salvar Alterações"
+              "Salvar Rascunho"
             )}
           </Button>
+          {sessionData && !sessionData.is_finalized && (
+            <Button onClick={() => handleSave(true)} disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Finalizando...
+                </>
+              ) : (
+                "Finalizar Sessão"
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
