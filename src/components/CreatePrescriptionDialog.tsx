@@ -151,13 +151,11 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     };
 
     if (afterIndex !== undefined && afterIndex >= 0) {
-      console.log('Adding exercise after index:', afterIndex);
       const newExercises = [...exercises];
       newExercises.splice(afterIndex + 1, 0, newExercise);
       setExercises(newExercises);
       setTimeout(() => setFocusedExerciseIndex(afterIndex + 1), 0);
     } else {
-      console.log('Adding exercise at end');
       setExercises([...exercises, newExercise]);
       setTimeout(() => setFocusedExerciseIndex(exercises.length), 0);
     }
@@ -273,8 +271,6 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
   };
 
   const handleSubmit = async () => {
-    console.log('[CreatePrescription] Iniciando submit', { name, exerciseCount: exercises.length });
-    
     // Validação de nome
     if (!name.trim()) {
       notify.error("Nome obrigatório", {
@@ -283,30 +279,41 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       return;
     }
 
-    // Validação detalhada de exercícios
-    const invalidExercises: string[] = [];
+    // Validação detalhada de exercícios e adaptações
+    const validationErrors: string[] = [];
     
     exercises.forEach((ex, index) => {
       const exerciseName = exercisesLibrary?.find(e => e.id === ex.exercise_library_id)?.name || `Exercício ${index + 1}`;
       
       if (!ex.exercise_library_id) {
-        invalidExercises.push(`${exerciseName}: selecione um exercício`);
+        validationErrors.push(`${exerciseName}: selecione um exercício`);
       } else if (!ex.sets) {
-        invalidExercises.push(`${exerciseName}: informe as séries`);
+        validationErrors.push(`${exerciseName}: informe as séries`);
       } else if (!ex.reps) {
-        invalidExercises.push(`${exerciseName}: informe as repetições`);
+        validationErrors.push(`${exerciseName}: informe as repetições`);
+      }
+      
+      // Validação de adaptações: se showAdaptations está ativo, todas as adaptações devem ter exercício selecionado
+      if (ex.showAdaptations && ex.adaptations.length > 0) {
+        ex.adaptations.forEach((adaptation, adaptIndex) => {
+          if (!adaptation.exercise_library_id) {
+            const adaptationLabel = adaptation.type === "regression_1" ? "Regressão 1" 
+              : adaptation.type === "regression_2" ? "Regressão 2" 
+              : "Regressão 3";
+            validationErrors.push(`${exerciseName} - ${adaptationLabel}: selecione um exercício de adaptação`);
+          }
+        });
       }
     });
 
-    if (invalidExercises.length > 0) {
-      notify.error("Exercícios incompletos", {
-        description: `Corrija os seguintes campos:\n${invalidExercises.slice(0, 3).join('\n')}${invalidExercises.length > 3 ? `\n...e mais ${invalidExercises.length - 3}` : ''}`
+    if (validationErrors.length > 0) {
+      notify.error("Campos incompletos", {
+        description: `Corrija os seguintes campos:\n${validationErrors.slice(0, 3).join('\n')}${validationErrors.length > 3 ? `\n...e mais ${validationErrors.length - 3}` : ''}`
       });
       return;
     }
 
     const validExercises = exercises.filter((ex) => ex.exercise_library_id && ex.sets && ex.reps);
-    console.log('[CreatePrescription] Exercícios válidos:', validExercises.length);
 
     if (validExercises.length === 0) {
       notify.error("Exercícios obrigatórios", {
@@ -332,8 +339,6 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
         })),
       });
-
-      console.log('[CreatePrescription] Prescrição criada com sucesso');
       
       // Limpar rascunho após sucesso
       clearDraft();
@@ -357,10 +362,10 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         },
       ]);
       onOpenChange(false);
-    } catch (error: any) {
-      console.error('[CreatePrescription] Erro ao criar prescrição:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro inesperado. Tente novamente.";
       notify.error("Erro ao criar prescrição", {
-        description: error?.message || "Ocorreu um erro inesperado. Tente novamente."
+        description: errorMessage
       });
     }
   };
