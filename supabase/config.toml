@@ -3,9 +3,9 @@ project_id = "zrgfrdmywxlemcuiqtqg"
 [functions.generate-protocol-recommendations]
 verify_jwt = true
 
-# Public endpoint - uses service role authentication internally
+# Requires admin role - validates JWT and checks user_roles table
 [functions.oura-sync-all]
-verify_jwt = false
+verify_jwt = true
 
 # Public endpoint - validates invite token from URL parameters
 [functions.validate-student-invite]

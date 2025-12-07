@@ -22,9 +22,75 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+    // Extract and validate JWT token
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Missing or invalid authorization header' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401
+        }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Create client with user's token to verify authentication
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } }
+    });
+
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error('Authentication failed:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired token' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401
+        }
+      );
+    }
+
+    // Create service role client for privileged operations
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log('🚀 Starting Oura sync for all students...');
+    // Check if user has admin role
+    const { data: roleData, error: roleError } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+
+    if (roleError) {
+      console.error('Error checking role:', roleError.message);
+      return new Response(
+        JSON.stringify({ error: 'Failed to verify permissions' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
+    }
+
+    if (!roleData) {
+      console.warn(`Unauthorized sync attempt by user: ${user.id}`);
+      return new Response(
+        JSON.stringify({ error: 'Admin privileges required for this operation' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 403
+        }
+      );
+    }
+
+    console.log(`Admin ${user.id} initiated Oura sync for all students`);
 
     // Get all students with active Oura connections
     const { data: connections, error: connectionsError } = await supabase
@@ -45,7 +111,6 @@ Deno.serve(async (req) => {
     }
 
     if (!connections || connections.length === 0) {
-      console.log('No active Oura connections found');
       return new Response(
         JSON.stringify({ 
           message: 'No active Oura connections found',
@@ -75,7 +140,6 @@ Deno.serve(async (req) => {
     }
 
     const dateStr = brazilDate.toISOString().split('T')[0];
-    console.log(`📅 Syncing data for date: ${dateStr}`);
 
     const results: SyncResult[] = [];
 
@@ -83,18 +147,13 @@ Deno.serve(async (req) => {
     for (const connection of connections) {
       const studentId = connection.student_id;
       const studentName = (connection.students as any)?.name || 'Unknown';
-      
-      console.log(`\n📊 Syncing student: ${studentName} (${studentId})`);
 
       let lastError = '';
       let success = false;
-      let metrics_synced = null;
 
       // Try up to 3 times
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          console.log(`  Attempt ${attempt}/3...`);
-
           // Log retry attempt
           if (attempt > 1) {
             await supabase.from('oura_sync_logs').insert({
@@ -115,9 +174,7 @@ Deno.serve(async (req) => {
             throw syncError;
           }
 
-          console.log(`  ✅ Success on attempt ${attempt}`);
           success = true;
-          metrics_synced = syncData;
 
           // Log success
           await supabase.from('oura_sync_logs').insert({
@@ -136,16 +193,12 @@ Deno.serve(async (req) => {
             metrics_synced: syncData
           });
 
-          break; // Success, no need to retry
+          break;
         } catch (error) {
           const err = error as Error;
           lastError = err.message || String(error);
-          console.error(`  ❌ Attempt ${attempt} failed:`, lastError);
 
           if (attempt === 3) {
-            // Final attempt failed
-            console.error(`  ⚠️ All 3 attempts failed for ${studentName}`);
-            
             await supabase.from('oura_sync_logs').insert({
               student_id: studentId,
               sync_date: dateStr,
@@ -163,8 +216,7 @@ Deno.serve(async (req) => {
             });
           } else {
             // Wait before retrying (exponential backoff)
-            const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s
-            console.log(`  ⏳ Waiting ${waitTime}ms before retry...`);
+            const waitTime = Math.pow(2, attempt) * 1000;
             await new Promise(resolve => setTimeout(resolve, waitTime));
           }
         }
@@ -173,8 +225,6 @@ Deno.serve(async (req) => {
 
     const successCount = results.filter(r => r.status === 'success').length;
     const failedCount = results.filter(r => r.status === 'failed').length;
-
-    console.log(`\n✨ Sync completed: ${successCount} success, ${failedCount} failed`);
 
     return new Response(
       JSON.stringify({ 
@@ -195,8 +245,7 @@ Deno.serve(async (req) => {
     const err = error as Error;
     return new Response(
       JSON.stringify({ 
-        error: err.message || 'Unknown error occurred',
-        details: String(error)
+        error: err.message || 'Unknown error occurred'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
