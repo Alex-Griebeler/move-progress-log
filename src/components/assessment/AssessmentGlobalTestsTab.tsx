@@ -12,11 +12,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Plus, Save, Trash2, Eye } from "lucide-react";
-import { useGlobalTestResults, useCreateGlobalTestResult, useUpdateGlobalTestResult, useDeleteGlobalTestResult } from "@/hooks/useTestResults";
+import { useGlobalTestResults, useCreateGlobalTestResult, useUpdateGlobalTestResult, useDeleteGlobalTestResult, GlobalTestResult } from "@/hooks/useTestResults";
 import { LoadingState } from "@/components/LoadingState";
-import EmptyState from "@/components/EmptyState";
 
 interface AssessmentGlobalTestsTabProps {
   assessmentId: string;
@@ -32,7 +30,6 @@ const GLOBAL_TESTS = [
 ];
 
 const POSTURAL_VIEWS = ["anterior", "lateral", "posterior"] as const;
-const SIDES = ["left", "right"] as const;
 
 const POSTURAL_CHECKPOINTS: Record<string, string[]> = {
   anterior: [
@@ -71,7 +68,7 @@ export function AssessmentGlobalTestsTab({ assessmentId, canEdit }: AssessmentGl
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState<string>("");
-  const [editingTest, setEditingTest] = useState<any>(null);
+  const [editingTest, setEditingTest] = useState<GlobalTestResult | null>(null);
   const [formData, setFormData] = useState<{
     notes: string;
     anterior_view: Record<string, boolean>;
@@ -102,16 +99,16 @@ export function AssessmentGlobalTestsTab({ assessmentId, canEdit }: AssessmentGl
     setDialogOpen(true);
   };
 
-  const openEditTest = (test: any) => {
+  const openEditTest = (test: GlobalTestResult) => {
     setSelectedTest(test.test_name);
     setEditingTest(test);
     setFormData({
       notes: test.notes || "",
-      anterior_view: test.anterior_view || {},
-      lateral_view: test.lateral_view || {},
-      posterior_view: test.posterior_view || {},
-      left_side: test.left_side || {},
-      right_side: test.right_side || {},
+      anterior_view: (test.anterior_view as Record<string, boolean>) || {},
+      lateral_view: (test.lateral_view as Record<string, boolean>) || {},
+      posterior_view: (test.posterior_view as Record<string, boolean>) || {},
+      left_side: (test.left_side as Record<string, any>) || {},
+      right_side: (test.right_side as Record<string, any>) || {},
     });
     setDialogOpen(true);
   };
@@ -119,7 +116,7 @@ export function AssessmentGlobalTestsTab({ assessmentId, canEdit }: AssessmentGl
   const handleSave = async () => {
     const data = {
       test_name: selectedTest,
-      notes: formData.notes || null,
+      notes: formData.notes || undefined,
       anterior_view: formData.anterior_view,
       lateral_view: formData.lateral_view,
       posterior_view: formData.posterior_view,
@@ -137,7 +134,7 @@ export function AssessmentGlobalTestsTab({ assessmentId, canEdit }: AssessmentGl
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este teste?")) {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync({ id, assessment_id: assessmentId });
     }
   };
 
@@ -177,7 +174,7 @@ export function AssessmentGlobalTestsTab({ assessmentId, canEdit }: AssessmentGl
                       <p className="text-sm text-muted-foreground mt-1">{test.description}</p>
                     </div>
                     <div className="flex gap-1">
-                      {isCompleted ? (
+                      {isCompleted && existingTest ? (
                         <>
                           <Button 
                             variant="ghost" 
@@ -190,7 +187,7 @@ export function AssessmentGlobalTestsTab({ assessmentId, canEdit }: AssessmentGl
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => handleDelete(existingTest!.id)}
+                              onClick={() => handleDelete(existingTest.id)}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -235,31 +232,33 @@ export function AssessmentGlobalTestsTab({ assessmentId, canEdit }: AssessmentGl
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {POSTURAL_CHECKPOINTS[view].map((checkpoint) => (
-                          <div key={checkpoint} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`${view}-${checkpoint}`}
-                              checked={formData[`${view}_view` as keyof typeof formData]?.[checkpoint] || false}
-                              onCheckedChange={(checked) => {
-                                const viewKey = `${view}_view` as keyof typeof formData;
-                                setFormData({
-                                  ...formData,
-                                  [viewKey]: {
-                                    ...formData[viewKey],
-                                    [checkpoint]: !!checked,
-                                  },
-                                });
-                              }}
-                              disabled={!canEdit}
-                            />
-                            <Label 
-                              htmlFor={`${view}-${checkpoint}`} 
-                              className="cursor-pointer text-sm"
-                            >
-                              {checkpoint}
-                            </Label>
-                          </div>
-                        ))}
+                        {POSTURAL_CHECKPOINTS[view].map((checkpoint) => {
+                          const viewKey = `${view}_view` as 'anterior_view' | 'lateral_view' | 'posterior_view';
+                          return (
+                            <div key={checkpoint} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`${view}-${checkpoint}`}
+                                checked={formData[viewKey]?.[checkpoint] || false}
+                                onCheckedChange={(checked) => {
+                                  setFormData({
+                                    ...formData,
+                                    [viewKey]: {
+                                      ...formData[viewKey],
+                                      [checkpoint]: !!checked,
+                                    },
+                                  });
+                                }}
+                                disabled={!canEdit}
+                              />
+                              <Label 
+                                htmlFor={`${view}-${checkpoint}`} 
+                                className="cursor-pointer text-sm"
+                              >
+                                {checkpoint}
+                              </Label>
+                            </div>
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>

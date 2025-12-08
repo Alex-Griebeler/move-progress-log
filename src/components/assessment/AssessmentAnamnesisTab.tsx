@@ -17,9 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Save, Plus, X, AlertTriangle } from "lucide-react";
-import { useAnamnesis, useCreateAnamnesis, useUpdateAnamnesis } from "@/hooks/useAnamnesis";
+import { useAnamnesis, useCreateAnamnesis, useUpdateAnamnesis, PainHistory, Surgery, Sport, RedFlags, LateralityType } from "@/hooks/useAnamnesis";
 import { LoadingState } from "@/components/LoadingState";
-import { notify } from "@/lib/notify";
 
 interface AssessmentAnamnesisTabProps {
   assessmentId: string;
@@ -45,15 +44,13 @@ const TIME_HORIZONS = [
   { value: "long", label: "Longo prazo (6+ meses)" },
 ];
 
-const RED_FLAGS = [
+const RED_FLAGS_LIST = [
   { key: "unexplained_weight_loss", label: "Perda de peso inexplicada" },
   { key: "night_pain", label: "Dor noturna que acorda" },
   { key: "fever", label: "Febre recente" },
-  { key: "numbness", label: "Dormência ou formigamento" },
-  { key: "bladder_issues", label: "Problemas de bexiga/intestino" },
+  { key: "bladder_bowel_dysfunction", label: "Problemas de bexiga/intestino" },
   { key: "progressive_weakness", label: "Fraqueza progressiva" },
-  { key: "cancer_history", label: "Histórico de câncer" },
-  { key: "steroid_use", label: "Uso prolongado de corticoides" },
+  { key: "recent_trauma", label: "Trauma recente" },
 ];
 
 export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnamnesisTabProps) {
@@ -65,7 +62,7 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
   const [birthDate, setBirthDate] = useState("");
   const [weightKg, setWeightKg] = useState("");
   const [heightCm, setHeightCm] = useState("");
-  const [laterality, setLaterality] = useState<string>("");
+  const [laterality, setLaterality] = useState<LateralityType | "">("");
   const [occupation, setOccupation] = useState("");
   const [workType, setWorkType] = useState("");
   const [sedentaryHours, setSedentaryHours] = useState<number>(8);
@@ -75,10 +72,10 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
   const [activityDuration, setActivityDuration] = useState<number>(0);
   const [objectives, setObjectives] = useState("");
   const [timeHorizon, setTimeHorizon] = useState("");
-  const [painHistory, setPainHistory] = useState<Array<{ region: string; duration: string; intensity: number }>>([]);
-  const [surgeries, setSurgeries] = useState<Array<{ type: string; year: string; notes: string }>>([]);
-  const [sports, setSports] = useState<Array<{ name: string; frequency: string; level: string }>>([]);
-  const [redFlags, setRedFlags] = useState<Record<string, boolean>>({});
+  const [painHistory, setPainHistory] = useState<PainHistory[]>([]);
+  const [surgeries, setSurgeries] = useState<Surgery[]>([]);
+  const [sports, setSports] = useState<Sport[]>([]);
+  const [redFlags, setRedFlags] = useState<RedFlags>({});
   const [lgpdConsent, setLgpdConsent] = useState(false);
 
   // Load existing data
@@ -105,30 +102,28 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
     }
   }, [anamnesis]);
 
-  const hasRedFlags = Object.values(redFlags).some(v => v);
+  const hasRedFlags = Object.values(redFlags).some(v => v === true);
 
   const handleSave = async () => {
     const data = {
-      birth_date: birthDate || null,
-      weight_kg: weightKg ? parseFloat(weightKg) : null,
-      height_cm: heightCm ? parseFloat(heightCm) : null,
-      laterality: laterality as any || null,
-      occupation: occupation || null,
-      work_type: workType || null,
+      birth_date: birthDate || undefined,
+      weight_kg: weightKg ? parseFloat(weightKg) : undefined,
+      height_cm: heightCm ? parseFloat(heightCm) : undefined,
+      laterality: (laterality as LateralityType) || undefined,
+      occupation: occupation || undefined,
+      work_type: workType || undefined,
       sedentary_hours_per_day: sedentaryHours,
       sleep_hours: sleepHours,
       sleep_quality: sleepQuality,
       activity_frequency: activityFrequency,
       activity_duration_minutes: activityDuration,
-      objectives: objectives || null,
-      time_horizon: timeHorizon || null,
+      objectives: objectives || undefined,
+      time_horizon: timeHorizon || undefined,
       pain_history: painHistory,
       surgeries,
       sports,
       red_flags: redFlags,
-      has_red_flags: hasRedFlags,
       lgpd_consent: lgpdConsent,
-      lgpd_consent_date: lgpdConsent ? new Date().toISOString() : null,
     };
 
     try {
@@ -143,7 +138,7 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
   };
 
   const addPainEntry = () => {
-    setPainHistory([...painHistory, { region: "", duration: "", intensity: 5 }]);
+    setPainHistory([...painHistory, { location: "", duration: "", intensity: 5, frequency: "" }]);
   };
 
   const removePainEntry = (index: number) => {
@@ -151,7 +146,7 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
   };
 
   const addSurgery = () => {
-    setSurgeries([...surgeries, { type: "", year: "", notes: "" }]);
+    setSurgeries([...surgeries, { procedure: "", date: "", notes: "" }]);
   };
 
   const removeSurgery = (index: number) => {
@@ -159,7 +154,7 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
   };
 
   const addSport = () => {
-    setSports([...sports, { name: "", frequency: "", level: "" }]);
+    setSports([...sports, { name: "", frequency_per_week: 1, years_practicing: 1 }]);
   };
 
   const removeSport = (index: number) => {
@@ -220,7 +215,7 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
               <Label>Lateralidade</Label>
               <RadioGroup 
                 value={laterality} 
-                onValueChange={setLaterality}
+                onValueChange={(v) => setLaterality(v as LateralityType)}
                 disabled={!canEdit}
                 className="flex gap-4"
               >
@@ -368,42 +363,36 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
                   value={sport.name}
                   onChange={(e) => {
                     const updated = [...sports];
-                    updated[index].name = e.target.value;
+                    updated[index] = { ...updated[index], name: e.target.value };
                     setSports(updated);
                   }}
                   disabled={!canEdit}
                   className="flex-1"
                 />
                 <Input
-                  placeholder="Frequência"
-                  value={sport.frequency}
+                  type="number"
+                  placeholder="x/semana"
+                  value={sport.frequency_per_week}
                   onChange={(e) => {
                     const updated = [...sports];
-                    updated[index].frequency = e.target.value;
+                    updated[index] = { ...updated[index], frequency_per_week: parseInt(e.target.value) || 1 };
                     setSports(updated);
                   }}
                   disabled={!canEdit}
-                  className="w-32"
+                  className="w-24"
                 />
-                <Select 
-                  value={sport.level} 
-                  onValueChange={(v) => {
+                <Input
+                  type="number"
+                  placeholder="Anos"
+                  value={sport.years_practicing}
+                  onChange={(e) => {
                     const updated = [...sports];
-                    updated[index].level = v;
+                    updated[index] = { ...updated[index], years_practicing: parseInt(e.target.value) || 1 };
                     setSports(updated);
                   }}
                   disabled={!canEdit}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Nível" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="beginner">Iniciante</SelectItem>
-                    <SelectItem value="intermediate">Intermediário</SelectItem>
-                    <SelectItem value="advanced">Avançado</SelectItem>
-                    <SelectItem value="professional">Profissional</SelectItem>
-                  </SelectContent>
-                </Select>
+                  className="w-24"
+                />
                 {canEdit && (
                   <Button variant="ghost" size="icon" onClick={() => removeSport(index)}>
                     <X className="h-4 w-4" />
@@ -436,11 +425,11 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
           {painHistory.map((pain, index) => (
             <div key={index} className="flex gap-2 items-start p-3 bg-muted/30 rounded-lg">
               <Input
-                placeholder="Região (ex: lombar, ombro direito)"
-                value={pain.region}
+                placeholder="Localização (ex: lombar, ombro direito)"
+                value={pain.location}
                 onChange={(e) => {
                   const updated = [...painHistory];
-                  updated[index].region = e.target.value;
+                  updated[index] = { ...updated[index], location: e.target.value };
                   setPainHistory(updated);
                 }}
                 disabled={!canEdit}
@@ -451,14 +440,25 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
                 value={pain.duration}
                 onChange={(e) => {
                   const updated = [...painHistory];
-                  updated[index].duration = e.target.value;
+                  updated[index] = { ...updated[index], duration: e.target.value };
                   setPainHistory(updated);
                 }}
                 disabled={!canEdit}
                 className="w-32"
               />
-              <div className="flex items-center gap-2 w-40">
-                <Label className="text-xs whitespace-nowrap">Intensidade:</Label>
+              <Input
+                placeholder="Frequência"
+                value={pain.frequency}
+                onChange={(e) => {
+                  const updated = [...painHistory];
+                  updated[index] = { ...updated[index], frequency: e.target.value };
+                  setPainHistory(updated);
+                }}
+                disabled={!canEdit}
+                className="w-32"
+              />
+              <div className="flex items-center gap-2 w-28">
+                <Label className="text-xs whitespace-nowrap">Int:</Label>
                 <Input
                   type="number"
                   min={1}
@@ -466,7 +466,7 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
                   value={pain.intensity}
                   onChange={(e) => {
                     const updated = [...painHistory];
-                    updated[index].intensity = parseInt(e.target.value) || 5;
+                    updated[index] = { ...updated[index], intensity: parseInt(e.target.value) || 5 };
                     setPainHistory(updated);
                   }}
                   disabled={!canEdit}
@@ -502,35 +502,35 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
             )}
           </div>
           {surgeries.map((surgery, index) => (
-            <div key={index} className="flex gap-2 items-start p-3 bg-muted/30 rounded-lg">
+            <div key={index} className="flex gap-2 items-start">
               <Input
-                placeholder="Tipo de cirurgia"
-                value={surgery.type}
+                placeholder="Procedimento"
+                value={surgery.procedure}
                 onChange={(e) => {
                   const updated = [...surgeries];
-                  updated[index].type = e.target.value;
+                  updated[index] = { ...updated[index], procedure: e.target.value };
                   setSurgeries(updated);
                 }}
                 disabled={!canEdit}
                 className="flex-1"
               />
               <Input
-                placeholder="Ano"
-                value={surgery.year}
+                placeholder="Data (ex: 2020)"
+                value={surgery.date}
                 onChange={(e) => {
                   const updated = [...surgeries];
-                  updated[index].year = e.target.value;
+                  updated[index] = { ...updated[index], date: e.target.value };
                   setSurgeries(updated);
                 }}
                 disabled={!canEdit}
-                className="w-24"
+                className="w-32"
               />
               <Input
-                placeholder="Observações"
-                value={surgery.notes}
+                placeholder="Notas"
+                value={surgery.notes || ""}
                 onChange={(e) => {
                   const updated = [...surgeries];
-                  updated[index].notes = e.target.value;
+                  updated[index] = { ...updated[index], notes: e.target.value };
                   setSurgeries(updated);
                 }}
                 disabled={!canEdit}
@@ -553,34 +553,26 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
             {hasRedFlags && <AlertTriangle className="h-5 w-5 text-destructive" />}
             Red Flags
           </CardTitle>
-          <CardDescription>Sinais de alerta que requerem atenção médica</CardDescription>
+          <CardDescription>Sinais de alerta que requerem encaminhamento médico</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {RED_FLAGS.map((flag) => (
-              <div key={flag.key} className="flex items-center space-x-2">
-                <Checkbox
-                  id={flag.key}
-                  checked={redFlags[flag.key] || false}
-                  onCheckedChange={(checked) => {
-                    setRedFlags({ ...redFlags, [flag.key]: !!checked });
-                  }}
-                  disabled={!canEdit}
-                />
-                <Label 
-                  htmlFor={flag.key} 
-                  className={`cursor-pointer ${redFlags[flag.key] ? "text-destructive font-medium" : ""}`}
-                >
-                  {flag.label}
-                </Label>
-              </div>
-            ))}
-          </div>
-          {hasRedFlags && (
-            <div className="mt-4 p-3 bg-destructive/10 rounded-lg text-destructive text-sm">
-              <strong>Atenção:</strong> Um ou mais sinais de alerta foram identificados. 
-              Considere encaminhamento médico antes de prosseguir com a avaliação física.
+        <CardContent className="space-y-3">
+          {RED_FLAGS_LIST.map((flag) => (
+            <div key={flag.key} className="flex items-center space-x-2">
+              <Checkbox
+                id={flag.key}
+                checked={(redFlags as Record<string, boolean>)[flag.key] || false}
+                onCheckedChange={(checked) => {
+                  setRedFlags({ ...redFlags, [flag.key]: !!checked });
+                }}
+                disabled={!canEdit}
+              />
+              <Label htmlFor={flag.key} className="cursor-pointer">{flag.label}</Label>
             </div>
+          ))}
+          {hasRedFlags && (
+            <Badge variant="destructive" className="mt-2">
+              Atenção: Red flags identificados - considerar encaminhamento médico
+            </Badge>
           )}
         </CardContent>
       </Card>
@@ -593,31 +585,28 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
         </CardHeader>
         <CardContent className="space-y-md">
           <div className="space-y-2">
-            <Label htmlFor="objectives">Objetivos principais</Label>
+            <Label htmlFor="objectives">Objetivos Principais</Label>
             <Textarea
               id="objectives"
               value={objectives}
               onChange={(e) => setObjectives(e.target.value)}
               disabled={!canEdit}
-              placeholder="Descreva os principais objetivos do aluno..."
-              rows={4}
+              placeholder="Descreva os objetivos do aluno..."
+              rows={3}
             />
           </div>
           <div className="space-y-2">
-            <Label>Horizonte de tempo</Label>
-            <RadioGroup 
-              value={timeHorizon} 
-              onValueChange={setTimeHorizon}
-              disabled={!canEdit}
-              className="flex flex-wrap gap-4"
-            >
-              {TIME_HORIZONS.map((th) => (
-                <div key={th.value} className="flex items-center space-x-2">
-                  <RadioGroupItem value={th.value} id={`th-${th.value}`} />
-                  <Label htmlFor={`th-${th.value}`} className="cursor-pointer">{th.label}</Label>
-                </div>
-              ))}
-            </RadioGroup>
+            <Label>Horizonte de Tempo</Label>
+            <Select value={timeHorizon} onValueChange={setTimeHorizon} disabled={!canEdit}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIME_HORIZONS.map((th) => (
+                  <SelectItem key={th.value} value={th.value}>{th.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -628,17 +617,15 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
           <CardTitle>Consentimento LGPD</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-start space-x-3">
+          <div className="flex items-center space-x-2">
             <Checkbox
               id="lgpd"
               checked={lgpdConsent}
               onCheckedChange={(checked) => setLgpdConsent(!!checked)}
               disabled={!canEdit}
             />
-            <Label htmlFor="lgpd" className="cursor-pointer text-sm leading-relaxed">
-              Autorizo a coleta, armazenamento e processamento dos meus dados pessoais e de saúde 
-              para fins de avaliação física e acompanhamento de treinamento, conforme a 
-              Lei Geral de Proteção de Dados (LGPD - Lei nº 13.709/2018).
+            <Label htmlFor="lgpd" className="cursor-pointer text-sm">
+              O aluno consente com o armazenamento e processamento de seus dados de saúde conforme a LGPD.
             </Label>
           </div>
         </CardContent>
@@ -648,12 +635,12 @@ export function AssessmentAnamnesisTab({ assessmentId, canEdit }: AssessmentAnam
       {canEdit && (
         <div className="flex justify-end">
           <Button 
-            onClick={handleSave} 
+            onClick={handleSave}
             disabled={createMutation.isPending || updateMutation.isPending}
             className="gap-2"
           >
             <Save className="h-4 w-4" />
-            {createMutation.isPending || updateMutation.isPending ? "Salvando..." : "Salvar Anamnese"}
+            Salvar Anamnese
           </Button>
         </div>
       )}

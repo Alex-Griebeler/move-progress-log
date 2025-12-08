@@ -13,17 +13,9 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Plus, Save, Trash2, CheckCircle, XCircle } from "lucide-react";
-import { useSegmentalTestResults, useCreateSegmentalTestResult, useUpdateSegmentalTestResult, useDeleteSegmentalTestResult } from "@/hooks/useTestResults";
+import { useSegmentalTestResults, useCreateSegmentalTestResult, useUpdateSegmentalTestResult, useDeleteSegmentalTestResult, SegmentalTestResult } from "@/hooks/useTestResults";
 import { LoadingState } from "@/components/LoadingState";
-import EmptyState from "@/components/EmptyState";
 
 interface AssessmentSegmentalTestsTabProps {
   assessmentId: string;
@@ -118,7 +110,7 @@ export function AssessmentSegmentalTestsTab({ assessmentId, canEdit }: Assessmen
   const [activeRegion, setActiveRegion] = useState("shoulder");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedTest, setSelectedTest] = useState<{ name: string; unit?: string; cutoff?: number } | null>(null);
-  const [editingTest, setEditingTest] = useState<any>(null);
+  const [editingTest, setEditingTest] = useState<SegmentalTestResult | null>(null);
   const [formData, setFormData] = useState({
     left_value: "",
     right_value: "",
@@ -140,7 +132,7 @@ export function AssessmentSegmentalTestsTab({ assessmentId, canEdit }: Assessmen
     setDialogOpen(true);
   };
 
-  const openEditTest = (test: any, testConfig: { name: string; unit?: string; cutoff?: number }) => {
+  const openEditTest = (test: SegmentalTestResult, testConfig: { name: string; unit?: string; cutoff?: number }) => {
     setSelectedTest(testConfig);
     setEditingTest(test);
     setFormData({
@@ -161,13 +153,13 @@ export function AssessmentSegmentalTestsTab({ assessmentId, canEdit }: Assessmen
     const data = {
       test_name: selectedTest.name,
       body_region: activeRegion,
-      unit: selectedTest.unit || null,
-      cutoff_value: selectedTest.cutoff || null,
-      left_value: !isPassFail && formData.left_value ? parseFloat(formData.left_value) : null,
-      right_value: !isPassFail && formData.right_value ? parseFloat(formData.right_value) : null,
-      pass_fail_left: isPassFail ? formData.pass_fail_left : null,
-      pass_fail_right: isPassFail ? formData.pass_fail_right : null,
-      notes: formData.notes || null,
+      unit: selectedTest.unit || undefined,
+      cutoff_value: selectedTest.cutoff || undefined,
+      left_value: !isPassFail && formData.left_value ? parseFloat(formData.left_value) : undefined,
+      right_value: !isPassFail && formData.right_value ? parseFloat(formData.right_value) : undefined,
+      pass_fail_left: isPassFail ? formData.pass_fail_left ?? undefined : undefined,
+      pass_fail_right: isPassFail ? formData.pass_fail_right ?? undefined : undefined,
+      notes: formData.notes || undefined,
     };
 
     if (editingTest) {
@@ -180,7 +172,7 @@ export function AssessmentSegmentalTestsTab({ assessmentId, canEdit }: Assessmen
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este teste?")) {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync({ id, assessment_id: assessmentId });
     }
   };
 
@@ -189,7 +181,6 @@ export function AssessmentSegmentalTestsTab({ assessmentId, canEdit }: Assessmen
   }
 
   const regionTests = tests?.filter(t => t.body_region === activeRegion) || [];
-  const completedTestNames = regionTests.map(t => t.test_name);
 
   return (
     <div className="space-y-lg">
@@ -241,7 +232,7 @@ export function AssessmentSegmentalTestsTab({ assessmentId, canEdit }: Assessmen
                                 </Badge>
                               )}
                             </div>
-                            {isCompleted && (
+                            {isCompleted && existingTest && (
                               <div className="flex gap-4 mt-2 text-sm">
                                 {test.unit === "pass/fail" ? (
                                   <>
@@ -270,7 +261,7 @@ export function AssessmentSegmentalTestsTab({ assessmentId, canEdit }: Assessmen
                             )}
                           </div>
                           <div className="flex gap-1">
-                            {isCompleted ? (
+                            {isCompleted && existingTest ? (
                               <>
                                 <Button 
                                   variant="ghost" 
