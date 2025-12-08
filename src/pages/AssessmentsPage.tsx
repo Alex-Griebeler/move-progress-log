@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,7 @@ const STATUS_CONFIG: Record<AssessmentStatus, { label: string; variant: "default
 };
 
 export default function AssessmentsPage() {
+  const navigate = useNavigate();
   // Filters state
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<AssessmentStatus | "all">("all");
@@ -431,7 +433,7 @@ export default function AssessmentsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(`/avaliacoes/${assessment.id}`)}>
                                   <Eye className="h-4 w-4 mr-2" />
                                   Ver detalhes
                                 </DropdownMenuItem>
