@@ -9,7 +9,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -19,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Plus, Save, Trash2, Target, AlertTriangle } from "lucide-react";
+import { Plus, Save, Trash2, Target } from "lucide-react";
 import { useFunctionalFindings, useCreateFunctionalFinding, useUpdateFunctionalFinding, useDeleteFunctionalFinding, SeverityLevel } from "@/hooks/useFunctionalFindings";
 import { LoadingState } from "@/components/LoadingState";
 import EmptyState from "@/components/EmptyState";
@@ -154,7 +153,11 @@ export function AssessmentFindingsTab({ assessmentId, canEdit }: AssessmentFindi
     };
 
     if (editingFinding) {
-      await updateMutation.mutateAsync({ id: editingFinding.id, ...data });
+      await updateMutation.mutateAsync({ 
+        id: editingFinding.id, 
+        assessment_id: assessmentId,
+        ...data 
+      });
     } else {
       await createMutation.mutateAsync({ assessment_id: assessmentId, ...data });
     }
@@ -163,7 +166,7 @@ export function AssessmentFindingsTab({ assessmentId, canEdit }: AssessmentFindi
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este achado?")) {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync({ id, assessment_id: assessmentId });
     }
   };
 

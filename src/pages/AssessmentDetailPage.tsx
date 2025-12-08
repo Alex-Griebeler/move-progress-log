@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ArrowLeft, 
-  FileText, 
   Play, 
   CheckCircle, 
   Archive,
@@ -83,28 +82,45 @@ export default function AssessmentDetailPage() {
 
   return (
     <PageLayout>
-      <PageHeader
-        title={
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => navigate(ROUTES.assessments)}
-              aria-label="Voltar para avaliações"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <span>Avaliação - {assessment.student_name}</span>
-                <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-              </div>
-              <span className="text-sm text-muted-foreground font-normal">
-                Criada em {format(new Date(assessment.created_at), "dd/MM/yyyy", { locale: ptBR })}
-              </span>
-            </div>
+      <div className="flex items-center gap-3 mb-lg">
+        <Button 
+          variant="ghost" 
+          size="icon"
+          onClick={() => navigate(ROUTES.assessments)}
+          aria-label="Voltar para avaliações"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex flex-col">
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">Avaliação - {assessment.student_name}</h1>
+            <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
           </div>
-        }
+          <span className="text-sm text-muted-foreground">
+            Criada em {format(new Date(assessment.created_at), "dd/MM/yyyy", { locale: ptBR })}
+          </span>
+        </div>
+        <div className="ml-auto flex gap-2">
+          {assessment.status === 'draft' && (
+            <Button onClick={handleStart} className="gap-2">
+              <Play className="h-4 w-4" />
+              Iniciar Avaliação
+            </Button>
+          )}
+          {assessment.status === 'in_progress' && (
+            <Button onClick={handleComplete} className="gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Concluir Avaliação
+            </Button>
+          )}
+          {assessment.status !== 'archived' && (
+            <Button variant="outline" onClick={handleArchive} className="gap-2">
+              <Archive className="h-4 w-4" />
+              Arquivar
+            </Button>
+          )}
+        </div>
+      </div>
         actions={
           <div className="flex gap-2">
             {assessment.status === 'draft' && (

@@ -20,8 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Save, Trash2, Dumbbell, Play, ChevronDown, ChevronUp } from "lucide-react";
-import { useAssessmentProtocols, useCreateAssessmentProtocol, useUpdateAssessmentProtocol, useDeleteAssessmentProtocol, PriorityLevel } from "@/hooks/useAssessmentProtocols";
+import { Plus, Save, Trash2, Dumbbell, ChevronDown, ChevronUp } from "lucide-react";
+import { useAssessmentProtocols, useCreateAssessmentProtocol, useUpdateAssessmentProtocol, useDeleteAssessmentProtocol, PriorityLevel, ProtocolExercise, AssessmentProtocol } from "@/hooks/useAssessmentProtocols";
 import { useAssessmentExercises, FabrikPhase } from "@/hooks/useAssessmentExercises";
 import { useFunctionalFindings } from "@/hooks/useFunctionalFindings";
 import { LoadingState } from "@/components/LoadingState";
@@ -60,7 +60,7 @@ export function AssessmentProtocolTab({ assessmentId, canEdit }: AssessmentProto
   const deleteMutation = useDeleteAssessmentProtocol();
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingProtocol, setEditingProtocol] = useState<any>(null);
+  const [editingProtocol, setEditingProtocol] = useState<AssessmentProtocol | null>(null);
   const [expandedProtocols, setExpandedProtocols] = useState<Set<string>>(new Set());
   
   const [formData, setFormData] = useState({
@@ -69,12 +69,7 @@ export function AssessmentProtocolTab({ assessmentId, canEdit }: AssessmentProto
     phase: 1,
     frequency_per_week: 3,
     duration_weeks: 4,
-    selected_exercises: [] as Array<{
-      exercise_id: string;
-      sets: number;
-      reps: string;
-      notes: string;
-    }>,
+    selected_exercises: [] as ProtocolExercise[],
   });
 
   // Group exercises by phase
@@ -100,7 +95,7 @@ export function AssessmentProtocolTab({ assessmentId, canEdit }: AssessmentProto
     setDialogOpen(true);
   };
 
-  const openEditProtocol = (protocol: any) => {
+  const openEditProtocol = (protocol: AssessmentProtocol) => {
     setEditingProtocol(protocol);
     setFormData({
       name: protocol.name || "",
@@ -133,7 +128,7 @@ export function AssessmentProtocolTab({ assessmentId, canEdit }: AssessmentProto
 
   const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este protocolo?")) {
-      await deleteMutation.mutateAsync(id);
+      await deleteMutation.mutateAsync({ id, assessment_id: assessmentId });
     }
   };
 
@@ -145,17 +140,22 @@ export function AssessmentProtocolTab({ assessmentId, canEdit }: AssessmentProto
         selected_exercises: formData.selected_exercises.filter(e => e.exercise_id !== exerciseId),
       });
     } else {
+      const newExercise: ProtocolExercise = {
+        exercise_id: exerciseId,
+        exercise_name: exerciseName,
+        sets: 3,
+        reps: "10-12",
+        notes: "",
+        order: formData.selected_exercises.length,
+      };
       setFormData({
         ...formData,
-        selected_exercises: [
-          ...formData.selected_exercises,
-          { exercise_id: exerciseId, sets: 3, reps: "10-12", notes: "" },
-        ],
+        selected_exercises: [...formData.selected_exercises, newExercise],
       });
     }
   };
 
-  const updateExerciseConfig = (exerciseId: string, field: string, value: any) => {
+  const updateExerciseConfig = (exerciseId: string, field: keyof ProtocolExercise, value: any) => {
     setFormData({
       ...formData,
       selected_exercises: formData.selected_exercises.map(e =>
@@ -263,7 +263,7 @@ export function AssessmentProtocolTab({ assessmentId, canEdit }: AssessmentProto
                               <p className="text-sm text-muted-foreground">Nenhum exercício adicionado</p>
                             ) : (
                               <div className="grid gap-2">
-                                {protocol.exercises?.map((ex: any, index: number) => {
+                                {protocol.exercises?.map((ex, index) => {
                                   const exerciseData = exercises?.find(e => e.id === ex.exercise_id);
                                   return (
                                     <div 
@@ -272,7 +272,7 @@ export function AssessmentProtocolTab({ assessmentId, canEdit }: AssessmentProto
                                     >
                                       <div>
                                         <span className="font-medium text-sm">
-                                          {exerciseData?.name || "Exercício não encontrado"}
+                                          {ex.exercise_name || exerciseData?.name || "Exercício não encontrado"}
                                         </span>
                                         {exerciseData && (
                                           <span className="text-xs text-muted-foreground ml-2">
@@ -423,34 +423,33 @@ export function AssessmentProtocolTab({ assessmentId, canEdit }: AssessmentProto
                             return (
                               <div 
                                 key={exercise.id}
-                                className={`p-2 border rounded ${isSelected ? 'border-primary bg-primary/5' : ''}`}
+                                className={`p-2 border rounded-lg ${isSelected ? 'bg-primary/5 border-primary/30' : 'bg-muted/30'}`}
                               >
-                                <div className="flex items-center space-x-2">
+                                <div className="flex items-center gap-2">
                                   <Checkbox
                                     checked={isSelected}
                                     onCheckedChange={() => toggleExercise(exercise.id, exercise.name)}
                                     disabled={!canEdit}
                                   />
-                                  <Label className="cursor-pointer flex-1 text-sm">
-                                    {exercise.name}
-                                  </Label>
+                                  <span className="text-sm font-medium flex-1">{exercise.name}</span>
                                 </div>
                                 {isSelected && (
-                                  <div className="flex gap-2 mt-2 pl-6">
+                                  <div className="flex gap-2 mt-2 ml-6">
                                     <Input
                                       type="number"
-                                      placeholder="Séries"
+                                      min={1}
                                       value={config?.sets || 3}
                                       onChange={(e) => updateExerciseConfig(exercise.id, 'sets', parseInt(e.target.value) || 3)}
                                       disabled={!canEdit}
-                                      className="w-20 h-8 text-xs"
+                                      className="w-16 h-8 text-xs"
+                                      placeholder="Séries"
                                     />
                                     <Input
-                                      placeholder="Reps"
                                       value={config?.reps || "10-12"}
                                       onChange={(e) => updateExerciseConfig(exercise.id, 'reps', e.target.value)}
                                       disabled={!canEdit}
-                                      className="w-24 h-8 text-xs"
+                                      className="w-20 h-8 text-xs"
+                                      placeholder="Reps"
                                     />
                                   </div>
                                 )}
@@ -462,12 +461,6 @@ export function AssessmentProtocolTab({ assessmentId, canEdit }: AssessmentProto
                     </Card>
                   );
                 })}
-
-              {exercises?.length === 0 && (
-                <div className="text-center py-4 text-muted-foreground">
-                  Nenhum exercício cadastrado na biblioteca de avaliação.
-                </div>
-              )}
             </div>
           </div>
 
