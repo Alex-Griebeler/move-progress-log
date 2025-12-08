@@ -121,29 +121,6 @@ export default function AssessmentDetailPage() {
           )}
         </div>
       </div>
-        actions={
-          <div className="flex gap-2">
-            {assessment.status === 'draft' && (
-              <Button onClick={handleStart} className="gap-2">
-                <Play className="h-4 w-4" />
-                Iniciar Avaliação
-              </Button>
-            )}
-            {assessment.status === 'in_progress' && (
-              <Button onClick={handleComplete} className="gap-2">
-                <CheckCircle className="h-4 w-4" />
-                Concluir Avaliação
-              </Button>
-            )}
-            {assessment.status !== 'archived' && (
-              <Button variant="outline" onClick={handleArchive} className="gap-2">
-                <Archive className="h-4 w-4" />
-                Arquivar
-              </Button>
-            )}
-          </div>
-        }
-      />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-lg">
         <TabsList className="grid w-full grid-cols-5">
