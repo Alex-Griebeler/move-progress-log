@@ -28,7 +28,7 @@ export const useAssessments = (filters?: {
         .from("assessments")
         .select(`
           *,
-          students!assessments_student_id_fkey(name)
+          students(name)
         `)
         .order("created_at", { ascending: false });
 
@@ -63,7 +63,7 @@ export const useAssessment = (assessmentId: string | null) => {
         .from("assessments")
         .select(`
           *,
-          students!assessments_student_id_fkey(name)
+          students(name)
         `)
         .eq("id", assessmentId)
         .maybeSingle();
