@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Home, Users, ClipboardList, Library, FileText, Heart, UserCog, Shield, ClipboardCheck } from "lucide-react";
+import { Home, Users, ClipboardList, Library, FileText, Heart, UserCog, Shield } from "lucide-react";
 
 /**
  * Constantes de navegação e nomenclaturas
@@ -26,7 +26,6 @@ export const ROUTES = {
   studentReports: (id: string) => `/alunos/${id}/relatorios`,
   studentsComparison: "/alunos-comparacao",
   sessions: "/sessoes",
-  assessments: "/avaliacoes",
   exercises: "/exercicios",
   prescriptions: "/prescricoes",
   protocols: "/protocolos",
@@ -59,7 +58,6 @@ export const ROUTE_CONFIG: RouteDefinition[] = [
   { path: ROUTES.dashboard, label: "Dashboard", icon: Home },
   { path: ROUTES.students, label: "Alunos", icon: Users },
   { path: ROUTES.sessions, label: "Sessões", icon: ClipboardList },
-  { path: ROUTES.assessments, label: "Avaliações", icon: ClipboardCheck },
   { path: ROUTES.exercises, label: "Exercícios", icon: Library },
   { path: ROUTES.prescriptions, label: "Prescrições", icon: FileText },
   { path: ROUTES.protocols, label: "Protocolos", icon: Heart },
@@ -72,7 +70,6 @@ export const NAV_LABELS = {
   dashboard: "Dashboard",
   students: "Alunos",
   sessions: "Sessões",
-  assessments: "Avaliações",
   exercises: "Exercícios",
   prescriptions: "Prescrições",
   protocols: "Protocolos",

@@ -20,8 +20,6 @@ const StudentsPage = lazy(() => import("./pages/StudentsPage"));
 const StudentDetailPage = lazy(() => import("./pages/StudentDetailPage"));
 const StudentsComparisonPage = lazy(() => import("./pages/StudentsComparisonPage"));
 const SessionsPage = lazy(() => import("./pages/SessionsPage"));
-const AssessmentsPage = lazy(() => import("./pages/AssessmentsPage"));
-const AssessmentDetailPage = lazy(() => import("./pages/AssessmentDetailPage"));
 const ExercisesLibraryPage = lazy(() => import("./pages/ExercisesLibraryPage"));
 const PrescriptionsPage = lazy(() => import("./pages/PrescriptionsPage"));
 const RecoveryProtocolsPage = lazy(() => import("./pages/RecoveryProtocolsPage"));
@@ -74,8 +72,6 @@ const App = () => (
                             <Route path="/alunos/:studentId/relatorios" element={<StudentReportsPage />} />
                             <Route path="/alunos-comparacao" element={<StudentsComparisonPage />} />
                             <Route path="/sessoes" element={<SessionsPage />} />
-                            <Route path="/avaliacoes" element={<AssessmentsPage />} />
-                            <Route path="/avaliacoes/:id" element={<AssessmentDetailPage />} />
                             <Route path="/exercicios" element={<ExercisesLibraryPage />} />
                             <Route path="/prescricoes" element={<PrescriptionsPage />} />
                             <Route path="/protocolos" element={<RecoveryProtocolsPage />} />
