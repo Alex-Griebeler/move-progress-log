@@ -1,7 +1,28 @@
 /**
  * Back to Basics - Constantes da metodologia de treino
  * Fabrik Performance - Body & Mind Fitness
+ * 
+ * ESTRUTURA DO MESOCICLO:
+ * - 4 semanas com 3 treinos semanais (A/B/C)
+ * - Treinos se repetem, ajustando apenas volume e intensidade
+ * - A: Segunda e Quinta | B: Terça e Sexta | C: Quarta e Sábado
  */
+
+// ============================================================================
+// ESTRUTURA DO MESOCICLO (4 SEMANAS)
+// ============================================================================
+
+export const MESOCYCLE_STRUCTURE = {
+  weeks: 4,
+  workoutsPerWeek: 3,
+  workoutSlots: {
+    A: { name: "Treino A", days: ["Segunda", "Quinta"], color: "blue" },
+    B: { name: "Treino B", days: ["Terça", "Sexta"], color: "green" },
+    C: { name: "Treino C", days: ["Quarta", "Sábado"], color: "purple" },
+  },
+} as const;
+
+export type WorkoutSlot = keyof typeof MESOCYCLE_STRUCTURE.workoutSlots;
 
 // ============================================================================
 // PADRÕES DE MOVIMENTO NORMALIZADOS
@@ -112,7 +133,7 @@ export const CONTRACTION_TYPES = {
 } as const;
 
 // ============================================================================
-// NÍVEIS DE DIFICULDADE
+// NÍVEIS DE DIFICULDADE / ALUNOS
 // ============================================================================
 
 export const LEVEL_OPTIONS = {
@@ -124,46 +145,117 @@ export const LEVEL_OPTIONS = {
   "Todos os níveis": "Todos os níveis",
 } as const;
 
+export const STUDENT_LEVELS = {
+  iniciante: {
+    name: "Iniciante",
+    monthsTraining: { min: 0, max: 6 },
+    plyometricsAllowed: false,
+    maxRiskLevel: "medium" as RiskLevel,
+  },
+  intermediario: {
+    name: "Intermediário",
+    monthsTraining: { min: 6, max: 24 },
+    plyometricsAllowed: true,
+    maxRiskLevel: "medium" as RiskLevel,
+  },
+  avancado: {
+    name: "Avançado",
+    monthsTraining: { min: 24, max: Infinity },
+    plyometricsAllowed: true,
+    maxRiskLevel: "high" as RiskLevel,
+  },
+} as const;
+
+export type StudentLevel = keyof typeof STUDENT_LEVELS;
+
 // ============================================================================
-// CICLOS DE PERIODIZAÇÃO (S1-S4)
+// CICLOS DE PERIODIZAÇÃO (S1-S4) - NOVA ESTRUTURA
 // ============================================================================
 
+/**
+ * Progressão do Mesociclo:
+ * - S1 (Adaptação): Menor volume E menor intensidade
+ * - S2 (Desenvolvimento): Volume aumenta até ideal, leve aumento de intensidade
+ * - S3 (Choque 1): Mantém volume, aumenta intensidade (cargas)
+ * - S4 (Choque 2): Mantém volume, pico de intensidade (cargas máximas)
+ * 
+ * Para treinos metabólicos: diminuir intervalo OU aumentar carga
+ */
 export const PERIODIZATION_CYCLES = {
   s1: {
-    name: "Recuperação",
-    volumePercent: "60-70%",
-    pse: "5-6",
-    methods: ["Circuito leve"],
+    name: "Adaptação",
+    weekNumber: 1,
+    volumeMultiplier: 0.7, // 70% do volume ideal
+    intensityMultiplier: 0.7, // 70% da intensidade ideal
+    pseRange: { min: 5, max: 6 },
+    description: "Menor volume e menor intensidade para adaptação neuromuscular",
+    strategies: ["Reduzir séries", "Cargas leves", "Intervalos maiores"],
+    methods: ["tradicional", "circuito"],
     plyometrics: false,
-    description: "Foco em recuperação e mobilidade",
   },
   s2: {
-    name: "Adaptação",
-    volumePercent: "80-90%",
-    pse: "6-7",
-    methods: ["Tradicional", "Superset"],
+    name: "Desenvolvimento",
+    weekNumber: 2,
+    volumeMultiplier: 1.0, // 100% do volume ideal
+    intensityMultiplier: 0.85, // 85% da intensidade ideal
+    pseRange: { min: 6, max: 7 },
+    description: "Volume ideal atingido, leve aumento de intensidade",
+    strategies: ["Volume prescrito", "Aumento gradual de carga"],
+    methods: ["tradicional", "superset"],
     plyometrics: "low",
-    description: "Construção de base e adaptação",
   },
   s3: {
-    name: "Choque",
-    volumePercent: "100%",
-    pse: "7-8",
-    methods: ["EMOM", "Cluster", "Triset"],
+    name: "Choque 1",
+    weekNumber: 3,
+    volumeMultiplier: 1.0, // Mantém volume
+    intensityMultiplier: 0.95, // 95% da intensidade
+    pseRange: { min: 7, max: 8 },
+    description: "Aumento de intensidade via cargas",
+    strategies: ["Aumentar cargas", "Manter volume", "Reduzir intervalo (metcon)"],
+    methods: ["tradicional", "superset", "triset", "emom", "cluster"],
     plyometrics: true,
-    description: "Intensificação progressiva",
   },
   s4: {
-    name: "Choque Máximo",
-    volumePercent: "100%",
-    pse: "8-9",
-    methods: ["AMRAP", "For Time", "Complexo"],
+    name: "Choque 2",
+    weekNumber: 4,
+    volumeMultiplier: 1.0, // Mantém volume
+    intensityMultiplier: 1.0, // 100% intensidade
+    pseRange: { min: 8, max: 9 },
+    description: "Pico de intensidade do mesociclo",
+    strategies: ["Cargas máximas do ciclo", "Manter volume", "Menor intervalo (metcon)"],
+    methods: ["tradicional", "superset", "triset", "emom", "amrap", "for_time", "cluster"],
     plyometrics: true,
-    description: "Pico de intensidade",
   },
 } as const;
 
 export type PeriodizationCycle = keyof typeof PERIODIZATION_CYCLES;
+
+// ============================================================================
+// ESTRATÉGIAS DE PROGRESSÃO PARA TREINOS METABÓLICOS
+// ============================================================================
+
+export const METCON_PROGRESSION_STRATEGIES = {
+  reduceRest: {
+    name: "Reduzir Intervalo",
+    description: "Diminuir tempo de descanso entre séries/estações",
+    applicableCycles: ["s3", "s4"] as PeriodizationCycle[],
+  },
+  increaseLoad: {
+    name: "Aumentar Carga",
+    description: "Aumentar peso nos exercícios",
+    applicableCycles: ["s2", "s3", "s4"] as PeriodizationCycle[],
+  },
+  increaseReps: {
+    name: "Aumentar Repetições",
+    description: "Adicionar repetições mantendo carga",
+    applicableCycles: ["s2"] as PeriodizationCycle[],
+  },
+  increaseDensity: {
+    name: "Aumentar Densidade",
+    description: "Mais trabalho no mesmo tempo",
+    applicableCycles: ["s3", "s4"] as PeriodizationCycle[],
+  },
+} as const;
 
 // ============================================================================
 // VALÊNCIAS DE TREINO
@@ -180,7 +272,12 @@ export const TRAINING_VALENCES = {
 export type TrainingValence = keyof typeof TRAINING_VALENCES;
 
 // Combinações válidas de valências (máx 2 por sessão)
-export const VALID_VALENCE_COMBINATIONS: [TrainingValence, TrainingValence][] = [
+export const VALID_VALENCE_COMBINATIONS: TrainingValence[][] = [
+  ["forca"],
+  ["potencia"],
+  ["hipertrofia"],
+  ["condicionamento"],
+  ["resistencia_muscular"],
   ["forca", "potencia"],
   ["forca", "hipertrofia"],
   ["potencia", "condicionamento"],
@@ -352,3 +449,37 @@ export const TRAINING_METHODS = {
 } as const;
 
 export type TrainingMethod = keyof typeof TRAINING_METHODS;
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+export const getVolumeForCycle = (baseVolume: number, cycle: PeriodizationCycle): number => {
+  return Math.round(baseVolume * PERIODIZATION_CYCLES[cycle].volumeMultiplier);
+};
+
+export const getIntensityForCycle = (baseIntensity: number, cycle: PeriodizationCycle): number => {
+  return Math.round(baseIntensity * PERIODIZATION_CYCLES[cycle].intensityMultiplier);
+};
+
+export const isValidValenceCombination = (valences: TrainingValence[]): boolean => {
+  if (valences.length === 0 || valences.length > 2) return false;
+  
+  return VALID_VALENCE_COMBINATIONS.some(
+    (combo) =>
+      combo.length === valences.length &&
+      combo.every((v) => valences.includes(v))
+  );
+};
+
+export const canUsePlyometrics = (level: StudentLevel, cycle: PeriodizationCycle): boolean => {
+  const levelConfig = STUDENT_LEVELS[level];
+  const cycleNumber = PERIODIZATION_CYCLES[cycle].weekNumber;
+  
+  return levelConfig.plyometricsAllowed && cycleNumber >= 2;
+};
+
+export const getMethodsForCycle = (cycle: PeriodizationCycle): TrainingMethod[] => {
+  const cycleMethods = PERIODIZATION_CYCLES[cycle].methods;
+  return cycleMethods as unknown as TrainingMethod[];
+};
