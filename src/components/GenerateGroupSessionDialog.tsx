@@ -62,7 +62,7 @@ export function GenerateGroupSessionDialog({
   // Form state
   const [format, setFormat] = useState<"tradicional" | "time_efficient">("tradicional");
   const [cycle, setCycle] = useState<"s1" | "s2" | "s3" | "s4">("s2");
-  const [valences, setValences] = useState<string[]>(["forca"]);
+  const [valences, setValences] = useState<(keyof typeof TRAINING_VALENCES)[]>(["forca"]);
   const [groupLevel, setGroupLevel] = useState<"iniciante" | "intermediario" | "avancado">("intermediario");
   const [focus, setFocus] = useState<"inferior" | "superior" | "full_body">("full_body");
   const [includePlyometrics, setIncludePlyometrics] = useState(false);
@@ -70,7 +70,7 @@ export function GenerateGroupSessionDialog({
 
   const generateSession = useGenerateGroupSession();
 
-  const handleValenceToggle = (valence: string) => {
+  const handleValenceToggle = (valence: keyof typeof TRAINING_VALENCES) => {
     setValences((prev) => {
       if (prev.includes(valence)) {
         return prev.filter((v) => v !== valence);
@@ -202,14 +202,14 @@ export function GenerateGroupSessionDialog({
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {Object.entries(TRAINING_VALENCES).map(([key, label]) => (
+                  {(Object.keys(TRAINING_VALENCES) as (keyof typeof TRAINING_VALENCES)[]).map((key) => (
                     <Badge
                       key={key}
                       variant={valences.includes(key) ? "default" : "outline"}
                       className="cursor-pointer px-3 py-1.5"
                       onClick={() => handleValenceToggle(key)}
                     >
-                      {label}
+                      {TRAINING_VALENCES[key]}
                     </Badge>
                   ))}
                 </div>
@@ -309,14 +309,14 @@ export function GenerateGroupSessionDialog({
                 <Label className="text-sm font-medium text-muted-foreground">Resumo</Label>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">
-                    {SESSION_FORMATS[format].label}
+                    {SESSION_FORMATS[format].name}
                   </Badge>
                   <Badge variant="secondary">
                     {cycle.toUpperCase()} - {PERIODIZATION_CYCLES[cycle].name}
                   </Badge>
                   {valences.map((v) => (
                     <Badge key={v} variant="outline">
-                      {TRAINING_VALENCES.find((t) => t.id === v)?.label}
+                      {TRAINING_VALENCES[v]}
                     </Badge>
                   ))}
                 </div>
