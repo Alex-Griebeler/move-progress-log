@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Trash2, Filter, X, Database, Search, MoreVertical } from "lucide-react";
+import { Pencil, Trash2, Filter, X, Database, Search, MoreVertical, AlertTriangle, Video, Zap } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +40,8 @@ import {
   MOVEMENT_PLANES,
   CONTRACTION_TYPES,
   LEVEL_OPTIONS,
+  EXERCISE_CATEGORIES,
+  RISK_LEVELS,
   ExerciseFilters,
 } from "@/hooks/useExercisesLibrary";
 import { populateExercisesLibrary } from "@/utils/populateExercises";
@@ -200,7 +202,7 @@ export default function ExercisesLibraryPage() {
               className="pl-9"
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-md">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-md">
           <div className="space-y-xs">
             <label className="text-sm font-medium">Padrão de Movimento</label>
             <Select
@@ -226,7 +228,57 @@ export default function ExercisesLibraryPage() {
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-xs">
+            <label className="text-sm font-medium">Categoria</label>
+            <Select
+              value={filters.category || "all"}
+              onValueChange={(value) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  category: value === "all" ? undefined : value,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Todas" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                {Object.entries(EXERCISE_CATEGORIES).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-xs">
+            <label className="text-sm font-medium">Nível de Risco</label>
+            <Select
+              value={filters.risk_level || "all"}
+              onValueChange={(value) =>
+                setFilters((prev) => ({
+                  ...prev,
+                  risk_level: value === "all" ? undefined : value,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Todos" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {Object.entries(RISK_LEVELS).map(([key, config]) => (
+                  <SelectItem key={key} value={key}>
+                    {config.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-xs">
             <label className="text-sm font-medium">Lateralidade</label>
             <Select
               value={filters.laterality || "all"}
@@ -251,7 +303,7 @@ export default function ExercisesLibraryPage() {
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-xs">
             <label className="text-sm font-medium">Plano de Movimento</label>
             <Select
               value={filters.movement_plane || "all"}
@@ -276,7 +328,7 @@ export default function ExercisesLibraryPage() {
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-xs">
             <label className="text-sm font-medium">Tipo de Contração</label>
             <Select
               value={filters.contraction_type || "all"}
@@ -301,7 +353,7 @@ export default function ExercisesLibraryPage() {
             </Select>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-xs">
             <label className="text-sm font-medium">Nível</label>
             <Select
               value={filters.level || "all"}
@@ -378,29 +430,52 @@ export default function ExercisesLibraryPage() {
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
-                    <CardTitle className="text-lg">{exercise.name}</CardTitle>
-                    <CardDescription className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg">{exercise.name}</CardTitle>
+                      {exercise.video_url && (
+                        <span title="Possui vídeo"><Video className="h-4 w-4 text-blue-500" /></span>
+                      )}
+                      {exercise.risk_level === 'high' && (
+                        <span title="Alto risco"><AlertTriangle className="h-4 w-4 text-destructive" /></span>
+                      )}
+                    </div>
+                    <CardDescription className="mt-2 space-y-1 flex flex-wrap gap-1">
                       <Badge variant="secondary">
-                        {MOVEMENT_PATTERNS[exercise.movement_pattern as keyof typeof MOVEMENT_PATTERNS]}
+                        {MOVEMENT_PATTERNS[exercise.movement_pattern as keyof typeof MOVEMENT_PATTERNS] || exercise.movement_pattern}
                       </Badge>
+                      {exercise.category && (
+                        <Badge variant="outline">
+                          {EXERCISE_CATEGORIES[exercise.category as keyof typeof EXERCISE_CATEGORIES] || exercise.category}
+                        </Badge>
+                      )}
+                      {exercise.risk_level && (
+                        <Badge 
+                          variant="outline" 
+                          className={
+                            exercise.risk_level === 'high' 
+                              ? 'border-destructive text-destructive' 
+                              : exercise.risk_level === 'medium' 
+                                ? 'border-yellow-500 text-yellow-600' 
+                                : 'border-green-500 text-green-600'
+                          }
+                        >
+                          {RISK_LEVELS[exercise.risk_level as keyof typeof RISK_LEVELS]?.label || exercise.risk_level}
+                        </Badge>
+                      )}
                       {exercise.laterality && (
-                        <Badge variant="outline" className="ml-2">
+                        <Badge variant="outline">
                           {LATERALITY_OPTIONS[exercise.laterality as keyof typeof LATERALITY_OPTIONS]}
                         </Badge>
                       )}
-                      {exercise.movement_plane && (
-                        <Badge variant="outline" className="ml-2">
-                          {MOVEMENT_PLANES[exercise.movement_plane as keyof typeof MOVEMENT_PLANES]}
-                        </Badge>
-                      )}
-                      {exercise.contraction_type && (
-                        <Badge variant="outline" className="ml-2">
-                          {CONTRACTION_TYPES[exercise.contraction_type as keyof typeof CONTRACTION_TYPES]}
-                        </Badge>
-                      )}
                       {exercise.level && (
-                        <Badge variant="outline" className="ml-2">
+                        <Badge variant="outline">
                           {LEVEL_OPTIONS[exercise.level as keyof typeof LEVEL_OPTIONS]}
+                        </Badge>
+                      )}
+                      {exercise.plyometric_phase && (
+                        <Badge variant="outline" className="border-purple-500 text-purple-600">
+                          <Zap className="h-3 w-3 mr-1" />
+                          Fase {exercise.plyometric_phase}
                         </Badge>
                       )}
                     </CardDescription>
@@ -410,6 +485,11 @@ export default function ExercisesLibraryPage() {
               <CardContent>
                 {exercise.description && (
                   <p className="text-sm text-muted-foreground mb-4">{exercise.description}</p>
+                )}
+                {exercise.equipment_required && exercise.equipment_required.length > 0 && (
+                  <p className="text-xs text-muted-foreground mb-3">
+                    <strong>Equipamentos:</strong> {exercise.equipment_required.join(', ')}
+                  </p>
                 )}
                 <div className="flex gap-2">
                   <Button
