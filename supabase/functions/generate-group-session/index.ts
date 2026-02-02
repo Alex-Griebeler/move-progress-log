@@ -1,3 +1,16 @@
+/**
+ * Edge Function: Geração de Mesociclo com IA
+ * Fabrik Performance - Back to Basics
+ * 
+ * Gera 3 treinos (A/B/C) de uma vez para o mesociclo de 4 semanas.
+ * 
+ * Regras fundamentais:
+ * - Cada sessão é FULL BODY (todos os padrões de movimento)
+ * - Máx 2 valências por sessão
+ * - LMF, respiração, mobilidade e core triplanar são OBRIGATÓRIOS
+ * - IA rastreia padrões já cobertos para evitar redundância
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
 
@@ -11,16 +24,15 @@ const corsHeaders = {
 // TIPOS
 // ============================================================================
 
-interface SessionInput {
-  format: "tradicional" | "time_efficient";
-  cycle: "s1" | "s2" | "s3" | "s4";
+interface WorkoutSlotConfig {
+  slot: "A" | "B" | "C";
   valences: string[];
+}
+
+interface MesocycleInput {
   groupLevel: "iniciante" | "intermediario" | "avancado";
-  focus: "inferior" | "superior" | "full_body";
-  includePlyometrics: boolean;
-  includeLMF: boolean;
+  workouts: WorkoutSlotConfig[];
   excludeExercises?: string[];
-  preferredEquipment?: string[];
 }
 
 interface Exercise {
@@ -68,66 +80,70 @@ interface SessionPhase {
   notes?: string;
 }
 
+interface GeneratedWorkout {
+  id: string;
+  slot: "A" | "B" | "C";
+  name: string;
+  valences: string[];
+  totalDuration: number;
+  phases: SessionPhase[];
+  coveredPatterns: string[];
+  coreTriplanarCheck: {
+    anti_extensao: boolean;
+    anti_flexao_lateral: boolean;
+    anti_rotacao: boolean;
+  };
+  mindfulnessScript?: string;
+  motivationalPhrase?: string;
+}
+
 // ============================================================================
-// CONSTANTES DO BACK TO BASICS
+// CONSTANTES - PADRÕES DE MOVIMENTO OBRIGATÓRIOS (FULL BODY)
 // ============================================================================
 
-const CYCLE_CONFIG = {
-  s1: { volume: 0.65, pse: "5-6", methods: ["circuito"], allowPlyometrics: false },
-  s2: { volume: 0.85, pse: "6-7", methods: ["tradicional", "superset"], allowPlyometrics: true },
-  s3: { volume: 1.0, pse: "7-8", methods: ["emom", "cluster", "triset"], allowPlyometrics: true },
-  s4: { volume: 1.0, pse: "8-9", methods: ["amrap", "for_time"], allowPlyometrics: true },
-};
-
-const FORMAT_CONFIG = {
-  tradicional: {
-    totalDuration: 50,
-    phases: {
-      preparacao: { duration: 10, stages: 6 },
-      ativacao: { duration: 7 },
-      principal: { duration: 28 },
-      cooldown: { duration: 5 },
-    },
+const MANDATORY_PATTERNS = {
+  // Força - todos obrigatórios em cada sessão
+  lower: ["dominancia_joelho", "dominancia_quadril"],
+  upperPush: ["empurrar_horizontal", "empurrar_vertical"],
+  upperPull: ["puxar_horizontal", "puxar_vertical"],
+  carry: ["carregar"],
+  
+  // Core triplanar - OBRIGATÓRIO
+  core: {
+    anti_extensao: ["core_anti_extensao"],
+    anti_flexao_lateral: ["core_anti_flexao_lateral"],
+    anti_rotacao: ["core_anti_rotacao"],
   },
-  time_efficient: {
-    totalDuration: 30,
-    phases: {
-      preparacao: { duration: 5, stages: 3 },
-      principal: { duration: 22 },
-      cooldown: { duration: 3 },
-    },
+  
+  // Preparação - OBRIGATÓRIO
+  lmf: ["lmf"],
+  mobility: ["mobilidade_tornozelo", "mobilidade_quadril", "mobilidade_toracica", "mobilidade_integrada"],
+  activation: ["ativacao_escapula", "ativacao_gluteos", "ativacao_flexores_quadril"],
+};
+
+// Configuração de volume/intensidade por valência
+const VALENCE_CONFIG = {
+  potencia: { sets: "3-4", reps: "3-5", interval: 120, pse: "7-8" },
+  forca: { sets: "4-5", reps: "4-6", interval: 90, pse: "8-9" },
+  hipertrofia: { sets: "3-4", reps: "8-12", interval: 60, pse: "7-8" },
+  condicionamento: { sets: "3", reps: "12-15", interval: 30, pse: "6-7" },
+};
+
+// Sessão padrão de 55 minutos
+const SESSION_STRUCTURE = {
+  totalDuration: 55,
+  phases: {
+    lmf: { duration: 3, name: "LMF" },
+    mobilidade: { duration: 5, name: "Mobilidade" },
+    ativacao: { duration: 5, name: "Ativação" },
+    core: { duration: 7, name: "Core Triplanar" },
+    principal: { duration: 30, name: "Principal" },
+    respiracao: { duration: 5, name: "Respiração/Mindfulness" },
   },
 };
 
-const CORE_PATTERNS = {
-  anti_extensao: ["core_anti_extensao"],
-  anti_flexao_lateral: ["core_anti_flexao_lateral"],
-  anti_rotacao: ["core_anti_rotacao"],
-};
-
-const LOWER_BODY_PATTERNS = ["dominancia_joelho", "dominancia_quadril"];
-const UPPER_PUSH_PATTERNS = ["empurrar_horizontal", "empurrar_vertical"];
-const UPPER_PULL_PATTERNS = ["puxar_horizontal", "puxar_vertical"];
-const MOBILITY_PATTERNS = [
-  "mobilidade_tornozelo",
-  "mobilidade_quadril",
-  "mobilidade_toracica",
-  "mobilidade_integrada",
-];
-const ACTIVATION_PATTERNS = [
-  "ativacao_escapula",
-  "ativacao_gluteos",
-  "ativacao_flexores_quadril",
-];
-const PLYOMETRIC_PATTERNS = [
-  "pliometria_bilateral_linear",
-  "pliometria_unilateral_linear",
-  "pliometria_unilateral_lateral",
-  "pliometria_unilateral_lateral_medial",
-];
-
 // ============================================================================
-// MOTOR DETERMINÍSTICO
+// HELPERS
 // ============================================================================
 
 function generateUUID(): string {
@@ -149,29 +165,26 @@ function filterByLevel(exercises: Exercise[], groupLevel: string): Exercise[] {
 
   return exercises.filter((ex) => {
     if (!ex.level) return true;
-    const exLevelValue = levelOrder[ex.level as keyof typeof levelOrder] || 2;
-    return exLevelValue <= groupLevelValue;
+    const levelMap: Record<string, number> = {
+      "Iniciante": 1,
+      "Iniciante/Intermediário": 1.5,
+      "Intermediário": 2,
+      "Intermediário/Avançado": 2.5,
+      "Avançado": 3,
+      "Todos os níveis": 0,
+    };
+    const exLevelValue = levelMap[ex.level] || 2;
+    return exLevelValue === 0 || exLevelValue <= groupLevelValue;
   });
 }
 
-function filterByRisk(
-  exercises: Exercise[],
-  groupLevel: string,
-  cycle: string
-): Exercise[] {
+function filterByRisk(exercises: Exercise[], groupLevel: string): Exercise[] {
   return exercises.filter((ex) => {
     if (ex.risk_level === "high") {
-      // Alto risco apenas para avançado em ciclos S3/S4
-      return groupLevel === "avancado" && (cycle === "s3" || cycle === "s4");
+      return groupLevel === "avancado";
     }
     if (ex.risk_level === "medium") {
-      // Médio risco para intermediário+ ou ciclos S2+
-      return (
-        groupLevel !== "iniciante" ||
-        cycle === "s2" ||
-        cycle === "s3" ||
-        cycle === "s4"
-      );
+      return groupLevel !== "iniciante";
     }
     return true;
   });
@@ -207,21 +220,40 @@ function mapToGeneratedExercise(
   };
 }
 
-function buildPreparationPhase(
-  exercises: Exercise[],
-  format: "tradicional" | "time_efficient"
-): SessionPhase {
-  const config = FORMAT_CONFIG[format];
-  const blocks: ExerciseBlock[] = [];
+// ============================================================================
+// MOTOR DE GERAÇÃO
+// ============================================================================
 
-  // 1. Mobilidade
-  const mobilityExercises = selectExercisesByPattern(
-    exercises,
-    MOBILITY_PATTERNS,
-    format === "tradicional" ? 3 : 2
-  );
-  if (mobilityExercises.length > 0) {
-    blocks.push({
+function buildLMFPhase(exercises: Exercise[]): SessionPhase {
+  const lmfExercises = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.lmf, 3);
+  
+  return {
+    id: generateUUID(),
+    name: SESSION_STRUCTURE.phases.lmf.name,
+    order: 1,
+    duration: SESSION_STRUCTURE.phases.lmf.duration,
+    blocks: [{
+      id: generateUUID(),
+      name: "Liberação Miofascial",
+      method: "autoliberacao",
+      exercises: lmfExercises.map((ex) =>
+        mapToGeneratedExercise(ex, { sets: "1", reps: "30-60s", interval: 0 })
+      ),
+      restBetweenSets: 0,
+      notes: "Foco nas áreas de maior tensão",
+    }],
+  };
+}
+
+function buildMobilityPhase(exercises: Exercise[]): SessionPhase {
+  const mobilityExercises = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.mobility, 4);
+  
+  return {
+    id: generateUUID(),
+    name: SESSION_STRUCTURE.phases.mobilidade.name,
+    order: 2,
+    duration: SESSION_STRUCTURE.phases.mobilidade.duration,
+    blocks: [{
       id: generateUUID(),
       name: "Mobilidade Articular",
       method: "circuito",
@@ -229,18 +261,19 @@ function buildPreparationPhase(
         mapToGeneratedExercise(ex, { sets: "1", reps: "8-10", interval: 15 })
       ),
       restBetweenSets: 15,
-    });
-  }
+    }],
+  };
+}
 
-  // 2. Ativação
-  const activationExercises = selectExercisesByPattern(
-    exercises,
-    ACTIVATION_PATTERNS,
-    format === "tradicional" ? 3 : 2,
-    mobilityExercises.map((e) => e.id)
-  );
-  if (activationExercises.length > 0) {
-    blocks.push({
+function buildActivationPhase(exercises: Exercise[]): SessionPhase {
+  const activationExercises = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.activation, 3);
+  
+  return {
+    id: generateUUID(),
+    name: SESSION_STRUCTURE.phases.ativacao.name,
+    order: 3,
+    duration: SESSION_STRUCTURE.phases.ativacao.duration,
+    blocks: [{
       id: generateUUID(),
       name: "Ativação Neuromuscular",
       method: "circuito",
@@ -248,36 +281,20 @@ function buildPreparationPhase(
         mapToGeneratedExercise(ex, { sets: "2", reps: "10", interval: 20 })
       ),
       restBetweenSets: 20,
-    });
-  }
-
-  return {
-    id: generateUUID(),
-    name: "Preparação",
-    order: 1,
-    duration: config.phases.preparacao.duration,
-    blocks,
+    }],
   };
 }
 
 function buildCorePhase(exercises: Exercise[]): SessionPhase {
   const blocks: ExerciseBlock[] = [];
-  const usedIds: string[] = [];
-
-  // Core triplanar obrigatório
-  for (const [type, patterns] of Object.entries(CORE_PATTERNS)) {
-    const coreExercises = selectExercisesByPattern(exercises, patterns, 1, usedIds);
-    if (coreExercises.length > 0) {
-      usedIds.push(coreExercises[0].id);
-    }
-  }
-
-  const coreExercises = selectExercisesByPattern(
-    exercises,
-    [...CORE_PATTERNS.anti_extensao, ...CORE_PATTERNS.anti_flexao_lateral, ...CORE_PATTERNS.anti_rotacao],
-    3
-  );
-
+  
+  // Garantir 1 exercício de cada tipo de core
+  const antiExtensao = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.core.anti_extensao, 1);
+  const antiFlexaoLateral = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.core.anti_flexao_lateral, 1);
+  const antiRotacao = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.core.anti_rotacao, 1);
+  
+  const coreExercises = [...antiExtensao, ...antiFlexaoLateral, ...antiRotacao];
+  
   if (coreExercises.length > 0) {
     blocks.push({
       id: generateUUID(),
@@ -289,148 +306,154 @@ function buildCorePhase(exercises: Exercise[]): SessionPhase {
       restBetweenSets: 30,
     });
   }
-
+  
   return {
     id: generateUUID(),
-    name: "Ativação / Core",
-    order: 2,
-    duration: 7,
+    name: SESSION_STRUCTURE.phases.core.name,
+    order: 4,
+    duration: SESSION_STRUCTURE.phases.core.duration,
     blocks,
   };
 }
 
 function buildMainPhase(
   exercises: Exercise[],
-  input: SessionInput,
-  cycleConfig: typeof CYCLE_CONFIG.s1
-): SessionPhase {
+  valences: string[],
+  coveredPatterns: Set<string>
+): { phase: SessionPhase; newCoveredPatterns: string[] } {
   const blocks: ExerciseBlock[] = [];
   const usedIds: string[] = [];
-  const method = shuffleArray(cycleConfig.methods)[0];
-
-  // Estação A - Membros Inferiores
-  if (input.focus === "inferior" || input.focus === "full_body") {
-    const lowerExercises = selectExercisesByPattern(
-      exercises,
-      LOWER_BODY_PATTERNS,
-      input.focus === "full_body" ? 2 : 3,
-      usedIds
-    );
-    lowerExercises.forEach((ex) => usedIds.push(ex.id));
-
+  const newCoveredPatterns: string[] = [];
+  
+  // Determinar configuração baseada nas valências
+  const primaryValence = valences[0] as keyof typeof VALENCE_CONFIG;
+  const config = VALENCE_CONFIG[primaryValence] || VALENCE_CONFIG.forca;
+  const method = valences.includes("condicionamento") ? "circuito" : "tradicional";
+  
+  // Padrões que ainda precisam ser cobertos nesta sessão
+  const allForcePatterns = [
+    ...MANDATORY_PATTERNS.lower,
+    ...MANDATORY_PATTERNS.upperPush,
+    ...MANDATORY_PATTERNS.upperPull,
+    ...MANDATORY_PATTERNS.carry,
+  ];
+  
+  const patternsToCover = allForcePatterns.filter((p) => !coveredPatterns.has(p));
+  
+  // Bloco A - Membros Inferiores
+  const lowerPatterns = MANDATORY_PATTERNS.lower.filter((p) => !coveredPatterns.has(p));
+  if (lowerPatterns.length > 0) {
+    const lowerExercises = selectExercisesByPattern(exercises, lowerPatterns, 2, usedIds);
+    lowerExercises.forEach((ex) => {
+      usedIds.push(ex.id);
+      newCoveredPatterns.push(ex.movement_pattern);
+    });
+    
     if (lowerExercises.length > 0) {
       blocks.push({
         id: generateUUID(),
-        name: "Estação A - Membros Inferiores",
+        name: "Bloco A - Membros Inferiores",
         method,
         exercises: lowerExercises.map((ex) =>
           mapToGeneratedExercise(ex, { 
-            sets: "3-4", 
-            reps: input.valences.includes("forca") ? "4-6" : "8-12",
-            interval: 90,
-            pse: cycleConfig.pse,
+            sets: config.sets, 
+            reps: config.reps, 
+            interval: config.interval,
+            pse: config.pse,
           })
         ),
-        restBetweenSets: 90,
+        restBetweenSets: config.interval,
       });
     }
   }
-
-  // Estação B - Membros Superiores
-  if (input.focus === "superior" || input.focus === "full_body") {
-    const pushExercises = selectExercisesByPattern(
-      exercises,
-      UPPER_PUSH_PATTERNS,
-      1,
-      usedIds
-    );
-    pushExercises.forEach((ex) => usedIds.push(ex.id));
-
-    const pullExercises = selectExercisesByPattern(
-      exercises,
-      UPPER_PULL_PATTERNS,
-      1,
-      usedIds
-    );
-    pullExercises.forEach((ex) => usedIds.push(ex.id));
-
-    const upperExercises = [...pushExercises, ...pullExercises];
-
-    if (upperExercises.length > 0) {
-      blocks.push({
-        id: generateUUID(),
-        name: "Estação B - Membros Superiores",
-        method,
-        exercises: upperExercises.map((ex) =>
-          mapToGeneratedExercise(ex, {
-            sets: "3",
-            reps: input.valences.includes("hipertrofia") ? "8-12" : "6-8",
-            interval: 75,
-            pse: cycleConfig.pse,
-          })
-        ),
-        restBetweenSets: 75,
-      });
-    }
+  
+  // Bloco B - Membros Superiores (empurrar + puxar)
+  const pushPatterns = MANDATORY_PATTERNS.upperPush.filter((p) => !coveredPatterns.has(p));
+  const pullPatterns = MANDATORY_PATTERNS.upperPull.filter((p) => !coveredPatterns.has(p));
+  
+  const pushExercises = selectExercisesByPattern(exercises, pushPatterns, 1, usedIds);
+  pushExercises.forEach((ex) => {
+    usedIds.push(ex.id);
+    newCoveredPatterns.push(ex.movement_pattern);
+  });
+  
+  const pullExercises = selectExercisesByPattern(exercises, pullPatterns, 1, usedIds);
+  pullExercises.forEach((ex) => {
+    usedIds.push(ex.id);
+    newCoveredPatterns.push(ex.movement_pattern);
+  });
+  
+  const upperExercises = [...pushExercises, ...pullExercises];
+  if (upperExercises.length > 0) {
+    blocks.push({
+      id: generateUUID(),
+      name: "Bloco B - Membros Superiores",
+      method: valences.length > 1 ? "superset" : method,
+      exercises: upperExercises.map((ex) =>
+        mapToGeneratedExercise(ex, { 
+          sets: config.sets, 
+          reps: config.reps, 
+          interval: config.interval,
+          pse: config.pse,
+        })
+      ),
+      restBetweenSets: config.interval,
+    });
   }
-
-  // Estação C - Pliometria (se permitido)
-  if (
-    input.includePlyometrics &&
-    cycleConfig.allowPlyometrics &&
-    input.groupLevel !== "iniciante"
-  ) {
-    const plyoExercises = selectExercisesByPattern(
-      exercises,
-      PLYOMETRIC_PATTERNS,
-      2,
-      usedIds
-    );
-
-    if (plyoExercises.length > 0) {
+  
+  // Bloco C - Carry (carregamento)
+  const carryPatterns = MANDATORY_PATTERNS.carry.filter((p) => !coveredPatterns.has(p));
+  if (carryPatterns.length > 0) {
+    const carryExercises = selectExercisesByPattern(exercises, carryPatterns, 1, usedIds);
+    carryExercises.forEach((ex) => {
+      usedIds.push(ex.id);
+      newCoveredPatterns.push(ex.movement_pattern);
+    });
+    
+    if (carryExercises.length > 0) {
       blocks.push({
         id: generateUUID(),
-        name: "Estação C - Potência/Pliometria",
+        name: "Bloco C - Carregamento",
         method: "tradicional",
-        exercises: plyoExercises.map((ex) =>
-          mapToGeneratedExercise(ex, {
-            sets: "3",
-            reps: "5-6",
-            interval: 120,
-            pse: cycleConfig.pse,
+        exercises: carryExercises.map((ex) =>
+          mapToGeneratedExercise(ex, { 
+            sets: "3", 
+            reps: "20-30m", 
+            interval: 60,
+            pse: config.pse,
           })
         ),
-        restBetweenSets: 120,
-        notes: "Foco em qualidade de movimento e potência máxima",
+        restBetweenSets: 60,
       });
     }
   }
-
+  
   return {
-    id: generateUUID(),
-    name: "Principal",
-    order: 3,
-    duration: FORMAT_CONFIG[input.format].phases.principal.duration,
-    blocks,
+    phase: {
+      id: generateUUID(),
+      name: SESSION_STRUCTURE.phases.principal.name,
+      order: 5,
+      duration: SESSION_STRUCTURE.phases.principal.duration,
+      blocks,
+    },
+    newCoveredPatterns,
   };
 }
 
-function buildCooldownPhase(): SessionPhase {
+function buildBreathingPhase(): SessionPhase {
   return {
     id: generateUUID(),
-    name: "Cool Down",
-    order: 4,
-    duration: 5,
-    blocks: [
-      {
-        id: generateUUID(),
-        name: "Respiração e Mindfulness",
-        method: "respiracao",
-        exercises: [],
-        restBetweenSets: 0,
-        notes: "Protocolo de respiração guiada para recuperação",
-      },
-    ],
+    name: SESSION_STRUCTURE.phases.respiracao.name,
+    order: 6,
+    duration: SESSION_STRUCTURE.phases.respiracao.duration,
+    blocks: [{
+      id: generateUUID(),
+      name: "Respiração Guiada",
+      method: "respiracao",
+      exercises: [],
+      restBetweenSets: 0,
+      notes: "Box Breathing: 4s inspira, 4s segura, 4s expira, 4s segura. 5 ciclos.",
+    }],
   };
 }
 
@@ -445,110 +468,80 @@ function checkCoreTriplanar(phases: SessionPhase[]): {
     .map((e) => e.movementPattern);
 
   return {
-    anti_extensao: CORE_PATTERNS.anti_extensao.some((p) => allPatterns.includes(p)),
-    anti_flexao_lateral: CORE_PATTERNS.anti_flexao_lateral.some((p) =>
-      allPatterns.includes(p)
-    ),
-    anti_rotacao: CORE_PATTERNS.anti_rotacao.some((p) => allPatterns.includes(p)),
+    anti_extensao: MANDATORY_PATTERNS.core.anti_extensao.some((p) => allPatterns.includes(p)),
+    anti_flexao_lateral: MANDATORY_PATTERNS.core.anti_flexao_lateral.some((p) => allPatterns.includes(p)),
+    anti_rotacao: MANDATORY_PATTERNS.core.anti_rotacao.some((p) => allPatterns.includes(p)),
   };
 }
 
-// ============================================================================
-// CAMADA LLM - GERAÇÃO DE LINGUAGEM
-// ============================================================================
-
-async function generateSessionLanguage(
-  phases: SessionPhase[],
-  input: SessionInput
-): Promise<{ name: string; mindfulnessScript?: string; motivationalPhrase?: string }> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+function generateWorkoutName(slot: string, valences: string[]): string {
+  const slotNames: Record<string, string> = {
+    A: "Power",
+    B: "Build", 
+    C: "Flow",
+  };
   
-  if (!LOVABLE_API_KEY) {
-    // Fallback sem LLM
-    const focusName = {
-      inferior: "Lower Power",
-      superior: "Upper Strength",
-      full_body: "Full Body Flow",
-    }[input.focus];
-    
-    const cycleName = {
-      s1: "Recovery",
-      s2: "Build",
-      s3: "Peak",
-      s4: "Overload",
-    }[input.cycle];
+  const valenceNames: Record<string, string> = {
+    potencia: "Explosive",
+    forca: "Strength",
+    hipertrofia: "Hyper",
+    condicionamento: "MetCon",
+  };
+  
+  const base = slotNames[slot] || slot;
+  const suffix = valences.map((v) => valenceNames[v] || v).join(" + ");
+  
+  return `${base} ${suffix}`;
+}
 
-    return {
-      name: `${focusName} ${cycleName}`,
-      mindfulnessScript: "Feche os olhos. Inspire por 4 segundos, segure por 4, expire por 4. Repita 4 vezes.",
-      motivationalPhrase: "Cada repetição te aproxima da sua melhor versão.",
-    };
-  }
+// ============================================================================
+// GERAÇÃO DO WORKOUT COMPLETO
+// ============================================================================
 
-  try {
-    const exerciseNames = phases
-      .flatMap((p) => p.blocks)
-      .flatMap((b) => b.exercises)
-      .map((e) => e.name)
-      .slice(0, 8)
-      .join(", ");
-
-    const prompt = `Você é um coach de fitness premium da Fabrik Performance. Gere para esta sessão de treino:
-
-Contexto:
-- Formato: ${input.format === "tradicional" ? "Tradicional (50 min)" : "Time Efficient (30 min)"}
-- Ciclo: ${input.cycle.toUpperCase()} (${input.cycle === "s1" ? "Recuperação" : input.cycle === "s2" ? "Adaptação" : "Choque"})
-- Foco: ${input.focus === "inferior" ? "Membros Inferiores" : input.focus === "superior" ? "Membros Superiores" : "Full Body"}
-- Valências: ${input.valences.join(", ")}
-- Exercícios principais: ${exerciseNames}
-
-Responda APENAS em JSON válido com esta estrutura:
-{
-  "name": "Nome criativo e elegante para a sessão (máx 4 palavras)",
-  "mindfulnessScript": "Script de 30 segundos para respiração guiada no cool down",
-  "motivationalPhrase": "Frase motivacional curta para os alunos"
-}`;
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: "Você é um coach de fitness premium. Responda apenas em JSON válido." },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.7,
-      }),
+function generateSingleWorkout(
+  exercises: Exercise[],
+  config: WorkoutSlotConfig
+): GeneratedWorkout {
+  const coveredPatterns = new Set<string>();
+  
+  // Construir fases obrigatórias
+  const lmfPhase = buildLMFPhase(exercises);
+  const mobilityPhase = buildMobilityPhase(exercises);
+  const activationPhase = buildActivationPhase(exercises);
+  const corePhase = buildCorePhase(exercises);
+  
+  // Rastrear padrões cobertos nas fases de preparação
+  [lmfPhase, mobilityPhase, activationPhase, corePhase].forEach((phase) => {
+    phase.blocks.forEach((block) => {
+      block.exercises.forEach((ex) => {
+        coveredPatterns.add(ex.movementPattern);
+      });
     });
-
-    if (!response.ok) {
-      console.error("LLM error:", response.status);
-      throw new Error("LLM request failed");
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-    
-    // Parse JSON from response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]);
-    }
-    
-    throw new Error("Invalid LLM response format");
-  } catch (error) {
-    console.error("LLM generation error:", error);
-    // Fallback
-    return {
-      name: `${input.focus === "inferior" ? "Lower" : input.focus === "superior" ? "Upper" : "Full"} ${input.cycle.toUpperCase()} Session`,
-      mindfulnessScript: "Respire profundamente. Inspire por 4 segundos, expire por 6. Sinta seu corpo relaxar.",
-      motivationalPhrase: "O treino de hoje constrói o sucesso de amanhã.",
-    };
-  }
+  });
+  
+  // Fase principal com rastreamento de padrões
+  const { phase: mainPhase, newCoveredPatterns } = buildMainPhase(
+    exercises,
+    config.valences,
+    coveredPatterns
+  );
+  newCoveredPatterns.forEach((p) => coveredPatterns.add(p));
+  
+  // Fase de respiração
+  const breathingPhase = buildBreathingPhase();
+  
+  const phases = [lmfPhase, mobilityPhase, activationPhase, corePhase, mainPhase, breathingPhase];
+  
+  return {
+    id: generateUUID(),
+    slot: config.slot,
+    name: generateWorkoutName(config.slot, config.valences),
+    valences: config.valences,
+    totalDuration: SESSION_STRUCTURE.totalDuration,
+    phases,
+    coveredPatterns: Array.from(coveredPatterns),
+    coreTriplanarCheck: checkCoreTriplanar(phases),
+  };
 }
 
 // ============================================================================
@@ -561,130 +554,92 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    const input: MesocycleInput = await req.json();
+    
+    // Validar input
+    if (!input.groupLevel || !input.workouts || input.workouts.length !== 3) {
       return new Response(
-        JSON.stringify({ success: false, error: "Não autorizado" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: false, error: "Input inválido. Necessário: groupLevel e 3 workouts (A/B/C)" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
+    // Criar cliente Supabase
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const input: SessionInput = await req.json();
-
-    // Validar valências (máx 2)
-    if (input.valences.length > 2) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Máximo de 2 valências por sessão",
-          warnings: ["Valências reduzidas para as 2 primeiras selecionadas"]
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Buscar exercícios da biblioteca
-    const { data: allExercises, error: exError } = await supabase
+    const { data: allExercises, error: exercisesError } = await supabase
       .from("exercises_library")
-      .select("*");
+      .select("id, name, movement_pattern, risk_level, level, category, equipment_required, default_sets, default_reps, plyometric_phase");
 
-    if (exError) {
-      throw new Error(`Erro ao buscar exercícios: ${exError.message}`);
+    if (exercisesError) {
+      throw new Error(`Erro ao buscar exercícios: ${exercisesError.message}`);
     }
 
-    if (!allExercises || allExercises.length === 0) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Biblioteca de exercícios vazia. Importe exercícios primeiro." 
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Filtrar exercícios por nível e risco
-    let filteredExercises = filterByLevel(allExercises, input.groupLevel);
-    filteredExercises = filterByRisk(filteredExercises, input.groupLevel, input.cycle);
+    // Filtrar por nível e risco
+    let exercises = filterByLevel(allExercises || [], input.groupLevel);
+    exercises = filterByRisk(exercises, input.groupLevel);
 
     // Excluir exercícios específicos se solicitado
     if (input.excludeExercises?.length) {
-      filteredExercises = filteredExercises.filter(
-        (ex) => !input.excludeExercises!.includes(ex.id)
+      exercises = exercises.filter((ex) => !input.excludeExercises!.includes(ex.id));
+    }
+
+    if (exercises.length < 20) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Biblioteca de exercícios insuficiente. Necessário pelo menos 20 exercícios." 
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
     }
 
-    const cycleConfig = CYCLE_CONFIG[input.cycle];
+    // Gerar os 3 treinos
+    const workouts: GeneratedWorkout[] = [];
     const warnings: string[] = [];
-
-    // Gerar fases
-    const phases: SessionPhase[] = [];
-
-    // 1. Preparação
-    phases.push(buildPreparationPhase(filteredExercises, input.format));
-
-    // 2. Core (apenas para formato tradicional)
-    if (input.format === "tradicional") {
-      phases.push(buildCorePhase(filteredExercises));
+    
+    for (const workoutConfig of input.workouts) {
+      const workout = generateSingleWorkout(exercises, workoutConfig);
+      workouts.push(workout);
+      
+      // Verificar core triplanar
+      const { anti_extensao, anti_flexao_lateral, anti_rotacao } = workout.coreTriplanarCheck;
+      if (!anti_extensao || !anti_flexao_lateral || !anti_rotacao) {
+        warnings.push(`Treino ${workoutConfig.slot}: Core triplanar incompleto. Revise a seleção de exercícios.`);
+      }
     }
 
-    // 3. Principal
-    phases.push(buildMainPhase(filteredExercises, input, cycleConfig));
-
-    // 4. Cool Down
-    phases.push(buildCooldownPhase());
-
-    // Verificar core triplanar
-    const coreCheck = checkCoreTriplanar(phases);
-    if (!coreCheck.anti_extensao || !coreCheck.anti_flexao_lateral || !coreCheck.anti_rotacao) {
-      warnings.push("Core triplanar incompleto. Considere adicionar exercícios de anti-extensão, anti-flexão lateral ou anti-rotação.");
-    }
-
-    // Gerar linguagem via LLM
-    const language = await generateSessionLanguage(phases, input);
-
-    // Montar sessão final
-    const session = {
+    // Montar resposta do mesociclo
+    const mesocycle = {
       id: generateUUID(),
-      name: language.name,
-      format: input.format,
-      cycle: input.cycle,
-      valences: input.valences,
-      totalDuration: FORMAT_CONFIG[input.format].totalDuration,
-      phases,
-      coreTriplanarCheck: coreCheck,
-      mindfulnessScript: language.mindfulnessScript,
-      motivationalPhrase: language.motivationalPhrase,
+      groupLevel: input.groupLevel,
+      workouts,
       createdAt: new Date().toISOString(),
       metadata: {
-        groupLevel: input.groupLevel,
-        focus: input.focus,
-        includePlyometrics: input.includePlyometrics,
-        includeLMF: input.includeLMF,
+        totalPatternsBalance: {}, // TODO: calcular balanço de padrões
+        recommendedProgression: {
+          s1: { volumeMultiplier: 0.7, intensityMultiplier: 0.7 },
+          s2: { volumeMultiplier: 1.0, intensityMultiplier: 0.85 },
+          s3: { volumeMultiplier: 1.0, intensityMultiplier: 0.95 },
+          s4: { volumeMultiplier: 1.0, intensityMultiplier: 1.0 },
+        },
       },
     };
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        session,
-        warnings: warnings.length > 0 ? warnings : undefined,
-      }),
+      JSON.stringify({ success: true, mesocycle, warnings }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+
   } catch (error) {
-    console.error("Error generating session:", error);
+    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+    console.error("Erro na geração do mesociclo:", errorMessage);
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error instanceof Error ? error.message : "Erro ao gerar sessão" 
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ success: false, error: errorMessage }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
 });

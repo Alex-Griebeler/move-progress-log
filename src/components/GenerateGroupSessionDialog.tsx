@@ -1,3 +1,13 @@
+/**
+ * Dialog para Geração de Mesociclo com IA
+ * Fabrik Performance - Back to Basics
+ * 
+ * Fluxo:
+ * 1. Selecionar nível do grupo (iniciante/intermediário/avançado)
+ * 2. Configurar valências para cada slot (A/B/C) - máx 2 por sessão
+ * 3. IA gera os 3 treinos de uma vez
+ */
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -6,119 +16,135 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Sparkles, ArrowRight, ArrowLeft, Loader2, Clock, Target, Layers, CheckCircle2, AlertTriangle } from "lucide-react";
+import { 
+  Sparkles, 
+  ArrowRight, 
+  ArrowLeft, 
+  Loader2, 
+  Clock, 
+  CheckCircle2, 
+  AlertTriangle,
+  Users,
+  Calendar,
+} from "lucide-react";
 import { useGenerateGroupSession } from "@/hooks/useGenerateGroupSession";
 import {
-  PERIODIZATION_CYCLES,
-  SESSION_FORMATS,
+  MESOCYCLE_STRUCTURE,
   TRAINING_VALENCES,
+  STUDENT_LEVELS,
 } from "@/constants/backToBasics";
-import type { SessionGenerationInput, GeneratedSession } from "@/types/aiSession";
+import type { 
+  MesocycleGenerationInput, 
+  GeneratedMesocycle,
+  WorkoutSlotConfig,
+} from "@/types/aiSession";
+import type { TrainingValence, WorkoutSlot } from "@/constants/backToBasics";
 
-// Local constants for dialog options
-const GROUP_LEVELS = [
-  { id: "iniciante", label: "Iniciante" },
-  { id: "intermediario", label: "Intermediário" },
-  { id: "avancado", label: "Avançado" },
-] as const;
+// ============================================================================
+// TIPOS LOCAIS
+// ============================================================================
 
-const FOCUS_OPTIONS = [
-  { id: "inferior", label: "Membros Inferiores" },
-  { id: "superior", label: "Membros Superiores" },
-  { id: "full_body", label: "Full Body" },
-] as const;
+type Step = "level" | "valences" | "generating" | "preview";
+
+type GroupLevel = "iniciante" | "intermediario" | "avancado";
 
 interface GenerateGroupSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSessionGenerated?: (session: GeneratedSession) => void;
+  onMesocycleGenerated?: (mesocycle: GeneratedMesocycle) => void;
 }
 
-type Step = "format" | "config" | "generating" | "preview";
+// ============================================================================
+// COMPONENTE PRINCIPAL
+// ============================================================================
 
 export function GenerateGroupSessionDialog({
   open,
   onOpenChange,
-  onSessionGenerated,
+  onMesocycleGenerated,
 }: GenerateGroupSessionDialogProps) {
-  const [step, setStep] = useState<Step>("format");
-  const [generatedSession, setGeneratedSession] = useState<GeneratedSession | null>(null);
+  const [step, setStep] = useState<Step>("level");
+  const [generatedMesocycle, setGeneratedMesocycle] = useState<GeneratedMesocycle | null>(null);
 
   // Form state
-  const [format, setFormat] = useState<"tradicional" | "time_efficient">("tradicional");
-  const [cycle, setCycle] = useState<"s1" | "s2" | "s3" | "s4">("s2");
-  const [valences, setValences] = useState<(keyof typeof TRAINING_VALENCES)[]>(["forca"]);
-  const [groupLevel, setGroupLevel] = useState<"iniciante" | "intermediario" | "avancado">("intermediario");
-  const [focus, setFocus] = useState<"inferior" | "superior" | "full_body">("full_body");
-  const [includePlyometrics, setIncludePlyometrics] = useState(false);
-  const [includeLMF, setIncludeLMF] = useState(true);
+  const [groupLevel, setGroupLevel] = useState<GroupLevel>("intermediario");
+  const [workoutConfigs, setWorkoutConfigs] = useState<Record<WorkoutSlot, TrainingValence[]>>({
+    A: ["forca"],
+    B: ["hipertrofia"],
+    C: ["condicionamento"],
+  });
 
-  const generateSession = useGenerateGroupSession();
+  const generateMesocycle = useGenerateGroupSession();
 
-  const handleValenceToggle = (valence: keyof typeof TRAINING_VALENCES) => {
-    setValences((prev) => {
-      if (prev.includes(valence)) {
-        return prev.filter((v) => v !== valence);
+  // ============================================================================
+  // HANDLERS
+  // ============================================================================
+
+  const handleValenceToggle = (slot: WorkoutSlot, valence: TrainingValence) => {
+    setWorkoutConfigs((prev) => {
+      const current = prev[slot];
+      
+      if (current.includes(valence)) {
+        // Remover (mas manter pelo menos 1)
+        if (current.length > 1) {
+          return { ...prev, [slot]: current.filter((v) => v !== valence) };
+        }
+        return prev;
       }
-      if (prev.length >= 2) {
-        return [prev[1], valence]; // Replace first with new
+      
+      // Adicionar (máx 2)
+      if (current.length >= 2) {
+        return { ...prev, [slot]: [current[1], valence] };
       }
-      return [...prev, valence];
+      
+      return { ...prev, [slot]: [...current, valence] };
     });
   };
 
   const handleGenerate = async () => {
     setStep("generating");
 
-    const input: SessionGenerationInput = {
-      format,
-      cycle,
-      valences,
+    const input: MesocycleGenerationInput = {
       groupLevel,
-      focus,
-      includePlyometrics,
-      includeLMF,
+      workouts: (Object.keys(workoutConfigs) as WorkoutSlot[]).map((slot) => ({
+        slot,
+        valences: workoutConfigs[slot],
+      })),
     };
 
     try {
-      const session = await generateSession.mutateAsync(input);
-      setGeneratedSession(session);
+      const mesocycle = await generateMesocycle.mutateAsync(input);
+      setGeneratedMesocycle(mesocycle);
       setStep("preview");
     } catch {
-      setStep("config");
+      setStep("valences");
     }
   };
 
   const handleConfirm = () => {
-    if (generatedSession && onSessionGenerated) {
-      onSessionGenerated(generatedSession);
+    if (generatedMesocycle && onMesocycleGenerated) {
+      onMesocycleGenerated(generatedMesocycle);
     }
     handleClose();
   };
 
   const handleClose = () => {
-    setStep("format");
-    setGeneratedSession(null);
+    setStep("level");
+    setGeneratedMesocycle(null);
     onOpenChange(false);
   };
 
-  const canProceedToConfig = format && cycle && valences.length > 0;
-  const canGenerate = canProceedToConfig && groupLevel && focus;
+  const canProceedToValences = !!groupLevel;
+  const canGenerate = Object.values(workoutConfigs).every((v) => v.length >= 1);
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -126,377 +152,311 @@ export function GenerateGroupSessionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            Gerar Sessão com IA
+            Gerar Mesociclo com IA
           </DialogTitle>
           <DialogDescription>
-            {step === "format" && "Escolha o formato e objetivos da sessão"}
-            {step === "config" && "Configure o grupo e opções avançadas"}
-            {step === "generating" && "Montando sua sessão Back to Basics..."}
-            {step === "preview" && "Revise a sessão gerada"}
+            {step === "level" && "Defina o nível médio do grupo"}
+            {step === "valences" && "Configure os objetivos de cada treino semanal"}
+            {step === "generating" && "Montando seu mesociclo Back to Basics..."}
+            {step === "preview" && "Revise os 3 treinos gerados"}
           </DialogDescription>
         </DialogHeader>
 
         <ScrollArea className="flex-1 pr-4">
-          {/* Step 1: Format */}
-          {step === "format" && (
+          {/* ============================================================ */}
+          {/* STEP 1: NÍVEL DO GRUPO */}
+          {/* ============================================================ */}
+          {step === "level" && (
             <div className="space-y-6 py-4">
-              {/* Format Selection */}
               <div className="space-y-3">
-                <Label className="text-base font-medium">Formato da Sessão</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  {Object.entries(SESSION_FORMATS).map(([key, config]) => (
-                    <Card
-                      key={key}
-                      className={`cursor-pointer transition-all ${
-                        format === key
-                          ? "ring-2 ring-primary border-primary"
-                          : "hover:border-primary/50"
-                      }`}
-                      onClick={() => setFormat(key as "tradicional" | "time_efficient")}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-medium">{config.name}</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {config.duration} min
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
+                <div className="flex items-center gap-2 mb-4">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-base font-medium">Nível Médio do Grupo</span>
                 </div>
-              </div>
-
-              {/* Cycle Selection */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium">Ciclo de Periodização</Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {Object.entries(PERIODIZATION_CYCLES).map(([key, config]) => (
-                    <Card
-                      key={key}
-                      className={`cursor-pointer transition-all ${
-                        cycle === key
-                          ? "ring-2 ring-primary border-primary"
-                          : "hover:border-primary/50"
-                      }`}
-                      onClick={() => setCycle(key as "s1" | "s2" | "s3" | "s4")}
-                    >
-                      <CardContent className="p-3 text-center">
-                        <span className="text-sm font-medium">{key.toUpperCase()}</span>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {config.name}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-
-              {/* Valences Selection */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-base font-medium">Valências do Treino</Label>
-                  <span className="text-xs text-muted-foreground">
-                    {valences.length}/2 selecionadas
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.keys(TRAINING_VALENCES) as (keyof typeof TRAINING_VALENCES)[]).map((key) => (
-                    <Badge
-                      key={key}
-                      variant={valences.includes(key) ? "default" : "outline"}
-                      className="cursor-pointer px-3 py-1.5"
-                      onClick={() => handleValenceToggle(key)}
-                    >
-                      {TRAINING_VALENCES[key]}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Config */}
-          {step === "config" && (
-            <div className="space-y-6 py-4">
-              {/* Group Level */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium">Nível Médio do Grupo</Label>
-                <Select value={groupLevel} onValueChange={(v) => setGroupLevel(v as typeof groupLevel)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {GROUP_LEVELS.map((level) => (
-                      <SelectItem key={level.id} value={level.id}>
-                        {level.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Focus */}
-              <div className="space-y-3">
-                <Label className="text-base font-medium">Foco da Sessão</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {FOCUS_OPTIONS.map((opt) => (
-                    <Card
-                      key={opt.id}
-                      className={`cursor-pointer transition-all ${
-                        focus === opt.id
-                          ? "ring-2 ring-primary border-primary"
-                          : "hover:border-primary/50"
-                      }`}
-                      onClick={() => setFocus(opt.id as typeof focus)}
-                    >
-                      <CardContent className="p-3 text-center">
-                        <Target className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                        <span className="text-sm font-medium">{opt.label}</span>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-
-              {/* Options */}
-              <div className="space-y-4">
-                <Label className="text-base font-medium">Opções</Label>
                 
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="plyometrics"
-                    checked={includePlyometrics}
-                    onCheckedChange={(checked) => setIncludePlyometrics(!!checked)}
-                    disabled={groupLevel === "iniciante" || cycle === "s1"}
-                  />
-                  <div>
-                    <Label htmlFor="plyometrics" className="text-sm font-medium">
-                      Incluir Pliometria
-                    </Label>
-                    {(groupLevel === "iniciante" || cycle === "s1") && (
-                      <p className="text-xs text-muted-foreground">
-                        Disponível apenas para intermediário+ em ciclos S2+
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <Checkbox
-                    id="lmf"
-                    checked={includeLMF}
-                    onCheckedChange={(checked) => setIncludeLMF(!!checked)}
-                    disabled={format === "time_efficient"}
-                  />
-                  <div>
-                    <Label htmlFor="lmf" className="text-sm font-medium">
-                      Incluir LMF (Liberação Miofascial)
-                    </Label>
-                    {format === "time_efficient" && (
-                      <p className="text-xs text-muted-foreground">
-                        Não disponível no formato Time Efficient
-                      </p>
-                    )}
-                  </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {(Object.entries(STUDENT_LEVELS) as [GroupLevel, typeof STUDENT_LEVELS.iniciante][]).map(
+                    ([key, config]) => (
+                      <Card
+                        key={key}
+                        className={`cursor-pointer transition-all ${
+                          groupLevel === key
+                            ? "ring-2 ring-primary border-primary"
+                            : "hover:border-primary/50"
+                        }`}
+                        onClick={() => setGroupLevel(key)}
+                      >
+                        <CardContent className="p-4 text-center">
+                          <span className="text-lg font-medium">{config.name}</span>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {config.monthsTraining.min === 0
+                              ? "0-6 meses"
+                              : config.monthsTraining.max === Infinity
+                              ? "24+ meses"
+                              : `${config.monthsTraining.min}-${config.monthsTraining.max} meses`}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )
+                  )}
                 </div>
               </div>
 
-              {/* Summary */}
+              {/* Info sobre o mesociclo */}
               <Separator />
+              
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-base font-medium">Estrutura do Mesociclo</span>
+                </div>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  {(Object.entries(MESOCYCLE_STRUCTURE.workoutSlots) as [WorkoutSlot, typeof MESOCYCLE_STRUCTURE.workoutSlots.A][]).map(
+                    ([slot, config]) => (
+                      <Card key={slot} className="border-dashed">
+                        <CardContent className="p-3 text-center">
+                          <Badge 
+                            variant="outline" 
+                            className={`mb-2 bg-${config.color}-500/10 text-${config.color}-600 border-${config.color}-200`}
+                          >
+                            {config.name}
+                          </Badge>
+                          <p className="text-xs text-muted-foreground">
+                            {config.days.join(" e ")}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )
+                  )}
+                </div>
+                
+                <p className="text-sm text-muted-foreground text-center">
+                  4 semanas • Progressão automática S1→S4
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ============================================================ */}
+          {/* STEP 2: VALÊNCIAS POR SLOT */}
+          {/* ============================================================ */}
+          {step === "valences" && (
+            <div className="space-y-6 py-4">
+              <p className="text-sm text-muted-foreground">
+                Selecione até 2 valências para cada treino. A IA vai garantir que todos os 
+                padrões de movimento sejam trabalhados em cada sessão (full body).
+              </p>
+
+              {(Object.entries(MESOCYCLE_STRUCTURE.workoutSlots) as [WorkoutSlot, typeof MESOCYCLE_STRUCTURE.workoutSlots.A][]).map(
+                ([slot, slotConfig]) => (
+                  <Card key={slot}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center justify-between text-sm">
+                        <span className="flex items-center gap-2">
+                          <Badge variant="outline">{slotConfig.name}</Badge>
+                          <span className="text-muted-foreground font-normal">
+                            {slotConfig.days.join(" e ")}
+                          </span>
+                        </span>
+                        <span className="text-xs text-muted-foreground font-normal">
+                          {workoutConfigs[slot].length}/2
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-wrap gap-2">
+                        {(Object.keys(TRAINING_VALENCES) as TrainingValence[]).map((valence) => (
+                          <Badge
+                            key={valence}
+                            variant={workoutConfigs[slot].includes(valence) ? "default" : "outline"}
+                            className="cursor-pointer px-3 py-1.5 transition-all"
+                            onClick={() => handleValenceToggle(slot, valence)}
+                          >
+                            {TRAINING_VALENCES[valence]}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              )}
+
+              {/* Resumo */}
+              <Separator />
+              
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-muted-foreground">Resumo</Label>
+                <span className="text-sm font-medium text-muted-foreground">Resumo</span>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="secondary">
-                    {SESSION_FORMATS[format].name}
+                    {STUDENT_LEVELS[groupLevel].name}
                   </Badge>
-                  <Badge variant="secondary">
-                    {cycle.toUpperCase()} - {PERIODIZATION_CYCLES[cycle].name}
-                  </Badge>
-                  {valences.map((v) => (
-                    <Badge key={v} variant="outline">
-                      {TRAINING_VALENCES[v]}
-                    </Badge>
-                  ))}
+                  {(Object.entries(workoutConfigs) as [WorkoutSlot, TrainingValence[]][]).map(
+                    ([slot, valences]) => (
+                      <Badge key={slot} variant="outline">
+                        {slot}: {valences.map((v) => TRAINING_VALENCES[v]).join(" + ")}
+                      </Badge>
+                    )
+                  )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Step 3: Generating */}
+          {/* ============================================================ */}
+          {/* STEP 3: GERANDO */}
+          {/* ============================================================ */}
           {step === "generating" && (
             <div className="flex flex-col items-center justify-center py-12 space-y-4">
               <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-lg font-medium">Montando sua sessão...</p>
+              <p className="text-lg font-medium">Gerando seu mesociclo...</p>
               <p className="text-sm text-muted-foreground text-center max-w-sm">
-                Selecionando exercícios, validando core triplanar e gerando script de mindfulness
+                Selecionando exercícios, balanceando padrões de movimento e 
+                garantindo core triplanar em cada sessão
               </p>
             </div>
           )}
 
-          {/* Step 4: Preview */}
-          {step === "preview" && generatedSession && (
+          {/* ============================================================ */}
+          {/* STEP 4: PREVIEW */}
+          {/* ============================================================ */}
+          {step === "preview" && generatedMesocycle && (
             <div className="space-y-6 py-4">
-              {/* Header */}
+              {/* Header do mesociclo */}
               <div className="space-y-2">
-                <h3 className="text-xl font-semibold">{generatedSession.name}</h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-2">
                   <Badge variant="secondary">
+                    {STUDENT_LEVELS[generatedMesocycle.groupLevel].name}
+                  </Badge>
+                  <Badge variant="outline">
                     <Clock className="h-3 w-3 mr-1" />
-                    {generatedSession.totalDuration} min
+                    4 semanas
                   </Badge>
-                  <Badge variant="secondary">
-                    <Layers className="h-3 w-3 mr-1" />
-                    {generatedSession.phases.length} fases
-                  </Badge>
-                  {generatedSession.valences.map((v) => (
-                    <Badge key={v} variant="outline">
-                      {v}
-                    </Badge>
-                  ))}
                 </div>
               </div>
 
-              {/* Core Triplanar Check */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Core Triplanar</CardTitle>
-                </CardHeader>
-                <CardContent className="flex gap-4">
-                  <div className="flex items-center gap-1.5">
-                    {generatedSession.coreTriplanarCheck.anti_extensao ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                    )}
-                    <span className="text-xs">Anti-extensão</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {generatedSession.coreTriplanarCheck.anti_flexao_lateral ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                    )}
-                    <span className="text-xs">Anti-flexão lateral</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {generatedSession.coreTriplanarCheck.anti_rotacao ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                    )}
-                    <span className="text-xs">Anti-rotação</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Phases */}
-              <div className="space-y-4">
-                {generatedSession.phases.map((phase) => (
-                  <Card key={phase.id}>
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm font-medium">{phase.name}</CardTitle>
-                        <Badge variant="outline" className="text-xs">
-                          {phase.duration} min
+              {/* Treinos A, B, C */}
+              {generatedMesocycle.workouts.map((workout) => (
+                <Card key={workout.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <Badge>{MESOCYCLE_STRUCTURE.workoutSlots[workout.slot].name}</Badge>
+                        {workout.name}
+                      </CardTitle>
+                      <span className="text-xs text-muted-foreground">
+                        {workout.totalDuration} min
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {workout.valences.map((v) => (
+                        <Badge key={v} variant="outline" className="text-xs">
+                          {TRAINING_VALENCES[v]}
                         </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {phase.blocks.map((block) => (
-                        <div key={block.id} className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">{block.name}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {block.method}
-                            </Badge>
-                          </div>
-                          {block.exercises.length > 0 ? (
-                            <ul className="space-y-1 ml-4">
-                              {block.exercises.map((ex) => (
-                                <li key={ex.id} className="text-sm text-muted-foreground flex items-center gap-2">
-                                  <span className="w-1.5 h-1.5 bg-primary rounded-full" />
-                                  {ex.name}
-                                  <span className="text-xs">
-                                    ({ex.sets}×{ex.reps})
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : block.notes ? (
-                            <p className="text-sm text-muted-foreground ml-4">{block.notes}</p>
-                          ) : null}
-                        </div>
                       ))}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-3">
+                    {/* Core Triplanar Check */}
+                    <div className="flex gap-4 text-xs">
+                      <div className="flex items-center gap-1">
+                        {workout.coreTriplanarCheck.anti_extensao ? (
+                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                        )}
+                        <span>Anti-ext</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {workout.coreTriplanarCheck.anti_flexao_lateral ? (
+                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                        )}
+                        <span>Anti-flex lat</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {workout.coreTriplanarCheck.anti_rotacao ? (
+                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                        ) : (
+                          <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                        )}
+                        <span>Anti-rot</span>
+                      </div>
+                    </div>
 
-              {/* Motivational */}
-              {generatedSession.motivationalPhrase && (
-                <Card className="bg-primary/5 border-primary/20">
-                  <CardContent className="py-4">
-                    <p className="text-sm italic text-center">
-                      "{generatedSession.motivationalPhrase}"
-                    </p>
+                    {/* Fases resumidas */}
+                    {workout.phases.map((phase) => (
+                      <div key={phase.id} className="border-l-2 border-muted pl-3 py-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{phase.name}</span>
+                          <span className="text-xs text-muted-foreground">{phase.duration} min</span>
+                        </div>
+                        {phase.blocks.map((block) => (
+                          <div key={block.id} className="text-xs text-muted-foreground mt-1">
+                            {block.exercises.length > 0 
+                              ? block.exercises.map((e) => e.name).join(", ")
+                              : block.notes || block.name
+                            }
+                          </div>
+                        ))}
+                      </div>
+                    ))}
                   </CardContent>
                 </Card>
-              )}
+              ))}
             </div>
           )}
         </ScrollArea>
 
-        {/* Footer */}
+        {/* ============================================================ */}
+        {/* FOOTER / NAVIGATION */}
+        {/* ============================================================ */}
         <div className="flex justify-between pt-4 border-t">
-          {step === "format" && (
+          {step === "level" && (
             <>
-              <Button variant="outline" onClick={handleClose}>
+              <Button variant="ghost" onClick={handleClose}>
                 Cancelar
               </Button>
-              <Button
-                onClick={() => setStep("config")}
-                disabled={!canProceedToConfig}
-              >
+              <Button onClick={() => setStep("valences")} disabled={!canProceedToValences}>
                 Próximo
-                <ArrowRight className="h-4 w-4 ml-2" />
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </>
           )}
 
-          {step === "config" && (
+          {step === "valences" && (
             <>
-              <Button variant="outline" onClick={() => setStep("format")}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
+              <Button variant="ghost" onClick={() => setStep("level")}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
                 Voltar
               </Button>
-              <Button
-                onClick={handleGenerate}
-                disabled={!canGenerate || generateSession.isPending}
-                variant="gradient"
+              <Button 
+                onClick={handleGenerate} 
+                disabled={!canGenerate || generateMesocycle.isPending}
               >
-                <Sparkles className="h-4 w-4 mr-2" />
-                Gerar Sessão
+                <Sparkles className="mr-2 h-4 w-4" />
+                Gerar Mesociclo
               </Button>
             </>
           )}
 
           {step === "generating" && (
             <div className="w-full text-center text-sm text-muted-foreground">
-              Aguarde...
+              Isso pode levar alguns segundos...
             </div>
           )}
 
           {step === "preview" && (
             <>
-              <Button variant="outline" onClick={() => setStep("config")}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
+              <Button variant="ghost" onClick={() => setStep("valences")}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
                 Ajustar
               </Button>
-              <Button onClick={handleConfirm} variant="gradient">
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Usar Sessão
+              <Button onClick={handleConfirm}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Confirmar e Salvar
               </Button>
             </>
           )}

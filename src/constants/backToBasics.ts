@@ -258,14 +258,13 @@ export const METCON_PROGRESSION_STRATEGIES = {
 } as const;
 
 // ============================================================================
-// VALÊNCIAS DE TREINO
+// VALÊNCIAS DE TREINO (4 valências - sem resistência muscular)
 // ============================================================================
 
 export const TRAINING_VALENCES = {
-  forca: "Força",
   potencia: "Potência",
+  forca: "Força",
   hipertrofia: "Hipertrofia",
-  resistencia_muscular: "Resistência Muscular",
   condicionamento: "Condicionamento Metabólico",
 } as const;
 
@@ -273,16 +272,14 @@ export type TrainingValence = keyof typeof TRAINING_VALENCES;
 
 // Combinações válidas de valências (máx 2 por sessão)
 export const VALID_VALENCE_COMBINATIONS: TrainingValence[][] = [
-  ["forca"],
   ["potencia"],
+  ["forca"],
   ["hipertrofia"],
   ["condicionamento"],
-  ["resistencia_muscular"],
-  ["forca", "potencia"],
+  ["potencia", "forca"],
   ["forca", "hipertrofia"],
   ["potencia", "condicionamento"],
-  ["hipertrofia", "resistencia_muscular"],
-  ["resistencia_muscular", "condicionamento"],
+  ["hipertrofia", "condicionamento"],
 ];
 
 // ============================================================================
