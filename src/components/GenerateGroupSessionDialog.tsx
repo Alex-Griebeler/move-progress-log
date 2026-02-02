@@ -386,19 +386,47 @@ export function GenerateGroupSessionDialog({
                       </div>
                     </div>
 
-                    {/* Fases resumidas */}
+                    {/* Fases detalhadas */}
                     {workout.phases.map((phase) => (
-                      <div key={phase.id} className="border-l-2 border-muted pl-3 py-1">
-                        <div className="flex items-center justify-between">
+                      <div key={phase.id} className="border-l-2 border-muted pl-3 py-2">
+                        <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium">{phase.name}</span>
                           <span className="text-xs text-muted-foreground">{phase.duration} min</span>
                         </div>
                         {phase.blocks.map((block) => (
-                          <div key={block.id} className="text-xs text-muted-foreground mt-1">
-                            {block.exercises.length > 0 
-                              ? block.exercises.map((e) => e.name).join(", ")
-                              : block.notes || block.name
-                            }
+                          <div key={block.id} className="space-y-1 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                {block.name}
+                              </span>
+                              <Badge variant="outline" className="text-[10px] py-0">
+                                {block.method}
+                              </Badge>
+                            </div>
+                            {block.exercises.length > 0 ? (
+                              <div className="space-y-1 ml-2">
+                                {block.exercises.map((exercise) => (
+                                  <div key={exercise.id} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1">
+                                    <span className="font-medium truncate max-w-[180px]">
+                                      {exercise.name}
+                                    </span>
+                                    <div className="flex items-center gap-2 text-muted-foreground whitespace-nowrap">
+                                      <span>{exercise.sets}x{exercise.reps}</span>
+                                      {exercise.interval > 0 && (
+                                        <span>{exercise.interval}s</span>
+                                      )}
+                                      {exercise.pse && (
+                                        <span>PSE {exercise.pse}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground ml-2 italic">
+                                {block.notes || "Sem exercícios prescritos"}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

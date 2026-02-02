@@ -102,23 +102,24 @@ interface GeneratedWorkout {
 // ============================================================================
 
 const MANDATORY_PATTERNS = {
-  // Força - todos obrigatórios em cada sessão
+  // Força - todos obrigatórios em cada sessão (full body)
   lower: ["dominancia_joelho", "dominancia_quadril"],
   upperPush: ["empurrar_horizontal", "empurrar_vertical"],
   upperPull: ["puxar_horizontal", "puxar_vertical"],
   carry: ["carregar"],
   
-  // Core triplanar - OBRIGATÓRIO
+  // Core triplanar - OBRIGATÓRIO (com fallback para core_geral se específicos não existirem)
   core: {
-    anti_extensao: ["core_anti_extensao"],
-    anti_flexao_lateral: ["core_anti_flexao_lateral"],
-    anti_rotacao: ["core_anti_rotacao"],
+    anti_extensao: ["core_anti_extensao", "core_geral"],
+    anti_flexao_lateral: ["core_anti_flexao_lateral", "core_geral"],
+    anti_rotacao: ["core_anti_rotacao", "core_geral"],
+    general: ["core_geral"],
   },
   
-  // Preparação - OBRIGATÓRIO
-  lmf: ["lmf"],
-  mobility: ["mobilidade_tornozelo", "mobilidade_quadril", "mobilidade_toracica", "mobilidade_integrada"],
-  activation: ["ativacao_escapula", "ativacao_gluteos", "ativacao_flexores_quadril"],
+  // Preparação - OBRIGATÓRIO (usando padrões existentes na biblioteca)
+  mobility: ["mobilidade_geral"],
+  activation: ["ativacao_geral"],
+  locomotion: ["locomocao", "carregar"], // Fallback para carregamento se locomoção não tiver exercícios
 };
 
 // Configuração de volume/intensidade por valência
@@ -225,7 +226,8 @@ function mapToGeneratedExercise(
 // ============================================================================
 
 function buildLMFPhase(exercises: Exercise[]): SessionPhase {
-  const lmfExercises = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.lmf, 3);
+  // LMF usa exercícios de mobilidade geral para autoliberação
+  const lmfExercises = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.mobility, 3);
   
   return {
     id: generateUUID(),
@@ -240,7 +242,7 @@ function buildLMFPhase(exercises: Exercise[]): SessionPhase {
         mapToGeneratedExercise(ex, { sets: "1", reps: "30-60s", interval: 0 })
       ),
       restBetweenSets: 0,
-      notes: "Foco nas áreas de maior tensão",
+      notes: "Foco nas áreas de maior tensão - foam roller, bola, stick",
     }],
   };
 }
@@ -287,13 +289,30 @@ function buildActivationPhase(exercises: Exercise[]): SessionPhase {
 
 function buildCorePhase(exercises: Exercise[]): SessionPhase {
   const blocks: ExerciseBlock[] = [];
+  const usedIds: string[] = [];
   
-  // Garantir 1 exercício de cada tipo de core
-  const antiExtensao = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.core.anti_extensao, 1);
-  const antiFlexaoLateral = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.core.anti_flexao_lateral, 1);
-  const antiRotacao = selectExercisesByPattern(exercises, MANDATORY_PATTERNS.core.anti_rotacao, 1);
+  // Garantir 1 exercício de cada tipo de core (com fallback para core_geral)
+  let antiExtensao = selectExercisesByPattern(exercises, ["core_anti_extensao"], 1, usedIds);
+  if (antiExtensao.length === 0) {
+    antiExtensao = selectExercisesByPattern(exercises, ["core_geral"], 1, usedIds);
+  }
+  antiExtensao.forEach((ex) => usedIds.push(ex.id));
+  
+  let antiFlexaoLateral = selectExercisesByPattern(exercises, ["core_anti_flexao_lateral"], 1, usedIds);
+  if (antiFlexaoLateral.length === 0) {
+    antiFlexaoLateral = selectExercisesByPattern(exercises, ["core_geral"], 1, usedIds);
+  }
+  antiFlexaoLateral.forEach((ex) => usedIds.push(ex.id));
+  
+  let antiRotacao = selectExercisesByPattern(exercises, ["core_anti_rotacao"], 1, usedIds);
+  if (antiRotacao.length === 0) {
+    antiRotacao = selectExercisesByPattern(exercises, ["core_geral"], 1, usedIds);
+  }
+  antiRotacao.forEach((ex) => usedIds.push(ex.id));
   
   const coreExercises = [...antiExtensao, ...antiFlexaoLateral, ...antiRotacao];
+  
+  console.log(`[Core Phase] Selected ${coreExercises.length} exercises:`, coreExercises.map(e => e.name));
   
   if (coreExercises.length > 0) {
     blocks.push({
