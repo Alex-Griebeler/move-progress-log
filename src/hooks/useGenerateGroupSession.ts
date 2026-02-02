@@ -1,26 +1,31 @@
+/**
+ * Hook para Geração de Mesociclo com IA
+ * Fabrik Performance - Back to Basics
+ */
+
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import type { 
-  SessionGenerationInput, 
-  SessionGenerationResponse,
-  GeneratedSession 
+  MesocycleGenerationInput, 
+  MesocycleGenerationResponse,
+  GeneratedMesocycle 
 } from "@/types/aiSession";
 
 export const useGenerateGroupSession = () => {
   return useMutation({
-    mutationFn: async (input: SessionGenerationInput): Promise<GeneratedSession> => {
-      const { data, error } = await supabase.functions.invoke<SessionGenerationResponse>(
+    mutationFn: async (input: MesocycleGenerationInput): Promise<GeneratedMesocycle> => {
+      const { data, error } = await supabase.functions.invoke<MesocycleGenerationResponse>(
         "generate-group-session",
         { body: input }
       );
 
       if (error) {
-        throw new Error(error.message || "Erro ao gerar sessão");
+        throw new Error(error.message || "Erro ao gerar mesociclo");
       }
 
-      if (!data?.success || !data.session) {
-        throw new Error(data?.error || "Erro desconhecido ao gerar sessão");
+      if (!data?.success || !data.mesocycle) {
+        throw new Error(data?.error || "Erro desconhecido ao gerar mesociclo");
       }
 
       // Mostrar warnings se houver
@@ -30,17 +35,19 @@ export const useGenerateGroupSession = () => {
         });
       }
 
-      return data.session;
+      return data.mesocycle;
     },
     onSuccess: () => {
-      notify.success("Sessão gerada com sucesso!");
+      notify.success("Mesociclo gerado com sucesso!", {
+        description: "3 treinos criados para as próximas 4 semanas",
+      });
     },
     onError: (error) => {
-      notify.error("Erro ao gerar sessão", {
+      notify.error("Erro ao gerar mesociclo", {
         description: error.message,
       });
     },
   });
 };
 
-export type { SessionGenerationInput, GeneratedSession };
+export type { MesocycleGenerationInput, GeneratedMesocycle };

@@ -1,21 +1,43 @@
 /**
  * Tipos para Geração de Sessões por IA
  * Fabrik Performance - Back to Basics
+ * 
+ * Estrutura do Mesociclo:
+ * - 4 semanas com 3 treinos semanais (A/B/C)
+ * - A: Segunda e Quinta | B: Terça e Sexta | C: Quarta e Sábado
+ * - Treinos se repetem, ajustando volume e intensidade por ciclo (S1-S4)
  */
 
 import type { 
   PeriodizationCycle, 
-  SessionFormat, 
-  TrainingValence, 
-  TrainingStation,
+  TrainingValence,
   TrainingMethod,
-  CoreTriplanarType,
   MovementPattern,
   RiskLevel,
+  WorkoutSlot,
 } from "@/constants/backToBasics";
 
 // ============================================================================
-// INTERFACE DO EXERCÍCIO GERADO
+// CONFIGURAÇÃO POR SLOT (A/B/C)
+// ============================================================================
+
+export interface WorkoutSlotConfig {
+  slot: WorkoutSlot;
+  valences: TrainingValence[]; // máx 2
+}
+
+// ============================================================================
+// INPUT PARA GERAÇÃO DO MESOCICLO
+// ============================================================================
+
+export interface MesocycleGenerationInput {
+  groupLevel: "iniciante" | "intermediario" | "avancado";
+  workouts: WorkoutSlotConfig[]; // 3 slots: A, B, C
+  excludeExercises?: string[]; // IDs de exercícios a evitar
+}
+
+// ============================================================================
+// EXERCÍCIO GERADO
 // ============================================================================
 
 export interface GeneratedExercise {
@@ -33,7 +55,7 @@ export interface GeneratedExercise {
 }
 
 // ============================================================================
-// BLOCO/GRUPO DE EXERCÍCIOS
+// BLOCO DE EXERCÍCIOS
 // ============================================================================
 
 export interface ExerciseBlock {
@@ -59,17 +81,17 @@ export interface SessionPhase {
 }
 
 // ============================================================================
-// SESSÃO COMPLETA GERADA
+// SESSÃO INDIVIDUAL GERADA (Treino A, B ou C)
 // ============================================================================
 
-export interface GeneratedSession {
+export interface GeneratedWorkout {
   id: string;
+  slot: WorkoutSlot;
   name: string; // Gerado por LLM
-  format: SessionFormat;
-  cycle: PeriodizationCycle;
   valences: TrainingValence[];
-  totalDuration: number; // minutos
+  totalDuration: number; // minutos (sempre 55 min)
   phases: SessionPhase[];
+  coveredPatterns: MovementPattern[]; // Padrões de movimento trabalhados
   coreTriplanarCheck: {
     anti_extensao: boolean;
     anti_flexao_lateral: boolean;
@@ -77,75 +99,41 @@ export interface GeneratedSession {
   };
   mindfulnessScript?: string; // Gerado por LLM
   motivationalPhrase?: string; // Gerado por LLM
-  stations?: {
-    a: ExerciseBlock;
-    b: ExerciseBlock;
-    c?: ExerciseBlock;
-  };
-  createdAt: string;
-  metadata: {
-    groupLevel: string;
-    focus: "inferior" | "superior" | "full_body";
-    includePlyometrics: boolean;
-    includeLMF: boolean;
-  };
 }
 
 // ============================================================================
-// INPUT PARA GERAÇÃO
+// MESOCICLO COMPLETO (3 treinos para 4 semanas)
 // ============================================================================
 
-export interface SessionGenerationInput {
-  format: SessionFormat;
-  cycle: PeriodizationCycle;
-  valences: TrainingValence[];
+export interface GeneratedMesocycle {
+  id: string;
   groupLevel: "iniciante" | "intermediario" | "avancado";
-  focus: "inferior" | "superior" | "full_body";
-  includePlyometrics: boolean;
-  includeLMF: boolean;
-  excludeExercises?: string[]; // IDs de exercícios a evitar
-  preferredEquipment?: string[];
+  workouts: GeneratedWorkout[]; // 3 treinos (A, B, C)
+  createdAt: string;
+  metadata: {
+    totalPatternsBalance: Record<string, number>; // Contagem de padrões no ciclo
+    recommendedProgression: {
+      s1: { volumeMultiplier: number; intensityMultiplier: number };
+      s2: { volumeMultiplier: number; intensityMultiplier: number };
+      s3: { volumeMultiplier: number; intensityMultiplier: number };
+      s4: { volumeMultiplier: number; intensityMultiplier: number };
+    };
+  };
 }
 
 // ============================================================================
 // RESPOSTA DA EDGE FUNCTION
 // ============================================================================
 
-export interface SessionGenerationResponse {
+export interface MesocycleGenerationResponse {
   success: boolean;
-  session?: GeneratedSession;
+  mesocycle?: GeneratedMesocycle;
   error?: string;
   warnings?: string[];
 }
 
 // ============================================================================
-// TEMPLATE SALVO
-// ============================================================================
-
-export interface SavedSessionTemplate {
-  id: string;
-  trainerId: string;
-  name: string;
-  format: SessionFormat;
-  cycle: PeriodizationCycle;
-  valences: TrainingValence[];
-  durationMinutes: number;
-  phases: SessionPhase[];
-  coreTriplanarCheck: {
-    anti_extensao: boolean;
-    anti_flexao_lateral: boolean;
-    anti_rotacao: boolean;
-  };
-  focus?: string;
-  equipmentUsed?: string[];
-  isFavorite: boolean;
-  useCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// ============================================================================
-// PROTOCOLO DE RESPIRAÇÃO
+// PROTOCOLO DE RESPIRAÇÃO (Obrigatório em toda sessão)
 // ============================================================================
 
 export interface BreathingProtocol {
@@ -176,4 +164,20 @@ export interface EquipmentInventoryItem {
   location: string;
   isAvailable: boolean;
   notes?: string;
+}
+
+// ============================================================================
+// TEMPLATE SALVO (para reutilização)
+// ============================================================================
+
+export interface SavedMesocycleTemplate {
+  id: string;
+  trainerId: string;
+  name: string;
+  groupLevel: "iniciante" | "intermediario" | "avancado";
+  workoutConfigs: WorkoutSlotConfig[];
+  isFavorite: boolean;
+  useCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
