@@ -69,10 +69,10 @@ export const EditExerciseLibraryDialog = ({
       id: exercise.id,
       name: name.trim(),
       movement_pattern: movementPattern,
-      laterality: laterality || null,
-      movement_plane: movementPlane || null,
-      contraction_type: contractionType || null,
-      level: level || null,
+      laterality: laterality && laterality !== "none" ? laterality : null,
+      movement_plane: movementPlane && movementPlane !== "none" ? movementPlane : null,
+      contraction_type: contractionType && contractionType !== "none" ? contractionType : null,
+      level: level && level !== "none" ? level : null,
       description: description.trim() || null,
     });
 

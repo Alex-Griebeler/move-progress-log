@@ -3,6 +3,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 
+// Re-exportar constantes do backToBasics para manter compatibilidade
+export {
+  MOVEMENT_PATTERNS,
+  LATERALITY_OPTIONS,
+  MOVEMENT_PLANES,
+  CONTRACTION_TYPES,
+  LEVEL_OPTIONS,
+  EXERCISE_CATEGORIES,
+  RISK_LEVELS,
+} from "@/constants/backToBasics";
+
 export interface ExerciseLibrary {
   id: string;
   name: string;
@@ -14,6 +25,36 @@ export interface ExerciseLibrary {
   level: string | null;
   created_at: string;
   updated_at: string;
+  // Novos campos
+  video_url: string | null;
+  equipment_required: string[] | null;
+  prerequisites: unknown | null;
+  risk_level: string | null;
+  category: string | null;
+  subcategory: string | null;
+  plyometric_phase: number | null;
+  default_sets: string | null;
+  default_reps: string | null;
+}
+
+// Interface para criação (campos opcionais)
+export interface CreateExerciseInput {
+  name: string;
+  movement_pattern: string;
+  laterality?: string | null;
+  movement_plane?: string | null;
+  description?: string | null;
+  contraction_type?: string | null;
+  level?: string | null;
+  video_url?: string | null;
+  equipment_required?: string[] | null;
+  prerequisites?: unknown | null;
+  risk_level?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
+  plyometric_phase?: number | null;
+  default_sets?: string | null;
+  default_reps?: string | null;
 }
 
 export interface ExerciseFilters {
@@ -22,45 +63,9 @@ export interface ExerciseFilters {
   movement_plane?: string;
   contraction_type?: string;
   level?: string;
+  category?: string;
+  risk_level?: string;
 }
-
-export const MOVEMENT_PATTERNS = {
-  "Dominância de joelho": "Dominância de joelho",
-  "Dominância de quadril": "Dominância de quadril",
-  "Puxar": "Puxar",
-  "Empurrar": "Empurrar",
-  "Carregar": "Carregar",
-  "Core/Ativação": "Core/Ativação",
-};
-
-export const LATERALITY_OPTIONS = {
-  bilateral: "Bilateral",
-  unilateral: "Unilateral",
-  "base assimétrica": "Base Assimétrica",
-};
-
-export const MOVEMENT_PLANES = {
-  sagittal: "Sagital",
-  frontal: "Frontal",
-  transverse: "Transverso",
-};
-
-export const CONTRACTION_TYPES = {
-  "Concêntrica": "Concêntrica",
-  "Excêntrica": "Excêntrica",
-  "Isométrica": "Isométrica",
-  "Pliométrica / Potência": "Pliométrica / Potência",
-  "Mista": "Mista",
-};
-
-export const LEVEL_OPTIONS = {
-  "Iniciante": "Iniciante",
-  "Iniciante/Intermediário": "Iniciante/Intermediário",
-  "Intermediário": "Intermediário",
-  "Intermediário/Avançado": "Intermediário/Avançado",
-  "Avançado": "Avançado",
-  "Todos os níveis": "Todos os níveis",
-};
 
 export const useExercisesLibrary = (filters?: ExerciseFilters) => {
   return useQuery({
@@ -99,10 +104,10 @@ export const useCreateExercise = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (exercise: Omit<ExerciseLibrary, "id" | "created_at" | "updated_at">) => {
+    mutationFn: async (exercise: CreateExerciseInput) => {
       const { data, error } = await supabase
         .from("exercises_library")
-        .insert(exercise)
+        .insert(exercise as never)
         .select()
         .single();
 
@@ -125,10 +130,10 @@ export const useUpdateExercise = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...exercise }: Partial<ExerciseLibrary> & { id: string }) => {
+    mutationFn: async ({ id, ...exercise }: Partial<CreateExerciseInput> & { id: string }) => {
       const { data, error } = await supabase
         .from("exercises_library")
-        .update(exercise)
+        .update(exercise as never)
         .eq("id", id)
         .select()
         .single();
