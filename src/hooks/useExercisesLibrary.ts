@@ -91,6 +91,12 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
       if (filters?.level) {
         query = query.eq("level", filters.level);
       }
+      if (filters?.category) {
+        query = query.eq("category", filters.category);
+      }
+      if (filters?.risk_level) {
+        query = query.eq("risk_level", filters.risk_level);
+      }
 
       const { data, error } = await query;
 
