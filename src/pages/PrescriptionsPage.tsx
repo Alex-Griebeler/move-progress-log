@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, FolderPlus, MoreVertical } from "lucide-react";
+import { Plus, Search, FolderPlus, MoreVertical, Sparkles } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +14,7 @@ import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog"
 import { EditPrescriptionDialog } from "@/components/EditPrescriptionDialog";
 import { AssignPrescriptionDialog } from "@/components/AssignPrescriptionDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
+import { GenerateGroupSessionDialog } from "@/components/GenerateGroupSessionDialog";
 import { CreateSubfolderDialog } from "@/components/CreateSubfolderDialog";
 import { RenameFolderDialog } from "@/components/RenameFolderDialog";
 import { FolderTree } from "@/components/FolderTree";
@@ -74,6 +75,7 @@ export default function PrescriptionsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [recordGroupDialogOpen, setRecordGroupDialogOpen] = useState(false);
+  const [generateSessionDialogOpen, setGenerateSessionDialogOpen] = useState(false);
   const [createSubfolderDialogOpen, setCreateSubfolderDialogOpen] = useState(false);
   const [renameFolderDialogOpen, setRenameFolderDialogOpen] = useState(false);
   const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = useState(false);
@@ -333,6 +335,17 @@ export default function PrescriptionsPage() {
               </DropdownMenu>
               
               <Button
+                onClick={() => setGenerateSessionDialogOpen(true)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                aria-label="Gerar sessão com IA"
+              >
+                <Sparkles className="h-4 w-4" />
+                Gerar com IA
+              </Button>
+              
+              <Button
                 onClick={() => setCreateDialogOpen(true)}
                 variant="gradient"
                 size="sm"
@@ -462,6 +475,11 @@ export default function PrescriptionsPage() {
         prescriptionId={selectedPrescriptionId}
         reopenDate={reopenGroupSession?.date}
         reopenTime={reopenGroupSession?.time}
+      />
+
+      <GenerateGroupSessionDialog
+        open={generateSessionDialogOpen}
+        onOpenChange={setGenerateSessionDialogOpen}
       />
 
       <CreateSubfolderDialog
