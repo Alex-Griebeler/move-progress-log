@@ -67,6 +67,7 @@ export const MOVEMENT_PATTERNS = {
   lmf: "LMF (Liberação Miofascial)",
   potencializacao_snc: "Potencialização SNC",
   locomocao: "Locomoção",
+  potencia: "Potência",
 } as const;
 
 export type MovementPattern = keyof typeof MOVEMENT_PATTERNS;
@@ -84,6 +85,10 @@ export const EXERCISE_CATEGORIES = {
   lmf: "LMF",
   locomocao: "Locomoção",
   respiracao: "Respiração",
+  potencia: "Potência",
+  preparacao: "Preparação",
+  aquecimento: "Aquecimento",
+  condicionamento: "Condicionamento",
 } as const;
 
 export type ExerciseCategory = keyof typeof EXERCISE_CATEGORIES;
