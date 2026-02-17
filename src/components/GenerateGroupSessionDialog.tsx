@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Separator } from "@/components/ui/separator";
 import { 
   Sparkles, 
@@ -162,7 +162,7 @@ export function GenerateGroupSessionDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto pr-4">
           {/* ============================================================ */}
           {/* STEP 1: NÍVEL DO GRUPO */}
           {/* ============================================================ */}
@@ -436,7 +436,7 @@ export function GenerateGroupSessionDialog({
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
         {/* ============================================================ */}
         {/* FOOTER / NAVIGATION */}
