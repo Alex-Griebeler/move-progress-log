@@ -17,17 +17,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Plus, AlertTriangle } from "lucide-react";
 import {
   useCreateExercise,
   MOVEMENT_PATTERNS,
   LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
   CONTRACTION_TYPES,
-  LEVEL_OPTIONS,
   EXERCISE_CATEGORIES,
   RISK_LEVELS,
+  NUMERIC_LEVEL_SCALE,
+  PATTERN_TO_CATEGORY,
 } from "@/hooks/useExercisesLibrary";
+import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,7 +45,7 @@ export const AddExerciseDialog = () => {
   const [laterality, setLaterality] = useState("");
   const [movementPlane, setMovementPlane] = useState("");
   const [contractionType, setContractionType] = useState("");
-  const [level, setLevel] = useState("");
+  const [numericLevel, setNumericLevel] = useState("");
   const [description, setDescription] = useState("");
   
   // New fields
@@ -56,6 +59,16 @@ export const AddExerciseDialog = () => {
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
 
   const createExercise = useCreateExercise();
+  const { data: duplicates } = useDuplicateExerciseCheck(name);
+
+  const handleMovementPatternChange = (pattern: string) => {
+    setMovementPattern(pattern);
+    // Auto-fill category based on pattern
+    const autoCategory = PATTERN_TO_CATEGORY[pattern];
+    if (autoCategory) {
+      setCategory(autoCategory);
+    }
+  };
 
   const handleEquipmentToggle = (equipment: string) => {
     setSelectedEquipment(prev => 
@@ -78,7 +91,7 @@ export const AddExerciseDialog = () => {
       laterality: laterality && laterality !== "none" ? laterality : null,
       movement_plane: movementPlane && movementPlane !== "none" ? movementPlane : null,
       contraction_type: contractionType && contractionType !== "none" ? contractionType : null,
-      level: level && level !== "none" ? level : null,
+      level: null,
       description: description.trim() || null,
       video_url: videoUrl.trim() || null,
       risk_level: riskLevel && riskLevel !== "none" ? riskLevel : null,
@@ -96,7 +109,7 @@ export const AddExerciseDialog = () => {
     setLaterality("");
     setMovementPlane("");
     setContractionType("");
-    setLevel("");
+    setNumericLevel("");
     setDescription("");
     setVideoUrl("");
     setRiskLevel("");
@@ -138,11 +151,24 @@ export const AddExerciseDialog = () => {
                     placeholder="Ex: Agachamento Livre"
                     required
                   />
+                  {duplicates && duplicates.length > 0 && (
+                    <Alert variant="default" className="border-accent/50 bg-accent/10">
+                      <AlertTriangle className="h-4 w-4 text-accent-foreground" />
+                      <AlertDescription className="text-sm">
+                        Exercício(s) similar(es) encontrado(s):
+                        <ul className="mt-1 list-disc list-inside">
+                          {duplicates.map((d) => (
+                            <li key={d.id} className="text-muted-foreground">{d.name}</li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="movement-pattern">Padrão de Movimento *</Label>
-                  <Select value={movementPattern} onValueChange={setMovementPattern} required>
+                  <Select value={movementPattern} onValueChange={handleMovementPatternChange} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o padrão" />
                     </SelectTrigger>
@@ -174,16 +200,16 @@ export const AddExerciseDialog = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="level">Nível</Label>
-                  <Select value={level} onValueChange={setLevel}>
+                  <Label htmlFor="numeric-level">Nível (1-9)</Label>
+                  <Select value={numericLevel} onValueChange={setNumericLevel}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione (opcional)" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
-                      {Object.entries(LEVEL_OPTIONS).map(([key, label]) => (
+                      {Object.entries(NUMERIC_LEVEL_SCALE).map(([key, val]) => (
                         <SelectItem key={key} value={key}>
-                          {label}
+                          {val.label} — {val.category}
                         </SelectItem>
                       ))}
                     </SelectContent>
