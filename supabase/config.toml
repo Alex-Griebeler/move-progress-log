@@ -64,3 +64,6 @@ verify_jwt = true
 
 [functions.generate-group-session]
 verify_jwt = true
+
+[functions.import-exercises]
+verify_jwt = true
