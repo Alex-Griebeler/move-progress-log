@@ -538,10 +538,13 @@ export type Database = {
           movement_pattern: string
           movement_plane: string | null
           name: string
+          numeric_level: number | null
           plyometric_phase: number | null
+          position: string | null
           prerequisites: Json | null
           risk_level: string | null
           subcategory: string | null
+          tags: string[] | null
           updated_at: string
           video_url: string | null
         }
@@ -559,10 +562,13 @@ export type Database = {
           movement_pattern: string
           movement_plane?: string | null
           name: string
+          numeric_level?: number | null
           plyometric_phase?: number | null
+          position?: string | null
           prerequisites?: Json | null
           risk_level?: string | null
           subcategory?: string | null
+          tags?: string[] | null
           updated_at?: string
           video_url?: string | null
         }
@@ -580,10 +586,13 @@ export type Database = {
           movement_pattern?: string
           movement_plane?: string | null
           name?: string
+          numeric_level?: number | null
           plyometric_phase?: number | null
+          position?: string | null
           prerequisites?: Json | null
           risk_level?: string | null
           subcategory?: string | null
+          tags?: string[] | null
           updated_at?: string
           video_url?: string | null
         }
