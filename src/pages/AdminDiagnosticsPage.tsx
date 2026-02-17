@@ -1,10 +1,11 @@
+import { useState } from "react";
 import { useStudents } from "@/hooks/useStudents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { OuraApiDiagnosticsCard } from "@/components/OuraApiDiagnosticsCard";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Shield } from "lucide-react";
+import { ArrowLeft, Shield, Upload, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { AppHeader } from "@/components/AppHeader";
@@ -14,6 +15,9 @@ import { NAV_LABELS, ROUTES } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import exercisesJSON from "@/data/exercicios_fabrik_categorizado.json";
 
 const AdminDiagnosticsPage = () => {
   usePageTitle(NAV_LABELS.adminDiagnostics);
@@ -29,6 +33,25 @@ const AdminDiagnosticsPage = () => {
   const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();
   const { isAdmin, isLoading: isLoadingRole } = useIsAdmin();
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<Record<string, unknown> | null>(null);
+
+  const handleImportExercises = async () => {
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("import-exercises", {
+        body: exercisesJSON,
+      });
+      if (error) throw error;
+      setImportResult(data);
+      toast.success(`Importação concluída: ${data.inserted} inseridos, ${data.updated} atualizados`);
+    } catch (err) {
+      toast.error(`Erro na importação: ${(err as Error).message}`);
+    } finally {
+      setImporting(false);
+    }
+  };
 
   if (isLoadingRole) {
     return <PageLoadingSkeleton layout="list" />;
@@ -67,6 +90,64 @@ const AdminDiagnosticsPage = () => {
             </Button>
           }
         />
+
+        {/* Import Exercises Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Importar Exercícios (JSON Categorizado)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Importa os 491 exercícios do JSON oficial da Fabrik. Exercícios existentes serão atualizados com metadados padronizados. Novos exercícios serão inseridos.
+            </p>
+            <Button 
+              onClick={handleImportExercises} 
+              disabled={importing}
+              variant="default"
+            >
+              {importing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Executar Importação
+                </>
+              )}
+            </Button>
+
+            {importResult && (
+              <div className="rounded-md border p-4 space-y-2 text-sm">
+                <p><strong>Inseridos:</strong> {String(importResult.inserted)}</p>
+                <p><strong>Atualizados:</strong> {String(importResult.updated)}</p>
+                <p><strong>Total processado:</strong> {String(importResult.total_processed)}</p>
+                {importResult.errors_total && Number(importResult.errors_total) > 0 && (
+                  <div>
+                    <p className="text-destructive font-medium">Erros: {String(importResult.errors_total)}</p>
+                    <pre className="text-xs mt-1 max-h-40 overflow-auto bg-muted p-2 rounded">
+                      {JSON.stringify(importResult.errors, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {importResult.orphans_total && Number(importResult.orphans_total) > 0 && (
+                  <details>
+                    <summary className="cursor-pointer text-muted-foreground">
+                      Exercícios órfãos ({String(importResult.orphans_total)}) — não estão no JSON
+                    </summary>
+                    <pre className="text-xs mt-1 max-h-40 overflow-auto bg-muted p-2 rounded">
+                      {JSON.stringify(importResult.orphans, null, 2)}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {isLoading ? (
           <div className="space-y-6">
