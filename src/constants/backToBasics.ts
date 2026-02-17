@@ -112,8 +112,47 @@ export type RiskLevel = keyof typeof RISK_LEVELS;
 export const LATERALITY_OPTIONS = {
   bilateral: "Bilateral",
   unilateral: "Unilateral",
+  alternado: "Alternado",
   "base assimétrica": "Base Assimétrica",
 } as const;
+
+// ============================================================================
+// ESCALA DE NÍVEL NUMÉRICO (1-9)
+// ============================================================================
+
+export const NUMERIC_LEVEL_SCALE = {
+  1: { label: "Nível 1", category: "Iniciante", description: "Exercícios básicos de aprendizado" },
+  2: { label: "Nível 2", category: "Iniciante", description: "Progressão inicial com carga leve" },
+  3: { label: "Nível 3", category: "Iniciante", description: "Fundamentos consolidados" },
+  4: { label: "Nível 4", category: "Intermediário", description: "Introdução a padrões compostos" },
+  5: { label: "Nível 5", category: "Intermediário", description: "Padrões compostos com carga" },
+  6: { label: "Nível 6", category: "Intermediário", description: "Movimentos avançados introdutórios" },
+  7: { label: "Nível 7", category: "Avançado", description: "Alta complexidade e carga" },
+  8: { label: "Nível 8", category: "Avançado", description: "Performance e potência" },
+  9: { label: "Nível 9", category: "Avançado", description: "Elite / competição" },
+} as const;
+
+export type NumericLevel = keyof typeof NUMERIC_LEVEL_SCALE;
+
+// ============================================================================
+// POSIÇÕES DE EXERCÍCIO
+// ============================================================================
+
+export const POSITION_OPTIONS = {
+  em_pe: "Em pé",
+  solo: "Solo",
+  ajoelhado: "Ajoelhado",
+  semi_ajoelhado: "Semi-ajoelhado",
+  sentado: "Sentado",
+  decubito_dorsal: "Decúbito Dorsal",
+  decubito_ventral: "Decúbito Ventral",
+  decubito_lateral: "Decúbito Lateral",
+  quadrupede: "Quadrúpede",
+  suspenso: "Suspenso",
+  prancha: "Prancha",
+} as const;
+
+export type ExercisePosition = keyof typeof POSITION_OPTIONS;
 
 // ============================================================================
 // PLANOS DE MOVIMENTO
