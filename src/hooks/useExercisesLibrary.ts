@@ -12,6 +12,8 @@ export {
   LEVEL_OPTIONS,
   EXERCISE_CATEGORIES,
   RISK_LEVELS,
+  NUMERIC_LEVEL_SCALE,
+  PATTERN_TO_CATEGORY,
 } from "@/constants/backToBasics";
 
 export interface ExerciseLibrary {

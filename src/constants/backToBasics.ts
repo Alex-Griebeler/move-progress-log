@@ -429,6 +429,41 @@ export const CORE_TRIPLANAR = {
 export type CoreTriplanarType = keyof typeof CORE_TRIPLANAR;
 
 // ============================================================================
+// MAPEAMENTO PADRÃO DE MOVIMENTO → CATEGORIA
+// ============================================================================
+
+export const PATTERN_TO_CATEGORY: Record<string, string> = {
+  empurrar_horizontal: "forca",
+  empurrar_vertical: "forca",
+  puxar_horizontal: "forca",
+  puxar_vertical: "forca",
+  dominancia_joelho: "forca",
+  dominancia_quadril: "forca",
+  carregar: "forca",
+  core_anti_extensao: "core",
+  core_anti_flexao_lateral: "core",
+  core_anti_rotacao: "core",
+  core_geral: "core",
+  ativacao_escapula: "ativacao",
+  ativacao_gluteos: "ativacao",
+  ativacao_flexores_quadril: "ativacao",
+  ativacao_geral: "ativacao",
+  mobilidade_tornozelo: "mobilidade",
+  mobilidade_quadril: "mobilidade",
+  mobilidade_toracica: "mobilidade",
+  mobilidade_integrada: "mobilidade",
+  mobilidade_geral: "mobilidade",
+  pliometria_bilateral_linear: "pliometria",
+  pliometria_unilateral_linear: "pliometria",
+  pliometria_unilateral_lateral: "pliometria",
+  pliometria_unilateral_lateral_medial: "pliometria",
+  lmf: "lmf",
+  potencializacao_snc: "preparacao",
+  locomocao: "locomocao",
+  potencia: "potencia",
+} as const;
+
+// ============================================================================
 // PIRÂMIDE MOBILIDADE/ESTABILIDADE
 // ============================================================================
 

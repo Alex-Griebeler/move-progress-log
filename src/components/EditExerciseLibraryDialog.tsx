@@ -16,17 +16,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 import {
   useUpdateExercise,
   MOVEMENT_PATTERNS,
   LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
   CONTRACTION_TYPES,
-  LEVEL_OPTIONS,
   EXERCISE_CATEGORIES,
   RISK_LEVELS,
+  NUMERIC_LEVEL_SCALE,
+  PATTERN_TO_CATEGORY,
   ExerciseLibrary,
 } from "@/hooks/useExercisesLibrary";
+import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -50,10 +54,11 @@ export const EditExerciseLibraryDialog = ({
   const [laterality, setLaterality] = useState(exercise.laterality || "");
   const [movementPlane, setMovementPlane] = useState(exercise.movement_plane || "");
   const [contractionType, setContractionType] = useState(exercise.contraction_type || "");
-  const [level, setLevel] = useState(exercise.level || "");
+  const [numericLevel, setNumericLevel] = useState(
+    (exercise as any).numeric_level?.toString() || ""
+  );
   const [description, setDescription] = useState(exercise.description || "");
   
-  // New fields
   const [videoUrl, setVideoUrl] = useState(exercise.video_url || "");
   const [riskLevel, setRiskLevel] = useState(exercise.risk_level || "");
   const [category, setCategory] = useState(exercise.category || "");
@@ -64,6 +69,7 @@ export const EditExerciseLibraryDialog = ({
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>(exercise.equipment_required || []);
 
   const updateExercise = useUpdateExercise();
+  const { data: duplicates } = useDuplicateExerciseCheck(name, exercise.id);
 
   useEffect(() => {
     setName(exercise.name);
@@ -71,7 +77,7 @@ export const EditExerciseLibraryDialog = ({
     setLaterality(exercise.laterality || "");
     setMovementPlane(exercise.movement_plane || "");
     setContractionType(exercise.contraction_type || "");
-    setLevel(exercise.level || "");
+    setNumericLevel((exercise as any).numeric_level?.toString() || "");
     setDescription(exercise.description || "");
     setVideoUrl(exercise.video_url || "");
     setRiskLevel(exercise.risk_level || "");
@@ -82,6 +88,14 @@ export const EditExerciseLibraryDialog = ({
     setDefaultReps(exercise.default_reps || "");
     setSelectedEquipment(exercise.equipment_required || []);
   }, [exercise]);
+
+  const handleMovementPatternChange = (pattern: string) => {
+    setMovementPattern(pattern);
+    const autoCategory = PATTERN_TO_CATEGORY[pattern];
+    if (autoCategory && !category) {
+      setCategory(autoCategory);
+    }
+  };
 
   const handleEquipmentToggle = (equipment: string) => {
     setSelectedEquipment(prev => 
@@ -105,7 +119,7 @@ export const EditExerciseLibraryDialog = ({
       laterality: laterality && laterality !== "none" ? laterality : null,
       movement_plane: movementPlane && movementPlane !== "none" ? movementPlane : null,
       contraction_type: contractionType && contractionType !== "none" ? contractionType : null,
-      level: level && level !== "none" ? level : null,
+      level: null,
       description: description.trim() || null,
       video_url: videoUrl.trim() || null,
       risk_level: riskLevel && riskLevel !== "none" ? riskLevel : null,
@@ -143,11 +157,24 @@ export const EditExerciseLibraryDialog = ({
                     placeholder="Ex: Agachamento Livre"
                     required
                   />
+                  {duplicates && duplicates.length > 0 && (
+                    <Alert variant="default" className="border-accent/50 bg-accent/10">
+                      <AlertTriangle className="h-4 w-4 text-accent-foreground" />
+                      <AlertDescription className="text-sm">
+                        Exercício(s) similar(es) encontrado(s):
+                        <ul className="mt-1 list-disc list-inside">
+                          {duplicates.map((d) => (
+                            <li key={d.id} className="text-muted-foreground">{d.name}</li>
+                          ))}
+                        </ul>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-movement-pattern">Padrão de Movimento *</Label>
-                  <Select value={movementPattern} onValueChange={setMovementPattern} required>
+                  <Select value={movementPattern} onValueChange={handleMovementPatternChange} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o padrão" />
                     </SelectTrigger>
@@ -179,16 +206,16 @@ export const EditExerciseLibraryDialog = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-level">Nível</Label>
-                  <Select value={level} onValueChange={setLevel}>
+                  <Label htmlFor="edit-numeric-level">Nível (1-9)</Label>
+                  <Select value={numericLevel} onValueChange={setNumericLevel}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione (opcional)" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
-                      {Object.entries(LEVEL_OPTIONS).map(([key, label]) => (
+                      {Object.entries(NUMERIC_LEVEL_SCALE).map(([key, val]) => (
                         <SelectItem key={key} value={key}>
-                          {label}
+                          {val.label} — {val.category}
                         </SelectItem>
                       ))}
                     </SelectContent>
