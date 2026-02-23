@@ -1928,6 +1928,10 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limit_attempts: { Args: never; Returns: undefined }
+      delete_prescription_cascade: {
+        Args: { p_prescription_id: string }
+        Returns: undefined
+      }
       get_oura_access_token: { Args: { p_student_id: string }; Returns: string }
       get_oura_refresh_token: {
         Args: { p_student_id: string }

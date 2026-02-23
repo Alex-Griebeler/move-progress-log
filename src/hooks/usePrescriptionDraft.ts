@@ -28,7 +28,8 @@ interface PrescriptionDraft {
 const DEBOUNCE_MS = 1000;
 const SAVE_TO_HISTORY_INTERVAL = 60000; // 60 segundos
 
-export function usePrescriptionDraft(draftKey: string = 'prescription-draft') {
+export function usePrescriptionDraft(entityId?: string) {
+  const draftKey = entityId ? `prescription-draft-${entityId}` : 'prescription-draft';
   const { saveDraftToHistory } = usePrescriptionDraftHistory();
   const [draft, setDraft] = useState<PrescriptionDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);

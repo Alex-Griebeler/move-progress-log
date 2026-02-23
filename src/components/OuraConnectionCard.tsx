@@ -22,7 +22,7 @@ import {
   useDisconnectOura,
 } from "@/hooks/useOuraConnection";
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
-import { useOfflineDetection } from "@/hooks/useOfflineSync";
+import { useOfflineDetection } from "@/hooks/useOfflineDetection";
 import { useOuraTestSync } from "@/hooks/useOuraTestSync";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
