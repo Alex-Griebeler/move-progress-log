@@ -181,13 +181,20 @@ serve(async (req) => {
           data: audioBase64
         }
       },
-      `Transcreva este áudio em português brasileiro sobre treino físico. 
-  
+      `Transcreva este áudio em português brasileiro sobre treino físico.
+Tolere ruído, interrupções, correções e comentários paralelos.
+
 CORREÇÕES OBRIGATÓRIAS:
 - "alteres" → "halteres"
 - "querobel", "ketobel", "quetobell", "quetobel" → "kettlebell"
 - "supino" (manter assim)
 - "agachamento" (manter assim)
+- "sandbag", "sandbeg" → "sandbag"
+- "landmine", "land mine" → "landmine"
+
+CORREÇÕES NO MEIO DO ÁUDIO:
+- Se houver correção ("não é 17,5, é 20", "anota 20 em vez de 15"), transcreva AMBAS as versões fielmente.
+- O sistema de extração usará apenas a carga final corrigida.
 
 Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     ]);
@@ -226,7 +233,17 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     // 3️⃣ Processar com Gemini para extrair dados estruturados
     console.log("🤖 Processing structured data with Gemini...");
     
-    const systemPrompt = `Você é um assistente especializado em extrair dados estruturados de sessões de treino EM GRUPO seguindo o padrão Fabrik Time Efficient.
+    const systemPrompt = `Você é o sistema oficial de consolidação de cargas da Fabrik.
+Sua função é interpretar transcrições de treino em português (PT-BR), tolerando ruído, interrupções, correções e comentários paralelos, e extrair apenas os dados estruturais finais.
+
+PRIORIDADE: Exatidão matemática > Fidelidade ao áudio > Clareza estrutural
+
+❌ PROIBIÇÕES ABSOLUTAS:
+- Nunca invente dados
+- Nunca infira repetições não mencionadas
+- Nunca assuma pesos não informados
+- Nunca use memória histórica
+- Nunca estime peso de elástico
 
 CONTEXTO DA SESSÃO:
 📅 Data: ${date}
@@ -255,6 +272,14 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
    - Se o áudio menciona "fez agachamento" mas não menciona outros exercícios prescritos, registre APENAS o agachamento
    - NUNCA preencha exercícios automaticamente da prescrição se eles não foram mencionados
 
+🔁 **CORREÇÕES NO MEIO DO ÁUDIO (CRÍTICO)**:
+   - Se houver correção durante a gravação:
+     * "anota 20" (substituindo valor anterior)
+     * "não é 17,5, é 20"
+     * "corrige pra 25"
+   - → considerar APENAS a carga final corrigida
+   - → descartar valores anteriores que foram explicitamente corrigidos
+
 **IMPORTANTE - PESO CORPORAL (CÁLCULO AUTOMÁTICO)**:
    - Se o exercício usa "peso corporal" ou "PC" e você TEM o peso do aluno (weight_kg):
      * SEMPRE calcule automaticamente: load_kg = weight_kg do aluno
@@ -264,19 +289,34 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
      * load_breakdown: "Peso corporal"
      * load_kg: null
 
+**IMPORTANTE - ELÁSTICO / BANDA (AUXÍLIO)**:
+   - Se o exercício usa elástico como auxílio:
+     * load_breakdown: "Peso corporal" (ou com valor se disponível)
+     * observations: "Auxílio do elástico [cor]" (ex: "Auxílio do elástico roxo")
+     * NUNCA converter elástico para kg
+     * NUNCA estimar peso do elástico
+
 3. **Carga - FORMATO OBRIGATÓRIO DE load_breakdown**:
    
    a) **load_breakdown** (descrição completa da montagem):
       - **REGRA CRÍTICA**: Quando houver múltiplos pesos de cada lado, TODOS devem estar DENTRO do parêntese
       - ✅ CORRETO: "(25 lb + 2 kg + 1 kg) de cada lado + barra 10 kg"
       - ❌ ERRADO: "(25 lb) de cada lado + 2 kg + barra 10 kg"
-      - ❌ ERRADO: "(10 lb) de cada lado + 1 kg + barra 10 kg"
       
       **KETTLEBELLS DUPLOS (CRÍTICO)**:
       - "duplo kettlebell de 32 kg" → load_breakdown: "2 kettlebells de 32 kg", load_kg: 64.0
       - "kettlebell duplo de 24 kg" → load_breakdown: "2 kettlebells de 24 kg", load_kg: 48.0
       - "2 kettlebells de 28 kg" → load_breakdown: "2 kettlebells de 28 kg", load_kg: 56.0
       - "dois halteres de 15 kg" → load_breakdown: "2 halteres de 15 kg", load_kg: 30.0
+      
+      **LANDMINE (CRÍTICO - NÃO multiplicar por 2)**:
+      - Landmine usa apenas carga adicionada, NÃO multiplica por 2
+      - "Landmine press com 15 kg" → load_breakdown: "15 kg", load_kg: 15.0
+      - Se peso da barra não for informado → registrar normalmente + incluir alerta nas observations
+      
+      **SANDBAG**:
+      - Carga direta, sem multiplicação
+      - "Sandbag de 20 kg" → load_breakdown: "20 kg", load_kg: 20.0
       
       **Exemplos válidos:**
       - "(10 lb + 5 kg) de cada lado + barra 20 kg"
@@ -293,9 +333,14 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
 
 4. **Conversão de Libras (PADRÃO FABRIK)**:
    - **1 lb = 0.45 kg** (usar este valor, não o técnico)
+   - Converter antes de somar. Arredondar apenas no resultado final.
    - **ATENÇÃO: "de cada lado" significa multiplicar por 2**
    - **CÁLCULO OBRIGATÓRIO**: Se load_breakdown foi preenchido, load_kg NUNCA pode ser null
-   - **ARREDONDAMENTO**: Sempre 1 casa decimal
+   
+   **BARRA BILATERAL**:
+   - Se disser "X kg" sem especificar lado → assumir que é por lado e multiplicar por 2
+   - Se disser "de cada lado" → multiplicar por 2
+   - Se peso da barra não for informado → NÃO inventar, registrar sem barra, incluir alerta
    
    Exemplos detalhados:
    
@@ -313,9 +358,9 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
    c) "15 lb + 2 kg de cada lado + barra 10 kg"
       * Passo 1: 15 lb = 15 × 0.45 = 6.8 kg
       * Passo 2: (6.8 + 2) × 2 lados = 17.6 kg
-       * Passo 3: 17.6 + 10 (barra) = 27.6 kg
-        * load_breakdown: "(15 lb + 2 kg) de cada lado + barra 10 kg"
-        * load_kg: 27.6
+      * Passo 3: 17.6 + 10 (barra) = 27.6 kg
+      * load_breakdown: "(15 lb + 2 kg) de cada lado + barra 10 kg"
+      * load_kg: 27.6
 
 **CASOS ESPECIAIS DE UNIDADES MISTAS (CRÍTICO)**:
 
@@ -350,7 +395,7 @@ JSON ESPERADO:
 - ❌ ERRADO: "(25 lb) de cada lado + 5 kg + barra 20 kg"
 - ✅ CORRETO: "(25 lb + 5 kg) de cada lado + barra 20 kg"
 
-**EXEMPLOS PRÁTICOS DE CARGA (12 CENÁRIOS REAIS)**:
+**EXEMPLOS PRÁTICOS DE CARGA (14 CENÁRIOS REAIS)**:
 
 a) **Peso corporal COM registro:**
    Áudio: "Fez flexão de braço"
@@ -417,6 +462,16 @@ l) **Exercício sem carga externa:**
    → load_breakdown: "Peso corporal = 75.0 kg" (se peso cadastrado)
    → load_kg: 75.0
 
+m) **Landmine (NÃO multiplicar por 2):**
+   Áudio: "Landmine press com 15 kg"
+   → load_breakdown: "15 kg"
+   → load_kg: 15.0
+
+n) **Sandbag (carga direta):**
+   Áudio: "Carry com sandbag de 30 kg"
+   → load_breakdown: "30 kg"
+   → load_kg: 30.0
+
 **REGRAS PARA CAMPOS NÃO PREENCHIDOS**:
 - Se a carga NÃO foi mencionada no áudio:
   * load_breakdown: null (não "", não "não informado")
@@ -435,20 +490,21 @@ l) **Exercício sem carga externa:**
    - Exemplos: "Afundo (pegada taça)", "Remada unilateral (halter)"
 
 6. **is_best_set**:
-   - Sempre true (registramos apenas a maior carga da sessão)
+   - Registrar apenas a MAIOR CARGA da sessão por exercício
+   - Sempre true
 
 7. **Observações Técnicas** (campo observations):
    - Incluir: "carga submáxima", "dificuldade perna X", "boa execução"
    - Incluir qualquer comentário técnico relevante
+   - Incluir alertas de precisão quando aplicável:
+     * Peso da barra não informado → "⚠️ Peso da barra não informado"
+     * Substituição de exercício → "⚠️ Substituição: [original] → [substituto]"
 
 8. **Observações Clínicas** (campo separado clinical_observations):
    - Extraia: DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE/ATIVAÇÃO
    - **CAPITALIZE a primeira letra de cada observation_text**
    - Exemplo: "dor no joelho" → "Dor no joelho"
-   - Exemplo: "desconforto no quadril" → "Desconforto no quadril"
    - UMA observação pode ter MÚLTIPLAS categorias
-   - Exemplo: "Dor no joelho esquerdo e dificuldade de mobilidade"
-     * categories: ["dor", "mobilidade"]
    - Categorias possíveis: "dor", "mobilidade", "força", "técnica", "geral"
    
    **CLASSIFICAÇÃO DE SEVERIDADE (CRÍTICO)**:
@@ -456,11 +512,18 @@ l) **Exercício sem carga externa:**
      * Exemplo: "Dor intensa no joelho que impediu o agachamento"
    - **MÉDIA**: Desconfortos, déficits de ativação, limitações moderadas
      * Exemplo: "Desconforto no quadril por déficit de ativação do glúteo"
-     * Exemplo: "Dificuldade de mobilidade no tornozelo"
    - **BAIXA**: Comentários técnicos leves, fadiga normal
      * Exemplo: "Leve cansaço ao final da série"
    
    **REGRA GERAL**: Qualquer DOR, DESCONFORTO ou DÉFICIT deve ser no mínimo "média"
+
+🎯 **PONTOS DE ATENÇÃO TÉCNICOS** (campo tech_points - gerar apenas quando houver):
+   - Dor ou desconforto relatado
+   - Técnica comprometida
+   - Carga claramente submáxima
+   - Progressão evidente
+   - Substituição por limitação
+   - Curto. Técnico. Objetivo. Sem diagnóstico médico.
 
 9. **prescribed_exercise_name** (IMPORTANTE):
    - Tente SEMPRE associar o exercício executado com um dos exercícios prescritos
@@ -483,12 +546,14 @@ FORMATO DE SAÍDA:
           "severity": "baixa|média|alta"
         }
       ],
+      "tech_points": ["ponto técnico 1", "ponto técnico 2"],
+      "precision_alerts": ["Peso da barra não informado no supino", "Repetições ausentes no agachamento"],
       "exercises": [
         {
           "prescribed_exercise_name": "nome do exercício prescrito (ou null)",
           "executed_exercise_name": "nome executado (com pegada)",
           "sets": número ou null,
-          "reps": número obrigatório,
+          "reps": número ou null,
           "load_kg": número com 1 casa decimal (ex: 25.0) ou null,
           "load_breakdown": "descrição EXATA ou null",
           "observations": "observações técnicas ou null",
