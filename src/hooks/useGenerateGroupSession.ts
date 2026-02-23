@@ -6,6 +6,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
+import i18n from "@/i18n/pt-BR.json";
 import type { 
   MesocycleGenerationInput, 
   MesocycleGenerationResponse,
@@ -21,29 +22,30 @@ export const useGenerateGroupSession = () => {
       );
 
       if (error) {
-        throw new Error(error.message || "Erro ao gerar mesociclo");
+        // INC-010: usando chaves i18n
+        throw new Error(error.message || i18n.errors.unknown);
       }
 
       if (!data?.success || !data.mesocycle) {
-        throw new Error(data?.error || "Erro desconhecido ao gerar mesociclo");
+        throw new Error(data?.error || i18n.errors.unknown);
       }
 
       // Mostrar warnings se houver
       if (data.warnings && data.warnings.length > 0) {
         data.warnings.forEach((warning) => {
-          notify.warning("Atenção", { description: warning });
+          notify.warning(i18n.modules.workouts.warning, { description: warning });
         });
       }
 
       return data.mesocycle;
     },
     onSuccess: () => {
-      notify.success("Mesociclo gerado com sucesso!", {
-        description: "3 treinos criados para as próximas 4 semanas",
+      notify.success(i18n.feedback.success, {
+        description: i18n.modules.workouts.sessionSaved,
       });
     },
     onError: (error) => {
-      notify.error("Erro ao gerar mesociclo", {
+      notify.error(i18n.modules.workouts.errorCreate, {
         description: error.message,
       });
     },

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SessionFilters {
@@ -35,85 +35,103 @@ export interface SessionWithDetails {
   }>;
 }
 
+const SESSION_SELECT = `
+  id, date, time, session_type, workout_name, room_name,
+  trainer_name, is_finalized, can_reopen, prescription_id, student_id,
+  student:students!student_id ( name, avatar_url ),
+  prescription:workout_prescriptions!prescription_id ( name ),
+  exercises!session_id ( load_kg )
+`;
+
+function applyFilters(query: any, filters?: SessionFilters) {
+  if (filters?.studentIds && filters.studentIds.length > 0) {
+    query = query.in("student_id", filters.studentIds);
+  }
+  if (filters?.prescriptionIds && filters.prescriptionIds.length > 0) {
+    query = query.in("prescription_id", filters.prescriptionIds);
+  }
+  if (filters?.startDate) {
+    query = query.gte("date", filters.startDate.toISOString().split("T")[0]);
+  }
+  if (filters?.endDate) {
+    query = query.lte("date", filters.endDate.toISOString().split("T")[0]);
+  }
+  if (filters?.startTime) {
+    query = query.gte("time", filters.startTime);
+  }
+  if (filters?.endTime) {
+    query = query.lte("time", filters.endTime);
+  }
+  if (filters?.sessionType && filters.sessionType !== "all") {
+    query = query.eq("session_type", filters.sessionType);
+  }
+  return query;
+}
+
+function buildStableQueryKey(prefix: string, filters?: SessionFilters) {
+  // INC-005: Serialized primitives for stable queryKey
+  return [
+    prefix,
+    filters?.studentIds?.join(",") ?? "",
+    filters?.prescriptionIds?.join(",") ?? "",
+    filters?.startDate?.toISOString() ?? "",
+    filters?.endDate?.toISOString() ?? "",
+    filters?.startTime ?? "",
+    filters?.endTime ?? "",
+    filters?.sessionType ?? "all",
+  ];
+}
+
+// Legacy hook — loads all sessions at once (kept for backward compatibility)
 export function useAllSessions(filters?: SessionFilters) {
   return useQuery({
-    // INC-005: Serialized primitives for stable queryKey
-    queryKey: [
-      "all-sessions",
-      filters?.studentIds?.join(",") ?? "",
-      filters?.prescriptionIds?.join(",") ?? "",
-      filters?.startDate?.toISOString() ?? "",
-      filters?.endDate?.toISOString() ?? "",
-      filters?.startTime ?? "",
-      filters?.endTime ?? "",
-      filters?.sessionType ?? "all",
-    ],
+    queryKey: buildStableQueryKey("all-sessions", filters),
     queryFn: async () => {
       let query = supabase
         .from("workout_sessions")
-        .select(`
-          id,
-          date,
-          time,
-          session_type,
-          workout_name,
-          room_name,
-          trainer_name,
-          is_finalized,
-          can_reopen,
-          prescription_id,
-          student_id,
-          student:students!student_id (
-            name,
-            avatar_url
-          ),
-          prescription:workout_prescriptions!prescription_id (
-            name
-          ),
-          exercises!session_id (
-            load_kg
-          )
-        `)
+        .select(SESSION_SELECT)
         .order("date", { ascending: false })
-        .order("time", { ascending: false });
+        .order("time", { ascending: false })
+        .limit(2000);
 
-      // Aplicar filtros
-      if (filters?.studentIds && filters.studentIds.length > 0) {
-        query = query.in("student_id", filters.studentIds);
-      }
-
-      if (filters?.prescriptionIds && filters.prescriptionIds.length > 0) {
-        query = query.in("prescription_id", filters.prescriptionIds);
-      }
-
-      if (filters?.startDate) {
-        query = query.gte("date", filters.startDate.toISOString().split("T")[0]);
-      }
-
-      if (filters?.endDate) {
-        query = query.lte("date", filters.endDate.toISOString().split("T")[0]);
-      }
-
-      if (filters?.startTime) {
-        query = query.gte("time", filters.startTime);
-      }
-
-      if (filters?.endTime) {
-        query = query.lte("time", filters.endTime);
-      }
-
-      if (filters?.sessionType && filters.sessionType !== "all") {
-        query = query.eq("session_type", filters.sessionType);
-      }
-
-      // Limite explícito para evitar cap silencioso de 1000 rows do Supabase
-      query = query.limit(2000);
+      query = applyFilters(query, filters);
 
       const { data, error } = await query;
-
       if (error) throw error;
-
       return (data || []) as SessionWithDetails[];
     },
+  });
+}
+
+// MEL-003: Paginated hook with cursor-based infinite scrolling
+const PAGE_SIZE = 50;
+
+export function useAllSessionsPaginated(filters?: SessionFilters) {
+  return useInfiniteQuery({
+    queryKey: buildStableQueryKey("all-sessions-paginated", filters),
+    queryFn: async ({ pageParam = 0 }) => {
+      const from = pageParam * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      let query = supabase
+        .from("workout_sessions")
+        .select(SESSION_SELECT)
+        .order("date", { ascending: false })
+        .order("time", { ascending: false })
+        .range(from, to);
+
+      query = applyFilters(query, filters);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return {
+        sessions: (data || []) as SessionWithDetails[],
+        page: pageParam,
+        hasMore: (data?.length ?? 0) === PAGE_SIZE,
+      };
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) =>
+      lastPage.hasMore ? lastPage.page + 1 : undefined,
   });
 }
