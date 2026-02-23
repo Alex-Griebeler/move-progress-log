@@ -50,31 +50,22 @@ export const useSessionsWithExercises = (studentId: string) => {
     queryKey: ["sessions-with-exercises", studentId],
     enabled: !!studentId,
     queryFn: async () => {
-      const { data: sessions, error: sessionsError } = await supabase
+      // BUG-002 fix: Single query with join instead of N+1
+      const { data: sessions, error } = await supabase
         .from("workout_sessions")
-        .select("*")
+        .select(`
+          *,
+          exercises(*)
+        `)
         .eq("student_id", studentId)
         .order("date", { ascending: false })
         .order("time", { ascending: false });
 
-      if (sessionsError) throw sessionsError;
-      if (!sessions) return [];
-
-      const sessionsWithExercises = await Promise.all(
-        sessions.map(async (session) => {
-          const { data: exercises } = await supabase
-            .from("exercises")
-            .select("*")
-            .eq("session_id", session.id);
-
-          return {
-            ...session,
-            exercises: exercises || [],
-          };
-        })
-      );
-
-      return sessionsWithExercises;
+      if (error) throw error;
+      return (sessions || []).map((session: any) => ({
+        ...session,
+        exercises: session.exercises || [],
+      }));
     },
   });
 };

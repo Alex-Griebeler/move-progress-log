@@ -37,7 +37,17 @@ export interface SessionWithDetails {
 
 export function useAllSessions(filters?: SessionFilters) {
   return useQuery({
-    queryKey: ["all-sessions", filters],
+    // INC-005: Serialized primitives for stable queryKey
+    queryKey: [
+      "all-sessions",
+      filters?.studentIds?.join(",") ?? "",
+      filters?.prescriptionIds?.join(",") ?? "",
+      filters?.startDate?.toISOString() ?? "",
+      filters?.endDate?.toISOString() ?? "",
+      filters?.startTime ?? "",
+      filters?.endTime ?? "",
+      filters?.sessionType ?? "all",
+    ],
     queryFn: async () => {
       let query = supabase
         .from("workout_sessions")

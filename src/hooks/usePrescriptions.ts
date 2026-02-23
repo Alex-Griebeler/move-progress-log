@@ -103,6 +103,12 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
       if (exError) throw exError;
 
       const exerciseIds = exercises.map((ex) => ex.id);
+
+      // BUG-006 fix: guard against empty array in .in()
+      if (exerciseIds.length === 0) {
+        return { ...prescription, exercises: [] };
+      }
+
       const { data: adaptations, error: adaptError } = await supabase
         .from("exercise_adaptations")
         .select(`
@@ -176,46 +182,62 @@ export const useCreatePrescription = () => {
 
       if (prescError) throw prescError;
 
-      for (let i = 0; i < data.exercises.length; i++) {
-        const ex = data.exercises[i];
-        const { data: exercise, error: exError } = await supabase
-          .from("prescription_exercises")
-          .insert({
-            prescription_id: prescription.id,
-            exercise_library_id: ex.exercise_library_id,
-            order_index: i,
-            sets: ex.sets,
-            reps: ex.reps,
-            interval_seconds: ex.interval_seconds || null,
-            pse: ex.pse || null,
-            training_method: ex.training_method || null,
-            observations: ex.observations || null,
-            group_with_previous: ex.group_with_previous || false,
-            should_track: ex.should_track ?? true,
-          })
-          .select()
-          .single();
+      // MEL-001: Batch insert exercises (exercises without adaptations)
+      const exercisesToInsert = data.exercises.map((ex, i) => ({
+        prescription_id: prescription.id,
+        exercise_library_id: ex.exercise_library_id,
+        order_index: i,
+        sets: ex.sets,
+        reps: ex.reps,
+        interval_seconds: ex.interval_seconds || null,
+        pse: ex.pse || null,
+        training_method: ex.training_method || null,
+        observations: ex.observations || null,
+        group_with_previous: ex.group_with_previous || false,
+        should_track: ex.should_track ?? true,
+      }));
 
-        if (exError) throw exError;
+      const { data: insertedExercises, error: exError } = await supabase
+        .from("prescription_exercises")
+        .insert(exercisesToInsert)
+        .select();
 
-        if (ex.adaptations && ex.adaptations.length > 0) {
-          const adaptationsToInsert = ex.adaptations.map((adapt) => ({
-            prescription_exercise_id: exercise.id,
-            adaptation_type: adapt.type,
-            exercise_library_id: adapt.exercise_library_id,
-            sets: adapt.sets || null,
-            reps: adapt.reps || null,
-            interval_seconds: adapt.interval_seconds || null,
-            pse: adapt.pse || null,
-            observations: adapt.observations || null,
-          }));
+      if (exError) throw exError;
 
-          const { error: adaptError } = await supabase
-            .from("exercise_adaptations")
-            .insert(adaptationsToInsert);
-
-          if (adaptError) throw adaptError;
+      // Batch insert adaptations for all exercises that have them
+      const allAdaptations: Array<{
+        prescription_exercise_id: string;
+        adaptation_type: string;
+        exercise_library_id: string;
+        sets: string | null;
+        reps: string | null;
+        interval_seconds: number | null;
+        pse: string | null;
+        observations: string | null;
+      }> = [];
+      data.exercises.forEach((ex, i) => {
+        if (ex.adaptations && ex.adaptations.length > 0 && insertedExercises[i]) {
+          ex.adaptations.forEach((adapt) => {
+            allAdaptations.push({
+              prescription_exercise_id: insertedExercises[i].id,
+              adaptation_type: adapt.type,
+              exercise_library_id: adapt.exercise_library_id,
+              sets: adapt.sets || null,
+              reps: adapt.reps || null,
+              interval_seconds: adapt.interval_seconds || null,
+              pse: adapt.pse || null,
+              observations: adapt.observations || null,
+            });
+          });
         }
+      });
+
+      if (allAdaptations.length > 0) {
+        const { error: adaptError } = await supabase
+          .from("exercise_adaptations")
+          .insert(allAdaptations);
+
+        if (adaptError) throw adaptError;
       }
 
       return prescription;
@@ -321,17 +343,20 @@ export const useUpdatePrescription = () => {
       if (existingExercises && existingExercises.length > 0) {
         const exerciseIds = existingExercises.map((ex) => ex.id);
         
-        // Delete adaptations first (foreign key constraint)
-        await supabase
+        // BUG-005 fix: verify delete errors before proceeding
+        const { error: adaptDeleteError } = await supabase
           .from("exercise_adaptations")
           .delete()
           .in("prescription_exercise_id", exerciseIds);
 
-        // Delete exercises
-        await supabase
+        if (adaptDeleteError) throw adaptDeleteError;
+
+        const { error: exDeleteError } = await supabase
           .from("prescription_exercises")
           .delete()
           .eq("prescription_id", data.id);
+
+        if (exDeleteError) throw exDeleteError;
       }
 
       // Insert new exercises
