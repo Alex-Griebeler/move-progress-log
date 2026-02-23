@@ -7,7 +7,7 @@
  * Conversão de libras para quilogramas
  * Padrão Fabrik: 1 lb = 0.45 kg (simplificado)
  */
-export const POUND_TO_KG_CONVERSION = 0.45;
+export const POUND_TO_KG_CONVERSION = 0.4536;
 
 /**
  * Limites de carga válida em quilogramas

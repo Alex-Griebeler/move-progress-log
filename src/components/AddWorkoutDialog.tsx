@@ -46,7 +46,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
     
     while ((match = lbPattern.exec(loadString)) !== null) {
       const lbValue = parseFloat(match[1]);
-      const kgValue = (lbValue * 0.45).toFixed(1);
+      const kgValue = (lbValue * 0.4536).toFixed(1);
       converted = converted.replace(match[0], `${kgValue} kg`);
     }
     
