@@ -96,6 +96,9 @@ export function useAllSessions(filters?: SessionFilters) {
         query = query.eq("session_type", filters.sessionType);
       }
 
+      // Limite explícito para evitar cap silencioso de 1000 rows do Supabase
+      query = query.limit(2000);
+
       const { data, error } = await query;
 
       if (error) throw error;
