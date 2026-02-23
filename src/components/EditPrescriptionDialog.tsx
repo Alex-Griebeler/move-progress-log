@@ -87,9 +87,8 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   const { data: exercisesLibrary } = useExercisesLibrary();
   const updatePrescription = useUpdatePrescription();
   
-  // Chave única para cada prescrição sendo editada
-  const draftKey = prescriptionId ? `prescription-draft-edit-${prescriptionId}` : 'prescription-draft-edit';
-  const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = usePrescriptionDraft(draftKey);
+  const editEntityId = prescriptionId ? `edit-${prescriptionId}` : 'edit';
+  const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = usePrescriptionDraft(editEntityId);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
