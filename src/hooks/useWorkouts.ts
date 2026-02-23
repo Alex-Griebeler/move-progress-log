@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 
 // Chaves i18n disponíveis para workouts
 const workoutKeys = i18n.modules.workouts;
@@ -126,7 +127,7 @@ export const useCreateWorkout = () => {
         session_id: session.id,
         exercise_name: ex.exercise,
         load_description: ex.load,
-        load_kg: calculateLoadKg(ex.load),
+        load_kg: calculateLoadFromBreakdown(ex.load),
         reps: ex.reps,
         observations: ex.observations || null,
       }));
@@ -149,89 +150,11 @@ export const useCreateWorkout = () => {
       });
     },
     onError: (error: Error) => {
-      console.error("Error creating workout:", error);
+      
       notify.error(workoutKeys.errorCreate, {
         description: error.message,
       });
     },
   });
 };
-
-// Função para calcular carga total em kg (SINCRONIZADA com edge function)
-function calculateLoadKg(loadDescription: string): number | null {
-  if (!loadDescription) return null;
-  
-  try {
-    // 1. DETECTAR PESO CORPORAL COM VALOR
-    const bodyCorporalWithValue = loadDescription.match(/Peso corporal\s*=\s*(\d+(?:\.\d+)?)\s*kg/i);
-    if (bodyCorporalWithValue) {
-      return Math.round(parseFloat(bodyCorporalWithValue[1]) * 10) / 10;
-    }
-    
-    // 2. DETECTAR PESO CORPORAL SEM VALOR
-    if (/Peso corporal/i.test(loadDescription) && !/\d/.test(loadDescription)) {
-      return null;
-    }
-    
-    // 3. DETECTAR ELÁSTICOS/BANDAS (ignorar se for única carga)
-    const hasOnlyElastic = /^(elástico|banda|elastic)/i.test(loadDescription.trim()) && !/\d+\s*(kg|lb)/i.test(loadDescription);
-    if (hasOnlyElastic) {
-      return null;
-    }
-    
-    let total = 0;
-    let processedEachSide = false;
-    
-    // 4. DETECTAR "DE CADA LADO" (multiplicar por 2)
-    const eachSideMatch = loadDescription.match(/\((.*?)\)\s*de cada lado/i);
-    if (eachSideMatch) {
-      const content = eachSideMatch[1];
-      processedEachSide = true;
-      
-      const kgMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
-      for (const m of kgMatches) {
-        total += parseFloat(m[1].replace(',', '.')) * 2;
-      }
-      
-      const lbMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
-      for (const m of lbMatches) {
-        total += parseFloat(m[1].replace(',', '.')) * 0.45 * 2;
-      }
-    }
-    
-    // 5. DETECTAR KETTLEBELLS/HALTERES DUPLOS
-    const multiKbMatch = loadDescription.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:[.,]\d+)?)\s*(kg|lb)/i);
-    if (multiKbMatch && !processedEachSide) {
-      const value = parseFloat(multiKbMatch[2].replace(',', '.'));
-      const unit = multiKbMatch[3].toLowerCase();
-      total += (unit === 'lb' ? value * 0.45 : value) * 2;
-    }
-    
-    // 6. EXTRAIR PESO DA BARRA
-    const barraMatch = loadDescription.match(/barra\s*(\d+(?:[.,]\d+)?)\s*kg/i);
-    if (barraMatch) {
-      total += parseFloat(barraMatch[1].replace(',', '.'));
-    }
-    
-    // 7. PESOS NORMAIS
-    if (!processedEachSide && !multiKbMatch) {
-      const kgMatches = Array.from(loadDescription.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
-      for (const m of kgMatches) {
-        const matchText = loadDescription.substring(Math.max(0, (m.index || 0) - 6), (m.index || 0) + m[0].length);
-        if (!/barra/i.test(matchText)) {
-          total += parseFloat(m[1].replace(',', '.'));
-        }
-      }
-      
-      const lbMatches = Array.from(loadDescription.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
-      for (const m of lbMatches) {
-        total += parseFloat(m[1].replace(',', '.')) * 0.45;
-      }
-    }
-    
-    return total > 0 ? Math.round(total * 10) / 10 : null;
-  } catch (error) {
-    console.error("Erro ao calcular carga:", error);
-    return null;
-  }
-}
+// INC-001: Removed duplicate calculateLoadKg — now using centralized calculateLoadFromBreakdown from @/utils/loadCalculation
