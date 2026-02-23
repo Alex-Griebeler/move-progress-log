@@ -214,11 +214,19 @@ export default function PrescriptionsPage() {
     });
   };
 
-  const handleDeletePrescription = async (prescriptionId: string) => {
-    const confirmed = confirm("Tem certeza que deseja excluir esta prescrição? Esta ação não pode ser desfeita.");
-    if (!confirmed) return;
-    
-    await deletePrescription.mutateAsync(prescriptionId);
+  const [deletePrescriptionDialogOpen, setDeletePrescriptionDialogOpen] = useState(false);
+  const [prescriptionToDelete, setPrescriptionToDelete] = useState<string | null>(null);
+
+  const handleDeletePrescription = (prescriptionId: string) => {
+    setPrescriptionToDelete(prescriptionId);
+    setDeletePrescriptionDialogOpen(true);
+  };
+
+  const handleConfirmDeletePrescription = async () => {
+    if (!prescriptionToDelete) return;
+    await deletePrescription.mutateAsync(prescriptionToDelete);
+    setDeletePrescriptionDialogOpen(false);
+    setPrescriptionToDelete(null);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -519,6 +527,27 @@ export default function PrescriptionsPage() {
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleConfirmDeleteFolder}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Delete Prescription Confirmation */}
+          <AlertDialog open={deletePrescriptionDialogOpen} onOpenChange={setDeletePrescriptionDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir prescrição</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir esta prescrição? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleConfirmDeletePrescription}
                   className="bg-destructive hover:bg-destructive/90"
                 >
                   Excluir

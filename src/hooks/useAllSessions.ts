@@ -1,6 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface SessionFilters {
   studentIds?: string[];
@@ -102,45 +101,6 @@ export function useAllSessions(filters?: SessionFilters) {
       if (error) throw error;
 
       return (data || []) as SessionWithDetails[];
-    },
-  });
-}
-
-export function useReopenSession() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async (sessionId: string) => {
-      const { error } = await supabase
-        .from("workout_sessions")
-        .update({ 
-          is_finalized: false,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", sessionId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      // Invalidar TODAS as queries relacionadas a sessões
-      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
-      queryClient.invalidateQueries({ queryKey: ["session-detail"] });
-      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
-      
-      toast({
-        title: "Sessão reaberta",
-        description: "A sessão foi reaberta para edição.",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Erro ao reabrir sessão",
-        description: error.message,
-        variant: "destructive",
-      });
     },
   });
 }

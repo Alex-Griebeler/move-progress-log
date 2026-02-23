@@ -26,6 +26,7 @@ import { NAV_LABELS } from "@/constants/navigation";
 import { useSessionDraft } from "@/hooks/useSessionDraft";
 import { AddStudentDialog } from "./AddStudentDialog";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
+import { logger } from "@/utils/logger";
 
 interface RecordGroupSessionDialogProps {
   open: boolean;
@@ -62,7 +63,7 @@ interface SessionData {
       load_breakdown: string;
       observations?: string | null;
       is_best_set: boolean;
-      needs_manual_input?: boolean;  // 🆕 FASE 3
+      needs_manual_input?: boolean;
     }>;
   }>;
 }
@@ -90,7 +91,7 @@ interface MergedStudent {
     load_breakdown: string;
     observations?: string | null;
     is_best_set: boolean;
-    needs_manual_input?: boolean;  // 🆕 FASE 3
+    needs_manual_input?: boolean;
   }>;
 }
 
@@ -135,7 +136,7 @@ export function RecordGroupSessionDialog({
     load_breakdown: string | null;
     observations?: string | null;
     is_best_set: boolean;
-    needs_manual_input?: boolean;  // 🆕 FASE 3
+    needs_manual_input?: boolean;
   }>>([]);
 
   // Estados para registro manual
@@ -156,13 +157,12 @@ export function RecordGroupSessionDialog({
   const { data: prescriptionDetails } = usePrescriptionDetails(prescriptionId);
   const createGroupSessions = useCreateGroupWorkoutSessions();
   
-  // 🔍 DEBUG: Monitorar mudanças de estado
   useEffect(() => {
-    console.log("🔄 Dialog State mudou para:", dialogState);
+    logger.debug("Dialog State mudou para:", dialogState);
   }, [dialogState]);
 
   useEffect(() => {
-    console.log("📊 Merged Students atualizado:", mergedStudents.length, "alunos");
+    logger.debug("Merged Students atualizado:", mergedStudents.length, "alunos");
   }, [mergedStudents]);
 
   // Enriquecer lista de alunos com informação de prescrição ativa
@@ -216,7 +216,6 @@ export function RecordGroupSessionDialog({
       if (sessionsError) throw sessionsError;
 
       if (sessions && sessions.length > 0) {
-        // Auto-selecionar alunos das sessões existentes
         const existingStudents = sessions.map((s: any) => ({
           id: s.student_id,
           name: s.students.name,
@@ -225,7 +224,6 @@ export function RecordGroupSessionDialog({
         }));
         setSelectedStudents(existingStudents);
 
-        // Carregar exercícios existentes de todas as sessões
         const allExercises = await Promise.all(
           sessions.map(async (session: any) => {
             const { data: exercises } = await supabase
@@ -240,10 +238,9 @@ export function RecordGroupSessionDialog({
           })
         );
 
-        // Converter para formato MergedStudent
         const merged: MergedStudent[] = allExercises.map((data) => ({
           student_name: data.student_name,
-          recording_numbers: [0], // Marcador de que são dados existentes
+          recording_numbers: [0],
           clinical_observations: [],
           exercises: data.exercises.map((ex: any) => ({
             prescribed_exercise_name: null,
@@ -264,7 +261,7 @@ export function RecordGroupSessionDialog({
         });
       }
     } catch (error) {
-      console.error("Erro ao carregar sessões existentes:", error);
+      logger.error("Erro ao carregar sessões existentes:", error);
     }
   };
 
@@ -287,14 +284,10 @@ export function RecordGroupSessionDialog({
   };
 
   const handleStudentCreated = (newStudent: any) => {
-    // Aluno recém-criado não tem prescrição ativa ainda
-    // (assignments só contém prescrições já atribuídas)
     const enrichedStudent = {
       ...newStudent,
       has_active_prescription: false,
     };
-    
-    // Adicionar à lista de alunos selecionados
     toggleStudent(enrichedStudent);
   };
 
@@ -327,39 +320,25 @@ export function RecordGroupSessionDialog({
   };
 
   const mergeAllRecordings = (recordings: AccumulatedRecording[], existingData?: MergedStudent[]): MergedStudent[] => {
-    console.log('🔍 [Group] mergeAllRecordings chamado');
-    console.log(`   - Recordings: ${recordings.length}`);
-    console.log(`   - Dados existentes: ${existingData?.length || 0} alunos`);
+    logger.debug('[Group] mergeAllRecordings chamado', { recordings: recordings.length, existing: existingData?.length || 0 });
     
     const studentMap = new Map<string, MergedStudent>();
 
-    // Primeiro, adicionar dados existentes ao mapa
     if (existingData) {
-      console.log('🔍 [Group] Carregando dados existentes no mapa...');
-      existingData.forEach((existing, idx) => {
+      existingData.forEach((existing) => {
         const key = existing.student_name.toLowerCase();
-        console.log(`   ${idx + 1}. ${existing.student_name}: ${existing.exercises.length} exercícios`);
         studentMap.set(key, {
           ...existing,
-          recording_numbers: [0], // Marcador de dados existentes
+          recording_numbers: [0],
         });
       });
     }
 
-    // Depois, mesclar com novas gravações
-    console.log('🔍 [Group] Processando novos recordings...');
-    recordings.forEach((recording, recIdx) => {
-      console.log(`🔍 [Group] Recording ${recIdx + 1}/${recordings.length} (número ${recording.recordingNumber})`);
-      console.log(`   - Sessões no recording: ${recording.data.sessions.length}`);
-      
-      recording.data.sessions.forEach((session, sessIdx) => {
+    recordings.forEach((recording) => {
+      recording.data.sessions.forEach((session) => {
         const key = session.student_name.toLowerCase();
-        console.log(`   🔍 Sessão ${sessIdx + 1}: ${session.student_name}`);
-        console.log(`      - Observações: ${session.clinical_observations?.length || 0}`);
-        console.log(`      - Exercícios: ${session.exercises?.length || 0}`);
         
         if (!studentMap.has(key)) {
-          console.log(`      ➕ Criando novo aluno no mapa: ${session.student_name}`);
           studentMap.set(key, {
             student_name: session.student_name,
             recording_numbers: [],
@@ -385,12 +364,8 @@ export function RecordGroupSessionDialog({
           });
         }
         
-        // Adicionar exercícios sem duplicatas
-        let addedExercises = 0;
-        session.exercises.forEach((newEx, exIdx) => {
-          // ✅ VALIDAÇÃO: exercício deve ter reps para ser válido
+        session.exercises.forEach((newEx) => {
           if (!newEx.reps || newEx.reps === 0) {
-            console.log(`      ⚠️ Exercício ${exIdx + 1} sem repetições, IGNORADO: ${newEx.executed_exercise_name}`);
             return;
           }
           
@@ -401,13 +376,8 @@ export function RecordGroupSessionDialog({
           );
           if (!isDuplicate) {
             merged.exercises.push(newEx);
-            addedExercises++;
-            console.log(`      ✅ Exercício ${exIdx + 1} adicionado: ${newEx.executed_exercise_name} (${newEx.reps} reps)`);
-          } else {
-            console.log(`      ⚠️ Exercício ${exIdx + 1} duplicado, ignorado: ${newEx.executed_exercise_name}`);
           }
         });
-        console.log(`      Total adicionado para ${session.student_name}: ${addedExercises} exercícios`);
       });
     });
 
@@ -415,10 +385,7 @@ export function RecordGroupSessionDialog({
       a.student_name.localeCompare(b.student_name)
     );
     
-    console.log('✅ [Group] Merge completo:');
-    result.forEach((student, idx) => {
-      console.log(`   ${idx + 1}. ${student.student_name}: ${student.exercises.length} exercícios, ${student.clinical_observations.length} observações`);
-    });
+    logger.debug('[Group] Merge completo:', result.map(s => `${s.student_name}: ${s.exercises.length} exercícios`));
     
     return result;
   };
@@ -427,7 +394,6 @@ export function RecordGroupSessionDialog({
     const warnings: string[] = [];
     const errors: string[] = [];
     
-    // 🆕 FASE 1: Validação de exercícios prescritos não mencionados
     const prescribedExercises = prescriptionDetails?.exercises?.filter(
       (ex: any) => ex.should_track !== false
     ) || [];
@@ -442,7 +408,6 @@ export function RecordGroupSessionDialog({
         errors.push(`❌ ${student.student_name} foi mencionado mas não tem exercícios registrados`);
       }
       
-      // 🆕 VALIDAR EXERCÍCIOS PRESCRITOS vs EXECUTADOS
       if (prescribedExercises.length > 0) {
         prescribedExercises.forEach((prescribed: any) => {
           const prescribedName = (
@@ -468,7 +433,6 @@ export function RecordGroupSessionDialog({
         });
       }
       
-      // ✅ NOVA VALIDAÇÃO: verificar se há exercícios sem dados essenciais (provavelmente não mencionados)
       student.exercises.forEach((ex, idx) => {
         if (!ex.reps || ex.reps === 0) {
           errors.push(`❌ ${student.student_name} - ${ex.executed_exercise_name || `Exercício ${idx + 1}`}: sem repetições registradas (exercício não foi mencionado?)`);
@@ -479,7 +443,6 @@ export function RecordGroupSessionDialog({
         warnings.push(`⚠️ ${student.student_name} só aparece na gravação ${student.recording_numbers[0]}`);
       }
       
-      // VALIDAR OBSERVAÇÕES CLÍNICAS
       student.clinical_observations.forEach((obs, idx) => {
         if (!obs.severity) {
           errors.push(`❌ ${student.student_name}: Observação clínica ${idx+1} sem severidade`);
@@ -489,7 +452,6 @@ export function RecordGroupSessionDialog({
         }
       });
       
-      // VALIDAR EXERCÍCIOS
       student.exercises.forEach((ex, idx) => {
         const exName = ex.executed_exercise_name || `Exercício ${idx + 1}`;
         
@@ -505,7 +467,6 @@ export function RecordGroupSessionDialog({
           warnings.push(`⚠️ ${student.student_name} - ${exName}: sem carga calculada`);
         }
         
-        // CRÍTICO: Verificar se é peso corporal mas não calculou automaticamente
         const isPesoCorporal = ex.load_breakdown?.toLowerCase().includes('peso corporal');
         if (isPesoCorporal && ex.load_kg === null && studentWeight) {
           errors.push(`❌ ${student.student_name} - ${exName}: peso corporal não foi calculado automaticamente (aluno tem ${studentWeight} kg cadastrado)`);
@@ -543,7 +504,7 @@ export function RecordGroupSessionDialog({
             .single();
           
           if (error) {
-            console.error(`⚠️ Aluno "${session.student_name}" não encontrado:`, error);
+            logger.warn(`Aluno "${session.student_name}" não encontrado:`, error);
             continue;
           }
           
@@ -566,7 +527,7 @@ export function RecordGroupSessionDialog({
         });
       }
     } catch (error) {
-      console.error("❌ Erro em handleAutoAddStudents:", error);
+      logger.error("Erro em handleAutoAddStudents:", error);
     }
   };
 
@@ -589,7 +550,7 @@ export function RecordGroupSessionDialog({
   };
 
   const handleSessionData = async (data: SessionData) => {
-    console.log("📥 Dados recebidos da gravação", currentRecordingNumber, ":", data);
+    logger.debug("Dados recebidos da gravação", currentRecordingNumber);
     
     try {
       await handleAutoAddStudents(data);
@@ -603,7 +564,6 @@ export function RecordGroupSessionDialog({
       const updatedRecordings = [...accumulatedRecordings, newRecording];
       setAccumulatedRecordings(updatedRecordings);
       
-      // ✅ Passar dados existentes (se houver) para consolidação
       const existingData = isReopening && mergedStudents.length > 0 ? mergedStudents : undefined;
       const merged = mergeAllRecordings(updatedRecordings, existingData);
       setMergedStudents(merged);
@@ -611,36 +571,30 @@ export function RecordGroupSessionDialog({
       const validation = validateMergedData(merged);
       setValidationIssues(validation);
       
-      console.log("✅ Dados processados (consolidados com existentes), transitando para preview...");
-      
       // Garantir que React processe todos os setStates antes de mudar dialogState
       setTimeout(() => {
         setDialogState('preview');
-        console.log("🎯 Estado mudou para preview");
       }, 100);
       
     } catch (error) {
-      console.error("❌ Erro em handleSessionData:", error);
+      logger.error("Erro em handleSessionData:", error);
       handleError(error instanceof Error ? error.message : "Erro ao processar dados");
     }
   };
 
   const handleError = (error: string) => {
-    console.error("❌ handleError chamado:", error);
+    logger.error("handleError chamado:", error);
     notify.error(i18n.modules.workouts.recordingError, {
       description: error,
     });
-    // Não voltar para 'selecting' imediatamente - permitir retry
     setDialogState('recording');
   };
 
   const handleSave = async () => {
     if (mergedStudents.length === 0 || !prescriptionId) return;
 
-    // Se estiver reabrindo, deletar sessões antigas antes de criar novas consolidadas
     if (isReopening && reopenDate && reopenTime) {
       try {
-        // Buscar IDs das sessões existentes
         const { data: existingSessions } = await supabase
           .from('workout_sessions')
           .select('id')
@@ -651,22 +605,18 @@ export function RecordGroupSessionDialog({
         if (existingSessions && existingSessions.length > 0) {
           const sessionIds = existingSessions.map(s => s.id);
           
-          // Deletar exercícios das sessões
           await supabase
             .from('exercises')
             .delete()
             .in('session_id', sessionIds);
           
-          // Deletar as sessões
           await supabase
             .from('workout_sessions')
             .delete()
             .in('id', sessionIds);
-          
-          console.log(`✅ ${sessionIds.length} sessão(ões) antiga(s) deletada(s) para consolidação`);
         }
       } catch (error) {
-        console.error('Erro ao deletar sessões antigas:', error);
+        logger.error('Erro ao deletar sessões antigas:', error);
         notify.error("Erro ao consolidar dados", {
           description: "Não foi possível atualizar as sessões existentes.",
         });
@@ -680,14 +630,14 @@ export function RecordGroupSessionDialog({
       );
       
       if (!student) {
-        console.error(`Student not found: ${merged.student_name}`);
+        logger.error(`Student not found: ${merged.student_name}`);
         return null;
       }
 
       return {
         student_id: student.id,
         student_name: student.name,
-        exercises: merged.exercises, // Apenas exercícios mencionados no áudio
+        exercises: merged.exercises,
         clinical_observations: merged.clinical_observations || []
       };
     }).filter(Boolean);
@@ -699,9 +649,7 @@ export function RecordGroupSessionDialog({
       sessions: sessionsToSave as any
     });
 
-    // Adicionar exercícios prescritos não mencionados para edição posterior
     for (const sessionData of sessionsToSave) {
-      // Buscar a sessão criada para este aluno
       const { data: createdSession } = await supabase
         .from('workout_sessions')
         .select('id')
@@ -713,12 +661,10 @@ export function RecordGroupSessionDialog({
       
       if (!createdSession) continue;
       
-      // Buscar exercícios prescritos QUE DEVEM SER RASTREADOS
       const prescribedExercises = prescriptionDetails?.exercises?.filter(
         (ex: any) => ex.should_track !== false
       ) || [];
       
-      // Buscar exercícios já salvos para este aluno (vindos do áudio)
       const { data: savedExercises } = await supabase
         .from('exercises')
         .select('exercise_name')
@@ -728,7 +674,6 @@ export function RecordGroupSessionDialog({
         (savedExercises || []).map(ex => ex.exercise_name.toLowerCase())
       );
       
-      // Identificar exercícios prescritos não mencionados
       const unmentionedExercises = prescribedExercises.filter(prescribed => {
         const prescribedName = (
           prescribed.exercise_name || 
@@ -737,7 +682,6 @@ export function RecordGroupSessionDialog({
         return !savedExerciseNames.has(prescribedName);
       });
       
-      // Inserir exercícios não mencionados com valores zero
       if (unmentionedExercises.length > 0) {
         const exercisesToInsert = unmentionedExercises.map(ex => ({
           session_id: createdSession.id,
@@ -756,7 +700,7 @@ export function RecordGroupSessionDialog({
           .insert(exercisesToInsert);
         
         if (insertError) {
-          console.error('Erro ao inserir exercícios não mencionados:', insertError);
+          logger.error('Erro ao inserir exercícios não mencionados:', insertError);
         }
       }
     }
@@ -793,7 +737,7 @@ export function RecordGroupSessionDialog({
               .insert(observationsToInsert);
               
             if (error) {
-              console.error('Error saving clinical observations:', error);
+              logger.error('Error saving clinical observations:', error);
               notify.error(i18n.modules.workouts.warning, {
                 description: `${i18n.modules.workouts.clinicalObservationsNotSaved}: ${student.name}`,
               });
@@ -864,7 +808,6 @@ export function RecordGroupSessionDialog({
   };
 
   const handleSaveEdits = () => {
-    // Atualizar o aluno sendo editado com os dados editáveis
     const updatedMerged = [...mergedStudents];
     updatedMerged[editingStudentIndex] = {
       ...updatedMerged[editingStudentIndex],
@@ -874,7 +817,6 @@ export function RecordGroupSessionDialog({
     
     setMergedStudents(updatedMerged);
     
-    // Revalidar dados após edição
     const validation = validateMergedData(updatedMerged);
     setValidationIssues(validation);
     
@@ -882,7 +824,6 @@ export function RecordGroupSessionDialog({
   };
 
   const handleNavigateStudent = (direction: 'prev' | 'next') => {
-    // Salvar edições atuais antes de navegar
     const updatedMerged = [...mergedStudents];
     updatedMerged[editingStudentIndex] = {
       ...updatedMerged[editingStudentIndex],
@@ -891,7 +832,6 @@ export function RecordGroupSessionDialog({
     };
     setMergedStudents(updatedMerged);
     
-    // Navegar para o próximo/anterior aluno
     const newIndex = direction === 'next' 
       ? Math.min(editingStudentIndex + 1, mergedStudents.length - 1)
       : Math.max(editingStudentIndex - 1, 0);
@@ -901,34 +841,24 @@ export function RecordGroupSessionDialog({
     setEditableExercises(updatedMerged[newIndex].exercises || []);
   };
 
-  // Função centralizada importada de @/utils/loadCalculation
-
-  // Auto-selecionar alunos agendados para este dia/horário (apenas na primeira vez)
+  // Auto-selecionar alunos agendados
   useEffect(() => {
     if (open && assignments && enrichedStudents && !hasAutoSelected) {
       const currentDate = new Date();
       const weekdayMap: { [key: number]: string } = {
-        0: 'sunday',
-        1: 'monday',
-        2: 'tuesday',
-        3: 'wednesday',
-        4: 'thursday',
-        5: 'friday',
-        6: 'saturday'
+        0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday',
+        4: 'thursday', 5: 'friday', 6: 'saturday'
       };
       const currentWeekday = weekdayMap[currentDate.getDay()];
       const currentTime = currentDate.toTimeString().slice(0, 5);
       
-      // Encontrar atribuições para hoje e horário próximo (±5 min)
       const relevantAssignments = assignments.filter(assignment => {
         const customAdaptations = assignment.custom_adaptations as any;
         if (!customAdaptations) return false;
         
-        // Verificar se o dia da semana está incluído
         const hasWeekday = customAdaptations.weekdays?.includes(currentWeekday);
         if (!hasWeekday) return false;
         
-        // Verificar se o horário está próximo (±5 minutos)
         if (customAdaptations.time) {
           const [assignedHour, assignedMin] = customAdaptations.time.split(':').map(Number);
           const [currentHour, currentMin] = currentTime.split(':').map(Number);
@@ -941,7 +871,6 @@ export function RecordGroupSessionDialog({
         return true;
       });
       
-      // Auto-selecionar os alunos das atribuições relevantes
       const studentsToSelect = enrichedStudents.filter(student =>
         relevantAssignments.some(assignment => assignment.student_id === student.id)
       );
@@ -966,20 +895,9 @@ export function RecordGroupSessionDialog({
       }>;
     }>;
   }): Promise<void> => {
-    const requestId = Date.now();
-    console.log(`🚀 [${requestId}] Iniciando salvamento:`, {
-      studentsCount: data.studentExercises.length,
-      trainer,
-      prescriptionId,
-      date,
-      time,
-      timestamp: new Date().toISOString(),
-    });
-    
     setIsSaving(true);
     
     try {
-      // ✅ VALIDAÇÃO 1: Verificar se trainer não está vazio
       if (!trainer || trainer.trim() === '') {
         notify.error("Campo obrigatório", {
           description: "Nome do treinador é obrigatório",
@@ -987,7 +905,6 @@ export function RecordGroupSessionDialog({
         throw new Error("Nome do treinador é obrigatório");
       }
 
-      // ✅ VALIDAÇÃO 2: Verificar se há pelo menos 1 aluno com exercícios
       if (data.studentExercises.length === 0) {
         notify.error("Nenhum aluno selecionado", {
           description: "É necessário ter pelo menos 1 aluno com exercícios",
@@ -995,7 +912,6 @@ export function RecordGroupSessionDialog({
         throw new Error("Nenhum aluno selecionado");
       }
 
-      // ✅ VALIDAÇÃO 3: Verificar se todos os exercícios têm campos obrigatórios
       const validationErrors: string[] = [];
       data.studentExercises.forEach((se, idx) => {
         const student = selectedStudents.find(s => s.id === se.studentId);
@@ -1025,7 +941,6 @@ export function RecordGroupSessionDialog({
         notify.error("Dados incompletos", {
           description: validationErrors.slice(0, 3).join('; ') + (validationErrors.length > 3 ? '...' : ''),
         });
-        console.error(`❌ [${requestId}] Erros de validação:`, validationErrors);
         throw new Error("Dados incompletos");
       }
 
@@ -1046,7 +961,6 @@ export function RecordGroupSessionDialog({
         };
       });
 
-      // Criar sessões com os novos campos
       for (const session of sessionsToCreate) {
         const { data: workoutSession, error: sessionError } = await supabase
           .from("workout_sessions")
@@ -1081,16 +995,11 @@ export function RecordGroupSessionDialog({
 
         if (exercisesError) throw exercisesError;
       }
-
-      console.log('✅ Sessões criadas com sucesso');
       
       notify.success("Sessões registradas com sucesso", {
         description: `${sessionsToCreate.length} sessão(ões) criada(s) manualmente`,
       });
 
-      console.log(`✅ [${requestId}] Salvamento concluído com sucesso`);
-
-      // Reset completo de estados
       setDialogState('context-setup');
       setSelectedStudents([]);
       setTrainer('');
@@ -1099,9 +1008,8 @@ export function RecordGroupSessionDialog({
       setHasAutoSelected(false);
       onOpenChange(false);
     } catch (error) {
-      console.error(`❌ [${requestId}] Erro no salvamento:`, error);
+      logger.error("Erro no salvamento manual:", error);
       
-      // Mensagens de erro mais específicas
       let errorMessage = "Erro desconhecido";
       if (error instanceof Error) {
         if (error.message.includes('connection')) {
@@ -1117,7 +1025,7 @@ export function RecordGroupSessionDialog({
         description: errorMessage,
       });
       
-      throw error; // Re-throw para o ManualSessionEntry saber que falhou
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -1353,10 +1261,9 @@ export function RecordGroupSessionDialog({
                           </div>
                         </div>
                       ))}
-                    {(!prescriptionDetails?.exercises || 
-                      prescriptionDetails.exercises.filter((ex: any) => ex.should_track !== false).length === 0) && (
-                      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                        Nenhum exercício para registrar nesta prescrição
+                    {(!prescriptionDetails?.exercises || prescriptionDetails.exercises.filter((ex: any) => ex.should_track !== false).length === 0) && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p className="text-sm">Nenhum exercício para rastrear nesta prescrição</p>
                       </div>
                     )}
                   </ScrollArea>
@@ -1364,81 +1271,66 @@ export function RecordGroupSessionDialog({
               </Card>
             </div>
 
-            {/* Coluna Direita - Gravador Multi-Segmento */}
+            {/* Coluna Direita - Gravador */}
             <div className="lg:col-span-3">
               <MultiSegmentRecorder
-                key={`recording-${currentRecordingNumber}`}
-                prescriptionId={prescriptionId}
-                selectedStudents={selectedStudents}
+                prescriptionId={prescriptionId || undefined}
+                selectedStudents={selectedStudents.map(s => ({
+                  id: s.id,
+                  name: s.name,
+                  weight_kg: s.weight_kg,
+                }))}
                 date={date}
                 time={time}
                 onComplete={(segments) => {
-                  console.log('🎯 Total de segmentos recebidos:', segments.length);
-                  
-                  // Consolidar todos os exercícios e observações de todos os segmentos
-                  const allSessions = segments.flatMap(seg => {
-                    console.log(`📼 Segmento ${seg.segmentOrder}:`, seg.extractedData?.sessions);
-                    return seg.extractedData?.sessions || [];
-                  });
-                  
-                  // 🆕 FASE 2: Agrupar por aluno e consolidar exercícios com deduplicação inteligente
-                  const sessionsByStudent = allSessions.reduce((acc, session) => {
-                    const existing = acc.find(s => 
-                      s.student_name.toLowerCase() === session.student_name.toLowerCase()
-                    );
+                  // Consolidar dados de todos os segmentos
+                  const sessionsByStudent = segments.reduce((acc, segment) => {
+                    if (!segment.extractedData?.sessions) return acc;
                     
-                    if (existing) {
-                      // 🆕 DEDUPLICAÇÃO INTELIGENTE DE EXERCÍCIOS
-                      session.exercises.forEach(newEx => {
-                        const newExName = newEx.executed_exercise_name.toLowerCase().trim();
-                        
-                        // Verificar se já existe um exercício com nome semelhante
-                        const duplicateIndex = existing.exercises.findIndex((existingEx: any) => {
-                          const existingExName = existingEx.executed_exercise_name.toLowerCase().trim();
-                          // Considerar duplicata se os nomes são idênticos ou contêm um ao outro
-                          return existingExName === newExName || 
-                                 existingExName.includes(newExName) || 
-                                 newExName.includes(existingExName);
+                    segment.extractedData.sessions.forEach(session => {
+                      const existing = acc.find(
+                        s => s.student_name.toLowerCase() === session.student_name.toLowerCase()
+                      );
+                      
+                      if (existing) {
+                        // Merge exercises with dedup by name
+                        session.exercises.forEach(newEx => {
+                          const newExName = newEx.executed_exercise_name.toLowerCase().trim();
+                          
+                          const duplicateIndex = existing.exercises.findIndex(existingEx => {
+                            const existingExName = existingEx.executed_exercise_name.toLowerCase().trim();
+                            return existingExName === newExName || 
+                                   existingExName.includes(newExName) || 
+                                   newExName.includes(existingExName);
+                          });
+                          
+                          if (duplicateIndex >= 0) {
+                            const existingEx = existing.exercises[duplicateIndex];
+                            const newLoad = newEx.load_kg || 0;
+                            const existingLoad = existingEx.load_kg || 0;
+                            
+                            if (newLoad >= existingLoad) {
+                              existing.exercises[duplicateIndex] = newEx;
+                            }
+                          } else {
+                            existing.exercises.push(newEx);
+                          }
                         });
                         
-                        if (duplicateIndex >= 0) {
-                          // ⚠️ CONFLITO DETECTADO - aplicar estratégia de resolução
-                          const existingEx = existing.exercises[duplicateIndex];
-                          
-                          // Estratégia 1: Manter o exercício com maior carga
-                          const newLoad = newEx.load_kg || 0;
-                          const existingLoad = existingEx.load_kg || 0;
-                          
-                          if (newLoad > existingLoad) {
-                            console.log(`🔄 [${session.student_name}] Substituindo "${newExName}" (carga: ${existingLoad}kg → ${newLoad}kg)`);
-                            existing.exercises[duplicateIndex] = newEx;
-                          } else if (newLoad === existingLoad && newLoad > 0) {
-                            // Estratégia 2: Se cargas iguais, manter o mais recente (último segmento)
-                            console.log(`🔄 [${session.student_name}] Substituindo "${newExName}" (mesma carga ${newLoad}kg, mantendo versão mais recente)`);
-                            existing.exercises[duplicateIndex] = newEx;
-                          } else {
-                            // Manter o existente (tinha carga maior ou ambos sem carga)
-                            console.log(`⚠️ [${session.student_name}] Duplicata ignorada "${newExName}" (carga menor: ${newLoad}kg vs ${existingLoad}kg)`);
-                          }
-                        } else {
-                          // ✅ Não é duplicata, adicionar normalmente
-                          existing.exercises.push(newEx);
-                        }
-                      });
+                        existing.clinical_observations = [
+                          ...existing.clinical_observations, 
+                          ...session.clinical_observations
+                        ];
+                      } else {
+                        acc.push({
+                          student_name: session.student_name,
+                          exercises: [...session.exercises],
+                          clinical_observations: [...session.clinical_observations]
+                        });
+                      }
                       
-                      // Observações clínicas sem deduplicação (podem ser diferentes e todas são válidas)
-                      existing.clinical_observations = [
-                        ...existing.clinical_observations, 
-                        ...session.clinical_observations
-                      ];
-                    } else {
-                      // Primeiro registro deste aluno
-                      acc.push({
-                        student_name: session.student_name,
-                        exercises: [...session.exercises],
-                        clinical_observations: [...session.clinical_observations]
-                      });
-                    }
+                      return acc;
+                    });
                     
                     return acc;
                   }, [] as Array<{
@@ -1451,10 +1343,6 @@ export function RecordGroupSessionDialog({
                     sessions: sessionsByStudent
                   };
                   
-                  console.log('📦 Dados consolidados (alunos agrupados):', consolidatedData);
-                  console.log('➡️ Enviando para tela de validação manual...');
-                  
-                  // handleSessionData já faz a transição para 'preview' (tela de edição)
                   handleSessionData(consolidatedData);
                 }}
                 onError={handleError}
@@ -1504,7 +1392,6 @@ export function RecordGroupSessionDialog({
               </Badge>
             </div>
 
-            {/* 🆕 FASE 1: Alertas de Validação Melhorados */}
             {(validationIssues.errors.length > 0 || validationIssues.warnings.length > 0) && (
               <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
                 <CardHeader className="pb-3">
@@ -1514,7 +1401,6 @@ export function RecordGroupSessionDialog({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {/* Erros Críticos (bloqueiam salvamento) */}
                   {validationIssues.errors.length > 0 && (
                     <div className="space-y-2">
                       {validationIssues.errors.map((err, idx) => (
@@ -1526,7 +1412,6 @@ export function RecordGroupSessionDialog({
                     </div>
                   )}
                   
-                  {/* Avisos (não bloqueiam, mas alertam) */}
                   {validationIssues.warnings.length > 0 && (
                     <div className="space-y-2">
                       {validationIssues.warnings.map((warn, idx) => (
@@ -1543,14 +1428,12 @@ export function RecordGroupSessionDialog({
                     </div>
                   )}
                   
-                  {/* 🆕 Botão para adicionar exercícios não mencionados */}
                   {validationIssues.warnings.some(w => w.includes('NÃO mencionado no áudio')) && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="mt-2 w-full border-amber-400 text-amber-900 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-100 dark:hover:bg-amber-900/30"
                       onClick={() => {
-                        // Identificar exercícios não mencionados e adicionar com valores zero
                         const prescribedExercises = prescriptionDetails?.exercises?.filter(
                           (ex: any) => ex.should_track !== false
                         ) || [];
@@ -1659,7 +1542,6 @@ export function RecordGroupSessionDialog({
                       </p>
                       <div className="space-y-2">
                         {student.exercises.map((ex, exIdx) => {
-                          // 🆕 FASE 3: Detectar exercícios que precisam de input manual
                           const needsManualInput = 
                             ex.needs_manual_input === true || 
                             !ex.reps || 
@@ -2068,24 +1950,24 @@ export function RecordGroupSessionDialog({
               </Button>
             </>
           )}
-        </DialogFooter>
-      </DialogContent>
+      </DialogFooter>
+    </DialogContent>
 
-      {/* Dialog de seleção de exercício */}
-      <ExerciseSelectionDialog
-        open={exerciseSelectionOpen}
-        onOpenChange={setExerciseSelectionOpen}
-        currentExerciseName={selectedExerciseForReplacement?.currentName || ""}
-        onExerciseSelected={handleExerciseSelected}
-        autoSuggest={true}
-      />
+    {/* Dialog de seleção de exercício */}
+    <ExerciseSelectionDialog
+      open={exerciseSelectionOpen}
+      onOpenChange={setExerciseSelectionOpen}
+      currentExerciseName={selectedExerciseForReplacement?.currentName || ""}
+      onExerciseSelected={handleExerciseSelected}
+      autoSuggest={true}
+    />
 
-      {/* Dialog para adicionar novo aluno */}
-      <AddStudentDialog 
-        open={showAddStudentDialog} 
-        onOpenChange={setShowAddStudentDialog}
-        onStudentCreated={handleStudentCreated}
-      />
-    </Dialog>
+    {/* Dialog para adicionar novo aluno */}
+    <AddStudentDialog 
+      open={showAddStudentDialog} 
+      onOpenChange={setShowAddStudentDialog}
+      onStudentCreated={handleStudentCreated}
+    />
+  </Dialog>
   );
 }

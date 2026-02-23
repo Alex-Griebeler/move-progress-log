@@ -20,6 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { NAV_LABELS } from "@/constants/navigation";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
+import { logger } from "@/utils/logger";
 
 interface RecordIndividualSessionDialogProps {
   open: boolean;
@@ -113,7 +114,6 @@ export function RecordIndividualSessionDialog({
   
   const isReopening = !!existingSessionId;
 
-  // Carregar dados da sessão existente quando reabrindo
   const { data: existingSessionData } = useQuery({
     queryKey: ['existing-session', existingSessionId],
     queryFn: async () => {
@@ -147,7 +147,6 @@ export function RecordIndividualSessionDialog({
     enabled: !!existingSessionId,
   });
   
-  // Preencher form com dados da sessão existente
   useEffect(() => {
     if (existingSessionData) {
       const { session, exercises } = existingSessionData;
@@ -156,7 +155,6 @@ export function RecordIndividualSessionDialog({
       setTrainerName(session.trainer_name || '');
       setSelectedPrescriptionId(session.prescription_id || null);
       
-      // Converter exercícios existentes para formato editável
       if (exercises && exercises.length > 0) {
         const convertedExercises = exercises.map(ex => ({
           executed_exercise_name: ex.exercise_name,
@@ -168,7 +166,7 @@ export function RecordIndividualSessionDialog({
           is_best_set: ex.is_best_set || false,
         }));
         
-        console.log('✅ Carregando exercícios existentes:', convertedExercises.length);
+        logger.debug('Carregando exercícios existentes:', convertedExercises.length);
         setExistingExercises(convertedExercises);
         setMergedData({
           clinical_observations: [],
@@ -179,7 +177,6 @@ export function RecordIndividualSessionDialog({
     }
   }, [existingSessionData]);
 
-  // Buscar prescrições com nomes
   const { data: prescriptions } = useQuery({
     queryKey: ['student-prescriptions', studentId],
     queryFn: async () => {
@@ -219,7 +216,7 @@ export function RecordIndividualSessionDialog({
   };
 
   const mergeAllRecordings = (recordings: AccumulatedRecording[]): MergedData => {
-    console.log('🔍 [Individual] mergeAllRecordings chamado com', recordings.length, 'recordings');
+    logger.debug('[Individual] mergeAllRecordings chamado com', recordings.length, 'recordings');
     
     const allObservations: Array<{
       observation_text: string;
@@ -229,16 +226,11 @@ export function RecordIndividualSessionDialog({
     const allExercises: Array<any> = [];
 
     recordings.forEach((recording, recIdx) => {
-      console.log(`🔍 [Individual] Processando recording ${recIdx + 1}/${recordings.length}`);
       const session = recording.data.sessions[0];
       if (!session) {
-        console.warn(`⚠️ [Individual] Recording ${recIdx + 1} não tem sessão`);
+        logger.warn(`[Individual] Recording ${recIdx + 1} não tem sessão`);
         return;
       }
-
-      console.log(`🔍 [Individual] Recording ${recIdx + 1} - Aluno: ${session.student_name}`);
-      console.log(`   - Observações: ${session.clinical_observations?.length || 0}`);
-      console.log(`   - Exercícios: ${session.exercises?.length || 0}`);
 
       if (session.clinical_observations) {
         session.clinical_observations.forEach(newObs => {
@@ -252,20 +244,16 @@ export function RecordIndividualSessionDialog({
       }
 
       if (session.exercises && session.exercises.length > 0) {
-        console.log(`🔍 [Individual] Processando ${session.exercises.length} exercícios do recording ${recIdx + 1}`);
-        session.exercises.forEach((ex, exIdx) => {
-          // ✅ VALIDAÇÃO: exercício deve ter reps para ser válido
+        session.exercises.forEach((ex) => {
           if (!ex.reps || ex.reps === 0) {
-            console.log(`   ⚠️ Exercício ${exIdx + 1} sem repetições, IGNORADO: ${ex.executed_exercise_name}`);
             return;
           }
-          console.log(`   ✅ Exercício ${exIdx + 1} válido: ${ex.executed_exercise_name} (${ex.reps} reps)`);
           allExercises.push(ex);
         });
       }
     });
 
-    console.log(`✅ [Individual] Merge completo: ${allObservations.length} observações, ${allExercises.length} exercícios`);
+    logger.debug(`[Individual] Merge completo: ${allObservations.length} observações, ${allExercises.length} exercícios`);
 
     return {
       clinical_observations: allObservations,
@@ -302,11 +290,7 @@ export function RecordIndividualSessionDialog({
   }, [open]);
 
   const handleSessionData = (data: SessionData) => {
-    console.log('🔍 [Individual] ========== handleSessionData CHAMADO ==========');
-    console.log(`🔍 [Individual] Recording número: ${currentRecordingNumber}`);
-    console.log('🔍 [Individual] Data recebida:', JSON.stringify(data, null, 2));
-    console.log(`🔍 [Individual] Recordings acumulados antes: ${accumulatedRecordings.length}`);
-    console.log(`🔍 [Individual] Exercícios existentes: ${existingExercises.length}`);
+    logger.debug('[Individual] handleSessionData chamado, recording:', currentRecordingNumber);
     
     const newRecording: AccumulatedRecording = {
       recordingNumber: currentRecordingNumber,
@@ -316,17 +300,13 @@ export function RecordIndividualSessionDialog({
     
     const updatedRecordings = [...accumulatedRecordings, newRecording];
     setAccumulatedRecordings(updatedRecordings);
-    console.log(`🔍 [Individual] Recordings acumulados depois: ${updatedRecordings.length}`);
     
     const merged = mergeAllRecordings(updatedRecordings);
-    console.log(`🔍 [Individual] Merge retornou: ${merged.exercises.length} exercícios`);
     
-    // ✅ CONSOLIDAR: Exercícios existentes + novos (sem duplicatas)
+    // Consolidar: Exercícios existentes + novos (sem duplicatas)
     const consolidatedExercises = [...existingExercises];
-    console.log(`🔍 [Individual] Iniciando consolidação: ${consolidatedExercises.length} já existentes`);
     
-    let addedCount = 0;
-    merged.exercises.forEach((newEx, idx) => {
+    merged.exercises.forEach((newEx) => {
       const isDuplicate = consolidatedExercises.some(
         ex => ex.executed_exercise_name === newEx.executed_exercise_name &&
               ex.reps === newEx.reps &&
@@ -334,14 +314,8 @@ export function RecordIndividualSessionDialog({
       );
       if (!isDuplicate) {
         consolidatedExercises.push(newEx);
-        addedCount++;
-        console.log(`✅ [Individual] Exercício ${idx + 1} adicionado: ${newEx.executed_exercise_name}`);
-      } else {
-        console.log(`⚠️ [Individual] Exercício ${idx + 1} duplicado, ignorado: ${newEx.executed_exercise_name}`);
       }
     });
-    
-    console.log(`✅ [Individual] Consolidação final: ${existingExercises.length} existentes + ${addedCount} novos = ${consolidatedExercises.length} total`);
     
     setMergedData({
       ...merged,
@@ -350,23 +324,20 @@ export function RecordIndividualSessionDialog({
     setEditableObservations(merged.clinical_observations);
     setEditableExercises(consolidatedExercises);
     
-    console.log('🔍 [Individual] ========== handleSessionData CONCLUÍDO ==========');
     setDialogState('preview');
   };
 
   const handleError = (error: string) => {
-    console.error("❌ handleError chamado:", error);
+    logger.error("handleError chamado:", error);
     notify.error(i18n.modules.workouts.recordingError, {
       description: error,
     });
-    // Não voltar para 'setup' imediatamente - permitir retry
     setDialogState('recording');
   };
 
   const handleSave = async () => {
     if (!mergedData) return;
 
-    // ✅ Validar ANTES de salvar
     if (!validateExercisesBeforeSave()) {
       return;
     }
@@ -375,14 +346,13 @@ export function RecordIndividualSessionDialog({
       let sessionId: string;
       
       if (isReopening && existingSessionId) {
-        // Reabrindo sessão existente - deletar exercícios antigos primeiro
         const { error: deleteError } = await supabase
           .from('exercises')
           .delete()
           .eq('session_id', existingSessionId);
 
         if (deleteError) {
-          console.error('Error deleting old exercises:', deleteError);
+          logger.error('Error deleting old exercises:', deleteError);
           throw deleteError;
         }
         
@@ -398,13 +368,10 @@ export function RecordIndividualSessionDialog({
         if (updateError) throw updateError;
         sessionId = existingSessionId;
         
-        console.log(`✅ Sessão ${existingSessionId} atualizada - exercícios antigos deletados`);
-        
         notify.info("Atualizando sessão existente", {
           description: "Substituindo exercícios com dados consolidados",
         });
       } else {
-        // Criando nova sessão
         const workoutSession = {
           student_id: studentId,
           prescription_id: selectedPrescriptionId,
@@ -427,7 +394,6 @@ export function RecordIndividualSessionDialog({
         sessionId = session.id;
       }
 
-      // ✅ USAR OS DADOS EDITADOS MAIS RECENTES
       const exercises = editableExercises.map(ex => ({
         session_id: sessionId,
         exercise_name: ex.executed_exercise_name,
@@ -445,7 +411,6 @@ export function RecordIndividualSessionDialog({
 
       if (exercisesError) throw exercisesError;
 
-      // ✅ SALVAR SEGMENTOS DE ÁUDIO (se houver gravações)
       if (accumulatedRecordings.length > 0) {
         const audioSegments = accumulatedRecordings
           .filter((recording: any) => recording.rawTranscription)
@@ -462,18 +427,14 @@ export function RecordIndividualSessionDialog({
             .insert(audioSegments);
 
           if (segmentsError) {
-            console.error('Error saving audio segments:', segmentsError);
-            // Não falhar a sessão por causa disso, apenas avisar
+            logger.error('Error saving audio segments:', segmentsError);
             notify.warning("Aviso", {
               description: "Segmentos de áudio não foram salvos, mas a sessão foi criada com sucesso",
             });
-          } else {
-            console.log(`✅ ${audioSegments.length} segmento(s) de áudio salvos com sucesso`);
           }
         }
       }
 
-      // ✅ CORRIGIR: categories deve ser array, não string
       if (editableObservations && editableObservations.length > 0) {
         const observations = editableObservations.map(obs => ({
           student_id: studentId,
@@ -501,7 +462,7 @@ export function RecordIndividualSessionDialog({
 
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error saving session:', error);
+      logger.error('Error saving session:', error);
       notify.error(i18n.feedback.genericError, {
         description: error.message,
       });
@@ -529,15 +490,10 @@ export function RecordIndividualSessionDialog({
     setExercisesNeedingValidation([]);
   };
 
-  // Função centralizada importada de @/utils/loadCalculation
-
   const validateExercisesBeforeSave = () => {
     const invalidExercises: number[] = [];
     
-    console.log('🔍 VALIDAÇÃO - Exercícios:', editableExercises);
-    
     editableExercises.forEach((ex, idx) => {
-      // ❌ ERROS CRÍTICOS (bloqueiam o save)
       const criticalIssues = [];
       
       if (!ex.executed_exercise_name.trim()) {
@@ -550,7 +506,6 @@ export function RecordIndividualSessionDialog({
         invalidExercises.push(idx);
       }
       
-      // ❌ ERROS CRÍTICOS: Carga e Reps são obrigatórios
       const missingLoad = !ex.load_breakdown || ex.load_kg === null || ex.load_kg === 0;
       const missingReps = ex.reps === null || ex.reps === 0;
       
@@ -565,18 +520,16 @@ export function RecordIndividualSessionDialog({
       }
       
       if (criticalIssues.length > 0) {
-        console.log(`❌ Exercício #${idx + 1} (${ex.executed_exercise_name || 'SEM NOME'}):`, criticalIssues);
+        logger.debug(`Exercício #${idx + 1} (${ex.executed_exercise_name || 'SEM NOME'}):`, criticalIssues);
       }
     });
     
     if (invalidExercises.length > 0) {
-      console.log('❌ VALIDAÇÃO FALHOU. Total de exercícios inválidos:', invalidExercises.length);
       setExercisesNeedingValidation(invalidExercises);
       setShowValidationDialog(true);
       return false;
     }
     
-    console.log('✅ VALIDAÇÃO OK - Prosseguindo com save');
     return true;
   };
 
@@ -653,8 +606,6 @@ export function RecordIndividualSessionDialog({
             date={date}
             time={time}
             onComplete={(segments) => {
-              console.log('📦 Segmentos recebidos do MultiSegmentRecorder:', segments);
-              
               // Consolidar dados de todos os segmentos
               const allObservations: any[] = [];
               const allExercises: any[] = [];
@@ -671,8 +622,6 @@ export function RecordIndividualSessionDialog({
                   });
                 }
               });
-              
-              console.log('✅ Dados consolidados:', { allObservations, allExercises });
               
               // Armazenar segmentos para salvar na tabela session_audio_segments
               const recordingsData = segments.map((seg) => ({
@@ -691,7 +640,6 @@ export function RecordIndividualSessionDialog({
               
               setAccumulatedRecordings(recordingsData as any);
               
-              // Processar consolidação com dados REAIS
               handleSessionData({
                 sessions: [{
                   student_name: studentName,
@@ -979,7 +927,6 @@ export function RecordIndividualSessionDialog({
                             updated[idx].reps = value;
                             setEditableExercises(updated);
                             
-                            // Remover da lista de inválidos se corrigiu
                             if (value && value > 0) {
                               setExercisesNeedingValidation(prev => prev.filter(i => i !== idx));
                             }
@@ -1007,7 +954,6 @@ export function RecordIndividualSessionDialog({
                             const updated = [...editableExercises];
                             updated[idx].load_breakdown = e.target.value;
                             
-                            // Auto-calcular load_kg
                             const calculated = calculateLoadFromBreakdown(e.target.value);
                             if (calculated !== null) {
                               updated[idx].load_kg = calculated;
@@ -1024,7 +970,6 @@ export function RecordIndividualSessionDialog({
                         />
                       </div>
                       
-                      {/* Display do load_kg calculado */}
                       {ex.load_kg !== null && (
                         <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-md">
                           <span className="text-xs text-muted-foreground">Carga Total:</span>
@@ -1113,7 +1058,6 @@ export function RecordIndividualSessionDialog({
               </Button>
               <Button 
                 onClick={() => {
-                  // ✅ Validar antes de salvar
                   if (!validateExercisesBeforeSave()) {
                     return;
                   }
@@ -1131,7 +1075,6 @@ export function RecordIndividualSessionDialog({
               <Button 
                 variant="outline" 
                 onClick={() => {
-                  // Restaurar dados originais de mergedData
                   if (mergedData) {
                     setEditableObservations(mergedData.clinical_observations);
                     setEditableExercises(mergedData.exercises);
@@ -1143,12 +1086,10 @@ export function RecordIndividualSessionDialog({
               </Button>
               <Button 
                 onClick={() => {
-                  // ✅ Validar ANTES de aplicar edições
                   if (!validateExercisesBeforeSave()) {
                     return;
                   }
                   
-                  // ✅ CRÍTICO: Atualizar mergedData E os estados editáveis simultaneamente
                   setMergedData({
                     clinical_observations: editableObservations,
                     exercises: editableExercises
