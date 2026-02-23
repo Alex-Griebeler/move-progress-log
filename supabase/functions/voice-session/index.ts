@@ -4,7 +4,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, upgrade',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, upgrade, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -148,32 +148,27 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Validate authentication - check for token in Authorization header or query parameter
-  const url = new URL(req.url);
-  const tokenFromQuery = url.searchParams.get('token');
+  // BUG-008: Authenticate via Authorization header only — never accept token from URL query
   const authHeader = req.headers.get('Authorization');
-  const token = authHeader?.replace('Bearer ', '') || tokenFromQuery;
-
-  if (!token) {
-    return new Response('Autenticação obrigatória', { 
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Autenticação obrigatória' }), { 
       status: 401, 
-      headers: corsHeaders 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 
+  const token = authHeader.replace('Bearer ', '');
   const authClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     { global: { headers: { Authorization: `Bearer ${token}` } } }
   );
 
-  const { data: { user }, error: authError } = await authClient.auth.getUser();
-
-  if (authError || !user) {
-    console.error('Authentication error:', authError);
-    return new Response('Token inválido', { 
+  const { data, error: claimsError } = await authClient.auth.getClaims(token);
+  if (claimsError || !data?.claims) {
+    return new Response(JSON.stringify({ error: 'Token inválido' }), { 
       status: 401, 
-      headers: corsHeaders 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 
