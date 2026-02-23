@@ -52,7 +52,7 @@ import { ptBR } from "date-fns/locale";
 import { useAllSessions, SessionWithDetails } from "@/hooks/useAllSessions";
 import { useStudents } from "@/hooks/useStudents";
 import { usePrescriptions } from "@/hooks/usePrescriptions";
-import { useReopenSession } from "@/hooks/useAllSessions";
+import { useReopenWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
@@ -97,7 +97,7 @@ export default function SessionsPage() {
     sessionType,
   });
 
-  const reopenMutation = useReopenSession();
+  const reopenMutation = useReopenWorkoutSession();
 
   // Filter student list based on search
   const filteredStudents = useMemo(() => {
