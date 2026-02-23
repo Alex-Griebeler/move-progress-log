@@ -1951,6 +1951,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_prescription_with_exercises: {
+        Args: {
+          p_exercises: Json
+          p_name: string
+          p_objective: string
+          p_prescription_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "trainer" | "moderator"

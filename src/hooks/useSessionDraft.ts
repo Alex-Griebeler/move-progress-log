@@ -29,11 +29,13 @@ interface SessionDraft {
   studentExercises: StudentExercises;
 }
 
-const DRAFT_KEY = 'session_draft_v1';
+// INC-006: Key is no longer hardcoded — uses prescriptionId when available
+const DRAFT_KEY_PREFIX = 'session_draft_v2_';
 const DEBOUNCE_MS = 1000;
 const SAVE_TO_HISTORY_INTERVAL = 60000; // Salvar no histórico a cada 60 segundos
 
-export function useSessionDraft() {
+export function useSessionDraft(entityId: string = 'default') {
+  const draftKey = `${DRAFT_KEY_PREFIX}${entityId}`;
   const { saveDraftToHistory } = useSessionDraftHistory();
   const [draft, setDraft] = useState<SessionDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -44,7 +46,7 @@ export function useSessionDraft() {
 
   // Carregar rascunho ao montar
   useEffect(() => {
-    const stored = localStorage.getItem(DRAFT_KEY);
+    const stored = localStorage.getItem(draftKey);
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as SessionDraft;
@@ -56,10 +58,10 @@ export function useSessionDraft() {
         });
       } catch (error) {
         console.error('Erro ao carregar rascunho:', error);
-        localStorage.removeItem(DRAFT_KEY);
+        localStorage.removeItem(draftKey);
       }
     }
-  }, []);
+  }, [draftKey]);
 
   // Salvar rascunho com debounce
   const saveDraft = useCallback((data: Partial<SessionDraft>) => {
@@ -80,7 +82,7 @@ export function useSessionDraft() {
         studentExercises: data.studentExercises || {},
       };
 
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
       setDraft(draftData);
       setLastSaved(new Date());
       setIsSaving(false);
@@ -95,11 +97,11 @@ export function useSessionDraft() {
         setLastHistorySave(new Date());
       }
     }, DEBOUNCE_MS);
-  }, [lastHistorySave, saveDraftToHistory]);
+  }, [draftKey, lastHistorySave, saveDraftToHistory]);
 
   // Limpar rascunho
   const clearDraft = useCallback(() => {
-    localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(draftKey);
     setDraft(null);
     setLastSaved(null);
     setLastHistorySave(null);
@@ -109,9 +111,9 @@ export function useSessionDraft() {
     if (historyTimeoutRef.current) {
       clearTimeout(historyTimeoutRef.current);
     }
-  }, []);
+  }, [draftKey]);
 
-  // Verificar se há mudanças não salvas
+  // INC-007: Compare individual fields instead of JSON.stringify for stability
   const hasUnsavedChanges = useCallback((currentData: Partial<SessionDraft>) => {
     if (!draft) return false;
     
@@ -119,19 +121,21 @@ export function useSessionDraft() {
       currentData.date !== draft.date ||
       currentData.time !== draft.time ||
       currentData.trainer !== draft.trainer ||
+      currentData.prescriptionId !== draft.prescriptionId ||
+      (currentData.selectedStudents?.length ?? 0) !== (draft.selectedStudents?.length ?? 0) ||
       JSON.stringify(currentData.studentExercises) !== JSON.stringify(draft.studentExercises)
     );
   }, [draft]);
 
   // Restaurar de um rascunho do histórico
   const restoreDraft = useCallback((draftData: SessionDraft) => {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+    localStorage.setItem(draftKey, JSON.stringify(draftData));
     setDraft(draftData);
     setLastSaved(new Date(draftData.timestamp));
     notify.success("Rascunho restaurado", {
       description: "Os dados foram carregados do histórico",
     });
-  }, []);
+  }, [draftKey]);
 
   // Cleanup ao desmontar
   useEffect(() => {
