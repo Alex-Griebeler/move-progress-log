@@ -35,10 +35,12 @@ export const useStats = () => {
       const uniqueStudents = new Set(activeStudentsData?.map(s => s.student_id) || []);
       const activeStudents = uniqueStudents.size;
       
-      // Carga média por sessão
+      // Carga média por sessão — BUG-003 fix: filtrar pelo mês corrente + limite
       const { data: exercises } = await supabase
         .from("exercises")
-        .select("load_kg, session_id");
+        .select("load_kg, session_id")
+        .gte("created_at", firstDayOfMonth)
+        .limit(5000);
       
       if (exercises && exercises.length > 0) {
         const sessionLoads = new Map<string, number>();

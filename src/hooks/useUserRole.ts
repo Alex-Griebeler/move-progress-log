@@ -12,11 +12,12 @@ export const useUserRole = () => {
       
       if (!user) return null;
 
+      // BUG-004 fix: maybeSingle() instead of single() to avoid error when no role exists
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
         console.error("Error fetching user role:", error);

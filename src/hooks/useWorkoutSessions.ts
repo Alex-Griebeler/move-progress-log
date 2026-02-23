@@ -166,7 +166,7 @@ export const useCreateGroupWorkoutSessions = () => {
         }>;
       }>;
     }) => {
-      console.log("Creating group workout sessions:", data);
+      // INC-002: removed console.log
       
       const results = [];
       
@@ -185,11 +185,10 @@ export const useCreateGroupWorkoutSessions = () => {
             .single();
 
           if (sessionError) {
-            console.error(`Error creating session for ${session.student_name}:`, sessionError);
             throw sessionError;
           }
 
-          console.log(`Session created for ${session.student_name}:`, workoutSession.id);
+          
 
           const exercisesToInsert = session.exercises.map((ex) => {
             const finalSets = ex.sets !== null && ex.sets !== undefined 
@@ -217,14 +216,13 @@ export const useCreateGroupWorkoutSessions = () => {
             };
           });
 
-          console.log(`Inserting ${exercisesToInsert.length} exercises for ${session.student_name}`);
+          
 
           const { error: exercisesError } = await supabase
             .from("exercises")
             .insert(exercisesToInsert);
 
           if (exercisesError) {
-            console.error(`Error creating exercises for ${session.student_name}:`, exercisesError);
             throw exercisesError;
           }
           
@@ -235,7 +233,7 @@ export const useCreateGroupWorkoutSessions = () => {
           });
           
         } catch (error) {
-          console.error(`Failed to create session for ${session.student_name}:`, error);
+          
           results.push({ 
             student: session.student_name, 
             success: false, 
@@ -271,7 +269,7 @@ export const useCreateGroupWorkoutSessions = () => {
       }
     },
     onError: (error) => {
-      console.error("Error in useCreateGroupWorkoutSessions:", error);
+      
       notify.error(workoutKeys.errorGroupSessions, {
         description: error instanceof Error ? error.message : i18n.errors.unknown,
       });
@@ -284,11 +282,11 @@ export const useReopenWorkoutSession = () => {
 
   return useMutation({
     mutationFn: async (sessionId: string) => {
+      // INC-004: removed manual updated_at — handled by DB trigger
       const { data, error } = await supabase
         .from("workout_sessions")
         .update({ 
           is_finalized: false,
-          updated_at: new Date().toISOString()
         })
         .eq("id", sessionId)
         .select()
@@ -326,7 +324,6 @@ export const useFinalizeWorkoutSession = () => {
         .from("workout_sessions")
         .update({ 
           is_finalized: true,
-          updated_at: new Date().toISOString()
         })
         .eq("id", sessionId)
         .select()
