@@ -100,15 +100,34 @@ export function usePrescriptionDraft(entityId?: string) {
     }
   }, [draftKey]);
 
-  // Verificar se há mudanças não salvas
+  // INC-007: Comparação campo-a-campo em vez de JSON.stringify
   const hasUnsavedChanges = useCallback((currentData: Partial<PrescriptionDraft>) => {
     if (!draft) return false;
     
-    return (
-      currentData.name !== draft.name ||
-      currentData.objective !== draft.objective ||
-      JSON.stringify(currentData.exercises) !== JSON.stringify(draft.exercises)
-    );
+    if (currentData.name !== draft.name || currentData.objective !== draft.objective) {
+      return true;
+    }
+
+    const currentExercises = currentData.exercises || [];
+    const draftExercises = draft.exercises || [];
+
+    if (currentExercises.length !== draftExercises.length) return true;
+
+    return currentExercises.some((ex, i) => {
+      const d = draftExercises[i];
+      return (
+        ex.exercise_library_id !== d.exercise_library_id ||
+        ex.sets !== d.sets ||
+        ex.reps !== d.reps ||
+        ex.interval_seconds !== d.interval_seconds ||
+        ex.pse !== d.pse ||
+        ex.training_method !== d.training_method ||
+        ex.observations !== d.observations ||
+        ex.group_with_previous !== d.group_with_previous ||
+        ex.should_track !== d.should_track ||
+        ex.adaptations?.length !== d.adaptations?.length
+      );
+    });
   }, [draft]);
 
   // Restaurar de um rascunho do histórico

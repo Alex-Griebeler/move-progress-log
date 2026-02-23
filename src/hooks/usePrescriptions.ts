@@ -43,13 +43,24 @@ export interface ExerciseAdaptation {
   exercise_name?: string;
 }
 
+// INC-008: Tipagem formal para custom_adaptations
+export interface CustomAdaptation {
+  exercise_library_id: string;
+  adaptation_type: string;
+  sets?: string | null;
+  reps?: string | null;
+  interval_seconds?: number | null;
+  pse?: string | null;
+  observations?: string | null;
+}
+
 export interface PrescriptionAssignment {
   id: string;
   prescription_id: string;
   student_id: string;
   start_date: string;
   end_date: string | null;
-  custom_adaptations: any;
+  custom_adaptations: CustomAdaptation[] | null;
   student_name?: string;
 }
 
@@ -411,10 +422,11 @@ export const useDeletePrescriptionAssignment = () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
-      notify.success("Atribuição excluída com sucesso");
+      // INC-009: usando chaves i18n
+      notify.success(i18n.modules.prescriptions.deleted);
     },
     onError: (error) => {
-      notify.error("Erro ao excluir atribuição", {
+      notify.error(i18n.modules.prescriptions.errorDelete, {
         description: error.message
       });
     },
@@ -435,10 +447,10 @@ export const useDeletePrescription = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
-      notify.success("Prescrição excluída com sucesso");
+      notify.success(i18n.modules.prescriptions.deleted);
     },
     onError: (error) => {
-      notify.error("Erro ao excluir prescrição", {
+      notify.error(i18n.modules.prescriptions.errorDelete, {
         description: error.message
       });
     },
