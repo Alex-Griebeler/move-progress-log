@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
@@ -38,6 +38,28 @@ export interface WorkoutWithDetails extends WorkoutSession {
   can_reopen?: boolean;
 }
 
+const PAGE_SIZE = 20;
+
+const mapWorkouts = (data: any[], sessionsWithObservations: Set<string>): WorkoutWithDetails[] => {
+  return data.map((workout: any) => ({
+    id: workout.id,
+    student_id: workout.student_id,
+    date: workout.date,
+    time: workout.time,
+    session_type: workout.session_type,
+    student_name: workout.students.name?.trim() || 'Sem nome',
+    avatar_url: workout.students.avatar_url,
+    total_exercises: workout.exercises.length,
+    total_volume: workout.exercises.reduce((sum: number, ex: any) => sum + (ex.load_kg || 0), 0),
+    has_important_observations: sessionsWithObservations.has(workout.id),
+    is_finalized: workout.is_finalized,
+    can_reopen: workout.can_reopen,
+    created_at: workout.created_at,
+    updated_at: workout.updated_at,
+  }));
+};
+
+// MEL-003: Cursor-based pagination
 export const useWorkouts = () => {
   return useQuery({
     queryKey: ["workouts"],
@@ -51,12 +73,13 @@ export const useWorkouts = () => {
         `)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
-        .limit(20);
+        .limit(PAGE_SIZE);
       
       if (error) throw error;
 
-      // Buscar observações importantes para todas as sessões
       const sessionIds = data.map(s => s.id);
+      if (sessionIds.length === 0) return [];
+
       const { data: observations } = await supabase
         .from('student_observations')
         .select('session_id')
@@ -68,22 +91,55 @@ export const useWorkouts = () => {
         observations?.map(o => o.session_id).filter(Boolean) || []
       );
       
-      return data.map((workout: any) => ({
-        id: workout.id,
-        student_id: workout.student_id,
-        date: workout.date,
-        time: workout.time,
-        session_type: workout.session_type,
-        student_name: workout.students.name?.trim() || 'Sem nome',
-        avatar_url: workout.students.avatar_url,
-        total_exercises: workout.exercises.length,
-        total_volume: workout.exercises.reduce((sum: number, ex: any) => sum + (ex.load_kg || 0), 0),
-        has_important_observations: sessionsWithObservations.has(workout.id),
-        is_finalized: workout.is_finalized,
-        can_reopen: workout.can_reopen,
-        created_at: workout.created_at,
-        updated_at: workout.updated_at,
-      })) as WorkoutWithDetails[];
+      return mapWorkouts(data, sessionsWithObservations);
+    },
+  });
+};
+
+export const useWorkoutsPaginated = () => {
+  return useInfiniteQuery({
+    queryKey: ["workouts-paginated"],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam = 0 }) => {
+      const from = pageParam * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data, error } = await supabase
+        .from("workout_sessions")
+        .select(`
+          *,
+          students!inner(name, avatar_url),
+          exercises(id, load_kg)
+        `)
+        .order("date", { ascending: false })
+        .order("time", { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      const sessionIds = data.map(s => s.id);
+      let sessionsWithObservations = new Set<string>();
+
+      if (sessionIds.length > 0) {
+        const { data: observations } = await supabase
+          .from('student_observations')
+          .select('session_id')
+          .in('session_id', sessionIds)
+          .eq('is_resolved', false)
+          .in('severity', ['baixa', 'média', 'alta']);
+
+        sessionsWithObservations = new Set(
+          observations?.map(o => o.session_id).filter(Boolean) || []
+        );
+      }
+
+      return {
+        items: mapWorkouts(data, sessionsWithObservations),
+        hasMore: data.length === PAGE_SIZE,
+      };
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      return lastPage.hasMore ? allPages.length : undefined;
     },
   });
 };

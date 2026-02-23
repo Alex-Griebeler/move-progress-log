@@ -1928,6 +1928,7 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limit_attempts: { Args: never; Returns: undefined }
+      count_active_students: { Args: { p_since: string }; Returns: number }
       delete_prescription_cascade: {
         Args: { p_prescription_id: string }
         Returns: undefined
