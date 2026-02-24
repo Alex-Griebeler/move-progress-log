@@ -16,67 +16,78 @@ function normalize(name: string): string {
     .replace(/\s+/g, " ");
 }
 
-// ── Movement pattern mapping ──
-const PATTERN_MAP: Record<string, string> = {
-  empurrar_horizontal: "empurrar_horizontal",
-  empurrar_vertical: "empurrar_vertical",
-  puxar_horizontal: "puxar_horizontal",
-  puxar_vertical: "puxar_vertical",
-  dominancia_de_joelho: "dominancia_joelho",
-  dominancia_de_quadril: "dominancia_quadril",
-  carregamento: "carregar",
-  carregamentos: "carregar",
-  anti_extensao: "core_anti_extensao",
-  anti_flexao_lateral: "core_anti_flexao_lateral",
-  anti_rotacao: "core_anti_rotacao",
-  bilateral_linear: "pliometria_bilateral_linear",
-  unilateral_linear: "pliometria_unilateral_linear",
-  unilateral_lateral: "pliometria_unilateral_lateral",
-  unilateral_lateral_medial: "pliometria_unilateral_lateral_medial",
-  regioes: "lmf",
-  tecnicas: "respiracao",
-  tornozelo: "mobilidade_tornozelo",
-  quadril: "mobilidade_quadril",
-  coluna_toracica: "mobilidade_toracica",
-  integrados: "mobilidade_integrada",
-  frontal: "locomocao",
-  sagital: "locomocao",
-  transverso: "locomocao",
-  gluteos: "ativacao_gluteos",
-  escapular: "ativacao_escapula",
-  pe_tornozelo: "ativacao_geral",
-  corretivos_quadril: "ativacao_gluteos",
-};
+// ============================================================================
+// MAPEAMENTO UNIFICADO: subcategoria do JSON → (movement_pattern, functional_group, category)
+// Alinhado com src/constants/backToBasics.ts
+// ============================================================================
 
-const CATEGORY_MAP: Record<string, string> = {
-  empurrar_horizontal: "forca",
-  empurrar_vertical: "forca",
-  puxar_horizontal: "forca",
-  puxar_vertical: "forca",
-  dominancia_de_joelho: "forca",
-  dominancia_de_quadril: "forca",
-  carregamento: "forca",
-  carregamentos: "forca",
-  anti_extensao: "core",
-  anti_flexao_lateral: "core",
-  anti_rotacao: "core",
-  bilateral_linear: "pliometria",
-  unilateral_linear: "pliometria",
-  unilateral_lateral: "pliometria",
-  unilateral_lateral_medial: "pliometria",
-  regioes: "lmf",
-  tecnicas: "respiracao",
-  tornozelo: "mobilidade",
-  quadril: "mobilidade",
-  coluna_toracica: "mobilidade",
-  integrados: "mobilidade",
-  frontal: "locomocao",
-  sagital: "locomocao",
-  transverso: "locomocao",
-  gluteos: "ativacao",
-  escapular: "ativacao",
-  pe_tornozelo: "ativacao",
-  corretivos_quadril: "ativacao",
+interface SubcategoryMapping {
+  movement_pattern: string;
+  functional_group: string;
+  category: string;
+}
+
+const SUBCATEGORY_MAP: Record<string, SubcategoryMapping> = {
+  // ── Empurrar ──
+  empurrar_horizontal: { movement_pattern: "empurrar_horizontal", functional_group: "empurrar_horizontal", category: "forca" },
+  empurrar_vertical: { movement_pattern: "empurrar_vertical", functional_group: "empurrar_vertical", category: "forca" },
+
+  // ── Puxar ──
+  puxar_horizontal: { movement_pattern: "puxar_horizontal", functional_group: "puxar_horizontal", category: "forca" },
+  puxar_vertical: { movement_pattern: "puxar_vertical", functional_group: "puxar_vertical", category: "forca" },
+
+  // ── Dominância de Joelho ──
+  agachamento_bilateral: { movement_pattern: "agachamento_bilateral", functional_group: "dominancia_joelho", category: "forca" },
+  agachamento_lateral: { movement_pattern: "agachamento_lateral", functional_group: "dominancia_joelho", category: "forca" },
+  agachamento_unilateral: { movement_pattern: "agachamento_unilateral", functional_group: "dominancia_joelho", category: "forca" },
+  base_assimetrica_split_squat: { movement_pattern: "base_assimetrica_split_squat", functional_group: "dominancia_joelho", category: "forca" },
+  lunge: { movement_pattern: "lunge", functional_group: "dominancia_joelho", category: "forca" },
+  lunge_slideboard: { movement_pattern: "lunge_slideboard", functional_group: "dominancia_joelho", category: "forca" },
+  flexao_joelhos_nordica: { movement_pattern: "flexao_joelhos_nordica", functional_group: "dominancia_joelho", category: "forca" },
+
+  // ── Dominância de Quadril ──
+  deadlift_bilateral: { movement_pattern: "deadlift_bilateral", functional_group: "dominancia_quadril", category: "forca" },
+  deadlift_unilateral: { movement_pattern: "deadlift_unilateral", functional_group: "dominancia_quadril", category: "forca" },
+  rdl_stiff: { movement_pattern: "rdl_stiff", functional_group: "dominancia_quadril", category: "forca" },
+  ponte_hip_thrust: { movement_pattern: "ponte_hip_thrust", functional_group: "dominancia_quadril", category: "forca" },
+
+  // ── Carregar ──
+  carregamento: { movement_pattern: "carregar", functional_group: "carregar", category: "forca" },
+  carregamentos: { movement_pattern: "carregar", functional_group: "carregar", category: "forca" },
+
+  // ── Core (Estabilidade no JSON) ──
+  anti_extensao: { movement_pattern: "core_anti_extensao", functional_group: "core_anti_extensao", category: "core" },
+  anti_flexao_lateral: { movement_pattern: "core_anti_flexao_lateral", functional_group: "core_anti_flexao_lateral", category: "core" },
+  anti_rotacao: { movement_pattern: "core_anti_rotacao", functional_group: "core_anti_rotacao", category: "core" },
+
+  // ── Ativação (sob "estabilidade" no JSON) ──
+  escapula: { movement_pattern: "escapula", functional_group: "ativacao", category: "ativacao" },
+  gluteos_estabilidade: { movement_pattern: "gluteos_estabilidade", functional_group: "ativacao", category: "ativacao" },
+  pe_tornozelo: { movement_pattern: "ativacao_geral", functional_group: "ativacao", category: "ativacao" },
+  corretivos_quadril: { movement_pattern: "ativacao_gluteos", functional_group: "ativacao", category: "ativacao" },
+
+  // ── Mobilidade ──
+  tornozelo: { movement_pattern: "mobilidade_tornozelo", functional_group: "mobilidade", category: "mobilidade" },
+  quadril: { movement_pattern: "mobilidade_quadril", functional_group: "mobilidade", category: "mobilidade" },
+  coluna_toracica: { movement_pattern: "mobilidade_toracica", functional_group: "mobilidade", category: "mobilidade" },
+  integrados: { movement_pattern: "mobilidade_integrada", functional_group: "mobilidade", category: "mobilidade" },
+
+  // ── Pliometria ──
+  bilateral_linear: { movement_pattern: "pliometria_bilateral_linear", functional_group: "pliometria", category: "pliometria" },
+  unilateral_linear: { movement_pattern: "pliometria_unilateral_linear", functional_group: "pliometria", category: "pliometria" },
+  unilateral_lateral: { movement_pattern: "pliometria_unilateral_lateral", functional_group: "pliometria", category: "pliometria" },
+  unilateral_lateral_medial: { movement_pattern: "pliometria_unilateral_lateral_medial", functional_group: "pliometria", category: "pliometria" },
+
+  // ── Locomoção (exercicios_nao_convencionais no JSON) ──
+  frontal: { movement_pattern: "locomocao", functional_group: "locomocao", category: "locomocao" },
+  sagital: { movement_pattern: "locomocao", functional_group: "locomocao", category: "locomocao" },
+  transverso: { movement_pattern: "locomocao", functional_group: "locomocao", category: "locomocao" },
+
+  // ── Liberação Miofascial ──
+  regioes: { movement_pattern: "lmf", functional_group: "lmf", category: "lmf" },
+
+  // ── Respiração ──
+  tecnicas: { movement_pattern: "respiracao", functional_group: "respiracao", category: "respiracao" },
 };
 
 const LATERALITY_MAP: Record<string, string> = {
@@ -102,6 +113,7 @@ function levelLabel(level: number): string {
 interface FlatExercise {
   nome: string;
   movement_pattern: string;
+  functional_group: string;
   category: string;
   subcategory: string;
   base?: string;
@@ -126,75 +138,46 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
     if (!subcategorias) continue;
 
     for (const [subKey, subVal] of Object.entries(subcategorias)) {
+      const mapping = SUBCATEGORY_MAP[subKey];
+      const movementPattern = mapping?.movement_pattern || subKey;
+      const functionalGroup = mapping?.functional_group || "geral";
+      const category = mapping?.category || "geral";
+
       const subObj = subVal as Record<string, unknown>;
       const exercicios = subObj.exercicios;
 
       if (!exercicios) continue;
 
+      const pushExercise = (ex: Record<string, unknown>) => {
+        result.push({
+          nome: ex.nome as string,
+          movement_pattern: movementPattern,
+          functional_group: functionalGroup,
+          category,
+          subcategory: subKey,
+          base: ex.base as string | undefined,
+          posicao: ex.posicao as string | undefined,
+          nivel: ex.nivel as number | undefined,
+          equipamento: ex.equipamento as string | undefined,
+          tags: ex.tags as string[] | undefined,
+          fase_pliometria: ex.fase as number | undefined,
+          sets_reps: ex.sets_reps as string | undefined,
+          regiao: ex.regiao as string | undefined,
+          cadeia: ex.cadeia as string | undefined,
+        });
+      };
+
       if (Array.isArray(exercicios)) {
-        // Direct array of exercises
-        for (const ex of exercicios) {
-          result.push({
-            nome: ex.nome,
-            movement_pattern: PATTERN_MAP[subKey] || subKey,
-            category: CATEGORY_MAP[subKey] || "geral",
-            subcategory: subKey,
-            base: ex.base,
-            posicao: ex.posicao,
-            nivel: ex.nivel,
-            equipamento: ex.equipamento,
-            tags: ex.tags,
-            fase_pliometria: ex.fase,
-            sets_reps: ex.sets_reps,
-            regiao: ex.regiao,
-            cadeia: ex.cadeia,
-          });
-        }
+        for (const ex of exercicios) pushExercise(ex);
       } else if (typeof exercicios === "object") {
-        // Object with groups → each group has exercicios array or is itself nested
-        for (const [_groupKey, groupVal] of Object.entries(
-          exercicios as Record<string, unknown>
-        )) {
+        for (const [_groupKey, groupVal] of Object.entries(exercicios as Record<string, unknown>)) {
           if (Array.isArray(groupVal)) {
-            // Direct array under group (corretivos_quadril pattern)
-            for (const ex of groupVal) {
-              result.push({
-                nome: ex.nome,
-                movement_pattern: PATTERN_MAP[subKey] || subKey,
-                category: CATEGORY_MAP[subKey] || "geral",
-                subcategory: subKey,
-                base: ex.base,
-                posicao: ex.posicao,
-                nivel: ex.nivel,
-                equipamento: ex.equipamento,
-                tags: ex.tags,
-                fase_pliometria: ex.fase,
-                sets_reps: ex.sets_reps,
-                regiao: ex.regiao,
-                cadeia: ex.cadeia,
-              });
-            }
+            for (const ex of groupVal) pushExercise(ex);
           } else {
             const group = groupVal as Record<string, unknown>;
             const groupExercises = group.exercicios;
             if (Array.isArray(groupExercises)) {
-              for (const ex of groupExercises) {
-                result.push({
-                  nome: ex.nome,
-                  movement_pattern: PATTERN_MAP[subKey] || subKey,
-                  category: CATEGORY_MAP[subKey] || "geral",
-                  subcategory: subKey,
-                  base: ex.base,
-                  posicao: ex.posicao,
-                  nivel: ex.nivel,
-                  equipamento: ex.equipamento,
-                  tags: ex.tags,
-                  fase_pliometria: ex.fase,
-                  sets_reps: ex.sets_reps,
-                  regiao: ex.regiao,
-                  cadeia: ex.cadeia,
-                });
-              }
+              for (const ex of groupExercises) pushExercise(ex);
             }
           }
         }
@@ -216,11 +199,10 @@ Deno.serve(async (req: Request) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Auth check - allow service role (no user needed) or authenticated user
+    // Auth check
     const authHeader = req.headers.get("Authorization");
     if (authHeader) {
       const token = authHeader.replace("Bearer ", "");
-      // Check if it's the service role key (skip user auth)
       if (token !== serviceKey) {
         const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
         if (authErr || !user) {
@@ -245,7 +227,6 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json();
 
-    // Accept either flat array or nested JSON
     let exercises: FlatExercise[];
     if (body.exercises && Array.isArray(body.exercises)) {
       exercises = body.exercises;
@@ -295,7 +276,6 @@ Deno.serve(async (req: Request) => {
               .filter(Boolean)
           : [];
 
-        // Parse sets_reps if available (e.g. "3x5")
         let defaultSets: string | null = null;
         let defaultReps: string | null = null;
         if (ex.sets_reps) {
@@ -309,6 +289,7 @@ Deno.serve(async (req: Request) => {
         const record: Record<string, unknown> = {
           name: ex.nome,
           movement_pattern: ex.movement_pattern,
+          functional_group: ex.functional_group,
           category: ex.category,
           subcategory: ex.subcategory,
           laterality,
