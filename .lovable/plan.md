@@ -7,9 +7,9 @@
 - [x] Fase 3A: MEL-IA-004 — Unificar Pipelines de Áudio
 - [x] Fase 3B: MEL-IA-006 — Validação de Desvio da Prescrição
 - [x] Fase 3C: MEL-IA-007 — Tracking de Efetividade de Protocolos
-- [ ] Fase 4A: MEL-IA-003 — Busca Semântica (pg_trgm)
-- [ ] Fase 4B: MEL-IA-008 — Assistente Contextual do Treinador
-- [ ] Fase 4C: MEL-IA-009 — Consolidação de Providers
+- [x] Fase 4A: MEL-IA-003 — Busca Semântica (pg_trgm)
+- [x] Fase 4B: MEL-IA-008 — Assistente Contextual do Treinador
+- [x] Fase 4C: MEL-IA-009 — Consolidação de Providers
 
 
 # Plano Sequencial de Implementacao — MEL-IA-001 a 009

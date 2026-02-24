@@ -2032,6 +2032,16 @@ export type Database = {
       }
       migrate_oura_tokens_to_vault: { Args: never; Returns: undefined }
       normalize_objective: { Args: { obj: string }; Returns: string }
+      search_exercises_by_name: {
+        Args: { p_functional_group?: string; p_limit?: number; p_query: string }
+        Returns: {
+          id: string
+          name: string
+          similarity: number
+        }[]
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       store_oura_tokens: {
         Args: {
           p_access_token: string
