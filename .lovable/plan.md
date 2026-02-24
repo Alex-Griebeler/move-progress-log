@@ -1,74 +1,124 @@
 
 
-# Fase B.2: Tratamento de Orfaos + Melhorias na Criacao Manual
+# Auditoria de Padronizacao: Botoes, Titulos e Cabecalhos
 
-## 1. Exercicios Orfaos - Diagnostico
+## Diagnostico
 
-A importacao inseriu 432 novos exercicios e atualizou 53 existentes. Restam **~301 exercicios sem `numeric_level`** (orfaos - estavam no banco antes do JSON oficial):
-
-| Situacao | Quantidade | Acao |
-|----------|-----------|------|
-| Usados em prescricoes ou sessoes | 59 | Manter (nao podem ser excluidos) |
-| Nao usados em lugar nenhum | 242 | Excluir com seguranca |
-
-### Passo 1A: Excluir orfaos nao utilizados
-- Rodar uma migracao SQL que deleta exercicios onde `numeric_level IS NULL` e que NAO estejam referenciados em `prescription_exercises` nem em `exercises` (sessoes).
-- Isso reduz a biblioteca de ~774 para ~532 exercicios limpos.
-
-### Passo 1B: Manter os 59 orfaos usados
-- Estes ficam como estao. Podem ser enriquecidos manualmente depois pelo trainer via o dialog de edicao.
+Apos analise completa de todos os arquivos do sistema, identifiquei as seguintes inconsistencias:
 
 ---
 
-## 2. Melhorias no Dialog de Criacao Manual
+### A. BOTOES — Problemas Encontrados
 
-### 2A: Validacao de duplicatas em tempo real
-- Ao digitar o nome, buscar exercicios com nome similar (normalizado, sem acentos).
-- Mostrar alerta amarelo: "Exercicio similar encontrado: [nome]" com link para ver o existente.
-- Usar debounce de 300ms para nao sobrecarregar.
+**A1. `variant="gradient"` ainda em uso (deveria ser `"default"`)**
 
-### 2B: Auto-preenchimento de categoria
-- Quando o usuario selecionar um `movement_pattern`, preencher automaticamente o campo `category` baseado no mapeamento padronizado (ex: `empurrar_horizontal` -> `forca`, `core_anti_rotacao` -> `core`).
-- O usuario pode alterar manualmente se necessario.
+O variant `gradient` foi mapeado visualmente para o mesmo estilo de `default` no `button.tsx`, mas semanticamente continua sendo usado em 6 arquivos como se fosse um variant especial. Isso causa confusao e deve ser substituido por `default`:
 
-### 2C: Escala numerica de nivel (1-9)
-- Substituir o select textual de "Nivel" pelo novo `NUMERIC_LEVEL_SCALE` (1-9) ja criado em `backToBasics.ts`.
-- Mostrar label descritivo (ex: "Nivel 3 - Iniciante").
-- Salvar em `numeric_level` (inteiro) em vez de `level` (texto).
+| Arquivo | Linha | Uso Atual | Correcao |
+|---|---|---|---|
+| `StudentsPage.tsx` | 353 | `variant="gradient"` (Adicionar aluno) | `variant="default"` |
+| `StudentDetailPage.tsx` | 285 | `variant="gradient"` (Registrar Sessao) | `variant="default"` |
+| `StudentDetailPage.tsx` | 492 | `variant="gradient"` (Registrar Primeira Sessao) | `variant="default"` |
+| `PrescriptionsPage.tsx` | 358 | `variant="gradient"` (Nova Prescricao) | `variant="default"` |
+| `AddStudentDialog.tsx` | 493 | `variant="gradient"` (submit) | `variant="default"` |
+| `EditStudentDialog.tsx` | 494 | `variant="gradient"` (submit) | `variant="default"` |
+| `AddWorkoutDialog.tsx` | 128 | `variant="gradient"` size="lg" (trigger) | `variant="default"` |
+| `AddWorkoutDialog.tsx` | 258 | `variant="gradient"` (submit) | `variant="default"` |
+
+**A2. Tamanhos inconsistentes em botoes de acao principal de pagina**
+
+| Pagina | Botao Principal | Size Atual | Size Padrao |
+|---|---|---|---|
+| Dashboard | Registrar Sessao (AddWorkoutDialog) | `size="lg"` | `size="default"` |
+| StudentsPage | Adicionar aluno | sem size (default) | OK |
+| PrescriptionsPage | Nova Prescricao | `size="sm"` | `size="default"` |
+| SessionsPage | Registrar sessao | sem size (default) | OK |
+| AdminUsersPage | Adicionar usuario | sem size (default) | OK |
+
+**A3. `animate-pulse` no botao "Registrar Sessao"**
+
+Em `StudentDetailPage.tsx` linha 284, o botao tem `animate-pulse hover:animate-none`. Isso e um anti-pattern — botoes nao devem pulsar. Deve ser removido.
+
+**A4. Remover variants legados do button.tsx**
+
+Os variants `gradient` e `premium` podem ser removidos do `buttonVariants` em `button.tsx` apos a migracao, pois sao identicos a `default`.
 
 ---
 
-## Detalhes Tecnicos
+### B. TITULOS E CABECALHOS — Problemas Encontrados
 
-### Migracao SQL (orfaos)
-```sql
-DELETE FROM exercises_library
-WHERE numeric_level IS NULL
-  AND id NOT IN (SELECT exercise_library_id FROM prescription_exercises)
-  AND name NOT IN (SELECT DISTINCT exercise_name FROM exercises);
-```
+**B1. Dois componentes de header concorrentes**
 
-### Validacao de duplicatas (AddExerciseDialog.tsx)
-- Hook `useDebounce` ja existe no projeto.
-- Query de busca: `supabase.from('exercises_library').select('id, name').ilike('name', '%normalized%').limit(5)`
-- Exibir resultado como `Alert` amarelo abaixo do campo de nome.
+- `AppHeader` usa `text-[1.75rem]` (28px) — correto, Apple-aligned
+- `PageHeader` usa `text-4xl` (36px) — excessivo para gestao
 
-### Auto-fill de categoria (AddExerciseDialog.tsx)
-- Criar mapa `PATTERN_TO_CATEGORY` no `backToBasics.ts`:
-```text
-empurrar_horizontal -> forca
-core_anti_extensao  -> core
-pliometria_*        -> pliometria
-mobilidade_*        -> mobilidade
-locomocao           -> locomocao
-...
-```
-- No `onValueChange` do select de `movement_pattern`, chamar `setCategory(PATTERN_TO_CATEGORY[pattern])`.
+Paginas que usam cada um:
 
-### Arquivos modificados
-1. `supabase/migrations/` - SQL para deletar orfaos nao usados
-2. `src/constants/backToBasics.ts` - Adicionar `PATTERN_TO_CATEGORY`
-3. `src/components/AddExerciseDialog.tsx` - Validacao de duplicatas + auto-fill + nivel numerico
-4. `src/components/EditExerciseLibraryDialog.tsx` - Mesmas melhorias de consistencia
-5. `src/hooks/useExercisesLibrary.ts` - Hook para busca de duplicatas
+| Componente | Paginas |
+|---|---|
+| `AppHeader` | Dashboard (Index), StudentsPage, RecoveryProtocolsPage, StudentsComparisonPage |
+| `PageHeader` | SessionsPage, AdminUsersPage, PrescriptionsPage, ExercisesLibraryPage |
+| Nenhum (inline) | StudentReportsPage (`text-3xl font-bold`), StudentDetailPage (nome do aluno `text-2xl md:text-3xl`) |
+
+**B2. PageHeader com `text-4xl` deve ser reduzido para `text-[1.75rem]`**
+
+Para consistencia com `AppHeader`, o `PageHeader` deve usar o mesmo tamanho de titulo.
+
+**B3. StudentReportsPage com titulo inline**
+
+Usa `<h1 className="text-3xl font-bold">` diretamente, sem usar `AppHeader` ou `PageHeader`. Deve ser migrado para `PageHeader`.
+
+**B4. Subtitulos inconsistentes**
+
+- `AppHeader`: `text-base text-muted-foreground/80`
+- `PageHeader`: `text-lg text-muted-foreground`
+
+Devem ser unificados para `text-base text-muted-foreground`.
+
+**B5. Classes decorativas residuais**
+
+- `StatCard.tsx`: ainda usa `gradient-card-subtle`, `gradient-card-emphasis`, `card-glass-hover`
+- Skeletons: usam `card-glass` (glass morphism)
+- `StudentOverviewDashboard.tsx`: usa `card-glass-hover bg-gradient-card`
+- `PrescriptionCard.tsx`: usa `card-glass-hover`
+
+Esses efeitos devem ser simplificados para alinhamento Apple.
+
+---
+
+## Plano de Implementacao
+
+### Sprint 1 — Botoes (30 min)
+
+1. **Substituir todos os `variant="gradient"` por `variant="default"`** nos 6 arquivos listados em A1
+2. **Padronizar tamanhos**: corrigir `AddWorkoutDialog` trigger de `size="lg"` para `size="default"`, e `PrescriptionsPage` de `size="sm"` para sem size
+3. **Remover `animate-pulse`** do botao em `StudentDetailPage.tsx`
+4. **Limpar button.tsx**: remover os variants `gradient` e `premium` do `buttonVariants` (ja nao serao usados)
+
+### Sprint 2 — Titulos e Cabecalhos (1h)
+
+5. **Padronizar `PageHeader`**: alterar `text-4xl` para `text-[1.75rem]` e subtitulo de `text-lg` para `text-base text-muted-foreground`
+6. **Migrar `StudentReportsPage`**: substituir titulo inline por `PageHeader`
+7. **Remover classes decorativas dos cards**:
+   - `StatCard.tsx`: remover `gradient-card-subtle`, `gradient-card-emphasis`, `card-glass-hover` — usar apenas `bg-card border`
+   - Skeletons (5 arquivos): substituir `card-glass` por classe vazia
+   - `StudentOverviewDashboard.tsx`: remover `card-glass-hover bg-gradient-card`
+   - `PrescriptionCard.tsx`: remover `card-glass-hover`
+
+### Sprint 3 — Limpeza CSS (20 min)
+
+8. **Remover do `index.css`** as classes que nao serao mais usadas:
+   - `.text-gradient-primary`
+   - `.gradient-card-subtle`
+   - `.gradient-card-emphasis`
+   - `.bg-gradient-card`
+   - `.card-glass` e `.card-glass-hover`
+
+---
+
+## Resultado Esperado
+
+- **Botoes**: Todos os botoes de acao principal usam `variant="default"` com `size="default"`. Sem gradientes, sem animacoes pulsantes. Hierarquia clara: `default` (primario) > `outline` (secundario) > `ghost` (terciario) > `destructive` (perigoso).
+- **Titulos**: Todas as paginas usam 28px (`text-[1.75rem]`) bold, cor solida `text-foreground`, sem gradientes.
+- **Cards**: Sem glass morphism nem gradientes decorativos. Fundo solido `bg-card` com borda sutil.
 
