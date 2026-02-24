@@ -1,124 +1,194 @@
 
 
-# Auditoria de Padronizacao: Botoes, Titulos e Cabecalhos
+# Plano Sequencial de Implementacao — MEL-IA-001 a 009
 
-## Diagnostico
+## Prerequisito: Taxonomia de 2 Niveis (ja aprovada)
 
-Apos analise completa de todos os arquivos do sistema, identifiquei as seguintes inconsistencias:
+Antes de qualquer melhoria de IA, a taxonomia `functional_group` precisa existir. Sem ela, MEL-IA-002 (conectar Oura ao gerador) continuara selecionando exercicios de um pool limitado.
 
----
-
-### A. BOTOES — Problemas Encontrados
-
-**A1. `variant="gradient"` ainda em uso (deveria ser `"default"`)**
-
-O variant `gradient` foi mapeado visualmente para o mesmo estilo de `default` no `button.tsx`, mas semanticamente continua sendo usado em 6 arquivos como se fosse um variant especial. Isso causa confusao e deve ser substituido por `default`:
-
-| Arquivo | Linha | Uso Atual | Correcao |
-|---|---|---|---|
-| `StudentsPage.tsx` | 353 | `variant="gradient"` (Adicionar aluno) | `variant="default"` |
-| `StudentDetailPage.tsx` | 285 | `variant="gradient"` (Registrar Sessao) | `variant="default"` |
-| `StudentDetailPage.tsx` | 492 | `variant="gradient"` (Registrar Primeira Sessao) | `variant="default"` |
-| `PrescriptionsPage.tsx` | 358 | `variant="gradient"` (Nova Prescricao) | `variant="default"` |
-| `AddStudentDialog.tsx` | 493 | `variant="gradient"` (submit) | `variant="default"` |
-| `EditStudentDialog.tsx` | 494 | `variant="gradient"` (submit) | `variant="default"` |
-| `AddWorkoutDialog.tsx` | 128 | `variant="gradient"` size="lg" (trigger) | `variant="default"` |
-| `AddWorkoutDialog.tsx` | 258 | `variant="gradient"` (submit) | `variant="default"` |
-
-**A2. Tamanhos inconsistentes em botoes de acao principal de pagina**
-
-| Pagina | Botao Principal | Size Atual | Size Padrao |
-|---|---|---|---|
-| Dashboard | Registrar Sessao (AddWorkoutDialog) | `size="lg"` | `size="default"` |
-| StudentsPage | Adicionar aluno | sem size (default) | OK |
-| PrescriptionsPage | Nova Prescricao | `size="sm"` | `size="default"` |
-| SessionsPage | Registrar sessao | sem size (default) | OK |
-| AdminUsersPage | Adicionar usuario | sem size (default) | OK |
-
-**A3. `animate-pulse` no botao "Registrar Sessao"**
-
-Em `StudentDetailPage.tsx` linha 284, o botao tem `animate-pulse hover:animate-none`. Isso e um anti-pattern — botoes nao devem pulsar. Deve ser removido.
-
-**A4. Remover variants legados do button.tsx**
-
-Os variants `gradient` e `premium` podem ser removidos do `buttonVariants` em `button.tsx` apos a migracao, pois sao identicos a `default`.
+**Ordem de execucao:** Taxonomia primeiro, depois os 9 itens em 4 fases.
 
 ---
 
-### B. TITULOS E CABECALHOS — Problemas Encontrados
+## Fase 1 — Fundacao (MEL-IA-001 + Taxonomia)
 
-**B1. Dois componentes de header concorrentes**
+Itens que desbloqueiam todos os outros.
 
-- `AppHeader` usa `text-[1.75rem]` (28px) — correto, Apple-aligned
-- `PageHeader` usa `text-4xl` (36px) — excessivo para gestao
+### 1A. Taxonomia de 2 Niveis
 
-Paginas que usam cada um:
+- Migracao SQL: coluna `functional_group` na `exercises_library`
+- Preencher com mapeamento `movement_pattern` -> grupo funcional
+- Corrigir 153 exercicios com `category = 'geral'`
+- Atualizar `backToBasics.ts` com `FUNCTIONAL_GROUPS`, `MOVEMENT_PATTERNS` (36), `GROUP_TO_CATEGORY`
+- Remover padroes obsoletos das constantes
+- Atualizar `useExercisesLibrary.ts` com filtro `functional_group`
+- Atualizar UI da biblioteca (filtro primario de Grupo Funcional)
 
-| Componente | Paginas |
-|---|---|
-| `AppHeader` | Dashboard (Index), StudentsPage, RecoveryProtocolsPage, StudentsComparisonPage |
-| `PageHeader` | SessionsPage, AdminUsersPage, PrescriptionsPage, ExercisesLibraryPage |
-| Nenhum (inline) | StudentReportsPage (`text-3xl font-bold`), StudentDetailPage (nome do aluno `text-2xl md:text-3xl`) |
+### 1B. MEL-IA-001 — Baseline Dinamico por Aluno
 
-**B2. PageHeader com `text-4xl` deve ser reduzido para `text-[1.75rem]`**
+- Criar funcao SQL `calc_oura_baseline(p_student_id, p_days)` que retorna `avg_hrv`, `avg_rhr`, `avg_sleep` dos ultimos N dias
+- Criar hook `useOuraBaseline(studentId)` com `staleTime: 24h`
+- Refatorar `useTrainingRecommendation` para usar baseline real em vez de defaults hardcoded (65/60)
+- Manter fallback para defaults quando nao ha dados suficientes (< 7 dias)
 
-Para consistencia com `AppHeader`, o `PageHeader` deve usar o mesmo tamanho de titulo.
-
-**B3. StudentReportsPage com titulo inline**
-
-Usa `<h1 className="text-3xl font-bold">` diretamente, sem usar `AppHeader` ou `PageHeader`. Deve ser migrado para `PageHeader`.
-
-**B4. Subtitulos inconsistentes**
-
-- `AppHeader`: `text-base text-muted-foreground/80`
-- `PageHeader`: `text-lg text-muted-foreground`
-
-Devem ser unificados para `text-base text-muted-foreground`.
-
-**B5. Classes decorativas residuais**
-
-- `StatCard.tsx`: ainda usa `gradient-card-subtle`, `gradient-card-emphasis`, `card-glass-hover`
-- Skeletons: usam `card-glass` (glass morphism)
-- `StudentOverviewDashboard.tsx`: usa `card-glass-hover bg-gradient-card`
-- `PrescriptionCard.tsx`: usa `card-glass-hover`
-
-Esses efeitos devem ser simplificados para alinhamento Apple.
+**Arquivos afetados:**
+- Migracao SQL (nova funcao)
+- `src/constants/backToBasics.ts`
+- `src/hooks/useExercisesLibrary.ts`
+- `src/hooks/useTrainingRecommendation.ts`
+- `src/pages/ExercisesLibraryPage.tsx`
+- `src/components/AddExerciseDialog.tsx`
+- `src/components/EditExerciseLibraryDialog.tsx`
+- Novo: `src/hooks/useOuraBaseline.ts`
 
 ---
 
-## Plano de Implementacao
+## Fase 2 — Inteligencia na Prescricao (MEL-IA-002 + MEL-IA-005)
 
-### Sprint 1 — Botoes (30 min)
+### 2A. MEL-IA-002 — Conectar Oura ao generate-group-session
 
-1. **Substituir todos os `variant="gradient"` por `variant="default"`** nos 6 arquivos listados em A1
-2. **Padronizar tamanhos**: corrigir `AddWorkoutDialog` trigger de `size="lg"` para `size="default"`, e `PrescriptionsPage` de `size="sm"` para sem size
-3. **Remover `animate-pulse`** do botao em `StudentDetailPage.tsx`
-4. **Limpar button.tsx**: remover os variants `gradient` e `premium` do `buttonVariants` (ja nao serao usados)
+- Adicionar campo `groupReadiness?: number` ao `MesocycleInput`
+- No edge function: aplicar `volumeMultiplier` baseado no readiness medio do grupo
+- No frontend (`GenerateGroupSessionDialog`): calcular media de readiness dos alunos do grupo e passar como parametro
+- Atualizar `src/types/aiSession.ts`
 
-### Sprint 2 — Titulos e Cabecalhos (1h)
+### 2B. Refatorar generate-group-session para usar functional_group
 
-5. **Padronizar `PageHeader`**: alterar `text-4xl` para `text-[1.75rem]` e subtitulo de `text-lg` para `text-base text-muted-foreground`
-6. **Migrar `StudentReportsPage`**: substituir titulo inline por `PageHeader`
-7. **Remover classes decorativas dos cards**:
-   - `StatCard.tsx`: remover `gradient-card-subtle`, `gradient-card-emphasis`, `card-glass-hover` — usar apenas `bg-card border`
-   - Skeletons (5 arquivos): substituir `card-glass` por classe vazia
-   - `StudentOverviewDashboard.tsx`: remover `card-glass-hover bg-gradient-card`
-   - `PrescriptionCard.tsx`: remover `card-glass-hover`
+- Substituir `MANDATORY_PATTERNS` por `MANDATORY_GROUPS`
+- `selectExercisesByPattern` -> `selectExercisesByGroup` (filtra por `functional_group`)
+- Query do Supabase passa a incluir `functional_group`
+- Pool de exercicios por grupo funcional cresce de ~13 para ~86 (joelho)
 
-### Sprint 3 — Limpeza CSS (20 min)
+### 2C. MEL-IA-005 — Progressoes no suggest-regressions
 
-8. **Remover do `index.css`** as classes que nao serao mais usadas:
-   - `.text-gradient-primary`
-   - `.gradient-card-subtle`
-   - `.gradient-card-emphasis`
-   - `.bg-gradient-card`
-   - `.card-glass` e `.card-glass-hover`
+- Renomear edge function para `suggest-exercise-alternatives`
+- Adicionar `direction: 'regression' | 'progression' | 'both'`
+- Adicionar `studentLevel?: number` (1-9) ao input
+- Output passa a ter `regressions[]` e `progressions[]`
+- Atualizar config.toml
+
+**Arquivos afetados:**
+- `supabase/functions/generate-group-session/index.ts`
+- `supabase/functions/suggest-regressions/index.ts` (renomear/refatorar)
+- `supabase/config.toml`
+- `src/types/aiSession.ts`
+- `src/hooks/useGenerateGroupSession.ts`
+- `src/components/GenerateGroupSessionDialog.tsx`
 
 ---
 
-## Resultado Esperado
+## Fase 3 — Qualidade de Dados (MEL-IA-004 + MEL-IA-006 + MEL-IA-007)
 
-- **Botoes**: Todos os botoes de acao principal usam `variant="default"` com `size="default"`. Sem gradientes, sem animacoes pulsantes. Hierarquia clara: `default` (primario) > `outline` (secundario) > `ghost` (terciario) > `destructive` (perigoso).
-- **Titulos**: Todas as paginas usam 28px (`text-[1.75rem]`) bold, cor solida `text-foreground`, sem gradientes.
-- **Cards**: Sem glass morphism nem gradientes decorativos. Fundo solido `bg-card` com borda sutil.
+### 3A. MEL-IA-004 — Unificar Pipelines de Audio
+
+- Extrair regras compartilhadas para modulo inline no topo de cada edge function (Deno nao suporta imports entre functions facilmente no Lovable Cloud)
+- Padronizar: `terminology_corrections`, `load_calculation`, `clinical_categories`, `severity_levels`
+- Duplicar o mesmo bloco de constantes em `voice-session/index.ts` e `process-voice-session/index.ts`
+- Documentar com comentario `// SHARED: manter sincronizado com voice-session/process-voice-session`
+
+### 3B. MEL-IA-006 — Validacao de Desvio da Prescricao
+
+- No `process-voice-session`: apos extracao, comparar exercicios executados vs prescritos
+- Gerar array `prescription_deviations` com tipo de desvio (volume, exercicio substituido, exercicio omitido)
+- Retornar junto com os dados extraidos
+- Frontend exibe alertas de desvio na revisao da sessao
+
+### 3C. MEL-IA-007 — Tracking de Efetividade de Protocolos
+
+- Nova tabela `protocol_adherence` (student_id, protocol_id, recommended_date, followed, hrv_delta_24h, readiness_delta_24h)
+- RLS: trainers acessam via student ownership
+- Atualizar `generate-protocol-recommendations` para consultar historico de efetividade ao priorizar protocolos
+- UI: botao "Seguiu?" na recomendacao de protocolo (toggle simples)
+
+**Arquivos afetados:**
+- Migracao SQL (nova tabela `protocol_adherence`)
+- `supabase/functions/process-voice-session/index.ts`
+- `supabase/functions/voice-session/index.ts`
+- `supabase/functions/generate-protocol-recommendations/index.ts`
+- Componentes de UI para desvios e tracking
+
+---
+
+## Fase 4 — Escala e Assistente (MEL-IA-003 + MEL-IA-008 + MEL-IA-009)
+
+### 4A. MEL-IA-003 — Busca Semantica (Alternativa sem pgvector)
+
+O `pgvector` pode nao estar disponivel no Lovable Cloud. Alternativa viavel:
+
+- **Opcao A (recomendada):** Pre-filtrar por `functional_group` + `trigram similarity` nativa do Postgres (`pg_trgm`). Reduz o envio de 500 exercicios para ~20-50 candidatos por grupo funcional, que sao passados ao modelo para validacao final.
+
+```sql
+-- Verificar se pg_trgm esta disponivel
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Funcao de busca por similaridade de nome dentro de um grupo funcional
+CREATE OR REPLACE FUNCTION search_exercises_by_name(
+  p_query TEXT,
+  p_functional_group TEXT DEFAULT NULL,
+  p_limit INT DEFAULT 10
+) RETURNS TABLE(id UUID, name TEXT, similarity REAL)
+LANGUAGE sql STABLE AS $$
+  SELECT el.id, el.name, similarity(el.name, p_query) AS sim
+  FROM exercises_library el
+  WHERE (p_functional_group IS NULL OR el.functional_group = p_functional_group)
+    AND similarity(el.name, p_query) > 0.15
+  ORDER BY sim DESC
+  LIMIT p_limit;
+$$;
+```
+
+- Atualizar `suggest-exercise` para usar `search_exercises_by_name` em vez de enviar a lista inteira
+- Manter fallback: se `pg_trgm` nao estiver disponivel, filtrar por `functional_group` e enviar apenas o subset ao modelo
+
+### 4B. MEL-IA-008 — Assistente Contextual do Treinador
+
+- Refatorar `chat-helper` edge function com system prompt contextual
+- Receber `studentId` como parametro opcional
+- Quando presente: carregar dados do aluno (perfil, prescricao atual, ultimas 5 sessoes, metricas Oura 7 dias)
+- Injetar no system prompt para respostas contextualizadas
+- Usar Gemini 2.5 Flash via Lovable Gateway (ja configurado)
+- Manter streaming de respostas
+
+### 4C. MEL-IA-009 — Consolidacao de Providers
+
+- Definir provider principal por categoria:
+  - Extracao estruturada: Gemini 2.5 Flash (custo-beneficio)
+  - Raciocinio biomecanico: Claude via Lovable Gateway
+  - Realtime voice: OpenAI GPT-4o (unico com Realtime API)
+- Implementar wrapper `callWithFallback()` para funcoes criticas
+- Documentar decisao de provider em `docs/AI_PROVIDERS.md`
+
+**Arquivos afetados:**
+- Migracao SQL (extensao pg_trgm + funcao de busca)
+- `supabase/functions/suggest-exercise/index.ts`
+- `supabase/functions/suggest-regressions/index.ts`
+- `supabase/functions/chat-helper/index.ts`
+- Novo: `docs/AI_PROVIDERS.md`
+
+---
+
+## Resumo de Prioridade e Sequencia
+
+```text
+FASE 1 (Fundacao)        FASE 2 (Prescricao)     FASE 3 (Dados)          FASE 4 (Escala)
+─────────────────        ───────────────────      ──────────────          ───────────────
+Taxonomia 2 niveis  -->  MEL-IA-002 (Oura+Gen) --> MEL-IA-004 (Audio)  --> MEL-IA-003 (Busca)
+MEL-IA-001 (Baseline)    MEL-IA-005 (Progress.)    MEL-IA-006 (Desvio)    MEL-IA-008 (Chat)
+                         Refactor gen-session       MEL-IA-007 (Track)     MEL-IA-009 (Providers)
+```
+
+| Fase | Itens | Esforco Estimado | Dependencia |
+|------|-------|------------------|-------------|
+| 1 | Taxonomia + MEL-IA-001 | 3 dias | Nenhuma |
+| 2 | MEL-IA-002 + 005 + refactor | 4 dias | Fase 1 (taxonomia) |
+| 3 | MEL-IA-004 + 006 + 007 | 5 dias | Fase 2 (parcial) |
+| 4 | MEL-IA-003 + 008 + 009 | 6 dias | Fase 1 (taxonomia) |
+
+**Total estimado: ~18 dias de desenvolvimento**
+
+---
+
+## Decisao Necessaria sobre MEL-IA-003
+
+A busca vetorial com `pgvector` pode nao estar disponivel no ambiente. A alternativa proposta (`pg_trgm` + filtro por grupo funcional) resolve 80% do problema sem dependencia externa. Se desejar busca semantica completa, sera necessario verificar a disponibilidade da extensao.
 
