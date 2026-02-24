@@ -72,7 +72,8 @@ interface SessionContext {
   time: string;
 }
 
-let sessionContext: SessionContext | null = null;
+// Session context is now scoped per-connection (inside serve handler)
+// to prevent race conditions between concurrent WebSocket connections
 
 const buildInstructions = (context: SessionContext): string => {
   const studentsInfo = context.students
@@ -233,19 +234,17 @@ serve(async (req) => {
 
   const { socket, response } = Deno.upgradeWebSocket(req);
   let openAISocket: WebSocket | null = null;
+  // Per-connection context — prevents race conditions between concurrent users
+  let sessionContext: SessionContext | null = null;
 
   socket.onopen = async () => {
-    console.log("Client connected - waiting for session context...");
   };
 
   socket.onmessage = async (event) => {
     try {
       const message = JSON.parse(event.data);
-      console.log("📨 Received message type:", message.type);
       
       if (message.type === 'session.context') {
-        console.log("✅ Received context, initializing OpenAI session...");
-        console.log("Context data:", JSON.stringify(message.context));
         
         const { data: prescription, error } = await supabaseClient
           .from('workout_prescriptions')
@@ -331,7 +330,6 @@ serve(async (req) => {
         ]);
 
         openAISocket.onopen = () => {
-          console.log("Connected to OpenAI with full configuration");
           socket.send(JSON.stringify({ type: 'session.context_received' }));
         };
 
@@ -342,7 +340,6 @@ serve(async (req) => {
           if (data.type === 'response.function_call_arguments.done') {
             try {
               const functionArgs = JSON.parse(data.arguments);
-              console.log('Dados extraídos:', functionArgs);
               
               // Enviar os dados estruturados para o frontend
               socket.send(JSON.stringify({
@@ -359,16 +356,15 @@ serve(async (req) => {
                   output: JSON.stringify({ success: true, message: 'Dados recebidos para revisão' })
                 }
               }));
-            } catch (e) {
-              console.error('Erro ao processar function call:', e);
+            } catch (_e) {
+              // Error processing function call - silently handled
             }
           }
           
           socket.send(event.data);
         };
 
-        openAISocket.onerror = (error) => {
-          console.error("OpenAI error:", error);
+        openAISocket.onerror = (_error) => {
           socket.send(JSON.stringify({ type: "error", error: "OpenAI connection failed" }));
         };
 
@@ -382,13 +378,11 @@ serve(async (req) => {
       if (openAISocket?.readyState === WebSocket.OPEN) {
         openAISocket.send(event.data);
       }
-    } catch (error) {
-      console.error("Error:", error);
+    } catch (_error) {
+      // Message handling error - connection will be cleaned up on close
     }
-  };
 
   socket.onclose = () => {
-    console.log("Client disconnected");
     openAISocket?.close();
     sessionContext = null;
   };
