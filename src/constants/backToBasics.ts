@@ -25,11 +25,10 @@ export const MESOCYCLE_STRUCTURE = {
 export type WorkoutSlot = keyof typeof MESOCYCLE_STRUCTURE.workoutSlots;
 
 // ============================================================================
-// PADRÕES DE MOVIMENTO NORMALIZADOS
+// GRUPOS FUNCIONAIS (Nível 1 — usado pela IA para montar sessões full-body)
 // ============================================================================
 
-export const MOVEMENT_PATTERNS = {
-  // Força
+export const FUNCTIONAL_GROUPS = {
   empurrar_horizontal: "Empurrar Horizontal",
   empurrar_vertical: "Empurrar Vertical",
   puxar_horizontal: "Puxar Horizontal",
@@ -37,43 +36,119 @@ export const MOVEMENT_PATTERNS = {
   dominancia_joelho: "Dominância de Joelho",
   dominancia_quadril: "Dominância de Quadril",
   carregar: "Carregar",
-
-  // Core Triplanar
-  core_anti_extensao: "Core - Anti-extensão",
-  core_anti_flexao_lateral: "Core - Anti-flexão Lateral",
-  core_anti_rotacao: "Core - Anti-rotação",
+  core_anti_extensao: "Core Anti-extensão",
+  core_anti_flexao_lateral: "Core Anti-flexão Lateral",
+  core_anti_rotacao: "Core Anti-rotação",
   core_geral: "Core Geral",
+  ativacao: "Ativação",
+  mobilidade: "Mobilidade",
+  pliometria: "Pliometria",
+  locomocao: "Locomoção",
+  respiracao: "Respiração",
+} as const;
 
+export type FunctionalGroup = keyof typeof FUNCTIONAL_GROUPS;
+
+// ============================================================================
+// PADRÕES DE MOVIMENTO (Nível 2 — subcategoria para filtros na UI)
+// ============================================================================
+
+export const MOVEMENT_PATTERNS = {
+  // Empurrar
+  empurrar_horizontal: "Empurrar Horizontal",
+  empurrar_vertical: "Empurrar Vertical",
+  // Puxar
+  puxar_horizontal: "Puxar Horizontal",
+  puxar_vertical: "Puxar Vertical",
+  // Dominância de Joelho
+  dominancia_joelho: "Dominância de Joelho (Geral)",
+  agachamento_bilateral: "Agachamento Bilateral",
+  agachamento_unilateral: "Agachamento Unilateral",
+  agachamento_lateral: "Agachamento Lateral",
+  base_assimetrica_split_squat: "Split Squat / Base Assimétrica",
+  lunge: "Lunge",
+  lunge_slideboard: "Lunge Slideboard",
+  flexao_joelhos_nordica: "Flexão Nórdica / Joelhos",
+  // Dominância de Quadril
+  dominancia_quadril: "Dominância de Quadril (Geral)",
+  deadlift_bilateral: "Deadlift Bilateral",
+  deadlift_unilateral: "Deadlift Unilateral",
+  rdl_stiff: "RDL / Stiff",
+  ponte_hip_thrust: "Ponte / Hip Thrust",
+  gluteos_estabilidade: "Glúteos / Estabilidade",
+  // Carregar
+  carregar: "Carregar",
+  // Core Triplanar
+  core_anti_extensao: "Core Anti-extensão",
+  core_anti_flexao_lateral: "Core Anti-flexão Lateral",
+  core_anti_rotacao: "Core Anti-rotação",
+  core_geral: "Core Geral",
   // Ativação
-  ativacao_escapula: "Ativação Escapular",
   ativacao_gluteos: "Ativação Glúteos",
-  ativacao_flexores_quadril: "Ativação Flexores Quadril",
   ativacao_geral: "Ativação Geral",
-
+  escapula: "Ativação Escapular",
   // Mobilidade
   mobilidade_tornozelo: "Mobilidade Tornozelo",
   mobilidade_quadril: "Mobilidade Quadril",
   mobilidade_toracica: "Mobilidade Torácica",
   mobilidade_integrada: "Mobilidade Integrada",
-  mobilidade_geral: "Mobilidade Geral",
-
   // Pliometria
   pliometria_bilateral_linear: "Pliometria Bilateral Linear",
   pliometria_unilateral_linear: "Pliometria Unilateral Linear",
   pliometria_unilateral_lateral: "Pliometria Unilateral Lateral",
   pliometria_unilateral_lateral_medial: "Pliometria Unilateral Lat/Med",
-
-  // Preparação
-  lmf: "LMF (Liberação Miofascial)",
-  potencializacao_snc: "Potencialização SNC",
+  // Outros
   locomocao: "Locomoção",
-  potencia: "Potência",
+  respiracao: "Respiração",
 } as const;
 
 export type MovementPattern = keyof typeof MOVEMENT_PATTERNS;
 
 // ============================================================================
-// CATEGORIAS DE EXERCÍCIO
+// MAPEAMENTO PADRÃO DE MOVIMENTO → GRUPO FUNCIONAL
+// ============================================================================
+
+export const PATTERN_TO_FUNCTIONAL_GROUP: Record<string, FunctionalGroup> = {
+  empurrar_horizontal: "empurrar_horizontal",
+  empurrar_vertical: "empurrar_vertical",
+  puxar_horizontal: "puxar_horizontal",
+  puxar_vertical: "puxar_vertical",
+  dominancia_joelho: "dominancia_joelho",
+  agachamento_bilateral: "dominancia_joelho",
+  agachamento_unilateral: "dominancia_joelho",
+  agachamento_lateral: "dominancia_joelho",
+  base_assimetrica_split_squat: "dominancia_joelho",
+  lunge: "dominancia_joelho",
+  lunge_slideboard: "dominancia_joelho",
+  flexao_joelhos_nordica: "dominancia_joelho",
+  dominancia_quadril: "dominancia_quadril",
+  deadlift_bilateral: "dominancia_quadril",
+  deadlift_unilateral: "dominancia_quadril",
+  rdl_stiff: "dominancia_quadril",
+  ponte_hip_thrust: "dominancia_quadril",
+  gluteos_estabilidade: "dominancia_quadril",
+  carregar: "carregar",
+  core_anti_extensao: "core_anti_extensao",
+  core_anti_flexao_lateral: "core_anti_flexao_lateral",
+  core_anti_rotacao: "core_anti_rotacao",
+  core_geral: "core_geral",
+  ativacao_gluteos: "ativacao",
+  ativacao_geral: "ativacao",
+  escapula: "ativacao",
+  mobilidade_tornozelo: "mobilidade",
+  mobilidade_quadril: "mobilidade",
+  mobilidade_toracica: "mobilidade",
+  mobilidade_integrada: "mobilidade",
+  pliometria_bilateral_linear: "pliometria",
+  pliometria_unilateral_linear: "pliometria",
+  pliometria_unilateral_lateral: "pliometria",
+  pliometria_unilateral_lateral_medial: "pliometria",
+  locomocao: "locomocao",
+  respiracao: "respiracao",
+};
+
+// ============================================================================
+// CATEGORIAS DE EXERCÍCIO (apenas as que existem no banco)
 // ============================================================================
 
 export const EXERCISE_CATEGORIES = {
@@ -82,16 +157,34 @@ export const EXERCISE_CATEGORIES = {
   mobilidade: "Mobilidade",
   ativacao: "Ativação",
   pliometria: "Pliometria",
-  lmf: "LMF",
   locomocao: "Locomoção",
   respiracao: "Respiração",
-  potencia: "Potência",
-  preparacao: "Preparação",
-  aquecimento: "Aquecimento",
-  condicionamento: "Condicionamento",
 } as const;
 
 export type ExerciseCategory = keyof typeof EXERCISE_CATEGORIES;
+
+// ============================================================================
+// MAPEAMENTO GRUPO FUNCIONAL → CATEGORIA
+// ============================================================================
+
+export const GROUP_TO_CATEGORY: Record<FunctionalGroup, ExerciseCategory> = {
+  empurrar_horizontal: "forca",
+  empurrar_vertical: "forca",
+  puxar_horizontal: "forca",
+  puxar_vertical: "forca",
+  dominancia_joelho: "forca",
+  dominancia_quadril: "forca",
+  carregar: "forca",
+  core_anti_extensao: "core",
+  core_anti_flexao_lateral: "core",
+  core_anti_rotacao: "core",
+  core_geral: "core",
+  ativacao: "ativacao",
+  mobilidade: "mobilidade",
+  pliometria: "pliometria",
+  locomocao: "locomocao",
+  respiracao: "respiracao",
+};
 
 // ============================================================================
 // NÍVEIS DE RISCO
@@ -428,40 +521,7 @@ export const CORE_TRIPLANAR = {
 
 export type CoreTriplanarType = keyof typeof CORE_TRIPLANAR;
 
-// ============================================================================
-// MAPEAMENTO PADRÃO DE MOVIMENTO → CATEGORIA
-// ============================================================================
-
-export const PATTERN_TO_CATEGORY: Record<string, string> = {
-  empurrar_horizontal: "forca",
-  empurrar_vertical: "forca",
-  puxar_horizontal: "forca",
-  puxar_vertical: "forca",
-  dominancia_joelho: "forca",
-  dominancia_quadril: "forca",
-  carregar: "forca",
-  core_anti_extensao: "core",
-  core_anti_flexao_lateral: "core",
-  core_anti_rotacao: "core",
-  core_geral: "core",
-  ativacao_escapula: "ativacao",
-  ativacao_gluteos: "ativacao",
-  ativacao_flexores_quadril: "ativacao",
-  ativacao_geral: "ativacao",
-  mobilidade_tornozelo: "mobilidade",
-  mobilidade_quadril: "mobilidade",
-  mobilidade_toracica: "mobilidade",
-  mobilidade_integrada: "mobilidade",
-  mobilidade_geral: "mobilidade",
-  pliometria_bilateral_linear: "pliometria",
-  pliometria_unilateral_linear: "pliometria",
-  pliometria_unilateral_lateral: "pliometria",
-  pliometria_unilateral_lateral_medial: "pliometria",
-  lmf: "lmf",
-  potencializacao_snc: "preparacao",
-  locomocao: "locomocao",
-  potencia: "potencia",
-} as const;
+// PATTERN_TO_CATEGORY removido — substituído por GROUP_TO_CATEGORY e PATTERN_TO_FUNCTIONAL_GROUP acima
 
 // ============================================================================
 // PIRÂMIDE MOBILIDADE/ESTABILIDADE

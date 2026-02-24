@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Plus, AlertTriangle } from "lucide-react";
 import {
   useCreateExercise,
+  FUNCTIONAL_GROUPS,
   MOVEMENT_PATTERNS,
   LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
@@ -28,7 +29,8 @@ import {
   EXERCISE_CATEGORIES,
   RISK_LEVELS,
   NUMERIC_LEVEL_SCALE,
-  PATTERN_TO_CATEGORY,
+  PATTERN_TO_FUNCTIONAL_GROUP,
+  GROUP_TO_CATEGORY,
 } from "@/hooks/useExercisesLibrary";
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
@@ -63,10 +65,13 @@ export const AddExerciseDialog = () => {
 
   const handleMovementPatternChange = (pattern: string) => {
     setMovementPattern(pattern);
-    // Auto-fill category based on pattern
-    const autoCategory = PATTERN_TO_CATEGORY[pattern];
-    if (autoCategory) {
-      setCategory(autoCategory);
+    // Auto-fill category based on functional group mapping
+    const functionalGroup = PATTERN_TO_FUNCTIONAL_GROUP[pattern];
+    if (functionalGroup) {
+      const autoCategory = GROUP_TO_CATEGORY[functionalGroup];
+      if (autoCategory) {
+        setCategory(autoCategory);
+      }
     }
   };
 

@@ -532,6 +532,7 @@ export type Database = {
           default_sets: string | null
           description: string | null
           equipment_required: string[] | null
+          functional_group: string | null
           id: string
           laterality: string | null
           level: string | null
@@ -556,6 +557,7 @@ export type Database = {
           default_sets?: string | null
           description?: string | null
           equipment_required?: string[] | null
+          functional_group?: string | null
           id?: string
           laterality?: string | null
           level?: string | null
@@ -580,6 +582,7 @@ export type Database = {
           default_sets?: string | null
           description?: string | null
           equipment_required?: string[] | null
+          functional_group?: string | null
           id?: string
           laterality?: string | null
           level?: string | null
