@@ -35,6 +35,7 @@ import {
   useExercisesLibrary,
   useDeleteExercise,
   ExerciseLibrary,
+  FUNCTIONAL_GROUPS,
   MOVEMENT_PATTERNS,
   LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
@@ -193,7 +194,7 @@ export default function ExercisesLibraryPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-md">
-          {/* Busca + 3 filtros primários */}
+          {/* Busca + filtros primários */}
           <div className="flex gap-md items-end flex-wrap">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -205,6 +206,24 @@ export default function ExercisesLibraryPage() {
               />
             </div>
             
+            <div className="space-y-xs min-w-[180px]">
+              <label className="text-sm font-medium">Grupo Funcional</label>
+              <Select
+                value={filters.functional_group || "all"}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, functional_group: value === "all" ? undefined : value }))
+                }
+              >
+                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {Object.entries(FUNCTIONAL_GROUPS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-xs min-w-[160px]">
               <label className="text-sm font-medium">Categoria</label>
               <Select
@@ -240,24 +259,6 @@ export default function ExercisesLibraryPage() {
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-xs min-w-[160px]">
-              <label className="text-sm font-medium">Padrão de Movimento</label>
-              <Select
-                value={filters.movement_pattern || "all"}
-                onValueChange={(value) =>
-                  setFilters((prev) => ({ ...prev, movement_pattern: value === "all" ? undefined : value }))
-                }
-              >
-                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           
           {/* Filtros avançados — colapsáveis */}
@@ -265,13 +266,30 @@ export default function ExercisesLibraryPage() {
             <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <Filter className="h-3.5 w-3.5" />
               Mais filtros
-              {[filters.laterality, filters.movement_plane, filters.contraction_type, filters.level].filter(Boolean).length > 0 && (
+              {[filters.movement_pattern, filters.laterality, filters.movement_plane, filters.contraction_type, filters.level].filter(Boolean).length > 0 && (
                 <span className="text-xs ml-1">
-                  ({[filters.laterality, filters.movement_plane, filters.contraction_type, filters.level].filter(Boolean).length} ativos)
+                  ({[filters.movement_pattern, filters.laterality, filters.movement_plane, filters.contraction_type, filters.level].filter(Boolean).length} ativos)
                 </span>
               )}
             </summary>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md pt-md mt-md border-t border-border/50">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-md pt-md mt-md border-t border-border/50">
+              <div className="space-y-xs">
+                <label className="text-sm font-medium">Padrão de Movimento</label>
+                <Select
+                  value={filters.movement_pattern || "all"}
+                  onValueChange={(value) =>
+                    setFilters((prev) => ({ ...prev, movement_pattern: value === "all" ? undefined : value }))
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-xs">
                 <label className="text-sm font-medium">Lateralidade</label>
                 <Select
