@@ -100,7 +100,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log("📥 Received request to process voice session");
+    // Processing voice session
     
     // Validate authentication
     const authHeader = req.headers.get('Authorization');
@@ -119,7 +119,7 @@ serve(async (req) => {
     // Verify user authentication
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
-      console.error('❌ Authentication error:', authError);
+      // Authentication failed
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -143,7 +143,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`👤 User ${user.id} processing session${prescriptionId ? ` for prescription ${prescriptionId}` : ' (free session)'}`);
+    
 
     // Verify trainer owns the prescription (only if prescriptionId is provided)
     if (prescriptionId) {
@@ -154,7 +154,7 @@ serve(async (req) => {
         .single();
 
       if (prescriptionError || !prescription) {
-        console.error('❌ Prescription not found:', prescriptionError);
+        
         return new Response(
           JSON.stringify({ error: 'Prescription not found' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -162,7 +162,7 @@ serve(async (req) => {
       }
 
       if (prescription.trainer_id !== user.id) {
-        console.error('❌ Unauthorized access attempt:', user.id, 'to prescription:', prescriptionId);
+        
         return new Response(
           JSON.stringify({ error: 'Unauthorized access to prescription data' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -177,7 +177,7 @@ serve(async (req) => {
       .in('id', students.map((s: any) => s.id));
 
     if (studentsError || !studentRecords) {
-      console.error('❌ Error fetching students:', studentsError);
+      
       return new Response(
         JSON.stringify({ error: 'Error validating students' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -186,14 +186,14 @@ serve(async (req) => {
 
     const unauthorizedStudents = studentRecords.filter(s => s.trainer_id !== user.id);
     if (unauthorizedStudents.length > 0) {
-      console.error('❌ Unauthorized student access attempt:', unauthorizedStudents.map(s => s.id));
+      
       return new Response(
         JSON.stringify({ error: 'Unauthorized access to one or more students' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log("🎤 Processing audio with Gemini...");
+    
     
     // 1️⃣ Transcrever áudio usando Gemini
     const binaryAudio = processBase64Chunks(audio);
@@ -238,7 +238,7 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     ]);
 
     const transcription = transcriptionResult.response.text();
-    console.log("✅ Transcription completed:", transcription.substring(0, 100) + "...");
+    
 
     // 2️⃣ Buscar detalhes completos da prescrição (se fornecida)
     let prescriptionDetails = null;
@@ -251,7 +251,7 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
         .single();
       
       if (prescDetailsError || !prescDetailsData) {
-        console.error('❌ Error fetching prescription details:', prescDetailsError);
+        
         throw new Error('Erro ao buscar detalhes da prescrição');
       }
       
@@ -269,7 +269,7 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
       : '  (Sessão livre - sem prescrição definida)';
 
     // 3️⃣ Processar com Gemini para extrair dados estruturados
-    console.log("🤖 Processing structured data with Gemini...");
+    
     
     const systemPrompt = `Você é o sistema oficial de consolidação de cargas da Fabrik.
 Sua função é interpretar transcrições de treino em português (PT-BR), tolerando ruído, interrupções, correções e comentários paralelos, e extrair apenas os dados estruturais finais.
@@ -616,22 +616,18 @@ FORMATO DE SAÍDA:
 
     const extractedData = JSON.parse(extractionResult.response.text());
     
-    console.log("📊 Extracted data:", JSON.stringify(extractedData, null, 2));
-    
-    // 🆕 FASE 3: Preservar exercícios mencionados sem reps e marcá-los para input manual
+    // Preservar exercícios mencionados sem reps e marcá-los para input manual
     if (extractedData.sessions) {
       extractedData.sessions.forEach((session: any) => {
         if (session.exercises) {
           session.exercises = session.exercises.map((ex: any) => {
             if (!ex.reps || ex.reps === 0) {
-              console.log(`🔴 [${session.student_name}] Exercício mencionado sem reps: "${ex.executed_exercise_name}" - marcando para input manual`);
-              
-              // Preservar o exercício mas marcar para preenchimento manual
+              // REGRA FABRIK: usar null para dados não informados, NUNCA 0
               return {
                 ...ex,
-                reps: 0,
-                sets: ex.sets || 0,
-                load_kg: ex.load_kg || 0,
+                reps: null,
+                sets: ex.sets || null,
+                load_kg: ex.load_kg || null,
                 observations: ex.observations 
                   ? `🔴 EXERCÍCIO MENCIONADO SEM REPETIÇÕES - PREENCHER MANUALMENTE\n\n${ex.observations}`
                   : '🔴 EXERCÍCIO MENCIONADO SEM REPETIÇÕES - PREENCHER MANUALMENTE',
@@ -640,42 +636,23 @@ FORMATO DE SAÍDA:
             }
             return ex;
           });
-          
-          const needsManualCount = session.exercises.filter((ex: any) => ex.needs_manual_input).length;
-          if (needsManualCount > 0) {
-            console.log(`⚠️ [${session.student_name}] ${needsManualCount} exercício(s) marcado(s) para input manual`);
-          }
         }
       });
     }
     
-    console.log("🔧 Iniciando validação e sanitização de dados...");
-    
     // Função para normalizar load_breakdown com erros de formato
     function normalizeBreakdown(breakdown: string): string {
-      console.log(`🔧 Normalizando: "${breakdown}"`);
-      
-      // Detectar "de cada lado"
       const hasEachSide = /de cada lado/i.test(breakdown);
-      if (!hasEachSide) {
-        console.log('✅ Sem "de cada lado", não precisa normalizar');
-        return breakdown;
-      }
+      if (!hasEachSide) return breakdown;
       
-      // Detectar se há pesos FORA do parêntese antes de "barra"
-      // Exemplo errado: "(25 lb) de cada lado + 5 kg + barra 20 kg"
       const match = breakdown.match(/\((.*?)\)\s*de cada lado(.*?)(?:barra|\+\s*barra|$)/i);
-      if (!match) {
-        console.log('✅ Formato já está correto ou não tem barra');
-        return breakdown;
-      }
+      if (!match) return breakdown;
       
-      const insideParens = match[1]; // "25 lb"
-      const afterEachSide = match[2].trim(); // "+ 5 kg +"
+      const insideParens = match[1];
+      const afterEachSide = match[2].trim();
       const barraMatch = breakdown.match(/(barra\s+\d+(?:\.\d+)?\s*kg)/i);
       const barra = barraMatch ? barraMatch[1] : '';
       
-      // Extrair pesos soltos entre "de cada lado" e "barra"
       const looseWeights: string[] = [];
       const weightRegex = /(\d+(?:\.\d+)?)\s*(kg|lb)/gi;
       let weightMatch;
@@ -684,17 +661,10 @@ FORMATO DE SAÍDA:
         looseWeights.push(`${weightMatch[1]} ${weightMatch[2]}`);
       }
       
-      if (looseWeights.length === 0) {
-        console.log('✅ Nenhum peso solto encontrado');
-        return breakdown;
-      }
+      if (looseWeights.length === 0) return breakdown;
       
-      // Reconstruir: mover pesos soltos para dentro do parêntese
       const newInsideParens = [insideParens, ...looseWeights].join(' + ');
-      const normalized = `(${newInsideParens}) de cada lado${barra ? ' + ' + barra : ''}`;
-      
-      console.log(`✅ Normalizado: "${normalized}"`);
-      return normalized;
+      return `(${newInsideParens}) de cada lado${barra ? ' + ' + barra : ''}`;
     }
 
     // Função auxiliar para calcular carga (ROBUSTA)
@@ -702,28 +672,20 @@ FORMATO DE SAÍDA:
       if (!breakdown) return null;
       
       try {
-        console.log(`🧮 Calculando carga de: "${breakdown}"`);
-        
         // 1. DETECTAR PESO CORPORAL COM VALOR
         const bodyCorporalWithValue = breakdown.match(/Peso corporal\s*=\s*(\d+(?:\.\d+)?)\s*kg/i);
         if (bodyCorporalWithValue) {
-          const value = parseFloat(bodyCorporalWithValue[1]);
-          console.log(`✅ Peso corporal detectado: ${value} kg`);
-          return roundToDecimal(value);
+          return roundToDecimal(parseFloat(bodyCorporalWithValue[1]));
         }
         
         // 2. DETECTAR PESO CORPORAL SEM VALOR
         if (/Peso corporal/i.test(breakdown) && !/\d/.test(breakdown)) {
-          console.log(`⚠️ Peso corporal sem valor registrado`);
           return null;
         }
         
-        // 3. DETECTAR ELÁSTICOS/BANDAS (ignorar se for única carga)
+        // 3. DETECTAR ELÁSTICOS/BANDAS
         const hasOnlyElastic = /^(elástico|banda|elastic)/i.test(breakdown.trim()) && !/\d+\s*(kg|lb)/i.test(breakdown);
-        if (hasOnlyElastic) {
-          console.log(`⚠️ Apenas elástico/banda, sem peso mensurável`);
-          return null;
-        }
+        if (hasOnlyElastic) return null;
         
         let total = 0;
         let processedEachSide = false;
@@ -734,21 +696,14 @@ FORMATO DE SAÍDA:
           const content = eachSideMatch[1];
           processedEachSide = true;
           
-          // Kg matches dentro do parêntese
           const kgMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
           for (const m of kgMatches) {
-            const value = parseFloat(m[1].replace(',', '.'));
-            total += value * 2;
-            console.log(`  + ${value} kg × 2 lados = ${value * 2} kg`);
+            total += parseFloat(m[1].replace(',', '.')) * 2;
           }
           
-          // Lb matches dentro do parêntese (converter para kg)
           const lbMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
           for (const m of lbMatches) {
-            const value = parseFloat(m[1].replace(',', '.'));
-            const kg = value * POUND_TO_KG_CONVERSION;
-            total += kg * 2;
-            console.log(`  + ${value} lb × ${POUND_TO_KG_CONVERSION} × 2 lados = ${kg * 2} kg`);
+            total += parseFloat(m[1].replace(',', '.')) * POUND_TO_KG_CONVERSION * 2;
           }
         }
         
@@ -759,52 +714,39 @@ FORMATO DE SAÍDA:
           const unit = multiKbMatch[3].toLowerCase();
           const kg = unit === 'lb' ? value * POUND_TO_KG_CONVERSION : value;
           total += kg * 2;
-          console.log(`  + 2 kettlebells/halteres de ${value} ${unit} = ${kg * 2} kg`);
         }
         
-        // 6. EXTRAIR PESO DA BARRA (sempre adicionar)
+        // 6. EXTRAIR PESO DA BARRA
         const barraMatch = breakdown.match(/barra\s*(\d+(?:[.,]\d+)?)\s*kg/i);
         if (barraMatch) {
-          const value = parseFloat(barraMatch[1].replace(',', '.'));
-          total += value;
-          console.log(`  + barra ${value} kg`);
+          total += parseFloat(barraMatch[1].replace(',', '.'));
         }
         
-        // 7. SE NÃO TEM "de cada lado" NEM "duplo", somar pesos normais
+        // 7. PESOS SIMPLES (sem "de cada lado" nem "duplo")
         if (!processedEachSide && !multiKbMatch) {
           const kgMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
           for (const m of kgMatches) {
-            // Não contar se já contou na barra
             const matchText = breakdown.substring(Math.max(0, (m.index || 0) - 6), (m.index || 0) + m[0].length);
             if (!/barra/i.test(matchText)) {
-              const value = parseFloat(m[1].replace(',', '.'));
-              total += value;
-              console.log(`  + ${value} kg`);
+              total += parseFloat(m[1].replace(',', '.'));
             }
           }
           
           const lbMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
           for (const m of lbMatches) {
-            const value = parseFloat(m[1].replace(',', '.'));
-            const kg = value * POUND_TO_KG_CONVERSION;
-            total += kg;
-            console.log(`  + ${value} lb = ${kg} kg`);
+            total += parseFloat(m[1].replace(',', '.')) * POUND_TO_KG_CONVERSION;
           }
         }
         
-        const result = total > 0 ? roundToDecimal(total) : null;
-        console.log(`✅ Carga total: ${result} kg`);
-        return result;
-      } catch (err) {
-        console.error('❌ Erro ao calcular carga:', err);
+        return total > 0 ? roundToDecimal(total) : null;
+      } catch {
         return null;
       }
     }
     
-    // Função para sanitizar dados (converter 0 e "" para null)
+    // Sanitizar dados (converter 0 e "" para null)
     function sanitizeExerciseData(exercise: any) {
       const fieldsToSanitize = ['load_kg', 'load_breakdown', 'reps', 'sets', 'observations'];
-      
       for (const field of fieldsToSanitize) {
         if (exercise[field] === 0 || exercise[field] === '' || exercise[field] === 'não informado') {
           exercise[field] = null;
@@ -812,62 +754,41 @@ FORMATO DE SAÍDA:
       }
     }
 
-    // Função para validar e recalcular load_kg se necessário
-    function validateAndRecalculateLoad(exercise: any, sessionIdx: number, exIdx: number) {
-      // 1. Sanitizar primeiro
+    // Validar e recalcular load_kg se necessário
+    function validateAndRecalculateLoad(exercise: any, _sessionIdx: number, _exIdx: number) {
       sanitizeExerciseData(exercise);
       
-      // 2. Se não tem load_breakdown, load_kg deve ser null
       if (!exercise.load_breakdown) {
-        if (exercise.load_kg !== null) {
-          console.log(`⚠️ Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: Removendo load_kg sem load_breakdown`);
-          exercise.load_kg = null;
-        }
+        if (exercise.load_kg !== null) exercise.load_kg = null;
         return;
       }
       
-      // 3. Normalizar load_breakdown (corrigir formato se necessário)
-      const originalBreakdown = exercise.load_breakdown;
       exercise.load_breakdown = normalizeBreakdown(exercise.load_breakdown);
-      if (originalBreakdown !== exercise.load_breakdown) {
-        console.log(`🔧 Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: Breakdown normalizado`);
-      }
-      
-      // 4. Calcular load_kg esperado
       const calculatedLoadKg = calculateLoadFromBreakdown(exercise.load_breakdown);
       
-      // 5. Se Gemini não calculou, usar o calculado
       if (exercise.load_kg === null || exercise.load_kg === undefined) {
-        console.log(`⚠️ Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: load_kg ausente, usando calculado`);
         exercise.load_kg = calculatedLoadKg;
         return;
       }
       
-      // 6. Validar consistência (tolerância de 0.1 kg)
+      // Validar consistência (tolerância de 0.1 kg)
       if (calculatedLoadKg !== null) {
         const diff = Math.abs(exercise.load_kg - calculatedLoadKg);
         if (diff > 0.1) {
-          console.log(`❌ Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: INCONSISTÊNCIA DETECTADA!`);
-          console.log(`   Gemini: ${exercise.load_kg} kg`);
-          console.log(`   Calculado: ${calculatedLoadKg} kg`);
-          console.log(`   Diferença: ${diff.toFixed(1)} kg`);
-          console.log(`   ✅ Usando valor calculado (mais confiável)`);
+          // Usar valor calculado (mais confiável que o Gemini)
           exercise.load_kg = calculatedLoadKg;
         } else {
-          // Garantir 1 casa decimal
           exercise.load_kg = Math.round(exercise.load_kg * 10) / 10;
         }
       }
     }
 
     // APLICAR VALIDAÇÃO COMPLETA
-    console.log('🔧 Iniciando validação e sanitização de dados...');
     extractedData.sessions?.forEach((session: any, sessionIdx: number) => {
       session.exercises?.forEach((ex: any, exIdx: number) => {
         validateAndRecalculateLoad(ex, sessionIdx, exIdx);
       });
     });
-    console.log('✅ Validação e sanitização concluídas');
     
     // ═══════════════════════════════════════════════════════════
     // MEL-IA-006: Validação de Desvio da Prescrição
@@ -948,7 +869,6 @@ FORMATO DE SAÍDA:
         
         if (sessionDeviations.length > 0) {
           session.prescription_deviations = sessionDeviations;
-          console.log(`📋 [${session.student_name}] ${sessionDeviations.length} desvio(s) da prescrição detectado(s)`);
         }
       });
       
@@ -961,8 +881,6 @@ FORMATO DE SAÍDA:
     // FIM MEL-IA-006
     // ═══════════════════════════════════════════════════════════
     
-    console.log("✅ Structured data extraction completed");
-    console.log("📊 Extracted data:", JSON.stringify(extractedData, null, 2));
 
     const response = {
       success: true,
@@ -970,8 +888,6 @@ FORMATO DE SAÍDA:
       data: extractedData,
       prescriptionDeviations: prescriptionDeviations.length > 0 ? prescriptionDeviations : undefined,
     };
-    
-    console.log("📤 Sending response:", JSON.stringify(response, null, 2));
 
     return new Response(
       JSON.stringify(response),
@@ -981,7 +897,7 @@ FORMATO DE SAÍDA:
     );
 
   } catch (error) {
-    console.error('❌ Error processing voice session:', error);
+    // Error processing voice session
     return new Response(
       JSON.stringify({ 
         success: false,
