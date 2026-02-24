@@ -1152,6 +1152,79 @@ export type Database = {
         }
         Relationships: []
       }
+      protocol_adherence: {
+        Row: {
+          created_at: string
+          followed: boolean
+          followed_at: string | null
+          hrv_after: number | null
+          hrv_before: number | null
+          hrv_delta: number | null
+          id: string
+          notes: string | null
+          protocol_id: string
+          readiness_after: number | null
+          readiness_before: number | null
+          readiness_delta: number | null
+          recommendation_id: string | null
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          followed?: boolean
+          followed_at?: string | null
+          hrv_after?: number | null
+          hrv_before?: number | null
+          hrv_delta?: number | null
+          id?: string
+          notes?: string | null
+          protocol_id: string
+          readiness_after?: number | null
+          readiness_before?: number | null
+          readiness_delta?: number | null
+          recommendation_id?: string | null
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          followed?: boolean
+          followed_at?: string | null
+          hrv_after?: number | null
+          hrv_before?: number | null
+          hrv_delta?: number | null
+          id?: string
+          notes?: string | null
+          protocol_id?: string
+          readiness_after?: number | null
+          readiness_before?: number | null
+          readiness_delta?: number | null
+          recommendation_id?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_adherence_protocol_id_fkey"
+            columns: ["protocol_id"]
+            isOneToOne: false
+            referencedRelation: "recovery_protocols"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_adherence_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "protocol_recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_adherence_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       protocol_recommendations: {
         Row: {
           applied: boolean | null

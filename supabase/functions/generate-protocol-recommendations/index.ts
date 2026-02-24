@@ -145,6 +145,39 @@ serve(async (req) => {
 
     if (protocolsError) throw protocolsError;
 
+    // ═══════════════════════════════════════════════════════════
+    // MEL-IA-007: Query adherence history for effectiveness-based prioritization
+    // ═══════════════════════════════════════════════════════════
+    const { data: adherenceHistory } = await supabase
+      .from('protocol_adherence')
+      .select('protocol_id, followed, hrv_delta, readiness_delta')
+      .eq('student_id', student_id)
+      .eq('followed', true)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    // Calculate effectiveness score per protocol
+    const protocolEffectiveness: Record<string, { avgHrvDelta: number; avgReadinessDelta: number; count: number }> = {};
+    if (adherenceHistory) {
+      for (const entry of adherenceHistory) {
+        if (!protocolEffectiveness[entry.protocol_id]) {
+          protocolEffectiveness[entry.protocol_id] = { avgHrvDelta: 0, avgReadinessDelta: 0, count: 0 };
+        }
+        const eff = protocolEffectiveness[entry.protocol_id];
+        eff.count++;
+        if (entry.hrv_delta != null) eff.avgHrvDelta += entry.hrv_delta;
+        if (entry.readiness_delta != null) eff.avgReadinessDelta += entry.readiness_delta;
+      }
+      for (const key of Object.keys(protocolEffectiveness)) {
+        const eff = protocolEffectiveness[key];
+        if (eff.count > 0) {
+          eff.avgHrvDelta /= eff.count;
+          eff.avgReadinessDelta /= eff.count;
+        }
+      }
+    }
+    // ═══════════════════════════════════════════════════════════
+
     // Analyze metrics and generate recommendations
     const recommendations: Array<{
       student_id: string;
@@ -174,14 +207,31 @@ serve(async (req) => {
 
       if (triggered) {
         // Generate protocol recommendations based on the rule
-        const recommendedProtocols = getProtocolsForAction(rule.action_type, protocols as Protocol[]);
+        let recommendedProtocols = getProtocolsForAction(rule.action_type, protocols as Protocol[]);
+
+        // MEL-IA-007: Sort by effectiveness (protocols with positive HRV/readiness delta first)
+        recommendedProtocols.sort((a, b) => {
+          const effA = protocolEffectiveness[a.id];
+          const effB = protocolEffectiveness[b.id];
+          if (!effA && !effB) return 0;
+          if (!effA) return 1;
+          if (!effB) return -1;
+          const scoreA = effA.avgHrvDelta + effA.avgReadinessDelta;
+          const scoreB = effB.avgHrvDelta + effB.avgReadinessDelta;
+          return scoreB - scoreA; // Higher effectiveness first
+        });
 
         for (const protocol of recommendedProtocols) {
+          const eff = protocolEffectiveness[protocol.id];
+          const effNote = eff && eff.count >= 3
+            ? ` (efetividade histórica: HRV ${eff.avgHrvDelta > 0 ? '+' : ''}${eff.avgHrvDelta.toFixed(1)}, Readiness ${eff.avgReadinessDelta > 0 ? '+' : ''}${eff.avgReadinessDelta.toFixed(0)})`
+            : '';
+
           recommendations.push({
             student_id: student_id,
             protocol_id: protocol.id,
             recommended_date: today,
-            reason: `${rule.description}. ${rule.metric_name}: ${metricValue}`,
+            reason: `${rule.description}. ${rule.metric_name}: ${metricValue}${effNote}`,
             priority: rule.severity,
           });
         }
