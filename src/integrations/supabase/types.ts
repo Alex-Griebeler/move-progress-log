@@ -2033,7 +2033,7 @@ export type Database = {
       migrate_oura_tokens_to_vault: { Args: never; Returns: undefined }
       normalize_objective: { Args: { obj: string }; Returns: string }
       search_exercises_by_name: {
-        Args: { p_functional_group?: string; p_limit?: number; p_query: string }
+        Args: { p_limit?: number; p_movement_pattern?: string; p_query: string }
         Returns: {
           id: string
           name: string

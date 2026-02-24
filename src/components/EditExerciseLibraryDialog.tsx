@@ -20,7 +20,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";
 import {
   useUpdateExercise,
-  FUNCTIONAL_GROUPS,
   MOVEMENT_PATTERNS,
   LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
@@ -28,8 +27,7 @@ import {
   EXERCISE_CATEGORIES,
   RISK_LEVELS,
   NUMERIC_LEVEL_SCALE,
-  PATTERN_TO_FUNCTIONAL_GROUP,
-  GROUP_TO_CATEGORY,
+  PATTERN_TO_CATEGORY,
   ExerciseLibrary,
 } from "@/hooks/useExercisesLibrary";
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
@@ -93,12 +91,9 @@ export const EditExerciseLibraryDialog = ({
 
   const handleMovementPatternChange = (pattern: string) => {
     setMovementPattern(pattern);
-    const functionalGroup = PATTERN_TO_FUNCTIONAL_GROUP[pattern];
-    if (functionalGroup && !category) {
-      const autoCategory = GROUP_TO_CATEGORY[functionalGroup];
-      if (autoCategory) {
-        setCategory(autoCategory);
-      }
+    const autoCategory = PATTERN_TO_CATEGORY[pattern];
+    if (autoCategory && !category) {
+      setCategory(autoCategory);
     }
   };
 

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { exerciseName, functionalGroup, allExercises } = await req.json();
+    const { exerciseName, movementPattern, allExercises } = await req.json();
 
     if (!exerciseName) {
       return new Response(
@@ -35,7 +35,7 @@ serve(async (req) => {
       const { data: trigramResults, error: trigramError } = await supabase
         .rpc('search_exercises_by_name', {
           p_query: exerciseName,
-          p_functional_group: functionalGroup || null,
+          p_movement_pattern: movementPattern || null,
           p_limit: 15,
         });
 
@@ -51,9 +51,9 @@ serve(async (req) => {
     // Fallback: use allExercises from client if pg_trgm failed or returned nothing
     if (!usedTrigram || candidates.length === 0) {
       if (allExercises && allExercises.length > 0) {
-        // Filter by functional group if available
-        candidates = functionalGroup
-          ? allExercises.filter((ex: any) => ex.functional_group === functionalGroup)
+        // Filter by movement pattern if available
+        candidates = movementPattern
+          ? allExercises.filter((ex: any) => ex.movement_pattern === movementPattern)
           : allExercises;
         
         // If filtered list is empty, use full list

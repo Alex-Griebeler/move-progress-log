@@ -17,77 +17,76 @@ function normalize(name: string): string {
 }
 
 // ============================================================================
-// MAPEAMENTO UNIFICADO: subcategoria do JSON → (movement_pattern, functional_group, category)
-// Alinhado com src/constants/backToBasics.ts
+// MAPEAMENTO UNIFICADO: subcategoria do JSON → (movement_pattern, category)
+// Taxonomia simplificada: 2 níveis (Categoria → Padrão de Movimento)
 // ============================================================================
 
 interface SubcategoryMapping {
   movement_pattern: string;
-  functional_group: string;
   category: string;
 }
 
 const SUBCATEGORY_MAP: Record<string, SubcategoryMapping> = {
   // ── Empurrar ──
-  empurrar_horizontal: { movement_pattern: "empurrar_horizontal", functional_group: "empurrar_horizontal", category: "forca" },
-  empurrar_vertical: { movement_pattern: "empurrar_vertical", functional_group: "empurrar_vertical", category: "forca" },
+  empurrar_horizontal: { movement_pattern: "empurrar_horizontal", category: "forca_hipertrofia" },
+  empurrar_vertical: { movement_pattern: "empurrar_vertical", category: "forca_hipertrofia" },
 
   // ── Puxar ──
-  puxar_horizontal: { movement_pattern: "puxar_horizontal", functional_group: "puxar_horizontal", category: "forca" },
-  puxar_vertical: { movement_pattern: "puxar_vertical", functional_group: "puxar_vertical", category: "forca" },
+  puxar_horizontal: { movement_pattern: "puxar_horizontal", category: "forca_hipertrofia" },
+  puxar_vertical: { movement_pattern: "puxar_vertical", category: "forca_hipertrofia" },
 
-  // ── Dominância de Joelho ──
-  agachamento_bilateral: { movement_pattern: "agachamento_bilateral", functional_group: "dominancia_joelho", category: "forca" },
-  agachamento_lateral: { movement_pattern: "agachamento_lateral", functional_group: "dominancia_joelho", category: "forca" },
-  agachamento_unilateral: { movement_pattern: "agachamento_unilateral", functional_group: "dominancia_joelho", category: "forca" },
-  base_assimetrica_split_squat: { movement_pattern: "base_assimetrica_split_squat", functional_group: "dominancia_joelho", category: "forca" },
-  lunge: { movement_pattern: "lunge", functional_group: "dominancia_joelho", category: "forca" },
-  lunge_slideboard: { movement_pattern: "lunge_slideboard", functional_group: "dominancia_joelho", category: "forca" },
-  flexao_joelhos_nordica: { movement_pattern: "flexao_joelhos_nordica", functional_group: "dominancia_joelho", category: "forca" },
+  // ── Dominância de Joelho → agachamento / lunge / nordica ──
+  agachamento_bilateral: { movement_pattern: "agachamento", category: "forca_hipertrofia" },
+  agachamento_lateral: { movement_pattern: "agachamento", category: "forca_hipertrofia" },
+  agachamento_unilateral: { movement_pattern: "agachamento", category: "forca_hipertrofia" },
+  base_assimetrica_split_squat: { movement_pattern: "lunge", category: "forca_hipertrofia" },
+  lunge: { movement_pattern: "lunge", category: "forca_hipertrofia" },
+  lunge_slideboard: { movement_pattern: "lunge", category: "forca_hipertrofia" },
+  flexao_joelhos_nordica: { movement_pattern: "nordica", category: "forca_hipertrofia" },
 
-  // ── Dominância de Quadril ──
-  deadlift_bilateral: { movement_pattern: "deadlift_bilateral", functional_group: "dominancia_quadril", category: "forca" },
-  deadlift_unilateral: { movement_pattern: "deadlift_unilateral", functional_group: "dominancia_quadril", category: "forca" },
-  rdl_stiff: { movement_pattern: "rdl_stiff", functional_group: "dominancia_quadril", category: "forca" },
-  ponte_hip_thrust: { movement_pattern: "ponte_hip_thrust", functional_group: "dominancia_quadril", category: "forca" },
+  // ── Dominância de Quadril → hip_hinge / ponte ──
+  deadlift_bilateral: { movement_pattern: "hip_hinge", category: "forca_hipertrofia" },
+  deadlift_unilateral: { movement_pattern: "hip_hinge", category: "forca_hipertrofia" },
+  rdl_stiff: { movement_pattern: "hip_hinge", category: "forca_hipertrofia" },
+  ponte_hip_thrust: { movement_pattern: "ponte", category: "forca_hipertrofia" },
 
   // ── Carregar ──
-  carregamento: { movement_pattern: "carregar", functional_group: "carregar", category: "forca" },
-  carregamentos: { movement_pattern: "carregar", functional_group: "carregar", category: "forca" },
+  carregamento: { movement_pattern: "carregar", category: "forca_hipertrofia" },
+  carregamentos: { movement_pattern: "carregar", category: "forca_hipertrofia" },
 
-  // ── Core (Estabilidade no JSON) ──
-  anti_extensao: { movement_pattern: "core_anti_extensao", functional_group: "core_anti_extensao", category: "core" },
-  anti_flexao_lateral: { movement_pattern: "core_anti_flexao_lateral", functional_group: "core_anti_flexao_lateral", category: "core" },
-  anti_rotacao: { movement_pattern: "core_anti_rotacao", functional_group: "core_anti_rotacao", category: "core" },
+  // ── Core ──
+  anti_extensao: { movement_pattern: "anti_extensao", category: "core_ativacao" },
+  anti_flexao_lateral: { movement_pattern: "anti_flexao_lateral", category: "core_ativacao" },
+  anti_rotacao: { movement_pattern: "anti_rotacao", category: "core_ativacao" },
 
-  // ── Ativação (sob "estabilidade" no JSON) ──
-  escapula: { movement_pattern: "escapula", functional_group: "ativacao", category: "ativacao" },
-  gluteos_estabilidade: { movement_pattern: "gluteos_estabilidade", functional_group: "ativacao", category: "ativacao" },
-  pe_tornozelo: { movement_pattern: "ativacao_geral", functional_group: "ativacao", category: "ativacao" },
-  corretivos_quadril: { movement_pattern: "ativacao_gluteos", functional_group: "ativacao", category: "ativacao" },
+  // ── Ativação ──
+  escapula: { movement_pattern: "ativacao_escapular", category: "core_ativacao" },
+  gluteos_estabilidade: { movement_pattern: "ativacao_gluteos", category: "core_ativacao" },
+  pe_tornozelo: { movement_pattern: "ativacao_escapular", category: "core_ativacao" },
+  corretivos_quadril: { movement_pattern: "ativacao_gluteos", category: "core_ativacao" },
 
   // ── Mobilidade ──
-  tornozelo: { movement_pattern: "mobilidade_tornozelo", functional_group: "mobilidade", category: "mobilidade" },
-  quadril: { movement_pattern: "mobilidade_quadril", functional_group: "mobilidade", category: "mobilidade" },
-  coluna_toracica: { movement_pattern: "mobilidade_toracica", functional_group: "mobilidade", category: "mobilidade" },
-  integrados: { movement_pattern: "mobilidade_integrada", functional_group: "mobilidade", category: "mobilidade" },
+  tornozelo: { movement_pattern: "mobilidade_tornozelo", category: "mobilidade" },
+  quadril: { movement_pattern: "mobilidade_quadril", category: "mobilidade" },
+  coluna_toracica: { movement_pattern: "mobilidade_toracica", category: "mobilidade" },
+  integrados: { movement_pattern: "mobilidade_integrada", category: "mobilidade" },
 
   // ── Pliometria ──
-  bilateral_linear: { movement_pattern: "pliometria_bilateral_linear", functional_group: "pliometria", category: "pliometria" },
-  unilateral_linear: { movement_pattern: "pliometria_unilateral_linear", functional_group: "pliometria", category: "pliometria" },
-  unilateral_lateral: { movement_pattern: "pliometria_unilateral_lateral", functional_group: "pliometria", category: "pliometria" },
-  unilateral_lateral_medial: { movement_pattern: "pliometria_unilateral_lateral_medial", functional_group: "pliometria", category: "pliometria" },
+  bilateral_linear: { movement_pattern: "pliometria_bilateral", category: "potencia_pliometria" },
+  unilateral_linear: { movement_pattern: "pliometria_unilateral", category: "potencia_pliometria" },
+  unilateral_lateral: { movement_pattern: "pliometria_lateral", category: "potencia_pliometria" },
+  unilateral_lateral_medial: { movement_pattern: "pliometria_multidirecional", category: "potencia_pliometria" },
 
-  // ── Locomoção (exercicios_nao_convencionais no JSON) ──
-  frontal: { movement_pattern: "locomocao", functional_group: "locomocao", category: "locomocao" },
-  sagital: { movement_pattern: "locomocao", functional_group: "locomocao", category: "locomocao" },
-  transverso: { movement_pattern: "locomocao", functional_group: "locomocao", category: "locomocao" },
+  // ── Locomoção → atletico ──
+  frontal: { movement_pattern: "atletico", category: "potencia_pliometria" },
+  sagital: { movement_pattern: "atletico", category: "potencia_pliometria" },
+  transverso: { movement_pattern: "atletico", category: "potencia_pliometria" },
 
   // ── Liberação Miofascial ──
-  regioes: { movement_pattern: "lmf", functional_group: "lmf", category: "lmf" },
+  regioes: { movement_pattern: "lmf", category: "lmf" },
 
   // ── Respiração ──
-  tecnicas: { movement_pattern: "respiracao", functional_group: "respiracao", category: "respiracao" },
+  tecnicas: { movement_pattern: "respiracao", category: "respiracao" },
 };
 
 const LATERALITY_MAP: Record<string, string> = {
@@ -109,11 +108,9 @@ function levelLabel(level: number): string {
   return "Avançado";
 }
 
-// ── Flatten nested JSON into flat exercise array ──
 interface FlatExercise {
   nome: string;
   movement_pattern: string;
-  functional_group: string;
   category: string;
   subcategory: string;
   base?: string;
@@ -140,8 +137,7 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
     for (const [subKey, subVal] of Object.entries(subcategorias)) {
       const mapping = SUBCATEGORY_MAP[subKey];
       const movementPattern = mapping?.movement_pattern || subKey;
-      const functionalGroup = mapping?.functional_group || "geral";
-      const category = mapping?.category || "geral";
+      const category = mapping?.category || "forca_hipertrofia";
 
       const subObj = subVal as Record<string, unknown>;
       const exercicios = subObj.exercicios;
@@ -152,7 +148,6 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
         result.push({
           nome: ex.nome as string,
           movement_pattern: movementPattern,
-          functional_group: functionalGroup,
           category,
           subcategory: subKey,
           base: ex.base as string | undefined,
@@ -289,7 +284,7 @@ Deno.serve(async (req: Request) => {
         const record: Record<string, unknown> = {
           name: ex.nome,
           movement_pattern: ex.movement_pattern,
-          functional_group: ex.functional_group,
+          functional_group: ex.movement_pattern, // compatibilidade: preenche com movement_pattern
           category: ex.category,
           subcategory: ex.subcategory,
           laterality,

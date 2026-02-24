@@ -3,7 +3,7 @@
  * Fabrik Performance - Back to Basics
  * 
  * MEL-IA-002: Conecta Oura readiness ao volume do mesociclo
- * Refatorado para usar functional_group (taxonomia de 2 níveis)
+ * Refatorado para usar movement_pattern (taxonomia simplificada de 2 níveis)
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -95,33 +95,26 @@ interface GeneratedWorkout {
 }
 
 // ============================================================================
-// CONSTANTES - GRUPOS FUNCIONAIS (Nível 1 da taxonomia)
+// CONSTANTES - AGRUPAMENTOS POR PADRÃO DE MOVIMENTO (substituiu functional_group)
 // ============================================================================
 
-const MANDATORY_GROUPS = {
-  // Força - full body via grupos funcionais
-  lower: ["dominancia_joelho", "dominancia_quadril"],
-  upperPush: ["empurrar"],
-  upperPull: ["puxar"],
+const SESSION_PATTERN_GROUPS = {
+  lower_knee: ["agachamento", "lunge", "nordica"],
+  lower_hip: ["hip_hinge", "ponte"],
+  upper_push: ["empurrar_horizontal", "empurrar_vertical"],
+  upper_pull: ["puxar_horizontal", "puxar_vertical"],
   carry: ["carregar"],
-  
-  // Core triplanar - OBRIGATÓRIO
-  core: {
-    anti_extensao: "estabilidade_core",
-    anti_flexao_lateral: "estabilidade_core",
-    anti_rotacao: "estabilidade_core",
-  },
-  
-  // Preparação
-  mobility: ["mobilidade"],
-  activation: ["ativacao"],
+  core: ["anti_extensao", "anti_flexao_lateral", "anti_rotacao"],
+  activation: ["ativacao_gluteos", "ativacao_escapular"],
+  mobility: ["mobilidade_tornozelo", "mobilidade_quadril", "mobilidade_toracica", "mobilidade_integrada"],
+  lmf: ["lmf"],
 };
 
-// Movement patterns específicos para core triplanar (Nível 2)
+// Core triplanar patterns for specific selection
 const CORE_TRIPLANAR_PATTERNS = {
-  anti_extensao: ["core_anti_extensao", "core_geral"],
-  anti_flexao_lateral: ["core_anti_flexao_lateral", "core_geral"],
-  anti_rotacao: ["core_anti_rotacao", "core_geral"],
+  anti_extensao: ["anti_extensao"],
+  anti_flexao_lateral: ["anti_flexao_lateral"],
+  anti_rotacao: ["anti_rotacao"],
 };
 
 // Configuração de volume/intensidade por valência
@@ -219,23 +212,7 @@ function filterByRisk(exercises: Exercise[], groupLevel: string): Exercise[] {
 }
 
 /**
- * Seleciona exercícios por GRUPO FUNCIONAL (Nível 1 da taxonomia)
- * Pool muito maior que o antigo filtro por movement_pattern
- */
-function selectExercisesByGroup(
-  exercises: Exercise[],
-  functionalGroups: string[],
-  count: number,
-  excludeIds: string[] = []
-): Exercise[] {
-  const matching = exercises.filter(
-    (ex) => ex.functional_group && functionalGroups.includes(ex.functional_group) && !excludeIds.includes(ex.id)
-  );
-  return shuffleArray(matching).slice(0, count);
-}
-
-/**
- * Seleciona exercícios por MOVEMENT PATTERN (Nível 2) para seleção específica
+ * Seleciona exercícios por PADRÃO DE MOVIMENTO
  */
 function selectExercisesByPattern(
   exercises: Exercise[],
@@ -248,6 +225,7 @@ function selectExercisesByPattern(
   );
   return shuffleArray(matching).slice(0, count);
 }
+
 
 function mapToGeneratedExercise(
   exercise: Exercise,
@@ -272,7 +250,7 @@ function mapToGeneratedExercise(
 // ============================================================================
 
 function buildLMFPhase(exercises: Exercise[]): SessionPhase {
-  const lmfExercises = selectExercisesByGroup(exercises, MANDATORY_GROUPS.mobility, 3);
+  const lmfExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.lmf, 3);
   
   return {
     id: generateUUID(),
@@ -293,7 +271,7 @@ function buildLMFPhase(exercises: Exercise[]): SessionPhase {
 }
 
 function buildMobilityPhase(exercises: Exercise[]): SessionPhase {
-  const mobilityExercises = selectExercisesByGroup(exercises, MANDATORY_GROUPS.mobility, 4);
+  const mobilityExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.mobility, 4);
   
   return {
     id: generateUUID(),
@@ -313,7 +291,7 @@ function buildMobilityPhase(exercises: Exercise[]): SessionPhase {
 }
 
 function buildActivationPhase(exercises: Exercise[]): SessionPhase {
-  const activationExercises = selectExercisesByGroup(exercises, MANDATORY_GROUPS.activation, 3);
+  const activationExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.activation, 3);
   
   return {
     id: generateUUID(),
@@ -339,19 +317,19 @@ function buildCorePhase(exercises: Exercise[]): SessionPhase {
   // Core triplanar: usar movement_pattern (Nível 2) para especificidade
   let antiExtensao = selectExercisesByPattern(exercises, CORE_TRIPLANAR_PATTERNS.anti_extensao, 1, usedIds);
   if (antiExtensao.length === 0) {
-    antiExtensao = selectExercisesByGroup(exercises, [MANDATORY_GROUPS.core.anti_extensao], 1, usedIds);
+    antiExtensao = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.core, 1, usedIds);
   }
   antiExtensao.forEach((ex) => usedIds.push(ex.id));
   
   let antiFlexaoLateral = selectExercisesByPattern(exercises, CORE_TRIPLANAR_PATTERNS.anti_flexao_lateral, 1, usedIds);
   if (antiFlexaoLateral.length === 0) {
-    antiFlexaoLateral = selectExercisesByGroup(exercises, [MANDATORY_GROUPS.core.anti_flexao_lateral], 1, usedIds);
+    antiFlexaoLateral = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.core, 1, usedIds);
   }
   antiFlexaoLateral.forEach((ex) => usedIds.push(ex.id));
   
   let antiRotacao = selectExercisesByPattern(exercises, CORE_TRIPLANAR_PATTERNS.anti_rotacao, 1, usedIds);
   if (antiRotacao.length === 0) {
-    antiRotacao = selectExercisesByGroup(exercises, [MANDATORY_GROUPS.core.anti_rotacao], 1, usedIds);
+    antiRotacao = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.core, 1, usedIds);
   }
   antiRotacao.forEach((ex) => usedIds.push(ex.id));
   
@@ -397,8 +375,8 @@ function buildMainPhase(
   // MEL-IA-002: aplicar volumeMultiplier aos sets
   const adjustedSets = applyVolumeMultiplier(config.sets, volumeMultiplier);
   
-  // Bloco A - Membros Inferiores (via functional_group)
-  const lowerExercises = selectExercisesByGroup(exercises, MANDATORY_GROUPS.lower, 2, usedIds);
+  // Bloco A - Membros Inferiores (via movement_pattern)
+  const lowerExercises = selectExercisesByPattern(exercises, [...SESSION_PATTERN_GROUPS.lower_knee, ...SESSION_PATTERN_GROUPS.lower_hip], 2, usedIds);
   lowerExercises.forEach((ex) => {
     usedIds.push(ex.id);
     newCoveredPatterns.push(ex.movement_pattern);
@@ -419,11 +397,11 @@ function buildMainPhase(
     });
   }
   
-  // Bloco B - Membros Superiores (empurrar + puxar via functional_group)
-  const pushExercises = selectExercisesByGroup(exercises, MANDATORY_GROUPS.upperPush, 1, usedIds);
+  // Bloco B - Membros Superiores (empurrar + puxar via movement_pattern)
+  const pushExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.upper_push, 1, usedIds);
   pushExercises.forEach((ex) => { usedIds.push(ex.id); newCoveredPatterns.push(ex.movement_pattern); });
   
-  const pullExercises = selectExercisesByGroup(exercises, MANDATORY_GROUPS.upperPull, 1, usedIds);
+  const pullExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.upper_pull, 1, usedIds);
   pullExercises.forEach((ex) => { usedIds.push(ex.id); newCoveredPatterns.push(ex.movement_pattern); });
   
   const upperExercises = [...pushExercises, ...pullExercises];
@@ -442,8 +420,8 @@ function buildMainPhase(
     });
   }
   
-  // Bloco C - Carry (via functional_group)
-  const carryExercises = selectExercisesByGroup(exercises, MANDATORY_GROUPS.carry, 1, usedIds);
+  // Bloco C - Carry (via movement_pattern)
+  const carryExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.carry, 1, usedIds);
   carryExercises.forEach((ex) => { usedIds.push(ex.id); newCoveredPatterns.push(ex.movement_pattern); });
   
   if (carryExercises.length > 0) {
