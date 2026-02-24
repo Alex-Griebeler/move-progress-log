@@ -14,10 +14,10 @@ const mapLaterality = (base: string): string => {
   const baseNormalized = base.toLowerCase().trim();
   
   if (baseNormalized.includes('bilateral') && baseNormalized.includes('assimétrica')) {
-    return 'base assimétrica';
+    return 'base_assimetrica';
   }
   if (baseNormalized.includes('unilateral') && baseNormalized.includes('assimétrica')) {
-    return 'base assimétrica';
+    return 'unilateral';
   }
   if (baseNormalized.includes('bilateral')) {
     return 'bilateral';
@@ -94,11 +94,11 @@ const exercises: ExerciseData[] = [
   { name: "Bom dia (barra)", movement_pattern: "Dominância de quadril", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
   { name: "Pull-through", movement_pattern: "Dominância de quadril", laterality: "bilateral", contraction_type: "Dinâmica controlada", level: "Intermediário" },
   { name: "Swing (kettlebell)", movement_pattern: "Dominância de quadril", laterality: "bilateral", contraction_type: "Dinâmica explosiva", level: "Intermediário/Avançado" },
-  { name: "RDL base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário" },
-  { name: "RDL base assimétrica unilateral", movement_pattern: "Dominância de quadril", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
-  { name: "Good morning base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
-  { name: "Hip thrust base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário" },
-  { name: "Hip thrust base assimétrica unilateral", movement_pattern: "Dominância de quadril", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Avançado" },
+  { name: "RDL base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário" },
+  { name: "RDL base assimétrica unilateral", movement_pattern: "Dominância de quadril", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
+  { name: "Good morning base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
+  { name: "Hip thrust base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário" },
+  { name: "Hip thrust base assimétrica unilateral", movement_pattern: "Dominância de quadril", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Avançado" },
 
   // EMPURRAR HORIZONTAL
   { name: "Flexão de braços em posição elevada", movement_pattern: "Empurrar horizontal", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Iniciante" },
@@ -127,7 +127,7 @@ const exercises: ExerciseData[] = [
   { name: "Landmine press ajoelhado", movement_pattern: "Empurrar vertical", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Iniciante" },
   { name: "Landmine press semi-ajoelhado", movement_pattern: "Empurrar vertical", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário" },
   { name: "Landmine press em pé", movement_pattern: "Empurrar vertical", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
-  { name: "Landmine press base assimétrica", movement_pattern: "Empurrar vertical", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Avançado" },
+  { name: "Landmine press base assimétrica", movement_pattern: "Empurrar vertical", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Avançado" },
 
   // PUXAR HORIZONTAL
   { name: "Remada baixa assistida (supino invertido)", movement_pattern: "Puxar horizontal", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Iniciante" },

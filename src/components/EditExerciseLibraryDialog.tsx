@@ -120,6 +120,7 @@ export const EditExerciseLibraryDialog = ({
       movement_plane: movementPlane && movementPlane !== "none" ? movementPlane : null,
       contraction_type: contractionType && contractionType !== "none" ? contractionType : null,
       level: null,
+      numeric_level: numericLevel && numericLevel !== "none" ? parseInt(numericLevel) : null,
       description: description.trim() || null,
       video_url: videoUrl.trim() || null,
       risk_level: riskLevel && riskLevel !== "none" ? riskLevel : null,

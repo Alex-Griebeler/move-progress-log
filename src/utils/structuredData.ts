@@ -3,6 +3,9 @@
  * Facilita criação de rich snippets para Google
  */
 
+const getOrigin = () => typeof window !== 'undefined' ? window.location.origin : '';
+const getHref = () => typeof window !== 'undefined' ? window.location.href : '';
+
 interface BreadcrumbItem {
   label: string;
   href?: string;
@@ -23,9 +26,9 @@ export const getOrganizationSchema = () => ({
   "@type": "SportsActivityLocation",
   "name": "Fabrik Performance",
   "description": "Studio boutique sofisticado e exclusivo com método Body & Mind Fitness. Treinamento funcional de alta intensidade, mindfulness e técnicas de respiração no Lago Sul, Brasília.",
-  "url": window.location.origin,
-  "logo": `${window.location.origin}/logo-fabrik.webp`,
-  "image": `${window.location.origin}/logo-fabrik.webp`,
+  "url": getOrigin(),
+  "logo": `${getOrigin()}/logo-fabrik.webp`,
+  "image": `${getOrigin()}/logo-fabrik.webp`,
   "address": {
     "@type": "PostalAddress",
     "addressLocality": "Brasília",
@@ -93,7 +96,7 @@ export const getBreadcrumbSchema = (items: BreadcrumbItem[]) => {
     "@type": "ListItem",
     "position": index + 1,
     "name": item.label,
-    "item": item.href ? `${window.location.origin}${item.href}` : undefined
+    "item": item.href ? `${getOrigin()}${item.href}` : undefined
   }));
 
   return {
@@ -112,11 +115,11 @@ export const getWebPageSchema = (title: string, description: string) => ({
   "@type": "WebPage",
   "name": title,
   "description": description,
-  "url": window.location.href,
+  "url": getHref(),
   "isPartOf": {
     "@type": "WebSite",
     "name": "Fabrik Performance",
-    "url": window.location.origin
+    "url": getOrigin()
   },
   "inLanguage": "pt-BR"
 });
@@ -190,7 +193,7 @@ export const getItemListSchema = (
     "@type": "ListItem",
     "position": index + 1,
     "name": item.name,
-    "url": item.url ? `${window.location.origin}${item.url}` : undefined
+    "url": item.url ? `${getOrigin()}${item.url}` : undefined
   }))
 });
 
@@ -203,7 +206,7 @@ export const getWebApplicationSchema = () => ({
   "@type": "WebApplication",
   "name": "Fabrik Performance System",
   "description": "Sistema de registro e acompanhamento de treinos com integração Oura Ring",
-  "url": window.location.origin,
+  "url": getOrigin(),
   "applicationCategory": "HealthApplication",
   "operatingSystem": "Web",
   "offers": {

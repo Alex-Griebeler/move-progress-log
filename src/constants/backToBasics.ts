@@ -130,7 +130,7 @@ export const LATERALITY_OPTIONS = {
   bilateral: "Bilateral",
   unilateral: "Unilateral",
   alternado: "Alternado",
-  "base assimétrica": "Base Assimétrica",
+  base_assimetrica: "Base Assimétrica",
 } as const;
 
 // ============================================================================
@@ -246,46 +246,46 @@ export const PERIODIZATION_CYCLES = {
   s1: {
     name: "Adaptação",
     weekNumber: 1,
-    volumeMultiplier: 0.7, // 70% do volume ideal
-    intensityMultiplier: 0.7, // 70% da intensidade ideal
+    volumeMultiplier: 0.7,
+    intensityMultiplier: 0.7,
     pseRange: { min: 5, max: 6 },
     description: "Menor volume e menor intensidade para adaptação neuromuscular",
     strategies: ["Reduzir séries", "Cargas leves", "Intervalos maiores"],
     methods: ["tradicional", "circuito"],
-    plyometrics: false,
+    plyometrics: "none" as const,
   },
   s2: {
     name: "Desenvolvimento",
     weekNumber: 2,
-    volumeMultiplier: 1.0, // 100% do volume ideal
-    intensityMultiplier: 0.85, // 85% da intensidade ideal
+    volumeMultiplier: 1.0,
+    intensityMultiplier: 0.85,
     pseRange: { min: 6, max: 7 },
     description: "Volume ideal atingido, leve aumento de intensidade",
     strategies: ["Volume prescrito", "Aumento gradual de carga"],
     methods: ["tradicional", "superset"],
-    plyometrics: "low",
+    plyometrics: "low" as const,
   },
   s3: {
     name: "Choque 1",
     weekNumber: 3,
-    volumeMultiplier: 1.0, // Mantém volume
-    intensityMultiplier: 0.95, // 95% da intensidade
+    volumeMultiplier: 1.0,
+    intensityMultiplier: 0.95,
     pseRange: { min: 7, max: 8 },
     description: "Aumento de intensidade via cargas",
     strategies: ["Aumentar cargas", "Manter volume", "Reduzir intervalo (metcon)"],
     methods: ["tradicional", "superset", "triset", "emom", "cluster"],
-    plyometrics: true,
+    plyometrics: "full" as const,
   },
   s4: {
     name: "Choque 2",
     weekNumber: 4,
-    volumeMultiplier: 1.0, // Mantém volume
-    intensityMultiplier: 1.0, // 100% intensidade
+    volumeMultiplier: 1.0,
+    intensityMultiplier: 1.0,
     pseRange: { min: 8, max: 9 },
     description: "Pico de intensidade do mesociclo",
     strategies: ["Cargas máximas do ciclo", "Manter volume", "Menor intervalo (metcon)"],
     methods: ["tradicional", "superset", "triset", "emom", "amrap", "for_time", "cluster"],
-    plyometrics: true,
+    plyometrics: "full" as const,
   },
 } as const;
 
@@ -532,10 +532,12 @@ export const isValidValenceCombination = (valences: TrainingValence[]): boolean 
 
 export const canUsePlyometrics = (level: StudentLevel, cycle: PeriodizationCycle): boolean => {
   const levelConfig = STUDENT_LEVELS[level];
-  const cycleNumber = PERIODIZATION_CYCLES[cycle].weekNumber;
+  const plyoLevel = PERIODIZATION_CYCLES[cycle].plyometrics;
   
-  return levelConfig.plyometricsAllowed && cycleNumber >= 2;
+  return levelConfig.plyometricsAllowed && plyoLevel !== "none";
 };
+
+export type PlyometricsLevel = "none" | "low" | "full";
 
 export const getMethodsForCycle = (cycle: PeriodizationCycle): TrainingMethod[] => {
   const cycleMethods = PERIODIZATION_CYCLES[cycle].methods;
