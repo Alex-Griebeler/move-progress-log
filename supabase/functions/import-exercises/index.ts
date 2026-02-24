@@ -42,13 +42,13 @@ const SUBCATEGORY_MAP: Record<string, SubcategoryMapping> = {
   base_assimetrica_split_squat: { movement_pattern: "lunge", category: "forca_hipertrofia" },
   lunge: { movement_pattern: "lunge", category: "forca_hipertrofia" },
   lunge_slideboard: { movement_pattern: "lunge", category: "forca_hipertrofia" },
-  flexao_joelhos_nordica: { movement_pattern: "dominancia_joelho", category: "forca_hipertrofia" },
+  flexao_joelhos_nordica: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
 
-  // ── Dominância de Quadril ──
-  deadlift_bilateral: { movement_pattern: "dominancia_quadril", category: "forca_hipertrofia" },
-  deadlift_unilateral: { movement_pattern: "dominancia_quadril", category: "forca_hipertrofia" },
-  rdl_stiff: { movement_pattern: "dominancia_quadril", category: "forca_hipertrofia" },
-  ponte_hip_thrust: { movement_pattern: "dominancia_quadril", category: "forca_hipertrofia" },
+  // ── Cadeia Posterior (antigo Dominância de Quadril) ──
+  deadlift_bilateral: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
+  deadlift_unilateral: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
+  rdl_stiff: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
+  ponte_hip_thrust: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
 
   // ── Carregar ──
   carregamento: { movement_pattern: "carregar", category: "forca_hipertrofia" },

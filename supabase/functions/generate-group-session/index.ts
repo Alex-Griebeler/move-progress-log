@@ -103,7 +103,7 @@ interface GeneratedWorkout {
 
 const SESSION_PATTERN_GROUPS = {
   lower_knee: ["dominancia_joelho", "lunge"],
-  lower_hip: ["dominancia_quadril"],
+  lower_hip: ["cadeia_posterior"],
   upper_push: ["empurrar"],
   upper_pull: ["puxar"],
   carry: ["carregar"],

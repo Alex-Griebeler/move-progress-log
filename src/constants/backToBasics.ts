@@ -49,7 +49,7 @@ export const MOVEMENT_PATTERNS = {
   empurrar: "Empurrar",
   puxar: "Puxar",
   dominancia_joelho: "Dominância de Joelho",
-  dominancia_quadril: "Dominância de Quadril",
+  cadeia_posterior: "Cadeia Posterior",
   lunge: "Lunge",
   carregar: "Carregar",
 } as const;
@@ -65,7 +65,7 @@ export const PATTERN_TO_CATEGORY: Record<string, ExerciseCategory> = {
   empurrar: "forca_hipertrofia",
   puxar: "forca_hipertrofia",
   dominancia_joelho: "forca_hipertrofia",
-  dominancia_quadril: "forca_hipertrofia",
+  cadeia_posterior: "forca_hipertrofia",
   lunge: "forca_hipertrofia",
   carregar: "forca_hipertrofia",
 };
@@ -77,7 +77,7 @@ export const PATTERN_TO_CATEGORY: Record<string, ExerciseCategory> = {
 
 export const SESSION_PATTERN_GROUPS = {
   lower_knee: ["dominancia_joelho", "lunge"],
-  lower_hip: ["dominancia_quadril"],
+  lower_hip: ["cadeia_posterior"],
   upper_push: ["empurrar"],
   upper_pull: ["puxar"],
   carry: ["carregar"],
