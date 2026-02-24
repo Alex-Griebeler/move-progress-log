@@ -57,6 +57,7 @@ interface GenerateGroupSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onMesocycleGenerated?: (mesocycle: GeneratedMesocycle) => void;
+  groupReadiness?: number; // MEL-IA-002: média do readiness do grupo (0-100)
 }
 
 // ============================================================================
@@ -67,6 +68,7 @@ export function GenerateGroupSessionDialog({
   open,
   onOpenChange,
   onMesocycleGenerated,
+  groupReadiness,
 }: GenerateGroupSessionDialogProps) {
   const [step, setStep] = useState<Step>("level");
   const [generatedMesocycle, setGeneratedMesocycle] = useState<GeneratedMesocycle | null>(null);
@@ -115,6 +117,7 @@ export function GenerateGroupSessionDialog({
         slot,
         valences: workoutConfigs[slot],
       })),
+      groupReadiness, // MEL-IA-002
     };
 
     try {

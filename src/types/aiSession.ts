@@ -34,6 +34,7 @@ export interface MesocycleGenerationInput {
   groupLevel: "iniciante" | "intermediario" | "avancado";
   workouts: WorkoutSlotConfig[]; // 3 slots: A, B, C
   excludeExercises?: string[]; // IDs de exercícios a evitar
+  groupReadiness?: number; // MEL-IA-002: 0-100, média do readiness do grupo
 }
 
 // ============================================================================
@@ -111,7 +112,9 @@ export interface GeneratedMesocycle {
   workouts: GeneratedWorkout[]; // 3 treinos (A, B, C)
   createdAt: string;
   metadata: {
-    totalPatternsBalance: Record<string, number>; // Contagem de padrões no ciclo
+    groupReadiness?: number | null; // MEL-IA-002
+    volumeMultiplier?: number; // MEL-IA-002
+    totalPatternsBalance: Record<string, number>;
     recommendedProgression: {
       s1: { volumeMultiplier: number; intensityMultiplier: number };
       s2: { volumeMultiplier: number; intensityMultiplier: number };
