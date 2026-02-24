@@ -16,7 +16,7 @@ const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 // ═══════════════════════════════════════════════════════════════
 
 /** Constantes de conversão de unidades */
-const POUND_TO_KG_CONVERSION = 0.45;
+const POUND_TO_KG_CONVERSION = 0.4536;
 
 /** Correções terminológicas padrão para transcrição PT-BR */
 const TERMINOLOGY_CORRECTIONS: Record<string, string> = {
@@ -216,8 +216,8 @@ serve(async (req) => {
     { global: { headers: { Authorization: `Bearer ${token}` } } }
   );
 
-  const { data, error: claimsError } = await authClient.auth.getClaims(token);
-  if (claimsError || !data?.claims) {
+  const { data: { user }, error: userError } = await authClient.auth.getUser();
+  if (userError || !user) {
     return new Response(JSON.stringify({ error: 'Token inválido' }), { 
       status: 401, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -150,8 +150,7 @@ export const calculateLoadFromBreakdown = (
 
     // 8. ARREDONDAR PARA 1 CASA DECIMAL usando função global
     return total > 0 ? roundToDecimal(total) : null;
-  } catch (error) {
-    console.error('Erro ao calcular carga:', error);
+  } catch {
     return null;
   }
 };
