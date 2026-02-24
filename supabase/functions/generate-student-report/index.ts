@@ -26,11 +26,20 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const authHeader = req.headers.get('Authorization')!;
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    // Authenticate with user's token via anon key
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const authClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: userError } = await authClient.auth.getUser();
 
     if (userError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -38,6 +47,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { studentId, periodStart, periodEnd, trackedExercises, trainerNotes }: GenerateReportRequest = await req.json();
 
@@ -73,7 +84,7 @@ serve(async (req) => {
       .single();
 
     if (reportError || !report) {
-      console.error('Error creating report:', reportError);
+      // Error creating report
       return new Response(JSON.stringify({ error: 'Failed to create report' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -90,7 +101,7 @@ serve(async (req) => {
       .order('date', { ascending: true });
 
     if (sessionsError) {
-      console.error('Error fetching sessions:', sessionsError);
+      // Error fetching sessions
       await supabase.from('student_reports').update({ status: 'failed' }).eq('id', report.id);
       return new Response(JSON.stringify({ error: 'Failed to fetch sessions' }), {
         status: 500,
@@ -188,7 +199,7 @@ serve(async (req) => {
         });
 
       if (exerciseError) {
-        console.error('Error inserting tracked exercise:', exerciseError);
+        // Error inserting tracked exercise
       }
 
       trackedExercisesData.push({
@@ -263,7 +274,7 @@ serve(async (req) => {
       .eq('id', report.id);
 
     if (updateError) {
-      console.error('Error updating report:', updateError);
+      // Error updating report
     }
 
     return new Response(JSON.stringify({ reportId: report.id, status: 'completed' }), {
@@ -272,7 +283,7 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('Error generating report:', error);
+    // Error generating report
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

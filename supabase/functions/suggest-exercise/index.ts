@@ -21,7 +21,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`🔍 Buscando exercício similar para: "${exerciseName}"`);
+    // Searching for similar exercise
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -42,10 +42,10 @@ serve(async (req) => {
       if (!trigramError && trigramResults && trigramResults.length > 0) {
         candidates = trigramResults.map((r: any) => ({ id: r.id, name: r.name }));
         usedTrigram = true;
-        console.log(`📊 pg_trgm retornou ${candidates.length} candidatos (grupo: ${functionalGroup || 'todos'})`);
+        // pg_trgm returned candidates
       }
     } catch (e) {
-      console.warn('⚠️ pg_trgm falhou, usando fallback:', e);
+      // pg_trgm failed, using fallback
     }
 
     // Fallback: use allExercises from client if pg_trgm failed or returned nothing
@@ -59,7 +59,7 @@ serve(async (req) => {
         // If filtered list is empty, use full list
         if (candidates.length === 0) candidates = allExercises;
         
-        console.log(`📚 Fallback: ${candidates.length} exercícios (filtro: ${functionalGroup || 'nenhum'})`);
+        // Fallback: using client exercises
       } else {
         // Last resort: query all exercises from DB
         const { data: allFromDb } = await supabase
@@ -67,7 +67,7 @@ serve(async (req) => {
           .select('id, name')
           .order('name');
         candidates = allFromDb || [];
-        console.log(`📚 Fallback DB: ${candidates.length} exercícios`);
+        // Fallback: queried all from DB
       }
     }
 
@@ -137,14 +137,14 @@ Qual exercício da lista é mais similar? Retorne APENAS o nome exato ou "null".
         );
       }
       const errorText = await response.text();
-      console.error('❌ Erro na API:', response.status, errorText);
+      // AI API error
       throw new Error(`Erro na API: ${response.status}`);
     }
 
     const data = await response.json();
     const suggestedName = data.choices[0]?.message?.content?.trim();
 
-    console.log(`💡 Sugestão: "${suggestedName}" (via ${usedTrigram ? 'pg_trgm' : 'fallback'})`);
+    // Suggestion resolved
 
     // Validate suggestion exists in candidates
     const suggestedExercise = candidates.find(
@@ -168,7 +168,7 @@ Qual exercício da lista é mais similar? Retorne APENAS o nome exato ou "null".
     );
 
   } catch (error) {
-    console.error('❌ Erro:', error);
+    // Error in suggest-exercise
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido', success: false }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

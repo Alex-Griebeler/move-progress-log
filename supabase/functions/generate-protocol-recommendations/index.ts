@@ -268,7 +268,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error generating recommendations:', error);
+    // Error generating recommendations
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { 

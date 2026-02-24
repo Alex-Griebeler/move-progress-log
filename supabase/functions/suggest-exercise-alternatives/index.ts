@@ -197,7 +197,7 @@ Retorne APENAS os IDs dos exercícios sugeridos como alternativas.`;
         });
       }
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      // AI gateway error
       throw new Error("Erro ao conectar com IA");
     }
 
@@ -220,7 +220,7 @@ Retorne APENAS os IDs dos exercícios sugeridos como alternativas.`;
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    console.error("suggest-exercise-alternatives error:", e);
+    // suggest-exercise-alternatives error
 
     if (e instanceof z.ZodError) {
       return new Response(
