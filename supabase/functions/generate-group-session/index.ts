@@ -52,6 +52,7 @@ interface GeneratedExercise {
   exerciseLibraryId: string;
   name: string;
   movementPattern: string;
+  subcategory?: string;
   sets: string;
   reps: string;
   interval: number;
@@ -243,6 +244,7 @@ function mapToGeneratedExercise(
     exerciseLibraryId: exercise.id,
     name: exercise.name,
     movementPattern: exercise.movement_pattern || exercise.category || "unknown",
+    subcategory: exercise.subcategory || undefined,
     sets: exercise.default_sets || "3",
     reps: exercise.default_reps || "10",
     interval: 60,
@@ -298,9 +300,10 @@ function buildMobilityPhase(exercises: Exercise[]): SessionPhase {
 }
 
 function buildActivationPhase(exercises: Exercise[]): SessionPhase {
-  // Ativação: filter core_ativacao exercises that have subcategory indicating activation
+  // Ativação: exercises from core_ativacao with activation subcategories (not triplanar core)
+  const ACTIVATION_SUBCATEGORIES = ["ativacao_escapular", "ativacao_gluteos", "escapula", "gluteos_estabilidade", "pe_tornozelo", "corretivos_quadril"];
   const activationExercises = exercises.filter(
-    (ex) => ex.category === "core_ativacao" && ex.subcategory && !["anti_extensao", "anti_flexao_lateral", "anti_rotacao"].includes(ex.subcategory)
+    (ex) => ex.category === "core_ativacao" && ex.subcategory && ACTIVATION_SUBCATEGORIES.includes(ex.subcategory)
   );
   const selected = shuffleArray(activationExercises).slice(0, 3);
   
@@ -377,6 +380,8 @@ function buildCorePhase(exercises: Exercise[]): SessionPhase {
 function buildMainPhase(
   exercises: Exercise[],
   valences: string[],
+  slot: "A" | "B" | "C",
+  groupLevel: string,
   coveredPatterns: Set<string>,
   volumeMultiplier: number
 ): { phase: SessionPhase; newCoveredPatterns: string[] } {
@@ -388,62 +393,107 @@ function buildMainPhase(
   const config = VALENCE_CONFIG[primaryValence] || VALENCE_CONFIG.forca;
   const method = valences.includes("condicionamento") ? "circuito" : "tradicional";
   
-  // MEL-IA-002: aplicar volumeMultiplier aos sets
   const adjustedSets = applyVolumeMultiplier(config.sets, volumeMultiplier);
+
+  // ── Slot-based differentiation ──
+  // A: Lower-dominant (3 lower + 1 upper + carry)
+  // B: Upper-dominant (1 lower + 3 upper + carry)
+  // C: Full-body balanced (1 lower + 1 upper + pliometria + carry)
   
-  // Bloco A - Membros Inferiores (via movement_pattern)
-  const lowerExercises = selectExercisesByPattern(exercises, [...SESSION_PATTERN_GROUPS.lower_knee, ...SESSION_PATTERN_GROUPS.lower_hip], 2, usedIds);
-  lowerExercises.forEach((ex) => {
-    usedIds.push(ex.id);
-    newCoveredPatterns.push(ex.movement_pattern);
-  });
+  const slotConfig = {
+    A: { lowerCount: 3, upperPushCount: 1, upperPullCount: 0, includePlyometrics: false },
+    B: { lowerCount: 1, upperPushCount: 1, upperPullCount: 2, includePlyometrics: false },
+    C: { lowerCount: 1, upperPushCount: 1, upperPullCount: 1, includePlyometrics: true },
+  }[slot];
   
-  if (lowerExercises.length > 0) {
-    blocks.push({
-      id: generateUUID(),
-      name: "Bloco A - Membros Inferiores",
-      method,
-      exercises: lowerExercises.map((ex) =>
-        mapToGeneratedExercise(ex, { 
-          sets: adjustedSets, reps: config.reps, 
-          interval: config.interval, pse: config.pse,
-        })
-      ),
-      restBetweenSets: config.interval,
+  // Bloco Lower (via movement_pattern)
+  if (slotConfig.lowerCount > 0) {
+    const lowerExercises = selectExercisesByPattern(
+      exercises,
+      [...SESSION_PATTERN_GROUPS.lower_knee, ...SESSION_PATTERN_GROUPS.lower_hip],
+      slotConfig.lowerCount,
+      usedIds
+    );
+    lowerExercises.forEach((ex) => {
+      usedIds.push(ex.id);
+      if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern);
     });
+    
+    if (lowerExercises.length > 0) {
+      blocks.push({
+        id: generateUUID(),
+        name: slot === "A" ? "Bloco A - Membros Inferiores (Foco)" : "Bloco - Membros Inferiores",
+        method,
+        exercises: lowerExercises.map((ex) =>
+          mapToGeneratedExercise(ex, { 
+            sets: adjustedSets, reps: config.reps, 
+            interval: config.interval, pse: config.pse,
+          })
+        ),
+        restBetweenSets: config.interval,
+      });
+    }
   }
   
-  // Bloco B - Membros Superiores (empurrar + puxar via movement_pattern)
-  const pushExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.upper_push, 1, usedIds);
-  pushExercises.forEach((ex) => { usedIds.push(ex.id); newCoveredPatterns.push(ex.movement_pattern); });
-  
-  const pullExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.upper_pull, 1, usedIds);
-  pullExercises.forEach((ex) => { usedIds.push(ex.id); newCoveredPatterns.push(ex.movement_pattern); });
-  
-  const upperExercises = [...pushExercises, ...pullExercises];
-  if (upperExercises.length > 0) {
-    blocks.push({
-      id: generateUUID(),
-      name: "Bloco B - Membros Superiores",
-      method: valences.length > 1 ? "superset" : method,
-      exercises: upperExercises.map((ex) =>
-        mapToGeneratedExercise(ex, { 
-          sets: adjustedSets, reps: config.reps, 
-          interval: config.interval, pse: config.pse,
-        })
-      ),
-      restBetweenSets: config.interval,
-    });
+  // Bloco Upper Push
+  if (slotConfig.upperPushCount > 0) {
+    const pushExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.upper_push, slotConfig.upperPushCount, usedIds);
+    pushExercises.forEach((ex) => { usedIds.push(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
+    
+    // Bloco Upper Pull
+    const pullExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.upper_pull, slotConfig.upperPullCount, usedIds);
+    pullExercises.forEach((ex) => { usedIds.push(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
+    
+    const upperExercises = [...pushExercises, ...pullExercises];
+    if (upperExercises.length > 0) {
+      blocks.push({
+        id: generateUUID(),
+        name: slot === "B" ? "Bloco B - Membros Superiores (Foco)" : "Bloco - Membros Superiores",
+        method: upperExercises.length > 1 ? "superset" : method,
+        exercises: upperExercises.map((ex) =>
+          mapToGeneratedExercise(ex, { 
+            sets: adjustedSets, reps: config.reps, 
+            interval: config.interval, pse: config.pse,
+          })
+        ),
+        restBetweenSets: config.interval,
+      });
+    }
   }
   
-  // Bloco C - Carry (via movement_pattern)
+  // Bloco Pliometria/Potência (Slot C only, or when valence includes potencia)
+  const canDoPlyometrics = slotConfig.includePlyometrics || valences.includes("potencia");
+  const levelAllowsPlyometrics = groupLevel !== "iniciante";
+  
+  if (canDoPlyometrics && levelAllowsPlyometrics) {
+    const plyoExercises = selectExercisesByCategory(exercises, "potencia_pliometria", 2, usedIds);
+    plyoExercises.forEach((ex) => usedIds.push(ex.id));
+    
+    if (plyoExercises.length > 0) {
+      blocks.push({
+        id: generateUUID(),
+        name: "Bloco - Potência & Pliometria",
+        method: "tradicional",
+        exercises: plyoExercises.map((ex) =>
+          mapToGeneratedExercise(ex, { 
+            sets: applyVolumeMultiplier("3", volumeMultiplier),
+            reps: "5-8", interval: 90, pse: "7-8",
+          })
+        ),
+        restBetweenSets: 90,
+        notes: "Execução explosiva com técnica perfeita. Priorizar qualidade sobre volume.",
+      });
+    }
+  }
+  
+  // Bloco Carry (sempre presente)
   const carryExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.carry, 1, usedIds);
-  carryExercises.forEach((ex) => { usedIds.push(ex.id); newCoveredPatterns.push(ex.movement_pattern); });
+  carryExercises.forEach((ex) => { usedIds.push(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
   
   if (carryExercises.length > 0) {
     blocks.push({
       id: generateUUID(),
-      name: "Bloco C - Carregamento",
+      name: "Bloco - Carregamento",
       method: "tradicional",
       exercises: carryExercises.map((ex) =>
         mapToGeneratedExercise(ex, { 
@@ -489,18 +539,17 @@ function checkCoreTriplanar(phases: SessionPhase[]): {
   anti_flexao_lateral: boolean;
   anti_rotacao: boolean;
 } {
-  // With simplified patterns, we check core triplanar coverage via exercise names/subcategory
-  // Since we select by subcategory in buildCorePhase, the check is based on count
   const coreExercises = phases
     .flatMap((p) => p.blocks)
     .filter((b) => b.name === "Core Triplanar")
     .flatMap((b) => b.exercises);
 
-  // If we have 3 core exercises, assume triplanar coverage was attempted
+  const subcategories = new Set(coreExercises.map((ex) => ex.subcategory).filter(Boolean));
+
   return {
-    anti_extensao: coreExercises.length >= 1,
-    anti_flexao_lateral: coreExercises.length >= 2,
-    anti_rotacao: coreExercises.length >= 3,
+    anti_extensao: subcategories.has("anti_extensao"),
+    anti_flexao_lateral: subcategories.has("anti_flexao_lateral"),
+    anti_rotacao: subcategories.has("anti_rotacao"),
   };
 }
 
@@ -521,6 +570,7 @@ function generateWorkoutName(slot: string, valences: string[]): string {
 function generateSingleWorkout(
   exercises: Exercise[],
   config: WorkoutSlotConfig,
+  groupLevel: string,
   volumeMultiplier: number
 ): GeneratedWorkout {
   const coveredPatterns = new Set<string>();
@@ -537,7 +587,7 @@ function generateSingleWorkout(
   });
   
   const { phase: mainPhase, newCoveredPatterns } = buildMainPhase(
-    exercises, config.valences, coveredPatterns, volumeMultiplier
+    exercises, config.valences, config.slot, groupLevel, coveredPatterns, volumeMultiplier
   );
   newCoveredPatterns.forEach((p) => coveredPatterns.add(p));
   
@@ -636,7 +686,7 @@ serve(async (req) => {
     }
     
     for (const workoutConfig of input.workouts) {
-      const workout = generateSingleWorkout(exercises, workoutConfig, volumeMultiplier);
+      const workout = generateSingleWorkout(exercises, workoutConfig, input.groupLevel, volumeMultiplier);
       workouts.push(workout);
       
       const { anti_extensao, anti_flexao_lateral, anti_rotacao } = workout.coreTriplanarCheck;
