@@ -395,77 +395,78 @@ function buildMainPhase(
   
   const adjustedSets = applyVolumeMultiplier(config.sets, volumeMultiplier);
 
-  // ── Slot-based differentiation ──
-  // A: Lower-dominant (3 lower + 1 upper + carry)
-  // B: Upper-dominant (1 lower + 3 upper + carry)
-  // C: Full-body balanced (1 lower + 1 upper + pliometria + carry)
+  // ── FULL BODY para todos os slots (A, B, C) ──
+  // Diferenciação vem das VALÊNCIAS, não do split corporal.
+  // Cada treino: 1 lower knee, 1 lower hip, 1 push, 1 pull, 1 carry
+
+  // Bloco Lower (knee + hip)
+  const kneeExercises = selectExercisesByPattern(
+    exercises, SESSION_PATTERN_GROUPS.lower_knee, 1, usedIds
+  );
+  kneeExercises.forEach((ex) => {
+    usedIds.push(ex.id);
+    if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern);
+  });
   
-  const slotConfig = {
-    A: { lowerCount: 3, upperPushCount: 1, upperPullCount: 0, includePlyometrics: false },
-    B: { lowerCount: 1, upperPushCount: 1, upperPullCount: 2, includePlyometrics: false },
-    C: { lowerCount: 1, upperPushCount: 1, upperPullCount: 1, includePlyometrics: true },
-  }[slot];
+  const hipExercises = selectExercisesByPattern(
+    exercises, SESSION_PATTERN_GROUPS.lower_hip, 1, usedIds
+  );
+  hipExercises.forEach((ex) => {
+    usedIds.push(ex.id);
+    if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern);
+  });
   
-  // Bloco Lower (via movement_pattern)
-  if (slotConfig.lowerCount > 0) {
-    const lowerExercises = selectExercisesByPattern(
-      exercises,
-      [...SESSION_PATTERN_GROUPS.lower_knee, ...SESSION_PATTERN_GROUPS.lower_hip],
-      slotConfig.lowerCount,
-      usedIds
-    );
-    lowerExercises.forEach((ex) => {
-      usedIds.push(ex.id);
-      if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern);
+  const lowerExercises = [...kneeExercises, ...hipExercises];
+  if (lowerExercises.length > 0) {
+    blocks.push({
+      id: generateUUID(),
+      name: "Bloco - Membros Inferiores",
+      method: lowerExercises.length > 1 ? "superset" : method,
+      exercises: lowerExercises.map((ex) =>
+        mapToGeneratedExercise(ex, { 
+          sets: adjustedSets, reps: config.reps, 
+          interval: config.interval, pse: config.pse,
+        })
+      ),
+      restBetweenSets: config.interval,
     });
-    
-    if (lowerExercises.length > 0) {
-      blocks.push({
-        id: generateUUID(),
-        name: slot === "A" ? "Bloco A - Membros Inferiores (Foco)" : "Bloco - Membros Inferiores",
-        method,
-        exercises: lowerExercises.map((ex) =>
-          mapToGeneratedExercise(ex, { 
-            sets: adjustedSets, reps: config.reps, 
-            interval: config.interval, pse: config.pse,
-          })
-        ),
-        restBetweenSets: config.interval,
-      });
-    }
   }
   
-  // Bloco Upper Push
-  if (slotConfig.upperPushCount > 0) {
-    const pushExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.upper_push, slotConfig.upperPushCount, usedIds);
-    pushExercises.forEach((ex) => { usedIds.push(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
-    
-    // Bloco Upper Pull
-    const pullExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.upper_pull, slotConfig.upperPullCount, usedIds);
-    pullExercises.forEach((ex) => { usedIds.push(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
-    
-    const upperExercises = [...pushExercises, ...pullExercises];
-    if (upperExercises.length > 0) {
-      blocks.push({
-        id: generateUUID(),
-        name: slot === "B" ? "Bloco B - Membros Superiores (Foco)" : "Bloco - Membros Superiores",
-        method: upperExercises.length > 1 ? "superset" : method,
-        exercises: upperExercises.map((ex) =>
-          mapToGeneratedExercise(ex, { 
-            sets: adjustedSets, reps: config.reps, 
-            interval: config.interval, pse: config.pse,
-          })
-        ),
-        restBetweenSets: config.interval,
-      });
-    }
+  // Bloco Upper (push + pull)
+  const pushExercises = selectExercisesByPattern(
+    exercises, SESSION_PATTERN_GROUPS.upper_push, 1, usedIds
+  );
+  pushExercises.forEach((ex) => {
+    usedIds.push(ex.id);
+    if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern);
+  });
+  
+  const pullExercises = selectExercisesByPattern(
+    exercises, SESSION_PATTERN_GROUPS.upper_pull, 1, usedIds
+  );
+  pullExercises.forEach((ex) => {
+    usedIds.push(ex.id);
+    if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern);
+  });
+  
+  const upperExercises = [...pushExercises, ...pullExercises];
+  if (upperExercises.length > 0) {
+    blocks.push({
+      id: generateUUID(),
+      name: "Bloco - Membros Superiores",
+      method: upperExercises.length > 1 ? "superset" : method,
+      exercises: upperExercises.map((ex) =>
+        mapToGeneratedExercise(ex, { 
+          sets: adjustedSets, reps: config.reps, 
+          interval: config.interval, pse: config.pse,
+        })
+      ),
+      restBetweenSets: config.interval,
+    });
   }
   
-  // Bloco Pliometria/Potência (Slot C only, or when valence includes potencia)
-  const canDoPlyometrics = slotConfig.includePlyometrics || valences.includes("potencia");
-  const levelAllowsPlyometrics = groupLevel !== "iniciante";
-  
-  if (canDoPlyometrics && levelAllowsPlyometrics) {
+  // Bloco Pliometria/Potência (quando valência inclui potência e nível permite)
+  if (valences.includes("potencia") && groupLevel !== "iniciante") {
     const plyoExercises = selectExercisesByCategory(exercises, "potencia_pliometria", 2, usedIds);
     plyoExercises.forEach((ex) => usedIds.push(ex.id));
     
@@ -488,7 +489,10 @@ function buildMainPhase(
   
   // Bloco Carry (sempre presente)
   const carryExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.carry, 1, usedIds);
-  carryExercises.forEach((ex) => { usedIds.push(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
+  carryExercises.forEach((ex) => {
+    usedIds.push(ex.id);
+    if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern);
+  });
   
   if (carryExercises.length > 0) {
     blocks.push({
