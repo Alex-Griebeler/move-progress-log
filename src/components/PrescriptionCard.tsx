@@ -110,7 +110,7 @@ const PrescriptionCardComponent = ({
   const { data: folders } = useFolders();
 
   return (
-    <Card className="animate-fade-in card-interactive card-glass-hover">
+    <Card className="animate-fade-in card-interactive">
       <CardHeader className="pb-sm">
         <div className="flex items-start justify-between gap-sm flex-wrap">
           <div className="flex-1 min-w-0">

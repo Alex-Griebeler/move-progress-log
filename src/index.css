@@ -147,24 +147,6 @@ All colors MUST be HSL.
     @apply active:scale-[0.99];
   }
 
-  .card-glass-hover {
-    @apply backdrop-blur-sm border-border/50;
-    @apply hover:border-primary/20 transition-smooth;
-    @apply hover:-translate-y-0.5;
-  }
-
-  .text-gradient-primary {
-    @apply bg-gradient-to-r from-primary to-accent;
-    @apply bg-clip-text text-transparent;
-  }
-
-  .gradient-card-subtle {
-    background: var(--gradient-card);
-  }
-
-  .gradient-card-emphasis {
-    background: var(--gradient-primary-emphasis);
-  }
 
   .dark {
     /* Base Colors - Dark Mode */
@@ -237,20 +219,6 @@ All colors MUST be HSL.
      UTILITY CLASSES - GRADIENTES PADRONIZADOS
      ======================================== */
   
-  .bg-gradient-primary {
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
-  }
-
-  .bg-gradient-card {
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--accent) / 0.05));
-  }
-
-  .text-gradient-primary {
-    background: linear-gradient(to right, hsl(var(--primary)), hsl(var(--accent)));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
 
   /* ========================================
      DRAG AND DROP FEEDBACK
@@ -435,17 +403,6 @@ All colors MUST be HSL.
      =========================== */
 
   /* Glassmorphism Effects */
-  .card-glass {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
-  }
-
-  .dark .card-glass {
-    background: rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-  }
 
 
   /* Premium Typography */

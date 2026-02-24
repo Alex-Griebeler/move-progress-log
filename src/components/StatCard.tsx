@@ -31,7 +31,7 @@ const StatCard = ({
 }: StatCardProps) => {
   return (
     <Card 
-      className={`animate-fade-in card-glass-hover ${gradient ? 'gradient-card-subtle border-primary/20' : ''} ${onClick ? 'card-interactive' : ''}`}
+      className={`animate-fade-in ${onClick ? 'card-interactive' : ''}`}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -45,8 +45,8 @@ const StatCard = ({
       <CardHeader className="pb-sm p-lg">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-medium text-muted-foreground leading-normal">{title}</CardTitle>
-          <div className={`p-sm rounded-md ${gradient ? 'gradient-card-emphasis' : 'bg-secondary'}`}>
-            <Icon className={`h-4 w-4 ${gradient ? 'text-primary' : 'text-primary'}`} />
+          <div className="p-sm rounded-md bg-secondary">
+            <Icon className="h-4 w-4 text-primary" />
           </div>
         </div>
       </CardHeader>

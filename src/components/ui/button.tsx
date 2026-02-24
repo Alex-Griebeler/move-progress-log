@@ -41,9 +41,6 @@ const buttonVariants = cva(
         // Warning action - alertas
         warning: "bg-warning text-warning-foreground shadow-sm hover:shadow-md hover:bg-warning/90",
         
-        // Legacy variants (agora mapeados para sólido — Apple style)
-        gradient: "bg-primary text-primary-foreground shadow-md hover:shadow-lg hover:bg-primary/90 active:scale-[0.98]",
-        premium: "bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:bg-primary/90 active:scale-[0.98] font-bold",
       },
       size: {
         // Small - ações secundárias compactas

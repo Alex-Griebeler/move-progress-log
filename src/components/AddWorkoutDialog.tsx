@@ -125,7 +125,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="gradient" size="lg" className="gap-sm">
+        <Button variant="default" className="gap-sm">
           <FileEdit className="h-5 w-5" />
           Registrar Sessão
         </Button>
@@ -255,9 +255,8 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
 
           <Button 
             type="submit" 
-            variant="gradient" 
-            className="w-full" 
-            size="lg"
+            variant="default" 
+            className="w-full"
             disabled={getOrCreateStudent.isPending || createWorkout.isPending}
           >
             {(getOrCreateStudent.isPending || createWorkout.isPending) ? (

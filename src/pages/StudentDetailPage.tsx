@@ -281,8 +281,8 @@ const StudentDetailPage = () => {
                     <TooltipTrigger asChild>
                       <Button 
                         onClick={() => setRecordSessionOpen(true)} 
-                        className="gap-2 animate-pulse hover:animate-none w-full sm:w-auto"
-                        variant="gradient"
+                       className="gap-2 w-full sm:w-auto"
+                        variant="default"
                         aria-label={NAV_LABELS.recordSession}
                       >
                         <Mic className="h-4 w-4" />
@@ -489,7 +489,7 @@ const StudentDetailPage = () => {
                 </div>
                 <Button 
                   onClick={() => setRecordSessionOpen(true)}
-                  variant="gradient"
+                  variant="default"
                   className="gap-2 mt-4"
                 >
                   <Mic className="h-4 w-4" />

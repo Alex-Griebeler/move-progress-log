@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export const StatCardSkeleton = () => {
   return (
-    <Card className="animate-fade-in card-glass">
+    <Card className="animate-fade-in">
       <CardHeader className="pb-sm">
         <div className="flex items-center justify-between">
           <Skeleton className="h-4 w-24 rounded-radius-sm" />
