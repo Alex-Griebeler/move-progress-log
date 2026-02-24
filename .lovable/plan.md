@@ -1,206 +1,188 @@
-## Status de Implementação
-- [x] Fase 1A: Taxonomia de 2 Níveis (functional_group)
-- [x] Fase 1B: MEL-IA-001 — Baseline Dinâmico (calc_oura_baseline + useOuraBaseline)
-- [x] Fase 2A: MEL-IA-002 — Oura Readiness no generate-group-session (volumeMultiplier)
-- [x] Fase 2B: Refatorar generate-group-session para functional_group
-- [x] Fase 2C: MEL-IA-005 — suggest-exercise-alternatives (progressões + regressões)
-- [x] Fase 3A: MEL-IA-004 — Unificar Pipelines de Áudio
-- [x] Fase 3B: MEL-IA-006 — Validação de Desvio da Prescrição
-- [x] Fase 3C: MEL-IA-007 — Tracking de Efetividade de Protocolos
-- [x] Fase 4A: MEL-IA-003 — Busca Semântica (pg_trgm)
-- [x] Fase 4B: MEL-IA-008 — Assistente Contextual do Treinador
-- [x] Fase 4C: MEL-IA-009 — Consolidação de Providers
 
+## Simplificacao da Taxonomia: 2 Niveis (Categoria + Padrao de Movimento)
 
-# Plano Sequencial de Implementacao — MEL-IA-001 a 009
+### Problema Atual
 
-## Prerequisito: Taxonomia de 2 Niveis (ja aprovada)
+A taxonomia tem 3 niveis redundantes:
+- **Grupo Funcional** e **Padrao de Movimento** dizem quase a mesma coisa (ex: `empurrar_horizontal` aparece nos dois)
+- Padroes de movimento misturam **tipo de base** com o padrao real (ex: `agachamento_bilateral` e `agachamento_unilateral` sao o mesmo padrao "agachamento" com bases diferentes -- a base ja existe no campo `laterality`)
+- "Locomocao" vira parte de Potencia/Pliometria
 
-Antes de qualquer melhoria de IA, a taxonomia `functional_group` precisa existir. Sem ela, MEL-IA-002 (conectar Oura ao gerador) continuara selecionando exercicios de um pool limitado.
-
-**Ordem de execucao:** Taxonomia primeiro, depois os 9 itens em 4 fases.
-
----
-
-## Fase 1 — Fundacao (MEL-IA-001 + Taxonomia)
-
-Itens que desbloqueiam todos os outros.
-
-### 1A. Taxonomia de 2 Niveis
-
-- Migracao SQL: coluna `functional_group` na `exercises_library`
-- Preencher com mapeamento `movement_pattern` -> grupo funcional
-- Corrigir 153 exercicios com `category = 'geral'`
-- Atualizar `backToBasics.ts` com `FUNCTIONAL_GROUPS`, `MOVEMENT_PATTERNS` (36), `GROUP_TO_CATEGORY`
-- Remover padroes obsoletos das constantes
-- Atualizar `useExercisesLibrary.ts` com filtro `functional_group`
-- Atualizar UI da biblioteca (filtro primario de Grupo Funcional)
-
-### 1B. MEL-IA-001 — Baseline Dinamico por Aluno
-
-- Criar funcao SQL `calc_oura_baseline(p_student_id, p_days)` que retorna `avg_hrv`, `avg_rhr`, `avg_sleep` dos ultimos N dias
-- Criar hook `useOuraBaseline(studentId)` com `staleTime: 24h`
-- Refatorar `useTrainingRecommendation` para usar baseline real em vez de defaults hardcoded (65/60)
-- Manter fallback para defaults quando nao ha dados suficientes (< 7 dias)
-
-**Arquivos afetados:**
-- Migracao SQL (nova funcao)
-- `src/constants/backToBasics.ts`
-- `src/hooks/useExercisesLibrary.ts`
-- `src/hooks/useTrainingRecommendation.ts`
-- `src/pages/ExercisesLibraryPage.tsx`
-- `src/components/AddExerciseDialog.tsx`
-- `src/components/EditExerciseLibraryDialog.tsx`
-- Novo: `src/hooks/useOuraBaseline.ts`
-
----
-
-## Fase 2 — Inteligencia na Prescricao (MEL-IA-002 + MEL-IA-005)
-
-### 2A. MEL-IA-002 — Conectar Oura ao generate-group-session
-
-- Adicionar campo `groupReadiness?: number` ao `MesocycleInput`
-- No edge function: aplicar `volumeMultiplier` baseado no readiness medio do grupo
-- No frontend (`GenerateGroupSessionDialog`): calcular media de readiness dos alunos do grupo e passar como parametro
-- Atualizar `src/types/aiSession.ts`
-
-### 2B. Refatorar generate-group-session para usar functional_group
-
-- Substituir `MANDATORY_PATTERNS` por `MANDATORY_GROUPS`
-- `selectExercisesByPattern` -> `selectExercisesByGroup` (filtra por `functional_group`)
-- Query do Supabase passa a incluir `functional_group`
-- Pool de exercicios por grupo funcional cresce de ~13 para ~86 (joelho)
-
-### 2C. MEL-IA-005 — Progressoes no suggest-regressions
-
-- Renomear edge function para `suggest-exercise-alternatives`
-- Adicionar `direction: 'regression' | 'progression' | 'both'`
-- Adicionar `studentLevel?: number` (1-9) ao input
-- Output passa a ter `regressions[]` e `progressions[]`
-- Atualizar config.toml
-
-**Arquivos afetados:**
-- `supabase/functions/generate-group-session/index.ts`
-- `supabase/functions/suggest-regressions/index.ts` (renomear/refatorar)
-- `supabase/config.toml`
-- `src/types/aiSession.ts`
-- `src/hooks/useGenerateGroupSession.ts`
-- `src/components/GenerateGroupSessionDialog.tsx`
-
----
-
-## Fase 3 — Qualidade de Dados (MEL-IA-004 + MEL-IA-006 + MEL-IA-007)
-
-### 3A. MEL-IA-004 — Unificar Pipelines de Audio
-
-- Extrair regras compartilhadas para modulo inline no topo de cada edge function (Deno nao suporta imports entre functions facilmente no Lovable Cloud)
-- Padronizar: `terminology_corrections`, `load_calculation`, `clinical_categories`, `severity_levels`
-- Duplicar o mesmo bloco de constantes em `voice-session/index.ts` e `process-voice-session/index.ts`
-- Documentar com comentario `// SHARED: manter sincronizado com voice-session/process-voice-session`
-
-### 3B. MEL-IA-006 — Validacao de Desvio da Prescricao
-
-- No `process-voice-session`: apos extracao, comparar exercicios executados vs prescritos
-- Gerar array `prescription_deviations` com tipo de desvio (volume, exercicio substituido, exercicio omitido)
-- Retornar junto com os dados extraidos
-- Frontend exibe alertas de desvio na revisao da sessao
-
-### 3C. MEL-IA-007 — Tracking de Efetividade de Protocolos
-
-- Nova tabela `protocol_adherence` (student_id, protocol_id, recommended_date, followed, hrv_delta_24h, readiness_delta_24h)
-- RLS: trainers acessam via student ownership
-- Atualizar `generate-protocol-recommendations` para consultar historico de efetividade ao priorizar protocolos
-- UI: botao "Seguiu?" na recomendacao de protocolo (toggle simples)
-
-**Arquivos afetados:**
-- Migracao SQL (nova tabela `protocol_adherence`)
-- `supabase/functions/process-voice-session/index.ts`
-- `supabase/functions/voice-session/index.ts`
-- `supabase/functions/generate-protocol-recommendations/index.ts`
-- Componentes de UI para desvios e tracking
-
----
-
-## Fase 4 — Escala e Assistente (MEL-IA-003 + MEL-IA-008 + MEL-IA-009)
-
-### 4A. MEL-IA-003 — Busca Semantica (Alternativa sem pgvector)
-
-O `pgvector` pode nao estar disponivel no Lovable Cloud. Alternativa viavel:
-
-- **Opcao A (recomendada):** Pre-filtrar por `functional_group` + `trigram similarity` nativa do Postgres (`pg_trgm`). Reduz o envio de 500 exercicios para ~20-50 candidatos por grupo funcional, que sao passados ao modelo para validacao final.
-
-```sql
--- Verificar se pg_trgm esta disponivel
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
-
--- Funcao de busca por similaridade de nome dentro de um grupo funcional
-CREATE OR REPLACE FUNCTION search_exercises_by_name(
-  p_query TEXT,
-  p_functional_group TEXT DEFAULT NULL,
-  p_limit INT DEFAULT 10
-) RETURNS TABLE(id UUID, name TEXT, similarity REAL)
-LANGUAGE sql STABLE AS $$
-  SELECT el.id, el.name, similarity(el.name, p_query) AS sim
-  FROM exercises_library el
-  WHERE (p_functional_group IS NULL OR el.functional_group = p_functional_group)
-    AND similarity(el.name, p_query) > 0.15
-  ORDER BY sim DESC
-  LIMIT p_limit;
-$$;
-```
-
-- Atualizar `suggest-exercise` para usar `search_exercises_by_name` em vez de enviar a lista inteira
-- Manter fallback: se `pg_trgm` nao estiver disponivel, filtrar por `functional_group` e enviar apenas o subset ao modelo
-
-### 4B. MEL-IA-008 — Assistente Contextual do Treinador
-
-- Refatorar `chat-helper` edge function com system prompt contextual
-- Receber `studentId` como parametro opcional
-- Quando presente: carregar dados do aluno (perfil, prescricao atual, ultimas 5 sessoes, metricas Oura 7 dias)
-- Injetar no system prompt para respostas contextualizadas
-- Usar Gemini 2.5 Flash via Lovable Gateway (ja configurado)
-- Manter streaming de respostas
-
-### 4C. MEL-IA-009 — Consolidacao de Providers
-
-- Definir provider principal por categoria:
-  - Extracao estruturada: Gemini 2.5 Flash (custo-beneficio)
-  - Raciocinio biomecanico: Claude via Lovable Gateway
-  - Realtime voice: OpenAI GPT-4o (unico com Realtime API)
-- Implementar wrapper `callWithFallback()` para funcoes criticas
-- Documentar decisao de provider em `docs/AI_PROVIDERS.md`
-
-**Arquivos afetados:**
-- Migracao SQL (extensao pg_trgm + funcao de busca)
-- `supabase/functions/suggest-exercise/index.ts`
-- `supabase/functions/suggest-regressions/index.ts`
-- `supabase/functions/chat-helper/index.ts`
-- Novo: `docs/AI_PROVIDERS.md`
-
----
-
-## Resumo de Prioridade e Sequencia
+### Nova Estrutura: 2 Niveis
 
 ```text
-FASE 1 (Fundacao)        FASE 2 (Prescricao)     FASE 3 (Dados)          FASE 4 (Escala)
-─────────────────        ───────────────────      ──────────────          ───────────────
-Taxonomia 2 niveis  -->  MEL-IA-002 (Oura+Gen) --> MEL-IA-004 (Audio)  --> MEL-IA-003 (Busca)
-MEL-IA-001 (Baseline)    MEL-IA-005 (Progress.)    MEL-IA-006 (Desvio)    MEL-IA-008 (Chat)
-                         Refactor gen-session       MEL-IA-007 (Track)     MEL-IA-009 (Providers)
+CATEGORIA (Nivel 1 - filtro principal na UI)
+  └── PADRAO DE MOVIMENTO (Nivel 2 - filtro granular)
+       + laterality (atributo separado: bilateral, unilateral, alternado, base assimetrica)
 ```
 
-| Fase | Itens | Esforco Estimado | Dependencia |
-|------|-------|------------------|-------------|
-| 1 | Taxonomia + MEL-IA-001 | 3 dias | Nenhuma |
-| 2 | MEL-IA-002 + 005 + refactor | 4 dias | Fase 1 (taxonomia) |
-| 3 | MEL-IA-004 + 006 + 007 | 5 dias | Fase 2 (parcial) |
-| 4 | MEL-IA-003 + 008 + 009 | 6 dias | Fase 1 (taxonomia) |
+### As 7 Categorias + Seus Padroes de Movimento
 
-**Total estimado: ~18 dias de desenvolvimento**
+| Categoria | Padroes de Movimento |
+|---|---|
+| **respiracao** | respiracao |
+| **lmf** | lmf |
+| **mobilidade** | mobilidade_tornozelo, mobilidade_quadril, mobilidade_toracica, mobilidade_integrada |
+| **core_ativacao** | anti_extensao, anti_flexao_lateral, anti_rotacao, ativacao_gluteos, ativacao_escapular |
+| **potencia_pliometria** | pliometria_bilateral, pliometria_unilateral, pliometria_lateral, pliometria_multidirecional, atletico (ex-locomocao) |
+| **forca_hipertrofia** | empurrar_horizontal, empurrar_vertical, puxar_horizontal, puxar_vertical, agachamento, lunge, hip_hinge, ponte, nordica, carregar |
+| **condicionamento_metabolico** | (formato de sessao - usa exercicios das categorias 4, 5 e 6) |
+
+Nota sobre pliometria: mantem-se a distincao bilateral/unilateral/lateral porque representa progressoes reais (fases 1-19), nao apenas uma base diferente do mesmo movimento.
+
+### O que muda em cada arquivo
 
 ---
 
-## Decisao Necessaria sobre MEL-IA-003
+#### 1. `src/constants/backToBasics.ts`
 
-A busca vetorial com `pgvector` pode nao estar disponivel no ambiente. A alternativa proposta (`pg_trgm` + filtro por grupo funcional) resolve 80% do problema sem dependencia externa. Se desejar busca semantica completa, sera necessario verificar a disponibilidade da extensao.
+**Remover:**
+- `FUNCTIONAL_GROUPS` (constante inteira)
+- `FunctionalGroup` (tipo)
+- `PATTERN_TO_FUNCTIONAL_GROUP` (mapeamento inteiro)
+- `GROUP_TO_CATEGORY` (mapeamento inteiro)
 
+**Atualizar:**
+- `EXERCISE_CATEGORIES`: as 7 novas categorias
+- `MOVEMENT_PATTERNS`: padroes limpos (sem base misturada)
+  - `agachamento_bilateral/unilateral/lateral` viram apenas `agachamento`
+  - `deadlift_bilateral/unilateral` + `rdl_stiff` viram `hip_hinge`
+  - `ponte_hip_thrust` vira `ponte`
+  - `base_assimetrica_split_squat` + `lunge` + `lunge_slideboard` viram `lunge`
+  - `flexao_joelhos_nordica` vira `nordica`
+  - `gluteos_estabilidade` + `ativacao_gluteos` viram `ativacao_gluteos`
+  - `escapula` + `ativacao_geral` viram `ativacao_escapular`
+  - `pliometria_unilateral_lateral_medial` vira `pliometria_multidirecional`
+  - `locomocao` vira `atletico`
+
+**Adicionar:**
+- `PATTERN_TO_CATEGORY`: mapeamento direto padrao → categoria (substitui o caminho padrao → grupo → categoria)
+- `SESSION_PATTERN_GROUPS`: agrupamentos para a IA montar sessoes (substitui o uso de functional_group no generate-group-session):
+  ```text
+  lower_knee: [agachamento, lunge, nordica]
+  lower_hip: [hip_hinge, ponte]
+  upper_push: [empurrar_horizontal, empurrar_vertical]
+  upper_pull: [puxar_horizontal, puxar_vertical]
+  carry: [carregar]
+  core: [anti_extensao, anti_flexao_lateral, anti_rotacao]
+  activation: [ativacao_gluteos, ativacao_escapular]
+  ```
+- `CONDICIONAMENTO_ELIGIBLE_CATEGORIES`: ["core_ativacao", "potencia_pliometria", "forca_hipertrofia"]
+
+**Atualizar `TRAINING_STATIONS`:** usar `SESSION_PATTERN_GROUPS` em vez de functional groups
+
+---
+
+#### 2. Migracao SQL (banco de dados)
+
+Renomear valores nas colunas `category` e `movement_pattern` da tabela `exercises_library`:
+
+```sql
+-- Categorias
+UPDATE exercises_library SET category = 'forca_hipertrofia' WHERE category = 'forca';
+UPDATE exercises_library SET category = 'core_ativacao' WHERE category IN ('core', 'ativacao');
+UPDATE exercises_library SET category = 'potencia_pliometria' WHERE category IN ('pliometria', 'locomocao');
+
+-- Padroes de movimento (limpar base)
+UPDATE exercises_library SET movement_pattern = 'agachamento'
+  WHERE movement_pattern IN ('agachamento_bilateral', 'agachamento_unilateral', 'agachamento_lateral', 'dominancia_joelho');
+UPDATE exercises_library SET movement_pattern = 'lunge'
+  WHERE movement_pattern IN ('base_assimetrica_split_squat', 'lunge_slideboard');
+UPDATE exercises_library SET movement_pattern = 'hip_hinge'
+  WHERE movement_pattern IN ('deadlift_bilateral', 'deadlift_unilateral', 'rdl_stiff', 'dominancia_quadril');
+UPDATE exercises_library SET movement_pattern = 'ponte'
+  WHERE movement_pattern = 'ponte_hip_thrust';
+UPDATE exercises_library SET movement_pattern = 'nordica'
+  WHERE movement_pattern = 'flexao_joelhos_nordica';
+UPDATE exercises_library SET movement_pattern = 'carregar'
+  WHERE movement_pattern IN ('carregamento', 'carregamentos');
+UPDATE exercises_library SET movement_pattern = 'anti_extensao'
+  WHERE movement_pattern = 'core_anti_extensao';
+UPDATE exercises_library SET movement_pattern = 'anti_flexao_lateral'
+  WHERE movement_pattern = 'core_anti_flexao_lateral';
+UPDATE exercises_library SET movement_pattern = 'anti_rotacao'
+  WHERE movement_pattern = 'core_anti_rotacao';
+UPDATE exercises_library SET movement_pattern = 'ativacao_gluteos'
+  WHERE movement_pattern IN ('gluteos_estabilidade', 'ativacao_gluteos');
+UPDATE exercises_library SET movement_pattern = 'ativacao_escapular'
+  WHERE movement_pattern IN ('escapula', 'ativacao_geral');
+UPDATE exercises_library SET movement_pattern = 'pliometria_multidirecional'
+  WHERE movement_pattern = 'pliometria_unilateral_lateral_medial';
+UPDATE exercises_library SET movement_pattern = 'atletico'
+  WHERE movement_pattern = 'locomocao';
+UPDATE exercises_library SET movement_pattern = 'pliometria_bilateral'
+  WHERE movement_pattern = 'pliometria_bilateral_linear';
+UPDATE exercises_library SET movement_pattern = 'pliometria_unilateral'
+  WHERE movement_pattern = 'pliometria_unilateral_linear';
+UPDATE exercises_library SET movement_pattern = 'pliometria_lateral'
+  WHERE movement_pattern = 'pliometria_unilateral_lateral';
+```
+
+A coluna `functional_group` permanece no banco (para nao quebrar nada), mas deixa de ser usada no codigo. Pode ser removida numa migracao futura.
+
+---
+
+#### 3. `supabase/functions/import-exercises/index.ts`
+
+- Simplificar `SUBCATEGORY_MAP` para apenas 2 campos: `movement_pattern` e `category` (remover `functional_group`)
+- Mapear subcategorias do JSON para os padroes limpos:
+  - `agachamento_bilateral` → movement_pattern: `agachamento`
+  - `deadlift_bilateral` → movement_pattern: `hip_hinge`
+  - etc.
+- Continuar populando `functional_group` no DB com o mesmo valor de `movement_pattern` (compatibilidade), mas sem logica especifica
+
+---
+
+#### 4. `src/hooks/useExercisesLibrary.ts`
+
+- Remover re-exports de `FUNCTIONAL_GROUPS`, `PATTERN_TO_FUNCTIONAL_GROUP`, `GROUP_TO_CATEGORY`
+- Adicionar re-export de `PATTERN_TO_CATEGORY`, `SESSION_PATTERN_GROUPS`
+- Remover `functional_group` do `ExerciseFilters` (o filtro de categoria + padrao de movimento cobre tudo)
+
+---
+
+#### 5. `src/pages/ExercisesLibraryPage.tsx`
+
+- Remover o dropdown "Grupo Funcional" da UI
+- Os filtros ficam: Busca + Categoria + Padrao de Movimento + Risco (+ "Mais filtros")
+
+---
+
+#### 6. `src/components/AddExerciseDialog.tsx` e `EditExerciseLibraryDialog.tsx`
+
+- Substituir auto-fill de `PATTERN_TO_FUNCTIONAL_GROUP` + `GROUP_TO_CATEGORY` por `PATTERN_TO_CATEGORY` direto
+- Remover imports de `FUNCTIONAL_GROUPS`, `PATTERN_TO_FUNCTIONAL_GROUP`, `GROUP_TO_CATEGORY`
+
+---
+
+#### 7. `supabase/functions/generate-group-session/index.ts`
+
+- Substituir queries por `functional_group` por queries usando `movement_pattern` + `SESSION_PATTERN_GROUPS`
+- Ex: em vez de `WHERE functional_group IN ('dominancia_joelho', 'dominancia_quadril')`, usar `WHERE movement_pattern IN ('agachamento', 'lunge', 'nordica', 'hip_hinge', 'ponte')`
+
+---
+
+#### 8. `supabase/functions/suggest-exercise/index.ts`
+
+- Substituir filtro por `functional_group` por filtro por `movement_pattern`
+- Atualizar chamada a `search_exercises_by_name` (ou criar nova RPC sem functional_group)
+
+---
+
+#### 9. DB Function `search_exercises_by_name`
+
+- Migracao para substituir parametro `p_functional_group` por `p_movement_pattern`
+
+---
+
+### Sequencia de Execucao
+
+1. Atualizar `backToBasics.ts` (remover grupo funcional, limpar padroes, novos mapeamentos)
+2. Criar migracao SQL (renomear categorias + padroes + atualizar RPC)
+3. Atualizar `useExercisesLibrary.ts` (filtros e re-exports)
+4. Atualizar `ExercisesLibraryPage.tsx` (remover dropdown grupo funcional)
+5. Atualizar `AddExerciseDialog.tsx` e `EditExerciseLibraryDialog.tsx` (auto-fill direto)
+6. Atualizar `import-exercises` (mapeamento simplificado)
+7. Atualizar `generate-group-session` (usar SESSION_PATTERN_GROUPS)
+8. Atualizar `suggest-exercise` (filtro por movement_pattern)
+9. Re-importar exercicios via `/admin/diagnosticos`
