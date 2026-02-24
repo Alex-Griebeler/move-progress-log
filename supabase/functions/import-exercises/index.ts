@@ -54,39 +54,39 @@ const SUBCATEGORY_MAP: Record<string, SubcategoryMapping> = {
   carregamento: { movement_pattern: "carregar", category: "forca_hipertrofia" },
   carregamentos: { movement_pattern: "carregar", category: "forca_hipertrofia" },
 
-  // ── Core ──
-  anti_extensao: { movement_pattern: "core", category: "core_ativacao" },
-  anti_flexao_lateral: { movement_pattern: "core", category: "core_ativacao" },
-  anti_rotacao: { movement_pattern: "core", category: "core_ativacao" },
+  // ── Core (sem movement_pattern — filtrado por category) ──
+  anti_extensao: { movement_pattern: null as unknown as string, category: "core_ativacao" },
+  anti_flexao_lateral: { movement_pattern: null as unknown as string, category: "core_ativacao" },
+  anti_rotacao: { movement_pattern: null as unknown as string, category: "core_ativacao" },
 
-  // ── Ativação ──
-  escapula: { movement_pattern: "ativacao", category: "core_ativacao" },
-  gluteos_estabilidade: { movement_pattern: "ativacao", category: "core_ativacao" },
-  pe_tornozelo: { movement_pattern: "ativacao", category: "core_ativacao" },
-  corretivos_quadril: { movement_pattern: "ativacao", category: "core_ativacao" },
+  // ── Ativação (sem movement_pattern) ──
+  escapula: { movement_pattern: null as unknown as string, category: "core_ativacao" },
+  gluteos_estabilidade: { movement_pattern: null as unknown as string, category: "core_ativacao" },
+  pe_tornozelo: { movement_pattern: null as unknown as string, category: "core_ativacao" },
+  corretivos_quadril: { movement_pattern: null as unknown as string, category: "core_ativacao" },
 
-  // ── Mobilidade ──
-  tornozelo: { movement_pattern: "mobilidade", category: "mobilidade" },
-  quadril: { movement_pattern: "mobilidade", category: "mobilidade" },
-  coluna_toracica: { movement_pattern: "mobilidade", category: "mobilidade" },
-  integrados: { movement_pattern: "mobilidade", category: "mobilidade" },
+  // ── Mobilidade (sem movement_pattern) ──
+  tornozelo: { movement_pattern: null as unknown as string, category: "mobilidade" },
+  quadril: { movement_pattern: null as unknown as string, category: "mobilidade" },
+  coluna_toracica: { movement_pattern: null as unknown as string, category: "mobilidade" },
+  integrados: { movement_pattern: null as unknown as string, category: "mobilidade" },
 
-  // ── Pliometria ──
-  bilateral_linear: { movement_pattern: "pliometria", category: "potencia_pliometria" },
-  unilateral_linear: { movement_pattern: "pliometria", category: "potencia_pliometria" },
-  unilateral_lateral: { movement_pattern: "pliometria", category: "potencia_pliometria" },
-  unilateral_lateral_medial: { movement_pattern: "pliometria", category: "potencia_pliometria" },
+  // ── Pliometria (sem movement_pattern) ──
+  bilateral_linear: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
+  unilateral_linear: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
+  unilateral_lateral: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
+  unilateral_lateral_medial: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
 
-  // ── Locomoção → atletico ──
-  frontal: { movement_pattern: "atletico", category: "potencia_pliometria" },
-  sagital: { movement_pattern: "atletico", category: "potencia_pliometria" },
-  transverso: { movement_pattern: "atletico", category: "potencia_pliometria" },
+  // ── Locomoção (sem movement_pattern) ──
+  frontal: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
+  sagital: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
+  transverso: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
 
-  // ── Liberação Miofascial ──
-  regioes: { movement_pattern: "lmf", category: "lmf" },
+  // ── Liberação Miofascial (sem movement_pattern) ──
+  regioes: { movement_pattern: null as unknown as string, category: "lmf" },
 
-  // ── Respiração ──
-  tecnicas: { movement_pattern: "respiracao", category: "respiracao" },
+  // ── Respiração (sem movement_pattern) ──
+  tecnicas: { movement_pattern: null as unknown as string, category: "respiracao" },
 };
 
 const LATERALITY_MAP: Record<string, string> = {
@@ -301,8 +301,8 @@ Deno.serve(async (req: Request) => {
 
         const record: Record<string, unknown> = {
           name: ex.nome,
-          movement_pattern: ex.movement_pattern,
-          functional_group: ex.movement_pattern, // compatibilidade: preenche com movement_pattern
+          movement_pattern: ex.movement_pattern || null,
+          functional_group: ex.movement_pattern || null, // compatibilidade
           category: ex.category,
           subcategory: ex.subcategory,
           laterality,

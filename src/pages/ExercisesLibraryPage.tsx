@@ -210,7 +210,12 @@ export default function ExercisesLibraryPage() {
               <Select
                 value={filters.category || "all"}
                 onValueChange={(value) =>
-                  setFilters((prev) => ({ ...prev, category: value === "all" ? undefined : value }))
+                  setFilters((prev) => ({ 
+                    ...prev, 
+                    category: value === "all" ? undefined : value,
+                    // Limpar filtro de padrão de movimento quando categoria muda
+                    movement_pattern: value === "forca_hipertrofia" ? prev.movement_pattern : undefined,
+                  }))
                 }
               >
                 <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
@@ -254,23 +259,26 @@ export default function ExercisesLibraryPage() {
               )}
             </summary>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-md pt-md mt-md border-t border-border/50">
-              <div className="space-y-xs">
-                <label className="text-sm font-medium">Padrão de Movimento</label>
-                <Select
-                  value={filters.movement_pattern || "all"}
-                  onValueChange={(value) =>
-                    setFilters((prev) => ({ ...prev, movement_pattern: value === "all" ? undefined : value }))
-                  }
-                >
-                  <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Padrão de Movimento — só aparece para Força/Hipertrofia */}
+              {filters.category === "forca_hipertrofia" && (
+                <div className="space-y-xs">
+                  <label className="text-sm font-medium">Padrão de Movimento</label>
+                  <Select
+                    value={filters.movement_pattern || "all"}
+                    onValueChange={(value) =>
+                      setFilters((prev) => ({ ...prev, movement_pattern: value === "all" ? undefined : value }))
+                    }
+                  >
+                    <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-xs">
                 <label className="text-sm font-medium">Lateralidade</label>
                 <Select
@@ -406,12 +414,14 @@ export default function ExercisesLibraryPage() {
                       )}
                     </div>
                     <CardDescription className="mt-2 space-y-1 flex flex-wrap gap-1">
-                      <Badge variant="secondary">
-                        {MOVEMENT_PATTERNS[exercise.movement_pattern as keyof typeof MOVEMENT_PATTERNS] || exercise.movement_pattern}
-                      </Badge>
                       {exercise.category && (
                         <Badge variant="outline">
                           {EXERCISE_CATEGORIES[exercise.category as keyof typeof EXERCISE_CATEGORIES] || exercise.category}
+                        </Badge>
+                      )}
+                      {exercise.movement_pattern && (
+                        <Badge variant="secondary">
+                          {MOVEMENT_PATTERNS[exercise.movement_pattern as keyof typeof MOVEMENT_PATTERNS] || exercise.movement_pattern}
                         </Badge>
                       )}
                       {exercise.risk_level && (

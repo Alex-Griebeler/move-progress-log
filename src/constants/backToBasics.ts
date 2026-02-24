@@ -41,45 +41,27 @@ export const EXERCISE_CATEGORIES = {
 export type ExerciseCategory = keyof typeof EXERCISE_CATEGORIES;
 
 // ============================================================================
-// PADRÕES DE MOVIMENTO (Nível 2 — subcategoria para filtros na UI)
+// PADRÕES DE MOVIMENTO (somente Força/Hipertrofia)
+// Os 6 padrões reais. Demais categorias usam o campo `category` diretamente.
 // ============================================================================
 
 export const MOVEMENT_PATTERNS = {
-  // Força & Hipertrofia — os 6 padrões reais
   empurrar: "Empurrar",
   puxar: "Puxar",
   dominancia_joelho: "Dominância de Joelho",
   dominancia_quadril: "Dominância de Quadril",
   lunge: "Lunge",
   carregar: "Carregar",
-  // Respiração
-  respiracao: "Respiração",
-  // LMF
-  lmf: "Liberação Miofascial",
-  // Mobilidade
-  mobilidade: "Mobilidade",
-  // Core & Ativação
-  core: "Core",
-  ativacao: "Ativação",
-  // Potência & Pliometria
-  pliometria: "Pliometria",
-  atletico: "Atlético",
 } as const;
 
 export type MovementPattern = keyof typeof MOVEMENT_PATTERNS;
 
 // ============================================================================
-// MAPEAMENTO PADRÃO DE MOVIMENTO → CATEGORIA (direto, sem grupo funcional)
+// MAPEAMENTO PADRÃO DE MOVIMENTO → CATEGORIA
+// Somente os 6 padrões de força mapeiam para forca_hipertrofia.
 // ============================================================================
 
 export const PATTERN_TO_CATEGORY: Record<string, ExerciseCategory> = {
-  respiracao: "respiracao",
-  lmf: "lmf",
-  mobilidade: "mobilidade",
-  core: "core_ativacao",
-  ativacao: "core_ativacao",
-  pliometria: "potencia_pliometria",
-  atletico: "potencia_pliometria",
   empurrar: "forca_hipertrofia",
   puxar: "forca_hipertrofia",
   dominancia_joelho: "forca_hipertrofia",
@@ -89,7 +71,8 @@ export const PATTERN_TO_CATEGORY: Record<string, ExerciseCategory> = {
 };
 
 // ============================================================================
-// AGRUPAMENTOS PARA IA MONTAR SESSÕES (substitui functional_group)
+// AGRUPAMENTOS PARA IA MONTAR SESSÕES (somente força)
+// Para Core, Mobilidade, LMF, Pliometria e Respiração, a IA filtra por `category`.
 // ============================================================================
 
 export const SESSION_PATTERN_GROUPS = {
@@ -98,12 +81,6 @@ export const SESSION_PATTERN_GROUPS = {
   upper_push: ["empurrar"],
   upper_pull: ["puxar"],
   carry: ["carregar"],
-  core: ["core"],
-  activation: ["ativacao"],
-  mobility: ["mobilidade"],
-  plyometrics: ["pliometria", "atletico"],
-  lmf: ["lmf"],
-  breathing: ["respiracao"],
 } as const;
 
 export type SessionPatternGroup = keyof typeof SESSION_PATTERN_GROUPS;
@@ -487,8 +464,8 @@ export const TRAINING_STATIONS = {
   c: {
     name: "Estação C",
     focus: "Core/Carry/Breath",
-    patterns: [...SESSION_PATTERN_GROUPS.core, ...SESSION_PATTERN_GROUPS.carry],
-    description: "Core triplanar, carregamentos e respiração guiada",
+    patterns: [...SESSION_PATTERN_GROUPS.carry],
+    description: "Core triplanar (filtrado por category), carregamentos e respiração guiada",
     optional: true,
   },
 } as const;
