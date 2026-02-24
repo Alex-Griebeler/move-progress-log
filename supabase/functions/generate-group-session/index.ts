@@ -357,7 +357,7 @@ function buildCorePhase(exercises: Exercise[]): SessionPhase {
   
   const coreExercises = [...antiExtensao, ...antiFlexaoLateral, ...antiRotacao];
   
-  console.log(`[Core Phase] Selected ${coreExercises.length} exercises:`, coreExercises.map(e => e.name));
+  // Core phase selected exercises
   
   if (coreExercises.length > 0) {
     blocks.push({
@@ -569,6 +569,29 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Autenticação obrigatória" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    const authClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: authError } = await authClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Token inválido" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
     const input: MesocycleInput = await req.json();
     
     if (!input.groupLevel || !input.workouts || input.workouts.length !== 3) {
@@ -578,8 +601,6 @@ serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Buscar exercícios incluindo functional_group
@@ -607,7 +628,7 @@ serve(async (req) => {
 
     // MEL-IA-002: calcular volumeMultiplier baseado no readiness do grupo
     const volumeMultiplier = calcVolumeMultiplier(input.groupReadiness);
-    console.log(`[MEL-IA-002] groupReadiness: ${input.groupReadiness ?? 'N/A'}, volumeMultiplier: ${volumeMultiplier}`);
+    // Volume multiplier applied
 
     const workouts: GeneratedWorkout[] = [];
     const warnings: string[] = [];
@@ -652,7 +673,7 @@ serve(async (req) => {
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-    console.error("Erro na geração do mesociclo:", errorMessage);
+    // Error generating mesocycle
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
