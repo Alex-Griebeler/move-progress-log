@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Dumbbell, X, Clock, Loader2, FileEdit } from "lucide-react";
 import { toast } from "sonner";
+import { POUND_TO_KG_CONVERSION } from "@/constants/units";
 import { useGetOrCreateStudent } from "@/hooks/useStudents";
 import { useCreateWorkout } from "@/hooks/useWorkouts";
 
@@ -46,7 +47,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
     
     while ((match = lbPattern.exec(loadString)) !== null) {
       const lbValue = parseFloat(match[1]);
-      const kgValue = (lbValue * 0.4536).toFixed(1);
+      const kgValue = (lbValue * POUND_TO_KG_CONVERSION).toFixed(1);
       converted = converted.replace(match[0], `${kgValue} kg`);
     }
     

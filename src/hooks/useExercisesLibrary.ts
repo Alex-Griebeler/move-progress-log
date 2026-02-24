@@ -51,6 +51,7 @@ export interface CreateExerciseInput {
   description?: string | null;
   contraction_type?: string | null;
   level?: string | null;
+  numeric_level?: number | null;
   video_url?: string | null;
   equipment_required?: string[] | null;
   prerequisites?: unknown | null;
