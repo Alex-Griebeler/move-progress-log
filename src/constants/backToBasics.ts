@@ -44,6 +44,7 @@ export const FUNCTIONAL_GROUPS = {
   mobilidade: "Mobilidade",
   pliometria: "Pliometria",
   locomocao: "Locomoção",
+  lmf: "Liberação Miofascial",
   respiracao: "Respiração",
 } as const;
 
@@ -97,6 +98,8 @@ export const MOVEMENT_PATTERNS = {
   pliometria_unilateral_linear: "Pliometria Unilateral Linear",
   pliometria_unilateral_lateral: "Pliometria Unilateral Lateral",
   pliometria_unilateral_lateral_medial: "Pliometria Unilateral Lat/Med",
+  // LMF
+  lmf: "Liberação Miofascial",
   // Outros
   locomocao: "Locomoção",
   respiracao: "Respiração",
@@ -126,7 +129,7 @@ export const PATTERN_TO_FUNCTIONAL_GROUP: Record<string, FunctionalGroup> = {
   deadlift_unilateral: "dominancia_quadril",
   rdl_stiff: "dominancia_quadril",
   ponte_hip_thrust: "dominancia_quadril",
-  gluteos_estabilidade: "dominancia_quadril",
+  gluteos_estabilidade: "ativacao",
   carregar: "carregar",
   core_anti_extensao: "core_anti_extensao",
   core_anti_flexao_lateral: "core_anti_flexao_lateral",
@@ -143,6 +146,7 @@ export const PATTERN_TO_FUNCTIONAL_GROUP: Record<string, FunctionalGroup> = {
   pliometria_unilateral_linear: "pliometria",
   pliometria_unilateral_lateral: "pliometria",
   pliometria_unilateral_lateral_medial: "pliometria",
+  lmf: "lmf",
   locomocao: "locomocao",
   respiracao: "respiracao",
 };
@@ -158,6 +162,7 @@ export const EXERCISE_CATEGORIES = {
   ativacao: "Ativação",
   pliometria: "Pliometria",
   locomocao: "Locomoção",
+  lmf: "Liberação Miofascial",
   respiracao: "Respiração",
 } as const;
 
@@ -183,6 +188,7 @@ export const GROUP_TO_CATEGORY: Record<FunctionalGroup, ExerciseCategory> = {
   mobilidade: "mobilidade",
   pliometria: "pliometria",
   locomocao: "locomocao",
+  lmf: "lmf",
   respiracao: "respiracao",
 };
 

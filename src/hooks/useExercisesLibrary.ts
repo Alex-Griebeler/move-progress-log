@@ -85,6 +85,7 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
         query = query.eq("functional_group", filters.functional_group);
       }
       if (filters?.movement_pattern) {
+        query = query.eq("movement_pattern", filters.movement_pattern);
       }
       if (filters?.laterality) {
         query = query.eq("laterality", filters.laterality);
