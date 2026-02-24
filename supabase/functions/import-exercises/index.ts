@@ -96,6 +96,16 @@ const LATERALITY_MAP: Record<string, string> = {
   assimetrica: "base assimétrica",
 };
 
+function extractMovementPlane(tags: string[], subcategoryKey: string): string {
+  if (tags.includes("plano_frontal")) return "frontal";
+  if (tags.includes("plano_transverso")) return "transverse";
+  if (tags.includes("plano_sagital")) return "sagittal";
+  if (subcategoryKey === "frontal") return "frontal";
+  if (subcategoryKey === "transverso") return "transverse";
+  if (subcategoryKey === "sagital") return "sagittal";
+  return "sagittal";
+}
+
 function riskFromLevel(level: number): string {
   if (level <= 3) return "low";
   if (level <= 6) return "medium";
@@ -294,6 +304,7 @@ Deno.serve(async (req: Request) => {
           equipment_required: equipmentArr,
           risk_level: ex.nivel ? riskFromLevel(ex.nivel) : null,
           level: ex.nivel ? levelLabel(ex.nivel) : null,
+          movement_plane: extractMovementPlane(ex.tags || [], ex.subcategory),
           plyometric_phase:
             typeof ex.fase_pliometria === "number" ? ex.fase_pliometria : null,
         };
