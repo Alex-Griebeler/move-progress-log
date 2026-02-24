@@ -202,7 +202,7 @@ export const StudentOverviewDashboard = ({
     >
       {/* Oura Ring Metrics - Premium Ring Progress */}
       <motion.div variants={cardVariants}>
-        <Card className="card-glass-hover bg-gradient-card">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-sm">
               <Activity className="h-5 w-5 text-primary" />

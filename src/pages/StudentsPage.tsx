@@ -350,7 +350,7 @@ const StudentsPage = () => {
           title={NAV_LABELS.students}
           actions={
             <>
-              <Button variant="gradient" onClick={() => setIsAddDialogOpen(true)} aria-label={NAV_LABELS.addStudent}>
+              <Button variant="default" onClick={() => setIsAddDialogOpen(true)} aria-label={NAV_LABELS.addStudent}>
                 <Plus className="h-4 w-4 mr-2" />
                 {NAV_LABELS.addStudent}
               </Button>

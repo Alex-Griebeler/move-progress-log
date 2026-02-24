@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export const StudentHeaderSkeleton = () => {
   return (
-    <Card className="card-glass card-glass-hover mb-md animate-fade-in">
+    <Card className="mb-md animate-fade-in">
       <CardContent className="p-lg">
         <div className="flex flex-col md:flex-row items-start justify-between gap-lg">
           {/* Coluna 1: Perfil */}

@@ -355,8 +355,7 @@ export default function PrescriptionsPage() {
               
               <Button
                 onClick={() => setCreateDialogOpen(true)}
-                variant="gradient"
-                size="sm"
+                variant="default"
                 aria-label="Nova prescrição"
               >
                 <Plus className="h-4 w-4 mr-2" />

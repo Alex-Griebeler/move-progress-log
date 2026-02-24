@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export const WorkoutCardSkeleton = () => {
   return (
-    <Card className="animate-fade-in card-glass h-[140px]">
+    <Card className="animate-fade-in min-h-[120px]">
       <CardHeader className="h-full flex flex-col justify-between pb-sm">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-sm flex-1">

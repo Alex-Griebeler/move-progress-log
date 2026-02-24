@@ -491,7 +491,7 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
               </Button>
               <Button
                 type="submit"
-                variant="gradient"
+                variant="default"
                 className="flex-1"
                 disabled={updateStudent.isPending || isUploadingAvatar}
               >
