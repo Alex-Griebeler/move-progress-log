@@ -1926,6 +1926,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calc_oura_baseline: {
+        Args: { p_days?: number; p_student_id: string }
+        Returns: {
+          avg_hrv: number
+          avg_rhr: number
+          avg_sleep_score: number
+          data_points: number
+        }[]
+      }
       can_access_trainer: {
         Args: { _trainer_id: string; _viewer_id: string }
         Returns: boolean

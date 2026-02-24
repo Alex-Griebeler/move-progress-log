@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { AlertCircle, Activity, Heart, Moon, TrendingUp, Target, Zap } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
+import { useOuraBaseline } from "@/hooks/useOuraBaseline";
 import { useTrainingContext } from "@/contexts/TrainingContext";
 import { Alert, AlertDescription } from "./ui/alert";
 import { 
@@ -32,7 +33,8 @@ const PersonalizedTrainingDashboard = ({
   studentId,
   onStartTraining
 }: PersonalizedTrainingDashboardProps) => {
-  const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics);
+  const { baseline } = useOuraBaseline(studentId);
+  const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics, baseline);
   const [showAlternatives, setShowAlternatives] = useState(false);
   const { selectedAlternative, setSelectedAlternative } = useTrainingContext();
 
