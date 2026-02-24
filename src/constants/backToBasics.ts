@@ -85,6 +85,24 @@ export const SESSION_PATTERN_GROUPS = {
 
 export type SessionPatternGroup = keyof typeof SESSION_PATTERN_GROUPS;
 
+// ============================================================================
+// SUBCATEGORIAS POR CONTEXTO
+// ============================================================================
+
+/** Subcategorias para padrões de força que possuem subdivisão */
+export const STRENGTH_SUBCATEGORIES: Record<string, Record<string, string>> = {
+  empurrar: { horizontal: "Horizontal", vertical: "Vertical" },
+  puxar: { horizontal: "Horizontal", vertical: "Vertical" },
+  cadeia_posterior: { enfase_quadril: "Ênfase Quadril", enfase_joelho: "Ênfase Joelho" },
+};
+
+/** Subcategorias para Potência & Pliometria */
+export const POTENCIA_SUBCATEGORIES = {
+  potencia: "Potência",
+  pliometria: "Pliometria",
+  locomocao: "Locomoção",
+} as const;
+
 // Categorias elegíveis para condicionamento metabólico
 export const CONDICIONAMENTO_ELIGIBLE_CATEGORIES: ExerciseCategory[] = [
   "core_ativacao",
