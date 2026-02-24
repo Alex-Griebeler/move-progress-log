@@ -41,9 +41,9 @@ const buttonVariants = cva(
         // Warning action - alertas
         warning: "bg-warning text-warning-foreground shadow-sm hover:shadow-md hover:bg-warning/90",
         
-        // Legacy/Special variants (manter para compatibilidade)
-        gradient: "bg-gradient-to-r from-primary to-accent text-white shadow-lg hover:shadow-xl hover:opacity-90 active:scale-[0.98]",
-        premium: "bg-gradient-to-r from-primary via-accent to-primary bg-size-200 bg-pos-0 hover:bg-pos-100 text-white shadow-xl hover:shadow-2xl transition-all duration-500 font-bold border border-primary/20",
+        // Legacy variants (agora mapeados para sólido — Apple style)
+        gradient: "bg-primary text-primary-foreground shadow-md hover:shadow-lg hover:bg-primary/90 active:scale-[0.98]",
+        premium: "bg-primary text-primary-foreground shadow-lg hover:shadow-xl hover:bg-primary/90 active:scale-[0.98] font-bold",
       },
       size: {
         // Small - ações secundárias compactas

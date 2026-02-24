@@ -37,10 +37,10 @@ export const AppHeader = ({
   };
 
   return (
-        <header className="mb-lg pb-md border-b border-primary/10 bg-gradient-to-r from-primary/5 via-transparent to-primary/5">
+        <header className="mb-lg pb-md border-b border-border/50">
           <div className="flex items-center justify-between flex-wrap gap-md">
             <div className="space-y-xs flex-1 min-w-0">
-              <h1 className="text-4xl font-bold text-gradient-primary tracking-tight leading-tight">
+              <h1 className="text-[1.75rem] font-bold text-foreground tracking-tight leading-tight">
                 {title}
               </h1>
               {subtitle && (

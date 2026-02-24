@@ -565,6 +565,29 @@ export function RecordIndividualSessionDialog({
             {dialogState === 'recording' && `🎤 Gravação ${currentRecordingNumber} - ${studentName}`}
             {dialogState === 'preview' && (isReopening ? `Atualizando sessão - ${studentName}` : `Preview da sessão - ${studentName}`)}
           </DialogTitle>
+          
+          {/* Step indicator */}
+          <div className="flex items-center gap-2 pt-2">
+            {['Configurar', 'Gravar', 'Revisar'].map((step, i) => {
+              const stepMap: Record<DialogState, number> = { setup: 0, recording: 1, processing: 2, preview: 2, edit: 2 };
+              const currentStep = stepMap[dialogState];
+              const isCompleted = i < currentStep;
+              const isCurrent = i === currentStep;
+              
+              return (
+                <div key={step} className="flex items-center gap-2 flex-1">
+                  <div className="flex flex-col items-center gap-1 flex-1">
+                    <div className={`h-1.5 w-full rounded-full transition-colors ${
+                      isCompleted ? 'bg-primary' : isCurrent ? 'bg-primary/50' : 'bg-muted'
+                    }`} />
+                    <span className={`text-xs ${
+                      isCurrent ? 'text-foreground font-medium' : 'text-muted-foreground'
+                    }`}>{step}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </DialogHeader>
 
         {dialogState === 'setup' && (

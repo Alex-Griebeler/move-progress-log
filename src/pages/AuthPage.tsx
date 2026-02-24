@@ -309,9 +309,9 @@ export default function AuthPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Gestão de Prescrições</CardTitle>
+          <CardTitle className="text-xl">Fabrik Performance</CardTitle>
           <CardDescription>
-            Sistema de gestão de treinos e prescrições
+            Entrar na sua conta
           </CardDescription>
         </CardHeader>
         <CardContent>

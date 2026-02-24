@@ -344,7 +344,7 @@ export const StudentOverviewDashboard = ({
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex flex-col items-center justify-center">
-                            <div className="text-display-md text-display-number text-gradient-primary mb-xs">
+                            <div className="text-display-md text-display-number text-foreground mb-xs">
                               {Math.round((latestOuraMetrics.stress_high_time || 0) / 60)}
                             </div>
                             <p className="text-sm font-semibold mb-xs">Estresse</p>

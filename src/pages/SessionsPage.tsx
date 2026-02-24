@@ -450,10 +450,7 @@ export default function SessionsPage() {
                     <TableRow>
                       <TableHead>Data/Hora</TableHead>
                       <TableHead>Aluno(s)</TableHead>
-                      <TableHead>Prescrição</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead className="text-right">Exercícios</TableHead>
-                      <TableHead className="text-right">Volume (kg)</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
@@ -489,13 +486,6 @@ export default function SessionsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {session.prescription ? (
-                              <Badge variant="outline">{session.prescription.name}</Badge>
-                            ) : (
-                              <span className="text-muted-foreground text-sm">Sem prescrição</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
                             <Badge variant={session.session_type === "individual" ? "secondary" : "default"}>
                               {session.session_type === "individual" ? (
                                 <><UserIcon className="h-3 w-3 mr-1" /> Individual</>
@@ -503,15 +493,6 @@ export default function SessionsPage() {
                                 <><UsersIcon className="h-3 w-3 mr-1" /> Grupo</>
                               )}
                             </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Dumbbell className="h-4 w-4 text-muted-foreground" />
-                              {exerciseCount}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {totalVolume.toFixed(1)}
                           </TableCell>
                           <TableCell>
                             {session.is_finalized ? (
