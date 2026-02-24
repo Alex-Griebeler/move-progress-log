@@ -15,6 +15,8 @@ export {
   NUMERIC_LEVEL_SCALE,
   PATTERN_TO_CATEGORY,
   SESSION_PATTERN_GROUPS,
+  STRENGTH_SUBCATEGORIES,
+  POTENCIA_SUBCATEGORIES,
 } from "@/constants/backToBasics";
 
 export interface ExerciseLibrary {
@@ -67,6 +69,7 @@ export interface ExerciseFilters {
   contraction_type?: string;
   level?: string;
   category?: string;
+  subcategory?: string;
   risk_level?: string;
 }
 
@@ -96,6 +99,9 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
       }
       if (filters?.category) {
         query = query.eq("category", filters.category);
+      }
+      if (filters?.subcategory) {
+        query = query.eq("subcategory", filters.subcategory);
       }
       if (filters?.risk_level) {
         query = query.eq("risk_level", filters.risk_level);

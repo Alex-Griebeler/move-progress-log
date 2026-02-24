@@ -42,6 +42,8 @@ import {
   LEVEL_OPTIONS,
   EXERCISE_CATEGORIES,
   RISK_LEVELS,
+  STRENGTH_SUBCATEGORIES,
+  POTENCIA_SUBCATEGORIES,
   ExerciseFilters,
 } from "@/hooks/useExercisesLibrary";
 import { populateExercisesLibrary } from "@/utils/populateExercises";
@@ -213,8 +215,9 @@ export default function ExercisesLibraryPage() {
                   setFilters((prev) => ({ 
                     ...prev, 
                     category: value === "all" ? undefined : value,
-                    // Limpar filtro de padrão de movimento quando categoria muda
+                    // Limpar filtros dependentes quando categoria muda
                     movement_pattern: value === "forca_hipertrofia" ? prev.movement_pattern : undefined,
+                    subcategory: undefined,
                   }))
                 }
               >
@@ -252,9 +255,9 @@ export default function ExercisesLibraryPage() {
             <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <Filter className="h-3.5 w-3.5" />
               Mais filtros
-              {[filters.movement_pattern, filters.laterality, filters.movement_plane, filters.contraction_type].filter(Boolean).length > 0 && (
+              {[filters.movement_pattern, filters.subcategory, filters.laterality, filters.movement_plane, filters.contraction_type].filter(Boolean).length > 0 && (
                 <span className="text-xs ml-1">
-                  ({[filters.movement_pattern, filters.laterality, filters.movement_plane, filters.contraction_type].filter(Boolean).length} ativos)
+                  ({[filters.movement_pattern, filters.subcategory, filters.laterality, filters.movement_plane, filters.contraction_type].filter(Boolean).length} ativos)
                 </span>
               )}
             </summary>
@@ -266,7 +269,11 @@ export default function ExercisesLibraryPage() {
                   <Select
                     value={filters.movement_pattern || "all"}
                     onValueChange={(value) =>
-                      setFilters((prev) => ({ ...prev, movement_pattern: value === "all" ? undefined : value }))
+                      setFilters((prev) => ({ 
+                        ...prev, 
+                        movement_pattern: value === "all" ? undefined : value,
+                        subcategory: undefined, // reset subcategory when pattern changes
+                      }))
                     }
                   >
                     <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
@@ -279,6 +286,35 @@ export default function ExercisesLibraryPage() {
                   </Select>
                 </div>
               )}
+              {/* Subcategoria — aparece para padrões com subdivisão ou Potência/Pliometria */}
+              {(() => {
+                let subcatOptions: Record<string, string> | null = null;
+                if (filters.category === "forca_hipertrofia" && filters.movement_pattern && STRENGTH_SUBCATEGORIES[filters.movement_pattern]) {
+                  subcatOptions = STRENGTH_SUBCATEGORIES[filters.movement_pattern];
+                } else if (filters.category === "potencia_pliometria") {
+                  subcatOptions = POTENCIA_SUBCATEGORIES as unknown as Record<string, string>;
+                }
+                if (!subcatOptions) return null;
+                return (
+                  <div className="space-y-xs">
+                    <label className="text-sm font-medium">Subcategoria</label>
+                    <Select
+                      value={filters.subcategory || "all"}
+                      onValueChange={(value) =>
+                        setFilters((prev) => ({ ...prev, subcategory: value === "all" ? undefined : value }))
+                      }
+                    >
+                      <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        {Object.entries(subcatOptions).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              })()}
               <div className="space-y-xs">
                 <label className="text-sm font-medium">Lateralidade</label>
                 <Select

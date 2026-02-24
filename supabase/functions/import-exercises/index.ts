@@ -155,12 +155,28 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
       if (!exercicios) continue;
 
       const pushExercise = (ex: Record<string, unknown>) => {
-        // For empurrar/puxar, preserve horizontal/vertical as subcategory
+        // Derive subcategory based on pattern/subKey
         let exerciseSubcategory = subKey;
         if (subKey === "empurrar_horizontal" || subKey === "empurrar_vertical") {
           exerciseSubcategory = subKey.replace("empurrar_", "");
         } else if (subKey === "puxar_horizontal" || subKey === "puxar_vertical") {
           exerciseSubcategory = subKey.replace("puxar_", "");
+        } else if (movementPattern === "cadeia_posterior") {
+          // Cadeia posterior: enfase_quadril (hip thrust, ponte, deadlift) vs enfase_joelho (nórdica)
+          if (subKey === "flexao_joelhos_nordica") {
+            exerciseSubcategory = "enfase_joelho";
+          } else {
+            exerciseSubcategory = "enfase_quadril";
+          }
+        } else if (category === "potencia_pliometria") {
+          // Potência & Pliometria subcategories
+          if (["bilateral_linear", "unilateral_linear", "unilateral_lateral", "unilateral_lateral_medial"].includes(subKey)) {
+            exerciseSubcategory = "pliometria";
+          } else if (["frontal", "sagital", "transverso"].includes(subKey)) {
+            exerciseSubcategory = "locomocao";
+          } else {
+            exerciseSubcategory = "potencia";
+          }
         }
         
         result.push({
