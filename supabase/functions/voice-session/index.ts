@@ -381,6 +381,7 @@ serve(async (req) => {
     } catch (_error) {
       // Message handling error - connection will be cleaned up on close
     }
+  };
 
   socket.onclose = () => {
     openAISocket?.close();
