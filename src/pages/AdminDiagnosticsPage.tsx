@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { OuraApiDiagnosticsCard } from "@/components/OuraApiDiagnosticsCard";
 import { Button } from "@/components/ui/button";
+import { ExerciseDistributionDiagnostic } from "@/components/ExerciseDistributionDiagnostic";
 import { ArrowLeft, Shield, Upload, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -148,6 +149,9 @@ const AdminDiagnosticsPage = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Exercise Distribution Diagnostic */}
+        <ExerciseDistributionDiagnostic />
 
         {isLoading ? (
           <div className="space-y-6">

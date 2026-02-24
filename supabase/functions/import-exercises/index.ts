@@ -93,7 +93,7 @@ const LATERALITY_MAP: Record<string, string> = {
   bilateral: "bilateral",
   unilateral: "unilateral",
   alternado: "alternado",
-  assimetrica: "base assimétrica",
+  assimetrica: "base_assimetrica",
 };
 
 function extractMovementPlane(tags: string[], subcategoryKey: string): string {
