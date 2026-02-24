@@ -45,38 +45,25 @@ export type ExerciseCategory = keyof typeof EXERCISE_CATEGORIES;
 // ============================================================================
 
 export const MOVEMENT_PATTERNS = {
+  // Força & Hipertrofia — os 6 padrões reais
+  empurrar: "Empurrar",
+  puxar: "Puxar",
+  dominancia_joelho: "Dominância de Joelho",
+  dominancia_quadril: "Dominância de Quadril",
+  lunge: "Lunge",
+  carregar: "Carregar",
   // Respiração
   respiracao: "Respiração",
   // LMF
   lmf: "Liberação Miofascial",
   // Mobilidade
-  mobilidade_tornozelo: "Mobilidade Tornozelo",
-  mobilidade_quadril: "Mobilidade Quadril",
-  mobilidade_toracica: "Mobilidade Torácica",
-  mobilidade_integrada: "Mobilidade Integrada",
+  mobilidade: "Mobilidade",
   // Core & Ativação
-  anti_extensao: "Anti-extensão",
-  anti_flexao_lateral: "Anti-flexão Lateral",
-  anti_rotacao: "Anti-rotação",
-  ativacao_gluteos: "Ativação Glúteos",
-  ativacao_escapular: "Ativação Escapular",
+  core: "Core",
+  ativacao: "Ativação",
   // Potência & Pliometria
-  pliometria_bilateral: "Pliometria Bilateral",
-  pliometria_unilateral: "Pliometria Unilateral",
-  pliometria_lateral: "Pliometria Lateral",
-  pliometria_multidirecional: "Pliometria Multidirecional",
+  pliometria: "Pliometria",
   atletico: "Atlético",
-  // Força & Hipertrofia
-  empurrar_horizontal: "Empurrar Horizontal",
-  empurrar_vertical: "Empurrar Vertical",
-  puxar_horizontal: "Puxar Horizontal",
-  puxar_vertical: "Puxar Vertical",
-  agachamento: "Agachamento",
-  lunge: "Lunge",
-  hip_hinge: "Hip Hinge",
-  ponte: "Ponte / Hip Thrust",
-  nordica: "Nórdica",
-  carregar: "Carregar",
 } as const;
 
 export type MovementPattern = keyof typeof MOVEMENT_PATTERNS;
@@ -88,29 +75,16 @@ export type MovementPattern = keyof typeof MOVEMENT_PATTERNS;
 export const PATTERN_TO_CATEGORY: Record<string, ExerciseCategory> = {
   respiracao: "respiracao",
   lmf: "lmf",
-  mobilidade_tornozelo: "mobilidade",
-  mobilidade_quadril: "mobilidade",
-  mobilidade_toracica: "mobilidade",
-  mobilidade_integrada: "mobilidade",
-  anti_extensao: "core_ativacao",
-  anti_flexao_lateral: "core_ativacao",
-  anti_rotacao: "core_ativacao",
-  ativacao_gluteos: "core_ativacao",
-  ativacao_escapular: "core_ativacao",
-  pliometria_bilateral: "potencia_pliometria",
-  pliometria_unilateral: "potencia_pliometria",
-  pliometria_lateral: "potencia_pliometria",
-  pliometria_multidirecional: "potencia_pliometria",
+  mobilidade: "mobilidade",
+  core: "core_ativacao",
+  ativacao: "core_ativacao",
+  pliometria: "potencia_pliometria",
   atletico: "potencia_pliometria",
-  empurrar_horizontal: "forca_hipertrofia",
-  empurrar_vertical: "forca_hipertrofia",
-  puxar_horizontal: "forca_hipertrofia",
-  puxar_vertical: "forca_hipertrofia",
-  agachamento: "forca_hipertrofia",
+  empurrar: "forca_hipertrofia",
+  puxar: "forca_hipertrofia",
+  dominancia_joelho: "forca_hipertrofia",
+  dominancia_quadril: "forca_hipertrofia",
   lunge: "forca_hipertrofia",
-  hip_hinge: "forca_hipertrofia",
-  ponte: "forca_hipertrofia",
-  nordica: "forca_hipertrofia",
   carregar: "forca_hipertrofia",
 };
 
@@ -119,15 +93,15 @@ export const PATTERN_TO_CATEGORY: Record<string, ExerciseCategory> = {
 // ============================================================================
 
 export const SESSION_PATTERN_GROUPS = {
-  lower_knee: ["agachamento", "lunge", "nordica"],
-  lower_hip: ["hip_hinge", "ponte"],
-  upper_push: ["empurrar_horizontal", "empurrar_vertical"],
-  upper_pull: ["puxar_horizontal", "puxar_vertical"],
+  lower_knee: ["dominancia_joelho", "lunge"],
+  lower_hip: ["dominancia_quadril"],
+  upper_push: ["empurrar"],
+  upper_pull: ["puxar"],
   carry: ["carregar"],
-  core: ["anti_extensao", "anti_flexao_lateral", "anti_rotacao"],
-  activation: ["ativacao_gluteos", "ativacao_escapular"],
-  mobility: ["mobilidade_tornozelo", "mobilidade_quadril", "mobilidade_toracica", "mobilidade_integrada"],
-  plyometrics: ["pliometria_bilateral", "pliometria_unilateral", "pliometria_lateral", "pliometria_multidirecional", "atletico"],
+  core: ["core"],
+  activation: ["ativacao"],
+  mobility: ["mobilidade"],
+  plyometrics: ["pliometria", "atletico"],
   lmf: ["lmf"],
   breathing: ["respiracao"],
 } as const;
