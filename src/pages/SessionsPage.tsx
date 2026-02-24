@@ -181,8 +181,11 @@ export default function SessionsPage() {
   return (
     <PageLayout>
       <PageHeader
-        title="Registro de Sessões"
-        description="Visualize e filtre todas as sessões registradas no sistema"
+        title={NAV_LABELS.sessions}
+        description={NAV_LABELS.subtitleSessions}
+        breadcrumbs={[
+          { label: NAV_LABELS.sessions },
+        ]}
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
