@@ -20,7 +20,7 @@ const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY);
 // ═══════════════════════════════════════════════════════════════
 
 /** Constantes de conversão de unidades */
-const POUND_TO_KG_CONVERSION = 0.45;
+const POUND_TO_KG_CONVERSION = 0.4536;
 const DECIMAL_PLACES = 1;
 
 /** Correções terminológicas padrão para transcrição PT-BR */
@@ -370,7 +370,7 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
       - Se não mencionado: null
 
 4. **Conversão de Libras (PADRÃO FABRIK)**:
-   - **1 lb = 0.45 kg** (usar este valor, não o técnico)
+   - **1 lb = 0.4536 kg** (padrão Fabrik)
    - Converter antes de somar. Arredondar apenas no resultado final.
    - **ATENÇÃO: "de cada lado" significa multiplicar por 2**
    - **CÁLCULO OBRIGATÓRIO**: Se load_breakdown foi preenchido, load_kg NUNCA pode ser null
