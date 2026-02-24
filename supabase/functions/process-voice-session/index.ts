@@ -15,12 +15,49 @@ const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY')!;
 const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY);
 
-/**
- * CONSTANTES DE UNIDADES - Fonte única de verdade
- * Mantém sincronizado com src/constants/units.ts
- */
+// ═══════════════════════════════════════════════════════════════
+// SHARED: manter sincronizado com voice-session/index.ts
+// ═══════════════════════════════════════════════════════════════
+
+/** Constantes de conversão de unidades */
 const POUND_TO_KG_CONVERSION = 0.45;
 const DECIMAL_PLACES = 1;
+
+/** Correções terminológicas padrão para transcrição PT-BR */
+const TERMINOLOGY_CORRECTIONS: Record<string, string> = {
+  'alteres': 'halteres',
+  'querobel': 'kettlebell',
+  'ketobel': 'kettlebell',
+  'quetobell': 'kettlebell',
+  'quetobel': 'kettlebell',
+  'sandbeg': 'sandbag',
+  'land mine': 'landmine',
+};
+
+/** Categorias clínicas para observações extraídas */
+const CLINICAL_CATEGORIES = ['dor', 'mobilidade', 'força', 'técnica', 'geral'] as const;
+
+/** Níveis de severidade para observações clínicas */
+const SEVERITY_LEVELS = {
+  ALTA: 'alta',   // Dor aguda, limitações severas
+  MEDIA: 'média', // Desconfortos, déficits de ativação
+  BAIXA: 'baixa', // Comentários técnicos leves, fadiga normal
+} as const;
+
+/** Regras de carga por tipo de equipamento */
+const EQUIPMENT_LOAD_RULES = {
+  KETTLEBELL_DUPLO: 'Multiplicar por 2 (soma de ambos)',
+  HALTERES_DUPLO: 'Multiplicar por 2 (soma de ambos)',
+  BARRA_BILATERAL: 'Se "de cada lado" → multiplicar por 2 + barra',
+  LANDMINE: 'Apenas carga adicionada, NÃO multiplicar por 2',
+  SANDBAG: 'Carga direta, sem multiplicação',
+  PESO_CORPORAL: 'Usar weight_kg do aluno se disponível, senão null',
+  ELASTICO: 'NUNCA converter para kg, registrar como observação',
+} as const;
+
+// ═══════════════════════════════════════════════════════════════
+// FIM SHARED
+// ═══════════════════════════════════════════════════════════════
 
 const roundToDecimal = (value: number, decimals: number = DECIMAL_PLACES): number => {
   const multiplier = Math.pow(10, decimals);
@@ -174,6 +211,10 @@ serve(async (req) => {
       model: "gemini-2.0-flash-exp" 
     });
 
+    const terminologyCorrectionsPrompt = Object.entries(TERMINOLOGY_CORRECTIONS)
+      .map(([k, v]) => `- "${k}" → "${v}"`)
+      .join('\n');
+
     const transcriptionResult = await model.generateContent([
       {
         inlineData: {
@@ -185,12 +226,9 @@ serve(async (req) => {
 Tolere ruído, interrupções, correções e comentários paralelos.
 
 CORREÇÕES OBRIGATÓRIAS:
-- "alteres" → "halteres"
-- "querobel", "ketobel", "quetobell", "quetobel" → "kettlebell"
+${terminologyCorrectionsPrompt}
 - "supino" (manter assim)
 - "agachamento" (manter assim)
-- "sandbag", "sandbeg" → "sandbag"
-- "landmine", "land mine" → "landmine"
 
 CORREÇÕES NO MEIO DO ÁUDIO:
 - Se houver correção ("não é 17,5, é 20", "anota 20 em vez de 15"), transcreva AMBAS as versões fielmente.
@@ -831,13 +869,106 @@ FORMATO DE SAÍDA:
     });
     console.log('✅ Validação e sanitização concluídas');
     
+    // ═══════════════════════════════════════════════════════════
+    // MEL-IA-006: Validação de Desvio da Prescrição
+    // ═══════════════════════════════════════════════════════════
+    let prescriptionDeviations: any[] = [];
+    
+    if (prescriptionDetails && prescriptionDetails.prescription_exercises) {
+      const prescribedExercises = prescriptionDetails.prescription_exercises.map((pe: any) => ({
+        name: pe.exercises_library.name,
+        sets: pe.sets,
+        reps: pe.reps,
+      }));
+      
+      extractedData.sessions?.forEach((session: any) => {
+        const sessionDeviations: any[] = [];
+        const executedNames = (session.exercises || []).map((ex: any) => 
+          (ex.executed_exercise_name || '').toLowerCase().trim()
+        );
+        const prescribedNames = prescribedExercises.map((pe: any) => pe.name.toLowerCase().trim());
+        
+        // 1. Exercícios prescritos mas NÃO executados (omissões)
+        prescribedExercises.forEach((pe: any) => {
+          const peName = pe.name.toLowerCase().trim();
+          const wasExecuted = executedNames.some((en: string) => 
+            en.includes(peName) || peName.includes(en) || 
+            (session.exercises || []).some((ex: any) => 
+              ex.prescribed_exercise_name?.toLowerCase().trim() === peName
+            )
+          );
+          
+          if (!wasExecuted) {
+            sessionDeviations.push({
+              type: 'exercicio_omitido',
+              prescribed_name: pe.name,
+              message: `Exercício prescrito "${pe.name}" não foi executado`,
+            });
+          }
+        });
+        
+        // 2. Exercícios executados mas NÃO prescritos (substituições/adições)
+        (session.exercises || []).forEach((ex: any) => {
+          const exName = (ex.executed_exercise_name || '').toLowerCase().trim();
+          const isFromPrescription = prescribedNames.some((pn: string) => 
+            pn.includes(exName) || exName.includes(pn)
+          ) || (ex.prescribed_exercise_name && prescribedNames.includes(
+            ex.prescribed_exercise_name.toLowerCase().trim()
+          ));
+          
+          if (!isFromPrescription) {
+            sessionDeviations.push({
+              type: 'exercicio_substituido',
+              executed_name: ex.executed_exercise_name,
+              message: `Exercício "${ex.executed_exercise_name}" não estava na prescrição`,
+            });
+          }
+        });
+        
+        // 3. Desvios de volume (séries diferentes do prescrito)
+        (session.exercises || []).forEach((ex: any) => {
+          if (ex.prescribed_exercise_name && ex.sets) {
+            const prescribed = prescribedExercises.find((pe: any) => 
+              pe.name.toLowerCase().trim() === ex.prescribed_exercise_name.toLowerCase().trim()
+            );
+            if (prescribed) {
+              const prescribedSets = parseInt(prescribed.sets);
+              if (!isNaN(prescribedSets) && ex.sets !== prescribedSets) {
+                sessionDeviations.push({
+                  type: 'desvio_volume',
+                  exercise_name: ex.executed_exercise_name,
+                  prescribed_sets: prescribed.sets,
+                  executed_sets: ex.sets,
+                  message: `"${ex.executed_exercise_name}": ${ex.sets} séries (prescrito: ${prescribed.sets})`,
+                });
+              }
+            }
+          }
+        });
+        
+        if (sessionDeviations.length > 0) {
+          session.prescription_deviations = sessionDeviations;
+          console.log(`📋 [${session.student_name}] ${sessionDeviations.length} desvio(s) da prescrição detectado(s)`);
+        }
+      });
+      
+      // Collect all deviations for the response
+      prescriptionDeviations = extractedData.sessions?.flatMap((s: any) => 
+        (s.prescription_deviations || []).map((d: any) => ({ ...d, student_name: s.student_name }))
+      ) || [];
+    }
+    // ═══════════════════════════════════════════════════════════
+    // FIM MEL-IA-006
+    // ═══════════════════════════════════════════════════════════
+    
     console.log("✅ Structured data extraction completed");
     console.log("📊 Extracted data:", JSON.stringify(extractedData, null, 2));
 
     const response = {
       success: true,
       transcription,
-      data: extractedData
+      data: extractedData,
+      prescriptionDeviations: prescriptionDeviations.length > 0 ? prescriptionDeviations : undefined,
     };
     
     console.log("📤 Sending response:", JSON.stringify(response, null, 2));

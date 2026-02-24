@@ -106,6 +106,47 @@ export const useUpdateRecommendation = () => {
         .eq("id", id);
 
       if (error) throw error;
+
+      // MEL-IA-007: Record adherence when toggling "Seguiu?"
+      if (applied !== undefined) {
+        // Get recommendation details to record adherence
+        const { data: rec } = await supabase
+          .from("protocol_recommendations")
+          .select("student_id, protocol_id")
+          .eq("id", id)
+          .single();
+
+        if (rec) {
+          if (applied) {
+            // Fetch current Oura metrics for "before" snapshot
+            const { data: currentMetrics } = await supabase
+              .from("oura_metrics")
+              .select("average_sleep_hrv, readiness_score")
+              .eq("student_id", rec.student_id)
+              .order("date", { ascending: false })
+              .limit(1)
+              .single();
+
+            await supabase
+              .from("protocol_adherence")
+              .insert({
+                student_id: rec.student_id,
+                protocol_id: rec.protocol_id,
+                recommendation_id: id,
+                followed: true,
+                followed_at: new Date().toISOString(),
+                hrv_before: currentMetrics?.average_sleep_hrv ?? null,
+                readiness_before: currentMetrics?.readiness_score ?? null,
+              });
+          } else {
+            // Remove adherence record if un-toggled
+            await supabase
+              .from("protocol_adherence")
+              .delete()
+              .eq("recommendation_id", id);
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 

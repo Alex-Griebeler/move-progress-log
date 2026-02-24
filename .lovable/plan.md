@@ -4,9 +4,9 @@
 - [x] Fase 2A: MEL-IA-002 — Oura Readiness no generate-group-session (volumeMultiplier)
 - [x] Fase 2B: Refatorar generate-group-session para functional_group
 - [x] Fase 2C: MEL-IA-005 — suggest-exercise-alternatives (progressões + regressões)
-- [ ] Fase 3A: MEL-IA-004 — Unificar Pipelines de Áudio
-- [ ] Fase 3B: MEL-IA-006 — Validação de Desvio da Prescrição
-- [ ] Fase 3C: MEL-IA-007 — Tracking de Efetividade de Protocolos
+- [x] Fase 3A: MEL-IA-004 — Unificar Pipelines de Áudio
+- [x] Fase 3B: MEL-IA-006 — Validação de Desvio da Prescrição
+- [x] Fase 3C: MEL-IA-007 — Tracking de Efetividade de Protocolos
 - [ ] Fase 4A: MEL-IA-003 — Busca Semântica (pg_trgm)
 - [ ] Fase 4B: MEL-IA-008 — Assistente Contextual do Treinador
 - [ ] Fase 4C: MEL-IA-009 — Consolidação de Providers

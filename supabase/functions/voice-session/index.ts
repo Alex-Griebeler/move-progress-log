@@ -11,6 +11,49 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
+// ═══════════════════════════════════════════════════════════════
+// SHARED: manter sincronizado com process-voice-session/index.ts
+// ═══════════════════════════════════════════════════════════════
+
+/** Constantes de conversão de unidades */
+const POUND_TO_KG_CONVERSION = 0.45;
+
+/** Correções terminológicas padrão para transcrição PT-BR */
+const TERMINOLOGY_CORRECTIONS: Record<string, string> = {
+  'alteres': 'halteres',
+  'querobel': 'kettlebell',
+  'ketobel': 'kettlebell',
+  'quetobell': 'kettlebell',
+  'quetobel': 'kettlebell',
+  'sandbeg': 'sandbag',
+  'land mine': 'landmine',
+};
+
+/** Categorias clínicas para observações extraídas */
+const CLINICAL_CATEGORIES = ['dor', 'mobilidade', 'força', 'técnica', 'geral'] as const;
+
+/** Níveis de severidade para observações clínicas */
+const SEVERITY_LEVELS = {
+  ALTA: 'alta',   // Dor aguda, limitações severas
+  MEDIA: 'média', // Desconfortos, déficits de ativação
+  BAIXA: 'baixa', // Comentários técnicos leves, fadiga normal
+} as const;
+
+/** Regras de carga por tipo de equipamento */
+const EQUIPMENT_LOAD_RULES = {
+  KETTLEBELL_DUPLO: 'Multiplicar por 2 (soma de ambos)',
+  HALTERES_DUPLO: 'Multiplicar por 2 (soma de ambos)',
+  BARRA_BILATERAL: 'Se "de cada lado" → multiplicar por 2 + barra',
+  LANDMINE: 'Apenas carga adicionada, NÃO multiplicar por 2',
+  SANDBAG: 'Carga direta, sem multiplicação',
+  PESO_CORPORAL: 'Usar weight_kg do aluno se disponível, senão null',
+  ELASTICO: 'NUNCA converter para kg, registrar como observação',
+} as const;
+
+// ═══════════════════════════════════════════════════════════════
+// FIM SHARED
+// ═══════════════════════════════════════════════════════════════
+
 interface SessionContext {
   prescriptionId: string;
   students: Array<{
@@ -52,6 +95,9 @@ ${studentsInfo}
 💪 EXERCÍCIOS PRESCRITOS:
 ${exercisesInfo}
 
+CORREÇÕES TERMINOLÓGICAS OBRIGATÓRIAS:
+${Object.entries(TERMINOLOGY_CORRECTIONS).map(([k, v]) => `- "${k}" → "${v}"`).join('\n')}
+
 INSTRUÇÕES:
 1. Ouça o treinador descrever a sessão de treino
 2. Faça perguntas de confirmação se necessário
@@ -59,15 +105,21 @@ INSTRUÇÕES:
 4. Repetições são OBRIGATÓRIAS - pergunte se não foram mencionadas
 5. Séries: NULL se não mencionado (usará prescrito)
 6. Peso corporal: se aluno tem peso, use o valor; senão NULL
-7. Converta libras para kg (1 lb = 0.453592 kg)
+7. Converta libras para kg (1 lb = ${POUND_TO_KG_CONVERSION} kg)
 8. Detecte adaptações: "X substituindo Y"
 
-9. **OBSERVAÇÕES CLÍNICAS**:
-    - Extraia DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE
-    - Categorize: "dor", "mobilidade", "força", "técnica", "geral"
-    - Severidade: "baixa", "média", "alta"
+9. **REGRAS DE CARGA POR EQUIPAMENTO**:
+${Object.entries(EQUIPMENT_LOAD_RULES).map(([k, v]) => `   - ${k}: ${v}`).join('\n')}
 
-10. **IMPORTANTE**: Quando o treinador terminar de descrever a sessão:
+10. **OBSERVAÇÕES CLÍNICAS**:
+    - Extraia DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE
+    - Categorize: ${CLINICAL_CATEGORIES.map(c => `"${c}"`).join(', ')}
+    - Severidade: ${Object.values(SEVERITY_LEVELS).map(s => `"${s}"`).join(', ')}
+    - ALTA: Dor aguda, limitações severas
+    - MÉDIA: Desconfortos, déficits de ativação
+    - BAIXA: Comentários técnicos leves
+
+11. **IMPORTANTE**: Quando o treinador terminar de descrever a sessão:
     - Confirme todos os dados
     - CHAME a função "extract_session_data" com todos os dados coletados
     - Os dados serão enviados para revisão antes de salvar`;
