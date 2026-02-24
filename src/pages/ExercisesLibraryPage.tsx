@@ -252,9 +252,9 @@ export default function ExercisesLibraryPage() {
             <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <Filter className="h-3.5 w-3.5" />
               Mais filtros
-              {[filters.movement_pattern, filters.laterality, filters.movement_plane, filters.contraction_type, filters.level].filter(Boolean).length > 0 && (
+              {[filters.movement_pattern, filters.laterality, filters.movement_plane, filters.contraction_type].filter(Boolean).length > 0 && (
                 <span className="text-xs ml-1">
-                  ({[filters.movement_pattern, filters.laterality, filters.movement_plane, filters.contraction_type, filters.level].filter(Boolean).length} ativos)
+                  ({[filters.movement_pattern, filters.laterality, filters.movement_plane, filters.contraction_type].filter(Boolean).length} ativos)
                 </span>
               )}
             </summary>
@@ -333,23 +333,6 @@ export default function ExercisesLibraryPage() {
                 </Select>
               </div>
 
-              <div className="space-y-xs">
-                <label className="text-sm font-medium">Nível</label>
-                <Select
-                  value={filters.level || "all"}
-                  onValueChange={(value) =>
-                    setFilters((prev) => ({ ...prev, level: value === "all" ? undefined : value }))
-                  }
-                >
-                  <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    {Object.entries(LEVEL_OPTIONS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
           </details>
         </CardContent>
