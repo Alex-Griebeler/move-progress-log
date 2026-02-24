@@ -36,6 +36,10 @@ verify_jwt = true
 [functions.suggest-regressions]
 verify_jwt = true
 
+# MEL-IA-005: Suporte a progressões e regressões
+[functions.suggest-exercise-alternatives]
+verify_jwt = true
+
 [functions.voice-session]
 verify_jwt = true
 

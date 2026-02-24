@@ -269,19 +269,22 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     });
 
     try {
-      const { data, error } = await supabase.functions.invoke("suggest-regressions", {
+      const { data, error } = await supabase.functions.invoke("suggest-exercise-alternatives", {
         body: {
           exerciseId: selectedExercise.id,
           exerciseName: selectedExercise.name,
           movementPattern: selectedExercise.movement_pattern,
           movementPlane: selectedExercise.movement_plane,
           laterality: selectedExercise.laterality,
+          functionalGroup: (selectedExercise as any).functional_group,
+          direction: 'regression',
           availableExercises: exercisesLibrary.map((ex) => ({
             id: ex.id,
             name: ex.name,
             movement_pattern: ex.movement_pattern,
             movement_plane: ex.movement_plane,
             laterality: ex.laterality,
+            numeric_level: (ex as any).numeric_level,
           })),
         },
       });
