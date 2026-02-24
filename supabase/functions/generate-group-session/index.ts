@@ -34,12 +34,13 @@ interface MesocycleInput {
 interface Exercise {
   id: string;
   name: string;
-  movement_pattern: string;
+  movement_pattern: string | null;
   functional_group: string | null;
   risk_level: string | null;
   level: string | null;
   category: string | null;
   subcategory: string | null;
+  movement_plane: string | null;
   equipment_required: string[] | null;
   default_sets: string | null;
   default_reps: string | null;
@@ -96,7 +97,8 @@ interface GeneratedWorkout {
 }
 
 // ============================================================================
-// CONSTANTES - AGRUPAMENTOS POR PADRÃO DE MOVIMENTO (substituiu functional_group)
+// CONSTANTES - AGRUPAMENTOS POR PADRÃO DE MOVIMENTO (somente força)
+// Para Core, Mobilidade, LMF, Pliometria e Respiração: filtrar por `category`.
 // ============================================================================
 
 const SESSION_PATTERN_GROUPS = {
@@ -105,14 +107,7 @@ const SESSION_PATTERN_GROUPS = {
   upper_push: ["empurrar"],
   upper_pull: ["puxar"],
   carry: ["carregar"],
-  core: ["core"],
-  activation: ["ativacao"],
-  mobility: ["mobilidade"],
-  lmf: ["lmf"],
 };
-
-// Core triplanar check uses subcategory field now
-// The generate engine selects core exercises and checks subcategory for triplanar coverage
 
 // Configuração de volume/intensidade por valência
 const VALENCE_CONFIG = {
@@ -209,7 +204,7 @@ function filterByRisk(exercises: Exercise[], groupLevel: string): Exercise[] {
 }
 
 /**
- * Seleciona exercícios por PADRÃO DE MOVIMENTO
+ * Seleciona exercícios por PADRÃO DE MOVIMENTO (somente força)
  */
 function selectExercisesByPattern(
   exercises: Exercise[],
@@ -218,7 +213,22 @@ function selectExercisesByPattern(
   excludeIds: string[] = []
 ): Exercise[] {
   const matching = exercises.filter(
-    (ex) => patterns.includes(ex.movement_pattern) && !excludeIds.includes(ex.id)
+    (ex) => ex.movement_pattern && patterns.includes(ex.movement_pattern) && !excludeIds.includes(ex.id)
+  );
+  return shuffleArray(matching).slice(0, count);
+}
+
+/**
+ * Seleciona exercícios por CATEGORIA (para Core, Mobilidade, LMF, Pliometria, Respiração)
+ */
+function selectExercisesByCategory(
+  exercises: Exercise[],
+  category: string,
+  count: number,
+  excludeIds: string[] = []
+): Exercise[] {
+  const matching = exercises.filter(
+    (ex) => ex.category === category && !excludeIds.includes(ex.id)
   );
   return shuffleArray(matching).slice(0, count);
 }
@@ -232,7 +242,7 @@ function mapToGeneratedExercise(
     id: generateUUID(),
     exerciseLibraryId: exercise.id,
     name: exercise.name,
-    movementPattern: exercise.movement_pattern,
+    movementPattern: exercise.movement_pattern || exercise.category || "unknown",
     sets: exercise.default_sets || "3",
     reps: exercise.default_reps || "10",
     interval: 60,
@@ -247,7 +257,7 @@ function mapToGeneratedExercise(
 // ============================================================================
 
 function buildLMFPhase(exercises: Exercise[]): SessionPhase {
-  const lmfExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.lmf, 3);
+  const lmfExercises = selectExercisesByCategory(exercises, "lmf", 3);
   
   return {
     id: generateUUID(),
@@ -268,7 +278,7 @@ function buildLMFPhase(exercises: Exercise[]): SessionPhase {
 }
 
 function buildMobilityPhase(exercises: Exercise[]): SessionPhase {
-  const mobilityExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.mobility, 4);
+  const mobilityExercises = selectExercisesByCategory(exercises, "mobilidade", 4);
   
   return {
     id: generateUUID(),
@@ -288,7 +298,11 @@ function buildMobilityPhase(exercises: Exercise[]): SessionPhase {
 }
 
 function buildActivationPhase(exercises: Exercise[]): SessionPhase {
-  const activationExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.activation, 3);
+  // Ativação: filter core_ativacao exercises that have subcategory indicating activation
+  const activationExercises = exercises.filter(
+    (ex) => ex.category === "core_ativacao" && ex.subcategory && !["anti_extensao", "anti_flexao_lateral", "anti_rotacao"].includes(ex.subcategory)
+  );
+  const selected = shuffleArray(activationExercises).slice(0, 3);
   
   return {
     id: generateUUID(),
@@ -299,7 +313,7 @@ function buildActivationPhase(exercises: Exercise[]): SessionPhase {
       id: generateUUID(),
       name: "Ativação Neuromuscular",
       method: "circuito",
-      exercises: activationExercises.map((ex) =>
+      exercises: selected.map((ex) =>
         mapToGeneratedExercise(ex, { sets: "2", reps: "10", interval: 20 })
       ),
       restBetweenSets: 20,
@@ -311,9 +325,9 @@ function buildCorePhase(exercises: Exercise[]): SessionPhase {
   const blocks: ExerciseBlock[] = [];
   const usedIds: string[] = [];
   
-  // Core triplanar: use subcategory to pick one from each plane
+  // Core triplanar: filter by category=core_ativacao and subcategory for triplanar types
   const corePool = exercises.filter(
-    (ex) => SESSION_PATTERN_GROUPS.core.includes(ex.movement_pattern)
+    (ex) => ex.category === "core_ativacao" && ex.subcategory && ["anti_extensao", "anti_flexao_lateral", "anti_rotacao"].includes(ex.subcategory)
   );
   
   // Try to get one exercise per subcategory (anti_extensao, anti_flexao_lateral, anti_rotacao)
@@ -586,10 +600,10 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Buscar exercícios incluindo subcategory para core triplanar
+    // Buscar exercícios incluindo movement_plane e subcategory
     const { data: allExercises, error: exercisesError } = await supabase
       .from("exercises_library")
-      .select("id, name, movement_pattern, functional_group, risk_level, level, category, subcategory, equipment_required, default_sets, default_reps, plyometric_phase");
+      .select("id, name, movement_pattern, functional_group, risk_level, level, category, subcategory, movement_plane, equipment_required, default_sets, default_reps, plyometric_phase");
 
     if (exercisesError) {
       throw new Error(`Erro ao buscar exercícios: ${exercisesError.message}`);

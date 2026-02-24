@@ -536,7 +536,7 @@ export type Database = {
           id: string
           laterality: string | null
           level: string | null
-          movement_pattern: string
+          movement_pattern: string | null
           movement_plane: string | null
           name: string
           numeric_level: number | null
@@ -561,7 +561,7 @@ export type Database = {
           id?: string
           laterality?: string | null
           level?: string | null
-          movement_pattern: string
+          movement_pattern?: string | null
           movement_plane?: string | null
           name: string
           numeric_level?: number | null
@@ -586,7 +586,7 @@ export type Database = {
           id?: string
           laterality?: string | null
           level?: string | null
-          movement_pattern?: string
+          movement_pattern?: string | null
           movement_plane?: string | null
           name?: string
           numeric_level?: number | null
