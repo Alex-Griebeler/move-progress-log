@@ -193,191 +193,158 @@ export default function ExercisesLibraryPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar exercícios por nome..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7 gap-md">
-          <div className="space-y-xs">
-            <label className="text-sm font-medium">Padrão de Movimento</label>
-            <Select
-              value={filters.movement_pattern || "all"}
-              onValueChange={(value) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  movement_pattern: value === "all" ? undefined : value,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Busca + 3 filtros primários */}
+          <div className="flex gap-md items-end flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar exercícios por nome..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            <div className="space-y-xs min-w-[160px]">
+              <label className="text-sm font-medium">Categoria</label>
+              <Select
+                value={filters.category || "all"}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, category: value === "all" ? undefined : value }))
+                }
+              >
+                <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {Object.entries(EXERCISE_CATEGORIES).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-xs">
-            <label className="text-sm font-medium">Categoria</label>
-            <Select
-              value={filters.category || "all"}
-              onValueChange={(value) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  category: value === "all" ? undefined : value,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Todas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {Object.entries(EXERCISE_CATEGORIES).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-xs min-w-[160px]">
+              <label className="text-sm font-medium">Nível de Risco</label>
+              <Select
+                value={filters.risk_level || "all"}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, risk_level: value === "all" ? undefined : value }))
+                }
+              >
+                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {Object.entries(RISK_LEVELS).map(([key, config]) => (
+                    <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-xs">
-            <label className="text-sm font-medium">Nível de Risco</label>
-            <Select
-              value={filters.risk_level || "all"}
-              onValueChange={(value) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  risk_level: value === "all" ? undefined : value,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {Object.entries(RISK_LEVELS).map(([key, config]) => (
-                  <SelectItem key={key} value={key}>
-                    {config.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-xs min-w-[160px]">
+              <label className="text-sm font-medium">Padrão de Movimento</label>
+              <Select
+                value={filters.movement_pattern || "all"}
+                onValueChange={(value) =>
+                  setFilters((prev) => ({ ...prev, movement_pattern: value === "all" ? undefined : value }))
+                }
+              >
+                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+          
+          {/* Filtros avançados — colapsáveis */}
+          <details className="group">
+            <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+              <Filter className="h-3.5 w-3.5" />
+              Mais filtros
+              {[filters.laterality, filters.movement_plane, filters.contraction_type, filters.level].filter(Boolean).length > 0 && (
+                <span className="text-xs ml-1">
+                  ({[filters.laterality, filters.movement_plane, filters.contraction_type, filters.level].filter(Boolean).length} ativos)
+                </span>
+              )}
+            </summary>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md pt-md mt-md border-t border-border/50">
+              <div className="space-y-xs">
+                <label className="text-sm font-medium">Lateralidade</label>
+                <Select
+                  value={filters.laterality || "all"}
+                  onValueChange={(value) =>
+                    setFilters((prev) => ({ ...prev, laterality: value === "all" ? undefined : value }))
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {Object.entries(LATERALITY_OPTIONS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-xs">
-            <label className="text-sm font-medium">Lateralidade</label>
-            <Select
-              value={filters.laterality || "all"}
-              onValueChange={(value) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  laterality: value === "all" ? undefined : value,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Todas" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {Object.entries(LATERALITY_OPTIONS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-xs">
+                <label className="text-sm font-medium">Plano de Movimento</label>
+                <Select
+                  value={filters.movement_plane || "all"}
+                  onValueChange={(value) =>
+                    setFilters((prev) => ({ ...prev, movement_plane: value === "all" ? undefined : value }))
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {Object.entries(MOVEMENT_PLANES).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-xs">
-            <label className="text-sm font-medium">Plano de Movimento</label>
-            <Select
-              value={filters.movement_plane || "all"}
-              onValueChange={(value) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  movement_plane: value === "all" ? undefined : value,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {Object.entries(MOVEMENT_PLANES).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-xs">
+                <label className="text-sm font-medium">Tipo de Contração</label>
+                <Select
+                  value={filters.contraction_type || "all"}
+                  onValueChange={(value) =>
+                    setFilters((prev) => ({ ...prev, contraction_type: value === "all" ? undefined : value }))
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {Object.entries(CONTRACTION_TYPES).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-xs">
-            <label className="text-sm font-medium">Tipo de Contração</label>
-            <Select
-              value={filters.contraction_type || "all"}
-              onValueChange={(value) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  contraction_type: value === "all" ? undefined : value,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {Object.entries(CONTRACTION_TYPES).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-xs">
-            <label className="text-sm font-medium">Nível</label>
-            <Select
-              value={filters.level || "all"}
-              onValueChange={(value) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  level: value === "all" ? undefined : value,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Todos" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                {Object.entries(LEVEL_OPTIONS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          </div>
+              <div className="space-y-xs">
+                <label className="text-sm font-medium">Nível</label>
+                <Select
+                  value={filters.level || "all"}
+                  onValueChange={(value) =>
+                    setFilters((prev) => ({ ...prev, level: value === "all" ? undefined : value }))
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    {Object.entries(LEVEL_OPTIONS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </details>
         </CardContent>
       </Card>
 

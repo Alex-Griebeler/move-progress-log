@@ -52,7 +52,7 @@ const StatCard = ({
       </CardHeader>
       <CardContent className="space-y-md p-lg pt-0">
         <div className="flex items-baseline gap-xs">
-          <div className="text-4xl font-bold leading-tight text-gradient-primary">
+          <div className="text-4xl font-bold leading-tight text-foreground">
             {value}
           </div>
           {trend && (

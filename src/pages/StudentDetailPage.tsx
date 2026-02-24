@@ -188,7 +188,7 @@ const StudentDetailPage = () => {
       {loadingStudents ? (
         <StudentHeaderSkeleton />
       ) : (
-        <Card className="card-glass card-glass-hover mb-md animate-fade-in">
+        <Card className="bg-card border border-primary/15 shadow-sm rounded-xl mb-md animate-fade-in">
           <CardContent className="p-lg">
             <div className="flex flex-col md:flex-row items-start justify-between gap-lg">
               {/* Coluna 1: Perfil */}
