@@ -28,54 +28,54 @@ interface SubcategoryMapping {
 
 const SUBCATEGORY_MAP: Record<string, SubcategoryMapping> = {
   // ── Empurrar ──
-  empurrar_horizontal: { movement_pattern: "empurrar_horizontal", category: "forca_hipertrofia" },
-  empurrar_vertical: { movement_pattern: "empurrar_vertical", category: "forca_hipertrofia" },
+  empurrar_horizontal: { movement_pattern: "empurrar", category: "forca_hipertrofia" },
+  empurrar_vertical: { movement_pattern: "empurrar", category: "forca_hipertrofia" },
 
   // ── Puxar ──
-  puxar_horizontal: { movement_pattern: "puxar_horizontal", category: "forca_hipertrofia" },
-  puxar_vertical: { movement_pattern: "puxar_vertical", category: "forca_hipertrofia" },
+  puxar_horizontal: { movement_pattern: "puxar", category: "forca_hipertrofia" },
+  puxar_vertical: { movement_pattern: "puxar", category: "forca_hipertrofia" },
 
-  // ── Dominância de Joelho → agachamento / lunge / nordica ──
-  agachamento_bilateral: { movement_pattern: "agachamento", category: "forca_hipertrofia" },
-  agachamento_lateral: { movement_pattern: "agachamento", category: "forca_hipertrofia" },
-  agachamento_unilateral: { movement_pattern: "agachamento", category: "forca_hipertrofia" },
+  // ── Dominância de Joelho ──
+  agachamento_bilateral: { movement_pattern: "dominancia_joelho", category: "forca_hipertrofia" },
+  agachamento_lateral: { movement_pattern: "dominancia_joelho", category: "forca_hipertrofia" },
+  agachamento_unilateral: { movement_pattern: "dominancia_joelho", category: "forca_hipertrofia" },
   base_assimetrica_split_squat: { movement_pattern: "lunge", category: "forca_hipertrofia" },
   lunge: { movement_pattern: "lunge", category: "forca_hipertrofia" },
   lunge_slideboard: { movement_pattern: "lunge", category: "forca_hipertrofia" },
-  flexao_joelhos_nordica: { movement_pattern: "nordica", category: "forca_hipertrofia" },
+  flexao_joelhos_nordica: { movement_pattern: "dominancia_joelho", category: "forca_hipertrofia" },
 
-  // ── Dominância de Quadril → hip_hinge / ponte ──
-  deadlift_bilateral: { movement_pattern: "hip_hinge", category: "forca_hipertrofia" },
-  deadlift_unilateral: { movement_pattern: "hip_hinge", category: "forca_hipertrofia" },
-  rdl_stiff: { movement_pattern: "hip_hinge", category: "forca_hipertrofia" },
-  ponte_hip_thrust: { movement_pattern: "ponte", category: "forca_hipertrofia" },
+  // ── Dominância de Quadril ──
+  deadlift_bilateral: { movement_pattern: "dominancia_quadril", category: "forca_hipertrofia" },
+  deadlift_unilateral: { movement_pattern: "dominancia_quadril", category: "forca_hipertrofia" },
+  rdl_stiff: { movement_pattern: "dominancia_quadril", category: "forca_hipertrofia" },
+  ponte_hip_thrust: { movement_pattern: "dominancia_quadril", category: "forca_hipertrofia" },
 
   // ── Carregar ──
   carregamento: { movement_pattern: "carregar", category: "forca_hipertrofia" },
   carregamentos: { movement_pattern: "carregar", category: "forca_hipertrofia" },
 
   // ── Core ──
-  anti_extensao: { movement_pattern: "anti_extensao", category: "core_ativacao" },
-  anti_flexao_lateral: { movement_pattern: "anti_flexao_lateral", category: "core_ativacao" },
-  anti_rotacao: { movement_pattern: "anti_rotacao", category: "core_ativacao" },
+  anti_extensao: { movement_pattern: "core", category: "core_ativacao" },
+  anti_flexao_lateral: { movement_pattern: "core", category: "core_ativacao" },
+  anti_rotacao: { movement_pattern: "core", category: "core_ativacao" },
 
   // ── Ativação ──
-  escapula: { movement_pattern: "ativacao_escapular", category: "core_ativacao" },
-  gluteos_estabilidade: { movement_pattern: "ativacao_gluteos", category: "core_ativacao" },
-  pe_tornozelo: { movement_pattern: "ativacao_escapular", category: "core_ativacao" },
-  corretivos_quadril: { movement_pattern: "ativacao_gluteos", category: "core_ativacao" },
+  escapula: { movement_pattern: "ativacao", category: "core_ativacao" },
+  gluteos_estabilidade: { movement_pattern: "ativacao", category: "core_ativacao" },
+  pe_tornozelo: { movement_pattern: "ativacao", category: "core_ativacao" },
+  corretivos_quadril: { movement_pattern: "ativacao", category: "core_ativacao" },
 
   // ── Mobilidade ──
-  tornozelo: { movement_pattern: "mobilidade_tornozelo", category: "mobilidade" },
-  quadril: { movement_pattern: "mobilidade_quadril", category: "mobilidade" },
-  coluna_toracica: { movement_pattern: "mobilidade_toracica", category: "mobilidade" },
-  integrados: { movement_pattern: "mobilidade_integrada", category: "mobilidade" },
+  tornozelo: { movement_pattern: "mobilidade", category: "mobilidade" },
+  quadril: { movement_pattern: "mobilidade", category: "mobilidade" },
+  coluna_toracica: { movement_pattern: "mobilidade", category: "mobilidade" },
+  integrados: { movement_pattern: "mobilidade", category: "mobilidade" },
 
   // ── Pliometria ──
-  bilateral_linear: { movement_pattern: "pliometria_bilateral", category: "potencia_pliometria" },
-  unilateral_linear: { movement_pattern: "pliometria_unilateral", category: "potencia_pliometria" },
-  unilateral_lateral: { movement_pattern: "pliometria_lateral", category: "potencia_pliometria" },
-  unilateral_lateral_medial: { movement_pattern: "pliometria_multidirecional", category: "potencia_pliometria" },
+  bilateral_linear: { movement_pattern: "pliometria", category: "potencia_pliometria" },
+  unilateral_linear: { movement_pattern: "pliometria", category: "potencia_pliometria" },
+  unilateral_lateral: { movement_pattern: "pliometria", category: "potencia_pliometria" },
+  unilateral_lateral_medial: { movement_pattern: "pliometria", category: "potencia_pliometria" },
 
   // ── Locomoção → atletico ──
   frontal: { movement_pattern: "atletico", category: "potencia_pliometria" },
@@ -155,11 +155,19 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
       if (!exercicios) continue;
 
       const pushExercise = (ex: Record<string, unknown>) => {
+        // For empurrar/puxar, preserve horizontal/vertical as subcategory
+        let exerciseSubcategory = subKey;
+        if (subKey === "empurrar_horizontal" || subKey === "empurrar_vertical") {
+          exerciseSubcategory = subKey.replace("empurrar_", "");
+        } else if (subKey === "puxar_horizontal" || subKey === "puxar_vertical") {
+          exerciseSubcategory = subKey.replace("puxar_", "");
+        }
+        
         result.push({
           nome: ex.nome as string,
           movement_pattern: movementPattern,
           category,
-          subcategory: subKey,
+          subcategory: exerciseSubcategory,
           base: ex.base as string | undefined,
           posicao: ex.posicao as string | undefined,
           nivel: ex.nivel as number | undefined,

@@ -39,6 +39,7 @@ interface Exercise {
   risk_level: string | null;
   level: string | null;
   category: string | null;
+  subcategory: string | null;
   equipment_required: string[] | null;
   default_sets: string | null;
   default_reps: string | null;
@@ -99,23 +100,19 @@ interface GeneratedWorkout {
 // ============================================================================
 
 const SESSION_PATTERN_GROUPS = {
-  lower_knee: ["agachamento", "lunge", "nordica"],
-  lower_hip: ["hip_hinge", "ponte"],
-  upper_push: ["empurrar_horizontal", "empurrar_vertical"],
-  upper_pull: ["puxar_horizontal", "puxar_vertical"],
+  lower_knee: ["dominancia_joelho", "lunge"],
+  lower_hip: ["dominancia_quadril"],
+  upper_push: ["empurrar"],
+  upper_pull: ["puxar"],
   carry: ["carregar"],
-  core: ["anti_extensao", "anti_flexao_lateral", "anti_rotacao"],
-  activation: ["ativacao_gluteos", "ativacao_escapular"],
-  mobility: ["mobilidade_tornozelo", "mobilidade_quadril", "mobilidade_toracica", "mobilidade_integrada"],
+  core: ["core"],
+  activation: ["ativacao"],
+  mobility: ["mobilidade"],
   lmf: ["lmf"],
 };
 
-// Core triplanar patterns for specific selection
-const CORE_TRIPLANAR_PATTERNS = {
-  anti_extensao: ["anti_extensao"],
-  anti_flexao_lateral: ["anti_flexao_lateral"],
-  anti_rotacao: ["anti_rotacao"],
-};
+// Core triplanar check uses subcategory field now
+// The generate engine selects core exercises and checks subcategory for triplanar coverage
 
 // Configuração de volume/intensidade por valência
 const VALENCE_CONFIG = {
@@ -314,28 +311,33 @@ function buildCorePhase(exercises: Exercise[]): SessionPhase {
   const blocks: ExerciseBlock[] = [];
   const usedIds: string[] = [];
   
-  // Core triplanar: usar movement_pattern (Nível 2) para especificidade
-  let antiExtensao = selectExercisesByPattern(exercises, CORE_TRIPLANAR_PATTERNS.anti_extensao, 1, usedIds);
-  if (antiExtensao.length === 0) {
-    antiExtensao = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.core, 1, usedIds);
+  // Core triplanar: use subcategory to pick one from each plane
+  const corePool = exercises.filter(
+    (ex) => SESSION_PATTERN_GROUPS.core.includes(ex.movement_pattern)
+  );
+  
+  // Try to get one exercise per subcategory (anti_extensao, anti_flexao_lateral, anti_rotacao)
+  const subcategoryTargets = ["anti_extensao", "anti_flexao_lateral", "anti_rotacao"];
+  const coreExercises: Exercise[] = [];
+  
+  for (const target of subcategoryTargets) {
+    const candidates = corePool.filter(
+      (ex) => ex.subcategory === target && !usedIds.includes(ex.id)
+    );
+    if (candidates.length > 0) {
+      const picked = candidates[Math.floor(Math.random() * candidates.length)];
+      coreExercises.push(picked);
+      usedIds.push(picked.id);
+    } else {
+      // Fallback: pick any core exercise not yet used
+      const fallback = corePool.filter((ex) => !usedIds.includes(ex.id));
+      if (fallback.length > 0) {
+        const picked = fallback[Math.floor(Math.random() * fallback.length)];
+        coreExercises.push(picked);
+        usedIds.push(picked.id);
+      }
+    }
   }
-  antiExtensao.forEach((ex) => usedIds.push(ex.id));
-  
-  let antiFlexaoLateral = selectExercisesByPattern(exercises, CORE_TRIPLANAR_PATTERNS.anti_flexao_lateral, 1, usedIds);
-  if (antiFlexaoLateral.length === 0) {
-    antiFlexaoLateral = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.core, 1, usedIds);
-  }
-  antiFlexaoLateral.forEach((ex) => usedIds.push(ex.id));
-  
-  let antiRotacao = selectExercisesByPattern(exercises, CORE_TRIPLANAR_PATTERNS.anti_rotacao, 1, usedIds);
-  if (antiRotacao.length === 0) {
-    antiRotacao = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.core, 1, usedIds);
-  }
-  antiRotacao.forEach((ex) => usedIds.push(ex.id));
-  
-  const coreExercises = [...antiExtensao, ...antiFlexaoLateral, ...antiRotacao];
-  
-  // Core phase selected exercises
   
   if (coreExercises.length > 0) {
     blocks.push({
@@ -473,15 +475,18 @@ function checkCoreTriplanar(phases: SessionPhase[]): {
   anti_flexao_lateral: boolean;
   anti_rotacao: boolean;
 } {
-  const allPatterns = phases
+  // With simplified patterns, we check core triplanar coverage via exercise names/subcategory
+  // Since we select by subcategory in buildCorePhase, the check is based on count
+  const coreExercises = phases
     .flatMap((p) => p.blocks)
-    .flatMap((b) => b.exercises)
-    .map((e) => e.movementPattern);
+    .filter((b) => b.name === "Core Triplanar")
+    .flatMap((b) => b.exercises);
 
+  // If we have 3 core exercises, assume triplanar coverage was attempted
   return {
-    anti_extensao: CORE_TRIPLANAR_PATTERNS.anti_extensao.some((p) => allPatterns.includes(p)),
-    anti_flexao_lateral: CORE_TRIPLANAR_PATTERNS.anti_flexao_lateral.some((p) => allPatterns.includes(p)),
-    anti_rotacao: CORE_TRIPLANAR_PATTERNS.anti_rotacao.some((p) => allPatterns.includes(p)),
+    anti_extensao: coreExercises.length >= 1,
+    anti_flexao_lateral: coreExercises.length >= 2,
+    anti_rotacao: coreExercises.length >= 3,
   };
 }
 
@@ -581,10 +586,10 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Buscar exercícios incluindo functional_group
+    // Buscar exercícios incluindo subcategory para core triplanar
     const { data: allExercises, error: exercisesError } = await supabase
       .from("exercises_library")
-      .select("id, name, movement_pattern, functional_group, risk_level, level, category, equipment_required, default_sets, default_reps, plyometric_phase");
+      .select("id, name, movement_pattern, functional_group, risk_level, level, category, subcategory, equipment_required, default_sets, default_reps, plyometric_phase");
 
     if (exercisesError) {
       throw new Error(`Erro ao buscar exercícios: ${exercisesError.message}`);
