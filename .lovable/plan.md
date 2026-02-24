@@ -1,3 +1,15 @@
+## Status de Implementação
+- [x] Fase 1A: Taxonomia de 2 Níveis (functional_group)
+- [x] Fase 1B: MEL-IA-001 — Baseline Dinâmico (calc_oura_baseline + useOuraBaseline)
+- [x] Fase 2A: MEL-IA-002 — Oura Readiness no generate-group-session (volumeMultiplier)
+- [x] Fase 2B: Refatorar generate-group-session para functional_group
+- [x] Fase 2C: MEL-IA-005 — suggest-exercise-alternatives (progressões + regressões)
+- [ ] Fase 3A: MEL-IA-004 — Unificar Pipelines de Áudio
+- [ ] Fase 3B: MEL-IA-006 — Validação de Desvio da Prescrição
+- [ ] Fase 3C: MEL-IA-007 — Tracking de Efetividade de Protocolos
+- [ ] Fase 4A: MEL-IA-003 — Busca Semântica (pg_trgm)
+- [ ] Fase 4B: MEL-IA-008 — Assistente Contextual do Treinador
+- [ ] Fase 4C: MEL-IA-009 — Consolidação de Providers
 
 
 # Plano Sequencial de Implementacao — MEL-IA-001 a 009
