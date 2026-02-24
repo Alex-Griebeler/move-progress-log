@@ -5,7 +5,6 @@ import i18n from "@/i18n/pt-BR.json";
 
 // Re-exportar constantes do backToBasics para manter compatibilidade
 export {
-  FUNCTIONAL_GROUPS,
   MOVEMENT_PATTERNS,
   LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
@@ -14,8 +13,8 @@ export {
   EXERCISE_CATEGORIES,
   RISK_LEVELS,
   NUMERIC_LEVEL_SCALE,
-  PATTERN_TO_FUNCTIONAL_GROUP,
-  GROUP_TO_CATEGORY,
+  PATTERN_TO_CATEGORY,
+  SESSION_PATTERN_GROUPS,
 } from "@/constants/backToBasics";
 
 export interface ExerciseLibrary {
@@ -62,7 +61,6 @@ export interface CreateExerciseInput {
 }
 
 export interface ExerciseFilters {
-  functional_group?: string;
   movement_pattern?: string;
   laterality?: string;
   movement_plane?: string;
@@ -81,9 +79,6 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
         .select("*")
         .order("name");
 
-      if (filters?.functional_group) {
-        query = query.eq("functional_group", filters.functional_group);
-      }
       if (filters?.movement_pattern) {
         query = query.eq("movement_pattern", filters.movement_pattern);
       }

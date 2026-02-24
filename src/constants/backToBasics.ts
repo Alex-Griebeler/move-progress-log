@@ -25,172 +25,121 @@ export const MESOCYCLE_STRUCTURE = {
 export type WorkoutSlot = keyof typeof MESOCYCLE_STRUCTURE.workoutSlots;
 
 // ============================================================================
-// GRUPOS FUNCIONAIS (Nível 1 — usado pela IA para montar sessões full-body)
+// CATEGORIAS DE EXERCÍCIO (Nível 1 — filtro principal na UI)
 // ============================================================================
 
-export const FUNCTIONAL_GROUPS = {
-  empurrar_horizontal: "Empurrar Horizontal",
-  empurrar_vertical: "Empurrar Vertical",
-  puxar_horizontal: "Puxar Horizontal",
-  puxar_vertical: "Puxar Vertical",
-  dominancia_joelho: "Dominância de Joelho",
-  dominancia_quadril: "Dominância de Quadril",
-  carregar: "Carregar",
-  core_anti_extensao: "Core Anti-extensão",
-  core_anti_flexao_lateral: "Core Anti-flexão Lateral",
-  core_anti_rotacao: "Core Anti-rotação",
-  core_geral: "Core Geral",
-  ativacao: "Ativação",
-  mobilidade: "Mobilidade",
-  pliometria: "Pliometria",
-  locomocao: "Locomoção",
-  lmf: "Liberação Miofascial",
+export const EXERCISE_CATEGORIES = {
   respiracao: "Respiração",
+  lmf: "Liberação Miofascial",
+  mobilidade: "Mobilidade",
+  core_ativacao: "Core & Ativação",
+  potencia_pliometria: "Potência & Pliometria",
+  forca_hipertrofia: "Força & Hipertrofia",
+  condicionamento_metabolico: "Condicionamento Metabólico",
 } as const;
 
-export type FunctionalGroup = keyof typeof FUNCTIONAL_GROUPS;
+export type ExerciseCategory = keyof typeof EXERCISE_CATEGORIES;
 
 // ============================================================================
 // PADRÕES DE MOVIMENTO (Nível 2 — subcategoria para filtros na UI)
 // ============================================================================
 
 export const MOVEMENT_PATTERNS = {
-  // Empurrar
-  empurrar_horizontal: "Empurrar Horizontal",
-  empurrar_vertical: "Empurrar Vertical",
-  // Puxar
-  puxar_horizontal: "Puxar Horizontal",
-  puxar_vertical: "Puxar Vertical",
-  // Dominância de Joelho
-  dominancia_joelho: "Dominância de Joelho (Geral)",
-  agachamento_bilateral: "Agachamento Bilateral",
-  agachamento_unilateral: "Agachamento Unilateral",
-  agachamento_lateral: "Agachamento Lateral",
-  base_assimetrica_split_squat: "Split Squat / Base Assimétrica",
-  lunge: "Lunge",
-  lunge_slideboard: "Lunge Slideboard",
-  flexao_joelhos_nordica: "Flexão Nórdica / Joelhos",
-  // Dominância de Quadril
-  dominancia_quadril: "Dominância de Quadril (Geral)",
-  deadlift_bilateral: "Deadlift Bilateral",
-  deadlift_unilateral: "Deadlift Unilateral",
-  rdl_stiff: "RDL / Stiff",
-  ponte_hip_thrust: "Ponte / Hip Thrust",
-  gluteos_estabilidade: "Glúteos / Estabilidade",
-  // Carregar
-  carregar: "Carregar",
-  // Core Triplanar
-  core_anti_extensao: "Core Anti-extensão",
-  core_anti_flexao_lateral: "Core Anti-flexão Lateral",
-  core_anti_rotacao: "Core Anti-rotação",
-  core_geral: "Core Geral",
-  // Ativação
-  ativacao_gluteos: "Ativação Glúteos",
-  ativacao_geral: "Ativação Geral",
-  escapula: "Ativação Escapular",
+  // Respiração
+  respiracao: "Respiração",
+  // LMF
+  lmf: "Liberação Miofascial",
   // Mobilidade
   mobilidade_tornozelo: "Mobilidade Tornozelo",
   mobilidade_quadril: "Mobilidade Quadril",
   mobilidade_toracica: "Mobilidade Torácica",
   mobilidade_integrada: "Mobilidade Integrada",
-  // Pliometria
-  pliometria_bilateral_linear: "Pliometria Bilateral Linear",
-  pliometria_unilateral_linear: "Pliometria Unilateral Linear",
-  pliometria_unilateral_lateral: "Pliometria Unilateral Lateral",
-  pliometria_unilateral_lateral_medial: "Pliometria Unilateral Lat/Med",
-  // LMF
-  lmf: "Liberação Miofascial",
-  // Outros
-  locomocao: "Locomoção",
-  respiracao: "Respiração",
+  // Core & Ativação
+  anti_extensao: "Anti-extensão",
+  anti_flexao_lateral: "Anti-flexão Lateral",
+  anti_rotacao: "Anti-rotação",
+  ativacao_gluteos: "Ativação Glúteos",
+  ativacao_escapular: "Ativação Escapular",
+  // Potência & Pliometria
+  pliometria_bilateral: "Pliometria Bilateral",
+  pliometria_unilateral: "Pliometria Unilateral",
+  pliometria_lateral: "Pliometria Lateral",
+  pliometria_multidirecional: "Pliometria Multidirecional",
+  atletico: "Atlético",
+  // Força & Hipertrofia
+  empurrar_horizontal: "Empurrar Horizontal",
+  empurrar_vertical: "Empurrar Vertical",
+  puxar_horizontal: "Puxar Horizontal",
+  puxar_vertical: "Puxar Vertical",
+  agachamento: "Agachamento",
+  lunge: "Lunge",
+  hip_hinge: "Hip Hinge",
+  ponte: "Ponte / Hip Thrust",
+  nordica: "Nórdica",
+  carregar: "Carregar",
 } as const;
 
 export type MovementPattern = keyof typeof MOVEMENT_PATTERNS;
 
 // ============================================================================
-// MAPEAMENTO PADRÃO DE MOVIMENTO → GRUPO FUNCIONAL
+// MAPEAMENTO PADRÃO DE MOVIMENTO → CATEGORIA (direto, sem grupo funcional)
 // ============================================================================
 
-export const PATTERN_TO_FUNCTIONAL_GROUP: Record<string, FunctionalGroup> = {
-  empurrar_horizontal: "empurrar_horizontal",
-  empurrar_vertical: "empurrar_vertical",
-  puxar_horizontal: "puxar_horizontal",
-  puxar_vertical: "puxar_vertical",
-  dominancia_joelho: "dominancia_joelho",
-  agachamento_bilateral: "dominancia_joelho",
-  agachamento_unilateral: "dominancia_joelho",
-  agachamento_lateral: "dominancia_joelho",
-  base_assimetrica_split_squat: "dominancia_joelho",
-  lunge: "dominancia_joelho",
-  lunge_slideboard: "dominancia_joelho",
-  flexao_joelhos_nordica: "dominancia_joelho",
-  dominancia_quadril: "dominancia_quadril",
-  deadlift_bilateral: "dominancia_quadril",
-  deadlift_unilateral: "dominancia_quadril",
-  rdl_stiff: "dominancia_quadril",
-  ponte_hip_thrust: "dominancia_quadril",
-  gluteos_estabilidade: "ativacao",
-  carregar: "carregar",
-  core_anti_extensao: "core_anti_extensao",
-  core_anti_flexao_lateral: "core_anti_flexao_lateral",
-  core_anti_rotacao: "core_anti_rotacao",
-  core_geral: "core_geral",
-  ativacao_gluteos: "ativacao",
-  ativacao_geral: "ativacao",
-  escapula: "ativacao",
+export const PATTERN_TO_CATEGORY: Record<string, ExerciseCategory> = {
+  respiracao: "respiracao",
+  lmf: "lmf",
   mobilidade_tornozelo: "mobilidade",
   mobilidade_quadril: "mobilidade",
   mobilidade_toracica: "mobilidade",
   mobilidade_integrada: "mobilidade",
-  pliometria_bilateral_linear: "pliometria",
-  pliometria_unilateral_linear: "pliometria",
-  pliometria_unilateral_lateral: "pliometria",
-  pliometria_unilateral_lateral_medial: "pliometria",
-  lmf: "lmf",
-  locomocao: "locomocao",
-  respiracao: "respiracao",
+  anti_extensao: "core_ativacao",
+  anti_flexao_lateral: "core_ativacao",
+  anti_rotacao: "core_ativacao",
+  ativacao_gluteos: "core_ativacao",
+  ativacao_escapular: "core_ativacao",
+  pliometria_bilateral: "potencia_pliometria",
+  pliometria_unilateral: "potencia_pliometria",
+  pliometria_lateral: "potencia_pliometria",
+  pliometria_multidirecional: "potencia_pliometria",
+  atletico: "potencia_pliometria",
+  empurrar_horizontal: "forca_hipertrofia",
+  empurrar_vertical: "forca_hipertrofia",
+  puxar_horizontal: "forca_hipertrofia",
+  puxar_vertical: "forca_hipertrofia",
+  agachamento: "forca_hipertrofia",
+  lunge: "forca_hipertrofia",
+  hip_hinge: "forca_hipertrofia",
+  ponte: "forca_hipertrofia",
+  nordica: "forca_hipertrofia",
+  carregar: "forca_hipertrofia",
 };
 
 // ============================================================================
-// CATEGORIAS DE EXERCÍCIO (apenas as que existem no banco)
+// AGRUPAMENTOS PARA IA MONTAR SESSÕES (substitui functional_group)
 // ============================================================================
 
-export const EXERCISE_CATEGORIES = {
-  forca: "Força",
-  core: "Core",
-  mobilidade: "Mobilidade",
-  ativacao: "Ativação",
-  pliometria: "Pliometria",
-  locomocao: "Locomoção",
-  lmf: "Liberação Miofascial",
-  respiracao: "Respiração",
+export const SESSION_PATTERN_GROUPS = {
+  lower_knee: ["agachamento", "lunge", "nordica"],
+  lower_hip: ["hip_hinge", "ponte"],
+  upper_push: ["empurrar_horizontal", "empurrar_vertical"],
+  upper_pull: ["puxar_horizontal", "puxar_vertical"],
+  carry: ["carregar"],
+  core: ["anti_extensao", "anti_flexao_lateral", "anti_rotacao"],
+  activation: ["ativacao_gluteos", "ativacao_escapular"],
+  mobility: ["mobilidade_tornozelo", "mobilidade_quadril", "mobilidade_toracica", "mobilidade_integrada"],
+  plyometrics: ["pliometria_bilateral", "pliometria_unilateral", "pliometria_lateral", "pliometria_multidirecional", "atletico"],
+  lmf: ["lmf"],
+  breathing: ["respiracao"],
 } as const;
 
-export type ExerciseCategory = keyof typeof EXERCISE_CATEGORIES;
+export type SessionPatternGroup = keyof typeof SESSION_PATTERN_GROUPS;
 
-// ============================================================================
-// MAPEAMENTO GRUPO FUNCIONAL → CATEGORIA
-// ============================================================================
-
-export const GROUP_TO_CATEGORY: Record<FunctionalGroup, ExerciseCategory> = {
-  empurrar_horizontal: "forca",
-  empurrar_vertical: "forca",
-  puxar_horizontal: "forca",
-  puxar_vertical: "forca",
-  dominancia_joelho: "forca",
-  dominancia_quadril: "forca",
-  carregar: "forca",
-  core_anti_extensao: "core",
-  core_anti_flexao_lateral: "core",
-  core_anti_rotacao: "core",
-  core_geral: "core",
-  ativacao: "ativacao",
-  mobilidade: "mobilidade",
-  pliometria: "pliometria",
-  locomocao: "locomocao",
-  lmf: "lmf",
-  respiracao: "respiracao",
-};
+// Categorias elegíveis para condicionamento metabólico
+export const CONDICIONAMENTO_ELIGIBLE_CATEGORIES: ExerciseCategory[] = [
+  "core_ativacao",
+  "potencia_pliometria",
+  "forca_hipertrofia",
+];
 
 // ============================================================================
 // NÍVEIS DE RISCO
@@ -527,7 +476,7 @@ export const CORE_TRIPLANAR = {
 
 export type CoreTriplanarType = keyof typeof CORE_TRIPLANAR;
 
-// PATTERN_TO_CATEGORY removido — substituído por GROUP_TO_CATEGORY e PATTERN_TO_FUNCTIONAL_GROUP acima
+// PATTERN_TO_CATEGORY is defined above (direct pattern → category mapping)
 
 // ============================================================================
 // PIRÂMIDE MOBILIDADE/ESTABILIDADE
@@ -552,25 +501,23 @@ export const TRAINING_STATIONS = {
   a: {
     name: "Estação A",
     focus: "Membros Inferiores",
-    patterns: ["dominancia_joelho", "dominancia_quadril"],
-    description: "Dominância de joelho/quadril - foco em força, potência ou hipertrofia",
+    patterns: [...SESSION_PATTERN_GROUPS.lower_knee, ...SESSION_PATTERN_GROUPS.lower_hip],
+    description: "Agachamento, lunge, hip hinge, ponte - foco em força, potência ou hipertrofia",
   },
   b: {
     name: "Estação B",
     focus: "Membros Superiores",
-    patterns: ["empurrar_horizontal", "empurrar_vertical", "puxar_horizontal", "puxar_vertical"],
+    patterns: [...SESSION_PATTERN_GROUPS.upper_push, ...SESSION_PATTERN_GROUPS.upper_pull],
     description: "Empurrar/puxar - complementar à estação A",
   },
   c: {
     name: "Estação C",
     focus: "Core/Carry/Breath",
-    patterns: ["core_anti_extensao", "core_anti_flexao_lateral", "core_anti_rotacao", "carregar"],
+    patterns: [...SESSION_PATTERN_GROUPS.core, ...SESSION_PATTERN_GROUPS.carry],
     description: "Core triplanar, carregamentos e respiração guiada",
     optional: true,
   },
 } as const;
-
-export type TrainingStation = keyof typeof TRAINING_STATIONS;
 
 // ============================================================================
 // MÉTODOS DE TREINO

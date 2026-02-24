@@ -403,7 +403,7 @@ export function GenerateGroupSessionDialog({
                                 {block.name}
                               </span>
                               <Badge variant="outline" className="text-[10px] py-0">
-                                {block.method}
+                                {String(block.method)}
                               </Badge>
                             </div>
                             {block.exercises.length > 0 ? (

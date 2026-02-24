@@ -35,7 +35,6 @@ import {
   useExercisesLibrary,
   useDeleteExercise,
   ExerciseLibrary,
-  FUNCTIONAL_GROUPS,
   MOVEMENT_PATTERNS,
   LATERALITY_OPTIONS,
   MOVEMENT_PLANES,
@@ -207,24 +206,6 @@ export default function ExercisesLibraryPage() {
             </div>
             
             <div className="space-y-xs min-w-[180px]">
-              <label className="text-sm font-medium">Grupo Funcional</label>
-              <Select
-                value={filters.functional_group || "all"}
-                onValueChange={(value) =>
-                  setFilters((prev) => ({ ...prev, functional_group: value === "all" ? undefined : value }))
-                }
-              >
-                <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {Object.entries(FUNCTIONAL_GROUPS).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>{label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-xs min-w-[160px]">
               <label className="text-sm font-medium">Categoria</label>
               <Select
                 value={filters.category || "all"}
