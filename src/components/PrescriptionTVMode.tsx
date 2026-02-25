@@ -131,7 +131,7 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                         borderLeft: group.isGroup ? "4px solid hsl(var(--primary) / 0.6)" : undefined,
                       }}
                     >
-                      <td className="font-semibold text-xl text-center py-5 px-6" style={{ color: "#f0f0f0" }}>
+                      <td className="font-semibold text-xl py-5 px-6" style={{ color: "#f0f0f0" }}>
                         {exercise.exercise_name}
                       </td>
                       <td className="text-center font-bold text-xl whitespace-nowrap py-5 px-6" style={{ color: "#e0e0e0" }}>
