@@ -246,7 +246,7 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     if (prescriptionId) {
       const { data: prescDetailsData, error: prescDetailsError } = await supabaseClient
         .from('workout_prescriptions')
-        .select(`*, prescription_exercises (id, sets, reps, order_index, exercises_library (name))`)
+        .select(`*, prescription_exercises (id, sets, reps, order_index, should_track, exercises_library (name))`)
         .eq('id', prescriptionId)
         .single();
       
@@ -264,6 +264,7 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     
     const exercisesInfo = prescriptionDetails 
       ? prescriptionDetails.prescription_exercises
+          .filter((ex: any) => ex.should_track !== false)
           .map((ex: any) => `  ${ex.order_index + 1}. ${ex.exercises_library.name}: ${ex.sets} séries × ${ex.reps} reps`)
           .join('\n')
       : '  (Sessão livre - sem prescrição definida)';

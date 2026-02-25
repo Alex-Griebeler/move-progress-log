@@ -661,48 +661,8 @@ export function RecordGroupSessionDialog({
       
       if (!createdSession) continue;
       
-      const prescribedExercises = prescriptionDetails?.exercises?.filter(
-        (ex: any) => ex.should_track !== false
-      ) || [];
-      
-      const { data: savedExercises } = await supabase
-        .from('exercises')
-        .select('exercise_name')
-        .eq('session_id', createdSession.id);
-      
-      const savedExerciseNames = new Set(
-        (savedExercises || []).map(ex => ex.exercise_name.toLowerCase())
-      );
-      
-      const unmentionedExercises = prescribedExercises.filter(prescribed => {
-        const prescribedName = (
-          prescribed.exercise_name || 
-          prescribed.exercises_library?.name
-        ).toLowerCase();
-        return !savedExerciseNames.has(prescribedName);
-      });
-      
-      if (unmentionedExercises.length > 0) {
-        const exercisesToInsert = unmentionedExercises.map(ex => ({
-          session_id: createdSession.id,
-          exercise_name: ex.exercise_name || ex.exercises_library?.name,
-          sets: null,
-          reps: null,
-          load_kg: null,
-          load_description: null,
-          load_breakdown: null,
-          observations: '⚠️ Exercício prescrito não registrado no áudio - preencher manualmente',
-          is_best_set: false
-        }));
-        
-        const { error: insertError } = await supabase
-          .from('exercises')
-          .insert(exercisesToInsert);
-        
-        if (insertError) {
-          logger.error('Erro ao inserir exercícios não mencionados:', insertError);
-        }
-      }
+      // Exercícios não mencionados no áudio NÃO são mais inseridos automaticamente.
+      // Eles aparecem como warnings na tela de validação para decisão do treinador.
     }
 
     for (const merged of mergedStudents) {
