@@ -1,43 +1,34 @@
 
 
-# Fontes Maiores no Card de Prescricao (Modo TV)
+# Ajuste dos Titulos das Colunas — Modo TV e Modo Normal
 
 ## Objetivo
 
-Aumentar significativamente o tamanho das fontes da tabela de exercicios no PrescriptionCard para que os alunos consigam ler a distancia em uma TV na area de treino.
+Centralizar, colocar em uppercase e ajustar o texto dos headers da tabela de exercicios nos dois modos: o card normal (PrescriptionCard) e o overlay fullscreen (PrescriptionTVMode).
 
 ## Alteracoes
 
-### PrescriptionCard.tsx
+### 1. `src/components/PrescriptionTVMode.tsx` (Modo TV)
 
-Ajustar os tamanhos de fonte em todo o card:
+- Todos os `<th>`: adicionar `text-center uppercase tracking-wider`
+- Header "Exercício": mudar de `text-left` para `text-center`
+- Header "Obs.": mudar de `text-left` para `text-center` e renomear para `OBS`
+- Celula de observacoes: mudar de `text-left` para `text-center`
 
-- **Titulo da prescricao**: de `text-2xl` para `text-4xl`
-- **Objetivo**: de `text-base` para `text-xl`
-- **Data**: de `text-sm` para `text-base`
-- **Headers da tabela** (Exercicio, Sets x Reps, PSE/Carga, Metodo, Obs): de tamanho padrao para `text-lg`
-- **Celulas da tabela**:
-  - Nome do exercicio: adicionar `text-lg`
-  - Sets x Reps / Int: adicionar `text-lg`
-  - Intensidade (PSE/Carga): de `text-sm` para `text-lg`
-  - Badge do metodo: de `text-xs` para `text-sm`
-  - Observacoes: de `text-sm` para `text-base`
-- **Padding das celulas**: aumentar de `p-4` para `p-5` no componente Table ou inline
+### 2. `src/components/PrescriptionCard.tsx` (Modo Normal)
 
-### Detalhes Tecnicos
-
-Todas as mudancas sao apenas em classes Tailwind no arquivo `src/components/PrescriptionCard.tsx`. Nenhuma alteracao de banco de dados ou logica necessaria.
+- Todos os `<TableHead>`: adicionar `text-center uppercase tracking-wider`
+- Header "Exercicio": ja possui `font-semibold`, adicionar `text-center uppercase tracking-wider`
+- Header "Obs.": mudar para `text-center uppercase tracking-wider` e renomear para `OBS`
+- Celula de observacoes: mudar alinhamento para `text-center`
 
 ```text
-Elemento                  Antes         Depois
-─────────────────────────────────────────────────
-Titulo                    text-2xl      text-4xl
-Objetivo                  text-base     text-xl
-Data                      text-sm       text-base
-Header tabela             (default)     text-lg
-Exercicio (celula)        (default)     text-lg
-Sets x Reps (celula)      (default)     text-lg
-Intensidade               text-sm       text-lg
-Badge metodo              text-xs       text-sm
-Observacoes               text-sm       text-base
+Elemento              Antes                          Depois
+────────────────────────────────────────────────────────────────
+Headers (ambos)       mix de text-left/text-center    todos text-center uppercase tracking-wider
+Texto "Obs."          "Obs."                          "OBS"
+Celula observacoes    text-left                       text-center
 ```
+
+Apenas mudancas de classes Tailwind e texto. Nenhuma alteracao de logica ou banco de dados.
+
