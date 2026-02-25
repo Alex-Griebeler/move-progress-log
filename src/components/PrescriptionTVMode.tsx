@@ -103,11 +103,11 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
           <table className="w-full text-lg">
             <thead>
               <tr style={{ background: "#161616", borderBottom: "1px solid #333" }}>
-                <th className="font-bold text-xl text-left py-5 px-6" style={{ color: "#ccc" }}>Exercício</th>
-                <th className="font-bold text-xl text-center py-5 px-6" style={{ color: "#ccc" }}>Sets × Reps / Int</th>
-                <th className="font-bold text-xl text-center py-5 px-6" style={{ color: "#ccc" }}>{intensityLabel}</th>
-                <th className="font-bold text-xl text-center py-5 px-6" style={{ color: "#ccc" }}>Método</th>
-                <th className="font-bold text-xl text-left py-5 px-6" style={{ color: "#ccc" }}>Obs.</th>
+                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>Exercício</th>
+                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>Sets × Reps / Int</th>
+                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>{intensityLabel}</th>
+                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>Método</th>
+                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>OBS</th>
               </tr>
             </thead>
             <tbody>
@@ -131,7 +131,7 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                         borderLeft: group.isGroup ? "4px solid hsl(var(--primary) / 0.6)" : undefined,
                       }}
                     >
-                      <td className="font-semibold text-xl py-5 px-6" style={{ color: "#f0f0f0" }}>
+                      <td className="font-semibold text-xl text-center py-5 px-6" style={{ color: "#f0f0f0" }}>
                         {exercise.exercise_name}
                       </td>
                       <td className="text-center font-bold text-xl whitespace-nowrap py-5 px-6" style={{ color: "#e0e0e0" }}>
@@ -161,7 +161,7 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                           )}
                         </td>
                       )}
-                      <td className="text-lg max-w-md py-5 px-6" style={{ color: "#999" }}>
+                      <td className="text-lg text-center max-w-md py-5 px-6" style={{ color: "#999" }}>
                         {exercise.observations || "—"}
                       </td>
                     </tr>

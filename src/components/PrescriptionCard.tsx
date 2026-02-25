@@ -243,13 +243,13 @@ const PrescriptionCardComponent = ({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="font-semibold">Exercício</TableHead>
-                  <TableHead className="font-semibold text-center">Sets x Reps / Int</TableHead>
-                  <TableHead className="font-semibold text-center">
+                  <TableHead className="font-semibold text-center uppercase tracking-wider">Exercício</TableHead>
+                  <TableHead className="font-semibold text-center uppercase tracking-wider">Sets x Reps / Int</TableHead>
+                  <TableHead className="font-semibold text-center uppercase tracking-wider">
                     {prescription.prescription_type === 'individual' ? 'Carga' : 'PSE'}
                   </TableHead>
-                  <TableHead className="font-semibold text-center">Método</TableHead>
-                  <TableHead className="font-semibold">Obs.</TableHead>
+                  <TableHead className="font-semibold text-center uppercase tracking-wider">Método</TableHead>
+                  <TableHead className="font-semibold text-center uppercase tracking-wider">OBS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -279,7 +279,7 @@ const PrescriptionCardComponent = ({
                             borderLeft: '4px solid hsl(var(--primary) / 0.6)'
                           } : undefined}
                         >
-                          <TableCell className="font-medium">
+                          <TableCell className="font-medium text-center">
                             {exercise.exercise_name}
                           </TableCell>
                           <TableCell className="text-center font-semibold whitespace-nowrap">
@@ -303,7 +303,7 @@ const PrescriptionCardComponent = ({
                               )}
                             </TableCell>
                           )}
-                          <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                          <TableCell className="text-sm text-muted-foreground text-center max-w-xs truncate">
                             {exercise.observations || "-"}
                           </TableCell>
                         </TableRow>
