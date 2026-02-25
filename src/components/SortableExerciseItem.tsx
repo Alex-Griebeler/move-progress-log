@@ -19,6 +19,7 @@ interface Exercise {
   reps: string;
   interval_seconds: string;
   pse: string;
+  load: string;
   training_method: string;
   observations: string;
   group_with_previous: boolean;
@@ -34,6 +35,7 @@ interface SortableExerciseItemProps {
   exercise: Exercise;
   index: number;
   total: number;
+  prescriptionType?: 'group' | 'individual';
   exercisesLibrary: Array<{ id: string; name: string }>;
   onUpdate: (field: keyof Exercise, value: any) => void;
   onRemove: () => void;
@@ -52,6 +54,7 @@ export function SortableExerciseItem({
   exercise,
   index,
   total,
+  prescriptionType = 'group',
   exercisesLibrary,
   onUpdate,
   onRemove,
@@ -225,11 +228,11 @@ export function SortableExerciseItem({
         </div>
 
         <div className="space-y-2">
-          <Label>Carga</Label>
+          <Label>{prescriptionType === 'individual' ? 'Carga' : 'PSE'}</Label>
           <Input
-            value={exercise.pse}
-            onChange={(e) => onUpdate("pse", e.target.value)}
-            placeholder="Ex: 2RR, 80kg, ~85%"
+            value={prescriptionType === 'individual' ? exercise.load : exercise.pse}
+            onChange={(e) => onUpdate(prescriptionType === 'individual' ? "load" : "pse", e.target.value)}
+            placeholder={prescriptionType === 'individual' ? "Ex: 20kg, Leve" : "Ex: 2RR, ~85%"}
           />
         </div>
 

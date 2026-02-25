@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpdatePrescription, usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { usePrescriptionDraft } from "@/hooks/usePrescriptionDraft";
@@ -42,6 +43,7 @@ interface Exercise {
   reps: string;
   interval_seconds: string;
   pse: string;
+  load: string;
   training_method: string;
   observations: string;
   group_with_previous: boolean;
@@ -61,6 +63,7 @@ interface EditPrescriptionDialogProps {
 
 export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: EditPrescriptionDialogProps) {
   const [name, setName] = useState("");
+  const [prescriptionType, setPrescriptionType] = useState<'group' | 'individual'>('group');
   const [objective, setObjective] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([
     {
@@ -70,6 +73,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       reps: "",
       interval_seconds: "",
       pse: "",
+      load: "",
       training_method: "",
       observations: "",
       group_with_previous: false,
@@ -113,6 +117,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   useEffect(() => {
     if (prescriptionData && open && !dataLoaded) {
       setName(prescriptionData.name);
+      setPrescriptionType((prescriptionData as any).prescription_type || 'group');
       setObjective(prescriptionData.objective || "");
       
       if (prescriptionData.exercises && prescriptionData.exercises.length > 0) {
@@ -124,6 +129,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             reps: ex.reps,
             interval_seconds: ex.interval_seconds?.toString() || "",
             pse: ex.pse || "",
+            load: ex.load || "",
             training_method: ex.training_method || "",
             observations: ex.observations || "",
             group_with_previous: ex.group_with_previous || false,
@@ -145,7 +151,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     if (open && dataLoaded && draft) {
       setName(draft.name);
       setObjective(draft.objective);
-      setExercises(draft.exercises);
+      setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "" })));
     }
   }, [open, dataLoaded, draft]);
 
@@ -185,6 +191,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       reps: "",
       interval_seconds: "",
       pse: "",
+      load: "",
       training_method: "",
       observations: "",
       group_with_previous: false,
@@ -389,12 +396,14 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
         id: prescriptionId,
         name,
         objective,
+        prescription_type: prescriptionType,
         exercises: validExercises.map((ex, index) => ({
           exercise_library_id: ex.exercise_library_id,
           sets: ex.sets,
           reps: ex.reps,
           interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
-          pse: ex.pse || undefined,
+          pse: prescriptionType === 'group' ? (ex.pse || undefined) : undefined,
+          load: prescriptionType === 'individual' ? (ex.load || undefined) : undefined,
           training_method: ex.training_method || undefined,
           observations: ex.observations || undefined,
           group_with_previous: index > 0 ? ex.group_with_previous : false,
@@ -497,6 +506,19 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                 />
               </div>
 
+              <div className="space-y-sm">
+                <Label>Tipo de Prescrição</Label>
+                <Select value={prescriptionType} onValueChange={(v) => setPrescriptionType(v as 'group' | 'individual')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="group">Grupo (PSE)</SelectItem>
+                    <SelectItem value="individual">Individual (Carga)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="objective">Objetivo</Label>
                 <Textarea
@@ -541,6 +563,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                       exercise={exercise}
                       index={exerciseIndex}
                       total={exercises.length}
+                      prescriptionType={prescriptionType}
                       exercisesLibrary={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
                       onUpdate={(field, value) => updateExercise(exerciseIndex, field, value)}
                       onRemove={() => removeExercise(exerciseIndex)}
