@@ -1,114 +1,79 @@
 
 
-# Correções da Auditoria - Consistência e Robustez
+# Coluna PSE / Carga na Prescrição
 
 ## Resumo
 
-A auditoria externa identificou 5 categorias de problemas. Após verificação no código, **4 são aplicáveis e requerem correção**. Um item (scripts de teste em produção) já está isolado adequadamente.
+Adicionar um campo `prescription_type` na tabela `workout_prescriptions` para distinguir prescrições de grupo vs individual, e um campo `load` na tabela `prescription_exercises` para armazenar a carga. O card da prescrição mostrará dinamicamente "PSE" ou "Carga" conforme o tipo.
 
 ---
 
-## 1. `plyometrics` com tipo misto em PERIODIZATION_CYCLES
+## Abordagem
 
-**Problema**: A propriedade `plyometrics` alterna entre `false` (boolean), `"low"` (string) e `true` (boolean) nas semanas S1-S4.
+A coluna no card será dinâmica:
+- **Prescrição de grupo** -> mostra header "PSE" e exibe o valor do campo `pse`
+- **Prescrição individual** -> mostra header "Carga" e exibe o valor do campo `load`
 
-**Correção**: Substituir por um campo tipado com valores padronizados:
+Isso é mais limpo do que um header fixo "PSE / Carga" porque evita confusão visual.
+
+---
+
+## Etapas
+
+### 1. Migração de banco de dados
+
+- Adicionar coluna `prescription_type` (text, default `'group'`) na tabela `workout_prescriptions` com valores `'group'` ou `'individual'`
+- Adicionar coluna `load` (text, nullable) na tabela `prescription_exercises` para a carga prescrita (texto livre para suportar formatos como "20kg", "Leve", etc.)
+
+### 2. Atualizar tipos TypeScript
+
+- Adicionar `prescription_type` no interface `WorkoutPrescription`
+- Adicionar `load` no interface `PrescriptionExercise`
+
+### 3. Atualizar PrescriptionCard
+
+- Receber o `prescription_type` da prescrição pai
+- Trocar o header da coluna 3 entre "PSE" e "Carga"
+- Exibir `exercise.pse` ou `exercise.load` conforme o tipo
+
+### 4. Atualizar formulários de criação/edição
+
+- Adicionar seletor de tipo (Grupo / Individual) nos dialogs `CreatePrescriptionDialog` e `EditPrescriptionDialog`
+- Nos exercícios, mostrar campo "PSE" ou "Carga" conforme o tipo selecionado
+
+---
+
+## Detalhes Técnicos
 
 ```text
-plyometrics: "none" | "low" | "full"
+workout_prescriptions
++--------------------+--------+-----------+
+| Campo              | Tipo   | Default   |
++--------------------+--------+-----------+
+| prescription_type  | text   | 'group'   |
++--------------------+--------+-----------+
 
-S1: "none"
-S2: "low"
-S3: "full"
-S4: "full"
+prescription_exercises
++-------+------+----------+
+| Campo | Tipo | Nullable |
++-------+------+----------+
+| load  | text | Yes      |
++-------+------+----------+
 ```
 
-Atualizar a funcao `canUsePlyometrics` para usar o novo tipo.
+SQL da migração:
+```sql
+ALTER TABLE workout_prescriptions
+  ADD COLUMN prescription_type text NOT NULL DEFAULT 'group';
 
-**Arquivos**: `src/constants/backToBasics.ts`
-
----
-
-## 2. Chave `"base assimetrica"` com espaco e acento em LATERALITY_OPTIONS
-
-**Problema**: A chave `"base assimetrica"` tem espaco, divergindo do padrao snake_case usado em todo o sistema.
-
-**Correcao**:
-- Renomear chave para `base_assimetrica`
-- Manter label "Base Assimetrica"
-- Atualizar `populateExercises.ts` (`mapLaterality` retorna `base_assimetrica`)
-- Migrar dados no banco: `UPDATE exercises_library SET laterality = 'base_assimetrica' WHERE laterality = 'base assimetrica'`
-
-**Arquivos**: `src/constants/backToBasics.ts`, `src/utils/populateExercises.ts`
-
----
-
-## 3. `numericLevel` nao enviado ao banco nos dialogos Add/Edit
-
-**Problema**: O estado `numericLevel` existe em `AddExerciseDialog` e `EditExerciseLibraryDialog`, mas nao e incluido no payload de criacao/edicao. O campo e renderizado na UI mas o valor e descartado.
-
-**Correcao**: Incluir o campo no submit. O banco ja tem um campo `level` (texto) -- usar `numericLevel` para popular esse campo com o valor selecionado (ex: "1", "5", "9").
-
-**Arquivos**: `src/components/AddExerciseDialog.tsx`, `src/components/EditExerciseLibraryDialog.tsx`
-
----
-
-## 4. `window.location` sem guard em `structuredData.ts`
-
-**Problema**: Todas as funcoes usam `window.location.origin` e `window.location.href` diretamente. Se importadas em contexto SSR, causa `ReferenceError`.
-
-**Correcao**: Criar helper interno:
-
-```typescript
-const getOrigin = () => typeof window !== 'undefined' ? window.location.origin : '';
-const getHref = () => typeof window !== 'undefined' ? window.location.href : '';
+ALTER TABLE prescription_exercises
+  ADD COLUMN load text;
 ```
 
-Substituir todas as 7 ocorrencias de `window.location`.
+### Arquivos modificados
 
-**Arquivo**: `src/utils/structuredData.ts`
-
----
-
-## 5. Conversao de libras hardcoded em AddWorkoutDialog
-
-**Problema**: `AddWorkoutDialog.tsx` usa `0.4536` diretamente em vez da constante `POUND_TO_KG_CONVERSION` de `units.ts`.
-
-**Correcao**: Importar e usar `POUND_TO_KG_CONVERSION` ou `poundsToKg` de `src/constants/units.ts`.
-
-**Arquivo**: `src/components/AddWorkoutDialog.tsx`
-
----
-
-## 6. `mapLaterality` agrupa incorretamente valores distintos
-
-**Problema**: Tanto "bilateral assimetrica" quanto "unilateral assimetrica" resultam em `"base assimetrica"`, perdendo a informacao de lateralidade.
-
-**Correcao**: Separar em dois valores distintos com base na combinacao:
-- `bilateral + assimetrica` -> `base_assimetrica`
-- `unilateral + assimetrica` -> `unilateral` (manter como unilateral, ja que a assimetria e da base e nao da lateralidade)
-
-Ou, alternativamente, criar campo `position` separado no schema para base (bilateral/assimetrica/unilateral), mantendo `laterality` puro.
-
-**Arquivo**: `src/utils/populateExercises.ts`
-
----
-
-## Itens NAO aplicaveis
-
-| Item | Razao |
-|------|-------|
-| Scripts de teste em producao | Ja isolados em pagina admin com role check |
-| `mapLevel` falsos positivos | A ordem das verificacoes (mais especifico primeiro) ja previne o problema citado |
-
----
-
-## Sequencia de Implementacao
-
-1. Migracao SQL: renomear `laterality = 'base assimetrica'` -> `'base_assimetrica'`
-2. `backToBasics.ts`: corrigir `LATERALITY_OPTIONS` e `plyometrics` typing
-3. `structuredData.ts`: adicionar guards de `window`
-4. `AddExerciseDialog.tsx` e `EditExerciseLibraryDialog.tsx`: conectar `numericLevel`
-5. `AddWorkoutDialog.tsx`: usar constante de conversao
-6. `populateExercises.ts`: corrigir `mapLaterality`
+- `src/hooks/usePrescriptions.ts` - tipos e queries
+- `src/components/PrescriptionCard.tsx` - header dinâmico PSE/Carga
+- `src/components/CreatePrescriptionDialog.tsx` - campo tipo
+- `src/components/EditPrescriptionDialog.tsx` - campo tipo + campo load nos exercícios
 
