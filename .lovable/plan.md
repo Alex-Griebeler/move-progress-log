@@ -1,79 +1,43 @@
 
 
-# Coluna PSE / Carga na Prescrição
+# Fontes Maiores no Card de Prescricao (Modo TV)
 
-## Resumo
+## Objetivo
 
-Adicionar um campo `prescription_type` na tabela `workout_prescriptions` para distinguir prescrições de grupo vs individual, e um campo `load` na tabela `prescription_exercises` para armazenar a carga. O card da prescrição mostrará dinamicamente "PSE" ou "Carga" conforme o tipo.
+Aumentar significativamente o tamanho das fontes da tabela de exercicios no PrescriptionCard para que os alunos consigam ler a distancia em uma TV na area de treino.
 
----
+## Alteracoes
 
-## Abordagem
+### PrescriptionCard.tsx
 
-A coluna no card será dinâmica:
-- **Prescrição de grupo** -> mostra header "PSE" e exibe o valor do campo `pse`
-- **Prescrição individual** -> mostra header "Carga" e exibe o valor do campo `load`
+Ajustar os tamanhos de fonte em todo o card:
 
-Isso é mais limpo do que um header fixo "PSE / Carga" porque evita confusão visual.
+- **Titulo da prescricao**: de `text-2xl` para `text-4xl`
+- **Objetivo**: de `text-base` para `text-xl`
+- **Data**: de `text-sm` para `text-base`
+- **Headers da tabela** (Exercicio, Sets x Reps, PSE/Carga, Metodo, Obs): de tamanho padrao para `text-lg`
+- **Celulas da tabela**:
+  - Nome do exercicio: adicionar `text-lg`
+  - Sets x Reps / Int: adicionar `text-lg`
+  - Intensidade (PSE/Carga): de `text-sm` para `text-lg`
+  - Badge do metodo: de `text-xs` para `text-sm`
+  - Observacoes: de `text-sm` para `text-base`
+- **Padding das celulas**: aumentar de `p-4` para `p-5` no componente Table ou inline
 
----
+### Detalhes Tecnicos
 
-## Etapas
-
-### 1. Migração de banco de dados
-
-- Adicionar coluna `prescription_type` (text, default `'group'`) na tabela `workout_prescriptions` com valores `'group'` ou `'individual'`
-- Adicionar coluna `load` (text, nullable) na tabela `prescription_exercises` para a carga prescrita (texto livre para suportar formatos como "20kg", "Leve", etc.)
-
-### 2. Atualizar tipos TypeScript
-
-- Adicionar `prescription_type` no interface `WorkoutPrescription`
-- Adicionar `load` no interface `PrescriptionExercise`
-
-### 3. Atualizar PrescriptionCard
-
-- Receber o `prescription_type` da prescrição pai
-- Trocar o header da coluna 3 entre "PSE" e "Carga"
-- Exibir `exercise.pse` ou `exercise.load` conforme o tipo
-
-### 4. Atualizar formulários de criação/edição
-
-- Adicionar seletor de tipo (Grupo / Individual) nos dialogs `CreatePrescriptionDialog` e `EditPrescriptionDialog`
-- Nos exercícios, mostrar campo "PSE" ou "Carga" conforme o tipo selecionado
-
----
-
-## Detalhes Técnicos
+Todas as mudancas sao apenas em classes Tailwind no arquivo `src/components/PrescriptionCard.tsx`. Nenhuma alteracao de banco de dados ou logica necessaria.
 
 ```text
-workout_prescriptions
-+--------------------+--------+-----------+
-| Campo              | Tipo   | Default   |
-+--------------------+--------+-----------+
-| prescription_type  | text   | 'group'   |
-+--------------------+--------+-----------+
-
-prescription_exercises
-+-------+------+----------+
-| Campo | Tipo | Nullable |
-+-------+------+----------+
-| load  | text | Yes      |
-+-------+------+----------+
+Elemento                  Antes         Depois
+─────────────────────────────────────────────────
+Titulo                    text-2xl      text-4xl
+Objetivo                  text-base     text-xl
+Data                      text-sm       text-base
+Header tabela             (default)     text-lg
+Exercicio (celula)        (default)     text-lg
+Sets x Reps (celula)      (default)     text-lg
+Intensidade               text-sm       text-lg
+Badge metodo              text-xs       text-sm
+Observacoes               text-sm       text-base
 ```
-
-SQL da migração:
-```sql
-ALTER TABLE workout_prescriptions
-  ADD COLUMN prescription_type text NOT NULL DEFAULT 'group';
-
-ALTER TABLE prescription_exercises
-  ADD COLUMN load text;
-```
-
-### Arquivos modificados
-
-- `src/hooks/usePrescriptions.ts` - tipos e queries
-- `src/components/PrescriptionCard.tsx` - header dinâmico PSE/Carga
-- `src/components/CreatePrescriptionDialog.tsx` - campo tipo
-- `src/components/EditPrescriptionDialog.tsx` - campo tipo + campo load nos exercícios
-
