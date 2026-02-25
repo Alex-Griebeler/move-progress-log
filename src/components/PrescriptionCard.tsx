@@ -14,11 +14,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePrescriptionDetails, WorkoutPrescription, PrescriptionExercise } from "@/hooks/usePrescriptions";
 import { useFolders } from "@/hooks/useFolders";
-import { Calendar, Users, ClipboardList, Pencil, MoreVertical, FolderInput, FolderX, Trash2 } from "lucide-react";
+import { Calendar, Users, ClipboardList, Pencil, MoreVertical, FolderInput, FolderX, Trash2, Monitor } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
-import { memo } from "react";
+import { memo, useState } from "react";
+import { PrescriptionTVMode } from "@/components/PrescriptionTVMode";
 
 // Agrupa exercícios baseado no campo group_with_previous
 const groupExercises = (exercises: PrescriptionExercise[]) => {
@@ -103,6 +104,7 @@ const PrescriptionCardComponent = ({
 }: PrescriptionCardProps) => {
   const { data: details, isLoading } = usePrescriptionDetails(prescription.id);
   const { data: folders } = useFolders();
+  const [tvMode, setTvMode] = useState(false);
 
   return (
     <Card className="animate-fade-in card-interactive">
@@ -110,22 +112,32 @@ const PrescriptionCardComponent = ({
         <div className="flex items-start justify-between gap-sm flex-wrap">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-sm mb-2">
-              <CardTitle className="text-4xl">{prescription.name}</CardTitle>
+              <CardTitle className="text-2xl">{prescription.name}</CardTitle>
               {getAssignmentBadge(prescription.assigned_students_count || 0)}
             </div>
             {prescription.objective && (
-              <CardDescription className="text-xl">
+              <CardDescription className="text-base">
                 {prescription.objective}
               </CardDescription>
             )}
-            <div className="flex items-center gap-xs text-base text-muted-foreground mt-3">
+            <div className="flex items-center gap-xs text-sm text-muted-foreground mt-3">
               <Calendar className="h-4 w-4" />
               <span>
                 Criada em {format(new Date(prescription.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </span>
             </div>
           </div>
-          <div className="flex gap-xs flex-wrap">
+          <div className="flex gap-xs flex-wrap items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setTvMode(true)}
+              title="Modo TV"
+            >
+              <Monitor className="h-4 w-4" />
+              Modo TV
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -231,13 +243,13 @@ const PrescriptionCardComponent = ({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="font-semibold text-lg">Exercício</TableHead>
-                  <TableHead className="font-semibold text-center text-lg">Sets x Reps / Int</TableHead>
-                  <TableHead className="font-semibold text-center text-lg">
+                  <TableHead className="font-semibold">Exercício</TableHead>
+                  <TableHead className="font-semibold text-center">Sets x Reps / Int</TableHead>
+                  <TableHead className="font-semibold text-center">
                     {prescription.prescription_type === 'individual' ? 'Carga' : 'PSE'}
                   </TableHead>
-                  <TableHead className="font-semibold text-center text-lg">Método</TableHead>
-                  <TableHead className="font-semibold text-lg">Obs.</TableHead>
+                  <TableHead className="font-semibold text-center">Método</TableHead>
+                  <TableHead className="font-semibold">Obs.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -267,23 +279,23 @@ const PrescriptionCardComponent = ({
                             borderLeft: '4px solid hsl(var(--primary) / 0.6)'
                           } : undefined}
                         >
-                          <TableCell className="font-medium text-lg p-5">
+                          <TableCell className="font-medium">
                             {exercise.exercise_name}
                           </TableCell>
-                          <TableCell className="text-center font-semibold whitespace-nowrap text-lg p-5">
+                          <TableCell className="text-center font-semibold whitespace-nowrap">
                             {setsRepsInt}
                           </TableCell>
-                          <TableCell className="text-center p-5">
+                          <TableCell className="text-center">
                             {intensityValue ? (
-                              <span className="text-lg font-medium">{intensityValue}</span>
+                              <span className="text-sm font-medium">{intensityValue}</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           {!(group.isGroup && !isFirstInGroup) && (
-                            <TableCell className="text-center p-5" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
+                            <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
                               {exercise.training_method ? (
-                                <Badge variant="secondary" className="text-sm">
+                                <Badge variant="secondary" className="text-xs">
                                   {exercise.training_method}
                                 </Badge>
                               ) : (
@@ -291,7 +303,7 @@ const PrescriptionCardComponent = ({
                               )}
                             </TableCell>
                           )}
-                          <TableCell className="text-base text-muted-foreground max-w-xs truncate p-5">
+                          <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                             {exercise.observations || "-"}
                           </TableCell>
                         </TableRow>
@@ -308,6 +320,14 @@ const PrescriptionCardComponent = ({
           </div>
         )}
       </CardContent>
+
+      {/* TV Mode Overlay */}
+      <PrescriptionTVMode
+        open={tvMode}
+        onClose={() => setTvMode(false)}
+        prescription={prescription}
+        exercises={details?.exercises || []}
+      />
     </Card>
   );
 };
