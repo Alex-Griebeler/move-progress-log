@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePrescriptionDetails, WorkoutPrescription, PrescriptionExercise } from "@/hooks/usePrescriptions";
 import { useFolders } from "@/hooks/useFolders";
-import { Calendar, Users, ClipboardList, Pencil, Clock, Dumbbell, MoreVertical, FolderInput, FolderX, Trash2 } from "lucide-react";
+import { Calendar, Users, ClipboardList, Pencil, MoreVertical, FolderInput, FolderX, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -90,11 +90,6 @@ const getAssignmentBadge = (count: number) => {
       {count} alunos
     </Badge>
   );
-};
-
-const formatInterval = (seconds: number | null) => {
-  if (!seconds) return "-";
-  return `${seconds}s`;
 };
 
 const PrescriptionCardComponent = ({ 
@@ -236,26 +231,26 @@ const PrescriptionCardComponent = ({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="font-semibold">#</TableHead>
                   <TableHead className="font-semibold">Exercício</TableHead>
-                  <TableHead className="font-semibold text-center">Séries</TableHead>
-                  <TableHead className="font-semibold text-center">Reps</TableHead>
-                  <TableHead className="font-semibold text-center">Carga</TableHead>
-                  <TableHead className="font-semibold text-center">Intervalo</TableHead>
+                  <TableHead className="font-semibold text-center">Sets x Reps / Int</TableHead>
+                  <TableHead className="font-semibold text-center">PSE</TableHead>
                   <TableHead className="font-semibold text-center">Método</TableHead>
-                  <TableHead className="font-semibold">Observações</TableHead>
+                  <TableHead className="font-semibold">Obs.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(() => {
                   const groups = groupExercises(details.exercises);
-                  let exerciseCounter = 0;
                   
                   return groups.map((group, groupIndex) => {
                     return group.exercises.map((exercise, exIndex) => {
                       const isFirstInGroup = exIndex === 0;
                       const isLastInGroup = exIndex === group.exercises.length - 1;
-                      exerciseCounter += 1;
+
+                      // Format "Sets x Reps / Int"
+                      const setsReps = `${exercise.sets} x ${exercise.reps}`;
+                      const interval = exercise.interval_seconds ? ` / ${exercise.interval_seconds}s` : '';
+                      const setsRepsInt = `${setsReps}${interval}`;
                       
                       return (
                         <TableRow 
@@ -267,34 +262,18 @@ const PrescriptionCardComponent = ({
                             borderLeft: '4px solid hsl(var(--primary) / 0.6)'
                           } : undefined}
                         >
-                          <TableCell className="font-medium text-muted-foreground text-center">
-                            {exerciseCounter}
-                          </TableCell>
                           <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Dumbbell className="h-4 w-4 text-muted-foreground" />
-                              {exercise.exercise_name}
-                            </div>
+                            {exercise.exercise_name}
                           </TableCell>
-                          <TableCell className="text-center font-semibold">
-                            {exercise.sets}
-                          </TableCell>
-                          <TableCell className="text-center font-semibold">
-                            {exercise.reps}
+                          <TableCell className="text-center font-semibold whitespace-nowrap">
+                            {setsRepsInt}
                           </TableCell>
                           <TableCell className="text-center">
                             {exercise.pse ? (
-                              <Badge variant="outline" className="text-xs whitespace-nowrap">
-                                {exercise.pse}
-                              </Badge>
+                              <span className="text-sm font-medium">{exercise.pse}</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <span className="text-sm font-medium">
-                              {formatInterval(exercise.interval_seconds)}
-                            </span>
                           </TableCell>
                           {!(group.isGroup && !isFirstInGroup) && (
                             <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
