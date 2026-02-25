@@ -279,7 +279,7 @@ const PrescriptionCardComponent = ({
                             borderLeft: '4px solid hsl(var(--primary) / 0.6)'
                           } : undefined}
                         >
-                          <TableCell className="font-medium text-center">
+                          <TableCell className="font-medium">
                             {exercise.exercise_name}
                           </TableCell>
                           <TableCell className="text-center font-semibold whitespace-nowrap">
