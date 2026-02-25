@@ -110,15 +110,15 @@ const PrescriptionCardComponent = ({
         <div className="flex items-start justify-between gap-sm flex-wrap">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-sm mb-2">
-              <CardTitle className="text-2xl">{prescription.name}</CardTitle>
+              <CardTitle className="text-4xl">{prescription.name}</CardTitle>
               {getAssignmentBadge(prescription.assigned_students_count || 0)}
             </div>
             {prescription.objective && (
-              <CardDescription className="text-base">
+              <CardDescription className="text-xl">
                 {prescription.objective}
               </CardDescription>
             )}
-            <div className="flex items-center gap-xs text-sm text-muted-foreground mt-3">
+            <div className="flex items-center gap-xs text-base text-muted-foreground mt-3">
               <Calendar className="h-4 w-4" />
               <span>
                 Criada em {format(new Date(prescription.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
@@ -231,13 +231,13 @@ const PrescriptionCardComponent = ({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="font-semibold">Exercício</TableHead>
-                  <TableHead className="font-semibold text-center">Sets x Reps / Int</TableHead>
-                  <TableHead className="font-semibold text-center">
+                  <TableHead className="font-semibold text-lg">Exercício</TableHead>
+                  <TableHead className="font-semibold text-center text-lg">Sets x Reps / Int</TableHead>
+                  <TableHead className="font-semibold text-center text-lg">
                     {prescription.prescription_type === 'individual' ? 'Carga' : 'PSE'}
                   </TableHead>
-                  <TableHead className="font-semibold text-center">Método</TableHead>
-                  <TableHead className="font-semibold">Obs.</TableHead>
+                  <TableHead className="font-semibold text-center text-lg">Método</TableHead>
+                  <TableHead className="font-semibold text-lg">Obs.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -267,23 +267,23 @@ const PrescriptionCardComponent = ({
                             borderLeft: '4px solid hsl(var(--primary) / 0.6)'
                           } : undefined}
                         >
-                          <TableCell className="font-medium">
+                          <TableCell className="font-medium text-lg p-5">
                             {exercise.exercise_name}
                           </TableCell>
-                          <TableCell className="text-center font-semibold whitespace-nowrap">
+                          <TableCell className="text-center font-semibold whitespace-nowrap text-lg p-5">
                             {setsRepsInt}
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-center p-5">
                             {intensityValue ? (
-                              <span className="text-sm font-medium">{intensityValue}</span>
+                              <span className="text-lg font-medium">{intensityValue}</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           {!(group.isGroup && !isFirstInGroup) && (
-                            <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
+                            <TableCell className="text-center p-5" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
                               {exercise.training_method ? (
-                                <Badge variant="secondary" className="text-xs">
+                                <Badge variant="secondary" className="text-sm">
                                   {exercise.training_method}
                                 </Badge>
                               ) : (
@@ -291,7 +291,7 @@ const PrescriptionCardComponent = ({
                               )}
                             </TableCell>
                           )}
-                          <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                          <TableCell className="text-base text-muted-foreground max-w-xs truncate p-5">
                             {exercise.observations || "-"}
                           </TableCell>
                         </TableRow>
