@@ -1031,6 +1031,7 @@ export type Database = {
           group_with_previous: boolean
           id: string
           interval_seconds: number | null
+          load: string | null
           observations: string | null
           order_index: number
           prescription_id: string
@@ -1046,6 +1047,7 @@ export type Database = {
           group_with_previous?: boolean
           id?: string
           interval_seconds?: number | null
+          load?: string | null
           observations?: string | null
           order_index: number
           prescription_id: string
@@ -1061,6 +1063,7 @@ export type Database = {
           group_with_previous?: boolean
           id?: string
           interval_seconds?: number | null
+          load?: string | null
           observations?: string | null
           order_index?: number
           prescription_id?: string
@@ -1898,6 +1901,7 @@ export type Database = {
           name: string
           objective: string | null
           order_index: number
+          prescription_type: string
           trainer_id: string
           updated_at: string
         }
@@ -1908,6 +1912,7 @@ export type Database = {
           name: string
           objective?: string | null
           order_index?: number
+          prescription_type?: string
           trainer_id: string
           updated_at?: string
         }
@@ -1918,6 +1923,7 @@ export type Database = {
           name?: string
           objective?: string | null
           order_index?: number
+          prescription_type?: string
           trainer_id?: string
           updated_at?: string
         }

@@ -233,7 +233,9 @@ const PrescriptionCardComponent = ({
                 <TableRow className="bg-muted/50">
                   <TableHead className="font-semibold">Exercício</TableHead>
                   <TableHead className="font-semibold text-center">Sets x Reps / Int</TableHead>
-                  <TableHead className="font-semibold text-center">PSE</TableHead>
+                  <TableHead className="font-semibold text-center">
+                    {prescription.prescription_type === 'individual' ? 'Carga' : 'PSE'}
+                  </TableHead>
                   <TableHead className="font-semibold text-center">Método</TableHead>
                   <TableHead className="font-semibold">Obs.</TableHead>
                 </TableRow>
@@ -247,10 +249,13 @@ const PrescriptionCardComponent = ({
                       const isFirstInGroup = exIndex === 0;
                       const isLastInGroup = exIndex === group.exercises.length - 1;
 
-                      // Format "Sets x Reps / Int"
                       const setsReps = `${exercise.sets} x ${exercise.reps}`;
                       const interval = exercise.interval_seconds ? ` / ${exercise.interval_seconds}s` : '';
                       const setsRepsInt = `${setsReps}${interval}`;
+
+                      const intensityValue = prescription.prescription_type === 'individual' 
+                        ? exercise.load 
+                        : exercise.pse;
                       
                       return (
                         <TableRow 
@@ -269,8 +274,8 @@ const PrescriptionCardComponent = ({
                             {setsRepsInt}
                           </TableCell>
                           <TableCell className="text-center">
-                            {exercise.pse ? (
-                              <span className="text-sm font-medium">{exercise.pse}</span>
+                            {intensityValue ? (
+                              <span className="text-sm font-medium">{intensityValue}</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -308,12 +313,12 @@ const PrescriptionCardComponent = ({
 };
 
 export const PrescriptionCard = memo(PrescriptionCardComponent, (prevProps, nextProps) => {
-  // Custom comparison function for memo
   return (
     prevProps.prescription.id === nextProps.prescription.id &&
     prevProps.prescription.name === nextProps.prescription.name &&
     prevProps.prescription.objective === nextProps.prescription.objective &&
     prevProps.prescription.folder_id === nextProps.prescription.folder_id &&
-    prevProps.prescription.updated_at === nextProps.prescription.updated_at
+    prevProps.prescription.updated_at === nextProps.prescription.updated_at &&
+    prevProps.prescription.prescription_type === nextProps.prescription.prescription_type
   );
 });

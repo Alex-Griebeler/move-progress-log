@@ -11,6 +11,7 @@ export interface WorkoutPrescription {
   updated_at: string;
   folder_id: string | null;
   order_index: number;
+  prescription_type: 'group' | 'individual';
   assigned_students_count?: number;
 }
 
@@ -26,6 +27,7 @@ export interface PrescriptionExercise {
   training_method: string | null;
   observations: string | null;
   group_with_previous: boolean;
+  load: string | null;
   exercise_name?: string;
   adaptations?: ExerciseAdaptation[];
 }
@@ -156,12 +158,14 @@ export const useCreatePrescription = () => {
     mutationFn: async (data: {
       name: string;
       objective?: string;
+      prescription_type?: 'group' | 'individual';
       exercises: Array<{
         exercise_library_id: string;
         sets: string;
         reps: string;
         interval_seconds?: number;
         pse?: string;
+        load?: string;
         training_method?: string;
         observations?: string;
         group_with_previous?: boolean;
@@ -186,8 +190,9 @@ export const useCreatePrescription = () => {
         .insert({
           name: data.name,
           objective: data.objective || null,
+          prescription_type: data.prescription_type || 'group',
           trainer_id: user.id,
-        })
+        } as any)
         .select()
         .single();
 
@@ -202,6 +207,7 @@ export const useCreatePrescription = () => {
         reps: ex.reps,
         interval_seconds: ex.interval_seconds || null,
         pse: ex.pse || null,
+        load: ex.load || null,
         training_method: ex.training_method || null,
         observations: ex.observations || null,
         group_with_previous: ex.group_with_previous || false,
@@ -313,12 +319,14 @@ export const useUpdatePrescription = () => {
       id: string;
       name: string;
       objective?: string;
+      prescription_type?: 'group' | 'individual';
       exercises: Array<{
         exercise_library_id: string;
         sets: string;
         reps: string;
         interval_seconds?: number;
         pse?: string;
+        load?: string;
         training_method?: string;
         observations?: string;
         group_with_previous?: boolean;
@@ -335,12 +343,21 @@ export const useUpdatePrescription = () => {
       }>;
     }) => {
       // BUG-001 fix: Use atomic stored procedure instead of delete-then-reinsert
+      // Update prescription_type if provided
+      if (data.prescription_type) {
+        await supabase
+          .from("workout_prescriptions")
+          .update({ prescription_type: data.prescription_type } as any)
+          .eq("id", data.id);
+      }
+
       const exercisesPayload = data.exercises.map((ex) => ({
         exercise_library_id: ex.exercise_library_id,
         sets: ex.sets,
         reps: ex.reps,
         interval_seconds: ex.interval_seconds || null,
         pse: ex.pse || null,
+        load: ex.load || null,
         training_method: ex.training_method || null,
         observations: ex.observations || null,
         group_with_previous: ex.group_with_previous || false,
