@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X, Monitor } from "lucide-react";
 import { WorkoutPrescription, PrescriptionExercise } from "@/hooks/usePrescriptions";
+import { ExerciseLoadHistoryPopover } from "@/components/ExerciseLoadHistoryPopover";
 
 interface PrescriptionTVModeProps {
   open: boolean;
@@ -141,11 +142,17 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                         {setsRepsInt}
                       </td>
                       <td className="text-center py-5 px-6">
-                        {intensityValue ? (
-                          <span className="text-xl font-semibold" style={{ color: "#e0e0e0" }}>{intensityValue}</span>
-                        ) : (
-                          <span style={{ color: "#555" }}>—</span>
-                        )}
+                        <ExerciseLoadHistoryPopover
+                          exerciseName={exercise.exercise_name}
+                          prescriptionId={prescription.id}
+                          darkMode
+                        >
+                          {intensityValue ? (
+                            <span className="text-xl font-semibold" style={{ color: "#e0e0e0" }}>{intensityValue}</span>
+                          ) : (
+                            <span style={{ color: "#555" }}>—</span>
+                          )}
+                        </ExerciseLoadHistoryPopover>
                       </td>
                       {prescription.prescription_type === 'individual' && (
                         <td className="text-center py-5 px-6">
