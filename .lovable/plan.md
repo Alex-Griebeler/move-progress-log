@@ -1,111 +1,41 @@
+# Corrigir Popover de Historico de Cargas: Usar Alunos Atribuidos
 
+## Problema atual
 
-# Historico de Cargas por Aluno no Card da Prescricao
+O hook `useExerciseLoadHistory` busca alunos a partir de `workout_sessions` filtrados por `prescription_id`. Isso so mostra alunos que **ja registraram sessoes** nessa prescricao. O correto e mostrar os alunos **atribuidos** a prescricao (tabela `prescription_assignments`), e entao buscar o historico completo de cada um deles em **todas** as sessoes do banco.
 
-## Objetivo
+## Solucao
 
-Permitir que o treinador, ao visualizar a prescricao (PrescriptionCard e Modo TV), clique na celula de intensidade (Carga/PSE) de qualquer exercicio e veja um popover com as **ultimas cargas registradas por cada aluno atribuido** a aquela prescricao, incluindo a data em que foram executadas.
+### Modificar `src/hooks/useExerciseLoadHistory.ts`
 
----
+Trocar a logica de busca de alunos:
 
-## Como vai funcionar
+**Antes:** Buscar `student_id` de `workout_sessions` WHERE `prescription_id = X`
+**Depois:** Buscar `student_id` + `student_name` de `prescription_assignments` JOIN `students` WHERE `prescription_id = X`
 
-1. O treinador ve a tabela de exercicios da prescricao (PrescriptionCard ou Modo TV)
-2. Na coluna "Carga" ou "PSE", cada celula se torna **clicavel** (cursor pointer, com indicador visual sutil como um icone de historico)
-3. Ao clicar, abre um **Popover** mostrando:
+Manter a busca de historico em **todas** as sessoes de cada aluno (nao filtrar por prescricao), para encontrar a carga mais recente daquele exercicio independente de qual prescricao foi usada.
 
-```text
-+----------------------------------------------+
-|  Agachamento frontal BB                      |
-|  Historico de cargas                         |
-+----------------------------------------------+
-|  Alex Martins        50 kg    ha 3 dias      |
-|  Marina Costa        45 kg    ha 7 dias      |
-|  Pedro Silva         —        sem registro   |
-+----------------------------------------------+
-```
+Fluxo corrigido:
 
-- Nome do aluno
-- Ultima carga registrada (load_kg) e descricao (load_description)
-- Tempo relativo desde a ultima execucao ("ha 3 dias", "ha 2 semanas")
-- Se o aluno nunca executou o exercicio, mostra "sem registro"
+1. Buscar alunos atribuidos via `prescription_assignments` + join com `students` para obter nomes
+2. Buscar todas as `workout_sessions` desses alunos (sem filtro de prescricao)
+3. Buscar `exercises` que correspondam ao nome do exercicio nessas sessoes
+4. Para cada aluno, retornar a carga, data e observações técnicas e alertas mais recentes. por exemplo: dor lombar
 
----
+### Modificar `src/components/ExerciseLoadHistoryPopover.tsx`
 
-## Detalhes Tecnicos
+Ajustar a mensagem de estado vazio de "Nenhuma sessao registrada" para "Nenhum aluno atribuido" (ja que agora os alunos vem das atribuicoes).
 
-### 1. Novo hook: `src/hooks/useExerciseLoadHistory.ts`
+## Detalhes tecnicos
 
-- Recebe: `exerciseName: string`, `studentIds: string[]`
-- Para cada aluno, busca na tabela `exercises` (JOIN com `workout_sessions`) o registro mais recente daquele exercicio
-- Query: busca em `exercises` onde `exercise_name` corresponde ao nome do exercicio da prescricao, filtrando por `session_id` em sessoes dos alunos informados
-- Retorna array de `{ studentId, studentName, lastLoadKg, lastLoadDescription, lastDate }`
-- Usa `useQuery` com queryKey baseada no exercicio + lista de alunos
-- Query so e executada quando o popover e aberto (enabled controlado por state)
+A mudanca e pontual: apenas as primeiras queries do hook mudam (de `workout_sessions` para `prescription_assignments`). O restante da logica (buscar sessoes, buscar exercicios, consolidar por aluno) permanece identico.
 
-### 2. Novo componente: `src/components/ExerciseLoadHistoryPopover.tsx`
-
-- Componente que encapsula o Popover do Radix
-- Props: `exerciseName`, `prescriptionId`, `children` (trigger), `currentValue` (o valor de PSE/Carga exibido)
-- Internamente usa `usePrescriptionAssignments` para obter a lista de alunos atribuidos
-- Usa o hook `useExerciseLoadHistory` para buscar os dados
-- Exibe loading skeleton enquanto carrega
-- Exibe lista de alunos com cargas formatadas
-- Usa `formatDistanceToNow` do date-fns para mostrar tempo relativo ("ha 3 dias")
-
-### 3. Modificar: `src/components/PrescriptionCard.tsx`
-
-- Envolver a celula de intensidade (linhas 291-297) com o `ExerciseLoadHistoryPopover`
-- O valor atual continua exibido normalmente; o popover abre ao clicar
-- Passar `prescription.id` e `exercise.exercise_name` como props
-
-### 4. Modificar: `src/components/PrescriptionTVMode.tsx`
-
-- Mesmo tratamento na celula de intensidade (linhas 143-148)
-- Popover adaptado ao tema escuro do Modo TV
-
-### 5. Buscar alunos atribuidos
-
-- Ja existe `usePrescriptionAssignments` que retorna os alunos vinculados a prescricao
-- Usar essa lista para saber quais alunos consultar no historico
-
-### Logica da query no hook
-
-```sql
--- Para cada aluno, buscar o exercicio mais recente
-SELECT DISTINCT ON (ws.student_id)
-  ws.student_id,
-  e.load_kg,
-  e.load_description,
-  ws.date
-FROM exercises e
-JOIN workout_sessions ws ON ws.id = e.session_id
-WHERE ws.student_id = ANY($studentIds)
-  AND e.exercise_name ILIKE $exerciseName
-ORDER BY ws.student_id, ws.date DESC, ws."time" DESC
-```
-
-Esta query sera feita via cliente Supabase (nao SQL direto), usando encadeamento de queries.
-
----
-
-## Experiencia do usuario
-
-- **Indicador visual**: A celula de intensidade tera um pequeno icone de historico (History) que aparece ao passar o mouse, sinalizando que e clicavel
-- **Carregamento lazy**: A query so executa quando o popover abre, evitando requests desnecessarios
-- **Tempo relativo**: Datas exibidas como "ha 3 dias", "ha 2 semanas", "ha 1 mes" para decisao rapida
-- **Alerta visual**: Se a ultima execucao foi ha mais de 30 dias, o texto aparece em cor de alerta (amarelo/laranja) para indicar que a referencia pode estar desatualizada
-- **Sem registro**: Alunos sem historico aparecem com tracejado, sem confundir com carga zero
+Nao ha necessidade de alterar banco de dados -- a tabela `prescription_assignments` ja existe com os dados necessarios.
 
 ## Arquivos impactados
 
-```text
-Arquivo                                          Acao
-──────────────────────────────────────────────────────────────
-src/hooks/useExerciseLoadHistory.ts               Criar (novo hook)
-src/components/ExerciseLoadHistoryPopover.tsx      Criar (novo componente)
-src/components/PrescriptionCard.tsx                Modificar (envolver celula com popover)
-src/components/PrescriptionTVMode.tsx              Modificar (envolver celula com popover)
-```
 
-Nenhuma alteracao de banco de dados necessaria -- os dados ja existem nas tabelas `exercises` e `workout_sessions`.
+| Arquivo                                         | Acao                               |
+| ----------------------------------------------- | ---------------------------------- |
+| `src/hooks/useExerciseLoadHistory.ts`           | Modificar (trocar fonte de alunos) |
+| `src/components/ExerciseLoadHistoryPopover.tsx` | Ajuste menor na mensagem vazia     |
