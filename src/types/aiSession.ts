@@ -112,15 +112,15 @@ export interface GeneratedMesocycle {
   workouts: GeneratedWorkout[]; // 3 treinos (A, B, C)
   createdAt: string;
   metadata: {
-    groupReadiness?: number | null; // MEL-IA-002
-    volumeMultiplier?: number; // MEL-IA-002
+    groupReadiness?: number | null;
+    volumeMultiplier?: number;
     totalPatternsBalance: Record<string, number>;
-    recommendedProgression: {
-      s1: { volumeMultiplier: number; intensityMultiplier: number };
-      s2: { volumeMultiplier: number; intensityMultiplier: number };
-      s3: { volumeMultiplier: number; intensityMultiplier: number };
-      s4: { volumeMultiplier: number; intensityMultiplier: number };
-    };
+    recommendedProgression: Record<string, {
+      volumeMultiplier: number;
+      intensityMultiplier: number;
+      pse?: string;
+      metconMethod?: string;
+    }>;
   };
 }
 
