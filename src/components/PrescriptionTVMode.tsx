@@ -106,6 +106,9 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                 <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>Exercício</th>
                 <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>Sets × Reps / Int</th>
                 <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>{intensityLabel}</th>
+                {prescription.prescription_type === 'individual' && (
+                  <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>RR</th>
+                )}
                 <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>Método</th>
                 <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>OBS</th>
               </tr>
@@ -144,6 +147,15 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                           <span style={{ color: "#555" }}>—</span>
                         )}
                       </td>
+                      {prescription.prescription_type === 'individual' && (
+                        <td className="text-center py-5 px-6">
+                          {exercise.rir ? (
+                            <span className="text-xl font-semibold" style={{ color: "#e0e0e0" }}>{exercise.rir}</span>
+                          ) : (
+                            <span style={{ color: "#555" }}>—</span>
+                          )}
+                        </td>
+                      )}
                       {!(group.isGroup && !isFirstInGroup) && (
                         <td
                           className="text-center py-5 px-6"

@@ -44,6 +44,7 @@ interface Exercise {
   interval_seconds: string;
   pse: string;
   load: string;
+  rir: string;
   training_method: string;
   observations: string;
   group_with_previous: boolean;
@@ -73,6 +74,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       interval_seconds: "",
       pse: "",
       load: "",
+      rir: "",
       training_method: "",
       observations: "",
       group_with_previous: false,
@@ -94,7 +96,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     if (open && draft) {
       setName(draft.name);
       setObjective(draft.objective);
-      setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "" })));
+      setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" })));
     }
   }, [open, draft]);
 
@@ -147,6 +149,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       interval_seconds: "",
       pse: "",
       load: "",
+      rir: "",
       training_method: "",
       observations: "",
       group_with_previous: false,
@@ -342,6 +345,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
           pse: prescriptionType === 'group' ? (ex.pse || undefined) : undefined,
           load: prescriptionType === 'individual' ? (ex.load || undefined) : undefined,
+          rir: prescriptionType === 'individual' ? (ex.rir || undefined) : undefined,
           training_method: ex.training_method || undefined,
           observations: ex.observations || undefined,
           group_with_previous: index > 0 ? ex.group_with_previous : false,
@@ -364,6 +368,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           interval_seconds: "",
            pse: "",
            load: "",
+           rir: "",
            training_method: "",
           observations: "",
           group_with_previous: false,

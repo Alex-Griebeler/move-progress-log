@@ -28,6 +28,7 @@ export interface PrescriptionExercise {
   observations: string | null;
   group_with_previous: boolean;
   load: string | null;
+  rir: string | null;
   exercise_name?: string;
   adaptations?: ExerciseAdaptation[];
 }
@@ -166,6 +167,7 @@ export const useCreatePrescription = () => {
         interval_seconds?: number;
         pse?: string;
         load?: string;
+        rir?: string;
         training_method?: string;
         observations?: string;
         group_with_previous?: boolean;
@@ -208,6 +210,7 @@ export const useCreatePrescription = () => {
         interval_seconds: ex.interval_seconds || null,
         pse: ex.pse || null,
         load: ex.load || null,
+        rir: ex.rir || null,
         training_method: ex.training_method || null,
         observations: ex.observations || null,
         group_with_previous: ex.group_with_previous || false,
@@ -327,6 +330,7 @@ export const useUpdatePrescription = () => {
         interval_seconds?: number;
         pse?: string;
         load?: string;
+        rir?: string;
         training_method?: string;
         observations?: string;
         group_with_previous?: boolean;
@@ -358,6 +362,7 @@ export const useUpdatePrescription = () => {
         interval_seconds: ex.interval_seconds || null,
         pse: ex.pse || null,
         load: ex.load || null,
+        rir: ex.rir || null,
         training_method: ex.training_method || null,
         observations: ex.observations || null,
         group_with_previous: ex.group_with_previous || false,

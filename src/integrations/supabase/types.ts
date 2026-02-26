@@ -1037,6 +1037,7 @@ export type Database = {
           prescription_id: string
           pse: string | null
           reps: string
+          rir: string | null
           sets: string
           should_track: boolean
           training_method: string | null
@@ -1053,6 +1054,7 @@ export type Database = {
           prescription_id: string
           pse?: string | null
           reps: string
+          rir?: string | null
           sets: string
           should_track?: boolean
           training_method?: string | null
@@ -1069,6 +1071,7 @@ export type Database = {
           prescription_id?: string
           pse?: string | null
           reps?: string
+          rir?: string | null
           sets?: string
           should_track?: boolean
           training_method?: string | null
