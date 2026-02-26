@@ -85,7 +85,7 @@ export const ExerciseLoadHistoryPopover = ({
                 darkMode ? "text-[#666]" : "text-muted-foreground"
               }`}
             >
-              Nenhuma sessão registrada
+              Nenhum aluno atribuído
             </p>
           ) : history && history.length > 0 ? (
             history.map((item) => {
@@ -110,30 +110,42 @@ export const ExerciseLoadHistoryPopover = ({
                     {item.studentName}
                   </span>
                   {item.lastDate ? (
-                    <div className="flex items-center gap-2 shrink-0 text-right">
-                      <span
-                        className={`font-semibold ${
-                          darkMode ? "text-[#f0f0f0]" : ""
-                        }`}
-                      >
-                        {item.lastLoadKg
-                          ? `${item.lastLoadKg} kg`
-                          : item.lastLoadDescription || "—"}
-                      </span>
-                      <span
-                        className={`text-xs ${
-                          isStale
-                            ? "text-warning"
-                            : darkMode
-                            ? "text-[#777]"
-                            : "text-muted-foreground"
-                        }`}
-                      >
-                        {formatDistanceToNow(parseISO(item.lastDate), {
-                          addSuffix: true,
-                          locale: ptBR,
-                        })}
-                      </span>
+                    <div className="flex flex-col items-end shrink-0 text-right">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`font-semibold ${
+                            darkMode ? "text-[#f0f0f0]" : ""
+                          }`}
+                        >
+                          {item.lastLoadKg
+                            ? `${item.lastLoadKg} kg`
+                            : item.lastLoadDescription || "—"}
+                        </span>
+                        <span
+                          className={`text-xs ${
+                            isStale
+                              ? "text-warning"
+                              : darkMode
+                              ? "text-[#777]"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {formatDistanceToNow(parseISO(item.lastDate), {
+                            addSuffix: true,
+                            locale: ptBR,
+                          })}
+                        </span>
+                      </div>
+                      {item.lastObservations && (
+                        <span
+                          className={`text-xs italic mt-0.5 max-w-[200px] truncate ${
+                            darkMode ? "text-[#999]" : "text-muted-foreground"
+                          }`}
+                          title={item.lastObservations}
+                        >
+                          {item.lastObservations}
+                        </span>
+                      )}
                     </div>
                   ) : (
                     <span
