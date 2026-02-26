@@ -44,6 +44,7 @@ interface Exercise {
   interval_seconds: string;
   pse: string;
   load: string;
+  rir: string;
   training_method: string;
   observations: string;
   group_with_previous: boolean;
@@ -74,6 +75,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       interval_seconds: "",
       pse: "",
       load: "",
+      rir: "",
       training_method: "",
       observations: "",
       group_with_previous: false,
@@ -130,6 +132,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             interval_seconds: ex.interval_seconds?.toString() || "",
             pse: ex.pse || "",
             load: ex.load || "",
+            rir: ex.rir || "",
             training_method: ex.training_method || "",
             observations: ex.observations || "",
             group_with_previous: ex.group_with_previous || false,
@@ -151,7 +154,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     if (open && dataLoaded && draft) {
       setName(draft.name);
       setObjective(draft.objective);
-      setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "" })));
+      setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" })));
     }
   }, [open, dataLoaded, draft]);
 
@@ -192,6 +195,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       interval_seconds: "",
       pse: "",
       load: "",
+      rir: "",
       training_method: "",
       observations: "",
       group_with_previous: false,
@@ -404,6 +408,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
           interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
           pse: prescriptionType === 'group' ? (ex.pse || undefined) : undefined,
           load: prescriptionType === 'individual' ? (ex.load || undefined) : undefined,
+          rir: prescriptionType === 'individual' ? (ex.rir || undefined) : undefined,
           training_method: ex.training_method || undefined,
           observations: ex.observations || undefined,
           group_with_previous: index > 0 ? ex.group_with_previous : false,

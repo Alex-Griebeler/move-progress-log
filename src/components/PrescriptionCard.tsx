@@ -248,6 +248,9 @@ const PrescriptionCardComponent = ({
                   <TableHead className="font-semibold text-center uppercase tracking-wider">
                     {prescription.prescription_type === 'individual' ? 'Carga' : 'PSE'}
                   </TableHead>
+                  {prescription.prescription_type === 'individual' && (
+                    <TableHead className="font-semibold text-center uppercase tracking-wider">RR</TableHead>
+                  )}
                   <TableHead className="font-semibold text-center uppercase tracking-wider">Método</TableHead>
                   <TableHead className="font-semibold text-center uppercase tracking-wider">OBS</TableHead>
                 </TableRow>
@@ -292,6 +295,15 @@ const PrescriptionCardComponent = ({
                               <span className="text-muted-foreground">-</span>
                             )}
                           </TableCell>
+                          {prescription.prescription_type === 'individual' && (
+                            <TableCell className="text-center">
+                              {exercise.rir ? (
+                                <span className="text-sm font-medium">{exercise.rir}</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          )}
                           {!(group.isGroup && !isFirstInGroup) && (
                             <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
                               {exercise.training_method ? (

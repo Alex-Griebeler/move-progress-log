@@ -20,6 +20,7 @@ interface Exercise {
   interval_seconds: string;
   pse: string;
   load: string;
+  rir: string;
   training_method: string;
   observations: string;
   group_with_previous: boolean;
@@ -227,14 +228,35 @@ export function SortableExerciseItem({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>{prescriptionType === 'individual' ? 'Carga' : 'PSE'}</Label>
-          <Input
-            value={prescriptionType === 'individual' ? exercise.load : exercise.pse}
-            onChange={(e) => onUpdate(prescriptionType === 'individual' ? "load" : "pse", e.target.value)}
-            placeholder={prescriptionType === 'individual' ? "Ex: 20kg, Leve" : "Ex: 2RR, ~85%"}
-          />
-        </div>
+        {prescriptionType === 'individual' ? (
+          <>
+            <div className="space-y-2">
+              <Label>Carga</Label>
+              <Input
+                value={exercise.load}
+                onChange={(e) => onUpdate("load", e.target.value)}
+                placeholder="Ex: 20kg, Leve"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>RR</Label>
+              <Input
+                value={exercise.rir}
+                onChange={(e) => onUpdate("rir", e.target.value)}
+                placeholder="Ex: 2, 3"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="space-y-2">
+            <Label>PSE</Label>
+            <Input
+              value={exercise.pse}
+              onChange={(e) => onUpdate("pse", e.target.value)}
+              placeholder="Ex: 7, ~85%"
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>Método</Label>
