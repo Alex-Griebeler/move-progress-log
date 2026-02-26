@@ -20,6 +20,7 @@ import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { memo, useState } from "react";
 import { PrescriptionTVMode } from "@/components/PrescriptionTVMode";
+import { ExerciseLoadHistoryPopover } from "@/components/ExerciseLoadHistoryPopover";
 
 // Agrupa exercícios baseado no campo group_with_previous
 const groupExercises = (exercises: PrescriptionExercise[]) => {
@@ -289,11 +290,16 @@ const PrescriptionCardComponent = ({
                             {setsRepsInt}
                           </TableCell>
                           <TableCell className="text-center">
-                            {intensityValue ? (
-                              <span className="text-sm font-medium">{intensityValue}</span>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                            <ExerciseLoadHistoryPopover
+                              exerciseName={exercise.exercise_name}
+                              prescriptionId={prescription.id}
+                            >
+                              {intensityValue ? (
+                                <span className="text-sm font-medium">{intensityValue}</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </ExerciseLoadHistoryPopover>
                           </TableCell>
                           {prescription.prescription_type === 'individual' && (
                             <TableCell className="text-center">
