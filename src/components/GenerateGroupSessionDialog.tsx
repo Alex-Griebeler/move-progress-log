@@ -408,22 +408,29 @@ export function GenerateGroupSessionDialog({
                             </div>
                             {block.exercises.length > 0 ? (
                               <div className="space-y-1 ml-2">
-                                {block.exercises.map((exercise) => (
-                                  <div key={exercise.id} className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1">
-                                    <span className="font-medium truncate max-w-[180px]">
-                                      {exercise.name}
-                                    </span>
-                                    <div className="flex items-center gap-2 text-muted-foreground whitespace-nowrap">
-                                      <span>{exercise.sets}x{exercise.reps}</span>
-                                      {exercise.interval > 0 && (
-                                        <span>{exercise.interval}s</span>
-                                      )}
-                                      {exercise.pse && (
-                                        <span>PSE {exercise.pse}</span>
-                                      )}
+                                 {block.exercises.map((exercise) => (
+                                  <div key={exercise.id} className="text-xs bg-muted/50 rounded px-2 py-1 space-y-0.5">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium truncate max-w-[180px]">
+                                        {exercise.name}
+                                      </span>
+                                      <div className="flex items-center gap-2 text-muted-foreground whitespace-nowrap">
+                                        <span>{exercise.sets}x{exercise.reps}</span>
+                                        {exercise.interval > 0 && (
+                                          <span>{exercise.interval}s</span>
+                                        )}
+                                        {exercise.pse && (
+                                          <span>PSE {exercise.pse}</span>
+                                        )}
+                                      </div>
                                     </div>
+                                    {exercise.executionCues && (
+                                      <p className="text-[10px] text-muted-foreground italic">
+                                        💡 {exercise.executionCues}
+                                      </p>
+                                    )}
                                   </div>
-                                ))}
+                                 ))}
                               </div>
                             ) : (
                               <div className="text-xs text-muted-foreground ml-2 italic">
@@ -434,6 +441,13 @@ export function GenerateGroupSessionDialog({
                         ))}
                       </div>
                     ))}
+
+                    {/* Motivational phrase from LLM */}
+                    {workout.motivationalPhrase && (
+                      <p className="text-xs italic text-primary/80 border-t pt-2 mt-2">
+                        ✨ {workout.motivationalPhrase}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               ))}
