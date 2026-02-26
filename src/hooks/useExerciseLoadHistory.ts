@@ -11,17 +11,34 @@ export interface ExerciseLoadHistoryItem {
 
 export const useExerciseLoadHistory = (
   exerciseName: string,
-  studentIds: string[],
+  prescriptionId: string,
   enabled: boolean
 ) => {
   return useQuery({
-    queryKey: ["exercise-load-history", exerciseName, studentIds],
-    enabled: enabled && !!exerciseName && studentIds.length > 0,
+    queryKey: ["exercise-load-history", exerciseName, prescriptionId],
+    enabled: enabled && !!exerciseName && !!prescriptionId,
     queryFn: async (): Promise<ExerciseLoadHistoryItem[]> => {
-      // For each student, find the most recent exercise record matching the name
-      const results: ExerciseLoadHistoryItem[] = [];
+      // 1. Get distinct students who have sessions with this prescription
+      const { data: prescriptionSessions, error: psError } = await supabase
+        .from("workout_sessions")
+        .select("student_id")
+        .eq("prescription_id", prescriptionId);
 
-      // Get all sessions for these students
+      if (psError) throw psError;
+      if (!prescriptionSessions || prescriptionSessions.length === 0) return [];
+
+      const studentIds = [...new Set(prescriptionSessions.map((s) => s.student_id))];
+
+      // 2. Get student names
+      const { data: students, error: studentsError } = await supabase
+        .from("students")
+        .select("id, name")
+        .in("id", studentIds);
+
+      if (studentsError) throw studentsError;
+      const studentMap = new Map(students?.map((s) => [s.id, s.name]) || []);
+
+      // 3. Get ALL sessions for these students (not just this prescription)
       const { data: sessions, error: sessionsError } = await supabase
         .from("workout_sessions")
         .select("id, student_id, date, time")
@@ -34,7 +51,7 @@ export const useExerciseLoadHistory = (
 
       const sessionIds = sessions.map((s) => s.id);
 
-      // Get all exercises matching the name from these sessions
+      // 4. Get exercises matching the name from these sessions
       const { data: exercises, error: exercisesError } = await supabase
         .from("exercises")
         .select("session_id, load_kg, load_description")
@@ -43,24 +60,15 @@ export const useExerciseLoadHistory = (
 
       if (exercisesError) throw exercisesError;
 
-      // Get student names
-      const { data: students, error: studentsError } = await supabase
-        .from("students")
-        .select("id, name")
-        .in("id", studentIds);
-
-      if (studentsError) throw studentsError;
-
-      const studentMap = new Map(students?.map((s) => [s.id, s.name]) || []);
-
-      // For each student, find the most recent exercise
+      // 5. For each student, find the most recent exercise
+      const results: ExerciseLoadHistoryItem[] = [];
       for (const studentId of studentIds) {
-        const studentSessions = sessions
+        const studentSessionIds = sessions
           .filter((s) => s.student_id === studentId)
           .map((s) => s.id);
 
         const studentExercise = exercises?.find((e) =>
-          studentSessions.includes(e.session_id)
+          studentSessionIds.includes(e.session_id)
         );
 
         const matchingSession = studentExercise

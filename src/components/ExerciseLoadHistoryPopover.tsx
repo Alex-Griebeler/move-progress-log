@@ -3,7 +3,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { History } from "lucide-react";
 import { useExerciseLoadHistory } from "@/hooks/useExerciseLoadHistory";
-import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { formatDistanceToNow, parseISO, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -22,17 +21,14 @@ export const ExerciseLoadHistoryPopover = ({
   darkMode = false,
 }: ExerciseLoadHistoryPopoverProps) => {
   const [open, setOpen] = useState(false);
-  const { data: assignments } = usePrescriptionAssignments(prescriptionId);
-
-  const studentIds = assignments?.map((a) => a.student_id) || [];
 
   const { data: history, isLoading } = useExerciseLoadHistory(
     exerciseName,
-    studentIds,
-    open && studentIds.length > 0
+    prescriptionId,
+    open
   );
 
-  const hasStudents = studentIds.length > 0;
+  const hasStudents = history && history.length > 0;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -77,20 +73,20 @@ export const ExerciseLoadHistoryPopover = ({
 
         {/* Body */}
         <div className="px-4 py-3 space-y-2 max-h-60 overflow-y-auto">
-          {!hasStudents ? (
-            <p
-              className={`text-xs text-center py-2 ${
-                darkMode ? "text-[#666]" : "text-muted-foreground"
-              }`}
-            >
-              Nenhum aluno atribuído
-            </p>
-          ) : isLoading ? (
+          {isLoading ? (
             <>
               <Skeleton className="h-6 w-full" />
               <Skeleton className="h-6 w-full" />
               <Skeleton className="h-6 w-3/4" />
             </>
+          ) : !hasStudents ? (
+            <p
+              className={`text-xs text-center py-2 ${
+                darkMode ? "text-[#666]" : "text-muted-foreground"
+              }`}
+            >
+              Nenhuma sessão registrada
+            </p>
           ) : history && history.length > 0 ? (
             history.map((item) => {
               const isStale =
