@@ -338,8 +338,10 @@ export const VALID_VALENCE_COMBINATIONS: TrainingValence[][] = [
   ["hipertrofia"],
   ["condicionamento"],
   ["potencia", "forca"],
-  ["forca", "hipertrofia"],
+  ["potencia", "hipertrofia"],
   ["potencia", "condicionamento"],
+  ["forca", "hipertrofia"],
+  ["forca", "condicionamento"],
   ["hipertrofia", "condicionamento"],
 ];
 
@@ -364,12 +366,14 @@ export const SESSION_FORMATS = {
     name: "Time Efficient",
     duration: 30,
     phases: {
-      preparacao: { min: 5, max: 5 },
+      preparacao: { min: 4, max: 5 },
       principal: { min: 20, max: 22 },
-      mindfulness: { min: 3, max: 5 },
+      mindfulness: { min: 2, max: 3 },
     },
-    maxValences: 1,
-    includeLMF: false,
+    maxValences: 2,
+    reducedVolume: true,
+    includeLMF: true,
+    lmfRegions: 1,
   },
 } as const;
 
