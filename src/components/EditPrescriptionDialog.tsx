@@ -205,13 +205,15 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       showAdaptations: false,
     };
 
-    const scrollToNewExercise = (targetIndex: number) => {
+    const scrollToFirstEmpty = (updatedExercises: typeof exercises) => {
       setTimeout(() => {
-        setFocusedExerciseIndex(targetIndex);
+        const emptyIndex = updatedExercises.findIndex(ex => !ex.exercise_library_id);
+        if (emptyIndex === -1) return;
+        setFocusedExerciseIndex(emptyIndex);
         const container = scrollContainerRef.current;
         if (container) {
           const items = container.querySelectorAll('[data-exercise-item]');
-          const target = items[targetIndex];
+          const target = items[emptyIndex];
           target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 50);
@@ -221,10 +223,11 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       const newExercises = [...exercises];
       newExercises.splice(afterIndex + 1, 0, newExercise);
       setExercises(newExercises);
-      scrollToNewExercise(afterIndex + 1);
+      scrollToFirstEmpty(newExercises);
     } else {
-      setExercises([...exercises, newExercise]);
-      scrollToNewExercise(exercises.length);
+      const newExercises = [...exercises, newExercise];
+      setExercises(newExercises);
+      scrollToFirstEmpty(newExercises);
     }
   };
 
