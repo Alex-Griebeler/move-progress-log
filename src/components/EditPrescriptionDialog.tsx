@@ -555,7 +555,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             <Separator />
 
             <div className="space-y-md">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-sm -mx-md px-md border-b border-border/50">
                 <Label className="text-base">Exercícios</Label>
                 <Button 
                   onClick={() => addExercise(focusedExerciseIndex ?? undefined)} 
