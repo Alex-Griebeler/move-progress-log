@@ -88,6 +88,7 @@ export function SortableExerciseItem({
     <div
       ref={setNodeRef}
       style={style}
+      data-exercise-item
       className={`space-y-md p-lg border rounded-radius-lg bg-muted/30 transition-smooth ${
         isFocused ? 'ring-2 ring-primary shadow-premium' : ''
       }`}

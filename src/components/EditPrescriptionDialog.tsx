@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,6 +87,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   const [loadingRegressions, setLoadingRegressions] = useState<number | null>(null);
   const [focusedExerciseIndex, setFocusedExerciseIndex] = useState<number | null>(null);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
 
   const { data: prescriptionData } = usePrescriptionDetails(prescriptionId);
@@ -204,14 +205,26 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       showAdaptations: false,
     };
 
+    const scrollToNewExercise = (targetIndex: number) => {
+      setTimeout(() => {
+        setFocusedExerciseIndex(targetIndex);
+        const container = scrollContainerRef.current;
+        if (container) {
+          const items = container.querySelectorAll('[data-exercise-item]');
+          const target = items[targetIndex];
+          target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+    };
+
     if (afterIndex !== undefined && afterIndex >= 0) {
       const newExercises = [...exercises];
       newExercises.splice(afterIndex + 1, 0, newExercise);
       setExercises(newExercises);
-      setTimeout(() => setFocusedExerciseIndex(afterIndex + 1), 0);
+      scrollToNewExercise(afterIndex + 1);
     } else {
       setExercises([...exercises, newExercise]);
-      setTimeout(() => setFocusedExerciseIndex(exercises.length), 0);
+      scrollToNewExercise(exercises.length);
     }
   };
 
@@ -497,7 +510,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
           )}
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto pr-md">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pr-md">
           <TooltipProvider>
             <div className="space-y-lg">
             <div className="space-y-md">
