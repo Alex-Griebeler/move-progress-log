@@ -86,6 +86,7 @@ const SUBCATEGORY_MAP: Record<string, SubcategoryMapping> = {
   regioes: { movement_pattern: null as unknown as string, category: "lmf" },
 
   // ── Respiração (sem movement_pattern) ──
+  protocolos: { movement_pattern: null as unknown as string, category: "respiracao" },
   tecnicas: { movement_pattern: null as unknown as string, category: "respiracao" },
 };
 
