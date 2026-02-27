@@ -1,41 +1,80 @@
-# Corrigir Popover de Historico de Cargas: Usar Alunos Atribuidos
-
-## Problema atual
-
-O hook `useExerciseLoadHistory` busca alunos a partir de `workout_sessions` filtrados por `prescription_id`. Isso so mostra alunos que **ja registraram sessoes** nessa prescricao. O correto e mostrar os alunos **atribuidos** a prescricao (tabela `prescription_assignments`), e entao buscar o historico completo de cada um deles em **todas** as sessoes do banco.
-
-## Solucao
-
-### Modificar `src/hooks/useExerciseLoadHistory.ts`
-
-Trocar a logica de busca de alunos:
-
-**Antes:** Buscar `student_id` de `workout_sessions` WHERE `prescription_id = X`
-**Depois:** Buscar `student_id` + `student_name` de `prescription_assignments` JOIN `students` WHERE `prescription_id = X`
-
-Manter a busca de historico em **todas** as sessoes de cada aluno (nao filtrar por prescricao), para encontrar a carga mais recente daquele exercicio independente de qual prescricao foi usada.
-
-Fluxo corrigido:
-
-1. Buscar alunos atribuidos via `prescription_assignments` + join com `students` para obter nomes
-2. Buscar todas as `workout_sessions` desses alunos (sem filtro de prescricao)
-3. Buscar `exercises` que correspondam ao nome do exercicio nessas sessoes
-4. Para cada aluno, retornar a carga, data e observações técnicas e alertas mais recentes. por exemplo: dor lombar
-
-### Modificar `src/components/ExerciseLoadHistoryPopover.tsx`
-
-Ajustar a mensagem de estado vazio de "Nenhuma sessao registrada" para "Nenhum aluno atribuido" (ja que agora os alunos vem das atribuicoes).
-
-## Detalhes tecnicos
-
-A mudanca e pontual: apenas as primeiras queries do hook mudam (de `workout_sessions` para `prescription_assignments`). O restante da logica (buscar sessoes, buscar exercicios, consolidar por aluno) permanece identico.
-
-Nao ha necessidade de alterar banco de dados -- a tabela `prescription_assignments` ja existe com os dados necessarios.
-
-## Arquivos impactados
 
 
-| Arquivo                                         | Acao                               |
-| ----------------------------------------------- | ---------------------------------- |
-| `src/hooks/useExerciseLoadHistory.ts`           | Modificar (trocar fonte de alunos) |
-| `src/components/ExerciseLoadHistoryPopover.tsx` | Ajuste menor na mensagem vazia     |
+# Exercícios de Arremesso com Medicine Ball — Lista Completa por Progressão
+
+## Contexto
+
+Criar e inserir na `exercises_library` uma lista completa de arremessos com Medicine Ball, organizados por progressão de posição (deitado → ajoelhado → semi-ajoelhado → em pé → base assimétrica → unilateral) e nos 3 planos de movimento (sagital, frontal, transverso).
+
+**Categoria:** `potencia_pliometria`
+**Subcategoria:** `potencia`
+**Equipamento:** `Medicine Ball`
+
+---
+
+## Lista de Exercícios (ordem crescente de dificuldade)
+
+### Nível 1-2 — Deitado (Supino / Decúbito)
+| # | Nome | Plano | Lateralidade | Nível |
+|---|------|-------|-------------|-------|
+| 1 | Arremesso Peito Supino MB | Sagital | Bilateral | 1 |
+| 2 | Arremesso Overhead Supino MB | Sagital | Bilateral | 1 |
+| 3 | Arremesso Rotacional Supino MB | Transverso | Unilateral | 2 |
+
+### Nível 2-3 — Ajoelhado (ambos os joelhos)
+| # | Nome | Plano | Lateralidade | Nível |
+|---|------|-------|-------------|-------|
+| 4 | Arremesso Peito Ajoelhado MB | Sagital | Bilateral | 2 |
+| 5 | Arremesso Overhead Ajoelhado MB | Sagital | Bilateral | 2 |
+| 6 | Arremesso Lateral Ajoelhado MB | Frontal | Unilateral | 3 |
+| 7 | Arremesso Rotacional Ajoelhado MB | Transverso | Unilateral | 3 |
+
+### Nível 3-4 — Semi-Ajoelhado (half-kneeling)
+| # | Nome | Plano | Lateralidade | Nível |
+|---|------|-------|-------------|-------|
+| 8 | Arremesso Peito Semi-Ajoelhado MB | Sagital | Base Assimétrica | 3 |
+| 9 | Arremesso Overhead Semi-Ajoelhado MB | Sagital | Base Assimétrica | 4 |
+| 10 | Arremesso Lateral Semi-Ajoelhado MB | Frontal | Base Assimétrica | 4 |
+| 11 | Arremesso Rotacional Semi-Ajoelhado MB | Transverso | Base Assimétrica | 4 |
+
+### Nível 5-6 — Em Pé Bilateral
+| # | Nome | Plano | Lateralidade | Nível |
+|---|------|-------|-------------|-------|
+| 12 | Arremesso Peito em Pé MB | Sagital | Bilateral | 5 |
+| 13 | Arremesso Overhead em Pé MB | Sagital | Bilateral | 5 |
+| 14 | Arremesso Lateral em Pé MB | Frontal | Bilateral | 5 |
+| 15 | Arremesso Rotacional em Pé MB | Transverso | Bilateral | 6 |
+| 16 | Arremesso Scoop em Pé MB | Sagital | Bilateral | 6 |
+
+### Nível 6-7 — Em Pé Base Assimétrica (split stance)
+| # | Nome | Plano | Lateralidade | Nível |
+|---|------|-------|-------------|-------|
+| 17 | Arremesso Peito Split Stance MB | Sagital | Base Assimétrica | 6 |
+| 18 | Arremesso Overhead Split Stance MB | Sagital | Base Assimétrica | 7 |
+| 19 | Arremesso Rotacional Split Stance MB | Transverso | Base Assimétrica | 7 |
+| 20 | Arremesso Lateral Split Stance MB | Frontal | Base Assimétrica | 7 |
+
+### Nível 7-9 — Em Pé Unilateral (single leg)
+| # | Nome | Plano | Lateralidade | Nível |
+|---|------|-------|-------------|-------|
+| 21 | Arremesso Peito UNL em Pé MB | Sagital | Unilateral | 7 |
+| 22 | Arremesso Overhead UNL em Pé MB | Sagital | Unilateral | 8 |
+| 23 | Arremesso Rotacional UNL em Pé MB | Transverso | Unilateral | 8 |
+| 24 | Arremesso Lateral UNL em Pé MB | Frontal | Unilateral | 9 |
+| 25 | Arremesso Rotacional c/ Step UNL MB | Transverso | Unilateral | 9 |
+
+---
+
+## Implementacao Tecnica
+
+### 1. Inserir 25 exercícios no banco de dados
+- Tabela: `exercises_library`
+- Campos preenchidos: `name`, `category` (potencia_pliometria), `subcategory` (potencia), `movement_plane`, `laterality`, `numeric_level` (1-9), `level` (Iniciante/Intermediário/Avançado), `risk_level`, `equipment_required` (Medicine Ball), `tags`
+- Usar SQL INSERT via ferramenta de dados (não migration)
+
+### 2. Atualizar import-exercises edge function
+- Adicionar mapeamento para subcategoria `potencia` caso arremessos venham do JSON oficial no futuro
+
+### 3. Nenhuma alteração de UI necessária
+- Os exercícios aparecerão automaticamente no combobox de seleção ao buscar por "arremesso" ou filtrar por categoria "Potência & Pliometria"
+
