@@ -1,41 +1,34 @@
-# Corrigir Popover de Historico de Cargas: Usar Alunos Atribuidos
 
-## Problema atual
 
-O hook `useExerciseLoadHistory` busca alunos a partir de `workout_sessions` filtrados por `prescription_id`. Isso so mostra alunos que **ja registraram sessoes** nessa prescricao. O correto e mostrar os alunos **atribuidos** a prescricao (tabela `prescription_assignments`), e entao buscar o historico completo de cada um deles em **todas** as sessoes do banco.
+# Padronizar nomes de respiração e melhorar seleção de exercícios
 
-## Solucao
+## Objetivo
+Renomear todos os protocolos de respiração para iniciarem com "Respiração" e garantir que o combobox de seleção filtre progressivamente conforme o usuário digita.
 
-### Modificar `src/hooks/useExerciseLoadHistory.ts`
+## 1. Renomear exercícios no banco de dados
 
-Trocar a logica de busca de alunos:
+Atualizar 4 registros na tabela `exercises_library` que ainda nao iniciam com "Respiração":
 
-**Antes:** Buscar `student_id` de `workout_sessions` WHERE `prescription_id = X`
-**Depois:** Buscar `student_id` + `student_name` de `prescription_assignments` JOIN `students` WHERE `prescription_id = X`
+| Nome atual | Novo nome |
+|---|---|
+| Box Breathing (4-4-4-4) | Respiração Box Breathing (4-4-4-4) |
+| Manobra de Valsalva Controlada | Respiração Manobra de Valsalva Controlada |
+| Nasal Cadenciada + Visualização | Respiração Nasal Cadenciada + Visualização |
+| Suspiro Cíclico (Cyclic Sighing) | Respiração Suspiro Cíclico (Cyclic Sighing) |
 
-Manter a busca de historico em **todas** as sessoes de cada aluno (nao filtrar por prescricao), para encontrar a carga mais recente daquele exercicio independente de qual prescricao foi usada.
+Tambem atualizar os mesmos nomes na tabela `breathing_protocols` para manter consistencia.
 
-Fluxo corrigido:
+## 2. Melhorar o ExerciseCombobox
 
-1. Buscar alunos atribuidos via `prescription_assignments` + join com `students` para obter nomes
-2. Buscar todas as `workout_sessions` desses alunos (sem filtro de prescricao)
-3. Buscar `exercises` que correspondam ao nome do exercicio nessas sessoes
-4. Para cada aluno, retornar a carga, data e observações técnicas e alertas mais recentes. por exemplo: dor lombar
+O componente `ExerciseCombobox` ja usa o `cmdk` que faz filtragem automatica conforme o usuario digita. Porem, atualmente ele nao mostra nenhum exercicio ate o usuario abrir o popover. Melhorias:
 
-### Modificar `src/components/ExerciseLoadHistoryPopover.tsx`
-
-Ajustar a mensagem de estado vazio de "Nenhuma sessao registrada" para "Nenhum aluno atribuido" (ja que agora os alunos vem das atribuicoes).
+- Aumentar a altura maxima da lista para mostrar mais resultados visiveis (de 300px para 400px)
+- Garantir que o campo de busca receba foco automatico ao abrir
+- Mostrar contagem de resultados no rodape da lista para feedback visual
 
 ## Detalhes tecnicos
 
-A mudanca e pontual: apenas as primeiras queries do hook mudam (de `workout_sessions` para `prescription_assignments`). O restante da logica (buscar sessoes, buscar exercicios, consolidar por aluno) permanece identico.
+- **Dados**: UPDATE via insert tool para `exercises_library` e `breathing_protocols`
+- **UI**: Ajuste no `ExerciseCombobox.tsx` para melhorar a experiencia de filtragem progressiva
+- Nenhuma mudanca de schema necessaria
 
-Nao ha necessidade de alterar banco de dados -- a tabela `prescription_assignments` ja existe com os dados necessarios.
-
-## Arquivos impactados
-
-
-| Arquivo                                         | Acao                               |
-| ----------------------------------------------- | ---------------------------------- |
-| `src/hooks/useExerciseLoadHistory.ts`           | Modificar (trocar fonte de alunos) |
-| `src/components/ExerciseLoadHistoryPopover.tsx` | Ajuste menor na mensagem vazia     |
