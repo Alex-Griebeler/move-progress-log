@@ -57,18 +57,36 @@ const AdminDiagnosticsPage = () => {
     }
   };
 
+  const [xlsxDebug, setXlsxDebug] = useState<Record<string, unknown> | null>(null);
+
   const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
     setImportingXlsx(true);
     setImportResult(null);
+    setXlsxDebug(null);
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
       const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
       
+      // Debug: capture raw spreadsheet info
+      const firstRow = rows[0] || {};
+      const rawKeys = Object.keys(firstRow);
+      const debugInfo: Record<string, unknown> = {
+        sheetName,
+        totalSheets: workbook.SheetNames.length,
+        allSheetNames: workbook.SheetNames,
+        rowCount: rows.length,
+        rawKeys,
+        firstRowSample: Object.entries(firstRow).slice(0, 8).map(([k, v]) => `${k}=${v}`),
+        secondRowSample: rows[1] ? Object.entries(rows[1]).slice(0, 8).map(([k, v]) => `${k}=${v}`) : "N/A",
+      };
+      setXlsxDebug(debugInfo);
+
       // Normalize column headers to handle Unicode differences
       const normalizeKey = (key: string) => 
         key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -108,11 +126,16 @@ const AdminDiagnosticsPage = () => {
         Implemento: row["Implemento"] || row["implemento"],
       }));
 
-      console.log("[XLSX Import] Sending", exercises.length, "exercises. First 2:", JSON.stringify(exercises.slice(0, 2), null, 2));
+      // Debug: check how many have exercicio_pt
+      const withName = exercises.filter(e => e.exercicio_pt);
+      debugInfo.exercisesWithName = withName.length;
+      debugInfo.exercisesTotal = exercises.length;
+      debugInfo.firstMapped = exercises[0];
+      setXlsxDebug({ ...debugInfo });
+
       const { data: result, error } = await supabase.functions.invoke("import-exercises", {
         body: { format: "spreadsheet", exercises },
       });
-      console.log("[XLSX Import] Response:", JSON.stringify(result, null, 2), "Error:", error);
       if (error) throw error;
       setImportResult(result);
       toast.success(`Importação XLSX: ${result.inserted} inseridos, ${result.updated} atualizados, ${result.orphans_reclassified || 0} órfãos reclassificados`);
@@ -217,6 +240,15 @@ const AdminDiagnosticsPage = () => {
                 </Button>
               </div>
             </div>
+
+            {xlsxDebug && (
+              <div className="rounded-md border border-amber-500 p-4 space-y-2 text-sm bg-amber-500/10">
+                <p className="font-semibold text-amber-600">📊 Debug da Planilha (frontend)</p>
+                <pre className="text-xs max-h-60 overflow-auto bg-muted p-2 rounded">
+                  {JSON.stringify(xlsxDebug, null, 2)}
+                </pre>
+              </div>
+            )}
 
             {importResult && (
               <div className="rounded-md border p-4 space-y-2 text-sm">
