@@ -146,7 +146,19 @@ const AdminDiagnosticsPage = () => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token || anonKey;
+      const accessToken = session.data.session?.access_token;
+      
+      console.log("[import] Auth check:", {
+        hasSession: !!session.data.session,
+        hasToken: !!accessToken,
+        supabaseUrl: supabaseUrl?.substring(0, 30),
+        totalExercises: exercises.length,
+        totalBatches: batches.length,
+      });
+      
+      if (!accessToken) {
+        throw new Error("Sessão expirada. Faça login novamente.");
+      }
 
       for (let i = 0; i < batches.length; i++) {
         setImportProgress({ current: i * BATCH_SIZE, total: exercises.length });
