@@ -384,12 +384,29 @@ Deno.serve(async (req: Request) => {
     const errors: string[] = [];
     const matchedNames = new Set<string>();
 
+    const debugSamples: Record<string, unknown>[] = [];
+
     if (isSpreadsheetFormat) {
       // ── SPREADSHEET FORMAT (XLSX) ──
-      for (const ex of spreadsheetExercises) {
+      for (let idx = 0; idx < spreadsheetExercises.length; idx++) {
+        const ex = spreadsheetExercises[idx];
         try {
           const exercicio_pt = getField(ex, "exercicio_pt", "nome", "name") as string;
           if (!exercicio_pt) continue;
+
+          // Debug: log first 3 exercises' raw keys and grupo_muscular
+          if (idx < 3) {
+            debugSamples.push({
+              idx,
+              name: exercicio_pt,
+              raw_keys: Object.keys(ex),
+              grupo_muscular_raw: ex["grupo_muscular"],
+              grupo_muscular_getField: getField(ex, "grupo_muscular"),
+              enfase_raw: ex["Ênfase"],
+              enfase_getField: getField(ex, "Ênfase", "Enfase", "enfase", "ênfase"),
+              all_values_sample: Object.entries(ex).slice(0, 5).map(([k, v]) => `${k}=${v}`),
+            });
+          }
 
           const padrao = getField(ex, "Padrao_movimento", "padrao_movimento") as string | undefined;
 
@@ -551,6 +568,7 @@ Deno.serve(async (req: Request) => {
           orphans_total: orphans.length,
           total_processed: spreadsheetExercises.length,
           total_in_db_after: existingMap.size + inserted,
+          debug_samples: debugSamples,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
