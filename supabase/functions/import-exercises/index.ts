@@ -432,17 +432,8 @@ Deno.serve(async (req: Request) => {
             }
           }
 
-          // Try similarity via RPC (if no match found)
-          if (!match) {
-            const { data: simResults } = await supabase.rpc("search_exercises_by_name", {
-              p_query: exercicio_pt,
-              p_limit: 1,
-            });
-            if (simResults && simResults.length > 0 && simResults[0].similarity > 0.6) {
-              match = existingMap.get(normalize(simResults[0].name));
-              if (match) matchedNames.add(normalize(match.name));
-            }
-          }
+          // Skip similarity RPC to avoid timeout on large imports
+          // Direct name match + aliases is sufficient for spreadsheet imports
 
           // Map pattern
           const patternMapping = padrao ? SPREADSHEET_PATTERN_MAP[padrao] : null;
