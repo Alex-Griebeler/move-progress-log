@@ -108,9 +108,11 @@ const AdminDiagnosticsPage = () => {
         Implemento: row["Implemento"] || row["implemento"],
       }));
 
+      console.log("[XLSX Import] Sending", exercises.length, "exercises. First 2:", JSON.stringify(exercises.slice(0, 2), null, 2));
       const { data: result, error } = await supabase.functions.invoke("import-exercises", {
         body: { format: "spreadsheet", exercises },
       });
+      console.log("[XLSX Import] Response:", JSON.stringify(result, null, 2), "Error:", error);
       if (error) throw error;
       setImportResult(result);
       toast.success(`Importação XLSX: ${result.inserted} inseridos, ${result.updated} atualizados, ${result.orphans_reclassified || 0} órfãos reclassificados`);
