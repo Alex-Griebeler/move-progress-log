@@ -117,7 +117,7 @@ const AdminDiagnosticsPage = () => {
         JOE: row["JOE"] != null ? Number(row["JOE"]) : undefined,
         QUA: row["QUA"] != null ? Number(row["QUA"]) : undefined,
         grupo_muscular: row["grupo_muscular"],
-        "Ênfase": row["Ênfase"] || row["enfase"] || row["enfase"],
+        "Ênfase": row["Ênfase"] || row["enfase"] || row["ênfase"],
         Base: row["Base"] || row["base"],
         lateralidade: row["lateralidade"],
         "Posição": row["Posição"] || row["posicao"] || row["posicao"],

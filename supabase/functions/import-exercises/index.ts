@@ -42,6 +42,12 @@ const SPREADSHEET_PATTERN_MAP: Record<string, PatternMapping> = {
   "Potencia": { category: "potencia_pliometria", movement_pattern: null },
 };
 
+// Build a case-insensitive lookup for pattern map (fix #4)
+const PATTERN_MAP_NORMALIZED = new Map<string, PatternMapping>();
+for (const [key, val] of Object.entries(SPREADSHEET_PATTERN_MAP)) {
+  PATTERN_MAP_NORMALIZED.set(normalize(key), val);
+}
+
 // Subcategory mapping from spreadsheet patterns
 const SPREADSHEET_SUBCATEGORY_MAP: Record<string, string> = {
   "Estab_AntiRotacao": "anti_rotacao",
@@ -49,6 +55,12 @@ const SPREADSHEET_SUBCATEGORY_MAP: Record<string, string> = {
   "Estab_AntiFlexaoLat": "anti_flexao_lateral",
   "Estab_CintEscap": "ativacao_escapular",
 };
+
+// Build case-insensitive subcategory lookup (fix #4)
+const SUBCATEGORY_MAP_NORMALIZED = new Map<string, string>();
+for (const [key, val] of Object.entries(SPREADSHEET_SUBCATEGORY_MAP)) {
+  SUBCATEGORY_MAP_NORMALIZED.set(normalize(key), val);
+}
 
 // ============================================================================
 // MAPEAMENTO UNIFICADO: subcategoria do JSON → (movement_pattern, category)
@@ -265,9 +277,10 @@ function mapSpreadsheetRisk(risco?: string): string | null {
   return null;
 }
 
+// Fix #2: Accept multiple separators for primary_muscles
 function parsePrimaryMuscles(grupo?: string): string[] | null {
   if (!grupo) return null;
-  return grupo.split("|").map(m => m.trim()).filter(Boolean);
+  return grupo.split(/[|,;]/).map(m => m.trim()).filter(Boolean);
 }
 
 // ============================================================================
@@ -308,6 +321,19 @@ function heuristicScores(ex: { name: string; category: string | null; movement_p
     : 2;
 
   return { axial_load, lumbar_demand, technical_complexity, metabolic_potential, knee_dominance, hip_dominance };
+}
+
+// ============================================================================
+// Batch helpers: split array into chunks for Supabase batch operations
+// ============================================================================
+const BATCH_SIZE = 50;
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
 }
 
 // ── Main handler ──
@@ -383,18 +409,22 @@ Deno.serve(async (req: Request) => {
     let skipped = 0;
     const errors: string[] = [];
     const matchedNames = new Set<string>();
-
     const debugSamples: Record<string, unknown>[] = [];
 
     if (isSpreadsheetFormat) {
-      // ── SPREADSHEET FORMAT (XLSX) ──
+      // ── SPREADSHEET FORMAT (XLSX) — BATCH MODE ──
+      
+      // Accumulate records for batch operations (fix #1: batch upsert)
+      const toUpdate: { id: string; record: Record<string, unknown> }[] = [];
+      const toInsertMap = new Map<string, Record<string, unknown>>(); // fix #3: dedup by normalized name
+
       for (let idx = 0; idx < spreadsheetExercises.length; idx++) {
         const ex = spreadsheetExercises[idx];
         try {
           const exercicio_pt = getField(ex, "exercicio_pt", "nome", "name") as string;
           if (!exercicio_pt) continue;
 
-          // Debug: log first 3 exercises' raw keys and grupo_muscular
+          // Debug: log first 3 exercises' raw keys
           if (idx < 3) {
             debugSamples.push({
               idx,
@@ -432,11 +462,9 @@ Deno.serve(async (req: Request) => {
             }
           }
 
-          // Skip similarity RPC to avoid timeout on large imports
-          // Direct name match + aliases is sufficient for spreadsheet imports
-
-          // Map pattern
-          const patternMapping = padrao ? SPREADSHEET_PATTERN_MAP[padrao] : null;
+          // Fix #4: normalize padrao for case-insensitive lookup
+          const normalizedPadrao = padrao ? normalize(padrao) : null;
+          const patternMapping = normalizedPadrao ? PATTERN_MAP_NORMALIZED.get(normalizedPadrao) : null;
 
           // Extract fields with normalized key access
           const enfase = getField(ex, "Ênfase", "Enfase", "enfase", "ênfase") as string | undefined;
@@ -465,9 +493,10 @@ Deno.serve(async (req: Request) => {
             }
           }
 
-          // Map subcategory from spreadsheet pattern
-          if (padrao && SPREADSHEET_SUBCATEGORY_MAP[padrao]) {
-            record.subcategory = SPREADSHEET_SUBCATEGORY_MAP[padrao];
+          // Map subcategory — fix #4: case-insensitive
+          const normalizedSubcatKey = normalizedPadrao;
+          if (normalizedSubcatKey && SUBCATEGORY_MAP_NORMALIZED.has(normalizedSubcatKey)) {
+            record.subcategory = SUBCATEGORY_MAP_NORMALIZED.get(normalizedSubcatKey);
           } else if (subcategoria) {
             record.subcategory = subcategoria;
           }
@@ -501,48 +530,94 @@ Deno.serve(async (req: Request) => {
           if (implemento) implemento.split(/[,;+\/]/).map((e: string) => e.trim()).filter(Boolean).forEach((e: string) => equipArr.push(e));
           if (equipArr.length > 0) record.equipment_required = [...new Set(equipArr)];
 
-          if (match) {
-            const { error } = await supabase
-              .from("exercises_library")
-              .update(record)
-              .eq("id", match.id);
-            if (error) errors.push(`Update "${exercicio_pt}": ${error.message}`);
-            else updated++;
+          // Fix #1: accumulate instead of individual DB calls
+          if (match && match.id !== "new") {
+            toUpdate.push({ id: match.id, record });
           } else {
-            const { error } = await supabase
-              .from("exercises_library")
-              .insert(record);
-            if (error) errors.push(`Insert "${exercicio_pt}": ${error.message}`);
-            else {
-              inserted++;
-              existingMap.set(normalizedName, { id: "new", name: exercicio_pt, category: record.category as string || null, movement_pattern: record.movement_pattern as string || null, boyle_score: boyleScore || null });
-            }
+            // Fix #3: if duplicate name in spreadsheet, last one wins
+            toInsertMap.set(normalizedName, record);
           }
         } catch (e) {
           errors.push(`Exception "${(getField(ex, "exercicio_pt") || "?")}": ${(e as Error).message}`);
         }
       }
 
-      // ── Reclassify orphans with heuristic scores ──
+      // ── BATCH UPDATE existing exercises ──
+      for (const batch of chunk(toUpdate, BATCH_SIZE)) {
+        // Supabase doesn't support batch update with different values per row,
+        // so we use Promise.all with individual updates but parallelized
+        const results = await Promise.all(
+          batch.map(({ id, record }) =>
+            supabase.from("exercises_library").update(record).eq("id", id)
+          )
+        );
+        for (let i = 0; i < results.length; i++) {
+          if (results[i].error) {
+            errors.push(`Update "${batch[i].record.name}": ${results[i].error!.message}`);
+          } else {
+            updated++;
+          }
+        }
+      }
+
+      // ── BATCH INSERT new exercises ──
+      const toInsertArr = Array.from(toInsertMap.values());
+      for (const batch of chunk(toInsertArr, BATCH_SIZE)) {
+        const { error, data } = await supabase
+          .from("exercises_library")
+          .insert(batch)
+          .select("id, name");
+        if (error) {
+          errors.push(`Batch insert (${batch.length} items): ${error.message}`);
+        } else {
+          inserted += (data?.length || batch.length);
+          // Update existingMap with real IDs for orphan detection
+          if (data) {
+            for (const row of data) {
+              existingMap.set(normalize(row.name), {
+                id: row.id,
+                name: row.name,
+                category: null,
+                movement_pattern: null,
+                boyle_score: null,
+              });
+            }
+          }
+        }
+      }
+
+      // ── Reclassify orphans with heuristic scores — BATCH ──
       let orphansUpdated = 0;
       const orphans: string[] = [];
+      const orphanUpdates: { id: string; scores: ReturnType<typeof heuristicScores>; name: string }[] = [];
+      
       for (const [norm, ex] of existingMap) {
         if (!matchedNames.has(norm) && ex.id !== "new") {
           orphans.push(ex.name);
-          const scores = heuristicScores(ex);
-          const { error } = await supabase
-            .from("exercises_library")
-            .update({
-              axial_load: scores.axial_load,
-              lumbar_demand: scores.lumbar_demand,
-              technical_complexity: scores.technical_complexity,
-              metabolic_potential: scores.metabolic_potential,
-              knee_dominance: scores.knee_dominance,
-              hip_dominance: scores.hip_dominance,
-            })
-            .eq("id", ex.id)
-            .is("axial_load", null); // Only update if not already set
-          if (!error) orphansUpdated++;
+          orphanUpdates.push({ id: ex.id, scores: heuristicScores(ex), name: ex.name });
+        }
+      }
+
+      // Batch orphan updates with Promise.all
+      for (const batch of chunk(orphanUpdates, BATCH_SIZE)) {
+        const results = await Promise.all(
+          batch.map(({ id, scores }) =>
+            supabase
+              .from("exercises_library")
+              .update({
+                axial_load: scores.axial_load,
+                lumbar_demand: scores.lumbar_demand,
+                technical_complexity: scores.technical_complexity,
+                metabolic_potential: scores.metabolic_potential,
+                knee_dominance: scores.knee_dominance,
+                hip_dominance: scores.hip_dominance,
+              })
+              .eq("id", id)
+              .is("axial_load", null) // Only update if not already set
+          )
+        );
+        for (const r of results) {
+          if (!r.error) orphansUpdated++;
         }
       }
 
@@ -558,13 +633,16 @@ Deno.serve(async (req: Request) => {
           orphans,
           orphans_total: orphans.length,
           total_processed: spreadsheetExercises.length,
-          total_in_db_after: existingMap.size + inserted,
+          total_in_db_after: existingMap.size,
           debug_samples: debugSamples,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else {
-      // ── JSON FORMAT (existing behavior) ──
+      // ── JSON FORMAT — BATCH MODE ──
+      const toUpdate: { id: string; record: Record<string, unknown> }[] = [];
+      const toInsertMap = new Map<string, Record<string, unknown>>();
+
       for (const ex of exercises) {
         try {
           const normalizedName = normalize(ex.nome);
@@ -610,24 +688,53 @@ Deno.serve(async (req: Request) => {
           if (defaultReps) record.default_reps = defaultReps;
 
           if (match) {
-            const { error } = await supabase
-              .from("exercises_library")
-              .update(record)
-              .eq("id", match.id);
-            if (error) errors.push(`Update "${ex.nome}": ${error.message}`);
-            else updated++;
+            toUpdate.push({ id: match.id, record });
           } else {
-            const { error } = await supabase
-              .from("exercises_library")
-              .insert(record);
-            if (error) errors.push(`Insert "${ex.nome}": ${error.message}`);
-            else {
-              inserted++;
-              existingMap.set(normalizedName, { id: "new", name: ex.nome, category: ex.category, movement_pattern: ex.movement_pattern, boyle_score: null });
-            }
+            toInsertMap.set(normalizedName, record);
           }
         } catch (e) {
           errors.push(`Exception "${ex.nome}": ${(e as Error).message}`);
+        }
+      }
+
+      // Batch update
+      for (const batch of chunk(toUpdate, BATCH_SIZE)) {
+        const results = await Promise.all(
+          batch.map(({ id, record }) =>
+            supabase.from("exercises_library").update(record).eq("id", id)
+          )
+        );
+        for (let i = 0; i < results.length; i++) {
+          if (results[i].error) {
+            errors.push(`Update "${batch[i].record.name}": ${results[i].error!.message}`);
+          } else {
+            updated++;
+          }
+        }
+      }
+
+      // Batch insert
+      const toInsertArr = Array.from(toInsertMap.values());
+      for (const batch of chunk(toInsertArr, BATCH_SIZE)) {
+        const { error, data } = await supabase
+          .from("exercises_library")
+          .insert(batch)
+          .select("id, name");
+        if (error) {
+          errors.push(`Batch insert (${batch.length} items): ${error.message}`);
+        } else {
+          inserted += (data?.length || batch.length);
+          if (data) {
+            for (const row of data) {
+              existingMap.set(normalize(row.name), {
+                id: row.id,
+                name: row.name,
+                category: null,
+                movement_pattern: null,
+                boyle_score: null,
+              });
+            }
+          }
         }
       }
 
