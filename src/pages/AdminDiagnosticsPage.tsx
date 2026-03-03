@@ -143,18 +143,39 @@ const AdminDiagnosticsPage = () => {
       let totalOrphansReclassified = 0;
       let lastResult: Record<string, unknown> = {};
 
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const session = await supabase.auth.getSession();
+      const accessToken = session.data.session?.access_token || anonKey;
+
       for (let i = 0; i < batches.length; i++) {
         setImportProgress({ current: i * BATCH_SIZE, total: exercises.length });
         
         const isLastBatch = i === batches.length - 1;
-        const { data: result, error } = await supabase.functions.invoke("import-exercises", {
-          body: { 
-            format: "spreadsheet", 
-            exercises: batches[i],
-            skip_orphans: !isLastBatch, // only process orphans on last batch
-          },
+        const payload = JSON.stringify({ 
+          format: "spreadsheet", 
+          exercises: batches[i],
+          skip_orphans: !isLastBatch,
         });
-        if (error) throw error;
+
+        console.log(`[import] Sending batch ${i + 1}/${batches.length}, size: ${batches[i].length}, payload bytes: ${payload.length}`);
+
+        const response = await fetch(`${supabaseUrl}/functions/v1/import-exercises`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${accessToken}`,
+            "apikey": anonKey,
+          },
+          body: payload,
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Batch ${i + 1} falhou (${response.status}): ${errorText}`);
+        }
+
+        const result = await response.json();
         
         totalInserted += Number(result.inserted || 0);
         totalUpdated += Number(result.updated || 0);
