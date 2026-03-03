@@ -69,8 +69,21 @@ const AdminDiagnosticsPage = () => {
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
       
+      // Normalize column headers to handle Unicode differences
+      const normalizeKey = (key: string) => 
+        key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      
+      const normalizedRows = rows.map(row => {
+        const normalized: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(row)) {
+          normalized[normalizeKey(key)] = value;
+          normalized[key] = value; // keep original too
+        }
+        return normalized;
+      });
+
       // Map spreadsheet columns to expected format
-      const exercises = rows.map(row => ({
+      const exercises = normalizedRows.map(row => ({
         exercicio_pt: row["exercicio_pt"] || row["nome"] || row["name"],
         aliases_origem: row["aliases_origem"] || "",
         Padrao_movimento: row["Padrao_movimento"] || row["padrao_movimento"],
@@ -83,10 +96,10 @@ const AdminDiagnosticsPage = () => {
         JOE: row["JOE"] != null ? Number(row["JOE"]) : undefined,
         QUA: row["QUA"] != null ? Number(row["QUA"]) : undefined,
         grupo_muscular: row["grupo_muscular"],
-        "Ênfase": row["Ênfase"] || row["enfase"],
+        "Ênfase": row["Ênfase"] || row["enfase"] || row["enfase"],
         Base: row["Base"] || row["base"],
         lateralidade: row["lateralidade"],
-        "Posição": row["Posição"] || row["posicao"],
+        "Posição": row["Posição"] || row["posicao"] || row["posicao"],
         plano: row["plano"],
         Tipo_contracao: row["Tipo_contracao"] || row["tipo_contracao"],
         risco: row["risco"],
