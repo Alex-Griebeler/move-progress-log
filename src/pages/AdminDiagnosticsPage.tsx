@@ -60,7 +60,7 @@ const AdminDiagnosticsPage = () => {
 
   const [xlsxDebug, setXlsxDebug] = useState<Record<string, unknown> | null>(null);
 
-  const BATCH_SIZE = 50;
+  const BATCH_SIZE = 20;
 
   const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -170,20 +170,28 @@ const AdminDiagnosticsPage = () => {
           skip_orphans: !isLastBatch,
         });
 
-        console.log(`[import] Sending batch ${i + 1}/${batches.length}, size: ${batches[i].length}, payload bytes: ${payload.length}`);
+        const url = `${supabaseUrl}/functions/v1/import-exercises`;
+        console.log(`[import] Sending batch ${i + 1}/${batches.length}, size: ${batches[i].length}, payload bytes: ${payload.length}, url: ${url}`);
 
-        const response = await fetch(`${supabaseUrl}/functions/v1/import-exercises`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${accessToken}`,
-            "apikey": anonKey,
-          },
-          body: payload,
-        });
+        let response: Response;
+        try {
+          response = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${accessToken}`,
+              "apikey": anonKey,
+            },
+            body: payload,
+          });
+        } catch (fetchErr) {
+          console.error(`[import] Fetch failed for batch ${i + 1}:`, fetchErr);
+          throw new Error(`Batch ${i + 1} fetch falhou: ${(fetchErr as Error).message}`);
+        }
 
         if (!response.ok) {
           const errorText = await response.text();
+          console.error(`[import] Batch ${i + 1} HTTP error:`, response.status, errorText);
           throw new Error(`Batch ${i + 1} falhou (${response.status}): ${errorText}`);
         }
 
