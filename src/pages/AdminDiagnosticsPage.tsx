@@ -69,15 +69,18 @@ const AdminDiagnosticsPage = () => {
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
+      // Pick the correct sheet - prefer "Exercicios_Consolidado", fallback to first
+      const targetSheetName = workbook.SheetNames.find(
+        (n: string) => n.toLowerCase().includes("exercicio") || n.toLowerCase().includes("consolidado")
+      ) || workbook.SheetNames[0];
+      const sheet = workbook.Sheets[targetSheetName];
       const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
       
       // Debug: capture raw spreadsheet info
       const firstRow = rows[0] || {};
       const rawKeys = Object.keys(firstRow);
       const debugInfo: Record<string, unknown> = {
-        sheetName,
+        sheetName: targetSheetName,
         totalSheets: workbook.SheetNames.length,
         allSheetNames: workbook.SheetNames,
         rowCount: rows.length,
