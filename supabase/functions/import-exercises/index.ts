@@ -17,8 +17,41 @@ function normalize(name: string): string {
 }
 
 // ============================================================================
+// MAPEAMENTO: Padrao_movimento da planilha → (category, movement_pattern)
+// ============================================================================
+
+interface PatternMapping {
+  category: string;
+  movement_pattern: string | null;
+}
+
+const SPREADSHEET_PATTERN_MAP: Record<string, PatternMapping> = {
+  "Squat": { category: "forca_hipertrofia", movement_pattern: "dominancia_joelho" },
+  "Hinge": { category: "forca_hipertrofia", movement_pattern: "cadeia_posterior" },
+  "Push": { category: "forca_hipertrofia", movement_pattern: "empurrar" },
+  "Pull": { category: "forca_hipertrofia", movement_pattern: "puxar" },
+  "Carry": { category: "forca_hipertrofia", movement_pattern: "carregar" },
+  "Lunge": { category: "forca_hipertrofia", movement_pattern: "lunge" },
+  "Core": { category: "core_ativacao", movement_pattern: null },
+  "Estab_AntiRotacao": { category: "core_ativacao", movement_pattern: null },
+  "Estab_AntiExtensao": { category: "core_ativacao", movement_pattern: null },
+  "Estab_AntiFlexaoLat": { category: "core_ativacao", movement_pattern: null },
+  "Estab_CintEscap": { category: "core_ativacao", movement_pattern: null },
+  "LMF": { category: "lmf", movement_pattern: null },
+  "Mobilidade": { category: "mobilidade", movement_pattern: null },
+  "Potencia": { category: "potencia_pliometria", movement_pattern: null },
+};
+
+// Subcategory mapping from spreadsheet patterns
+const SPREADSHEET_SUBCATEGORY_MAP: Record<string, string> = {
+  "Estab_AntiRotacao": "anti_rotacao",
+  "Estab_AntiExtensao": "anti_extensao",
+  "Estab_AntiFlexaoLat": "anti_flexao_lateral",
+  "Estab_CintEscap": "ativacao_escapular",
+};
+
+// ============================================================================
 // MAPEAMENTO UNIFICADO: subcategoria do JSON → (movement_pattern, category)
-// Taxonomia simplificada: 2 níveis (Categoria → Padrão de Movimento)
 // ============================================================================
 
 interface SubcategoryMapping {
@@ -27,15 +60,10 @@ interface SubcategoryMapping {
 }
 
 const SUBCATEGORY_MAP: Record<string, SubcategoryMapping> = {
-  // ── Empurrar ──
   empurrar_horizontal: { movement_pattern: "empurrar", category: "forca_hipertrofia" },
   empurrar_vertical: { movement_pattern: "empurrar", category: "forca_hipertrofia" },
-
-  // ── Puxar ──
   puxar_horizontal: { movement_pattern: "puxar", category: "forca_hipertrofia" },
   puxar_vertical: { movement_pattern: "puxar", category: "forca_hipertrofia" },
-
-  // ── Dominância de Joelho ──
   agachamento_bilateral: { movement_pattern: "dominancia_joelho", category: "forca_hipertrofia" },
   agachamento_lateral: { movement_pattern: "dominancia_joelho", category: "forca_hipertrofia" },
   agachamento_unilateral: { movement_pattern: "dominancia_joelho", category: "forca_hipertrofia" },
@@ -43,49 +71,31 @@ const SUBCATEGORY_MAP: Record<string, SubcategoryMapping> = {
   lunge: { movement_pattern: "lunge", category: "forca_hipertrofia" },
   lunge_slideboard: { movement_pattern: "lunge", category: "forca_hipertrofia" },
   flexao_joelhos_nordica: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
-
-  // ── Cadeia Posterior (antigo Dominância de Quadril) ──
   deadlift_bilateral: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
   deadlift_unilateral: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
   rdl_stiff: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
   ponte_hip_thrust: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
-
-  // ── Carregar ──
   carregamento: { movement_pattern: "carregar", category: "forca_hipertrofia" },
   carregamentos: { movement_pattern: "carregar", category: "forca_hipertrofia" },
-
-  // ── Core (sem movement_pattern — filtrado por category) ──
   anti_extensao: { movement_pattern: null as unknown as string, category: "core_ativacao" },
   anti_flexao_lateral: { movement_pattern: null as unknown as string, category: "core_ativacao" },
   anti_rotacao: { movement_pattern: null as unknown as string, category: "core_ativacao" },
-
-  // ── Ativação (sem movement_pattern) ──
   escapula: { movement_pattern: null as unknown as string, category: "core_ativacao" },
   gluteos_estabilidade: { movement_pattern: null as unknown as string, category: "core_ativacao" },
   pe_tornozelo: { movement_pattern: null as unknown as string, category: "core_ativacao" },
   corretivos_quadril: { movement_pattern: null as unknown as string, category: "core_ativacao" },
-
-  // ── Mobilidade (sem movement_pattern) ──
   tornozelo: { movement_pattern: null as unknown as string, category: "mobilidade" },
   quadril: { movement_pattern: null as unknown as string, category: "mobilidade" },
   coluna_toracica: { movement_pattern: null as unknown as string, category: "mobilidade" },
   integrados: { movement_pattern: null as unknown as string, category: "mobilidade" },
-
-  // ── Pliometria (sem movement_pattern) ──
   bilateral_linear: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
   unilateral_linear: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
   unilateral_lateral: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
   unilateral_lateral_medial: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
-
-  // ── Locomoção (sem movement_pattern) ──
   frontal: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
   sagital: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
   transverso: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
-
-  // ── Liberação Miofascial (sem movement_pattern) ──
   regioes: { movement_pattern: null as unknown as string, category: "lmf" },
-
-  // ── Respiração (sem movement_pattern) ──
   protocolos: { movement_pattern: null as unknown as string, category: "respiracao" },
   tecnicas: { movement_pattern: null as unknown as string, category: "respiracao" },
 };
@@ -95,6 +105,8 @@ const LATERALITY_MAP: Record<string, string> = {
   unilateral: "unilateral",
   alternado: "alternado",
   assimetrica: "base_assimetrica",
+  Bilateral: "bilateral",
+  Unilateral: "unilateral",
 };
 
 function extractMovementPlane(tags: string[], subcategoryKey: string): string {
@@ -108,16 +120,20 @@ function extractMovementPlane(tags: string[], subcategoryKey: string): string {
 }
 
 function riskFromLevel(level: number): string {
-  if (level <= 3) return "low";
-  if (level <= 6) return "medium";
+  if (level <= 2) return "low";
+  if (level <= 4) return "medium";
   return "high";
 }
 
 function levelLabel(level: number): string {
-  if (level <= 3) return "Iniciante";
-  if (level <= 6) return "Intermediário";
+  if (level <= 2) return "Iniciante";
+  if (level <= 3) return "Intermediário";
   return "Avançado";
 }
+
+// ============================================================================
+// Flatten JSON format (existing)
+// ============================================================================
 
 interface FlatExercise {
   nome: string;
@@ -152,25 +168,17 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
 
       const subObj = subVal as Record<string, unknown>;
       const exercicios = subObj.exercicios;
-
       if (!exercicios) continue;
 
       const pushExercise = (ex: Record<string, unknown>) => {
-        // Derive subcategory based on pattern/subKey
         let exerciseSubcategory = subKey;
         if (subKey === "empurrar_horizontal" || subKey === "empurrar_vertical") {
           exerciseSubcategory = subKey.replace("empurrar_", "");
         } else if (subKey === "puxar_horizontal" || subKey === "puxar_vertical") {
           exerciseSubcategory = subKey.replace("puxar_", "");
         } else if (movementPattern === "cadeia_posterior") {
-          // Cadeia posterior: enfase_quadril (hip thrust, ponte, deadlift) vs enfase_joelho (nórdica)
-          if (subKey === "flexao_joelhos_nordica") {
-            exerciseSubcategory = "enfase_joelho";
-          } else {
-            exerciseSubcategory = "enfase_quadril";
-          }
+          exerciseSubcategory = subKey === "flexao_joelhos_nordica" ? "enfase_joelho" : "enfase_quadril";
         } else if (category === "potencia_pliometria") {
-          // Potência & Pliometria subcategories
           if (["bilateral_linear", "unilateral_linear", "unilateral_lateral", "unilateral_lateral_medial"].includes(subKey)) {
             exerciseSubcategory = "pliometria";
           } else if (["frontal", "sagital", "transverso"].includes(subKey)) {
@@ -214,8 +222,98 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
       }
     }
   }
-
   return result;
+}
+
+// ============================================================================
+// Spreadsheet format (new XLSX import)
+// ============================================================================
+
+interface SpreadsheetExercise {
+  exercicio_pt: string;
+  aliases_origem?: string;
+  Padrao_movimento?: string;
+  subcategoria?: string;
+  boyle_score?: number;
+  AX?: number;
+  LOM?: number;
+  TEC?: number;
+  MET?: number;
+  JOE?: number;
+  QUA?: number;
+  grupo_muscular?: string;
+  "Ênfase"?: string;
+  Base?: string;
+  lateralidade?: string;
+  Posição?: string;
+  plano?: string;
+  Tipo_contracao?: string;
+  risco?: string;
+  nivel_boyle?: string;
+  equipamento?: string;
+  Implemento?: string;
+}
+
+function mapSpreadsheetPlane(plano?: string): string {
+  if (!plano) return "sagittal";
+  const p = plano.toLowerCase().trim();
+  if (p.includes("frontal")) return "frontal";
+  if (p.includes("transvers")) return "transverse";
+  return "sagittal";
+}
+
+function mapSpreadsheetRisk(risco?: string): string | null {
+  if (!risco) return null;
+  const r = risco.toLowerCase().trim();
+  if (r.includes("baixo") || r === "low") return "low";
+  if (r.includes("alto") || r === "high") return "high";
+  if (r.includes("medio") || r.includes("médio") || r === "medium") return "medium";
+  return null;
+}
+
+function parsePrimaryMuscles(grupo?: string): string[] | null {
+  if (!grupo) return null;
+  return grupo.split("|").map(m => m.trim()).filter(Boolean);
+}
+
+// ============================================================================
+// Heuristic scoring for orphan exercises
+// ============================================================================
+
+function heuristicScores(ex: { name: string; category: string | null; movement_pattern: string | null; boyle_score: number | null }) {
+  const name = (ex.name || "").toLowerCase();
+  const cat = ex.category || "";
+  const mp = ex.movement_pattern || "";
+  const bs = ex.boyle_score;
+
+  const axial_load = (cat === "core_ativacao" || cat === "mobilidade" || cat === "lmf" || cat === "respiracao") ? 1
+    : (mp === "carregar") ? 4
+    : (name.includes("deadlift") || name.includes("terra")) ? 4
+    : (name.includes("agachamento") || name.includes("squat")) ? 3
+    : 2;
+
+  const lumbar_demand = (cat === "core_ativacao" || cat === "mobilidade" || cat === "lmf" || cat === "respiracao") ? 1
+    : (name.includes("deadlift") || name.includes("terra") || name.includes("rdl") || name.includes("stiff")) ? 4
+    : (mp === "carregar") ? 3
+    : 2;
+
+  const technical_complexity = bs || 2;
+
+  const metabolic_potential = (cat === "potencia_pliometria") ? 4
+    : (cat === "core_ativacao" || cat === "mobilidade" || cat === "lmf" || cat === "respiracao") ? 1
+    : 3;
+
+  const knee_dominance = (mp === "dominancia_joelho") ? 4
+    : (mp === "lunge") ? 3
+    : (mp === "cadeia_posterior") ? 1
+    : 2;
+
+  const hip_dominance = (mp === "cadeia_posterior") ? 4
+    : (mp === "lunge") ? 3
+    : (mp === "dominancia_joelho") ? 1
+    : 2;
+
+  return { axial_load, lumbar_demand, technical_complexity, metabolic_potential, knee_dominance, hip_dominance };
 }
 
 // ── Main handler ──
@@ -257,8 +355,15 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json();
 
-    let exercises: FlatExercise[];
-    if (body.exercises && Array.isArray(body.exercises)) {
+    // Detect format
+    let isSpreadsheetFormat = false;
+    let exercises: FlatExercise[] = [];
+    let spreadsheetExercises: SpreadsheetExercise[] = [];
+
+    if (body.format === "spreadsheet" && Array.isArray(body.exercises)) {
+      isSpreadsheetFormat = true;
+      spreadsheetExercises = body.exercises;
+    } else if (body.exercises && Array.isArray(body.exercises)) {
       exercises = body.exercises;
     } else if (body.padroes_de_movimento) {
       exercises = flattenJSON(body);
@@ -269,120 +374,265 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (exercises.length === 0) {
-      return new Response(
-        JSON.stringify({ error: "No exercises found in payload" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Fetch existing exercises
+    // Fetch existing exercises for matching
     const { data: existing } = await supabase
       .from("exercises_library")
-      .select("id, name");
+      .select("id, name, category, movement_pattern, boyle_score");
 
-    const existingMap = new Map<string, { id: string; name: string }>();
+    const existingMap = new Map<string, { id: string; name: string; category: string | null; movement_pattern: string | null; boyle_score: number | null }>();
     for (const ex of existing || []) {
-      existingMap.set(normalize(ex.name), { id: ex.id, name: ex.name });
+      existingMap.set(normalize(ex.name), ex);
     }
 
     let inserted = 0;
     let updated = 0;
+    let skipped = 0;
     const errors: string[] = [];
+    const matchedNames = new Set<string>();
 
-    for (const ex of exercises) {
-      try {
-        const normalizedName = normalize(ex.nome);
-        const match = existingMap.get(normalizedName);
+    if (isSpreadsheetFormat) {
+      // ── SPREADSHEET FORMAT (XLSX) ──
+      for (const ex of spreadsheetExercises) {
+        try {
+          if (!ex.exercicio_pt) continue;
 
-        const laterality = ex.base
-          ? LATERALITY_MAP[ex.base] || ex.base
-          : null;
-
-        const equipmentArr = ex.equipamento
-          ? ex.equipamento
-              .split(/[+\/]/)
-              .map((e: string) => e.trim())
-              .filter(Boolean)
-          : [];
-
-        let defaultSets: string | null = null;
-        let defaultReps: string | null = null;
-        if (ex.sets_reps) {
-          const parts = ex.sets_reps.split("x");
-          if (parts.length === 2) {
-            defaultSets = parts[0];
-            defaultReps = parts[1];
+          // Skip MetCon
+          if (ex.Padrao_movimento === "MetCon") {
+            skipped++;
+            continue;
           }
+
+          const normalizedName = normalize(ex.exercicio_pt);
+          matchedNames.add(normalizedName);
+
+          // Try direct match
+          let match = existingMap.get(normalizedName);
+
+          // Try aliases
+          if (!match && ex.aliases_origem) {
+            const aliases = ex.aliases_origem.split(";").map(a => normalize(a.trim()));
+            for (const alias of aliases) {
+              match = existingMap.get(alias);
+              if (match) break;
+            }
+          }
+
+          // Try similarity via RPC (if no match found)
+          if (!match) {
+            const { data: simResults } = await supabase.rpc("search_exercises_by_name", {
+              p_query: ex.exercicio_pt,
+              p_limit: 1,
+            });
+            if (simResults && simResults.length > 0 && simResults[0].similarity > 0.6) {
+              match = existingMap.get(normalize(simResults[0].name));
+              if (match) matchedNames.add(normalize(match.name));
+            }
+          }
+
+          // Map pattern
+          const patternMapping = ex.Padrao_movimento ? SPREADSHEET_PATTERN_MAP[ex.Padrao_movimento] : null;
+
+          const record: Record<string, unknown> = {
+            name: ex.exercicio_pt,
+            boyle_score: ex.boyle_score || null,
+            axial_load: ex.AX ?? null,
+            lumbar_demand: ex.LOM ?? null,
+            technical_complexity: ex.TEC ?? null,
+            metabolic_potential: ex.MET ?? null,
+            knee_dominance: ex.JOE ?? null,
+            hip_dominance: ex.QUA ?? null,
+            primary_muscles: parsePrimaryMuscles(ex.grupo_muscular),
+            emphasis: ex["Ênfase"] || null,
+          };
+
+          // Only set category/pattern if we have the mapping (don't overwrite with null)
+          if (patternMapping) {
+            record.category = patternMapping.category;
+            if (patternMapping.movement_pattern) {
+              record.movement_pattern = patternMapping.movement_pattern;
+            }
+          }
+
+          // Map subcategory from spreadsheet pattern
+          if (ex.Padrao_movimento && SPREADSHEET_SUBCATEGORY_MAP[ex.Padrao_movimento]) {
+            record.subcategory = SPREADSHEET_SUBCATEGORY_MAP[ex.Padrao_movimento];
+          } else if (ex.subcategoria) {
+            record.subcategory = ex.subcategoria;
+          }
+
+          // Additional fields
+          if (ex.Base || ex.lateralidade) {
+            const lat = ex.lateralidade || ex.Base;
+            record.laterality = lat ? (LATERALITY_MAP[lat] || lat.toLowerCase()) : null;
+          }
+          if (ex.Posição) record.position = ex.Posição;
+          if (ex.plano) record.movement_plane = mapSpreadsheetPlane(ex.plano);
+          if (ex.Tipo_contracao) record.contraction_type = ex.Tipo_contracao;
+          if (ex.risco) record.risk_level = mapSpreadsheetRisk(ex.risco);
+          if (ex.nivel_boyle) record.level = ex.nivel_boyle;
+          if (ex.boyle_score) {
+            record.numeric_level = ex.boyle_score; // Keep in sync
+          }
+
+          // Equipment
+          const equipArr: string[] = [];
+          if (ex.equipamento) equipArr.push(...ex.equipamento.split(/[,;+\/]/).map(e => e.trim()).filter(Boolean));
+          if (ex.Implemento) equipArr.push(...ex.Implemento.split(/[,;+\/]/).map(e => e.trim()).filter(Boolean));
+          if (equipArr.length > 0) record.equipment_required = [...new Set(equipArr)];
+
+          if (match) {
+            const { error } = await supabase
+              .from("exercises_library")
+              .update(record)
+              .eq("id", match.id);
+            if (error) errors.push(`Update "${ex.exercicio_pt}": ${error.message}`);
+            else updated++;
+          } else {
+            const { error } = await supabase
+              .from("exercises_library")
+              .insert(record);
+            if (error) errors.push(`Insert "${ex.exercicio_pt}": ${error.message}`);
+            else {
+              inserted++;
+              existingMap.set(normalizedName, { id: "new", name: ex.exercicio_pt, category: record.category as string || null, movement_pattern: record.movement_pattern as string || null, boyle_score: ex.boyle_score || null });
+            }
+          }
+        } catch (e) {
+          errors.push(`Exception "${ex.exercicio_pt}": ${(e as Error).message}`);
         }
+      }
 
-        const record: Record<string, unknown> = {
-          name: ex.nome,
-          movement_pattern: ex.movement_pattern || null,
-          functional_group: ex.movement_pattern || null, // compatibilidade
-          category: ex.category,
-          subcategory: ex.subcategory,
-          laterality,
-          numeric_level: ex.nivel || null,
-          position: ex.posicao || null,
-          tags: ex.tags || [],
-          equipment_required: equipmentArr,
-          risk_level: ex.nivel ? riskFromLevel(ex.nivel) : null,
-          level: ex.nivel ? levelLabel(ex.nivel) : null,
-          movement_plane: extractMovementPlane(ex.tags || [], ex.subcategory),
-          plyometric_phase:
-            typeof ex.fase_pliometria === "number" ? ex.fase_pliometria : null,
-        };
-
-        if (defaultSets) record.default_sets = defaultSets;
-        if (defaultReps) record.default_reps = defaultReps;
-
-        if (match) {
+      // ── Reclassify orphans with heuristic scores ──
+      let orphansUpdated = 0;
+      const orphans: string[] = [];
+      for (const [norm, ex] of existingMap) {
+        if (!matchedNames.has(norm) && ex.id !== "new") {
+          orphans.push(ex.name);
+          const scores = heuristicScores(ex);
           const { error } = await supabase
             .from("exercises_library")
-            .update(record)
-            .eq("id", match.id);
-
-          if (error) errors.push(`Update "${ex.nome}": ${error.message}`);
-          else updated++;
-        } else {
-          const { error } = await supabase
-            .from("exercises_library")
-            .insert(record);
-
-          if (error) errors.push(`Insert "${ex.nome}": ${error.message}`);
-          else {
-            inserted++;
-            existingMap.set(normalizedName, { id: "new", name: ex.nome });
-          }
+            .update({
+              axial_load: scores.axial_load,
+              lumbar_demand: scores.lumbar_demand,
+              technical_complexity: scores.technical_complexity,
+              metabolic_potential: scores.metabolic_potential,
+              knee_dominance: scores.knee_dominance,
+              hip_dominance: scores.hip_dominance,
+            })
+            .eq("id", ex.id)
+            .is("axial_load", null); // Only update if not already set
+          if (!error) orphansUpdated++;
         }
-      } catch (e) {
-        errors.push(`Exception "${ex.nome}": ${(e as Error).message}`);
       }
-    }
 
-    // Find orphans
-    const jsonNormalized = new Set(exercises.map((e) => normalize(e.nome)));
-    const orphans: string[] = [];
-    for (const [norm, ex] of existingMap) {
-      if (!jsonNormalized.has(norm)) {
-        orphans.push(ex.name);
+      return new Response(
+        JSON.stringify({
+          format: "spreadsheet",
+          inserted,
+          updated,
+          skipped,
+          orphans_reclassified: orphansUpdated,
+          errors: errors.slice(0, 50),
+          errors_total: errors.length,
+          orphans,
+          orphans_total: orphans.length,
+          total_processed: spreadsheetExercises.length,
+          total_in_db_after: existingMap.size + inserted,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } else {
+      // ── JSON FORMAT (existing behavior) ──
+      for (const ex of exercises) {
+        try {
+          const normalizedName = normalize(ex.nome);
+          const match = existingMap.get(normalizedName);
+
+          const laterality = ex.base
+            ? LATERALITY_MAP[ex.base] || ex.base
+            : null;
+
+          const equipmentArr = ex.equipamento
+            ? ex.equipamento.split(/[+\/]/).map((e: string) => e.trim()).filter(Boolean)
+            : [];
+
+          let defaultSets: string | null = null;
+          let defaultReps: string | null = null;
+          if (ex.sets_reps) {
+            const parts = ex.sets_reps.split("x");
+            if (parts.length === 2) {
+              defaultSets = parts[0];
+              defaultReps = parts[1];
+            }
+          }
+
+          const record: Record<string, unknown> = {
+            name: ex.nome,
+            movement_pattern: ex.movement_pattern || null,
+            functional_group: ex.movement_pattern || null,
+            category: ex.category,
+            subcategory: ex.subcategory,
+            laterality,
+            numeric_level: ex.nivel || null,
+            boyle_score: ex.nivel ? (ex.nivel <= 2 ? 1 : ex.nivel <= 4 ? 2 : ex.nivel <= 6 ? 3 : ex.nivel <= 8 ? 4 : 5) : null,
+            position: ex.posicao || null,
+            tags: ex.tags || [],
+            equipment_required: equipmentArr,
+            risk_level: ex.nivel ? riskFromLevel(ex.nivel) : null,
+            level: ex.nivel ? levelLabel(ex.nivel) : null,
+            movement_plane: extractMovementPlane(ex.tags || [], ex.subcategory),
+            plyometric_phase: typeof ex.fase_pliometria === "number" ? ex.fase_pliometria : null,
+          };
+
+          if (defaultSets) record.default_sets = defaultSets;
+          if (defaultReps) record.default_reps = defaultReps;
+
+          if (match) {
+            const { error } = await supabase
+              .from("exercises_library")
+              .update(record)
+              .eq("id", match.id);
+            if (error) errors.push(`Update "${ex.nome}": ${error.message}`);
+            else updated++;
+          } else {
+            const { error } = await supabase
+              .from("exercises_library")
+              .insert(record);
+            if (error) errors.push(`Insert "${ex.nome}": ${error.message}`);
+            else {
+              inserted++;
+              existingMap.set(normalizedName, { id: "new", name: ex.nome, category: ex.category, movement_pattern: ex.movement_pattern, boyle_score: null });
+            }
+          }
+        } catch (e) {
+          errors.push(`Exception "${ex.nome}": ${(e as Error).message}`);
+        }
       }
-    }
 
-    return new Response(
-      JSON.stringify({
-        inserted,
-        updated,
-        errors: errors.slice(0, 50),
-        errors_total: errors.length,
-        orphans,
-        orphans_total: orphans.length,
-        total_processed: exercises.length,
-        total_in_db_after: existingMap.size,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+      // Find orphans
+      const jsonNormalized = new Set(exercises.map((e) => normalize(e.nome)));
+      const orphans: string[] = [];
+      for (const [norm, ex] of existingMap) {
+        if (!jsonNormalized.has(norm)) {
+          orphans.push(ex.name);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          format: "json",
+          inserted,
+          updated,
+          errors: errors.slice(0, 50),
+          errors_total: errors.length,
+          orphans,
+          orphans_total: orphans.length,
+          total_processed: exercises.length,
+          total_in_db_after: existingMap.size,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
   } catch (err) {
     return new Response(
       JSON.stringify({ error: (err as Error).message }),

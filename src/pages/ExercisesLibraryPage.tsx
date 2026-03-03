@@ -42,6 +42,8 @@ import {
   LEVEL_OPTIONS,
   EXERCISE_CATEGORIES,
   RISK_LEVELS,
+  EXERCISE_DIMENSIONS,
+  BOYLE_SCORE_SCALE,
   STRENGTH_SUBCATEGORIES,
   POTENCIA_SUBCATEGORIES,
   ExerciseFilters,
@@ -478,6 +480,18 @@ export default function ExercisesLibraryPage() {
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Dimension scores mini-bar */}
+                {exercise.boyle_score && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    <Badge variant="outline" className="text-xs font-mono">B{exercise.boyle_score}</Badge>
+                    {exercise.axial_load != null && <Badge variant="outline" className="text-xs font-mono">AX{exercise.axial_load}</Badge>}
+                    {exercise.lumbar_demand != null && <Badge variant="outline" className="text-xs font-mono">LOM{exercise.lumbar_demand}</Badge>}
+                    {exercise.technical_complexity != null && <Badge variant="outline" className="text-xs font-mono">TEC{exercise.technical_complexity}</Badge>}
+                    {exercise.metabolic_potential != null && <Badge variant="outline" className="text-xs font-mono">MET{exercise.metabolic_potential}</Badge>}
+                    {exercise.knee_dominance != null && <Badge variant="outline" className="text-xs font-mono">JOE{exercise.knee_dominance}</Badge>}
+                    {exercise.hip_dominance != null && <Badge variant="outline" className="text-xs font-mono">QUA{exercise.hip_dominance}</Badge>}
+                  </div>
+                )}
                 {exercise.description && (
                   <p className="text-sm text-muted-foreground mb-4">{exercise.description}</p>
                 )}

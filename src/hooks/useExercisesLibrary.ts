@@ -13,6 +13,8 @@ export {
   EXERCISE_CATEGORIES,
   RISK_LEVELS,
   NUMERIC_LEVEL_SCALE,
+  BOYLE_SCORE_SCALE,
+  EXERCISE_DIMENSIONS,
   PATTERN_TO_CATEGORY,
   SESSION_PATTERN_GROUPS,
   STRENGTH_SUBCATEGORIES,
@@ -30,7 +32,6 @@ export interface ExerciseLibrary {
   level: string | null;
   created_at: string;
   updated_at: string;
-  // Novos campos
   video_url: string | null;
   equipment_required: string[] | null;
   prerequisites: unknown | null;
@@ -40,6 +41,16 @@ export interface ExerciseLibrary {
   plyometric_phase: number | null;
   default_sets: string | null;
   default_reps: string | null;
+  // Novos campos de classificação multidimensional
+  boyle_score: number | null;
+  axial_load: number | null;
+  lumbar_demand: number | null;
+  technical_complexity: number | null;
+  metabolic_potential: number | null;
+  knee_dominance: number | null;
+  hip_dominance: number | null;
+  primary_muscles: string[] | null;
+  emphasis: string | null;
 }
 
 // Interface para criação (campos opcionais)
@@ -61,6 +72,16 @@ export interface CreateExerciseInput {
   plyometric_phase?: number | null;
   default_sets?: string | null;
   default_reps?: string | null;
+  // Novos campos de classificação
+  boyle_score?: number | null;
+  axial_load?: number | null;
+  lumbar_demand?: number | null;
+  technical_complexity?: number | null;
+  metabolic_potential?: number | null;
+  knee_dominance?: number | null;
+  hip_dominance?: number | null;
+  primary_muscles?: string[] | null;
+  emphasis?: string | null;
 }
 
 export interface ExerciseFilters {

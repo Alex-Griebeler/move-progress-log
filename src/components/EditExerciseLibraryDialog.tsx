@@ -26,7 +26,8 @@ import {
   CONTRACTION_TYPES,
   EXERCISE_CATEGORIES,
   RISK_LEVELS,
-  NUMERIC_LEVEL_SCALE,
+  BOYLE_SCORE_SCALE,
+  EXERCISE_DIMENSIONS,
   PATTERN_TO_CATEGORY,
   ExerciseLibrary,
 } from "@/hooks/useExercisesLibrary";
@@ -54,9 +55,16 @@ export const EditExerciseLibraryDialog = ({
   const [laterality, setLaterality] = useState(exercise.laterality || "");
   const [movementPlane, setMovementPlane] = useState(exercise.movement_plane || "");
   const [contractionType, setContractionType] = useState(exercise.contraction_type || "");
-  const [numericLevel, setNumericLevel] = useState(
-    (exercise as any).numeric_level?.toString() || ""
+  const [boyleScore, setBoyleScore] = useState(
+    (exercise as any).boyle_score?.toString() || ""
   );
+  const [axialLoad, setAxialLoad] = useState((exercise as any).axial_load?.toString() || "");
+  const [lumbarDemand, setLumbarDemand] = useState((exercise as any).lumbar_demand?.toString() || "");
+  const [technicalComplexity, setTechnicalComplexity] = useState((exercise as any).technical_complexity?.toString() || "");
+  const [metabolicPotential, setMetabolicPotential] = useState((exercise as any).metabolic_potential?.toString() || "");
+  const [kneeDominance, setKneeDominance] = useState((exercise as any).knee_dominance?.toString() || "");
+  const [hipDominance, setHipDominance] = useState((exercise as any).hip_dominance?.toString() || "");
+  const [emphasis, setEmphasis] = useState((exercise as any).emphasis || "");
   const [description, setDescription] = useState(exercise.description || "");
   
   const [videoUrl, setVideoUrl] = useState(exercise.video_url || "");
@@ -77,7 +85,14 @@ export const EditExerciseLibraryDialog = ({
     setLaterality(exercise.laterality || "");
     setMovementPlane(exercise.movement_plane || "");
     setContractionType(exercise.contraction_type || "");
-    setNumericLevel((exercise as any).numeric_level?.toString() || "");
+    setBoyleScore((exercise as any).boyle_score?.toString() || "");
+    setAxialLoad((exercise as any).axial_load?.toString() || "");
+    setLumbarDemand((exercise as any).lumbar_demand?.toString() || "");
+    setTechnicalComplexity((exercise as any).technical_complexity?.toString() || "");
+    setMetabolicPotential((exercise as any).metabolic_potential?.toString() || "");
+    setKneeDominance((exercise as any).knee_dominance?.toString() || "");
+    setHipDominance((exercise as any).hip_dominance?.toString() || "");
+    setEmphasis((exercise as any).emphasis || "");
     setDescription(exercise.description || "");
     setVideoUrl(exercise.video_url || "");
     setRiskLevel(exercise.risk_level || "");
@@ -120,7 +135,15 @@ export const EditExerciseLibraryDialog = ({
       movement_plane: movementPlane && movementPlane !== "none" ? movementPlane : null,
       contraction_type: contractionType && contractionType !== "none" ? contractionType : null,
       level: null,
-      numeric_level: numericLevel && numericLevel !== "none" ? parseInt(numericLevel) : null,
+      numeric_level: boyleScore && boyleScore !== "none" ? parseInt(boyleScore) : null,
+      boyle_score: boyleScore && boyleScore !== "none" ? parseInt(boyleScore) : null,
+      axial_load: axialLoad ? parseInt(axialLoad) : null,
+      lumbar_demand: lumbarDemand ? parseInt(lumbarDemand) : null,
+      technical_complexity: technicalComplexity ? parseInt(technicalComplexity) : null,
+      metabolic_potential: metabolicPotential ? parseInt(metabolicPotential) : null,
+      knee_dominance: kneeDominance ? parseInt(kneeDominance) : null,
+      hip_dominance: hipDominance ? parseInt(hipDominance) : null,
+      emphasis: emphasis.trim() || null,
       description: description.trim() || null,
       video_url: videoUrl.trim() || null,
       risk_level: riskLevel && riskLevel !== "none" ? riskLevel : null,
@@ -207,14 +230,14 @@ export const EditExerciseLibraryDialog = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-numeric-level">Nível (1-9)</Label>
-                  <Select value={numericLevel} onValueChange={setNumericLevel}>
+                  <Label htmlFor="edit-boyle-score">Nível Boyle (1-5)</Label>
+                  <Select value={boyleScore} onValueChange={setBoyleScore}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione (opcional)" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
-                      {Object.entries(NUMERIC_LEVEL_SCALE).map(([key, val]) => (
+                      {Object.entries(BOYLE_SCORE_SCALE).map(([key, val]) => (
                         <SelectItem key={key} value={key}>
                           {val.label} — {val.category}
                         </SelectItem>
@@ -310,6 +333,48 @@ export const EditExerciseLibraryDialog = ({
                     placeholder="Ex: 5"
                   />
                 </div>
+              </div>
+            </div>
+
+            {/* Dimension Scores Section */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <h3 className="text-sm font-medium text-muted-foreground">Scores de Classificação (0-5)</h3>
+              
+              <div className="grid grid-cols-3 gap-4">
+                {Object.entries(EXERCISE_DIMENSIONS).map(([key, dim]) => {
+                  const stateMap: Record<string, [string, (v: string) => void]> = {
+                    axial_load: [axialLoad, setAxialLoad],
+                    lumbar_demand: [lumbarDemand, setLumbarDemand],
+                    technical_complexity: [technicalComplexity, setTechnicalComplexity],
+                    metabolic_potential: [metabolicPotential, setMetabolicPotential],
+                    knee_dominance: [kneeDominance, setKneeDominance],
+                    hip_dominance: [hipDominance, setHipDominance],
+                  };
+                  const [val, setter] = stateMap[key];
+                  return (
+                    <div key={key} className="space-y-1">
+                      <Label className="text-xs" title={dim.description}>{dim.abbrev} — {dim.label}</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="5"
+                        value={val}
+                        onChange={(e) => setter(e.target.value)}
+                        placeholder="0-5"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-emphasis">Ênfase (articulação/região)</Label>
+                <Input
+                  id="edit-emphasis"
+                  value={emphasis}
+                  onChange={(e) => setEmphasis(e.target.value)}
+                  placeholder="Ex: Joelho, Quadril, Ombro"
+                />
               </div>
             </div>
 
