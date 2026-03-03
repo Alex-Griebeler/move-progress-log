@@ -62,16 +62,32 @@ const ExerciseReviewPage = () => {
   const [missingFieldFilter, setMissingFieldFilter] = useState<MissingField | "all">("all");
   const [edits, setEdits] = useState<Record<string, EditedExercise>>({});
 
-  const { data: exercises, isLoading } = useQuery({
+  const { data: exercises, isLoading, error: queryError } = useQuery({
     queryKey: ["exercises-review"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("exercises_library")
-        .select("id, name, category, movement_pattern, subcategory, movement_plane, level, laterality, contraction_type, emphasis")
-        .order("category")
-        .order("name");
-      if (error) throw error;
-      return data;
+      // Fetch in batches to avoid the 1000 row limit
+      let allData: any[] = [];
+      let from = 0;
+      const batchSize = 500;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("exercises_library")
+          .select("id, name, category, movement_pattern, subcategory, movement_plane, level, laterality, contraction_type, emphasis")
+          .order("category")
+          .order("name")
+          .range(from, from + batchSize - 1);
+        if (error) throw error;
+        if (data) {
+          allData = [...allData, ...data];
+          hasMore = data.length === batchSize;
+          from += batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      return allData;
     },
   });
 
@@ -221,7 +237,9 @@ const ExerciseReviewPage = () => {
         </div>
 
         {/* Table */}
-        {isLoading ? (
+        {queryError ? (
+          <p className="text-destructive">Erro ao carregar exercícios: {queryError.message}</p>
+        ) : isLoading ? (
           <p className="text-muted-foreground">Carregando...</p>
         ) : (
           <div className="border rounded-lg">
@@ -386,6 +404,7 @@ const ExerciseReviewPage = () => {
             </Table>
           </div>
         )}
+        
       </div>
     </PageLayout>
   );
