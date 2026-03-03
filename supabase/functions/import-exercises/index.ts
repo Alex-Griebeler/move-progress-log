@@ -229,29 +229,23 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
 // Spreadsheet format (new XLSX import)
 // ============================================================================
 
-interface SpreadsheetExercise {
-  exercicio_pt: string;
-  aliases_origem?: string;
-  Padrao_movimento?: string;
-  subcategoria?: string;
-  boyle_score?: number;
-  AX?: number;
-  LOM?: number;
-  TEC?: number;
-  MET?: number;
-  JOE?: number;
-  QUA?: number;
-  grupo_muscular?: string;
-  "Ênfase"?: string;
-  Base?: string;
-  lateralidade?: string;
-  Posição?: string;
-  plano?: string;
-  Tipo_contracao?: string;
-  risco?: string;
-  nivel_boyle?: string;
-  equipamento?: string;
-  Implemento?: string;
+// deno-lint-ignore no-explicit-any
+type SpreadsheetExercise = Record<string, any>;
+
+// Helper to get a value from a spreadsheet row with normalized key fallback
+function getField(row: SpreadsheetExercise, ...keys: string[]): unknown {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== "") return row[key];
+  }
+  // Fallback: normalize all keys and try matching
+  const normalizeKey = (k: string) => k.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  const normalizedKeys = keys.map(normalizeKey);
+  for (const [rowKey, rowVal] of Object.entries(row)) {
+    if (rowVal === undefined || rowVal === null || rowVal === "") continue;
+    const nk = normalizeKey(rowKey);
+    if (normalizedKeys.includes(nk)) return rowVal;
+  }
+  return undefined;
 }
 
 function mapSpreadsheetPlane(plano?: string): string {
@@ -394,23 +388,27 @@ Deno.serve(async (req: Request) => {
       // ── SPREADSHEET FORMAT (XLSX) ──
       for (const ex of spreadsheetExercises) {
         try {
-          if (!ex.exercicio_pt) continue;
+          const exercicio_pt = getField(ex, "exercicio_pt", "nome", "name") as string;
+          if (!exercicio_pt) continue;
+
+          const padrao = getField(ex, "Padrao_movimento", "padrao_movimento") as string | undefined;
 
           // Skip MetCon
-          if (ex.Padrao_movimento === "MetCon") {
+          if (padrao === "MetCon") {
             skipped++;
             continue;
           }
 
-          const normalizedName = normalize(ex.exercicio_pt);
+          const normalizedName = normalize(exercicio_pt);
           matchedNames.add(normalizedName);
 
           // Try direct match
           let match = existingMap.get(normalizedName);
 
           // Try aliases
-          if (!match && ex.aliases_origem) {
-            const aliases = ex.aliases_origem.split(";").map(a => normalize(a.trim()));
+          const aliasStr = getField(ex, "aliases_origem") as string | undefined;
+          if (!match && aliasStr) {
+            const aliases = aliasStr.split(";").map((a: string) => normalize(a.trim()));
             for (const alias of aliases) {
               match = existingMap.get(alias);
               if (match) break;
@@ -420,7 +418,7 @@ Deno.serve(async (req: Request) => {
           // Try similarity via RPC (if no match found)
           if (!match) {
             const { data: simResults } = await supabase.rpc("search_exercises_by_name", {
-              p_query: ex.exercicio_pt,
+              p_query: exercicio_pt,
               p_limit: 1,
             });
             if (simResults && simResults.length > 0 && simResults[0].similarity > 0.6) {
@@ -430,19 +428,25 @@ Deno.serve(async (req: Request) => {
           }
 
           // Map pattern
-          const patternMapping = ex.Padrao_movimento ? SPREADSHEET_PATTERN_MAP[ex.Padrao_movimento] : null;
+          const patternMapping = padrao ? SPREADSHEET_PATTERN_MAP[padrao] : null;
+
+          // Extract fields with normalized key access
+          const enfase = getField(ex, "Ênfase", "Enfase", "enfase", "ênfase") as string | undefined;
+          const grupoMuscular = getField(ex, "grupo_muscular") as string | undefined;
+          const boyleScore = getField(ex, "boyle_score") as number | undefined;
+          const subcategoria = getField(ex, "subcategoria") as string | undefined;
 
           const record: Record<string, unknown> = {
-            name: ex.exercicio_pt,
-            boyle_score: ex.boyle_score || null,
-            axial_load: ex.AX ?? null,
-            lumbar_demand: ex.LOM ?? null,
-            technical_complexity: ex.TEC ?? null,
-            metabolic_potential: ex.MET ?? null,
-            knee_dominance: ex.JOE ?? null,
-            hip_dominance: ex.QUA ?? null,
-            primary_muscles: parsePrimaryMuscles(ex.grupo_muscular),
-            emphasis: ex["Ênfase"] || null,
+            name: exercicio_pt,
+            boyle_score: boyleScore || null,
+            axial_load: (getField(ex, "AX") as number) ?? null,
+            lumbar_demand: (getField(ex, "LOM") as number) ?? null,
+            technical_complexity: (getField(ex, "TEC") as number) ?? null,
+            metabolic_potential: (getField(ex, "MET") as number) ?? null,
+            knee_dominance: (getField(ex, "JOE") as number) ?? null,
+            hip_dominance: (getField(ex, "QUA") as number) ?? null,
+            primary_muscles: parsePrimaryMuscles(grupoMuscular),
+            emphasis: enfase || null,
           };
 
           // Only set category/pattern if we have the mapping (don't overwrite with null)
@@ -454,30 +458,39 @@ Deno.serve(async (req: Request) => {
           }
 
           // Map subcategory from spreadsheet pattern
-          if (ex.Padrao_movimento && SPREADSHEET_SUBCATEGORY_MAP[ex.Padrao_movimento]) {
-            record.subcategory = SPREADSHEET_SUBCATEGORY_MAP[ex.Padrao_movimento];
-          } else if (ex.subcategoria) {
-            record.subcategory = ex.subcategoria;
+          if (padrao && SPREADSHEET_SUBCATEGORY_MAP[padrao]) {
+            record.subcategory = SPREADSHEET_SUBCATEGORY_MAP[padrao];
+          } else if (subcategoria) {
+            record.subcategory = subcategoria;
           }
 
           // Additional fields
-          if (ex.Base || ex.lateralidade) {
-            const lat = ex.lateralidade || ex.Base;
+          const base = getField(ex, "Base", "base") as string | undefined;
+          const lateralidade = getField(ex, "lateralidade") as string | undefined;
+          if (base || lateralidade) {
+            const lat = lateralidade || base;
             record.laterality = lat ? (LATERALITY_MAP[lat] || lat.toLowerCase()) : null;
           }
-          if (ex.Posição) record.position = ex.Posição;
-          if (ex.plano) record.movement_plane = mapSpreadsheetPlane(ex.plano);
-          if (ex.Tipo_contracao) record.contraction_type = ex.Tipo_contracao;
-          if (ex.risco) record.risk_level = mapSpreadsheetRisk(ex.risco);
-          if (ex.nivel_boyle) record.level = ex.nivel_boyle;
-          if (ex.boyle_score) {
-            record.numeric_level = ex.boyle_score; // Keep in sync
+          const posicao = getField(ex, "Posição", "Posicao", "posicao") as string | undefined;
+          if (posicao) record.position = posicao;
+          const plano = getField(ex, "plano") as string | undefined;
+          if (plano) record.movement_plane = mapSpreadsheetPlane(plano);
+          const tipoContracao = getField(ex, "Tipo_contracao", "tipo_contracao") as string | undefined;
+          if (tipoContracao) record.contraction_type = tipoContracao;
+          const risco = getField(ex, "risco") as string | undefined;
+          if (risco) record.risk_level = mapSpreadsheetRisk(risco);
+          const nivelBoyle = getField(ex, "nivel_boyle") as string | undefined;
+          if (nivelBoyle) record.level = nivelBoyle;
+          if (boyleScore) {
+            record.numeric_level = boyleScore; // Keep in sync
           }
 
           // Equipment
           const equipArr: string[] = [];
-          if (ex.equipamento) equipArr.push(...ex.equipamento.split(/[,;+\/]/).map(e => e.trim()).filter(Boolean));
-          if (ex.Implemento) equipArr.push(...ex.Implemento.split(/[,;+\/]/).map(e => e.trim()).filter(Boolean));
+          const equipamento = getField(ex, "equipamento") as string | undefined;
+          const implemento = getField(ex, "Implemento", "implemento") as string | undefined;
+          if (equipamento) equipArr.push(...equipamento.split(/[,;+\/]/).map((e: string) => e.trim()).filter(Boolean));
+          if (implemento) implemento.split(/[,;+\/]/).map((e: string) => e.trim()).filter(Boolean).forEach((e: string) => equipArr.push(e));
           if (equipArr.length > 0) record.equipment_required = [...new Set(equipArr)];
 
           if (match) {
@@ -485,20 +498,20 @@ Deno.serve(async (req: Request) => {
               .from("exercises_library")
               .update(record)
               .eq("id", match.id);
-            if (error) errors.push(`Update "${ex.exercicio_pt}": ${error.message}`);
+            if (error) errors.push(`Update "${exercicio_pt}": ${error.message}`);
             else updated++;
           } else {
             const { error } = await supabase
               .from("exercises_library")
               .insert(record);
-            if (error) errors.push(`Insert "${ex.exercicio_pt}": ${error.message}`);
+            if (error) errors.push(`Insert "${exercicio_pt}": ${error.message}`);
             else {
               inserted++;
-              existingMap.set(normalizedName, { id: "new", name: ex.exercicio_pt, category: record.category as string || null, movement_pattern: record.movement_pattern as string || null, boyle_score: ex.boyle_score || null });
+              existingMap.set(normalizedName, { id: "new", name: exercicio_pt, category: record.category as string || null, movement_pattern: record.movement_pattern as string || null, boyle_score: boyleScore || null });
             }
           }
         } catch (e) {
-          errors.push(`Exception "${ex.exercicio_pt}": ${(e as Error).message}`);
+          errors.push(`Exception "${(getField(ex, "exercicio_pt") || "?")}": ${(e as Error).message}`);
         }
       }
 
