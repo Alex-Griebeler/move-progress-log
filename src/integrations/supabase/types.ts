@@ -525,17 +525,24 @@ export type Database = {
       }
       exercises_library: {
         Row: {
+          axial_load: number | null
+          boyle_score: number | null
           category: string | null
           contraction_type: string | null
           created_at: string
           default_reps: string | null
           default_sets: string | null
           description: string | null
+          emphasis: string | null
           equipment_required: string[] | null
           functional_group: string | null
+          hip_dominance: number | null
           id: string
+          knee_dominance: number | null
           laterality: string | null
           level: string | null
+          lumbar_demand: number | null
+          metabolic_potential: number | null
           movement_pattern: string | null
           movement_plane: string | null
           name: string
@@ -543,24 +550,33 @@ export type Database = {
           plyometric_phase: number | null
           position: string | null
           prerequisites: Json | null
+          primary_muscles: string[] | null
           risk_level: string | null
           subcategory: string | null
           tags: string[] | null
+          technical_complexity: number | null
           updated_at: string
           video_url: string | null
         }
         Insert: {
+          axial_load?: number | null
+          boyle_score?: number | null
           category?: string | null
           contraction_type?: string | null
           created_at?: string
           default_reps?: string | null
           default_sets?: string | null
           description?: string | null
+          emphasis?: string | null
           equipment_required?: string[] | null
           functional_group?: string | null
+          hip_dominance?: number | null
           id?: string
+          knee_dominance?: number | null
           laterality?: string | null
           level?: string | null
+          lumbar_demand?: number | null
+          metabolic_potential?: number | null
           movement_pattern?: string | null
           movement_plane?: string | null
           name: string
@@ -568,24 +584,33 @@ export type Database = {
           plyometric_phase?: number | null
           position?: string | null
           prerequisites?: Json | null
+          primary_muscles?: string[] | null
           risk_level?: string | null
           subcategory?: string | null
           tags?: string[] | null
+          technical_complexity?: number | null
           updated_at?: string
           video_url?: string | null
         }
         Update: {
+          axial_load?: number | null
+          boyle_score?: number | null
           category?: string | null
           contraction_type?: string | null
           created_at?: string
           default_reps?: string | null
           default_sets?: string | null
           description?: string | null
+          emphasis?: string | null
           equipment_required?: string[] | null
           functional_group?: string | null
+          hip_dominance?: number | null
           id?: string
+          knee_dominance?: number | null
           laterality?: string | null
           level?: string | null
+          lumbar_demand?: number | null
+          metabolic_potential?: number | null
           movement_pattern?: string | null
           movement_plane?: string | null
           name?: string
@@ -593,9 +618,11 @@ export type Database = {
           plyometric_phase?: number | null
           position?: string | null
           prerequisites?: Json | null
+          primary_muscles?: string[] | null
           risk_level?: string | null
           subcategory?: string | null
           tags?: string[] | null
+          technical_complexity?: number | null
           updated_at?: string
           video_url?: string | null
         }

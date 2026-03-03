@@ -134,22 +134,37 @@ export const LATERALITY_OPTIONS = {
 } as const;
 
 // ============================================================================
-// ESCALA DE NÍVEL NUMÉRICO (1-9)
+// ESCALA BOYLE (1-5) — substitui numeric_level (1-9)
 // ============================================================================
 
-export const NUMERIC_LEVEL_SCALE = {
+export const BOYLE_SCORE_SCALE = {
   1: { label: "Nível 1", category: "Iniciante", description: "Exercícios básicos de aprendizado" },
-  2: { label: "Nível 2", category: "Iniciante", description: "Progressão inicial com carga leve" },
-  3: { label: "Nível 3", category: "Iniciante", description: "Fundamentos consolidados" },
-  4: { label: "Nível 4", category: "Intermediário", description: "Introdução a padrões compostos" },
-  5: { label: "Nível 5", category: "Intermediário", description: "Padrões compostos com carga" },
-  6: { label: "Nível 6", category: "Intermediário", description: "Movimentos avançados introdutórios" },
-  7: { label: "Nível 7", category: "Avançado", description: "Alta complexidade e carga" },
-  8: { label: "Nível 8", category: "Avançado", description: "Performance e potência" },
-  9: { label: "Nível 9", category: "Avançado", description: "Elite / competição" },
+  2: { label: "Nível 2", category: "Iniciante/Intermediário", description: "Progressão inicial e fundamentos" },
+  3: { label: "Nível 3", category: "Intermediário", description: "Padrões compostos com carga" },
+  4: { label: "Nível 4", category: "Intermediário/Avançado", description: "Alta complexidade e carga" },
+  5: { label: "Nível 5", category: "Avançado", description: "Performance e potência" },
 } as const;
 
-export type NumericLevel = keyof typeof NUMERIC_LEVEL_SCALE;
+export type BoyleScore = keyof typeof BOYLE_SCORE_SCALE;
+
+/** @deprecated Use BOYLE_SCORE_SCALE instead */
+export const NUMERIC_LEVEL_SCALE = BOYLE_SCORE_SCALE;
+export type NumericLevel = BoyleScore;
+
+// ============================================================================
+// DIMENSÕES DE CLASSIFICAÇÃO (scores 0-5)
+// ============================================================================
+
+export const EXERCISE_DIMENSIONS = {
+  axial_load: { label: "Carga Axial", abbrev: "AX", description: "Carga compressiva na coluna vertebral" },
+  lumbar_demand: { label: "Exigência Lombar", abbrev: "LOM", description: "Demanda sobre a região lombar" },
+  technical_complexity: { label: "Complexidade Técnica", abbrev: "TEC", description: "Dificuldade de execução técnica" },
+  metabolic_potential: { label: "Potencial Metabólico", abbrev: "MET", description: "Capacidade de gerar demanda metabólica" },
+  knee_dominance: { label: "Dominância Joelho", abbrev: "JOE", description: "Envolvimento da cadeia anterior (joelho)" },
+  hip_dominance: { label: "Dominância Quadril", abbrev: "QUA", description: "Envolvimento da cadeia posterior (quadril)" },
+} as const;
+
+export type ExerciseDimension = keyof typeof EXERCISE_DIMENSIONS;
 
 // ============================================================================
 // POSIÇÕES DE EXERCÍCIO

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useStudents } from "@/hooks/useStudents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -6,7 +6,7 @@ import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { OuraApiDiagnosticsCard } from "@/components/OuraApiDiagnosticsCard";
 import { Button } from "@/components/ui/button";
 import { ExerciseDistributionDiagnostic } from "@/components/ExerciseDistributionDiagnostic";
-import { ArrowLeft, Shield, Upload, Loader2 } from "lucide-react";
+import { ArrowLeft, Shield, Upload, Loader2, FileSpreadsheet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { AppHeader } from "@/components/AppHeader";
@@ -19,6 +19,7 @@ import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import exercisesJSON from "@/data/exercicios_fabrik_categorizado.json";
+import * as XLSX from "xlsx";
 
 const AdminDiagnosticsPage = () => {
   usePageTitle(NAV_LABELS.adminDiagnostics);
@@ -35,7 +36,9 @@ const AdminDiagnosticsPage = () => {
   const { data: students, isLoading } = useStudents();
   const { isAdmin, isLoading: isLoadingRole } = useIsAdmin();
   const [importing, setImporting] = useState(false);
+  const [importingXlsx, setImportingXlsx] = useState(false);
   const [importResult, setImportResult] = useState<Record<string, unknown> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImportExercises = async () => {
     setImporting(true);
@@ -51,6 +54,58 @@ const AdminDiagnosticsPage = () => {
       toast.error(`Erro na importação: ${(err as Error).message}`);
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setImportingXlsx(true);
+    setImportResult(null);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
+      
+      // Map spreadsheet columns to expected format
+      const exercises = rows.map(row => ({
+        exercicio_pt: row["exercicio_pt"] || row["nome"] || row["name"],
+        aliases_origem: row["aliases_origem"] || "",
+        Padrao_movimento: row["Padrao_movimento"] || row["padrao_movimento"],
+        subcategoria: row["subcategoria"],
+        boyle_score: row["boyle_score"] != null ? Number(row["boyle_score"]) : undefined,
+        AX: row["AX"] != null ? Number(row["AX"]) : undefined,
+        LOM: row["LOM"] != null ? Number(row["LOM"]) : undefined,
+        TEC: row["TEC"] != null ? Number(row["TEC"]) : undefined,
+        MET: row["MET"] != null ? Number(row["MET"]) : undefined,
+        JOE: row["JOE"] != null ? Number(row["JOE"]) : undefined,
+        QUA: row["QUA"] != null ? Number(row["QUA"]) : undefined,
+        grupo_muscular: row["grupo_muscular"],
+        "Ênfase": row["Ênfase"] || row["enfase"],
+        Base: row["Base"] || row["base"],
+        lateralidade: row["lateralidade"],
+        "Posição": row["Posição"] || row["posicao"],
+        plano: row["plano"],
+        Tipo_contracao: row["Tipo_contracao"] || row["tipo_contracao"],
+        risco: row["risco"],
+        nivel_boyle: row["nivel_boyle"],
+        equipamento: row["equipamento"],
+        Implemento: row["Implemento"] || row["implemento"],
+      }));
+
+      const { data: result, error } = await supabase.functions.invoke("import-exercises", {
+        body: { format: "spreadsheet", exercises },
+      });
+      if (error) throw error;
+      setImportResult(result);
+      toast.success(`Importação XLSX: ${result.inserted} inseridos, ${result.updated} atualizados, ${result.orphans_reclassified || 0} órfãos reclassificados`);
+    } catch (err) {
+      toast.error(`Erro na importação XLSX: ${(err as Error).message}`);
+    } finally {
+      setImportingXlsx(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -97,35 +152,68 @@ const AdminDiagnosticsPage = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Importar Exercícios (JSON Categorizado)
+              Importar Exercícios
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Importa os 491 exercícios do JSON oficial da Fabrik. Exercícios existentes serão atualizados com metadados padronizados. Novos exercícios serão inseridos.
-            </p>
-            <Button 
-              onClick={handleImportExercises} 
-              disabled={importing}
-              variant="default"
-            >
-              {importing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Importando...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Executar Importação
-                </>
-              )}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* JSON Import */}
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  JSON oficial (491 exercícios categorizados)
+                </p>
+                <Button 
+                  onClick={handleImportExercises} 
+                  disabled={importing || importingXlsx}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {importing ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando JSON...</>
+                  ) : (
+                    <><Upload className="h-4 w-4 mr-2" />Importar JSON</>
+                  )}
+                </Button>
+              </div>
+
+              {/* XLSX Import */}
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Planilha XLSX com scores multidimensionais (AX, LOM, TEC, MET, JOE, QUA)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportXlsx}
+                  className="hidden"
+                />
+                <Button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  disabled={importing || importingXlsx}
+                  variant="default"
+                  className="w-full"
+                >
+                  {importingXlsx ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando XLSX...</>
+                  ) : (
+                    <><FileSpreadsheet className="h-4 w-4 mr-2" />Importar Planilha XLSX</>
+                  )}
+                </Button>
+              </div>
+            </div>
 
             {importResult && (
               <div className="rounded-md border p-4 space-y-2 text-sm">
+                <p><strong>Formato:</strong> {String(importResult.format || "json")}</p>
                 <p><strong>Inseridos:</strong> {String(importResult.inserted)}</p>
                 <p><strong>Atualizados:</strong> {String(importResult.updated)}</p>
+                {importResult.skipped != null && Number(importResult.skipped) > 0 && (
+                  <p><strong>Ignorados (MetCon):</strong> {String(importResult.skipped)}</p>
+                )}
+                {importResult.orphans_reclassified != null && (
+                  <p><strong>Órfãos reclassificados:</strong> {String(importResult.orphans_reclassified)}</p>
+                )}
                 <p><strong>Total processado:</strong> {String(importResult.total_processed)}</p>
                 {importResult.errors_total && Number(importResult.errors_total) > 0 && (
                   <div>
@@ -138,7 +226,7 @@ const AdminDiagnosticsPage = () => {
                 {importResult.orphans_total && Number(importResult.orphans_total) > 0 && (
                   <details>
                     <summary className="cursor-pointer text-muted-foreground">
-                      Exercícios órfãos ({String(importResult.orphans_total)}) — não estão no JSON
+                      Exercícios órfãos ({String(importResult.orphans_total)}) — não estão na fonte importada
                     </summary>
                     <pre className="text-xs mt-1 max-h-40 overflow-auto bg-muted p-2 rounded">
                       {JSON.stringify(importResult.orphans, null, 2)}
