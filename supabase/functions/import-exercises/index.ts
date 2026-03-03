@@ -337,8 +337,8 @@ Deno.serve(async (req: Request) => {
                    if (authHeader) {
                            const token = authHeader.replace("Bearer ", "");
                            if (token !== serviceKey) {
-                                     const { data: user, error: authErr } = await supabase.auth.getUser(token);
-                                     if (authErr || !user) {
+                                     const { data: userData, error: authErr } = await supabase.auth.getUser(token);
+                                     if (authErr || !userData?.user) {
                                                  return new Response(JSON.stringify({ error: "Unauthorized" }), {
                                                                status: 401,
                                                                headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -347,7 +347,7 @@ Deno.serve(async (req: Request) => {
                                      const { data: roleData } = await supabase
                                        .from("user_roles")
                                        .select("role")
-                                       .eq("user_id", user.id)
+                                       .eq("user_id", userData.user.id)
                                        .single();
                                      if (!roleData || !["admin", "trainer"].includes(roleData.role)) {
                                                  return new Response(
