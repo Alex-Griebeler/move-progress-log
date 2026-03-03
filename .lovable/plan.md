@@ -1,129 +1,77 @@
 
 
-# Plano: Migrar Banco de Exercícios com Novos Campos de Classificação
+## Diagnóstico Completo: Exercícios com Campos Incompletos
 
-## Resumo
+### Resumo por Categoria
 
-Adicionar 9 novas colunas à `exercises_library`, importar os dados da planilha (exceto MetCon), migrar a escala numérica de 1-9 para 1-5, e reclassificar exercícios órfãos por heurística.
+| Categoria | Total | Subcategoria | Plano | Contração | Nível | Lateralidade | Ênfase | Músculos |
+|---|---|---|---|---|---|---|---|---|
+| **Força/Hipertrofia** | 522 | ❌ 52 | ❌ 67 | ❌ 10 | ❌ 105 | ❌ 12 | ✅ | ✅ |
+| **Core/Ativação** | 152 | ❌ 27 | ❌ 5 | ❌ 5 | ❌ 21 | ❌ 45 | ✅ | ✅ |
+| **Mobilidade** | 108 | ❌ 8 | ❌ 2 | ❌ 3 | ❌ 8 | ❌ 108 | ❌ 108 | ✅ |
+| **Potência/Pliometria** | 93 | ❌ 19 | ✅ | ✅ | ❌ 10 | ❌ 66 | ✅ | ✅ |
+| **LMF** | 32 | ✅ | ❌ 10 | ✅ | ✅ | ❌ 31 | ❌ 32 | ✅ |
+| **Respiração** | 8 | ✅ | ❌ 8 | ❌ 8 | ✅ | ❌ 8 | ❌ 8 | ❌ 8 |
+| **Sem categoria** | 1 | — | — | — | — | — | — | — |
 
-## Decisões Consolidadas
-
-- **Escala**: migrar tudo para 1-5 (`boyle_score` substitui `numeric_level`)
-- **Órfãos**: manter e reclassificar por heurística
-- **MetCon**: não importar (será tratado separadamente)
+**Total de lacunas a preencher: ~472 campos dispersos.**
 
 ---
 
-## Fase 1 — Migração do Banco (SQL)
+### Plano: Criar Página de Revisão Manual
 
-Adicionar colunas à tabela `exercises_library`:
+Criar uma página administrativa dedicada (`/admin/revisao-exercicios`) com uma tabela editável inline que:
 
-```sql
-ALTER TABLE exercises_library
-  ADD COLUMN IF NOT EXISTS boyle_score integer,
-  ADD COLUMN IF NOT EXISTS axial_load integer,
-  ADD COLUMN IF NOT EXISTS lumbar_demand integer,
-  ADD COLUMN IF NOT EXISTS technical_complexity integer,
-  ADD COLUMN IF NOT EXISTS metabolic_potential integer,
-  ADD COLUMN IF NOT EXISTS knee_dominance integer,
-  ADD COLUMN IF NOT EXISTS hip_dominance integer,
-  ADD COLUMN IF NOT EXISTS primary_muscles text[],
-  ADD COLUMN IF NOT EXISTS emphasis text;
-```
+1. **Filtra por categoria e campo faltante** — dropdowns para selecionar "Força > sem subcategoria", "Core > sem lateralidade", etc.
+2. **Tabela editável** — cada linha mostra o exercício com campos editáveis inline (selects para campos enumerados, inputs para texto livre)
+3. **Salva em lote** — botão para salvar todas as alterações de uma vez via `UPDATE` no banco
+4. **Contadores em tempo real** — badges mostrando quantos campos faltam por categoria
 
-Migrar `numeric_level` (1-9) → `boyle_score` (1-5) para exercícios existentes:
+### Dados Concretos a Preencher
 
-```sql
-UPDATE exercises_library
-SET boyle_score = CASE
-  WHEN numeric_level <= 2 THEN 1
-  WHEN numeric_level <= 4 THEN 2
-  WHEN numeric_level <= 6 THEN 3
-  WHEN numeric_level <= 8 THEN 4
-  WHEN numeric_level = 9 THEN 5
-END
-WHERE numeric_level IS NOT NULL AND boyle_score IS NULL;
-```
+**Força/Hipertrofia (maiores lacunas):**
+- 52 sem `subcategory`: Agachamentos, Bulgarian Split Squats, Lunges, Carries, etc.
+- 67 sem `movement_plane`: Afundos, Agachamentos, Barras fixas, Bench Presses, etc.
+- 105 sem `level`: Maioria dos exercícios importados da planilha (têm `boyle_score` mas `level` não foi derivado)
+- 12 sem `laterality`
 
-Atualizar constantes `NUMERIC_LEVEL_SCALE` para escala 1-5 e ajustar `level` (Iniciante/Intermediário/Avançado) conforme novo mapeamento.
+**Core/Ativação (27 sem subcategory):**
+- Pallof Press, Arm Bar, Bear Crawl, Chops, Dragon Flag, KB TGU, L-Sit, RKC Plank, etc.
 
-## Fase 2 — Atualizar Edge Function `import-exercises`
+**Potência/Pliometria (66 sem lateralidade, 19 sem subcategory):**
+- Kettlebell (Arranco, Clean, Thruster), Trenó, Saltos diversos, Complexos
 
-Modificar a Edge Function para aceitar o formato da planilha (novo payload com colunas `exercicio_pt`, `aliases_origem`, `Padrao_movimento`, `boyle_score`, `AX`, `LOM`, `TEC`, `MET`, `JOE`, `QUA`, `grupo_muscular`, `Ênfase`).
+**LMF (31 sem lateralidade, 32 sem ênfase, 10 sem plano):**
+- Todos os "LMF adutores", "LMF glúteos", etc. + ativações com banda
 
-Lógica de matching:
-1. Normalizar `exercicio_pt` e comparar com `name` do DB
-2. Se não match direto, tentar `aliases_origem` (split por `;`)
-3. Se ainda sem match, usar `pg_trgm` similarity > 0.6
-4. Converter `Padrao_movimento` da planilha para o par (category, movement_pattern) correto do DB usando mapeamento:
+**Mobilidade (108 sem lateralidade e ênfase):**
+- Estes campos são opcionais para Mobilidade na taxonomia atual — pode ser ignorado
 
-```text
-Squat → forca_hipertrofia / dominancia_joelho
-Hinge → forca_hipertrofia / cadeia_posterior
-Push  → forca_hipertrofia / empurrar
-Pull  → forca_hipertrofia / puxar
-Carry → forca_hipertrofia / carregar
-Lunge → forca_hipertrofia / lunge
-Core  → core_ativacao
-Estab_* → core_ativacao (subcategoria correspondente)
-LMF   → lmf
-Mobilidade → mobilidade
-Potencia → potencia_pliometria
-```
+**Respiração (8 exercícios — todos os campos faltam):**
+- Estes são protocolos, não exercícios físicos — campos como `laterality`, `movement_plane` não se aplicam
 
-5. Filtrar exercícios com `Padrao_movimento = "MetCon"` — ignorar
-6. Preencher `boyle_score`, `axial_load`, `lumbar_demand`, `technical_complexity`, `metabolic_potential`, `knee_dominance`, `hip_dominance`, `primary_muscles`, `emphasis`
+**1 exercício sem categoria:**
+- "Suitcase isometria (estático)" — deve ser `forca_hipertrofia` / `carregar`
 
-## Fase 3 — Reclassificar Órfãos
+### Abordagem Técnica
 
-Para os ~150 exercícios no DB sem match na planilha, derivar scores por heurística:
+1. **Correções automáticas imediatas** (sem necessidade de revisão manual):
+   - Derivar `level` dos 105 registros que têm `boyle_score` (<=2→Iniciante, 3→Intermediário, >=4→Avançado)
+   - Preencher `movement_plane` = `sagital` para os 67 de Força baseado em `movement_pattern`
+   - Classificar "Suitcase isometria" como `forca_hipertrofia`
+   - Marcar campos de Respiração como N/A ou preencher defaults
 
-| Campo | Regra |
-|-------|-------|
-| `boyle_score` | Já calculado da migração `numeric_level` → 1-5 |
-| `axial_load` | `category=core_ativacao/mobilidade/lmf` → 1; `movement_pattern=carregar` → 4; `deadlift` no nome → 4; default → 2 |
-| `lumbar_demand` | Similar ao axial_load com ajustes |
-| `technical_complexity` | Baseado no `boyle_score`: 1→1, 2→2, 3→3, 4→4, 5→5 |
-| `metabolic_potential` | `category=potencia_pliometria` → 4; `core_ativacao` → 2; default → 3 |
-| `knee_dominance` | `movement_pattern=dominancia_joelho/lunge` → 4; `cadeia_posterior` → 1; default → 2 |
-| `hip_dominance` | Inverso do knee_dominance |
+2. **Revisão manual via UI** para os ~100 registros que precisam de decisão humana:
+   - 52 exercícios de Força sem `subcategory`
+   - 27 exercícios de Core sem `subcategory`  
+   - 19 exercícios de Potência sem `subcategory`
+   - 66 exercícios de Potência sem `laterality`
 
-Isto será executado como um UPDATE na Edge Function após o import.
+### Implementação
 
-## Fase 4 — Atualizar Código Frontend
-
-### 4.1. `src/constants/backToBasics.ts`
-- Substituir `NUMERIC_LEVEL_SCALE` (1-9) por escala 1-5 (Boyle)
-- Adicionar constantes para as novas dimensões (labels dos scores)
-
-### 4.2. `src/hooks/useExercisesLibrary.ts`
-- Adicionar novos campos à interface `ExerciseLibrary` e `CreateExerciseInput`
-- Adicionar filtros para `boyle_score`, `axial_load`, etc.
-
-### 4.3. `src/pages/ExercisesLibraryPage.tsx`
-- Exibir novas colunas nos cards/tabela (AX, LOM, TEC, MET, JOE, QUA)
-- Adicionar filtros por score range
-
-### 4.4. Dialogs de edição de exercício
-- Adicionar campos para os novos scores (inputs numéricos 0-5)
-
-### 4.5. `src/pages/AdminDiagnosticsPage.tsx`
-- Adicionar botão para importar planilha XLSX (além do JSON existente)
-- Relatório de matching (matched, inserted, orphans, skipped MetCon)
-
-## Ordem de Execução
-
-1. Migração SQL (adicionar colunas + converter numeric_level → boyle_score)
-2. Atualizar Edge Function `import-exercises` com novo formato
-3. Atualizar constantes e interfaces TypeScript
-4. Atualizar UI (filtros, cards, dialogs)
-5. Executar importação da planilha via Admin Diagnostics
-6. Verificar dados importados
-
-## O que NÃO muda
-
-- Tabelas `prescription_exercises`, `exercises`, `exercise_adaptations` — sem alteração
-- Coluna `numeric_level` mantida por compatibilidade (mas `boyle_score` passa a ser a referência)
-- Fluxo de prescrição manual permanece igual
-- Motor de prescrição IA será atualizado em etapa futura
+- Criar `src/pages/ExerciseReviewPage.tsx` com tabela editável
+- Adicionar rota `/admin/revisao-exercicios`
+- Usar componentes existentes (Select, Table, Badge)
+- Executar as correções automáticas via migration SQL primeiro
+- A página mostra apenas os registros com campos faltantes para preenchimento manual
 
