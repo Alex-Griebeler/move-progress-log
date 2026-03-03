@@ -246,6 +246,16 @@ const AdminDiagnosticsPage = () => {
                     </pre>
                   </details>
                 )}
+                {importResult.debug_samples && (
+                  <details open>
+                    <summary className="cursor-pointer text-amber-600 font-medium">
+                      🔍 Debug: primeiros exercícios recebidos
+                    </summary>
+                    <pre className="text-xs mt-1 max-h-60 overflow-auto bg-muted p-2 rounded">
+                      {JSON.stringify(importResult.debug_samples, null, 2)}
+                    </pre>
+                  </details>
+                )}
               </div>
             )}
           </CardContent>
