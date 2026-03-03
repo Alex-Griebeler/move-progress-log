@@ -1,104 +1,129 @@
 
 
-# Plano: Refatorar Dialogs de Registro de Sessão
+# Plano: Migrar Banco de Exercícios com Novos Campos de Classificação
 
-## Objetivo
+## Resumo
 
-Extrair lógica e UI duplicados entre `RecordGroupSessionDialog` (1933 linhas) e `RecordIndividualSessionDialog` (1200 linhas) em hooks e componentes reutilizáveis, reduzindo cada dialog para ~300-500 linhas.
+Adicionar 9 novas colunas à `exercises_library`, importar os dados da planilha (exceto MetCon), migrar a escala numérica de 1-9 para 1-5, e reclassificar exercícios órfãos por heurística.
 
-## Lógica Duplicada Identificada
+## Decisões Consolidadas
 
-| Funcionalidade | Group (linhas) | Individual (linhas) |
-|---|---|---|
-| Merge de gravações (dedup exercícios + observações) | 296-391 | 205-262 |
-| Validação de exercícios (reps, carga, nome) | 393-487, 534-550 | 493-534 |
-| Edição de exercícios (formulário inline) | 1674-1834 | 886-1044 |
-| Edição de observações clínicas | 1604-1672 | 796-861 |
-| Seleção/substituição de exercício | 748-768 | 536-556 |
-| handleAddAnotherRecording | 719-729 | 472-482 |
-| handleError | 585-591 | 330-336 |
-| areSimilarObservations | 296-307 | 205-216 |
-| getSeverityVariant | 309-316 | 700-707 (inline) |
-| Preview de exercícios (cards com sets/reps/carga) | 1500-1598 | 728-772 |
+- **Escala**: migrar tudo para 1-5 (`boyle_score` substitui `numeric_level`)
+- **Órfãos**: manter e reclassificar por heurística
+- **MetCon**: não importar (será tratado separadamente)
 
-## Estrutura Proposta
+---
 
-```text
-src/
-├── hooks/
-│   ├── useSessionRecording.ts     ← merge, acumulação, MAX_RECORDINGS
-│   ├── useSessionValidation.ts    ← validação de exercícios e observações
-│   └── useExerciseReplacement.ts  ← seleção/substituição de exercício
-├── components/
-│   ├── session/
-│   │   ├── ExerciseEditor.tsx      ← formulário de edição inline de exercícios
-│   │   ├── ObservationEditor.tsx   ← formulário de edição de observações
-│   │   ├── ExercisePreviewCard.tsx ← card de preview de exercício
-│   │   ├── ObservationPreview.tsx  ← preview de observações
-│   │   ├── ValidationAlerts.tsx    ← erros e warnings
-│   │   ├── RecordingHeader.tsx     ← badge de alunos + contador de gravações
-│   │   └── PrescriptionSidebar.tsx ← coluna lateral com exercícios prescritos
-│   ├── RecordGroupSessionDialog.tsx    ← orquestrador (reduzido)
-│   └── RecordIndividualSessionDialog.tsx ← orquestrador (reduzido)
+## Fase 1 — Migração do Banco (SQL)
+
+Adicionar colunas à tabela `exercises_library`:
+
+```sql
+ALTER TABLE exercises_library
+  ADD COLUMN IF NOT EXISTS boyle_score integer,
+  ADD COLUMN IF NOT EXISTS axial_load integer,
+  ADD COLUMN IF NOT EXISTS lumbar_demand integer,
+  ADD COLUMN IF NOT EXISTS technical_complexity integer,
+  ADD COLUMN IF NOT EXISTS metabolic_potential integer,
+  ADD COLUMN IF NOT EXISTS knee_dominance integer,
+  ADD COLUMN IF NOT EXISTS hip_dominance integer,
+  ADD COLUMN IF NOT EXISTS primary_muscles text[],
+  ADD COLUMN IF NOT EXISTS emphasis text;
 ```
 
-## Detalhamento das Extrações
+Migrar `numeric_level` (1-9) → `boyle_score` (1-5) para exercícios existentes:
 
-### 1. Hook `useSessionRecording`
-Consolida:
-- `accumulatedRecordings`, `currentRecordingNumber` state
-- `mergeAllRecordings()` (parametrizado para 1 ou N alunos)
-- `areSimilarObservations()`
-- `handleAddAnotherRecording()`
-- `handleError()`
-- Constante `MAX_RECORDINGS`
+```sql
+UPDATE exercises_library
+SET boyle_score = CASE
+  WHEN numeric_level <= 2 THEN 1
+  WHEN numeric_level <= 4 THEN 2
+  WHEN numeric_level <= 6 THEN 3
+  WHEN numeric_level <= 8 THEN 4
+  WHEN numeric_level = 9 THEN 5
+END
+WHERE numeric_level IS NOT NULL AND boyle_score IS NULL;
+```
 
-### 2. Hook `useSessionValidation`
-Consolida:
-- `validateMergedData()` (grupo)
-- `validateExercisesBeforeSave()` (individual)
-- `validateExerciseData()` 
-- `validationIssues` state
+Atualizar constantes `NUMERIC_LEVEL_SCALE` para escala 1-5 e ajustar `level` (Iniciante/Intermediário/Avançado) conforme novo mapeamento.
 
-### 3. Hook `useExerciseReplacement`
-Consolida:
-- `exerciseSelectionOpen`, `selectedExerciseForReplacement` state
-- `openExerciseSelection()`
-- `handleExerciseSelected()`
+## Fase 2 — Atualizar Edge Function `import-exercises`
 
-### 4. Componente `ExerciseEditor`
-UI compartilhada para edição inline de exercícios (nome + substituição, séries, reps, carga, breakdown com cálculo, observações, best set, botão deletar). Usado nos estados `edit` de ambos os dialogs.
+Modificar a Edge Function para aceitar o formato da planilha (novo payload com colunas `exercicio_pt`, `aliases_origem`, `Padrao_movimento`, `boyle_score`, `AX`, `LOM`, `TEC`, `MET`, `JOE`, `QUA`, `grupo_muscular`, `Ênfase`).
 
-### 5. Componente `ObservationEditor`
-UI compartilhada para edição de observações clínicas (texto, severidade, categorias, botão deletar, botão adicionar).
+Lógica de matching:
+1. Normalizar `exercicio_pt` e comparar com `name` do DB
+2. Se não match direto, tentar `aliases_origem` (split por `;`)
+3. Se ainda sem match, usar `pg_trgm` similarity > 0.6
+4. Converter `Padrao_movimento` da planilha para o par (category, movement_pattern) correto do DB usando mapeamento:
 
-### 6. Componente `ExercisePreviewCard`
-UI compartilhada para renderizar exercício no estado `preview` (badge "Preencher Manualmente", sets/reps/carga, observações).
+```text
+Squat → forca_hipertrofia / dominancia_joelho
+Hinge → forca_hipertrofia / cadeia_posterior
+Push  → forca_hipertrofia / empurrar
+Pull  → forca_hipertrofia / puxar
+Carry → forca_hipertrofia / carregar
+Lunge → forca_hipertrofia / lunge
+Core  → core_ativacao
+Estab_* → core_ativacao (subcategoria correspondente)
+LMF   → lmf
+Mobilidade → mobilidade
+Potencia → potencia_pliometria
+```
 
-### 7. Componente `ValidationAlerts`
-UI compartilhada para erros e warnings, incluindo botão "Adicionar Exercícios Não Mencionados".
+5. Filtrar exercícios com `Padrao_movimento = "MetCon"` — ignorar
+6. Preencher `boyle_score`, `axial_load`, `lumbar_demand`, `technical_complexity`, `metabolic_potential`, `knee_dominance`, `hip_dominance`, `primary_muscles`, `emphasis`
 
-### 8. Componente `PrescriptionSidebar`
-A coluna lateral com exercícios prescritos (atualmente inline no grupo, linhas 1189-1232).
+## Fase 3 — Reclassificar Órfãos
 
-## Ordem de Implementação
+Para os ~150 exercícios no DB sem match na planilha, derivar scores por heurística:
 
-1. Criar os 3 hooks (`useSessionRecording`, `useSessionValidation`, `useExerciseReplacement`)
-2. Criar os componentes de UI (`ExerciseEditor`, `ObservationEditor`, `ExercisePreviewCard`, `ValidationAlerts`, `PrescriptionSidebar`)
-3. Refatorar `RecordGroupSessionDialog` para usar hooks e componentes extraídos
-4. Refatorar `RecordIndividualSessionDialog` para usar hooks e componentes extraídos
-5. Verificar que o comportamento permanece idêntico
+| Campo | Regra |
+|-------|-------|
+| `boyle_score` | Já calculado da migração `numeric_level` → 1-5 |
+| `axial_load` | `category=core_ativacao/mobilidade/lmf` → 1; `movement_pattern=carregar` → 4; `deadlift` no nome → 4; default → 2 |
+| `lumbar_demand` | Similar ao axial_load com ajustes |
+| `technical_complexity` | Baseado no `boyle_score`: 1→1, 2→2, 3→3, 4→4, 5→5 |
+| `metabolic_potential` | `category=potencia_pliometria` → 4; `core_ativacao` → 2; default → 3 |
+| `knee_dominance` | `movement_pattern=dominancia_joelho/lunge` → 4; `cadeia_posterior` → 1; default → 2 |
+| `hip_dominance` | Inverso do knee_dominance |
+
+Isto será executado como um UPDATE na Edge Function após o import.
+
+## Fase 4 — Atualizar Código Frontend
+
+### 4.1. `src/constants/backToBasics.ts`
+- Substituir `NUMERIC_LEVEL_SCALE` (1-9) por escala 1-5 (Boyle)
+- Adicionar constantes para as novas dimensões (labels dos scores)
+
+### 4.2. `src/hooks/useExercisesLibrary.ts`
+- Adicionar novos campos à interface `ExerciseLibrary` e `CreateExerciseInput`
+- Adicionar filtros para `boyle_score`, `axial_load`, etc.
+
+### 4.3. `src/pages/ExercisesLibraryPage.tsx`
+- Exibir novas colunas nos cards/tabela (AX, LOM, TEC, MET, JOE, QUA)
+- Adicionar filtros por score range
+
+### 4.4. Dialogs de edição de exercício
+- Adicionar campos para os novos scores (inputs numéricos 0-5)
+
+### 4.5. `src/pages/AdminDiagnosticsPage.tsx`
+- Adicionar botão para importar planilha XLSX (além do JSON existente)
+- Relatório de matching (matched, inserted, orphans, skipped MetCon)
+
+## Ordem de Execução
+
+1. Migração SQL (adicionar colunas + converter numeric_level → boyle_score)
+2. Atualizar Edge Function `import-exercises` com novo formato
+3. Atualizar constantes e interfaces TypeScript
+4. Atualizar UI (filtros, cards, dialogs)
+5. Executar importação da planilha via Admin Diagnostics
+6. Verificar dados importados
 
 ## O que NÃO muda
 
-- Nenhuma funcionalidade é alterada
-- Fluxo de estados (setup → recording → preview → edit → save) permanece igual
-- Lógica de salvamento (diferente entre grupo e individual) permanece nos respectivos dialogs
-- `SessionSetupForm`, `SessionContextForm`, `ManualSessionEntry`, `MultiSegmentRecorder` não são alterados
-- Nenhuma migração de banco necessária
-
-## Riscos
-
-- **Risco baixo**: refatoração puramente estrutural, sem mudança de lógica
-- **Atenção**: tipos de observação diferem entre grupo (`categories: string[]`) e individual (`category: string`) — os hooks precisam ser genéricos o suficiente para ambos
+- Tabelas `prescription_exercises`, `exercises`, `exercise_adaptations` — sem alteração
+- Coluna `numeric_level` mantida por compatibilidade (mas `boyle_score` passa a ser a referência)
+- Fluxo de prescrição manual permanece igual
+- Motor de prescrição IA será atualizado em etapa futura
 
