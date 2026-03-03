@@ -359,6 +359,7 @@ Deno.serve(async (req: Request) => {
                    }
 
       const body = await req.json();
+      const skipOrphans = body.skip_orphans === true;
 
       // Detect format
       let isSpreadsheetFormat = false;
@@ -570,11 +571,12 @@ Deno.serve(async (req: Request) => {
                                }
                      }
 
-                     // ── BATCH: Reclassify orphans with heuristic scores ───────────────────
+                     // ── BATCH: Reclassify orphans with heuristic scores (skip if partial batch) ──
                      let orphansUpdated = 0;
               const orphans: string[] = [];
               const orphanRows: Record<string, unknown>[] = [];
 
+              if (!skipOrphans) {
                      for (const [norm, ex] of existingMap) {
                                if (!matchedNames.has(norm) && ex.id !== "__pending__") {
                                            orphans.push(ex.name);
@@ -605,6 +607,7 @@ Deno.serve(async (req: Request) => {
                                            }
                                }
                      }
+              }
 
                      return new Response(
                                JSON.stringify({

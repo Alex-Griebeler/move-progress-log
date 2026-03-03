@@ -37,6 +37,7 @@ const AdminDiagnosticsPage = () => {
   const { isAdmin, isLoading: isLoadingRole } = useIsAdmin();
   const [importing, setImporting] = useState(false);
   const [importingXlsx, setImportingXlsx] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
   const [importResult, setImportResult] = useState<Record<string, unknown> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,6 +60,8 @@ const AdminDiagnosticsPage = () => {
 
   const [xlsxDebug, setXlsxDebug] = useState<Record<string, unknown> | null>(null);
 
+  const BATCH_SIZE = 50;
+
   const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -66,17 +69,16 @@ const AdminDiagnosticsPage = () => {
     setImportingXlsx(true);
     setImportResult(null);
     setXlsxDebug(null);
+    setImportProgress(null);
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
-      // Pick the correct sheet - prefer "Exercicios_Consolidado", fallback to first
       const targetSheetName = workbook.SheetNames.find(
         (n: string) => n.toLowerCase().includes("exercicio") || n.toLowerCase().includes("consolidado")
       ) || workbook.SheetNames[0];
       const sheet = workbook.Sheets[targetSheetName];
       const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
       
-      // Debug: capture raw spreadsheet info
       const firstRow = rows[0] || {};
       const rawKeys = Object.keys(firstRow);
       const debugInfo: Record<string, unknown> = {
@@ -86,66 +88,103 @@ const AdminDiagnosticsPage = () => {
         rowCount: rows.length,
         rawKeys,
         firstRowSample: Object.entries(firstRow).slice(0, 8).map(([k, v]) => `${k}=${v}`),
-        secondRowSample: rows[1] ? Object.entries(rows[1]).slice(0, 8).map(([k, v]) => `${k}=${v}`) : "N/A",
       };
       setXlsxDebug(debugInfo);
 
-      // Normalize column headers to handle Unicode differences
       const normalizeKey = (key: string) => 
         key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
       
-      const normalizedRows = rows.map(row => {
+      const exercises = rows.map(row => {
         const normalized: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(row)) {
           normalized[normalizeKey(key)] = value;
-          normalized[key] = value; // keep original too
+          normalized[key] = value;
         }
-        return normalized;
+        return {
+          exercicio_pt: normalized["exercicio_pt"] || normalized["nome"] || normalized["name"],
+          aliases_origem: normalized["aliases_origem"] || "",
+          Padrao_movimento: normalized["Padrao_movimento"] || normalized["padrao_movimento"],
+          subcategoria: normalized["subcategoria"],
+          boyle_score: normalized["boyle_score"] != null ? Number(normalized["boyle_score"]) : undefined,
+          AX: normalized["AX"] != null ? Number(normalized["AX"]) : undefined,
+          LOM: normalized["LOM"] != null ? Number(normalized["LOM"]) : undefined,
+          TEC: normalized["TEC"] != null ? Number(normalized["TEC"]) : undefined,
+          MET: normalized["MET"] != null ? Number(normalized["MET"]) : undefined,
+          JOE: normalized["JOE"] != null ? Number(normalized["JOE"]) : undefined,
+          QUA: normalized["QUA"] != null ? Number(normalized["QUA"]) : undefined,
+          grupo_muscular: normalized["grupo_muscular"],
+          "Ênfase": normalized["Ênfase"] || normalized["enfase"] || normalized["ênfase"],
+          Base: normalized["Base"] || normalized["base"],
+          lateralidade: normalized["lateralidade"],
+          "Posição": normalized["Posição"] || normalized["posicao"],
+          plano: normalized["plano"],
+          Tipo_contracao: normalized["Tipo_contracao"] || normalized["tipo_contracao"],
+          risco: normalized["risco"],
+          nivel_boyle: normalized["nivel_boyle"],
+          equipamento: normalized["equipamento"],
+          Implemento: normalized["Implemento"] || normalized["implemento"],
+        };
       });
 
-      // Map spreadsheet columns to expected format
-      const exercises = normalizedRows.map(row => ({
-        exercicio_pt: row["exercicio_pt"] || row["nome"] || row["name"],
-        aliases_origem: row["aliases_origem"] || "",
-        Padrao_movimento: row["Padrao_movimento"] || row["padrao_movimento"],
-        subcategoria: row["subcategoria"],
-        boyle_score: row["boyle_score"] != null ? Number(row["boyle_score"]) : undefined,
-        AX: row["AX"] != null ? Number(row["AX"]) : undefined,
-        LOM: row["LOM"] != null ? Number(row["LOM"]) : undefined,
-        TEC: row["TEC"] != null ? Number(row["TEC"]) : undefined,
-        MET: row["MET"] != null ? Number(row["MET"]) : undefined,
-        JOE: row["JOE"] != null ? Number(row["JOE"]) : undefined,
-        QUA: row["QUA"] != null ? Number(row["QUA"]) : undefined,
-        grupo_muscular: row["grupo_muscular"],
-        "Ênfase": row["Ênfase"] || row["enfase"] || row["ênfase"],
-        Base: row["Base"] || row["base"],
-        lateralidade: row["lateralidade"],
-        "Posição": row["Posição"] || row["posicao"] || row["posicao"],
-        plano: row["plano"],
-        Tipo_contracao: row["Tipo_contracao"] || row["tipo_contracao"],
-        risco: row["risco"],
-        nivel_boyle: row["nivel_boyle"],
-        equipamento: row["equipamento"],
-        Implemento: row["Implemento"] || row["implemento"],
-      }));
-
-      // Debug: check how many have exercicio_pt
-      const withName = exercises.filter(e => e.exercicio_pt);
-      debugInfo.exercisesWithName = withName.length;
+      debugInfo.exercisesWithName = exercises.filter(e => e.exercicio_pt).length;
       debugInfo.exercisesTotal = exercises.length;
       debugInfo.firstMapped = exercises[0];
       setXlsxDebug({ ...debugInfo });
 
-      const { data: result, error } = await supabase.functions.invoke("import-exercises", {
-        body: { format: "spreadsheet", exercises },
-      });
-      if (error) throw error;
-      setImportResult(result);
-      toast.success(`Importação XLSX: ${result.inserted} inseridos, ${result.updated} atualizados, ${result.orphans_reclassified || 0} órfãos reclassificados`);
+      // Split into batches
+      const batches: typeof exercises[] = [];
+      for (let i = 0; i < exercises.length; i += BATCH_SIZE) {
+        batches.push(exercises.slice(i, i + BATCH_SIZE));
+      }
+
+      let totalInserted = 0;
+      let totalUpdated = 0;
+      let totalSkipped = 0;
+      let totalOrphansReclassified = 0;
+      let lastResult: Record<string, unknown> = {};
+
+      for (let i = 0; i < batches.length; i++) {
+        setImportProgress({ current: i * BATCH_SIZE, total: exercises.length });
+        
+        const isLastBatch = i === batches.length - 1;
+        const { data: result, error } = await supabase.functions.invoke("import-exercises", {
+          body: { 
+            format: "spreadsheet", 
+            exercises: batches[i],
+            skip_orphans: !isLastBatch, // only process orphans on last batch
+          },
+        });
+        if (error) throw error;
+        
+        totalInserted += Number(result.inserted || 0);
+        totalUpdated += Number(result.updated || 0);
+        totalSkipped += Number(result.skipped || 0);
+        totalOrphansReclassified += Number(result.orphans_reclassified || 0);
+        lastResult = result;
+
+        // Yield to UI
+        await new Promise(r => setTimeout(r, 50));
+      }
+
+      setImportProgress({ current: exercises.length, total: exercises.length });
+      
+      const aggregatedResult = {
+        ...lastResult,
+        format: "spreadsheet",
+        inserted: totalInserted,
+        updated: totalUpdated,
+        skipped: totalSkipped,
+        orphans_reclassified: totalOrphansReclassified,
+        total_processed: exercises.length,
+        batches_sent: batches.length,
+      };
+      setImportResult(aggregatedResult);
+      toast.success(`Importação XLSX: ${totalInserted} inseridos, ${totalUpdated} atualizados, ${totalOrphansReclassified} órfãos reclassificados`);
     } catch (err) {
       toast.error(`Erro na importação XLSX: ${(err as Error).message}`);
     } finally {
       setImportingXlsx(false);
+      setImportProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -235,8 +274,10 @@ const AdminDiagnosticsPage = () => {
                   variant="default"
                   className="w-full"
                 >
-                  {importingXlsx ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando XLSX...</>
+                  {importingXlsx && importProgress ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lote {Math.ceil(importProgress.current / 50)}/{Math.ceil(importProgress.total / 50)}…</>
+                  ) : importingXlsx ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lendo planilha...</>
                   ) : (
                     <><FileSpreadsheet className="h-4 w-4 mr-2" />Importar Planilha XLSX</>
                   )}
