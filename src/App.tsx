@@ -26,6 +26,7 @@ const PrescriptionsPage = lazy(() => import("./pages/PrescriptionsPage"));
 const RecoveryProtocolsPage = lazy(() => import("./pages/RecoveryProtocolsPage"));
 const AdminDiagnosticsPage = lazy(() => import("./pages/AdminDiagnosticsPage"));
 const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
+const ExerciseReviewPage = lazy(() => import("./pages/ExerciseReviewPage"));
 const StudentReportsPage = lazy(() => import("./pages/StudentReportsPage"));
 const AuthPage = lazy(() => import("./pages/AuthPage"));
 const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
@@ -80,6 +81,7 @@ const App = () => (
                                 <Route path="/protocolos" element={<RecoveryProtocolsPage />} />
                                 <Route path="/admin/diagnostico-oura" element={<AdminDiagnosticsPage />} />
                                 <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+                                <Route path="/admin/revisao-exercicios" element={<ExerciseReviewPage />} />
                                 <Route path="*" element={<NotFound />} />
                               </Routes>
                             </ErrorBoundary>
