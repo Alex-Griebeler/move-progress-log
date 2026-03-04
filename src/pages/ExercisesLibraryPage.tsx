@@ -452,11 +452,6 @@ export default function ExercisesLibraryPage() {
                 </div>
               </CardHeader>
               <CardContent className="pt-0 space-y-3">
-                {exercise.equipment_required && exercise.equipment_required.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    <strong>Equipamentos:</strong> {exercise.equipment_required.join(', ')}
-                  </p>
-                )}
                 
                 {/* Detalhes técnicos — visíveis sob demanda */}
                 <details className="group">
@@ -526,6 +521,11 @@ export default function ExercisesLibraryPage() {
                     )}
                     {exercise.description && (
                       <p className="text-xs text-muted-foreground">{exercise.description}</p>
+                    )}
+                    {exercise.equipment_required && exercise.equipment_required.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        <strong>Equipamentos:</strong> {exercise.equipment_required.join(', ')}
+                      </p>
                     )}
                   </div>
                 </details>
