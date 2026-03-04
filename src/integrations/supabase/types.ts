@@ -553,6 +553,7 @@ export type Database = {
           risk_level: string | null
           stability_position: string | null
           subcategory: string | null
+          surface_modifier: string | null
           tags: string[] | null
           technical_complexity: number | null
           updated_at: string
@@ -587,6 +588,7 @@ export type Database = {
           risk_level?: string | null
           stability_position?: string | null
           subcategory?: string | null
+          surface_modifier?: string | null
           tags?: string[] | null
           technical_complexity?: number | null
           updated_at?: string
@@ -621,6 +623,7 @@ export type Database = {
           risk_level?: string | null
           stability_position?: string | null
           subcategory?: string | null
+          surface_modifier?: string | null
           tags?: string[] | null
           technical_complexity?: number | null
           updated_at?: string

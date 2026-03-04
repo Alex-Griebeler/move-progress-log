@@ -20,6 +20,7 @@ export {
   STRENGTH_SUBCATEGORIES,
   POTENCIA_SUBCATEGORIES,
   STABILITY_POSITION_OPTIONS,
+  SURFACE_MODIFIER_OPTIONS,
 } from "@/constants/backToBasics";
 
 export interface ExerciseLibrary {
@@ -53,6 +54,7 @@ export interface ExerciseLibrary {
   primary_muscles: string[] | null;
   emphasis: string | null;
   stability_position: string | null;
+  surface_modifier: string | null;
 }
 
 // Interface para criação (campos opcionais)
@@ -84,6 +86,7 @@ export interface CreateExerciseInput {
   hip_dominance?: number | null;
   primary_muscles?: string[] | null;
   emphasis?: string | null;
+  surface_modifier?: string | null;
 }
 
 export interface ExerciseFilters {

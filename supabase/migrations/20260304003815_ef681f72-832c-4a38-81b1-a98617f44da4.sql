@@ -1,0 +1,1 @@
+ALTER TABLE public.exercises_library ADD COLUMN surface_modifier text DEFAULT 'nenhum';

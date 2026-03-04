@@ -31,6 +31,7 @@ import {
   EXERCISE_DIMENSIONS,
   PATTERN_TO_CATEGORY,
   STABILITY_POSITION_OPTIONS,
+  SURFACE_MODIFIER_OPTIONS,
 } from "@/hooks/useExercisesLibrary";
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
@@ -67,6 +68,7 @@ export const AddExerciseDialog = () => {
   const [defaultReps, setDefaultReps] = useState("");
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const [stabilityPosition, setStabilityPosition] = useState("");
+  const [surfaceModifier, setSurfaceModifier] = useState("");
 
   const createExercise = useCreateExercise();
   const { data: duplicates } = useDuplicateExerciseCheck(name);
@@ -120,6 +122,7 @@ export const AddExerciseDialog = () => {
       default_sets: defaultSets.trim() || null,
       default_reps: defaultReps.trim() || null,
       equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
+      surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",
     });
 
     // Reset form
@@ -146,6 +149,7 @@ export const AddExerciseDialog = () => {
     setDefaultReps("");
     setSelectedEquipment([]);
     setStabilityPosition("");
+    setSurfaceModifier("");
   };
 
   return (
@@ -317,6 +321,21 @@ export const AddExerciseDialog = () => {
                   </Select>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="surface-modifier">Modificador de Superfície</Label>
+                  <Select value={surfaceModifier} onValueChange={setSurfaceModifier}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(SURFACE_MODIFIER_OPTIONS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="contraction-type">Tipo de Contração</Label>
                   <Select value={contractionType} onValueChange={setContractionType}>
