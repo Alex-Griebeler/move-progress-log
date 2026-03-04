@@ -196,10 +196,8 @@ export type StabilityPosition = keyof typeof STABILITY_POSITION_OPTIONS;
 
 export const SURFACE_MODIFIER_OPTIONS = {
   nenhum: "Nenhum",
-  pe_tras_elevado: "Pé de trás elevado",
-  pe_frente_elevado: "Pé da frente elevado",
-  pe_elevado_lateral: "1 pé elevado lateralmente",
   pe_parede: "Pé de trás na parede",
+  pe_elevado: "Pé da frente elevado",
   pes_elevados: "Pés elevados",
   deficit: "Déficit",
   slide: "Slide / Deslizante",
