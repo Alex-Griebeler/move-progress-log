@@ -190,6 +190,22 @@ export const STABILITY_POSITION_OPTIONS = {
 
 export type StabilityPosition = keyof typeof STABILITY_POSITION_OPTIONS;
 
+// ============================================================================
+// MODIFICADORES DE SUPERFÍCIE / APOIO
+// ============================================================================
+
+export const SURFACE_MODIFIER_OPTIONS = {
+  nenhum: "Nenhum",
+  pe_parede: "Pé de trás na parede",
+  pe_elevado: "Pé da frente elevado",
+  pes_elevados: "Pés elevados",
+  deficit: "Déficit",
+  slide: "Slide / Deslizante",
+  suspenso_trx: "Suspenso (TRX/Anéis)",
+} as const;
+
+export type SurfaceModifier = keyof typeof SURFACE_MODIFIER_OPTIONS;
+
 /** @deprecated Use STABILITY_POSITION_OPTIONS instead */
 export const POSITION_OPTIONS = STABILITY_POSITION_OPTIONS;
 export type ExercisePosition = StabilityPosition;

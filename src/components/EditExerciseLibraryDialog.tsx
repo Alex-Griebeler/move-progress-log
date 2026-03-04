@@ -31,6 +31,7 @@ import {
   EXERCISE_DIMENSIONS,
   PATTERN_TO_CATEGORY,
   STABILITY_POSITION_OPTIONS,
+  SURFACE_MODIFIER_OPTIONS,
   ExerciseLibrary,
 } from "@/hooks/useExercisesLibrary";
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
@@ -69,6 +70,7 @@ export const EditExerciseLibraryDialog = ({
   const [emphasis, setEmphasis] = useState((exercise as any).emphasis || "");
   const [description, setDescription] = useState(exercise.description || "");
   const [stabilityPosition, setStabilityPosition] = useState((exercise as any).stability_position || "");
+  const [surfaceModifier, setSurfaceModifier] = useState((exercise as any).surface_modifier || "nenhum");
   const [videoUrl, setVideoUrl] = useState(exercise.video_url || "");
   const [riskLevel, setRiskLevel] = useState(exercise.risk_level || "");
   const [category, setCategory] = useState(exercise.category || "");
@@ -96,6 +98,7 @@ export const EditExerciseLibraryDialog = ({
     setHipDominance((exercise as any).hip_dominance?.toString() || "");
     setEmphasis((exercise as any).emphasis || "");
     setStabilityPosition((exercise as any).stability_position || "");
+    setSurfaceModifier((exercise as any).surface_modifier || "nenhum");
     setDescription(exercise.description || "");
     setVideoUrl(exercise.video_url || "");
     setRiskLevel(exercise.risk_level || "");
@@ -156,6 +159,7 @@ export const EditExerciseLibraryDialog = ({
       default_sets: defaultSets.trim() || null,
       default_reps: defaultReps.trim() || null,
       equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
+      surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",
     } as any);
 
     // Update stability_position separately since it may not be in the typed interface yet
@@ -341,6 +345,22 @@ export const EditExerciseLibraryDialog = ({
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
                       {Object.entries(CONTRACTION_TYPES).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-surface-modifier">Modificador de Superfície</Label>
+                  <Select value={surfaceModifier} onValueChange={setSurfaceModifier}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(SURFACE_MODIFIER_OPTIONS).map(([key, label]) => (
                         <SelectItem key={key} value={key}>
                           {label}
                         </SelectItem>

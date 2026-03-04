@@ -19,9 +19,10 @@ import {
   STRENGTH_SUBCATEGORIES,
   POTENCIA_SUBCATEGORIES,
   STABILITY_POSITION_OPTIONS,
+  SURFACE_MODIFIER_OPTIONS,
 } from "@/constants/backToBasics";
 
-type MissingField = "subcategory" | "movement_plane" | "level" | "laterality" | "contraction_type" | "emphasis" | "stability_position";
+type MissingField = "subcategory" | "movement_plane" | "level" | "laterality" | "contraction_type" | "emphasis" | "stability_position" | "surface_modifier";
 
 const MISSING_FIELD_LABELS: Record<MissingField, string> = {
   subcategory: "Subcategoria",
@@ -31,6 +32,7 @@ const MISSING_FIELD_LABELS: Record<MissingField, string> = {
   contraction_type: "Tipo de Contração",
   emphasis: "Ênfase",
   stability_position: "Posição/Base",
+  surface_modifier: "Modificador Superfície",
 };
 
 const CORE_SUBCATEGORIES: Record<string, string> = {
@@ -76,7 +78,7 @@ const ExerciseReviewPage = () => {
       while (hasMore) {
         const { data, error } = await supabase
           .from("exercises_library")
-          .select("id, name, category, movement_pattern, subcategory, movement_plane, level, laterality, contraction_type, emphasis, stability_position")
+          .select("id, name, category, movement_pattern, subcategory, movement_plane, level, laterality, contraction_type, emphasis, stability_position, surface_modifier")
           .order("category")
           .order("name")
           .range(from, from + batchSize - 1);
@@ -149,7 +151,7 @@ const ExerciseReviewPage = () => {
       const hasMissing = (field: MissingField) => !ex[field];
 
       if (missingFieldFilter === "all") {
-        return hasMissing("subcategory") || hasMissing("movement_plane") || hasMissing("level") || hasMissing("laterality") || hasMissing("contraction_type") || hasMissing("emphasis") || hasMissing("stability_position");
+        return hasMissing("subcategory") || hasMissing("movement_plane") || hasMissing("level") || hasMissing("laterality") || hasMissing("contraction_type") || hasMissing("emphasis") || hasMissing("stability_position") || hasMissing("surface_modifier");
       }
       return hasMissing(missingFieldFilter);
     });
@@ -162,7 +164,7 @@ const ExerciseReviewPage = () => {
     for (const ex of exercises) {
       if (ex.category === "mobilidade" || ex.category === "respiracao") continue;
       const cat = ex.category || "sem_categoria";
-      const missing = ["subcategory", "movement_plane", "level", "laterality", "contraction_type", "emphasis", "stability_position"]
+      const missing = ["subcategory", "movement_plane", "level", "laterality", "contraction_type", "emphasis", "stability_position", "surface_modifier"]
         .filter((f) => !ex[f as keyof typeof ex]).length;
       if (missing > 0) counts[cat] = (counts[cat] || 0) + 1;
     }
@@ -255,6 +257,7 @@ const ExerciseReviewPage = () => {
                   <TableHead>Nível</TableHead>
                    <TableHead>Lateralidade</TableHead>
                    <TableHead>Posição/Base</TableHead>
+                   <TableHead>Modificador</TableHead>
                    <TableHead>Contração</TableHead>
                    <TableHead>Ênfase</TableHead>
                 </TableRow>
@@ -375,6 +378,26 @@ const ExerciseReviewPage = () => {
                           </Select>
                         ) : (
                           <span className="text-xs">{STABILITY_POSITION_OPTIONS[ex.stability_position as keyof typeof STABILITY_POSITION_OPTIONS] || ex.stability_position}</span>
+                        )}
+                      </TableCell>
+                      {/* Surface Modifier */}
+                      <TableCell>
+                        {!ex.surface_modifier || ex.surface_modifier === 'nenhum' ? (
+                          <Select
+                            value={getValue(ex.id, "surface_modifier", ex.surface_modifier) || ""}
+                            onValueChange={(v) => handleFieldChange(ex.id, "surface_modifier", v)}
+                          >
+                            <SelectTrigger className="h-8 text-xs w-[150px]">
+                              <SelectValue placeholder="Selecionar" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(SURFACE_MODIFIER_OPTIONS).map(([k, v]) => (
+                                <SelectItem key={k} value={k}>{v}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="text-xs">{SURFACE_MODIFIER_OPTIONS[ex.surface_modifier as keyof typeof SURFACE_MODIFIER_OPTIONS] || ex.surface_modifier}</span>
                         )}
                       </TableCell>
                       <TableCell>
