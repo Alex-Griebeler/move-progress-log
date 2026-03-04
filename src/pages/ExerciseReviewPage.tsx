@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { notify } from "@/lib/notify";
 import { Save, Filter } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { InlineExerciseNameEditor } from "@/components/InlineExerciseNameEditor";
 import {
   EXERCISE_CATEGORIES,
   MOVEMENT_PATTERNS,
@@ -247,6 +249,7 @@ const ExerciseReviewPage = () => {
           <p className="text-muted-foreground">Carregando...</p>
         ) : (
           <div className="border rounded-lg">
+            <TooltipProvider>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -267,7 +270,13 @@ const ExerciseReviewPage = () => {
                   const subcatOptions = getSubcategoryOptions(ex.category, ex.movement_pattern);
                   return (
                     <TableRow key={ex.id} className={edits[ex.id] ? "bg-accent/30" : ""}>
-                      <TableCell className="font-medium text-sm">{ex.name}</TableCell>
+                      <TableCell className="font-medium text-sm">
+                        <InlineExerciseNameEditor
+                          exerciseId={ex.id}
+                          currentName={ex.name}
+                          onNameChange={(id, newName) => handleFieldChange(id, "name", newName)}
+                        />
+                      </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {EXERCISE_CATEGORIES[ex.category as keyof typeof EXERCISE_CATEGORIES] || ex.category || "—"}
                       </TableCell>
@@ -447,6 +456,7 @@ const ExerciseReviewPage = () => {
                 )}
               </TableBody>
             </Table>
+            </TooltipProvider>
           </div>
         )}
         
