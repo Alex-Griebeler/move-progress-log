@@ -1,67 +1,37 @@
 
 
-## Plano: Implementar Taxonomia de Estabilidade/Posição + Lateralidade Corrigida
+## Recomendação: Criar campo separado `surface_modifier`
 
-### Resumo
+### Raciocínio
 
-Unificar `position` em um eixo único de **Posição/Base de Estabilidade** com 14 níveis ordenados por dificuldade, corrigir **Lateralidade** para 5 opções de dinâmica de execução, e adicionar **Ponte** à lista.
+Esses modificadores (pé na parede, pé elevado, déficit, pés elevados) **não são posições** — são **variações de superfície/apoio** que se combinam com qualquer posição. Exemplo:
 
-### 1. Database Migration
+- Split Squat `em_pe_split` + `pe_parede` 
+- Split Squat `em_pe_split` + `pe_elevado`
+- RDL `em_pe_unilateral` + `deficit`
+- Hip Thrust `ponte` + `pes_elevados`
 
-Renomear coluna `position` → `stability_position` e migrar dados existentes:
+Se adicionarmos ao eixo de posição, teríamos explosão combinatória (14 posições × 6 modificadores = 84 opções). Um campo separado mantém a taxonomia limpa e combinável.
 
-```sql
-ALTER TABLE exercises_library RENAME COLUMN position TO stability_position;
+### Proposta de valores para `surface_modifier`
 
--- Migrar valores antigos para novos
-UPDATE exercises_library SET stability_position = 'em_pe_bilateral' WHERE stability_position = 'em_pe';
--- (mapear solo → quadrupede ou inferir conforme nome)
+| Chave | Label | Exemplo |
+|---|---|---|
+| `nenhum` | Nenhum | Padrão, sem modificador |
+| `pe_parede` | Pé de trás na parede | Split Squat pé na parede |
+| `pe_elevado` | Pé da frente elevado | Bulgarian Split Squat |
+| `pes_elevados` | Pés elevados | Flexão pés no banco |
+| `deficit` | Déficit | RDL déficit, Step-up déficit |
+| `slide` | Slide/Deslizante | Hamstring slide, Lateral slide |
+| `suspenso_trx` | Suspenso (TRX/Anéis) | Row TRX, Flexão TRX |
 
--- Corrigir laterality
-UPDATE exercises_library SET laterality = 'alternada' WHERE laterality = 'alternado';
-UPDATE exercises_library SET laterality = NULL WHERE laterality = 'base_assimetrica';
-```
+### Implementação
 
-### 2. Constantes (`src/constants/backToBasics.ts`)
+1. **Migration**: `ALTER TABLE exercises_library ADD COLUMN surface_modifier text DEFAULT 'nenhum'`
+2. **Constantes**: Adicionar `SURFACE_MODIFIER_OPTIONS` em `backToBasics.ts`
+3. **UI**: Adicionar select na página de revisão e nos dialogs de edição/criação
+4. **Classificação em lote**: SQL heurístico para preencher ~50-80 exercícios que já contêm essas palavras-chave no nome
+5. **Hook**: Atualizar `useExercisesLibrary.ts` com o novo campo
 
-Substituir `LATERALITY_OPTIONS`:
-- `bilateral` — Ambos os lados simultâneos
-- `unilateral` — Apenas um lado por vez
-- `alternada` — Membros alternados na mesma série
-- `contralateral` — Carga no lado oposto
-- `ipsilateral` — Carga no mesmo lado
-
-Substituir `POSITION_OPTIONS` por `STABILITY_POSITION_OPTIONS` (14 níveis ordenados):
-
-```text
- 1. decubito_dorsal    — Decúbito Dorsal (DD)
- 2. decubito_ventral   — Decúbito Ventral (DV)
- 3. decubito_lateral   — Decúbito Lateral (DL)
- 4. ponte              — Ponte (Bridge)        ← NOVO
- 5. quadrupede         — Quadrúpede
- 6. prancha            — Prancha
- 7. ajoelhado          — Ajoelhado
- 8. semi_ajoelhado     — Semi-ajoelhado
- 9. sentado            — Sentado
-10. em_pe_bilateral    — Em pé (Bilateral)
-11. em_pe_assimetrica  — Em pé (Assimétrica)
-12. em_pe_split        — Em pé (Split/Passada)
-13. em_pe_unilateral   — Em pé (Unilateral)
-14. suspenso           — Suspenso (Barra)
-```
-
-### 3. Arquivos a editar (6 arquivos + 1 migration)
-
-| Arquivo | Mudança |
-|---|---|
-| `src/constants/backToBasics.ts` | Novas constantes `LATERALITY_OPTIONS` e `STABILITY_POSITION_OPTIONS` |
-| `src/hooks/useExercisesLibrary.ts` | Re-exportar novas constantes |
-| `src/pages/ExerciseReviewPage.tsx` | Coluna "Posição/Base" com select, atualizar laterality select |
-| `src/components/EditExerciseLibraryDialog.tsx` | Atualizar selects de lateralidade e posição |
-| `src/components/AddExerciseDialog.tsx` | Idem |
-| `src/pages/ExercisesLibraryPage.tsx` | Filtros e badges atualizados |
-
-### 4. Impacto na IA de Prescrição
-
-O nível numérico (1-14) da `stability_position` poderá ser usado como score de dificuldade postural pela IA, complementando o `boyle_score` existente.
+Total: 1 migration + 5 arquivos editados.
 
