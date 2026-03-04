@@ -129,8 +129,9 @@ export type RiskLevel = keyof typeof RISK_LEVELS;
 export const LATERALITY_OPTIONS = {
   bilateral: "Bilateral",
   unilateral: "Unilateral",
-  alternado: "Alternado",
-  base_assimetrica: "Base Assimétrica",
+  alternada: "Alternada",
+  contralateral: "Contralateral",
+  ipsilateral: "Ipsilateral",
 } as const;
 
 // ============================================================================
@@ -170,21 +171,28 @@ export type ExerciseDimension = keyof typeof EXERCISE_DIMENSIONS;
 // POSIÇÕES DE EXERCÍCIO
 // ============================================================================
 
-export const POSITION_OPTIONS = {
-  em_pe: "Em pé",
-  solo: "Solo",
+export const STABILITY_POSITION_OPTIONS = {
+  decubito_dorsal: "Decúbito Dorsal (DD)",
+  decubito_ventral: "Decúbito Ventral (DV)",
+  decubito_lateral: "Decúbito Lateral (DL)",
+  ponte: "Ponte (Bridge)",
+  quadrupede: "Quadrúpede",
+  prancha: "Prancha",
   ajoelhado: "Ajoelhado",
   semi_ajoelhado: "Semi-ajoelhado",
   sentado: "Sentado",
-  decubito_dorsal: "Decúbito Dorsal",
-  decubito_ventral: "Decúbito Ventral",
-  decubito_lateral: "Decúbito Lateral",
-  quadrupede: "Quadrúpede",
-  suspenso: "Suspenso",
-  prancha: "Prancha",
+  em_pe_bilateral: "Em pé (Bilateral)",
+  em_pe_assimetrica: "Em pé (Assimétrica)",
+  em_pe_split: "Em pé (Split/Passada)",
+  em_pe_unilateral: "Em pé (Unilateral)",
+  suspenso: "Suspenso (Barra)",
 } as const;
 
-export type ExercisePosition = keyof typeof POSITION_OPTIONS;
+export type StabilityPosition = keyof typeof STABILITY_POSITION_OPTIONS;
+
+/** @deprecated Use STABILITY_POSITION_OPTIONS instead */
+export const POSITION_OPTIONS = STABILITY_POSITION_OPTIONS;
+export type ExercisePosition = StabilityPosition;
 
 // ============================================================================
 // PLANOS DE MOVIMENTO

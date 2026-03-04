@@ -548,10 +548,10 @@ export type Database = {
           name: string
           numeric_level: number | null
           plyometric_phase: number | null
-          position: string | null
           prerequisites: Json | null
           primary_muscles: string[] | null
           risk_level: string | null
+          stability_position: string | null
           subcategory: string | null
           tags: string[] | null
           technical_complexity: number | null
@@ -582,10 +582,10 @@ export type Database = {
           name: string
           numeric_level?: number | null
           plyometric_phase?: number | null
-          position?: string | null
           prerequisites?: Json | null
           primary_muscles?: string[] | null
           risk_level?: string | null
+          stability_position?: string | null
           subcategory?: string | null
           tags?: string[] | null
           technical_complexity?: number | null
@@ -616,10 +616,10 @@ export type Database = {
           name?: string
           numeric_level?: number | null
           plyometric_phase?: number | null
-          position?: string | null
           prerequisites?: Json | null
           primary_muscles?: string[] | null
           risk_level?: string | null
+          stability_position?: string | null
           subcategory?: string | null
           tags?: string[] | null
           technical_complexity?: number | null

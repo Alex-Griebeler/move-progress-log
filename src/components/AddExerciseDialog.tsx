@@ -30,6 +30,7 @@ import {
   BOYLE_SCORE_SCALE,
   EXERCISE_DIMENSIONS,
   PATTERN_TO_CATEGORY,
+  STABILITY_POSITION_OPTIONS,
 } from "@/hooks/useExercisesLibrary";
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
@@ -65,6 +66,7 @@ export const AddExerciseDialog = () => {
   const [defaultSets, setDefaultSets] = useState("");
   const [defaultReps, setDefaultReps] = useState("");
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
+  const [stabilityPosition, setStabilityPosition] = useState("");
 
   const createExercise = useCreateExercise();
   const { data: duplicates } = useDuplicateExerciseCheck(name);
@@ -143,7 +145,7 @@ export const AddExerciseDialog = () => {
     setDefaultSets("");
     setDefaultReps("");
     setSelectedEquipment([]);
-    setOpen(false);
+    setStabilityPosition("");
   };
 
   return (
@@ -290,6 +292,23 @@ export const AddExerciseDialog = () => {
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
                       {Object.entries(MOVEMENT_PLANES).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="stability-position">Posição / Base de Estabilidade</Label>
+                  <Select value={stabilityPosition} onValueChange={setStabilityPosition}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhuma</SelectItem>
+                      {Object.entries(STABILITY_POSITION_OPTIONS).map(([key, label]) => (
                         <SelectItem key={key} value={key}>
                           {label}
                         </SelectItem>
