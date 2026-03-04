@@ -19,6 +19,7 @@ export {
   SESSION_PATTERN_GROUPS,
   STRENGTH_SUBCATEGORIES,
   POTENCIA_SUBCATEGORIES,
+  STABILITY_POSITION_OPTIONS,
 } from "@/constants/backToBasics";
 
 export interface ExerciseLibrary {
@@ -51,6 +52,7 @@ export interface ExerciseLibrary {
   hip_dominance: number | null;
   primary_muscles: string[] | null;
   emphasis: string | null;
+  stability_position: string | null;
 }
 
 // Interface para criação (campos opcionais)

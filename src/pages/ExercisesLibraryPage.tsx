@@ -46,6 +46,7 @@ import {
   BOYLE_SCORE_SCALE,
   STRENGTH_SUBCATEGORIES,
   POTENCIA_SUBCATEGORIES,
+  STABILITY_POSITION_OPTIONS,
   ExerciseFilters,
 } from "@/hooks/useExercisesLibrary";
 import { populateExercisesLibrary } from "@/utils/populateExercises";
@@ -461,7 +462,12 @@ export default function ExercisesLibraryPage() {
                       )}
                       {exercise.laterality && (
                         <Badge variant="outline">
-                          {LATERALITY_OPTIONS[exercise.laterality as keyof typeof LATERALITY_OPTIONS]}
+                          {LATERALITY_OPTIONS[exercise.laterality as keyof typeof LATERALITY_OPTIONS] || exercise.laterality}
+                        </Badge>
+                      )}
+                      {(exercise as any).stability_position && (
+                        <Badge variant="outline">
+                          {STABILITY_POSITION_OPTIONS[(exercise as any).stability_position as keyof typeof STABILITY_POSITION_OPTIONS] || (exercise as any).stability_position}
                         </Badge>
                       )}
                       {exercise.level && (
