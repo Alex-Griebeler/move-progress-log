@@ -273,7 +273,7 @@ const ExerciseReviewPage = () => {
                       <TableCell className="font-medium text-sm">
                         <InlineExerciseNameEditor
                           exerciseId={ex.id}
-                          currentName={ex.name}
+                          currentName={getValue(ex.id, "name", ex.name) || ex.name}
                           onNameChange={(id, newName) => handleFieldChange(id, "name", newName)}
                         />
                       </TableCell>
