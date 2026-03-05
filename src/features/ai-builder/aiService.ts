@@ -4,7 +4,6 @@ export interface AIBuilderResponse {
   type: "conversation" | "planning" | "build";
   message: string;
   issue_url?: string;
-  pr_url?: string;
   error?: string;
 }
 
