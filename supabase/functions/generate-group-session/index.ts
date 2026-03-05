@@ -904,6 +904,220 @@ function countEffectiveSets(workout: GeneratedWorkout): number {
 }
 
 // ============================================================================
+// VALIDAÇÃO CROSS-SESSION (Fase 3 v14.5)
+// ============================================================================
+
+interface CrossSessionStats {
+  patternSets: Record<string, number>; // sets por padrão de movimento na semana
+  hingeHeavyCount: number; // hinge pesados na semana
+  lomHighPerSession: Record<string, number>; // exercícios LOM>=4 por sessão
+  neuralProfile: Record<string, string>; // perfil neural por slot (alto/moderado/metcon)
+  jointStress: Record<string, number>; // stress articular acumulado (joelho, ombro, lombar)
+  primeMoversPerSession: Record<string, Set<string>>; // prime movers usados por sessão
+}
+
+/**
+ * Coleta estatísticas cross-session para validação
+ */
+function collectCrossSessionStats(
+  workouts: GeneratedWorkout[],
+  allExercises: Exercise[]
+): CrossSessionStats {
+  const exerciseMap = new Map<string, Exercise>();
+  for (const ex of allExercises) exerciseMap.set(ex.id, ex);
+
+  const stats: CrossSessionStats = {
+    patternSets: {},
+    hingeHeavyCount: 0,
+    lomHighPerSession: {},
+    neuralProfile: {},
+    jointStress: { joelho: 0, ombro: 0, lombar: 0 },
+    primeMoversPerSession: {},
+  };
+
+  for (const workout of workouts) {
+    const slot = workout.slot;
+    stats.primeMoversPerSession[slot] = new Set<string>();
+    let sessionLomHigh = 0;
+
+    // Determine neural profile from valences
+    if (workout.valences.includes("potencia")) {
+      stats.neuralProfile[slot] = "alto";
+    } else if (workout.valences.includes("forca")) {
+      stats.neuralProfile[slot] = "moderado";
+    } else if (workout.valences.includes("condicionamento")) {
+      stats.neuralProfile[slot] = "metcon";
+    } else {
+      stats.neuralProfile[slot] = "moderado";
+    }
+
+    for (const phase of workout.phases) {
+      for (const block of phase.blocks) {
+        if (block.method === "respiracao" || block.method === "autoliberacao") continue;
+
+        for (const genEx of block.exercises) {
+          const libEx = exerciseMap.get(genEx.exerciseLibraryId);
+          if (!libEx) continue;
+
+          // Count sets per pattern
+          const pattern = libEx.movement_pattern || "unknown";
+          const setParts = genEx.sets.split("-").map(Number);
+          const setCount = setParts.some(isNaN) ? 3 : setParts[setParts.length - 1];
+          stats.patternSets[pattern] = (stats.patternSets[pattern] || 0) + setCount;
+
+          // Track prime movers (via movement_pattern as proxy)
+          stats.primeMoversPerSession[slot].add(pattern);
+
+          // F1 extended: count hinge heavy (LOM>=4 + cadeia_posterior)
+          if (pattern === "cadeia_posterior" && (libEx.lumbar_demand || 0) >= 4) {
+            stats.hingeHeavyCount++;
+          }
+
+          // LOM high count per session
+          if ((libEx.lumbar_demand || 0) >= 4) {
+            sessionLomHigh++;
+          }
+
+          // Joint stress accumulation
+          if ((libEx.knee_dominance || 0) >= 4) {
+            stats.jointStress.joelho += setCount;
+          }
+          if (["empurrar", "puxar"].includes(pattern) && (libEx.axial_load || 0) >= 3) {
+            stats.jointStress.ombro += setCount;
+          }
+          if ((libEx.lumbar_demand || 0) >= 3) {
+            stats.jointStress.lombar += setCount;
+          }
+        }
+      }
+    }
+
+    stats.lomHighPerSession[slot] = sessionLomHigh;
+  }
+
+  return stats;
+}
+
+/**
+ * F2: Validação de dominância acumulada — verifica equilíbrio semanal
+ * Regras:
+ *   - Push/Pull/Knee/Hip devem ter mínimos semanais
+ *   - Pull 20-40% > Push
+ */
+function validateDominanceBalance(
+  stats: CrossSessionStats,
+  warnings: string[]
+): void {
+  const push = stats.patternSets["empurrar"] || 0;
+  const pull = stats.patternSets["puxar"] || 0;
+  const knee = (stats.patternSets["dominancia_joelho"] || 0) + (stats.patternSets["lunge"] || 0);
+  const hip = stats.patternSets["cadeia_posterior"] || 0;
+
+  // Minimum weekly sets per pattern group
+  if (push < 6) warnings.push(`Volume semanal Push insuficiente: ${push} sets (mín. 6).`);
+  if (pull < 6) warnings.push(`Volume semanal Pull insuficiente: ${pull} sets (mín. 6).`);
+  if (knee < 6) warnings.push(`Volume semanal Knee insuficiente: ${knee} sets (mín. 6).`);
+  if (hip < 4) warnings.push(`Volume semanal Hip insuficiente: ${hip} sets (mín. 4).`);
+
+  // Pull should be 20-40% > Push
+  if (push > 0) {
+    const ratio = pull / push;
+    if (ratio < 1.2) {
+      warnings.push(`Pull/Push ratio: ${ratio.toFixed(2)}x (recomendado 1.2-1.4x). Pull deve ser 20-40% superior ao Push.`);
+    } else if (ratio > 1.5) {
+      warnings.push(`Pull/Push ratio elevado: ${ratio.toFixed(2)}x. Considere balancear.`);
+    }
+  }
+}
+
+/**
+ * F5: Sobreposição de prime movers — mesmos grupos não devem ser sobrecarregados
+ */
+function validatePrimeMoverOverlap(
+  stats: CrossSessionStats,
+  warnings: string[]
+): void {
+  // Check if same heavy patterns appear in all 3 sessions
+  const slots = Object.keys(stats.primeMoversPerSession);
+  if (slots.length < 3) return;
+
+  const allPatterns = new Set<string>();
+  for (const slot of slots) {
+    for (const p of stats.primeMoversPerSession[slot]) {
+      allPatterns.add(p);
+    }
+  }
+
+  for (const pattern of allPatterns) {
+    const sessionsWithPattern = slots.filter(
+      (s) => stats.primeMoversPerSession[s].has(pattern)
+    ).length;
+
+    // Same pattern in all 3 sessions with high total volume is a concern
+    if (sessionsWithPattern === 3) {
+      const totalSets = stats.patternSets[pattern] || 0;
+      if (totalSets > 15) {
+        warnings.push(
+          `Padrão "${pattern}" presente em todos os 3 treinos com ${totalSets} sets totais. Risco de sobreposição de prime movers.`
+        );
+      }
+    }
+  }
+}
+
+/**
+ * G12: Controle neural e articular semanal
+ * Regras:
+ *   - Max 2 blocos pesados (alto neural) por semana
+ *   - Max 1 hinge pesado por sessão (já garantido por F1)
+ *   - Composição ideal: 1 Alto + 1 Moderado + 1 MetCon (ou similar)
+ *   - Stress articular: joelho, ombro, lombar não devem exceder limites
+ */
+function validateNeuralAndJointControl(
+  stats: CrossSessionStats,
+  warnings: string[]
+): void {
+  // Neural: max 2 "alto" sessions per week
+  const altoCount = Object.values(stats.neuralProfile).filter((p) => p === "alto").length;
+  if (altoCount > 2) {
+    warnings.push(
+      `Controle neural: ${altoCount} sessões de alta demanda neural/semana (max recomendado: 2).`
+    );
+  }
+
+  // Hinge heavy: max 2 per week across all sessions
+  if (stats.hingeHeavyCount > 2) {
+    warnings.push(
+      `Hinge pesado: ${stats.hingeHeavyCount}x/semana (max recomendado: 2). Risco lombar acumulado.`
+    );
+  }
+
+  // Joint stress thresholds (in weekly sets)
+  const JOINT_LIMITS = { joelho: 25, ombro: 20, lombar: 15 };
+  for (const [joint, limit] of Object.entries(JOINT_LIMITS)) {
+    const stress = stats.jointStress[joint] || 0;
+    if (stress > limit) {
+      warnings.push(
+        `Stress articular ${joint}: ${stress} sets com carga significativa/semana (limite: ${limit}).`
+      );
+    }
+  }
+
+  // Ideal weekly composition check
+  const profiles = Object.values(stats.neuralProfile);
+  const hasAlto = profiles.includes("alto");
+  const hasModerado = profiles.includes("moderado");
+  const hasMetcon = profiles.includes("metcon");
+
+  if (!hasAlto && !hasModerado) {
+    warnings.push("Composição semanal sem sessão de alta ou moderada intensidade neural.");
+  }
+  if (profiles.every((p) => p === "alto")) {
+    warnings.push("Todas as sessões são de alta demanda neural. Risco de overreaching.");
+  }
+}
+
+// ============================================================================
 // LLM ENRICHMENT
 // ============================================================================
 
@@ -1235,13 +1449,18 @@ serve(async (req) => {
       }
     }
 
-    // v14.5 G4: Cross-session validation — Pull should be 20-40% > Push
+    // v14.5: Cross-session validation (F2, F5, G12)
     const patternsBalance = calcPatternsBalance(workouts);
-    const pushCount = patternsBalance["empurrar"] || 0;
-    const pullCount = patternsBalance["puxar"] || 0;
-    if (pushCount > 0 && pullCount <= pushCount) {
-      warnings.push(`Balanço Push/Pull: ${pushCount} push vs ${pullCount} pull. Recomendado Pull ser 20-40% superior ao Push.`);
-    }
+    const crossStats = collectCrossSessionStats(workouts, allExercises || []);
+
+    // F2: Dominância acumulada
+    validateDominanceBalance(crossStats, warnings);
+
+    // F5: Sobreposição de prime movers
+    validatePrimeMoverOverlap(crossStats, warnings);
+
+    // G12: Controle neural e articular semanal
+    validateNeuralAndJointControl(crossStats, warnings);
 
     // Carry frequency check (min 2/week)
     const carryCount = patternsBalance["carregar"] || 0;
@@ -1285,11 +1504,21 @@ serve(async (req) => {
         volumeMultiplier,
         totalPatternsBalance: patternsBalance,
         recommendedProgression: buildProgression(),
+        crossSessionValidation: {
+          neuralProfile: crossStats.neuralProfile,
+          jointStress: crossStats.jointStress,
+          hingeHeavyCount: crossStats.hingeHeavyCount,
+          patternSetsWeekly: crossStats.patternSets,
+        },
         safetyFilters: {
-          lumbarFilter: "F1: max 2 LOM>=4/sessão",
-          metconFilter: "F3: TEC<=2 em bloco metcon",
+          F1: "max 2 LOM>=4/sessão, max 1 hinge pesado/sessão",
+          F2: "dominância acumulada: Pull 1.2-1.4x Push, mín semanal por padrão",
+          F3: "TEC<=2 em bloco metcon",
+          F5: "sobreposição prime movers: alerta se mesmo padrão >15 sets em 3 sessões",
           allOutRule: "AX<=2 E LOM<=2 para PSE 9-10",
           antiMetcon: "PSE<=8 em blocos não-metcon",
+          G12_neural: "max 2 sessões alta demanda neural/semana",
+          G12_articular: "limites: joelho 25, ombro 20, lombar 15 sets/semana",
         },
       },
     };
