@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,9 +41,32 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 // Flatten equipment for selection
 const ALL_EQUIPMENT = Object.values(EQUIPMENT_CATEGORIES).flat();
 
-export const AddExerciseDialog = () => {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+interface AddExerciseDialogProps {
+  externalOpen?: boolean;
+  onExternalOpenChange?: (open: boolean) => void;
+  defaultName?: string;
+  onCreated?: (exercise: { id: string; name: string }) => void;
+}
+
+export const AddExerciseDialog = ({
+  externalOpen,
+  onExternalOpenChange,
+  defaultName,
+  onCreated,
+}: AddExerciseDialogProps = {}) => {
+  const isControlled = externalOpen !== undefined;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const dialogOpen = isControlled ? externalOpen : internalOpen;
+  const setDialogOpen = isControlled ? (onExternalOpenChange || (() => {})) : setInternalOpen;
+  const [name, setName] = useState(defaultName || "");
+
+  // Sync defaultName when dialog opens externally
+  useEffect(() => {
+    if (isControlled && externalOpen && defaultName) {
+      setName(defaultName);
+    }
+  }, [isControlled, externalOpen, defaultName]);
+
   const [movementPattern, setMovementPattern] = useState("");
   const [laterality, setLaterality] = useState("");
   const [movementPlane, setMovementPlane] = useState("");
@@ -97,7 +120,7 @@ export const AddExerciseDialog = () => {
       return;
     }
 
-    await createExercise.mutateAsync({
+    const result = await createExercise.mutateAsync({
       name: name.trim(),
       movement_pattern: movementPattern,
       laterality: laterality && laterality !== "none" ? laterality : null,
@@ -124,6 +147,11 @@ export const AddExerciseDialog = () => {
       equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
       surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",
     });
+
+    // Notify parent if callback provided
+    if (onCreated && result) {
+      onCreated({ id: result.id, name: result.name });
+    }
 
     // Reset form
     setName("");
@@ -153,13 +181,15 @@ export const AddExerciseDialog = () => {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Adicionar Exercício
-        </Button>
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar Exercício
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Novo Exercício</DialogTitle>
