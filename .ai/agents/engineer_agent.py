@@ -157,3 +157,43 @@ subprocess.run(
 )
 print('Changes committed on branch:', branch_name)
 print('Patch application complete. Pull request not opened.')
+
+# --- Pull request layer ---
+print('Creating pull request...')
+
+# Ensure gh CLI is available, install if missing
+gh_check = subprocess.run(['which', 'gh'], capture_output=True)
+if gh_check.returncode != 0:
+    print('gh not found, installing...')
+    subprocess.run(['sudo', 'apt-get', 'update', '-y'], check=True)
+    subprocess.run(['sudo', 'apt-get', 'install', '-y', 'gh'], check=True)
+    print('gh installed')
+
+# 1. Push the new branch to origin
+subprocess.run(['git', 'push', '-u', 'origin', branch_name], check=True)
+print('Branch pushed:', branch_name)
+
+# 2. Create the pull request
+pr_title = 'AI engineer: implement changes for issue'
+pr_body = 'Automatically generated changes based on GitHub issue.'
+
+pr_result = subprocess.run(
+    [
+        'gh', 'pr', 'create',
+        '--title', pr_title,
+        '--body', pr_body,
+        '--base', 'main',
+        '--head', branch_name,
+    ],
+    capture_output=True,
+    text=True,
+    env={**os.environ, 'GH_TOKEN': os.getenv('GITHUB_TOKEN', '')}
+)
+
+if pr_result.returncode != 0:
+    print('gh pr create stderr:', pr_result.stderr)
+    raise RuntimeError('Pull request creation failed')
+
+print('Pull request created:')
+print(pr_result.stdout.strip())
+print('Agent complete.')
