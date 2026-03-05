@@ -195,7 +195,7 @@ export const AddExerciseDialog = ({
           <DialogTitle>Novo Exercício</DialogTitle>
         </DialogHeader>
         
-        <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-2 scrollbar-none">
           <form onSubmit={handleSubmit} className="space-y-4" id="add-exercise-form">
             {/* Basic Info Section */}
             <div className="space-y-4">
