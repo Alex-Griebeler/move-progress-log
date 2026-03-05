@@ -1,6 +1,6 @@
 # Motor de Prescrição por IA — Documentação Completa
 
-> **Última atualização**: 26/02/2026 — Refatoração completa (13 itens corrigidos)
+> **Última atualização**: 05/03/2026 — Fase 4 implementada (mesociclos configuráveis, presets de público, Modo A/B, F4)
 
 ---
 
@@ -45,6 +45,10 @@ interface MesocycleInput {
   workouts: WorkoutSlotConfig[];  // 3 slots: A, B, C
   excludeExercises?: string[];
   groupReadiness?: number;        // 0-100, média do Oura Ring
+  weekCount?: number;             // 3-8 semanas (default: 4, S5=S1 etc.)
+  audiencePreset?: "adulto" | "senior_70" | "adolescente";
+  rotationMode?: "A" | "B";      // A=rotação total, B=rotação seletiva
+  retainExerciseIds?: string[];   // Modo B: IDs a manter
 }
 ```
 
@@ -147,7 +151,28 @@ A chamada é **non-blocking**: se falhar, os campos ficam vazios e o workout per
 
 ---
 
-## 10. ARQUIVOS ENVOLVIDOS
+## 10. FASE 4: EXTENSIBILIDADE
+
+### Mesociclos > 4 semanas
+O motor suporta 3 a 8 semanas. Semanas além de 4 repetem o ciclo S1-S4 (S5=S1, S6=S2, etc.).
+
+### Modo A/B de Rotação Intermensal
+- **Modo A** (default): Rotação total — todos os exercícios mudam entre mesociclos.
+- **Modo B**: Rotação seletiva — `retainExerciseIds` mantém exercícios específicos.
+
+### Presets de Público-Alvo
+| Preset | PSE Max | AX Max | LOM Max | TEC Max | Sets Max | Restrições |
+|--------|---------|--------|---------|---------|----------|------------|
+| adulto | 10 | 5 | 5 | 5 | 20 | Nenhuma |
+| senior_70 | 7 | 2 | 3 | 2 | 14 | Sem pliometria, foco estabilidade |
+| adolescente | 8 | 3 | 3 | 3 | 16 | Foco aprendizagem motora |
+
+### F4: Progressão Ensinável
+O motor prioriza exercícios que possuem pelo menos 1 regressão disponível (mesmo `movement_pattern`, `numeric_level` inferior), garantindo que o treinador sempre tenha opção de simplificar.
+
+---
+
+## 11. ARQUIVOS ENVOLVIDOS
 
 | Arquivo | Responsabilidade |
 |---------|------------------|
@@ -159,4 +184,4 @@ A chamada é **non-blocking**: se falhar, os campos ficam vazios e o workout per
 
 ---
 
-*Documento atualizado em 26/02/2026 após refatoração completa do motor.*
+*Documento atualizado em 05/03/2026 após implementação da Fase 4.*

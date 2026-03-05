@@ -43,6 +43,11 @@ interface MesocycleInput {
   workouts: WorkoutSlotConfig[];
   excludeExercises?: string[];
   groupReadiness?: number;
+  // Phase 4
+  weekCount?: number; // 3-8, default 4
+  audiencePreset?: "adulto" | "senior_70" | "adolescente";
+  rotationMode?: "A" | "B"; // A=full rotation, B=selective
+  retainExerciseIds?: string[]; // Mode B: exercises to keep
 }
 
 interface Exercise {
@@ -201,13 +206,117 @@ const METCON_METHODS_BY_CYCLE: Record<string, string[]> = {
   s4: ["amrap", "for_time", "emom"],
 };
 
-// Periodização S1-S4
-const PERIODIZATION = {
+// Periodização S1-S4 (cycles beyond S4 repeat: S5=S1, S6=S2, etc.)
+const PERIODIZATION: Record<string, { volumeMultiplier: number; intensityMultiplier: number; pse: string; plyometrics: string }> = {
   s1: { volumeMultiplier: 0.7, intensityMultiplier: 0.7, pse: "5-6", plyometrics: "none" },
   s2: { volumeMultiplier: 1.0, intensityMultiplier: 0.85, pse: "6-7", plyometrics: "low" },
   s3: { volumeMultiplier: 1.0, intensityMultiplier: 0.95, pse: "7-8", plyometrics: "full" },
   s4: { volumeMultiplier: 1.0, intensityMultiplier: 1.0, pse: "8-9", plyometrics: "full" },
 };
+
+// Phase 4: Audience preset restrictions
+const AUDIENCE_PRESETS: Record<string, {
+  maxPse: number;
+  maxAxialLoad: number;
+  maxLumbarDemand: number;
+  maxTechnicalComplexity: number;
+  excludeCategories: string[];
+  maxEffectiveSets: number;
+  volumeMultiplierCap: number;
+  restrictions: string[];
+}> = {
+  adulto: {
+    maxPse: 10, maxAxialLoad: 5, maxLumbarDemand: 5, maxTechnicalComplexity: 5,
+    excludeCategories: [], maxEffectiveSets: 20, volumeMultiplierCap: 1.1,
+    restrictions: [],
+  },
+  senior_70: {
+    maxPse: 7, maxAxialLoad: 2, maxLumbarDemand: 3, maxTechnicalComplexity: 2,
+    excludeCategories: ["potencia_pliometria"],
+    maxEffectiveSets: 14, volumeMultiplierCap: 0.8,
+    restrictions: [
+      "PSE máximo 7 (sem all-out)",
+      "Proibido carga axial alta (AX>2)",
+      "Sem pliometria",
+      "Complexidade técnica máxima 2",
+      "Volume reduzido (max 14 sets efetivos)",
+      "Foco em estabilidade e mobilidade",
+      "Priorizar exercícios em superfície estável",
+    ],
+  },
+  adolescente: {
+    maxPse: 8, maxAxialLoad: 3, maxLumbarDemand: 3, maxTechnicalComplexity: 3,
+    excludeCategories: [],
+    maxEffectiveSets: 16, volumeMultiplierCap: 0.9,
+    restrictions: [
+      "PSE máximo 8",
+      "Carga axial moderada (AX<=3)",
+      "Foco na aprendizagem motora",
+      "Priorizar padrões fundamentais antes de cargas pesadas",
+    ],
+  },
+};
+
+/** Phase 4: F4 — Teachable progression: prefer exercises with regressions available */
+function applyF4TeachableProgression(pool: Exercise[], allExercises: Exercise[]): Exercise[] {
+  // Exercises that share the same movement_pattern and have lower numeric_level are potential regressions
+  // Prefer exercises that have at least one regression available
+  if (pool.length <= 5) return pool; // Don't filter if pool is too small
+  
+  const withRegressions = pool.filter((ex) => {
+    if (!ex.movement_pattern || ex.numeric_level == null) return true;
+    const regressions = allExercises.filter(
+      (alt) => alt.movement_pattern === ex.movement_pattern &&
+        alt.id !== ex.id &&
+        alt.numeric_level != null &&
+        alt.numeric_level < ex.numeric_level!
+    );
+    return regressions.length >= 1; // Has at least 1 regression option
+  });
+
+  // Only use filtered pool if it still has enough exercises
+  return withRegressions.length >= Math.min(5, pool.length * 0.5) ? withRegressions : pool;
+}
+
+/** Phase 4: Apply audience preset filters to exercise pool */
+function applyAudienceFilters(exercises: Exercise[], preset: string): Exercise[] {
+  const config = AUDIENCE_PRESETS[preset];
+  if (!config || preset === "adulto") return exercises;
+
+  return exercises.filter((ex) => {
+    if (config.excludeCategories.includes(ex.category || "")) return false;
+    if ((ex.axial_load || 0) > config.maxAxialLoad) return false;
+    if ((ex.lumbar_demand || 0) > config.maxLumbarDemand) return false;
+    if ((ex.technical_complexity || 0) > config.maxTechnicalComplexity) return false;
+    return true;
+  });
+}
+
+/** Phase 4: Generate periodization for configurable week count */
+function buildProgressionForWeeks(weekCount: number, volumeMultiplier: number, hasMetcon: boolean): Record<string, {
+  volumeMultiplier: number;
+  intensityMultiplier: number;
+  pse: string;
+  metconMethod?: string;
+}> {
+  const progression: Record<string, { volumeMultiplier: number; intensityMultiplier: number; pse: string; metconMethod?: string }> = {};
+  const cycleKeys = ["s1", "s2", "s3", "s4"];
+
+  for (let i = 1; i <= weekCount; i++) {
+    const cycleIndex = (i - 1) % 4;
+    const cycleKey = cycleKeys[cycleIndex];
+    const config = PERIODIZATION[cycleKey];
+    const metconMethods = METCON_METHODS_BY_CYCLE[cycleKey];
+
+    progression[`s${i}`] = {
+      volumeMultiplier: config.volumeMultiplier * volumeMultiplier,
+      intensityMultiplier: config.intensityMultiplier,
+      pse: config.pse,
+      ...(hasMetcon && metconMethods ? { metconMethod: metconMethods[0] } : {}),
+    };
+  }
+  return progression;
+}
 
 // ============================================================================
 // HELPERS
@@ -1377,6 +1486,11 @@ serve(async (req) => {
       );
     }
 
+    // Phase 4: Validate week count
+    const weekCount = Math.min(8, Math.max(3, input.weekCount || 4));
+    const audiencePreset = input.audiencePreset || "adulto";
+    const audienceConfig = AUDIENCE_PRESETS[audiencePreset] || AUDIENCE_PRESETS.adulto;
+
     // Fetch exercises WITH v14.5 dimensions
     const { data: allExercises, error: exercisesError } = await supabase
       .from("exercises_library")
@@ -1405,8 +1519,29 @@ serve(async (req) => {
     exercises = filterByRisk(exercises, input.groupLevel);
     exercises = filterByAvailableEquipment(exercises, availableEquipment);
 
+    // Phase 4: Apply audience preset filters
+    exercises = applyAudienceFilters(exercises, audiencePreset);
+
+    // Phase 4: F4 — Teachable progression filter
+    exercises = applyF4TeachableProgression(exercises, allExercises || []);
+
     if (input.excludeExercises?.length) {
       exercises = exercises.filter((ex) => !input.excludeExercises!.includes(ex.id));
+    }
+
+    // Phase 4: Mode B — retain specific exercises from previous mesocycle
+    // In Mode B, retainExerciseIds stay in the pool but are NOT excluded
+    // In Mode A, all exercises from previous cycle are excluded (via excludeExercises)
+    if (input.rotationMode === "B" && input.retainExerciseIds?.length) {
+      // Ensure retained exercises are in the pool (re-add if filtered out by excludeExercises)
+      const retainSet = new Set(input.retainExerciseIds);
+      const retained = (allExercises || []).filter((ex) => retainSet.has(ex.id));
+      const existingIds = new Set(exercises.map((ex) => ex.id));
+      for (const ex of retained) {
+        if (!existingIds.has(ex.id)) {
+          exercises.push(ex);
+        }
+      }
     }
 
     if (exercises.length < 20) {
@@ -1416,9 +1551,16 @@ serve(async (req) => {
       );
     }
 
-    const volumeMultiplier = calcVolumeMultiplier(input.groupReadiness);
+    // Phase 4: Cap volume multiplier by audience preset
+    const rawVolumeMultiplier = calcVolumeMultiplier(input.groupReadiness);
+    const volumeMultiplier = Math.min(rawVolumeMultiplier, audienceConfig.volumeMultiplierCap);
     const workouts: GeneratedWorkout[] = [];
     const warnings: string[] = [];
+
+    // Phase 4: Add audience restrictions as info
+    if (audiencePreset !== "adulto") {
+      warnings.push(`Preset de público: ${audiencePreset}. Restrições aplicadas automaticamente.`);
+    }
 
     if (input.groupReadiness && input.groupReadiness < 45) {
       warnings.push(
@@ -1436,13 +1578,13 @@ serve(async (req) => {
       );
       workouts.push(workout);
 
-      // v14.5 G4: Volume validation
+      // Volume validation — use audience-specific max
       const effectiveSets = countEffectiveSets(workout);
-      if (effectiveSets > 20) {
-        warnings.push(`Treino ${workoutConfig.slot}: ${effectiveSets} sets efetivos (max recomendado: 20). Considere reduzir volume.`);
+      if (effectiveSets > audienceConfig.maxEffectiveSets) {
+        warnings.push(`Treino ${workoutConfig.slot}: ${effectiveSets} sets efetivos (max para ${audiencePreset}: ${audienceConfig.maxEffectiveSets}). Considere reduzir volume.`);
       }
 
-      // Core triplanar check (per slot, not weekly — weekly coverage is guaranteed by CORE_PLANE_DISTRIBUTION)
+      // Core triplanar check
       const { anti_extensao, anti_flexao_lateral, anti_rotacao } = workout.coreTriplanarCheck;
       if (!anti_extensao && !anti_flexao_lateral && !anti_rotacao) {
         warnings.push(`Treino ${workoutConfig.slot}: Nenhum plano de core coberto. Revise a seleção.`);
@@ -1453,16 +1595,10 @@ serve(async (req) => {
     const patternsBalance = calcPatternsBalance(workouts);
     const crossStats = collectCrossSessionStats(workouts, allExercises || []);
 
-    // F2: Dominância acumulada
     validateDominanceBalance(crossStats, warnings);
-
-    // F5: Sobreposição de prime movers
     validatePrimeMoverOverlap(crossStats, warnings);
-
-    // G12: Controle neural e articular semanal
     validateNeuralAndJointControl(crossStats, warnings);
 
-    // Carry frequency check (min 2/week)
     const carryCount = patternsBalance["carregar"] || 0;
     if (carryCount < 2) {
       warnings.push(`Carry: apenas ${carryCount}x/semana. Recomendado mínimo 2x/semana.`);
@@ -1471,27 +1607,9 @@ serve(async (req) => {
     // Enrich with LLM
     await enrichWithLLM(workouts);
 
-    // Build progression
-    const buildProgression = () => {
-      const progression: Record<string, {
-        volumeMultiplier: number;
-        intensityMultiplier: number;
-        pse: string;
-        metconMethod?: string;
-      }> = {};
-
-      for (const [cycle, config] of Object.entries(PERIODIZATION)) {
-        const hasMetcon = input.workouts.some((w) => w.valences.includes("condicionamento"));
-        const metconMethods = METCON_METHODS_BY_CYCLE[cycle];
-        progression[cycle] = {
-          volumeMultiplier: config.volumeMultiplier * volumeMultiplier,
-          intensityMultiplier: config.intensityMultiplier,
-          pse: config.pse,
-          ...(hasMetcon && metconMethods ? { metconMethod: metconMethods[0] } : {}),
-        };
-      }
-      return progression;
-    };
+    // Phase 4: Build progression for configurable week count
+    const hasMetcon = input.workouts.some((w) => w.valences.includes("condicionamento"));
+    const recommendedProgression = buildProgressionForWeeks(weekCount, volumeMultiplier, hasMetcon);
 
     const mesocycle = {
       id: generateUUID(),
@@ -1499,11 +1617,14 @@ serve(async (req) => {
       workouts,
       createdAt: new Date().toISOString(),
       metadata: {
-        version: "v14.5",
+        version: "v14.5-phase4",
         groupReadiness: input.groupReadiness ?? null,
         volumeMultiplier,
         totalPatternsBalance: patternsBalance,
-        recommendedProgression: buildProgression(),
+        recommendedProgression,
+        weekCount,
+        audiencePreset,
+        rotationMode: input.rotationMode || "A",
         crossSessionValidation: {
           neuralProfile: crossStats.neuralProfile,
           jointStress: crossStats.jointStress,
@@ -1514,12 +1635,14 @@ serve(async (req) => {
           F1: "max 2 LOM>=4/sessão, max 1 hinge pesado/sessão",
           F2: "dominância acumulada: Pull 1.2-1.4x Push, mín semanal por padrão",
           F3: "TEC<=2 em bloco metcon",
+          F4: "progressão ensinável: prioriza exercícios com regressões disponíveis",
           F5: "sobreposição prime movers: alerta se mesmo padrão >15 sets em 3 sessões",
           allOutRule: "AX<=2 E LOM<=2 para PSE 9-10",
           antiMetcon: "PSE<=8 em blocos não-metcon",
           G12_neural: "max 2 sessões alta demanda neural/semana",
           G12_articular: "limites: joelho 25, ombro 20, lombar 15 sets/semana",
         },
+        audienceRestrictions: audienceConfig.restrictions,
       },
     };
 
