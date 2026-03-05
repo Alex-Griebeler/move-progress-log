@@ -1,5 +1,6 @@
 import os
 import json
+import pathlib
 import anthropic
 
 print('AI Engineer Agent started')
@@ -50,3 +51,30 @@ print('Generated plan:')
 print(json.dumps(plan, indent=2))
 
 print('Planner ready for code generation')
+
+# --- Repository analysis layer ---
+print('Running repository analysis...')
+
+repo_root = pathlib.Path('.')
+important_dirs = ['src', 'components', 'hooks', 'supabase', '.ai', '.github']
+
+project_map = {
+    'root_files': [],
+    'directories': {},
+}
+
+for item in sorted(repo_root.iterdir()):
+    if item.is_file():
+        project_map['root_files'].append(item.name)
+
+for dir_name in important_dirs:
+    dir_path = repo_root / dir_name
+    if dir_path.exists() and dir_path.is_dir():
+        entries = []
+        for item in sorted(dir_path.rglob('*')):
+            if item.is_file():
+                entries.append(str(item.relative_to(repo_root)))
+        project_map['directories'][dir_name] = entries
+
+print('Project map:')
+print(json.dumps(project_map, indent=2))
