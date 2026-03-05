@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logger } from "@/utils/logger";
 
 export interface StudentReport {
   id: string;
@@ -134,7 +135,7 @@ export const useGenerateReport = () => {
       toast.success("Relatório gerado com sucesso!");
     },
     onError: (error: Error) => {
-      console.error("Error generating report:", error);
+      logger.error("Error generating report:", error);
       toast.error("Erro ao gerar relatório: " + error.message);
     },
   });
@@ -174,7 +175,7 @@ export const useUpdateTrainerNotes = () => {
       toast.success("Notas atualizadas com sucesso!");
     },
     onError: (error: Error) => {
-      console.error("Error updating trainer notes:", error);
+      logger.error("Error updating trainer notes:", error);
       toast.error("Erro ao atualizar notas: " + error.message);
     },
   });

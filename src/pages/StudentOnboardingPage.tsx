@@ -53,14 +53,14 @@ export default function StudentOnboardingPage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
-  console.log('StudentOnboardingPage loaded');
+  logger.log('StudentOnboardingPage loaded');
   logger.log('Validating invite token');
 
   const { data: validationData, isLoading: isValidating, error: validationError } = useValidateInvite(token || "");
   const createStudent = useCreateStudentFromInvite();
 
-  console.log('Validation data:', validationData);
-  console.log('Validation error:', validationError);
+  logger.log('Validation data:', validationData);
+  logger.log('Validation error:', validationError);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -135,7 +135,7 @@ export default function StudentOnboardingPage() {
         navigate(ROUTES.onboardingSuccess);
       }
     } catch (error) {
-      console.error("Error creating student:", error);
+      logger.error("Error creating student:", error);
     }
   };
 

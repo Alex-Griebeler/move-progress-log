@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from '@/lib/notify';
+import { logger } from '@/utils/logger';
 import { useSessionDraftHistory } from './useSessionDraftHistory';
 
 interface Student {
@@ -57,7 +58,7 @@ export function useSessionDraft(entityId: string = 'default') {
           description: "Seus dados foram restaurados automaticamente",
         });
       } catch (error) {
-        console.error('Erro ao carregar rascunho:', error);
+        logger.error('Erro ao carregar rascunho:', error);
         localStorage.removeItem(draftKey);
       }
     }

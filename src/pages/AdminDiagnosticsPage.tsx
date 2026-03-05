@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import exercisesJSON from "@/data/exercicios_fabrik_categorizado.json";
 import * as XLSX from "xlsx";
+import { logger } from "@/utils/logger";
 
 const AdminDiagnosticsPage = () => {
   usePageTitle(NAV_LABELS.adminDiagnostics);
@@ -153,7 +154,7 @@ const AdminDiagnosticsPage = () => {
           skip_orphans: !isLastBatch,
         };
 
-        console.log(`[import] Batch ${i + 1}/${batches.length}, size: ${batches[i].length}`);
+        logger.log(`[import] Batch ${i + 1}/${batches.length}, size: ${batches[i].length}`);
 
         let result: Record<string, unknown>;
         try {
@@ -161,12 +162,12 @@ const AdminDiagnosticsPage = () => {
             body: payload,
           });
           if (error) {
-            console.error(`[import] Batch ${i + 1} invoke error:`, error);
+            logger.error(`[import] Batch ${i + 1} invoke error:`, error);
             throw error;
           }
           result = data;
         } catch (invokeErr) {
-          console.error(`[import] Batch ${i + 1} failed:`, invokeErr);
+          logger.error(`[import] Batch ${i + 1} failed:`, invokeErr);
           throw new Error(`Batch ${i + 1} falhou: ${(invokeErr as Error).message}`);
         }
         

@@ -37,6 +37,7 @@ import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
+import { logger } from "@/utils/logger";
 
 const Index = () => {
   usePageTitle(NAV_LABELS.dashboard);
@@ -86,7 +87,7 @@ const Index = () => {
         { description: "Agora você pode editar os dados da sessão novamente." }
       );
     } catch (error) {
-      console.error('Erro ao reabrir sessão:', error);
+      logger.error('Erro ao reabrir sessão:', error);
       notify.error(
         "Não foi possível reabrir a sessão", 
         { description: error instanceof Error ? error.message : "Tente novamente ou contate o suporte." }
@@ -106,7 +107,7 @@ const Index = () => {
 
       loader.success("Dados de teste criados!", result.message);
     } catch (error) {
-      console.error('Erro ao popular dados:', error);
+      logger.error('Erro ao popular dados:', error);
       loader.error(
         "Falha ao criar dados de teste", 
         error instanceof Error ? error.message : "Tente novamente ou contate o suporte."
@@ -128,7 +129,7 @@ const Index = () => {
 
       loader.success("Dados removidos com sucesso!", result.message);
     } catch (error) {
-      console.error('Erro ao limpar dados:', error);
+      logger.error('Erro ao limpar dados:', error);
       loader.error(
         "Falha ao remover dados", 
         error instanceof Error ? error.message : "Tente novamente ou contate o suporte."

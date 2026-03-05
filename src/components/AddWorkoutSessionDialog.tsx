@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Info } from "lucide-react";
+import { logger } from "@/utils/logger";
 import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { VoiceSessionRecorder } from "./VoiceSessionRecorder";
@@ -50,7 +51,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
   });
 
   const handleVoiceData = (voiceData: any) => {
-    console.log("Voice data received:", voiceData);
+    logger.log("Voice data received:", voiceData);
     
     // Find student by name
     const student = assignments?.find(a => 

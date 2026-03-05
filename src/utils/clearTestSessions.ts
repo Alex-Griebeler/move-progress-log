@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 export const clearTestSessions = async () => {
   try {
@@ -9,7 +10,7 @@ export const clearTestSessions = async () => {
       .gte('created_at', '2025-01-01'); // Deletar apenas de 2025 em diante
 
     if (exercisesError) {
-      console.error('Erro ao deletar exercícios:', exercisesError);
+      logger.error('Erro ao deletar exercícios:', exercisesError);
       throw exercisesError;
     }
 
@@ -20,7 +21,7 @@ export const clearTestSessions = async () => {
       .gte('created_at', '2025-01-01');
 
     if (sessionsError) {
-      console.error('Erro ao deletar sessões:', sessionsError);
+      logger.error('Erro ao deletar sessões:', sessionsError);
       throw sessionsError;
     }
 
@@ -29,7 +30,7 @@ export const clearTestSessions = async () => {
       message: 'Todos os dados de teste foram removidos com sucesso!',
     };
   } catch (error) {
-    console.error('Erro ao limpar dados de teste:', error);
+    logger.error('Erro ao limpar dados de teste:', error);
     throw error;
   }
 };

@@ -99,7 +99,7 @@ export default function ResetPasswordPage() {
         description: "Verifique sua caixa de entrada e clique no link para resetar sua senha.",
       });
     } catch (error: any) {
-      console.error("Erro ao solicitar reset:", error);
+      logger.error("Erro ao solicitar reset:", error);
       await recordFailedAttempt('reset_password');
       toast({
         title: "Erro ao enviar email",

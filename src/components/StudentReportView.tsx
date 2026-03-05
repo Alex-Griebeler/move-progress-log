@@ -18,6 +18,7 @@ import {
   Loader2
 } from "lucide-react";
 import { useReportById, useReportTrackedExercises } from "@/hooks/useStudentReports";
+import { logger } from "@/utils/logger";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { pdf } from '@react-pdf/renderer';
@@ -79,7 +80,7 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
 
       toast.success('PDF exportado com sucesso!');
     } catch (error) {
-      console.error('Error exporting PDF:', error);
+      logger.error('Error exporting PDF:', error);
       toast.error('Erro ao exportar PDF');
     } finally {
       setIsExporting(false);

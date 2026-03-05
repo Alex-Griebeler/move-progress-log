@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { notify } from '@/lib/notify';
+import { logger } from '@/utils/logger';
 
 interface Student {
   id: string;
@@ -51,7 +52,7 @@ export function useSessionDraftHistory() {
         );
         setDraftHistory(sorted);
       } catch (error) {
-        console.error('Erro ao carregar histórico de rascunhos:', error);
+        logger.error('Erro ao carregar histórico de rascunhos:', error);
         localStorage.removeItem(DRAFT_HISTORY_KEY);
         setDraftHistory([]);
       }

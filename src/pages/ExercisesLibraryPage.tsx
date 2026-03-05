@@ -51,6 +51,7 @@ import {
 } from "@/hooks/useExercisesLibrary";
 import { populateExercisesLibrary } from "@/utils/populateExercises";
 import { toast } from "sonner";
+import { logger } from "@/utils/logger";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
@@ -95,7 +96,7 @@ export default function ExercisesLibraryPage() {
         toast.error("Erro ao popular banco de dados");
       }
     } catch (error) {
-      console.error("Erro ao popular banco:", error);
+      logger.error("Erro ao popular banco:", error);
       toast.error("Erro ao popular banco de dados");
     } finally {
       setIsPopulating(false);

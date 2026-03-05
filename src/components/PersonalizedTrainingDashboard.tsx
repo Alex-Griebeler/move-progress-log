@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
+import { logger } from "@/utils/logger";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { AlertCircle, Activity, Heart, Moon, TrendingUp, Target, Zap } from "lucide-react";
@@ -42,7 +43,7 @@ const PersonalizedTrainingDashboard = ({
   useEffect(() => {
     if (selectedAlternative && recommendation) {
       // Aplicar alternativa selecionada à recomendação atual
-      console.log('Alternativa persistida:', selectedAlternative);
+      logger.log('Alternativa persistida:', selectedAlternative);
     }
   }, [selectedAlternative, recommendation]);
 

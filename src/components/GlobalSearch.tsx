@@ -5,6 +5,7 @@ import { Search, Users, FileText, Dumbbell, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ROUTES } from "@/constants/navigation";
 import { useDebounce } from "@/hooks/useDebounce";
+import { logger } from "@/utils/logger";
 
 interface SearchResult {
   id: string;
@@ -95,7 +96,7 @@ export const GlobalSearch = () => {
 
       setResults(searchResults);
     } catch (error) {
-      console.error("Erro ao buscar:", error);
+      logger.error("Erro ao buscar:", error);
       setResults([]);
     } finally {
       setIsSearching(false);

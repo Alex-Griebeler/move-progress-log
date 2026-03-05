@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
+import { logger } from "@/utils/logger";
 import {
   Dialog,
   DialogContent,
@@ -119,7 +120,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
     setIsSubmitting(true);
 
     try {
-      console.log("Updating user with data:", {
+      logger.log("Updating user with data:", {
         userId: user.id,
         fullName: values.fullName,
         email: values.email,
@@ -142,15 +143,15 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
         },
       });
 
-      console.log("Response from admin-update-user:", { data, error });
+      logger.log("Response from admin-update-user:", { data, error });
 
       if (error) {
-        console.error("Edge function error:", error);
+        logger.error("Edge function error:", error);
         throw error;
       }
 
       if (data?.error) {
-        console.error("Data error:", data.error);
+        logger.error("Data error:", data.error);
         throw new Error(data.error);
       }
 
@@ -158,7 +159,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
-      console.error("Error updating user:", error);
+      logger.error("Error updating user:", error);
       notify.error("Erro ao atualizar usuário", {
         description: error.message || "Tente novamente mais tarde",
       });
@@ -181,7 +182,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
         description: `Um link de redefinição foi enviado para ${user.email}`,
       });
     } catch (error: any) {
-      console.error("Error sending reset email:", error);
+      logger.error("Error sending reset email:", error);
       notify.error("Erro ao enviar email", {
         description: error.message,
       });
