@@ -98,6 +98,7 @@ export interface ExerciseFilters {
   category?: string;
   subcategory?: string;
   risk_level?: string;
+  stability_position?: string;
 }
 
 export const useExercisesLibrary = (filters?: ExerciseFilters) => {
@@ -132,6 +133,9 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
       }
       if (filters?.risk_level) {
         query = query.eq("risk_level", filters.risk_level);
+      }
+      if (filters?.stability_position) {
+        query = query.eq("stability_position", filters.stability_position);
       }
 
       const { data, error } = await query;
