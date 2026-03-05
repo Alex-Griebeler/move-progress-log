@@ -86,6 +86,7 @@ export interface CreateExerciseInput {
   hip_dominance?: number | null;
   primary_muscles?: string[] | null;
   emphasis?: string | null;
+  stability_position?: string | null;
   surface_modifier?: string | null;
 }
 
