@@ -78,3 +78,41 @@ for dir_name in important_dirs:
 
 print('Project map:')
 print(json.dumps(project_map, indent=2))
+
+# --- Code patch generator layer ---
+print('Running code patch generator...')
+
+patch_prompt_lines = [
+    'You are an AI software engineer with expertise in generating Git patches.',
+    'You have been given an implementation plan and a repository project map.',
+    'Generate a Git patch in unified diff format that implements the plan.',
+    '',
+    'Implementation plan:',
+    json.dumps(plan, indent=2),
+    '',
+    'Project map:',
+    json.dumps(project_map, indent=2),
+    '',
+    'Rules:',
+    '- Output ONLY the raw patch text, no explanation and no markdown fences',
+    '- Use standard diff --git headers: diff --git a/file b/file',
+    '- Include index lines, --- and +++ lines, and @@ hunk headers',
+    '- For new files use /dev/null as the source',
+    '- Every hunk must have correct line counts in the @@ header',
+]
+patch_prompt = chr(10).join(patch_prompt_lines)
+
+patch_message = client.messages.create(
+    model='claude-opus-4-5-20251101',
+    max_tokens=4096,
+    messages=[
+        {'role': 'user', 'content': patch_prompt}
+    ]
+)
+
+patch = patch_message.content[0].text.strip()
+
+print('Generated patch:')
+print(patch)
+
+print('Patch generator complete. Patch not applied.')
