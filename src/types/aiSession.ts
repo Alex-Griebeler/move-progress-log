@@ -35,6 +35,11 @@ export interface MesocycleGenerationInput {
   workouts: WorkoutSlotConfig[]; // 3 slots: A, B, C
   excludeExercises?: string[]; // IDs de exercícios a evitar
   groupReadiness?: number; // MEL-IA-002: 0-100, média do readiness do grupo
+  // Fase 4: Configurações avançadas
+  weekCount?: number; // Número de semanas (default: 4, min: 3, max: 8)
+  audiencePreset?: "adulto" | "senior_70" | "adolescente"; // Preset de público-alvo
+  rotationMode?: "A" | "B"; // Modo A: rotação total | Modo B: rotação seletiva
+  retainExerciseIds?: string[]; // Modo B: IDs de exercícios a manter do mesociclo anterior
 }
 
 // ============================================================================
@@ -112,6 +117,7 @@ export interface GeneratedMesocycle {
   workouts: GeneratedWorkout[]; // 3 treinos (A, B, C)
   createdAt: string;
   metadata: {
+    version?: string;
     groupReadiness?: number | null;
     volumeMultiplier?: number;
     totalPatternsBalance: Record<string, number>;
@@ -121,6 +127,12 @@ export interface GeneratedMesocycle {
       pse?: string;
       metconMethod?: string;
     }>;
+    weekCount?: number;
+    audiencePreset?: string;
+    rotationMode?: string;
+    crossSessionValidation?: Record<string, unknown>;
+    safetyFilters?: Record<string, string>;
+    audienceRestrictions?: string[];
   };
 }
 
