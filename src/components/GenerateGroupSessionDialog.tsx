@@ -33,6 +33,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { useGenerateGroupSession } from "@/hooks/useGenerateGroupSession";
+import { MesocyclePreview } from "@/components/MesocyclePreview";
 import {
   MESOCYCLE_STRUCTURE,
   TRAINING_VALENCES,
@@ -324,133 +325,8 @@ export function GenerateGroupSessionDialog({
           {/* STEP 4: PREVIEW */}
           {/* ============================================================ */}
           {step === "preview" && generatedMesocycle && (
-            <div className="space-y-6 py-4">
-              {/* Header do mesociclo */}
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">
-                    {STUDENT_LEVELS[generatedMesocycle.groupLevel].name}
-                  </Badge>
-                  <Badge variant="outline">
-                    <Clock className="h-3 w-3 mr-1" />
-                    4 semanas
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Treinos A, B, C */}
-              {generatedMesocycle.workouts.map((workout) => (
-                <Card key={workout.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Badge>{MESOCYCLE_STRUCTURE.workoutSlots[workout.slot].name}</Badge>
-                        {workout.name}
-                      </CardTitle>
-                      <span className="text-xs text-muted-foreground">
-                        {workout.totalDuration} min
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {workout.valences.map((v) => (
-                        <Badge key={v} variant="outline" className="text-xs">
-                          {TRAINING_VALENCES[v]}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-3">
-                    {/* Core Triplanar Check */}
-                    <div className="flex gap-4 text-xs">
-                      <div className="flex items-center gap-1">
-                        {workout.coreTriplanarCheck.anti_extensao ? (
-                          <CheckCircle2 className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <AlertTriangle className="h-3 w-3 text-yellow-500" />
-                        )}
-                        <span>Anti-ext</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {workout.coreTriplanarCheck.anti_flexao_lateral ? (
-                          <CheckCircle2 className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <AlertTriangle className="h-3 w-3 text-yellow-500" />
-                        )}
-                        <span>Anti-flex lat</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {workout.coreTriplanarCheck.anti_rotacao ? (
-                          <CheckCircle2 className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <AlertTriangle className="h-3 w-3 text-yellow-500" />
-                        )}
-                        <span>Anti-rot</span>
-                      </div>
-                    </div>
-
-                    {/* Fases detalhadas */}
-                    {workout.phases.map((phase) => (
-                      <div key={phase.id} className="border-l-2 border-muted pl-3 py-2">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">{phase.name}</span>
-                          <span className="text-xs text-muted-foreground">{phase.duration} min</span>
-                        </div>
-                        {phase.blocks.map((block) => (
-                          <div key={block.id} className="space-y-1 mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-muted-foreground">
-                                {block.name}
-                              </span>
-                              <Badge variant="outline" className="text-[10px] py-0">
-                                {String(block.method)}
-                              </Badge>
-                            </div>
-                            {block.exercises.length > 0 ? (
-                              <div className="space-y-1 ml-2">
-                                 {block.exercises.map((exercise) => (
-                                  <div key={exercise.id} className="text-xs bg-muted/50 rounded px-2 py-1 space-y-0.5">
-                                    <div className="flex items-center justify-between">
-                                      <span className="font-medium truncate max-w-[180px]">
-                                        {exercise.name}
-                                      </span>
-                                      <div className="flex items-center gap-2 text-muted-foreground whitespace-nowrap">
-                                        <span>{exercise.sets}x{exercise.reps}</span>
-                                        {exercise.interval > 0 && (
-                                          <span>{exercise.interval}s</span>
-                                        )}
-                                        {exercise.pse && (
-                                          <span>PSE {exercise.pse}</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                    {exercise.executionCues && (
-                                      <p className="text-[10px] text-muted-foreground italic">
-                                        💡 {exercise.executionCues}
-                                      </p>
-                                    )}
-                                  </div>
-                                 ))}
-                              </div>
-                            ) : (
-                              <div className="text-xs text-muted-foreground ml-2 italic">
-                                {block.notes || "Sem exercícios prescritos"}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-
-                    {/* Motivational phrase from LLM */}
-                    {workout.motivationalPhrase && (
-                      <p className="text-xs italic text-primary/80 border-t pt-2 mt-2">
-                        ✨ {workout.motivationalPhrase}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="py-4">
+              <MesocyclePreview mesocycle={generatedMesocycle} warnings={generateMesocycle.data ? [] : []} />
             </div>
           )}
         </div>
