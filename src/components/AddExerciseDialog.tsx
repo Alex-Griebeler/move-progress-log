@@ -116,8 +116,8 @@ export const AddExerciseDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name.trim() || !movementPattern) {
-      notify.error("Preencha o nome e o padrão de movimento.");
+    if (!name.trim()) {
+      notify.error("Preencha o nome do exercício.");
       return;
     }
 
@@ -125,7 +125,7 @@ export const AddExerciseDialog = ({
 
     const result = await createExercise.mutateAsync({
       name: name.trim(),
-      movement_pattern: movementPattern,
+      movement_pattern: movementPattern && movementPattern !== "none" ? movementPattern : null,
       laterality: laterality && laterality !== "none" ? laterality : null,
       movement_plane: movementPlane && movementPlane !== "none" ? movementPlane : null,
       contraction_type: contractionType && contractionType !== "none" ? contractionType : null,
@@ -238,12 +238,13 @@ export const AddExerciseDialog = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="movement-pattern">Padrão de Movimento *</Label>
-                  <Select value={movementPattern} onValueChange={handleMovementPatternChange} required>
+                  <Label htmlFor="movement-pattern">Padrão de Movimento</Label>
+                  <Select value={movementPattern} onValueChange={handleMovementPatternChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o padrão" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
                       {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
                         <SelectItem key={key} value={key}>
                           {label}
