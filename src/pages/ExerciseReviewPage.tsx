@@ -7,10 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { notify } from "@/lib/notify";
 import { Save, Filter } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { InlineExerciseNameEditor } from "@/components/InlineExerciseNameEditor";
+import { ExerciseDimensionReview } from "@/components/ExerciseDimensionReview";
 import {
   EXERCISE_CATEGORIES,
   MOVEMENT_PATTERNS,
@@ -193,8 +195,17 @@ const ExerciseReviewPage = () => {
     <PageLayout>
       <PageHeader
         title="Revisão de Exercícios"
-        description={`${incompleteExercises.length} exercícios com campos incompletos`}
+        description="Gestão de campos e dimensões da biblioteca"
       />
+      <Tabs defaultValue="dimensions" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="dimensions">Dimensões (v14.5)</TabsTrigger>
+          <TabsTrigger value="fields">Campos Incompletos ({incompleteExercises.length})</TabsTrigger>
+        </TabsList>
+        <TabsContent value="dimensions">
+          <ExerciseDimensionReview />
+        </TabsContent>
+        <TabsContent value="fields">
       <div className="space-y-4">
         {/* Counters */}
         <div className="flex flex-wrap gap-2">
@@ -461,6 +472,8 @@ const ExerciseReviewPage = () => {
         )}
         
       </div>
+        </TabsContent>
+      </Tabs>
     </PageLayout>
   );
 };

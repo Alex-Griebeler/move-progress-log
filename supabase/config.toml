@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.ai-builder-chat]
 verify_jwt = true
+
+[functions.classify-exercises]
+verify_jwt = true
