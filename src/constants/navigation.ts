@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Home, Users, ClipboardList, Library, FileText, Heart, UserCog, Shield } from "lucide-react";
+import { Home, Users, ClipboardList, Library, FileText, Heart, UserCog, Shield, Bot } from "lucide-react";
 
 /**
  * Constantes de navegação e nomenclaturas
@@ -33,6 +33,7 @@ export const ROUTES = {
   // Admin routes
   adminUsers: "/admin/usuarios",
   adminDiagnostics: "/admin/diagnostico-oura",
+  aiBuilder: "/ai-builder",
 } as const;
 
 /**
@@ -63,6 +64,7 @@ export const ROUTE_CONFIG: RouteDefinition[] = [
   { path: ROUTES.protocols, label: "Protocolos", icon: Heart },
   { path: ROUTES.adminUsers, label: "Usuários", icon: UserCog, requiresAdmin: true },
   { path: ROUTES.adminDiagnostics, label: "Admin - Diagnóstico Oura", icon: Shield, requiresAdmin: true },
+  { path: ROUTES.aiBuilder, label: "AI Builder", icon: Bot, requiresAdmin: true },
 ];
 
 export const NAV_LABELS = {
