@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Validating invite token: ${token}`);
+    console.log('Validating invite token: [redacted]');
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',

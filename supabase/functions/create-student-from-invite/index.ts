@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Creating student from invite: ${invite_token}`);
+    console.log('Processing student invite: [redacted]');
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -85,8 +85,8 @@ Deno.serve(async (req) => {
             const { data: urlData } = supabaseClient.storage
               .from('student-avatars')
               .getPublicUrl(fileName);
-            avatar_url = urlData.publicUrl;
-            console.log('Avatar uploaded:', avatar_url);
+            avatar_url = fileName;
+            console.log('Avatar uploaded successfully');
           }
         }
       } catch (avatarError) {
@@ -235,7 +235,7 @@ Deno.serve(async (req) => {
       }
 
       const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
-      const state = `${student.id}:${invite_token}`;
+      const state = `${student.id}:${invite.id}`;
       const scope = 'email personal daily heartrate workout session spo2 tag sleep stress ring_configuration';
 
       const ouraAuthUrl = `https://cloud.ouraring.com/oauth/authorize?response_type=code&client_id=${ouraClientId}&redirect_uri=${encodeURIComponent(

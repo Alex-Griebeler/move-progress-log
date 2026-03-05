@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatarImage } from "@/components/StudentAvatarImage";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -245,7 +246,7 @@ export function EditSessionDialog({
               <DialogHeader>
                 <div className="flex items-start gap-4">
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={sessionData.student?.avatar_url || ""} />
+                    <StudentAvatarImage avatarUrl={sessionData.student?.avatar_url} />
                     <AvatarFallback className="bg-primary/10 text-primary text-lg">
                       {sessionData.student?.name?.substring(0, 2).toUpperCase() || "??"}
                     </AvatarFallback>

@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { email, expires_in_days = 7 } = await req.json();
 
-    console.log(`Generating invite for trainer ${user.id}, expires in ${expires_in_days} days`);
+    console.log(`Generating invite, expires in ${expires_in_days} days`);
 
     // Generate unique token
     const invite_token = crypto.randomUUID();
@@ -68,15 +68,12 @@ Deno.serve(async (req) => {
 
     // Build invite URL using request origin
     const origin = req.headers.get('origin') || req.headers.get('referer');
-    console.log('Request headers - Origin:', origin);
-    console.log('Request headers - Referer:', req.headers.get('referer'));
     
     const baseUrl = origin ? new URL(origin).origin : 'http://localhost:5173';
-    console.log('Base URL determined:', baseUrl);
     
     const invite_url = `${baseUrl}/onboarding/${invite_token}`;
 
-    console.log(`Invite generated successfully: ${invite_url}`);
+    console.log('Invite generated successfully');
 
     return new Response(
       JSON.stringify({

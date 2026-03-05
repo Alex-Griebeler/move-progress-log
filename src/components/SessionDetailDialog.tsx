@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatarImage } from "@/components/StudentAvatarImage";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -160,7 +161,7 @@ export const SessionDetailDialog = ({
             <DialogHeader>
               <div className="flex items-start gap-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={session.student.avatar_url || ""} />
+                  <StudentAvatarImage avatarUrl={session.student.avatar_url} />
                   <AvatarFallback className="bg-primary/10 text-primary text-lg">
                     {session.student.name.substring(0, 2).toUpperCase()}
                   </AvatarFallback>

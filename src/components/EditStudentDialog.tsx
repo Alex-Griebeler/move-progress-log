@@ -158,11 +158,8 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
           throw new Error(i18n.modules.upload.error);
         }
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('student-avatars')
-          .getPublicUrl(fileName);
-
-        avatarUrl = publicUrl;
+        // Store just the file path for signed URL generation
+        avatarUrl = fileName;
       } else if (avatarPreview === null && student.avatar_url) {
         // Remove avatar if cleared
         avatarUrl = null;

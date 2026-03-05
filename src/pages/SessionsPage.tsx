@@ -4,7 +4,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatarImage } from "@/components/StudentAvatarImage";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
@@ -480,7 +481,7 @@ export default function SessionsPage() {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Avatar className="h-8 w-8">
-                                <AvatarImage src={session.student?.avatar_url || undefined} />
+                                <StudentAvatarImage avatarUrl={session.student?.avatar_url} />
                                 <AvatarFallback>
                                   {session.student?.name?.substring(0, 2).toUpperCase() || "??"}
                                 </AvatarFallback>
@@ -587,7 +588,7 @@ export default function SessionsPage() {
                   }}
                 >
                   <Avatar className="h-8 w-8 mr-2">
-                    <AvatarImage src={student.avatar_url || undefined} />
+                    <StudentAvatarImage avatarUrl={student.avatar_url} />
                     <AvatarFallback>
                       {student.name.substring(0, 2).toUpperCase()}
                     </AvatarFallback>
