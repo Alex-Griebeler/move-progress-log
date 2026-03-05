@@ -508,7 +508,7 @@ export const AddExerciseDialog = ({
             <div className="space-y-4 pt-4 border-t border-border">
               <h3 className="text-sm font-medium text-muted-foreground">Equipamentos Necessários</h3>
               
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-2 border rounded-md">
                 {ALL_EQUIPMENT.map((equipment) => (
                   <div key={equipment} className="flex items-center space-x-2">
                     <Checkbox
