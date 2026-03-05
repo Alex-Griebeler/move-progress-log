@@ -260,7 +260,7 @@ const Index = () => {
                 value={stats?.activeStudents || 0}
                 icon={Users}
                 subtitle="Com treinos regulares"
-                onClick={() => navigate('/students')}
+                onClick={() => navigate('/alunos')}
               />
               <StatCard
                 title={NAV_LABELS.statAvgLoad}
