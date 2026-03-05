@@ -190,12 +190,12 @@ export const AddExerciseDialog = ({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Novo Exercício</DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-2">
           <form onSubmit={handleSubmit} className="space-y-4" id="add-exercise-form">
             {/* Basic Info Section */}
             <div className="space-y-4">
@@ -532,7 +532,7 @@ export const AddExerciseDialog = ({
               )}
             </div>
           </form>
-        </ScrollArea>
+        </div>
 
         <div className="pt-4 border-t border-border">
           <Button 
