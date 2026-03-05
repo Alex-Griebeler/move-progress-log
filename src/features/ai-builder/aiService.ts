@@ -7,9 +7,17 @@ export interface AIBuilderResponse {
   error?: string;
 }
 
-export async function sendAIBuilderMessage(message: string): Promise<AIBuilderResponse> {
+interface ChatHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export async function sendAIBuilderMessage(
+  message: string,
+  history: ChatHistoryMessage[] = []
+): Promise<AIBuilderResponse> {
   const { data, error } = await supabase.functions.invoke("ai-builder-chat", {
-    body: { message },
+    body: { message, history },
   });
 
   if (error) {
@@ -18,6 +26,11 @@ export async function sendAIBuilderMessage(message: string): Promise<AIBuilderRe
 
   if (data?.error) {
     throw new Error(data.error);
+  }
+
+  // Validate response shape
+  if (!data || typeof data.message !== "string" || typeof data.type !== "string") {
+    throw new Error("Resposta inválida do AI Builder");
   }
 
   return data as AIBuilderResponse;
