@@ -17,4 +17,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Run AI Engineer Agent
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
         run: python .ai/agents/engineer_agent.py
