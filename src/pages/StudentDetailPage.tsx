@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, Trash2, AlertCircle, User, Filter } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatarImage } from "@/components/StudentAvatarImage";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import WorkoutCard from "@/components/WorkoutCard";
 import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
@@ -205,7 +206,7 @@ const StudentDetailPage = () => {
                 </Button>
                 
                 <Avatar className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-primary/20 ring-offset-4 ring-offset-background transition-transform duration-300 hover:scale-105 cursor-pointer shrink-0">
-                  <AvatarImage src={student.avatar_url || undefined} className="object-cover" />
+                  <StudentAvatarImage avatarUrl={student.avatar_url} className="object-cover" />
                   <AvatarFallback className="text-2xl md:text-3xl font-bold">
                     {student.name.charAt(0)}
                   </AvatarFallback>

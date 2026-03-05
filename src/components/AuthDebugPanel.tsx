@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
-import { getClientIP } from "@/lib/rateLimiter";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,8 +32,8 @@ export const AuthDebugPanel = () => {
       setSession(session);
     });
 
-    // Get client IP
-    getClientIP().then(setClientIP);
+    // IP is now extracted server-side
+    setClientIP("server-side");
 
     return () => subscription.unsubscribe();
   }, []);

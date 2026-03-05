@@ -153,11 +153,8 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
           throw new Error(i18n.modules.upload.error);
         }
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('student-avatars')
-          .getPublicUrl(fileName);
-
-        avatarUrl = publicUrl;
+        // Store just the file path for signed URL generation
+        avatarUrl = fileName;
       }
 
       const newStudent = await createStudent.mutateAsync({

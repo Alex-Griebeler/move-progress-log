@@ -30,10 +30,17 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { ip_address, action, increment = false } = await req.json();
+    // Extract real IP server-side from proxy headers
+    const ip_address =
+      req.headers.get('cf-connecting-ip') ||
+      req.headers.get('x-real-ip') ||
+      req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      'unknown';
 
-    if (!ip_address || !action) {
-      throw new Error("Missing required parameters: ip_address and action");
+    const { action, increment = false } = await req.json();
+
+    if (!action) {
+      throw new Error("Missing required parameter: action");
     }
 
     const config = RATE_LIMITS[action];

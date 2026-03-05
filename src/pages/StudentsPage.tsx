@@ -10,7 +10,8 @@ import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, User
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatarImage } from "@/components/StudentAvatarImage";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import { AddStudentDialog } from "@/components/AddStudentDialog";
@@ -113,7 +114,7 @@ const StudentCard = memo(({
           <CardTitle className="flex items-center justify-between gap-sm">
             <div className="flex items-center gap-sm">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={student.avatar_url || undefined} />
+                <StudentAvatarImage avatarUrl={student.avatar_url} />
                 <AvatarFallback className="bg-primary/10 text-foreground text-lg font-semibold">
                   {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </AvatarFallback>
