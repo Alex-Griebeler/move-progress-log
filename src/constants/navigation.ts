@@ -58,6 +58,7 @@ export const NAV_LABELS = {
   subtitleProtocols: "Biblioteca completa baseada em evidências científicas",
   subtitleComparison: "Visualize e compare dados de até 10 alunos simultaneamente",
   subtitleAdminUsers: "Gerencie contas, perfis e permissões de todos os usuários do sistema",
+  aiBuilder: "AI Builder",
   subtitleDiagnostics: "Painel técnico para administradores",
 } as const;
 

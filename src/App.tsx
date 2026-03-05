@@ -28,6 +28,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const StudentOnboardingPage = lazy(() => import("./pages/StudentOnboardingPage"));
 const OnboardingSuccessPage = lazy(() => import("./pages/OnboardingSuccessPage"));
 const OuraErrorPage = lazy(() => import("./pages/OuraErrorPage"));
+const AIBuilderPage = lazy(() => import("./features/ai-builder/AIBuilderPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ const App = () => (
                             <Route path="/protocolos" element={<RecoveryProtocolsPage />} />
                             <Route path="/admin/diagnostico-oura" element={<AdminDiagnosticsPage />} />
                             <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+                            <Route path="/ai-builder" element={<AIBuilderPage />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
                         </main>
