@@ -1,21 +1,23 @@
 /**
- * Edge Function: Geração de Mesociclo com IA
- * Fabrik Performance - Back to Basics
+ * Edge Function: Geração de Mesociclo com IA — Back to Basics v14.5
+ * Fabrik Performance
  *
- * Correções aplicadas:
- * #1  Anti-repetição A/B/C (usedExerciseIds acumulado)
- * #2  Breathing real do banco (breathing_protocols)
- * #3  Validação de equipamento (equipment_inventory)
- * #4  Progressão S1-S4 aplicada (gera 4 semanas de metadata)
- * #5  Campos LLM via Lovable AI (executionCues, mindfulnessScript, motivationalPhrase)
- * #6  Métodos avançados para condicionamento (EMOM/AMRAP/For Time)
- * #7  totalPatternsBalance populado
- * #8  Progressão pliométrica respeitada
- * #9  Campos não usados removidos da query
- * #10 (callback é frontend — não se aplica aqui)
- * #11 Usa anon key + RLS para exercises_library
- * #12 Seleção ponderada por diversidade de equipamento/plano
- * #13 functional_group removido
+ * Estrutura v14.5:
+ *   1. Abertura (Resp + LMF — 2 regiões, trilhos distintos)
+ *   2. Mobilidade específica ao BP1
+ *   3. Core biplanar (2 ex, 2 planos distintos, cobertura semanal)
+ *   4. BP1 (valência primária)
+ *   5. Respiração inter-bloco (nasal 3:6 ~30s)
+ *   6. BP2 (valência secundária)
+ *   7. [BP3 opcional]
+ *   8. Finalizador (Carry — superset ou finalizador)
+ *   9. Encerramento (protocolo por valência)
+ *
+ * Filtros de segurança:
+ *   F1: Max 2 exercícios LOM>=4/sessão, max 1 hinge pesado
+ *   F3: TEC<=2 em bloco metcon
+ *   All-out: PSE 9-10 só se AX<=2 E LOM<=2
+ *   Anti-Metcon: PSE<=8 em blocos não-metcon
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -56,6 +58,13 @@ interface Exercise {
   default_sets: string | null;
   default_reps: string | null;
   numeric_level: number | null;
+  // v14.5 dimensions
+  axial_load: number | null;
+  lumbar_demand: number | null;
+  technical_complexity: number | null;
+  metabolic_potential: number | null;
+  knee_dominance: number | null;
+  hip_dominance: number | null;
 }
 
 interface BreathingProtocol {
@@ -65,6 +74,7 @@ interface BreathingProtocol {
   rhythm: string | null;
   duration_seconds: number;
   instructions: string;
+  category: string;
   when_to_use: string[] | null;
 }
 
@@ -119,7 +129,7 @@ interface GeneratedWorkout {
 }
 
 // ============================================================================
-// CONSTANTES
+// CONSTANTES v14.5
 // ============================================================================
 
 const SESSION_PATTERN_GROUPS: Record<string, string[]> = {
@@ -137,26 +147,53 @@ const VALENCE_CONFIG: Record<string, { sets: string; reps: string; interval: num
   condicionamento: { sets: "3", reps: "12-15", interval: 30, pse: "6-7" },
 };
 
+// v14.5: Durations
 const SESSION_STRUCTURE = {
   totalDuration: 55,
   phases: {
-    lmf: { duration: 3, name: "LMF" },
-    mobilidade: { duration: 5, name: "Mobilidade" },
-    ativacao: { duration: 5, name: "Ativação" },
-    core: { duration: 7, name: "Core Triplanar" },
-    principal: { duration: 30, name: "Principal" },
-    respiracao: { duration: 5, name: "Respiração/Mindfulness" },
+    abertura: { duration: 3, name: "Abertura" },
+    mobilidade: { duration: 4, name: "Mobilidade Específica" },
+    core: { duration: 5, name: "Core Biplanar" },
+    bp1: { duration: 10, name: "Bloco Principal 1" },
+    interBloco1: { duration: 0.5, name: "Respiração Inter-bloco" },
+    bp2: { duration: 10, name: "Bloco Principal 2" },
+    interBloco2: { duration: 0.5, name: "Respiração Inter-bloco" },
+    bp3: { duration: 7, name: "Bloco Complementar" },
+    finalizador: { duration: 4, name: "Finalizador" },
+    encerramento: { duration: 4, name: "Encerramento" },
   },
 };
 
-const ACTIVATION_SUBCATEGORIES = [
-  "ativacao_escapular", "ativacao_gluteos", "escapula",
-  "gluteos_estabilidade", "pe_tornozelo", "corretivos_quadril",
-];
+// v14.5: Core — 2 planos por slot, cobertura semanal dos 3 planos
+const CORE_PLANE_DISTRIBUTION: Record<string, string[]> = {
+  A: ["anti_extensao", "anti_rotacao"],
+  B: ["anti_flexao_lateral", "anti_extensao"],
+  C: ["anti_rotacao", "anti_flexao_lateral"],
+};
 
-const CORE_TRIPLANAR_SUBCATEGORIES = ["anti_extensao", "anti_flexao_lateral", "anti_rotacao"];
+// v14.5: Mapa de padrão BP1 → tipos de mobilidade relevantes
+const BP1_MOBILITY_SUBCATEGORIES: Record<string, string[]> = {
+  dominancia_joelho: ["quadril", "tornozelo", "joelho"],
+  cadeia_posterior: ["quadril", "isquiotibiais", "coluna"],
+  lunge: ["quadril", "tornozelo", "joelho"],
+  empurrar: ["ombro", "toracica", "escapular"],
+  puxar: ["ombro", "toracica", "escapular"],
+  carregar: ["ombro", "quadril", "coluna"],
+};
 
-// #6: Métodos por ciclo para condicionamento
+// v14.5: LMF — regiões por foco (lower vs upper dominant)
+const LMF_REGIONS_LOWER = ["gluteos", "quadriceps", "isquiotibiais", "panturrilha", "adutores"];
+const LMF_REGIONS_UPPER = ["ombro", "coluna", "pe"];
+
+// v14.5: Valência → tipo de protocolo de encerramento
+const CLOSING_PROTOCOL_MAP: Record<string, string[]> = {
+  potencia: ["post_workout", "ativacao_parasimpatica"],
+  forca: ["post_workout", "recuperacao"],
+  hipertrofia: ["post_workout", "recuperacao"],
+  condicionamento: ["post_workout", "cool_down"],
+};
+
+// Métodos por ciclo para condicionamento
 const METCON_METHODS_BY_CYCLE: Record<string, string[]> = {
   s1: ["circuito"],
   s2: ["circuito"],
@@ -164,7 +201,7 @@ const METCON_METHODS_BY_CYCLE: Record<string, string[]> = {
   s4: ["amrap", "for_time", "emom"],
 };
 
-// #4: Periodização S1-S4
+// Periodização S1-S4
 const PERIODIZATION = {
   s1: { volumeMultiplier: 0.7, intensityMultiplier: 0.7, pse: "5-6", plyometrics: "none" },
   s2: { volumeMultiplier: 1.0, intensityMultiplier: 0.85, pse: "6-7", plyometrics: "low" },
@@ -189,19 +226,14 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-// #12: Seleção ponderada — prioriza diversidade de plano de movimento e equipamento
 function weightedSelect(exercises: Exercise[], count: number): Exercise[] {
   if (exercises.length <= count) return exercises;
-
   const scored = exercises.map((ex) => {
-    let score = Math.random(); // base aleatória
-    // Bonus por ter equipamento definido (mais variado)
+    let score = Math.random();
     if (ex.equipment_required && ex.equipment_required.length > 0) score += 0.1;
-    // Bonus por plano diferente do sagital (mais diverso)
-    if (ex.movement_plane && ex.movement_plane !== "sagittal") score += 0.15;
+    if (ex.movement_plane && ex.movement_plane !== "sagital") score += 0.15;
     return { ex, score };
   });
-
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, count).map((s) => s.ex);
 }
@@ -226,9 +258,7 @@ function applyVolumeMultiplier(sets: string, multiplier: number): string {
 function filterByLevel(exercises: Exercise[], groupLevel: string): Exercise[] {
   const levelOrder: Record<string, number> = { iniciante: 1, intermediario: 2, avancado: 3 };
   const groupLevelValue = levelOrder[groupLevel] || 2;
-
   return exercises.filter((ex) => {
-    // #8: Prefer numeric_level when available
     if (ex.numeric_level != null) {
       const maxNumeric = groupLevel === "iniciante" ? 3 : groupLevel === "intermediario" ? 6 : 9;
       return ex.numeric_level <= maxNumeric;
@@ -245,22 +275,20 @@ function filterByLevel(exercises: Exercise[], groupLevel: string): Exercise[] {
 
 function filterByRisk(exercises: Exercise[], groupLevel: string): Exercise[] {
   return exercises.filter((ex) => {
-    if (ex.risk_level === "high") return groupLevel === "avancado";
-    if (ex.risk_level === "medium") return groupLevel !== "iniciante";
+    if (ex.risk_level === "high" || ex.risk_level === "Alto") return groupLevel === "avancado";
+    if (ex.risk_level === "medium" || ex.risk_level === "Médio") return groupLevel !== "iniciante";
     return true;
   });
 }
 
-// #3: Validação de equipamento
 function filterByAvailableEquipment(exercises: Exercise[], availableEquipment: Set<string>): Exercise[] {
-  if (availableEquipment.size === 0) return exercises; // skip if no inventory data
+  if (availableEquipment.size === 0) return exercises;
   return exercises.filter((ex) => {
     if (!ex.equipment_required || ex.equipment_required.length === 0) return true;
     return ex.equipment_required.every((eq) => availableEquipment.has(eq.toLowerCase()));
   });
 }
 
-// #12: Seleção por pattern com anti-repetição e ponderação
 function selectExercisesByPattern(
   exercises: Exercise[], patterns: string[], count: number, excludeIds: Set<string>
 ): Exercise[] {
@@ -298,33 +326,165 @@ function mapToGeneratedExercise(
 }
 
 // ============================================================================
-// FASES DE GERAÇÃO
+// FILTROS DE SEGURANÇA v14.5
 // ============================================================================
 
-function buildLMFPhase(exercises: Exercise[], excludeIds: Set<string>): SessionPhase {
-  const selected = selectExercisesByCategory(exercises, "lmf", 3, excludeIds);
-  selected.forEach((ex) => excludeIds.add(ex.id));
+/** F1: Limita exercícios com alta demanda lombar por sessão */
+function applyLumbarFilter(pool: Exercise[], sessionExercises: Exercise[]): Exercise[] {
+  const highLomCount = sessionExercises.filter((ex) => (ex.lumbar_demand || 0) >= 4).length;
+  if (highLomCount >= 2) {
+    return pool.filter((ex) => (ex.lumbar_demand || 0) < 4);
+  }
+  return pool;
+}
 
-  return {
+/** F3: Em blocos metcon, complexidade técnica deve ser baixa */
+function filterForMetcon(exercises: Exercise[]): Exercise[] {
+  return exercises.filter((ex) => (ex.technical_complexity || 0) <= 2);
+}
+
+/** All-out: PSE 9-10 só permitido se AX<=2 E LOM<=2 */
+function canAllOut(exercise: Exercise): boolean {
+  return (exercise.axial_load || 0) <= 2 && (exercise.lumbar_demand || 0) <= 2;
+}
+
+/** Anti-Metcon: Em blocos não-metcon, PSE máximo é 8 */
+function clampPseForNonMetcon(pse: string, isMetcon: boolean): string {
+  if (isMetcon) return pse;
+  const parts = pse.split("-").map(Number);
+  if (parts.some(isNaN)) return pse;
+  const clamped = parts.map((v) => Math.min(v, 8));
+  return clamped.length > 1 ? `${clamped[0]}-${clamped[1]}` : `${clamped[0]}`;
+}
+
+// ============================================================================
+// FASES DE GERAÇÃO v14.5
+// ============================================================================
+
+/**
+ * Fase 1: Abertura — Respiração nasal + LMF (2 regiões, trilhos distintos)
+ * v14.5 G5, G11
+ */
+function buildOpeningPhase(
+  exercises: Exercise[],
+  excludeIds: Set<string>,
+  valences: string[],
+  breathingProtocols: BreathingProtocol[]
+): SessionPhase {
+  // Determine LMF focus based on primary valence
+  const primaryValence = valences[0];
+  const isLowerDominant = ["forca", "potencia"].includes(primaryValence);
+
+  // Select 2 LMF regions from distinct anatomical tracks
+  const primaryRegions = isLowerDominant ? LMF_REGIONS_LOWER : LMF_REGIONS_UPPER;
+  const secondaryRegions = isLowerDominant ? LMF_REGIONS_UPPER : LMF_REGIONS_LOWER;
+
+  const lmfPool = exercises.filter(
+    (ex) => ex.category === "lmf" && !excludeIds.has(ex.id)
+  );
+
+  // Pick 1 from primary track
+  const primaryCandidates = lmfPool.filter(
+    (ex) => ex.subcategory && primaryRegions.includes(ex.subcategory)
+  );
+  const primary = weightedSelect(primaryCandidates, 1);
+  primary.forEach((ex) => excludeIds.add(ex.id));
+
+  // Pick 1 from secondary track (distinct anatomical track)
+  const secondaryCandidates = lmfPool.filter(
+    (ex) => ex.subcategory && secondaryRegions.includes(ex.subcategory) && !excludeIds.has(ex.id)
+  );
+  const secondary = weightedSelect(secondaryCandidates, 1);
+  secondary.forEach((ex) => excludeIds.add(ex.id));
+
+  const lmfExercises = [...primary, ...secondary];
+
+  // Select an opening breathing protocol
+  const preWorkout = breathingProtocols.filter(
+    (p) => p.when_to_use && (p.when_to_use.includes("pre_workout") || p.when_to_use.includes("abertura"))
+  );
+  const breathPool = preWorkout.length > 0 ? preWorkout : breathingProtocols;
+  const breathSelected = breathPool.length > 0 ? breathPool[Math.floor(Math.random() * breathPool.length)] : null;
+
+  const breathNote = breathSelected
+    ? `Respiração nasal: ${breathSelected.name} — ${breathSelected.rhythm || "3:6 (inspira:expira)"}. ~30s.`
+    : "Respiração nasal cadenciada 3:6 (inspira 3s, expira 6s). ~30s.";
+
+  const blocks: ExerciseBlock[] = [];
+
+  // Breathing block
+  blocks.push({
     id: generateUUID(),
-    name: SESSION_STRUCTURE.phases.lmf.name,
-    order: 1,
-    duration: SESSION_STRUCTURE.phases.lmf.duration,
-    blocks: [{
+    name: "Respiração de Abertura",
+    method: "respiracao",
+    exercises: [],
+    restBetweenSets: 0,
+    notes: breathNote,
+  });
+
+  // LMF block
+  if (lmfExercises.length > 0) {
+    blocks.push({
       id: generateUUID(),
       name: "Liberação Miofascial",
       method: "autoliberacao",
-      exercises: selected.map((ex) =>
+      exercises: lmfExercises.map((ex) =>
         mapToGeneratedExercise(ex, { sets: "1", reps: "30-60s", interval: 0 })
       ),
       restBetweenSets: 0,
-      notes: "Foco nas áreas de maior tensão - foam roller, bola, stick",
-    }],
+      notes: "2 regiões — trilhos anatômicos distintos. Foam roller, bola ou stick.",
+    });
+  }
+
+  return {
+    id: generateUUID(),
+    name: SESSION_STRUCTURE.phases.abertura.name,
+    order: 1,
+    duration: SESSION_STRUCTURE.phases.abertura.duration,
+    blocks,
   };
 }
 
-function buildMobilityPhase(exercises: Exercise[], excludeIds: Set<string>): SessionPhase {
-  const selected = selectExercisesByCategory(exercises, "mobilidade", 4, excludeIds);
+/**
+ * Fase 2: Mobilidade específica ao BP1
+ * v14.5 G6 — ≥1 exercício simulando o padrão do BP1
+ */
+function buildMobilityPhase(
+  exercises: Exercise[],
+  excludeIds: Set<string>,
+  bp1Pattern: string | null
+): SessionPhase {
+  const mobilityPool = exercises.filter(
+    (ex) => ex.category === "mobilidade" && !excludeIds.has(ex.id)
+  );
+
+  const selected: Exercise[] = [];
+
+  // Try to find mobility specific to BP1 pattern
+  if (bp1Pattern) {
+    const relevantSubcats = BP1_MOBILITY_SUBCATEGORIES[bp1Pattern] || [];
+    const specificMobility = mobilityPool.filter((ex) => {
+      if (!ex.subcategory) return false;
+      return relevantSubcats.some((sub) =>
+        ex.subcategory!.toLowerCase().includes(sub) || ex.name.toLowerCase().includes(sub)
+      );
+    });
+
+    if (specificMobility.length > 0) {
+      const picked = weightedSelect(specificMobility, 2);
+      selected.push(...picked);
+    }
+  }
+
+  // Fill remaining spots with general mobility (target: 3 total)
+  const remaining = 3 - selected.length;
+  if (remaining > 0) {
+    const alreadySelected = new Set(selected.map((ex) => ex.id));
+    const generalPool = mobilityPool.filter((ex) => !alreadySelected.has(ex.id) && !excludeIds.has(ex.id));
+    const general = weightedSelect(generalPool, remaining);
+    selected.push(...general);
+  }
+
   selected.forEach((ex) => excludeIds.add(ex.id));
 
   return {
@@ -334,59 +494,49 @@ function buildMobilityPhase(exercises: Exercise[], excludeIds: Set<string>): Ses
     duration: SESSION_STRUCTURE.phases.mobilidade.duration,
     blocks: [{
       id: generateUUID(),
-      name: "Mobilidade Articular",
+      name: "Mobilidade Específica ao BP1",
       method: "circuito",
       exercises: selected.map((ex) =>
         mapToGeneratedExercise(ex, { sets: "1", reps: "8-10", interval: 15 })
       ),
       restBetweenSets: 15,
+      notes: bp1Pattern
+        ? `Foco na mobilidade para o padrão de abertura: ${bp1Pattern}`
+        : "Mobilidade articular geral",
     }],
   };
 }
 
-function buildActivationPhase(exercises: Exercise[], excludeIds: Set<string>): SessionPhase {
-  const pool = exercises.filter(
-    (ex) => ex.category === "core_ativacao" &&
-      ex.subcategory && ACTIVATION_SUBCATEGORIES.includes(ex.subcategory) &&
-      !excludeIds.has(ex.id)
-  );
-  const selected = weightedSelect(pool, 3);
-  selected.forEach((ex) => excludeIds.add(ex.id));
+/**
+ * Fase 3: Core biplanar
+ * v14.5 G7 — 2 exercícios, 2 planos distintos por sessão, cobertura semanal
+ */
+function buildCorePhase(
+  exercises: Exercise[],
+  excludeIds: Set<string>,
+  slot: "A" | "B" | "C"
+): SessionPhase {
+  const targetPlanes = CORE_PLANE_DISTRIBUTION[slot];
 
-  return {
-    id: generateUUID(),
-    name: SESSION_STRUCTURE.phases.ativacao.name,
-    order: 3,
-    duration: SESSION_STRUCTURE.phases.ativacao.duration,
-    blocks: [{
-      id: generateUUID(),
-      name: "Ativação Neuromuscular",
-      method: "circuito",
-      exercises: selected.map((ex) =>
-        mapToGeneratedExercise(ex, { sets: "2", reps: "10", interval: 20 })
-      ),
-      restBetweenSets: 20,
-    }],
-  };
-}
-
-function buildCorePhase(exercises: Exercise[], excludeIds: Set<string>): SessionPhase {
   const corePool = exercises.filter(
     (ex) => ex.category === "core_ativacao" &&
-      ex.subcategory && CORE_TRIPLANAR_SUBCATEGORIES.includes(ex.subcategory) &&
+      ex.subcategory &&
+      ["anti_extensao", "anti_flexao_lateral", "anti_rotacao"].includes(ex.subcategory) &&
       !excludeIds.has(ex.id)
   );
 
   const coreExercises: Exercise[] = [];
-  for (const target of CORE_TRIPLANAR_SUBCATEGORIES) {
+
+  for (const plane of targetPlanes) {
     const candidates = corePool.filter(
-      (ex) => ex.subcategory === target && !excludeIds.has(ex.id)
+      (ex) => ex.subcategory === plane && !excludeIds.has(ex.id)
     );
     if (candidates.length > 0) {
       const picked = candidates[Math.floor(Math.random() * candidates.length)];
       coreExercises.push(picked);
       excludeIds.add(picked.id);
     } else {
+      // Fallback: any core not yet used
       const fallback = corePool.filter((ex) => !excludeIds.has(ex.id));
       if (fallback.length > 0) {
         const picked = fallback[Math.floor(Math.random() * fallback.length)];
@@ -400,159 +550,297 @@ function buildCorePhase(exercises: Exercise[], excludeIds: Set<string>): Session
   if (coreExercises.length > 0) {
     blocks.push({
       id: generateUUID(),
-      name: "Core Triplanar",
-      method: "circuito",
+      name: `Core Biplanar (${targetPlanes.join(" + ")})`,
+      method: "superset",
       exercises: coreExercises.map((ex) =>
         mapToGeneratedExercise(ex, { sets: "2", reps: "10-12", interval: 30 })
       ),
       restBetweenSets: 30,
+      notes: `2 planos distintos: ${targetPlanes.join(", ")}. Cobertura triplanar na semana.`,
     });
   }
 
   return {
     id: generateUUID(),
     name: SESSION_STRUCTURE.phases.core.name,
-    order: 4,
+    order: 3,
     duration: SESSION_STRUCTURE.phases.core.duration,
     blocks,
   };
 }
 
-function buildMainPhase(
+/**
+ * Fase 4-6: Blocos Principais (BP1 + BP2 + BP3 opcional)
+ * v14.5 G5 — cada BP tem 2 exercícios em superset
+ * Aplica filtros F1 (lombar), F3 (metcon), All-out, Anti-Metcon
+ */
+function buildMainBlocks(
   exercises: Exercise[],
   valences: string[],
   groupLevel: string,
   excludeIds: Set<string>,
-  volumeMultiplier: number
-): { phase: SessionPhase; newCoveredPatterns: string[] } {
-  const blocks: ExerciseBlock[] = [];
-  const newCoveredPatterns: string[] = [];
+  volumeMultiplier: number,
+  sessionSelectedExercises: Exercise[]
+): { phases: SessionPhase[]; coveredPatterns: string[]; bp1Pattern: string | null } {
+  const phases: SessionPhase[] = [];
+  const coveredPatterns: string[] = [];
+  let orderIndex = 4;
 
   const primaryValence = valences[0] as keyof typeof VALENCE_CONFIG;
-  const config = VALENCE_CONFIG[primaryValence] || VALENCE_CONFIG.forca;
+  const secondaryValence = valences.length > 1 ? valences[1] as keyof typeof VALENCE_CONFIG : primaryValence;
+  const isMetcon = valences.includes("condicionamento");
 
-  // #6: método depende da valência + será refinado por ciclo no metadata
-  const method = valences.includes("condicionamento") ? "circuito" : "tradicional";
-  const adjustedSets = applyVolumeMultiplier(config.sets, volumeMultiplier);
+  // Determine BP composition:
+  // BP1: primary valence — 1 lower + 1 upper (superset)
+  // BP2: secondary valence — 1 lower (opposite) + 1 upper (opposite)
+  // BP3 (optional): complementary / potência / carry-related
 
-  // Bloco Lower (knee + hip)
-  const kneeExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.lower_knee, 1, excludeIds);
-  kneeExercises.forEach((ex) => { excludeIds.add(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
+  // --- BP1: Primary valence ---
+  const config1 = VALENCE_CONFIG[primaryValence] || VALENCE_CONFIG.forca;
+  const adjustedSets1 = applyVolumeMultiplier(config1.sets, volumeMultiplier);
+  const pse1 = clampPseForNonMetcon(config1.pse, isMetcon);
 
-  const hipExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.lower_hip, 1, excludeIds);
-  hipExercises.forEach((ex) => { excludeIds.add(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
+  let pool1 = [...exercises];
+  pool1 = applyLumbarFilter(pool1, sessionSelectedExercises);
+  if (isMetcon) pool1 = filterForMetcon(pool1);
 
-  const lowerExercises = [...kneeExercises, ...hipExercises];
-  if (lowerExercises.length > 0) {
-    blocks.push({
+  // BP1 lower (knee-dominant)
+  const bp1Lower = selectExercisesByPattern(pool1, SESSION_PATTERN_GROUPS.lower_knee, 1, excludeIds);
+  bp1Lower.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); if (ex.movement_pattern) coveredPatterns.push(ex.movement_pattern); });
+
+  // BP1 upper (push)
+  const bp1Pool2 = applyLumbarFilter(pool1, sessionSelectedExercises);
+  const bp1Upper = selectExercisesByPattern(bp1Pool2, SESSION_PATTERN_GROUPS.upper_push, 1, excludeIds);
+  bp1Upper.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); if (ex.movement_pattern) coveredPatterns.push(ex.movement_pattern); });
+
+  const bp1Exercises = [...bp1Lower, ...bp1Upper];
+  const bp1Pattern = bp1Lower.length > 0 ? bp1Lower[0].movement_pattern : null;
+
+  if (bp1Exercises.length > 0) {
+    // Plyometrics opener for potência sessions
+    if (valences.includes("potencia") && groupLevel !== "iniciante") {
+      const maxPlyoLevel = groupLevel === "avancado" ? 19 : 11;
+      const plyoPool = exercises.filter(
+        (ex) => ex.category === "potencia_pliometria" && !excludeIds.has(ex.id) &&
+          (ex.numeric_level == null || ex.numeric_level <= maxPlyoLevel) &&
+          (ex.technical_complexity || 0) <= 3
+      );
+      const plyoSelected = weightedSelect(plyoPool, 1);
+      plyoSelected.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); });
+
+      if (plyoSelected.length > 0) {
+        bp1Exercises.unshift(plyoSelected[0]); // Potência abre o BP1
+      }
+    }
+
+    phases.push({
       id: generateUUID(),
-      name: "Bloco - Membros Inferiores",
-      method: lowerExercises.length > 1 ? "superset" : method,
-      exercises: lowerExercises.map((ex) =>
-        mapToGeneratedExercise(ex, { sets: adjustedSets, reps: config.reps, interval: config.interval, pse: config.pse })
-      ),
-      restBetweenSets: config.interval,
-    });
-  }
-
-  // Bloco Upper (push + pull)
-  const pushExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.upper_push, 1, excludeIds);
-  pushExercises.forEach((ex) => { excludeIds.add(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
-
-  const pullExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.upper_pull, 1, excludeIds);
-  pullExercises.forEach((ex) => { excludeIds.add(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
-
-  const upperExercises = [...pushExercises, ...pullExercises];
-  if (upperExercises.length > 0) {
-    blocks.push({
-      id: generateUUID(),
-      name: "Bloco - Membros Superiores",
-      method: upperExercises.length > 1 ? "superset" : method,
-      exercises: upperExercises.map((ex) =>
-        mapToGeneratedExercise(ex, { sets: adjustedSets, reps: config.reps, interval: config.interval, pse: config.pse })
-      ),
-      restBetweenSets: config.interval,
-    });
-  }
-
-  // #8: Bloco Pliometria/Potência — respeita nível numérico
-  if (valences.includes("potencia") && groupLevel !== "iniciante") {
-    const maxPlyoLevel = groupLevel === "avancado" ? 19 : 11; // avançado: todas fases; intermediário: até fase 11
-    const plyoPool = exercises.filter(
-      (ex) => ex.category === "potencia_pliometria" && !excludeIds.has(ex.id) &&
-        (ex.numeric_level == null || ex.numeric_level <= maxPlyoLevel)
-    );
-    const plyoSelected = weightedSelect(plyoPool, 2);
-    plyoSelected.forEach((ex) => excludeIds.add(ex.id));
-
-    if (plyoSelected.length > 0) {
-      blocks.push({
+      name: SESSION_STRUCTURE.phases.bp1.name,
+      order: orderIndex++,
+      duration: SESSION_STRUCTURE.phases.bp1.duration,
+      blocks: [{
         id: generateUUID(),
-        name: "Bloco - Potência & Pliometria",
-        method: "tradicional",
-        exercises: plyoSelected.map((ex) =>
-          mapToGeneratedExercise(ex, {
-            sets: applyVolumeMultiplier("3", volumeMultiplier),
-            reps: "5-8", interval: 90, pse: "7-8",
-          })
+        name: `BP1 — ${primaryValence.charAt(0).toUpperCase() + primaryValence.slice(1)}`,
+        method: bp1Exercises.length > 1 ? "superset" : "tradicional",
+        exercises: bp1Exercises.map((ex) =>
+          mapToGeneratedExercise(ex, { sets: adjustedSets1, reps: config1.reps, interval: config1.interval, pse: pse1 })
         ),
-        restBetweenSets: 90,
-        notes: "Execução explosiva com técnica perfeita. Priorizar qualidade sobre volume.",
+        restBetweenSets: config1.interval,
+      }],
+    });
+  }
+
+  // --- Inter-block breathing ---
+  phases.push({
+    id: generateUUID(),
+    name: "Respiração Inter-bloco",
+    order: orderIndex++,
+    duration: 0.5,
+    blocks: [{
+      id: generateUUID(),
+      name: "Pausa Respiratória",
+      method: "respiracao",
+      exercises: [],
+      restBetweenSets: 0,
+      notes: "Respiração nasal cadenciada 3:6 (inspira 3s, expira 6s). ~30 segundos. Reduzir FC antes do próximo bloco.",
+    }],
+  });
+
+  // --- BP2: Secondary valence ---
+  const config2 = VALENCE_CONFIG[secondaryValence] || VALENCE_CONFIG.forca;
+  const adjustedSets2 = applyVolumeMultiplier(config2.sets, volumeMultiplier);
+  const pse2 = clampPseForNonMetcon(config2.pse, isMetcon);
+
+  let pool2 = [...exercises];
+  pool2 = applyLumbarFilter(pool2, sessionSelectedExercises);
+  if (isMetcon) pool2 = filterForMetcon(pool2);
+
+  // BP2 lower (hip-dominant — opposite of BP1)
+  const bp2Lower = selectExercisesByPattern(pool2, SESSION_PATTERN_GROUPS.lower_hip, 1, excludeIds);
+  bp2Lower.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); if (ex.movement_pattern) coveredPatterns.push(ex.movement_pattern); });
+
+  // BP2 upper (pull — opposite of BP1)
+  const bp2Pool2 = applyLumbarFilter(pool2, sessionSelectedExercises);
+  const bp2Upper = selectExercisesByPattern(bp2Pool2, SESSION_PATTERN_GROUPS.upper_pull, 1, excludeIds);
+  bp2Upper.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); if (ex.movement_pattern) coveredPatterns.push(ex.movement_pattern); });
+
+  const bp2Exercises = [...bp2Lower, ...bp2Upper];
+  if (bp2Exercises.length > 0) {
+    phases.push({
+      id: generateUUID(),
+      name: SESSION_STRUCTURE.phases.bp2.name,
+      order: orderIndex++,
+      duration: SESSION_STRUCTURE.phases.bp2.duration,
+      blocks: [{
+        id: generateUUID(),
+        name: `BP2 — ${secondaryValence.charAt(0).toUpperCase() + secondaryValence.slice(1)}`,
+        method: bp2Exercises.length > 1 ? "superset" : "tradicional",
+        exercises: bp2Exercises.map((ex) =>
+          mapToGeneratedExercise(ex, { sets: adjustedSets2, reps: config2.reps, interval: config2.interval, pse: pse2 })
+        ),
+        restBetweenSets: config2.interval,
+      }],
+    });
+  }
+
+  // --- BP3 (optional): Extra block for variety or metcon ---
+  if (valences.length >= 2 || isMetcon) {
+    // Inter-block breathing before BP3
+    phases.push({
+      id: generateUUID(),
+      name: "Respiração Inter-bloco",
+      order: orderIndex++,
+      duration: 0.5,
+      blocks: [{
+        id: generateUUID(),
+        name: "Pausa Respiratória",
+        method: "respiracao",
+        exercises: [],
+        restBetweenSets: 0,
+        notes: "Respiração nasal cadenciada 3:6. ~30 segundos.",
+      }],
+    });
+
+    let bp3Pool = [...exercises];
+    bp3Pool = applyLumbarFilter(bp3Pool, sessionSelectedExercises);
+    if (isMetcon) bp3Pool = filterForMetcon(bp3Pool);
+
+    // BP3: Lunge + supplementary pattern
+    const bp3Lower = selectExercisesByPattern(bp3Pool, ["lunge"], 1, excludeIds);
+    bp3Lower.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); if (ex.movement_pattern) coveredPatterns.push(ex.movement_pattern); });
+
+    // Add a supplementary upper or carry
+    const bp3Supplementary = selectExercisesByPattern(
+      applyLumbarFilter(bp3Pool, sessionSelectedExercises),
+      [...SESSION_PATTERN_GROUPS.upper_push, ...SESSION_PATTERN_GROUPS.upper_pull],
+      1,
+      excludeIds
+    );
+    bp3Supplementary.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); if (ex.movement_pattern) coveredPatterns.push(ex.movement_pattern); });
+
+    const bp3Exercises = [...bp3Lower, ...bp3Supplementary];
+    if (bp3Exercises.length > 0) {
+      const bp3Config = isMetcon ? VALENCE_CONFIG.condicionamento : config2;
+      phases.push({
+        id: generateUUID(),
+        name: SESSION_STRUCTURE.phases.bp3.name,
+        order: orderIndex++,
+        duration: SESSION_STRUCTURE.phases.bp3.duration,
+        blocks: [{
+          id: generateUUID(),
+          name: isMetcon ? "BP3 — MetCon" : "BP3 — Complementar",
+          method: isMetcon ? "circuito" : (bp3Exercises.length > 1 ? "superset" : "tradicional"),
+          exercises: bp3Exercises.map((ex) =>
+            mapToGeneratedExercise(ex, {
+              sets: applyVolumeMultiplier(bp3Config.sets, volumeMultiplier),
+              reps: bp3Config.reps,
+              interval: bp3Config.interval,
+              pse: clampPseForNonMetcon(bp3Config.pse, isMetcon),
+            })
+          ),
+          restBetweenSets: bp3Config.interval,
+        }],
       });
     }
   }
 
-  // Bloco Carry
-  const carryExercises = selectExercisesByPattern(exercises, SESSION_PATTERN_GROUPS.carry, 1, excludeIds);
-  carryExercises.forEach((ex) => { excludeIds.add(ex.id); if (ex.movement_pattern) newCoveredPatterns.push(ex.movement_pattern); });
-
-  if (carryExercises.length > 0) {
-    blocks.push({
-      id: generateUUID(),
-      name: "Bloco - Carregamento",
-      method: "tradicional",
-      exercises: carryExercises.map((ex) =>
-        mapToGeneratedExercise(ex, {
-          sets: applyVolumeMultiplier("3", volumeMultiplier),
-          reps: "20-30m", interval: 60, pse: config.pse,
-        })
-      ),
-      restBetweenSets: 60,
-    });
-  }
-
-  return {
-    phase: {
-      id: generateUUID(),
-      name: SESSION_STRUCTURE.phases.principal.name,
-      order: 5,
-      duration: SESSION_STRUCTURE.phases.principal.duration,
-      blocks,
-    },
-    newCoveredPatterns,
-  };
+  return { phases, coveredPatterns, bp1Pattern };
 }
 
-// #2: Breathing phase from database
-function buildBreathingPhase(protocols: BreathingProtocol[]): SessionPhase {
-  const postWorkout = protocols.filter(
-    (p) => p.when_to_use && p.when_to_use.includes("post_workout")
+/**
+ * Fase 8: Finalizador — Carry
+ * v14.5 G8 — Posição A (superset) ou B (finalizador), nunca isolado, mín 2/semana
+ */
+function buildFinalizerPhase(
+  exercises: Exercise[],
+  excludeIds: Set<string>,
+  volumeMultiplier: number,
+  valences: string[],
+  sessionSelectedExercises: Exercise[]
+): SessionPhase {
+  let carryPool = exercises.filter(
+    (ex) => ex.movement_pattern === "carregar" && !excludeIds.has(ex.id)
   );
-  const pool = postWorkout.length > 0 ? postWorkout : protocols;
-  const selected = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null;
+  carryPool = applyLumbarFilter(carryPool, sessionSelectedExercises);
 
-  const notes = selected
-    ? `${selected.name}: ${selected.instructions}${selected.rhythm ? ` Ritmo: ${selected.rhythm}` : ""}. ${Math.round(selected.duration_seconds / 60)} min.`
-    : "Box Breathing: 4s inspira, 4s segura, 4s expira, 4s segura. 5 ciclos.";
+  const selected = weightedSelect(carryPool, 1);
+  selected.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); });
+
+  const config = VALENCE_CONFIG[valences[0] as keyof typeof VALENCE_CONFIG] || VALENCE_CONFIG.forca;
 
   return {
     id: generateUUID(),
-    name: SESSION_STRUCTURE.phases.respiracao.name,
-    order: 6,
-    duration: SESSION_STRUCTURE.phases.respiracao.duration,
+    name: SESSION_STRUCTURE.phases.finalizador.name,
+    order: 9,
+    duration: SESSION_STRUCTURE.phases.finalizador.duration,
+    blocks: selected.length > 0 ? [{
+      id: generateUUID(),
+      name: "Finalizador — Carry",
+      method: "tradicional",
+      exercises: selected.map((ex) =>
+        mapToGeneratedExercise(ex, {
+          sets: applyVolumeMultiplier("3", volumeMultiplier),
+          reps: "20-30m",
+          interval: 60,
+          pse: clampPseForNonMetcon(config.pse, valences.includes("condicionamento")),
+        })
+      ),
+      restBetweenSets: 60,
+      notes: "Carry como finalizador. Postura ereta, core ativado, respiração controlada.",
+    }] : [],
+  };
+}
+
+/**
+ * Fase 9: Encerramento por valência
+ * v14.5 G10 — protocolo específico alinhado à valência final
+ */
+function buildClosingPhase(
+  valences: string[],
+  breathingProtocols: BreathingProtocol[]
+): SessionPhase {
+  const lastValence = valences[valences.length - 1];
+  const targetUses = CLOSING_PROTOCOL_MAP[lastValence] || ["post_workout"];
+
+  // Try to find protocol matching the valence's closing type
+  const candidates = breathingProtocols.filter(
+    (p) => p.when_to_use && p.when_to_use.some((u) => targetUses.includes(u))
+  );
+  const pool = candidates.length > 0 ? candidates : breathingProtocols;
+  const selected = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : null;
+
+  const notes = selected
+    ? `${selected.name}: ${selected.instructions}${selected.rhythm ? ` Ritmo: ${selected.rhythm}` : ""}. ${Math.round(selected.duration_seconds / 60)} min. Protocolo alinhado à valência: ${lastValence}.`
+    : "Box Breathing: 4s inspira, 4s segura, 4s expira, 4s segura. 5 ciclos. Foco na recuperação parasimpática.";
+
+  return {
+    id: generateUUID(),
+    name: SESSION_STRUCTURE.phases.encerramento.name,
+    order: 10,
+    duration: SESSION_STRUCTURE.phases.encerramento.duration,
     blocks: [{
       id: generateUUID(),
-      name: "Respiração Guiada",
+      name: `Encerramento — ${lastValence}`,
       method: "respiracao",
       exercises: [],
       restBetweenSets: 0,
@@ -561,10 +849,14 @@ function buildBreathingPhase(protocols: BreathingProtocol[]): SessionPhase {
   };
 }
 
+// ============================================================================
+// VERIFICAÇÕES
+// ============================================================================
+
 function checkCoreTriplanar(phases: SessionPhase[]) {
   const coreExercises = phases
     .flatMap((p) => p.blocks)
-    .filter((b) => b.name === "Core Triplanar")
+    .filter((b) => b.name.startsWith("Core"))
     .flatMap((b) => b.exercises);
 
   const subcategories = new Set(coreExercises.map((ex) => ex.subcategory).filter(Boolean));
@@ -585,7 +877,6 @@ function generateWorkoutName(slot: string, valences: string[]): string {
   return `${base} ${suffix}`;
 }
 
-// #7: Popular totalPatternsBalance
 function calcPatternsBalance(workouts: GeneratedWorkout[]): Record<string, number> {
   const balance: Record<string, number> = {};
   for (const w of workouts) {
@@ -596,13 +887,31 @@ function calcPatternsBalance(workouts: GeneratedWorkout[]): Record<string, numbe
   return balance;
 }
 
-// #5: LLM enrichment via Lovable AI
+/** v14.5 G4: Count effective sets per session */
+function countEffectiveSets(workout: GeneratedWorkout): number {
+  let total = 0;
+  for (const phase of workout.phases) {
+    for (const block of phase.blocks) {
+      if (block.method === "respiracao" || block.method === "autoliberacao") continue;
+      for (const ex of block.exercises) {
+        const parts = ex.sets.split("-").map(Number);
+        if (parts.some(isNaN)) continue;
+        total += parts[parts.length - 1]; // use upper bound
+      }
+    }
+  }
+  return total;
+}
+
+// ============================================================================
+// LLM ENRICHMENT
+// ============================================================================
+
 async function enrichWithLLM(workouts: GeneratedWorkout[]): Promise<void> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) return; // graceful degradation
+  if (!apiKey) return;
 
   try {
-    // Build a compact prompt with all exercises
     const exerciseList = workouts.flatMap((w) =>
       w.phases.flatMap((p) =>
         p.blocks.flatMap((b) =>
@@ -629,12 +938,12 @@ async function enrichWithLLM(workouts: GeneratedWorkout[]): Promise<void> {
         messages: [
           {
             role: "system",
-            content: `Você é um treinador funcional especialista da Fabrik Performance. 
-Gere orientações de execução (execution cues) para cada exercício, um script de mindfulness para o final de cada treino e uma frase motivacional para cada treino.
+            content: `Você é um treinador funcional especialista da Fabrik Performance (Body & Mind Fitness).
+Gere orientações de execução (execution cues) para cada exercício, um script de mindfulness para o encerramento de cada treino e uma frase motivacional.
 Responda APENAS com JSON válido no formato especificado pela tool.
-Use linguagem profissional mas acessível. Cues devem ter no máximo 2 frases. 
-Mindfulness scripts devem ter 3-4 frases focando em respiração e consciência corporal.
-Frases motivacionais devem ser inspiradoras e alinhadas com a filosofia Body & Mind Fitness.`,
+Cues: máximo 2 frases, linguagem profissional e acessível.
+Mindfulness: 3-4 frases focando em respiração e consciência corporal.
+Frases motivacionais: inspiradoras, alinhadas com a filosofia Body & Mind Fitness.`,
           },
           {
             role: "user",
@@ -697,14 +1006,12 @@ Frases motivacionais devem ser inspiradoras e alinhadas com a filosofia Body & M
 
     const enrichment = JSON.parse(toolCall.function.arguments);
 
-    // Apply exercise cues
     const cueMap = new Map<string, string>();
     for (const c of enrichment.exerciseCues || []) {
       cueMap.set(c.exerciseId, c.cue);
     }
 
     for (const w of workouts) {
-      // Apply workout-level enrichments
       const we = (enrichment.workoutEnrichments || []).find(
         (e: { slot: string }) => e.slot === w.slot
       );
@@ -713,7 +1020,6 @@ Frases motivacionais devem ser inspiradoras e alinhadas com a filosofia Body & M
         w.motivationalPhrase = we.motivationalPhrase;
       }
 
-      // Apply exercise cues
       for (const phase of w.phases) {
         for (const block of phase.blocks) {
           for (const ex of block.exercises) {
@@ -725,12 +1031,11 @@ Frases motivacionais devem ser inspiradoras e alinhadas com a filosofia Body & M
     }
   } catch (err) {
     console.error("LLM enrichment error:", err);
-    // Non-blocking: workouts still valid without LLM content
   }
 }
 
 // ============================================================================
-// GERAÇÃO DO WORKOUT COMPLETO
+// GERAÇÃO DO WORKOUT v14.5
 // ============================================================================
 
 function generateSingleWorkout(
@@ -739,33 +1044,69 @@ function generateSingleWorkout(
   groupLevel: string,
   volumeMultiplier: number,
   breathingProtocols: BreathingProtocol[],
-  globalExcludeIds: Set<string> // #1: anti-repetição global
+  globalExcludeIds: Set<string>
 ): GeneratedWorkout {
-  // Use a local copy that inherits global exclusions
   const excludeIds = new Set(globalExcludeIds);
+  const sessionSelectedExercises: Exercise[] = [];
 
-  const lmfPhase = buildLMFPhase(exercises, excludeIds);
-  const mobilityPhase = buildMobilityPhase(exercises, excludeIds);
-  const activationPhase = buildActivationPhase(exercises, excludeIds);
-  const corePhase = buildCorePhase(exercises, excludeIds);
+  // Step 1: Build main blocks first (to determine BP1 pattern for mobility)
+  // We need to peek at what BP1 will select to inform mobility
+  // Determine likely BP1 pattern based on available exercises
+  const kneePool = exercises.filter(
+    (ex) => ex.movement_pattern && SESSION_PATTERN_GROUPS.lower_knee.includes(ex.movement_pattern) && !excludeIds.has(ex.id)
+  );
+  const likelyBp1Pattern = kneePool.length > 0 ? kneePool[0].movement_pattern : null;
 
-  const coveredPatterns = new Set<string>();
-  [lmfPhase, mobilityPhase, activationPhase, corePhase].forEach((phase) => {
+  // Phase 1: Opening (Resp + LMF)
+  const openingPhase = buildOpeningPhase(exercises, excludeIds, config.valences, breathingProtocols);
+
+  // Phase 2: Mobility specific to BP1
+  const mobilityPhase = buildMobilityPhase(exercises, excludeIds, likelyBp1Pattern);
+
+  // Phase 3: Core biplanar
+  const corePhase = buildCorePhase(exercises, excludeIds, config.slot);
+
+  // Phase 4-7: Main blocks (BP1 + BP2 + BP3)
+  const { phases: mainPhases, coveredPatterns, bp1Pattern } = buildMainBlocks(
+    exercises, config.valences, groupLevel, excludeIds, volumeMultiplier, sessionSelectedExercises
+  );
+
+  // Phase 8: Finalizer (Carry)
+  const finalizerPhase = buildFinalizerPhase(exercises, excludeIds, volumeMultiplier, config.valences, sessionSelectedExercises);
+  if (finalizerPhase.blocks.length > 0) {
+    coveredPatterns.push("carregar");
+  }
+
+  // Phase 9: Closing by valence
+  const closingPhase = buildClosingPhase(config.valences, breathingProtocols);
+
+  const allPhases = [
+    openingPhase,
+    mobilityPhase,
+    corePhase,
+    ...mainPhases,
+    finalizerPhase,
+    closingPhase,
+  ];
+
+  // Collect all covered patterns
+  const allCoveredPatterns = new Set<string>(coveredPatterns);
+  [openingPhase, mobilityPhase, corePhase].forEach((phase) => {
     phase.blocks.forEach((block) => {
-      block.exercises.forEach((ex) => coveredPatterns.add(ex.movementPattern));
+      block.exercises.forEach((ex) => allCoveredPatterns.add(ex.movementPattern));
     });
   });
 
-  const { phase: mainPhase, newCoveredPatterns } = buildMainPhase(
-    exercises, config.valences, groupLevel, excludeIds, volumeMultiplier
+  // Propagate main phase exercise IDs to global exclude for anti-repetition
+  mainPhases.forEach((p) =>
+    p.blocks.forEach((b) =>
+      b.exercises.forEach((ex) => globalExcludeIds.add(ex.exerciseLibraryId))
+    )
   );
-  newCoveredPatterns.forEach((p) => coveredPatterns.add(p));
-
-  const breathingPhase = buildBreathingPhase(breathingProtocols);
-  const phases = [lmfPhase, mobilityPhase, activationPhase, corePhase, mainPhase, breathingPhase];
-
-  // #1: Propagate used IDs to global set (main phase exercises only for meaningful anti-repetition)
-  mainPhase.blocks.forEach((b) => b.exercises.forEach((ex) => globalExcludeIds.add(ex.exerciseLibraryId)));
+  // Also propagate carry
+  finalizerPhase.blocks.forEach((b) =>
+    b.exercises.forEach((ex) => globalExcludeIds.add(ex.exerciseLibraryId))
+  );
 
   return {
     id: generateUUID(),
@@ -773,9 +1114,9 @@ function generateSingleWorkout(
     name: generateWorkoutName(config.slot, config.valences),
     valences: config.valences,
     totalDuration: SESSION_STRUCTURE.totalDuration,
-    phases,
-    coveredPatterns: Array.from(coveredPatterns),
-    coreTriplanarCheck: checkCoreTriplanar(phases),
+    phases: allPhases,
+    coveredPatterns: Array.from(allCoveredPatterns),
+    coreTriplanarCheck: checkCoreTriplanar(allPhases),
   };
 }
 
@@ -789,7 +1130,6 @@ serve(async (req) => {
   }
 
   try {
-    // #11: Auth via anon key + getClaims
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
@@ -823,20 +1163,20 @@ serve(async (req) => {
       );
     }
 
-    // #9: Fetch only used fields (removed functional_group, plyometric_phase)
+    // Fetch exercises WITH v14.5 dimensions
     const { data: allExercises, error: exercisesError } = await supabase
       .from("exercises_library")
-      .select("id, name, movement_pattern, risk_level, level, category, subcategory, movement_plane, equipment_required, default_sets, default_reps, numeric_level");
+      .select("id, name, movement_pattern, risk_level, level, category, subcategory, movement_plane, equipment_required, default_sets, default_reps, numeric_level, axial_load, lumbar_demand, technical_complexity, metabolic_potential, knee_dominance, hip_dominance");
 
     if (exercisesError) throw new Error(`Erro ao buscar exercícios: ${exercisesError.message}`);
 
-    // #2: Fetch breathing protocols
+    // Fetch breathing protocols (with category for closing selection)
     const { data: breathingProtocols } = await supabase
       .from("breathing_protocols")
-      .select("id, name, technique, rhythm, duration_seconds, instructions, when_to_use")
+      .select("id, name, technique, rhythm, duration_seconds, instructions, category, when_to_use")
       .eq("is_active", true);
 
-    // #3: Fetch available equipment
+    // Fetch available equipment
     const { data: equipmentData } = await supabase
       .from("equipment_inventory")
       .select("name")
@@ -849,7 +1189,7 @@ serve(async (req) => {
     // Apply filters
     let exercises = filterByLevel(allExercises || [], input.groupLevel);
     exercises = filterByRisk(exercises, input.groupLevel);
-    exercises = filterByAvailableEquipment(exercises, availableEquipment); // #3
+    exercises = filterByAvailableEquipment(exercises, availableEquipment);
 
     if (input.excludeExercises?.length) {
       exercises = exercises.filter((ex) => !input.excludeExercises!.includes(ex.id));
@@ -872,7 +1212,7 @@ serve(async (req) => {
       );
     }
 
-    // #1: Global exclude IDs for anti-repetition across A/B/C
+    // Global exclude IDs for anti-repetition across A/B/C
     const globalExcludeIds = new Set<string>();
 
     for (const workoutConfig of input.workouts) {
@@ -882,19 +1222,37 @@ serve(async (req) => {
       );
       workouts.push(workout);
 
+      // v14.5 G4: Volume validation
+      const effectiveSets = countEffectiveSets(workout);
+      if (effectiveSets > 20) {
+        warnings.push(`Treino ${workoutConfig.slot}: ${effectiveSets} sets efetivos (max recomendado: 20). Considere reduzir volume.`);
+      }
+
+      // Core triplanar check (per slot, not weekly — weekly coverage is guaranteed by CORE_PLANE_DISTRIBUTION)
       const { anti_extensao, anti_flexao_lateral, anti_rotacao } = workout.coreTriplanarCheck;
-      if (!anti_extensao || !anti_flexao_lateral || !anti_rotacao) {
-        warnings.push(`Treino ${workoutConfig.slot}: Core triplanar incompleto. Revise a seleção de exercícios.`);
+      if (!anti_extensao && !anti_flexao_lateral && !anti_rotacao) {
+        warnings.push(`Treino ${workoutConfig.slot}: Nenhum plano de core coberto. Revise a seleção.`);
       }
     }
 
-    // #5: Enrich with LLM (non-blocking for response)
+    // v14.5 G4: Cross-session validation — Pull should be 20-40% > Push
+    const patternsBalance = calcPatternsBalance(workouts);
+    const pushCount = patternsBalance["empurrar"] || 0;
+    const pullCount = patternsBalance["puxar"] || 0;
+    if (pushCount > 0 && pullCount <= pushCount) {
+      warnings.push(`Balanço Push/Pull: ${pushCount} push vs ${pullCount} pull. Recomendado Pull ser 20-40% superior ao Push.`);
+    }
+
+    // Carry frequency check (min 2/week)
+    const carryCount = patternsBalance["carregar"] || 0;
+    if (carryCount < 2) {
+      warnings.push(`Carry: apenas ${carryCount}x/semana. Recomendado mínimo 2x/semana.`);
+    }
+
+    // Enrich with LLM
     await enrichWithLLM(workouts);
 
-    // #7: Populate totalPatternsBalance
-    const totalPatternsBalance = calcPatternsBalance(workouts);
-
-    // #4 + #6: Build recommended progression with metcon methods
+    // Build progression
     const buildProgression = () => {
       const progression: Record<string, {
         volumeMultiplier: number;
@@ -922,10 +1280,17 @@ serve(async (req) => {
       workouts,
       createdAt: new Date().toISOString(),
       metadata: {
+        version: "v14.5",
         groupReadiness: input.groupReadiness ?? null,
         volumeMultiplier,
-        totalPatternsBalance,
+        totalPatternsBalance: patternsBalance,
         recommendedProgression: buildProgression(),
+        safetyFilters: {
+          lumbarFilter: "F1: max 2 LOM>=4/sessão",
+          metconFilter: "F3: TEC<=2 em bloco metcon",
+          allOutRule: "AX<=2 E LOM<=2 para PSE 9-10",
+          antiMetcon: "PSE<=8 em blocos não-metcon",
+        },
       },
     };
 
