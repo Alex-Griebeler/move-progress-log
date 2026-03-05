@@ -47,6 +47,24 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_project_memory: {
+        Row: {
+          content: string
+          key: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          key: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          key?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       anamnesis_responses: {
         Row: {
           activity_duration_minutes: number | null
