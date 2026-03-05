@@ -20,12 +20,58 @@ Deno.serve(async (req) => {
       );
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+    // Authentication: Allow service role (internal calls) OR authenticated trainer
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    // Check if this is a service role call (from oura-sync-all / oura-sync-scheduled)
+    const isServiceRole = token === serviceRoleKey;
+
+    if (!isServiceRole) {
+      // Validate user JWT and check trainer ownership
+      const supabaseAuth = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } }
+      });
+      const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired token' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
+      }
+
+      const userId = claimsData.claims.sub;
+
+      // Verify the user is the trainer for this student
+      const supabaseCheck = createClient(supabaseUrl, serviceRoleKey);
+      const { data: student, error: studentError } = await supabaseCheck
+        .from('students')
+        .select('trainer_id')
+        .eq('id', student_id)
+        .single();
+
+      if (studentError || !student || student.trainer_id !== userId) {
+        return new Response(
+          JSON.stringify({ error: 'Access denied: you are not this student\'s trainer' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+    }
+
     console.log(`Syncing Oura data for student ${student_id}, date: ${date || 'today'}`);
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
 
     // Get Oura connection metadata
     const { data: connection, error: connError } = await supabaseClient
