@@ -10,12 +10,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Upload, FileText, CheckCircle2, AlertTriangle, XCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { Loader2, Upload, FileText, CheckCircle2, AlertTriangle, XCircle, ChevronDown, ChevronRight, PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { notify } from "@/lib/notify";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
+import { AddExerciseDialog } from "@/components/AddExerciseDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface ParsedExercise {
@@ -53,6 +54,9 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [expandedExercises, setExpandedExercises] = useState<Set<number>>(new Set());
   const [isDragOver, setIsDragOver] = useState(false);
+  const [addExerciseDialogOpen, setAddExerciseDialogOpen] = useState(false);
+  const [addExerciseDefaultName, setAddExerciseDefaultName] = useState("");
+  const [addExerciseTargetIdx, setAddExerciseTargetIdx] = useState<number | null>(null);
   const createPrescription = useCreatePrescription();
   const { data: exercisesLibrary } = useExercisesLibrary();
 
@@ -339,14 +343,31 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
                               </Button>
                             </div>
                           ) : (
-                            <ExerciseCombobox
-                              exercises={(exercisesLibrary || []).map(e => ({ id: e.id, name: e.name }))}
-                              value=""
-                              onValueChange={(id) => {
-                                const ex = exercisesLibrary?.find(e => e.id === id);
-                                if (ex) handleExerciseMatch(idx, ex.id, ex.name);
-                              }}
-                            />
+                            <div className="flex gap-2 items-start">
+                              <div className="flex-1">
+                                <ExerciseCombobox
+                                  exercises={(exercisesLibrary || []).map(e => ({ id: e.id, name: e.name }))}
+                                  value=""
+                                  onValueChange={(id) => {
+                                    const ex = exercisesLibrary?.find(e => e.id === id);
+                                    if (ex) handleExerciseMatch(idx, ex.id, ex.name);
+                                  }}
+                                />
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-xs h-9 gap-1 shrink-0"
+                                onClick={() => {
+                                  setAddExerciseDefaultName(exercise.name);
+                                  setAddExerciseTargetIdx(idx);
+                                  setAddExerciseDialogOpen(true);
+                                }}
+                              >
+                                <PlusCircle className="h-3.5 w-3.5" />
+                                Cadastrar
+                              </Button>
+                            </div>
                           )}
                         </div>
 
@@ -407,6 +428,20 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
           </DialogFooter>
         )}
       </DialogContent>
+
+      {/* Add Exercise Dialog for creating new exercises inline */}
+      <AddExerciseDialog
+        externalOpen={addExerciseDialogOpen}
+        onExternalOpenChange={setAddExerciseDialogOpen}
+        defaultName={addExerciseDefaultName}
+        onCreated={(newExercise) => {
+          if (addExerciseTargetIdx !== null) {
+            handleExerciseMatch(addExerciseTargetIdx, newExercise.id, newExercise.name);
+          }
+          setAddExerciseDialogOpen(false);
+          setAddExerciseTargetIdx(null);
+        }}
+      />
     </Dialog>
   );
 }
