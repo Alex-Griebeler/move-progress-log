@@ -38,7 +38,7 @@ interface SortableExerciseItemProps {
   total: number;
   prescriptionType?: 'group' | 'individual';
   exercisesLibrary: Array<{ id: string; name: string }>;
-  onUpdate: (field: keyof Exercise, value: any) => void;
+  onUpdate: (field: keyof Exercise, value: Exercise[keyof Exercise]) => void;
   onRemove: () => void;
   onToggleAdaptations: () => void;
   onAddAdaptation: () => void;

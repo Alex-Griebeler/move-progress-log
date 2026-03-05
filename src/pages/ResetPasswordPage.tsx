@@ -26,7 +26,7 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [passwordSecurity, setPasswordSecurity] = useState<any>(null);
+  const [passwordSecurity, setPasswordSecurity] = useState<{ isSecure: boolean; strength: "weak" | "medium" | "strong"; message: string; checks: Record<string, boolean | null> } | null>(null);
   const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
   
   const navigate = useNavigate();

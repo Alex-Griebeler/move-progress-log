@@ -20,12 +20,43 @@ import { motion } from "framer-motion";
 import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
 
+interface SessionWithExercises {
+  id: string;
+  date: string;
+  time: string;
+  session_type: string;
+  is_finalized?: boolean;
+  exercises?: Array<{ exercise_name: string; load_kg?: number | null; sets?: number | null; reps?: number | null }>;
+}
+
+interface PrescriptionAssignment {
+  id: string;
+  start_date: string;
+  end_date: string | null;
+  prescription_id: string;
+}
+
+interface OuraMetricsSnapshot {
+  date: string;
+  readiness_score: number | null;
+  sleep_score: number | null;
+  activity_score: number | null;
+  stress_high_time: number | null;
+  resting_heart_rate: number | null;
+  average_sleep_hrv: number | null;
+}
+
+interface OuraConnectionInfo {
+  is_active: boolean;
+  last_sync_at: string | null;
+}
+
 interface StudentOverviewDashboardProps {
   student: Student;
-  sessions: any[];
-  assignments: any[];
-  latestOuraMetrics: any;
-  ouraConnection: any;
+  sessions: SessionWithExercises[];
+  assignments: PrescriptionAssignment[];
+  latestOuraMetrics: OuraMetricsSnapshot | null;
+  ouraConnection: OuraConnectionInfo | null;
   onEditStudent: () => void;
   onNavigateToOura: () => void;
 }
@@ -178,7 +209,7 @@ export const StudentOverviewDashboard = ({
     if (!sessions) return 0;
     const exerciseNames = new Set<string>();
     sessions.forEach(session => {
-      session.exercises?.forEach((ex: any) => {
+      session.exercises?.forEach((ex) => {
         exerciseNames.add(ex.exercise_name);
       });
     });

@@ -62,9 +62,9 @@ export const useSessionsWithExercises = (studentId: string) => {
         .order("time", { ascending: false });
 
       if (error) throw error;
-      return (sessions || []).map((session: any) => ({
+      return (sessions || []).map((session) => ({
         ...session,
-        exercises: session.exercises || [],
+        exercises: Array.isArray(session.exercises) ? session.exercises : [],
       }));
     },
   });
