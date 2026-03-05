@@ -185,8 +185,8 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
       if (onStudentCreated && newStudent) {
         onStudentCreated(newStudent);
       }
-    } catch (error: any) {
-      loader.error(i18n.modules.students.errorCreate, error.message);
+    } catch (error) {
+      loader.error(i18n.modules.students.errorCreate, error instanceof Error ? error.message : "Erro desconhecido");
     } finally {
       setIsUploadingAvatar(false);
     }

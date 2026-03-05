@@ -128,8 +128,8 @@ export default function AdminUsersPage() {
       if (studentsError) throw studentsError;
 
       // Combinar dados de trainers/admins
-      const trainersData: UserWithRole[] = (profiles || []).map((profile: any) => {
-        const roleData = roles?.find((r: any) => r.user_id === profile.id);
+      const trainersData: UserWithRole[] = (profiles || []).map((profile) => {
+        const roleData = roles?.find((r) => r.user_id === profile.id);
 
         return {
           id: profile.id,
@@ -142,7 +142,7 @@ export default function AdminUsersPage() {
       });
 
       // Adicionar alunos como usuários com role 'user'
-      const studentsData: UserWithRole[] = (students || []).map((student: any) => ({
+      const studentsData: UserWithRole[] = (students || []).map((student) => ({
         id: student.id,
         email: 'aluno@fabrikbrasil.com', // Placeholder - alunos não têm email no sistema
         full_name: student.name,
@@ -152,11 +152,11 @@ export default function AdminUsersPage() {
       }));
 
       setUsers([...trainersData, ...studentsData]);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error fetching users:", error);
       toast({
         title: "Erro ao carregar usuários",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
       });
     } finally {
