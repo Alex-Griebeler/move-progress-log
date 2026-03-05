@@ -1,13 +1,15 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-serve(async (req) => {
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -26,7 +28,9 @@ serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Auth client with user's token
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+
+    // Auth client with user's token (only for getUser)
     const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -43,14 +47,17 @@ serve(async (req) => {
       });
     }
 
-    // 2. Verify admin role
-    const { data: roleData } = await supabaseAuth
+    // 2. Verify admin role using SERVICE ROLE to bypass RLS
+    const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: roleData } = await supabaseService
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
+      .eq("role", "admin")
       .maybeSingle();
 
-    if (!roleData || roleData.role !== "admin") {
+    if (!roleData) {
       return new Response(JSON.stringify({ error: "Acesso negado" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -58,7 +65,7 @@ serve(async (req) => {
     }
 
     // 3. Validate input
-    const { message } = await req.json();
+    const { message, history } = await req.json();
 
     if (!message || typeof message !== "string" || message.trim().length === 0) {
       return new Response(
@@ -80,8 +87,23 @@ serve(async (req) => {
       );
     }
 
+    // Validate and sanitize history
+    const chatHistory: ChatMessage[] = [];
+    if (Array.isArray(history)) {
+      for (const msg of history.slice(-20)) { // Max 20 previous messages
+        if (
+          msg &&
+          typeof msg.role === "string" &&
+          typeof msg.content === "string" &&
+          (msg.role === "user" || msg.role === "assistant") &&
+          msg.content.length <= 4000
+        ) {
+          chatHistory.push({ role: msg.role, content: msg.content });
+        }
+      }
+    }
+
     // 4. Load project memory using service role
-    const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
     const { data: memoryRows } = await supabaseService
       .from("ai_project_memory")
       .select("key, content");
@@ -113,10 +135,17 @@ ${projectMemory}
 ## Response Format
 You MUST respond by calling the classify_response function with:
 - type: "conversation", "planning", or "build"
-- message: Your response text. For planning, use numbered steps. For build, describe what will be created.
+- message: Your response text (use markdown formatting for readability). For planning, use numbered steps. For build, describe what will be created.
+- title: A short summary (max 60 chars) of what the user is requesting (used as GitHub issue title for build tasks).
 
 ## Language
 Always respond in Portuguese (Brazilian).`;
+
+    const aiMessages = [
+      { role: "system", content: systemPrompt },
+      ...chatHistory,
+      { role: "user", content: message },
+    ];
 
     const aiResponse = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -128,10 +157,7 @@ Always respond in Portuguese (Brazilian).`;
         },
         body: JSON.stringify({
           model: "openai/gpt-5",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: message },
-          ],
+          messages: aiMessages,
           tools: [
             {
               type: "function",
@@ -147,6 +173,7 @@ Always respond in Portuguese (Brazilian).`;
                       enum: ["conversation", "planning", "build"],
                     },
                     message: { type: "string" },
+                    title: { type: "string", description: "Short summary, max 60 chars" },
                   },
                   required: ["type", "message"],
                   additionalProperties: false,
@@ -164,6 +191,8 @@ Always respond in Portuguese (Brazilian).`;
 
     if (!aiResponse.ok) {
       const status = aiResponse.status;
+      const errorText = await aiResponse.text();
+
       if (status === 429) {
         return new Response(
           JSON.stringify({
@@ -186,7 +215,6 @@ Always respond in Portuguese (Brazilian).`;
           }
         );
       }
-      const errorText = await aiResponse.text();
       console.error("AI Gateway error:", status, errorText);
       throw new Error(`AI Gateway error: ${status}`);
     }
@@ -194,12 +222,11 @@ Always respond in Portuguese (Brazilian).`;
     const aiData = await aiResponse.json();
     const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
 
-    let result: { type: string; message: string; issue_url?: string };
+    let result: { type: string; message: string; title?: string; issue_url?: string };
 
     if (toolCall?.function?.arguments) {
       result = JSON.parse(toolCall.function.arguments);
     } else {
-      // Fallback: use content directly
       result = {
         type: "conversation",
         message:
@@ -213,6 +240,12 @@ Always respond in Portuguese (Brazilian).`;
       const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
       if (GITHUB_TOKEN) {
         try {
+          // Use AI-generated title or fallback to first 60 chars of user message
+          const issueTitle = result.title || message.slice(0, 60).trim() || "AI Builder Task";
+          // Sanitize body content - escape potential injection
+          const sanitizedMessage = message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const sanitizedPlan = result.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
           const ghResponse = await fetch(
             "https://api.github.com/repos/Alex-Griebeler/move-progress-log/issues",
             {
@@ -224,8 +257,8 @@ Always respond in Portuguese (Brazilian).`;
                 "User-Agent": "Fabrik-AI-Builder",
               },
               body: JSON.stringify({
-                title: "AI Builder Task",
-                body: `## Solicitação do AI Builder\n\n${message}\n\n---\n\n## Plano de implementação\n\n${result.message}`,
+                title: `[AI Builder] ${issueTitle}`,
+                body: `## Solicitação do AI Builder\n\n${sanitizedMessage}\n\n---\n\n## Plano de implementação\n\n${sanitizedPlan}`,
               }),
             }
           );
@@ -242,8 +275,7 @@ Always respond in Portuguese (Brazilian).`;
           }
         } catch (ghErr) {
           console.error("GitHub error:", ghErr);
-          result.message +=
-            "\n\n⚠️ Erro ao conectar ao GitHub.";
+          result.message += "\n\n⚠️ Erro ao conectar ao GitHub.";
         }
       } else {
         result.message +=

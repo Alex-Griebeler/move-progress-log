@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Bot, User, ExternalLink, Loader2 } from "lucide-react";
 import { sendAIBuilderMessage, type AIBuilderResponse } from "./aiService";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import ReactMarkdown from "react-markdown";
 
 interface ChatMessage {
   id: string;
@@ -17,22 +17,28 @@ interface ChatMessage {
 }
 
 const MAX_CHARS = 2000;
+const SEND_COOLDOWN_MS = 2000;
 
 export function AIChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [lastSentAt, setLastSentAt] = useState(0);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
+
+    // Cooldown check
+    if (Date.now() - lastSentAt < SEND_COOLDOWN_MS) {
+      toast.info("Aguarde um momento antes de enviar outra mensagem.");
+      return;
+    }
 
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
@@ -44,9 +50,16 @@ export function AIChat() {
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+    setLastSentAt(Date.now());
 
     try {
-      const response = await sendAIBuilderMessage(trimmed);
+      // Build history from previous messages (exclude current)
+      const history = messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      const response = await sendAIBuilderMessage(trimmed, history);
 
       const aiMessage: ChatMessage = {
         id: crypto.randomUUID(),
@@ -73,7 +86,7 @@ export function AIChat() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [input, isLoading, lastSentAt, messages]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -84,20 +97,20 @@ export function AIChat() {
 
   const typeBadge = (type?: string) => {
     if (!type) return null;
-    const variants: Record<string, { label: string; className: string }> = {
-      conversation: { label: "Conversa", className: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
-      planning: { label: "Planejamento", className: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
-      build: { label: "Build", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+    const variants: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
+      conversation: { label: "Conversa", variant: "secondary" },
+      planning: { label: "Planejamento", variant: "outline" },
+      build: { label: "Build", variant: "default" },
     };
     const v = variants[type];
     if (!v) return null;
-    return <Badge variant="outline" className={v.className}>{v.label}</Badge>;
+    return <Badge variant={v.variant}>{v.label}</Badge>;
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] max-w-4xl mx-auto">
       {/* Messages */}
-      <ScrollArea className="flex-1 px-4 py-6" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto px-4 py-6">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3 py-20">
             <Bot className="h-12 w-12 opacity-30" />
@@ -131,7 +144,13 @@ export function AIChat() {
                   <div className="mb-2">{typeBadge(msg.type)}</div>
                 )}
 
-                <div className="whitespace-pre-wrap">{msg.content}</div>
+                {msg.role === "assistant" ? (
+                  <div className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                )}
 
                 {msg.issue_url && (
                   <a
@@ -166,7 +185,9 @@ export function AIChat() {
             </div>
           )}
         </div>
-      </ScrollArea>
+
+        <div ref={messagesEndRef} />
+      </div>
 
       {/* Input */}
       <div className="border-t border-border p-4">
@@ -189,6 +210,7 @@ export function AIChat() {
             disabled={!input.trim() || isLoading}
             size="icon"
             className="h-[60px] w-[60px]"
+            aria-label="Enviar mensagem"
           >
             <Send className="h-5 w-5" />
           </Button>
