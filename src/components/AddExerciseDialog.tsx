@@ -36,7 +36,7 @@ import {
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { notify } from "@/lib/notify";
 
 // Flatten equipment for selection
 const ALL_EQUIPMENT = Object.values(EQUIPMENT_CATEGORIES).flat();
@@ -117,8 +117,11 @@ export const AddExerciseDialog = ({
     e.preventDefault();
 
     if (!name.trim() || !movementPattern) {
+      notify.error("Preencha o nome e o padrão de movimento.");
       return;
     }
+
+    try {
 
     const result = await createExercise.mutateAsync({
       name: name.trim(),
@@ -145,6 +148,7 @@ export const AddExerciseDialog = ({
       default_sets: defaultSets.trim() || null,
       default_reps: defaultReps.trim() || null,
       equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
+      stability_position: stabilityPosition && stabilityPosition !== "none" ? stabilityPosition : null,
       surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",
     });
 
@@ -178,6 +182,13 @@ export const AddExerciseDialog = ({
     setSelectedEquipment([]);
     setStabilityPosition("");
     setSurfaceModifier("");
+
+    if (!onCreated) {
+      setDialogOpen(false);
+    }
+    } catch (err: unknown) {
+      // Error already handled by mutation's onError
+    }
   };
 
   return (
@@ -534,10 +545,15 @@ export const AddExerciseDialog = ({
           </form>
         </div>
 
-        <div className="pt-4 border-t border-border">
+        <div className="pt-4 border-t border-border shrink-0">
           <Button 
-            type="submit" 
-            form="add-exercise-form"
+            type="button"
+            onClick={(e) => {
+              const form = document.getElementById('add-exercise-form') as HTMLFormElement;
+              if (form) {
+                form.requestSubmit();
+              }
+            }}
             className="w-full" 
             disabled={createExercise.isPending}
           >
