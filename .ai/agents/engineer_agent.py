@@ -116,3 +116,44 @@ print('Generated patch:')
 print(patch)
 
 print('Patch generator complete. Patch not applied.')
+
+# --- Patch application layer ---
+print('Applying patch...')
+
+import subprocess
+import datetime
+
+# 1. Save patch to temp file
+patch_path = 'ai_changes.patch'
+with open(patch_path, 'w') as f:
+    f.write(patch)
+print('Patch saved to:', patch_path)
+
+# 2. Create new branch
+timestamp = datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')
+branch_name = 'ai/issue-' + timestamp
+subprocess.run(['git', 'checkout', '-b', branch_name], check=True)
+print('Created branch:', branch_name)
+
+# 3. Apply the patch
+apply_result = subprocess.run(
+    ['git', 'apply', '--ignore-whitespace', patch_path],
+    capture_output=True,
+    text=True
+)
+if apply_result.returncode != 0:
+    print('git apply stderr:', apply_result.stderr)
+    raise RuntimeError('Patch application failed')
+print('Patch applied successfully')
+
+# 4. Stage all modified files
+subprocess.run(['git', 'add', '-A'], check=True)
+print('Files staged')
+
+# 5. Commit
+subprocess.run(
+    ['git', 'commit', '-m', 'AI engineer: apply generated patch for issue'],
+    check=True
+)
+print('Changes committed on branch:', branch_name)
+print('Patch application complete. Pull request not opened.')
