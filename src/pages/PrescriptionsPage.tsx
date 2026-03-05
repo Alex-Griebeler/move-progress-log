@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, FolderPlus, MoreVertical, Sparkles } from "lucide-react";
+import { Plus, Search, FolderPlus, MoreVertical, Sparkles, FileUp } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import { usePrescriptions, useDeletePrescription } from "@/hooks/usePrescription
 import { useFolders, useMovePrescription, useReorderPrescriptions, useDeleteFolder, PrescriptionFolder } from "@/hooks/useFolders";
 import { usePrescriptionSearch } from "@/hooks/usePrescriptionSearch";
 import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog";
+import { ImportPrescriptionFromWordDialog } from "@/components/ImportPrescriptionFromWordDialog";
 import { EditPrescriptionDialog } from "@/components/EditPrescriptionDialog";
 import { AssignPrescriptionDialog } from "@/components/AssignPrescriptionDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
@@ -72,6 +73,7 @@ export default function PrescriptionsPage() {
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [importWordDialogOpen, setImportWordDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [recordGroupDialogOpen, setRecordGroupDialogOpen] = useState(false);
@@ -352,6 +354,17 @@ export default function PrescriptionsPage() {
                 <Sparkles className="h-4 w-4" />
                 Gerar com IA
               </Button>
+
+              <Button
+                onClick={() => setImportWordDialogOpen(true)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                aria-label="Importar prescrição do Word"
+              >
+                <FileUp className="h-4 w-4" />
+                Importar Word
+              </Button>
               
               <Button
                 onClick={() => setCreateDialogOpen(true)}
@@ -462,6 +475,11 @@ export default function PrescriptionsPage() {
       <CreatePrescriptionDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+      />
+
+      <ImportPrescriptionFromWordDialog
+        open={importWordDialogOpen}
+        onOpenChange={setImportWordDialogOpen}
       />
       
       <EditPrescriptionDialog

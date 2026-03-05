@@ -77,3 +77,6 @@ verify_jwt = true
 
 [functions.classify-exercises]
 verify_jwt = true
+
+[functions.parse-word-prescription]
+verify_jwt = false
