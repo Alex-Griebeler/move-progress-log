@@ -84,7 +84,7 @@ export function AIChat({ conversationId }: AIChaChatProps) {
         role: "assistant",
         content: response.message,
         message_type: response.type,
-        issue_url: response.issue_url,
+        issue_url: response.pr_url || response.issue_url,
       });
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Erro desconhecido";
@@ -112,7 +112,7 @@ export function AIChat({ conversationId }: AIChaChatProps) {
     const variants: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
       conversation: { label: "Conversa", variant: "secondary" },
       planning: { label: "Planejamento", variant: "outline" },
-      build: { label: "Build", variant: "default" },
+      build: { label: "Pull Request", variant: "default" },
     };
     const v = variants[type];
     if (!v) return null;
@@ -232,7 +232,7 @@ function MessageBubble({
             className="inline-flex items-center gap-1 mt-2 text-xs text-primary underline underline-offset-2 hover:opacity-80"
           >
             <ExternalLink className="h-3 w-3" />
-            Ver issue no GitHub
+            {msg.issue_url.includes("/pull/") ? "Ver Pull Request no GitHub" : "Ver issue no GitHub"}
           </a>
         )}
       </div>
