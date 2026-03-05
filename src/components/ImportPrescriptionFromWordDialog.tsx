@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, Upload, FileText, CheckCircle2, AlertTriangle, XCircle, ChevronDown, ChevronRight, PlusCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
@@ -199,7 +198,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh]">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Importar Prescrição do Word</DialogTitle>
           <DialogDescription>
@@ -241,10 +240,10 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
         )}
 
         {step === "review" && currentPrescription && (
-          <div className="space-y-4">
+          <div className="flex flex-col min-h-0 flex-1 space-y-3">
             {/* Prescription selector tabs */}
             {prescriptions.length > 1 && (
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex gap-2 flex-wrap shrink-0">
                 {prescriptions.map((p, i) => (
                   <Button
                     key={i}
@@ -260,7 +259,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
             )}
 
             {/* Prescription info */}
-            <div className="bg-muted/50 rounded-lg p-3 space-y-1">
+            <div className="bg-muted/50 rounded-lg p-3 space-y-1 shrink-0">
               <p className="font-medium text-sm">{currentPrescription.name}</p>
               {currentPrescription.objective && (
                 <p className="text-xs text-muted-foreground">Objetivo: {currentPrescription.objective}</p>
@@ -271,7 +270,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
             </div>
 
             {/* Exercises list */}
-            <ScrollArea className="h-[400px] pr-2">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
               <div className="space-y-2">
                 {currentPrescription.exercises.map((exercise, idx) => (
                   <Collapsible
@@ -321,8 +320,6 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
                                 variant="ghost"
                                 className="text-xs h-7"
                                 onClick={() => {
-                                  handleExerciseMatch(idx, "", "");
-                                  // Reset to allow re-selection
                                   setPrescriptions(prev => {
                                     const updated = [...prev];
                                     const prescription = { ...updated[selectedIndex] };
@@ -392,7 +389,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
                         )}
 
                         {/* Exercise details */}
-                        <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-muted-foreground">
                           {exercise.pse && <span>PSE: {exercise.pse}</span>}
                           {exercise.interval_seconds && <span>Int: {exercise.interval_seconds}s</span>}
                           {exercise.training_method && <span>Método: {exercise.training_method}</span>}
@@ -405,7 +402,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
                   </Collapsible>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         )}
 
