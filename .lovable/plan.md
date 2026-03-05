@@ -1,5 +1,3 @@
-
-
 ## Recomendação: Criar campo separado `surface_modifier`
 
 ### Raciocínio
@@ -35,3 +33,22 @@ Se adicionarmos ao eixo de posição, teríamos explosão combinatória (14 posi
 
 Total: 1 migration + 5 arquivos editados.
 
+---
+
+# Plano de Revisão Geral — Etapas
+
+## Etapa 1 — Corrigir bug de rota (rápido)
+- [ ] StatCard "Alunos Ativos" navega para `/students` em vez de `/alunos`
+
+## Etapa 2 — Limpar console.logs (~99 ocorrências)
+- [ ] Substituir `console.log/warn/error` por `logger` de `@/utils/logger.ts`
+- [ ] Prioridade: hooks → pages → components
+- [ ] Manter `console.*` apenas em infra (logger.ts, client.ts)
+
+## Etapa 3 — Refatorar Index.tsx (442 → ~100 linhas)
+- [ ] Extrair `DevToolsCard`
+- [ ] Extrair `StatsGrid`
+- [ ] Extrair `RecentWorkoutsSection`
+
+## Etapa 4 — Publicar versão
+- [ ] Deploy com todas as melhorias acumuladas
