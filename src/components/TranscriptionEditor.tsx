@@ -7,6 +7,7 @@ import { Save, CheckCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { useDebounce } from "@/hooks/useDebounce";
+import { logger } from "@/utils/logger";
 
 interface TranscriptionEditorProps {
   segmentId?: string;
@@ -48,7 +49,7 @@ export function TranscriptionEditor({
       setHasUnsavedChanges(false);
       onTranscriptionChange(text);
     } catch (error) {
-      console.error('Error saving transcription:', error);
+      logger.error('Error saving transcription:', error);
       notify.error("Erro ao salvar", {
         description: "Não foi possível salvar a transcrição editada",
       });

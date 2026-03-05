@@ -35,6 +35,7 @@ import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { AddUserDialog } from "@/components/AddUserDialog";
 import { EditUserDialog } from "@/components/EditUserDialog";
+import { logger } from "@/utils/logger";
 
 interface UserWithRole {
   id: string;
@@ -153,7 +154,7 @@ export default function AdminUsersPage() {
 
       setUsers([...trainersData, ...studentsData]);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      logger.error("Error fetching users:", error);
       toast({
         title: "Erro ao carregar usuários",
         description: error instanceof Error ? error.message : "Erro desconhecido",

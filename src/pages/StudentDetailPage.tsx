@@ -49,6 +49,7 @@ import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getPerson
 import { ErrorState } from "@/components/ErrorState";
 import { StudentHeaderSkeleton } from "@/components/skeletons/StudentHeaderSkeleton";
 import { getObjectiveLabel } from "@/constants/objectives";
+import { logger } from "@/utils/logger";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -445,7 +446,7 @@ const StudentDetailPage = () => {
                     }}
                     onFinalize={() => finalizeSession.mutate(session.id)}
                     onClick={() => {
-                      console.log("CLICOU NO CARD - Session ID:", session.id, "Session:", session);
+                      logger.log("CLICOU NO CARD - Session ID:", session.id, "Session:", session);
                       setSelectedSessionId(session.id);
                     }}
                   />
@@ -783,7 +784,7 @@ const StudentDetailPage = () => {
         sessionId={selectedSessionId}
         open={!!selectedSessionId}
         onOpenChange={(open) => {
-          console.log("DIALOG ONCHANGE - open:", open, "selectedSessionId:", selectedSessionId);
+          logger.log("DIALOG ONCHANGE - open:", open, "selectedSessionId:", selectedSessionId);
           if (!open) setSelectedSessionId(null);
         }}
         onReopenSession={(sessionId) => {

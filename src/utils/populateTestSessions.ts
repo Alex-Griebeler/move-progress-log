@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 interface TestSessionExercise {
   exercise_name: string;
@@ -193,7 +194,7 @@ export const populateTestSessions = async () => {
           .single();
 
         if (sessionError) {
-          console.error(`Erro ao criar sessão para ${session.studentName}:`, sessionError);
+          logger.error(`Erro ao criar sessão para ${session.studentName}:`, sessionError);
           errorCount++;
           continue;
         }
@@ -215,13 +216,13 @@ export const populateTestSessions = async () => {
           .insert(exercisesToInsert);
 
         if (exercisesError) {
-          console.error(`Erro ao criar exercícios para ${session.studentName}:`, exercisesError);
+          logger.error(`Erro ao criar exercícios para ${session.studentName}:`, exercisesError);
           errorCount++;
         } else {
           successCount++;
         }
       } catch (err) {
-        console.error(`Erro inesperado ao processar sessão de ${session.studentName}:`, err);
+        logger.error(`Erro inesperado ao processar sessão de ${session.studentName}:`, err);
         errorCount++;
       }
     }
@@ -234,7 +235,7 @@ export const populateTestSessions = async () => {
       message: `${successCount} sessões criadas com sucesso!`,
     };
   } catch (error) {
-    console.error('Erro ao popular dados de teste:', error);
+    logger.error('Erro ao popular dados de teste:', error);
     throw error;
   }
 };

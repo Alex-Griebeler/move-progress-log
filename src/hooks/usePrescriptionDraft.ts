@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from '@/lib/notify';
+import { logger } from '@/utils/logger';
 import { usePrescriptionDraftHistory } from './usePrescriptionDraftHistory';
 
 interface PrescriptionDraft {
@@ -50,7 +51,7 @@ export function usePrescriptionDraft(entityId?: string) {
           description: "Seus dados foram restaurados automaticamente",
         });
       } catch (error) {
-        console.error('Erro ao carregar rascunho:', error);
+        logger.error('Erro ao carregar rascunho:', error);
         localStorage.removeItem(draftKey);
       }
     }

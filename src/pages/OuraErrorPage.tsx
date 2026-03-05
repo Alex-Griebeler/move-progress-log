@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logger } from "@/utils/logger";
 
 export default function OuraErrorPage() {
   const [searchParams] = useSearchParams();
@@ -88,7 +89,7 @@ export default function OuraErrorPage() {
         window.location.href = ouraAuthUrl;
       }, 2000);
     } catch (error) {
-      console.error("Error generating OAuth URL:", error);
+      logger.error("Error generating OAuth URL:", error);
       toast.error("Erro ao tentar reconectar");
       setIsRetrying(false);
     }

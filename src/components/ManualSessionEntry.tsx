@@ -13,6 +13,7 @@ import { DraftHistoryDialog } from "./DraftHistoryDialog";
 import { SessionDraft } from "@/hooks/useSessionDraftHistory";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { logger } from "@/utils/logger";
 import { 
   MIN_LOAD_KG, 
   MAX_LOAD_KG, 
@@ -232,7 +233,7 @@ export function ManualSessionEntry({
 
   const handleSubmit = async () => {
     if (isSubmitting) {
-      console.warn('⚠️ Salvamento já em progresso, ignorando clique');
+      logger.warn('⚠️ Salvamento já em progresso, ignorando clique');
       return;
     }
     
@@ -251,7 +252,7 @@ export function ManualSessionEntry({
       // Sucesso já é tratado pelo RecordGroupSessionDialog
     } catch (error) {
       // Erro já foi exibido pelo RecordGroupSessionDialog
-      console.error('❌ Erro ao salvar:', error);
+      logger.error('❌ Erro ao salvar:', error);
     } finally {
       setIsSubmitting(false);
     }

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 // Mapeamento dos papéis do sistema
 export type AppRole = 'admin' | 'moderator' | 'user';
@@ -20,7 +21,7 @@ export const useUserRole = () => {
         .maybeSingle();
 
       if (error) {
-        console.error("Error fetching user role:", error);
+        logger.error("Error fetching user role:", error);
         return null;
       }
 

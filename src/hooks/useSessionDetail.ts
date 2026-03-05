@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 interface SessionExercise {
   id: string;
@@ -51,11 +52,11 @@ export const useSessionDetail = (sessionId: string | null) => {
           .single();
 
         if (sessionError) {
-          console.error("Erro ao buscar sessão", sessionError);
+          logger.error("Erro ao buscar sessão", sessionError);
           throw sessionError;
         }
         if (!sessionData) {
-          console.error("Sessão não encontrada", { sessionId });
+          logger.error("Sessão não encontrada", { sessionId });
           throw new Error("Sessão não encontrada");
         }
 
@@ -66,11 +67,11 @@ export const useSessionDetail = (sessionId: string | null) => {
           .single();
 
         if (studentError) {
-          console.error("Erro ao buscar aluno da sessão", studentError);
+          logger.error("Erro ao buscar aluno da sessão", studentError);
           throw studentError;
         }
         if (!studentData) {
-          console.error("Aluno não encontrado para sessão", { sessionId, studentId: sessionData.student_id });
+          logger.error("Aluno não encontrado para sessão", { sessionId, studentId: sessionData.student_id });
           throw new Error("Aluno não encontrado");
         }
 
@@ -81,7 +82,7 @@ export const useSessionDetail = (sessionId: string | null) => {
           .order("created_at", { ascending: true });
 
         if (exercisesError) {
-          console.error("Erro ao buscar exercícios da sessão", exercisesError);
+          logger.error("Erro ao buscar exercícios da sessão", exercisesError);
           throw exercisesError;
         }
 
@@ -91,7 +92,7 @@ export const useSessionDetail = (sessionId: string | null) => {
           exercises: exercisesData || [],
         } as SessionDetail;
       } catch (e) {
-        console.error("Erro inesperado no carregamento de detalhes da sessão", e);
+        logger.error("Erro inesperado no carregamento de detalhes da sessão", e);
         throw e;
       }
     },

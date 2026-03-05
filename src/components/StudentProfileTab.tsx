@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { logger } from "@/utils/logger";
 
 interface StudentProfileTabProps {
   student: Student;
@@ -66,7 +67,7 @@ export const StudentProfileTab = ({ student, onEdit }: StudentProfileTabProps) =
       setIsEditing(false);
       onEdit(); // Trigger refetch
     } catch (error) {
-      console.error("Erro ao atualizar perfil:", error);
+      logger.error("Erro ao atualizar perfil:", error);
       toast.error("Erro ao atualizar perfil");
     }
   };

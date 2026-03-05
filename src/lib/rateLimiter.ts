@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 export type RateLimitAction = 'login' | 'signup' | 'reset_password' | 'verify_email';
 
@@ -28,7 +29,7 @@ export async function getClientIP(): Promise<string> {
     const data = await response.json();
     return data.ip || 'unknown';
   } catch (error) {
-    console.warn('[Rate Limit] Failed to get IP, using fallback');
+    logger.warn('[Rate Limit] Failed to get IP, using fallback');
     // Fallback to a browser fingerprint
     return generateBrowserFingerprint();
   }
@@ -77,7 +78,7 @@ export async function checkRateLimit(
   try {
     const ipAddress = await getClientIP();
     
-    console.log(`[Rate Limit] Checking ${action} for IP: ${ipAddress}`);
+    logger.log(`[Rate Limit] Checking ${action} for IP: ${ipAddress}`);
 
     const { data, error } = await supabase.functions.invoke('check-rate-limit', {
       body: {
@@ -88,7 +89,7 @@ export async function checkRateLimit(
     });
 
     if (error) {
-      console.error('[Rate Limit] Error:', error);
+      logger.error('[Rate Limit] Error:', error);
       // On error, allow the action (fail-open for better UX)
       return {
         allowed: true,
@@ -98,7 +99,7 @@ export async function checkRateLimit(
 
     return data as RateLimitResult;
   } catch (error) {
-    console.error('[Rate Limit] Exception:', error);
+    logger.error('[Rate Limit] Exception:', error);
     // On exception, allow the action (fail-open)
     return {
       allowed: true,
@@ -114,6 +115,6 @@ export async function recordFailedAttempt(action: RateLimitAction): Promise<void
   try {
     await checkRateLimit(action, true);
   } catch (error) {
-    console.error('[Rate Limit] Failed to record attempt:', error);
+    logger.error('[Rate Limit] Failed to record attempt:', error);
   }
 }
