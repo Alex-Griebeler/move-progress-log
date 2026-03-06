@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AppHeader } from "@/components/AppHeader";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { ArrowLeft, Users, TrendingUp, Calendar, Dumbbell, Filter, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,12 +20,12 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
+import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 
 interface StudentStats {
   studentId: string;
@@ -240,26 +241,27 @@ const StudentsComparisonPage = () => {
   }, [students, selectedStudents]);
 
   return (
-    <div id="main-content" className="min-h-screen bg-background" role="main">
-      <div className="container mx-auto p-6 space-y-6">
-        <Breadcrumbs 
-          items={[
-            { label: NAV_LABELS.students, href: "/alunos" },
-            { label: NAV_LABELS.studentsComparison }
-          ]}
-        />
-        
-        <AppHeader
-          title={NAV_LABELS.studentsComparison}
-          subtitle={NAV_LABELS.subtitleComparison}
-          actions={
-            <Link to="/alunos">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-          }
-        />
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.studentsComparison, NAV_LABELS.subtitleComparison), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.students, href: "/alunos" }, { label: NAV_LABELS.studentsComparison }]), id: "breadcrumb-schema" },
+      ]}
+    >
+      <PageHeader
+        title={NAV_LABELS.studentsComparison}
+        description={NAV_LABELS.subtitleComparison}
+        breadcrumbs={[
+          { label: NAV_LABELS.students, href: "/alunos" },
+          { label: NAV_LABELS.studentsComparison },
+        ]}
+        actions={
+          <Link to="/alunos">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+        }
+      />
 
         <Card>
           <CardHeader>
@@ -630,8 +632,7 @@ const StudentsComparisonPage = () => {
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </PageLayout>
   );
 };
 

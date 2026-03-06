@@ -21,17 +21,16 @@ import { RenameFolderDialog } from "@/components/RenameFolderDialog";
 import { FolderTree } from "@/components/FolderTree";
 import { PrescriptionSearchBar } from "@/components/PrescriptionSearchBar";
 import { FolderSection } from "@/components/FolderSection";
-import { AppHeader } from "@/components/AppHeader";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { PrescriptionCardSkeleton } from "@/components/skeletons/PrescriptionCardSkeleton";
 import EmptyState from "@/components/EmptyState";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
-import { StructuredData } from "@/components/StructuredData";
-import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
+import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import {
@@ -298,85 +297,71 @@ export default function PrescriptionsPage() {
   const noFolderPrescriptions = groupedPrescriptions['no-folder'] || [];
 
   return (
-    <div id="main-content" className="min-h-screen bg-background p-xl animate-fade-in" role="main">
-      {/* Structured Data */}
-      <StructuredData data={getOrganizationSchema()} id="org-schema" />
-      <StructuredData 
-        data={getWebPageSchema(
-          NAV_LABELS.prescriptions,
-          "Crie e gerencie prescrições de treino personalizadas com organização hierárquica em pastas"
-        )} 
-        id="webpage-schema" 
-      />
-      <StructuredData 
-        data={getBreadcrumbSchema([
-          { label: "Home", href: "/" },
-          { label: NAV_LABELS.prescriptions, href: "/prescricoes" }
-        ])} 
-        id="breadcrumb-schema" 
-      />
-      
-      <div className="max-w-7xl mx-auto space-y-xl">
-        <Breadcrumbs items={[{ label: NAV_LABELS.prescriptions }]} />
-        
-        <AppHeader 
-          title={NAV_LABELS.prescriptions} 
-          actions={
-            <div className="flex gap-xs">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" aria-label="Ações secundárias">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => setShowSearch(!showSearch)}>
-                    <Search className="h-4 w-4 mr-2" />
-                    Buscar prescrições
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    setSelectedParentFolderId(null);
-                    setCreateSubfolderDialogOpen(true);
-                  }}>
-                    <FolderPlus className="h-4 w-4 mr-2" />
-                    Nova pasta
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              
-              <Button
-                onClick={() => setGenerateSessionDialogOpen(true)}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                aria-label="Gerar sessão com IA"
-              >
-                <Sparkles className="h-4 w-4" />
-                Gerar com IA
-              </Button>
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.prescriptions, "Crie e gerencie prescrições de treino personalizadas com organização hierárquica em pastas"), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.prescriptions, href: "/prescricoes" }]), id: "breadcrumb-schema" },
+      ]}
+    >
+      <PageHeader
+        title={NAV_LABELS.prescriptions}
+        breadcrumbs={[{ label: NAV_LABELS.prescriptions }]}
+        actions={
+          <div className="flex gap-xs">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Ações secundárias">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setShowSearch(!showSearch)}>
+                  <Search className="h-4 w-4 mr-2" />
+                  Buscar prescrições
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  setSelectedParentFolderId(null);
+                  setCreateSubfolderDialogOpen(true);
+                }}>
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  Nova pasta
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <Button
+              onClick={() => setGenerateSessionDialogOpen(true)}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              aria-label="Gerar sessão com IA"
+            >
+              <Sparkles className="h-4 w-4" />
+              Gerar com IA
+            </Button>
 
-              <Button
-                onClick={() => setImportWordDialogOpen(true)}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                aria-label="Importar prescrição do Word"
-              >
-                <FileUp className="h-4 w-4" />
-                Importar Word
-              </Button>
-              
-              <Button
-                onClick={() => setCreateDialogOpen(true)}
-                variant="default"
-                aria-label="Nova prescrição"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Prescrição
-              </Button>
-            </div>
-          }
-        />
+            <Button
+              onClick={() => setImportWordDialogOpen(true)}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              aria-label="Importar prescrição do Word"
+            >
+              <FileUp className="h-4 w-4" />
+              Importar Word
+            </Button>
+            
+            <Button
+              onClick={() => setCreateDialogOpen(true)}
+              variant="default"
+              aria-label="Nova prescrição"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Prescrição
+            </Button>
+          </div>
+        }
+      />
 
         {/* Search bar */}
         {showSearch && (
@@ -469,7 +454,6 @@ export default function PrescriptionsPage() {
             }}
           />
         )}
-      </div>
 
       {/* Dialogs */}
       <CreatePrescriptionDialog
@@ -574,6 +558,6 @@ export default function PrescriptionsPage() {
           </AlertDialog>
         </>
       )}
-    </div>
+    </PageLayout>
   );
 }
