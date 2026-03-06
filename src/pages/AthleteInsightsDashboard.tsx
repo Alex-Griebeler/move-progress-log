@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PageLayout } from '@/components/PageLayout';
 import { PageHeader } from '@/components/PageHeader';
-import { StatCard } from '@/components/StatCard';
+import StatCard from '@/components/StatCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -66,7 +66,7 @@ export default function AthleteInsightsDashboard() {
 
   return (
     <PageLayout>
-      <PageHeader title='Insights do Atleta' subtitle='Performance, recordes e progressão de carga' />
+      <PageHeader title='Insights do Atleta' description='Performance, recordes e progressão de carga' />
       <div className='p-6 space-y-6'>
 
         <div className='flex gap-3 flex-wrap'>

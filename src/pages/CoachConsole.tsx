@@ -84,7 +84,7 @@ export default function CoachConsole() {
 
   return (
     <PageLayout>
-      <PageHeader title='Coach Console' subtitle='Ferramentas de IA para análise e coaching de atletas' />
+      <PageHeader title='Coach Console' description='Ferramentas de IA para análise e coaching de atletas' />
       <div className='p-6 space-y-6'>
 
         <Select value={studentId} onValueChange={setStudentId}>
