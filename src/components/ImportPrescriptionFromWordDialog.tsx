@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +15,7 @@ import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { notify } from "@/lib/notify";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
-import { AddExerciseDialog } from "@/components/AddExerciseDialog";
+import { AddExerciseDialog, type ExerciseDefaultValues } from "@/components/AddExerciseDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface ParsedExercise {
@@ -55,6 +55,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
   const [isDragOver, setIsDragOver] = useState(false);
   const [addExerciseDialogOpen, setAddExerciseDialogOpen] = useState(false);
   const [addExerciseDefaultName, setAddExerciseDefaultName] = useState("");
+  const [addExerciseDefaultValues, setAddExerciseDefaultValues] = useState<ExerciseDefaultValues | undefined>();
   const [addExerciseTargetIdx, setAddExerciseTargetIdx] = useState<number | null>(null);
   const createPrescription = useCreatePrescription();
   const { data: exercisesLibrary } = useExercisesLibrary();
@@ -352,11 +353,44 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
                                 />
                               </div>
                               <Button
-                                size="sm"
+size="sm"
                                 variant="outline"
                                 className="text-xs h-9 gap-1 shrink-0"
                                 onClick={() => {
                                   setAddExerciseDefaultName(exercise.name);
+                                  // Find the best match candidate and inherit its metadata
+                                  const bestMatch = exercise.matches[0];
+                                  const sourceExercise = bestMatch
+                                    ? exercisesLibrary?.find(e => e.id === bestMatch.id)
+                                    : null;
+                                  if (sourceExercise) {
+                                    setAddExerciseDefaultValues({
+                                      movementPattern: sourceExercise.movement_pattern || "",
+                                      laterality: sourceExercise.laterality || "",
+                                      movementPlane: sourceExercise.movement_plane || "",
+                                      contractionType: sourceExercise.contraction_type || "",
+                                      boyleScore: sourceExercise.boyle_score?.toString() || "",
+                                      axialLoad: sourceExercise.axial_load?.toString() || "",
+                                      lumbarDemand: sourceExercise.lumbar_demand?.toString() || "",
+                                      technicalComplexity: sourceExercise.technical_complexity?.toString() || "",
+                                      metabolicPotential: sourceExercise.metabolic_potential?.toString() || "",
+                                      kneeDominance: sourceExercise.knee_dominance?.toString() || "",
+                                      hipDominance: sourceExercise.hip_dominance?.toString() || "",
+                                      emphasis: sourceExercise.emphasis || "",
+                                      description: sourceExercise.description || "",
+                                      videoUrl: sourceExercise.video_url || "",
+                                      riskLevel: sourceExercise.risk_level || "",
+                                      category: sourceExercise.category || "",
+                                      subcategory: sourceExercise.subcategory || "",
+                                      defaultSets: sourceExercise.default_sets || "",
+                                      defaultReps: sourceExercise.default_reps || "",
+                                      selectedEquipment: sourceExercise.equipment_required || [],
+                                      stabilityPosition: sourceExercise.stability_position || "",
+                                      surfaceModifier: sourceExercise.surface_modifier || "",
+                                    });
+                                  } else {
+                                    setAddExerciseDefaultValues(undefined);
+                                  }
                                   setAddExerciseTargetIdx(idx);
                                   setAddExerciseDialogOpen(true);
                                 }}
@@ -431,12 +465,14 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
         externalOpen={addExerciseDialogOpen}
         onExternalOpenChange={setAddExerciseDialogOpen}
         defaultName={addExerciseDefaultName}
+        defaultValues={addExerciseDefaultValues}
         onCreated={(newExercise) => {
           if (addExerciseTargetIdx !== null) {
             handleExerciseMatch(addExerciseTargetIdx, newExercise.id, newExercise.name);
           }
           setAddExerciseDialogOpen(false);
           setAddExerciseTargetIdx(null);
+          setAddExerciseDefaultValues(undefined);
         }}
       />
     </Dialog>
