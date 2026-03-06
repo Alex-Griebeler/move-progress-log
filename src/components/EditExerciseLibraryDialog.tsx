@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -133,44 +132,41 @@ export const EditExerciseLibraryDialog = ({
       return;
     }
 
-    await updateExercise.mutateAsync({
-      id: exercise.id,
-      name: name.trim(),
-      movement_pattern: movementPattern,
-      laterality: laterality && laterality !== "none" ? laterality : null,
-      movement_plane: movementPlane && movementPlane !== "none" ? movementPlane : null,
-      contraction_type: contractionType && contractionType !== "none" ? contractionType : null,
-      level: null,
-      numeric_level: boyleScore && boyleScore !== "none" ? parseInt(boyleScore) : null,
-      boyle_score: boyleScore && boyleScore !== "none" ? parseInt(boyleScore) : null,
-      axial_load: axialLoad ? parseInt(axialLoad) : null,
-      lumbar_demand: lumbarDemand ? parseInt(lumbarDemand) : null,
-      technical_complexity: technicalComplexity ? parseInt(technicalComplexity) : null,
-      metabolic_potential: metabolicPotential ? parseInt(metabolicPotential) : null,
-      knee_dominance: kneeDominance ? parseInt(kneeDominance) : null,
-      hip_dominance: hipDominance ? parseInt(hipDominance) : null,
-      emphasis: emphasis.trim() || null,
-      description: description.trim() || null,
-      video_url: videoUrl.trim() || null,
-      risk_level: riskLevel && riskLevel !== "none" ? riskLevel : null,
-      category: category && category !== "none" ? category : null,
-      subcategory: subcategory.trim() || null,
-      plyometric_phase: plyometricPhase ? parseInt(plyometricPhase) : null,
-      default_sets: defaultSets.trim() || null,
-      default_reps: defaultReps.trim() || null,
-      equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
-      surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",
-    } as any);
+    try {
+      await updateExercise.mutateAsync({
+        id: exercise.id,
+        name: name.trim(),
+        movement_pattern: movementPattern,
+        laterality: laterality && laterality !== "none" ? laterality : null,
+        movement_plane: movementPlane && movementPlane !== "none" ? movementPlane : null,
+        contraction_type: contractionType && contractionType !== "none" ? contractionType : null,
+        level: null,
+        numeric_level: boyleScore && boyleScore !== "none" ? parseInt(boyleScore) : null,
+        boyle_score: boyleScore && boyleScore !== "none" ? parseInt(boyleScore) : null,
+        axial_load: axialLoad ? parseInt(axialLoad) : null,
+        lumbar_demand: lumbarDemand ? parseInt(lumbarDemand) : null,
+        technical_complexity: technicalComplexity ? parseInt(technicalComplexity) : null,
+        metabolic_potential: metabolicPotential ? parseInt(metabolicPotential) : null,
+        knee_dominance: kneeDominance ? parseInt(kneeDominance) : null,
+        hip_dominance: hipDominance ? parseInt(hipDominance) : null,
+        emphasis: emphasis.trim() || null,
+        description: description.trim() || null,
+        video_url: videoUrl.trim() || null,
+        risk_level: riskLevel && riskLevel !== "none" ? riskLevel : null,
+        category: category && category !== "none" ? category : null,
+        subcategory: subcategory.trim() || null,
+        plyometric_phase: plyometricPhase ? parseInt(plyometricPhase) : null,
+        default_sets: defaultSets.trim() || null,
+        default_reps: defaultReps.trim() || null,
+        equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
+        surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",
+        stability_position: stabilityPosition && stabilityPosition !== "none" ? stabilityPosition : null,
+      } as any);
 
-    // Update stability_position separately since it may not be in the typed interface yet
-    if (stabilityPosition && stabilityPosition !== "none") {
-      await supabase
-        .from("exercises_library")
-        .update({ stability_position: stabilityPosition } as never)
-        .eq("id", exercise.id);
+      onOpenChange(false);
+    } catch {
+      // Error handled by mutation's onError callback
     }
-
-    onOpenChange(false);
   };
 
   return (

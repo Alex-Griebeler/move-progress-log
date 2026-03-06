@@ -34,7 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const formSchema = z.object({
-  name: z.string().min(1, i18n.errors.required),
+  name: z.string().trim().min(1, i18n.errors.required),
   birth_date: z.string().optional().refine((date) => {
     if (!date) return true;
     const birthDate = new Date(date);
