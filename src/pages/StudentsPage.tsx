@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
 import { StudentCardSkeleton } from "@/components/skeletons/StudentCardSkeleton";
-import { ArrowLeft, Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw } from "lucide-react";
+import { Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
@@ -28,17 +28,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useStudentsCardData, StudentCardData } from "@/hooks/useStudentsCardData";
 import type { Student } from "@/hooks/useStudents";
-import { AppHeader } from "@/components/AppHeader";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
+
 import { useOuraSyncAll } from "@/hooks/useOuraSyncAll";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
-import { StructuredData } from "@/components/StructuredData";
-import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
+import { getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -314,41 +314,17 @@ const StudentsPage = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background animate-fade-in">
-      <StructuredData data={getOrganizationSchema()} id="org-schema" />
-      <StructuredData 
-        data={getWebPageSchema(
-          NAV_LABELS.students,
-          "Gerencie os dados dos seus alunos, acompanhe métricas Oura Ring e registre sessões de treino"
-        )} 
-        id="webpage-schema" 
-      />
-      <StructuredData 
-        data={getBreadcrumbSchema([
-          { label: "Home", href: "/" },
-          { label: NAV_LABELS.students, href: "/alunos" }
-        ])} 
-        id="breadcrumb-schema" 
-      />
-      {students && students.length > 0 && (
-        <StructuredData 
-          data={getItemListSchema(
-            students.map(s => ({ name: s.name, url: `/alunos/${s.id}` })),
-            "Lista de Alunos"
-          )} 
-          id="students-list-schema" 
-        />
-      )}
-      
-      <div id="main-content" className="container mx-auto p-lg space-y-lg" role="main">
-        <Breadcrumbs 
-          items={[
-            { label: NAV_LABELS.students, href: "/alunos", icon: Users }
-          ]}
-        />
-        
-        <AppHeader
+    <PageLayout
+      className="animate-fade-in"
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.students, "Gerencie os dados dos seus alunos, acompanhe métricas Oura Ring e registre sessões de treino"), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.students, href: "/alunos" }]), id: "breadcrumb-schema" },
+        ...(students && students.length > 0 ? [{ data: getItemListSchema(students.map(s => ({ name: s.name, url: `/alunos/${s.id}` })), "Lista de Alunos"), id: "students-list-schema" }] : []),
+      ]}
+    >
+        <PageHeader
           title={NAV_LABELS.students}
+          breadcrumbs={[{ label: NAV_LABELS.students, href: "/alunos", icon: Users }]}
           actions={
             <>
               <Button variant="default" onClick={() => setIsAddDialogOpen(true)} aria-label={NAV_LABELS.addStudent}>
@@ -398,12 +374,6 @@ const StudentsPage = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-
-              <Link to="/">
-                <Button variant="ghost" size="icon" aria-label="Voltar para página inicial">
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-              </Link>
             </>
           }
         />
@@ -464,7 +434,6 @@ const StudentsPage = () => {
             }}
           />
         )}
-      </div>
 
       <AddStudentDialog
         open={isAddDialogOpen}
@@ -519,7 +488,7 @@ const StudentsPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageLayout>
   );
 };
 

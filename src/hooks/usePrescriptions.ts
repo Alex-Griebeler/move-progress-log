@@ -78,7 +78,8 @@ export const usePrescriptions = () => {
           prescription_assignments(student_id)
         `)
         .order("folder_id", { ascending: true, nullsFirst: false })
-        .order("order_index", { ascending: true });
+        .order("order_index", { ascending: true })
+        .limit(500);
 
       if (error) throw error;
       

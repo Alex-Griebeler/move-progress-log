@@ -43,7 +43,8 @@ export const useWorkoutSessions = (studentId?: string) => {
         .from("workout_sessions")
         .select("*")
         .order("date", { ascending: false })
-        .order("time", { ascending: false });
+        .order("time", { ascending: false })
+        .limit(500);
 
       if (studentId) {
         query = query.eq("student_id", studentId);
