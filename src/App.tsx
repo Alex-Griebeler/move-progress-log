@@ -14,6 +14,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ROUTES } from "@/constants/navigation";
 import { GlobalSearch } from "@/components/GlobalSearch";
+import { ThemeProvider } from "next-themes";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 // AUD-009: Code splitting por rota para reduzir bundle size inicial
 const Index = lazy(() => import("./pages/Index"));
@@ -41,63 +43,66 @@ const queryClient = new QueryClient();
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <TrainingProvider>
-          <SkipToContent />
-          <Toaster />
-          <Sonner />
-          <AuthDebugPanel />
-          <BrowserRouter>
-            <GlobalSearch />
-            <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>
-              <Routes>
-                {/* Public routes without sidebar */}
-                <Route path={ROUTES.auth} element={<AuthPage />} />
-                <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
-                <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
-                <Route path={ROUTES.onboardingSuccess} element={<OnboardingSuccessPage />} />
-                <Route path={ROUTES.ouraError} element={<OuraErrorPage />} />
-                
-                {/* Protected routes with sidebar */}
-                <Route path="/*" element={
-                  <ProtectedRoute>
-                    <SidebarProvider>
-                      <div className="flex min-h-screen w-full">
-                        <AppSidebar />
-                        <div className="flex-1 flex flex-col">
-                          <header className="h-14 flex items-center border-b border-border px-4 sticky top-0 bg-background z-50 backdrop-blur-sm">
-                            <SidebarTrigger aria-label="Abrir/Fechar menu lateral" />
-                          </header>
-                          <main className="flex-1">
-                            <ErrorBoundary>
-                              <Routes>
-                                <Route path="/" element={<Index />} />
-                                <Route path="/alunos" element={<StudentsPage />} />
-                                <Route path="/alunos/:id" element={<StudentDetailPage />} />
-                                <Route path="/alunos/:studentId/relatorios" element={<StudentReportsPage />} />
-                                <Route path="/alunos-comparacao" element={<StudentsComparisonPage />} />
-                                <Route path="/sessoes" element={<SessionsPage />} />
-                                <Route path="/exercicios" element={<ExercisesLibraryPage />} />
-                                <Route path="/prescricoes" element={<PrescriptionsPage />} />
-                                <Route path="/protocolos" element={<RecoveryProtocolsPage />} />
-                                <Route path="/admin/diagnostico-oura" element={<AdminDiagnosticsPage />} />
-                                <Route path="/admin/usuarios" element={<AdminUsersPage />} />
-                                <Route path="/admin/revisao-exercicios" element={<ExerciseReviewPage />} />
-                                <Route path="/ai-builder" element={<AIBuilderPage />} />
-                                <Route path="*" element={<NotFound />} />
-                              </Routes>
-                            </ErrorBoundary>
-                          </main>
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+        <TooltipProvider>
+          <TrainingProvider>
+            <SkipToContent />
+            <Toaster />
+            <Sonner />
+            <AuthDebugPanel />
+            <BrowserRouter>
+              <GlobalSearch />
+              <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>
+                <Routes>
+                  {/* Public routes without sidebar */}
+                  <Route path={ROUTES.auth} element={<AuthPage />} />
+                  <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
+                  <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
+                  <Route path={ROUTES.onboardingSuccess} element={<OnboardingSuccessPage />} />
+                  <Route path={ROUTES.ouraError} element={<OuraErrorPage />} />
+                  
+                  {/* Protected routes with sidebar */}
+                  <Route path="/*" element={
+                    <ProtectedRoute>
+                      <SidebarProvider>
+                        <div className="flex min-h-screen w-full">
+                          <AppSidebar />
+                          <div className="flex-1 flex flex-col">
+                            <header className="h-14 flex items-center justify-between border-b border-border px-4 sticky top-0 bg-background z-50 backdrop-blur-sm">
+                              <SidebarTrigger aria-label="Abrir/Fechar menu lateral" />
+                              <ThemeToggle />
+                            </header>
+                            <main className="flex-1">
+                              <ErrorBoundary>
+                                <Routes>
+                                  <Route path="/" element={<Index />} />
+                                  <Route path="/alunos" element={<StudentsPage />} />
+                                  <Route path="/alunos/:id" element={<StudentDetailPage />} />
+                                  <Route path="/alunos/:studentId/relatorios" element={<StudentReportsPage />} />
+                                  <Route path="/alunos-comparacao" element={<StudentsComparisonPage />} />
+                                  <Route path="/sessoes" element={<SessionsPage />} />
+                                  <Route path="/exercicios" element={<ExercisesLibraryPage />} />
+                                  <Route path="/prescricoes" element={<PrescriptionsPage />} />
+                                  <Route path="/protocolos" element={<RecoveryProtocolsPage />} />
+                                  <Route path="/admin/diagnostico-oura" element={<AdminDiagnosticsPage />} />
+                                  <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+                                  <Route path="/admin/revisao-exercicios" element={<ExerciseReviewPage />} />
+                                  <Route path="/ai-builder" element={<AIBuilderPage />} />
+                                  <Route path="*" element={<NotFound />} />
+                                </Routes>
+                              </ErrorBoundary>
+                            </main>
+                          </div>
                         </div>
-                      </div>
-                    </SidebarProvider>
-                  </ProtectedRoute>
-                } />
-              </Routes>
-            </Suspense>
-          </BrowserRouter>
-        </TrainingProvider>
-      </TooltipProvider>
+                      </SidebarProvider>
+                    </ProtectedRoute>
+                  } />
+                </Routes>
+              </Suspense>
+            </BrowserRouter>
+          </TrainingProvider>
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   </ErrorBoundary>
 );
