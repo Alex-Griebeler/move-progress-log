@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AppHeader } from "@/components/AppHeader";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,15 +53,13 @@ import {
 import { populateExercisesLibrary } from "@/utils/populateExercises";
 import { toast } from "sonner";
 import { logger } from "@/utils/logger";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
-import { StructuredData } from "@/components/StructuredData";
-import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
+import { getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
 
 export default function ExercisesLibraryPage() {
   usePageTitle(NAV_LABELS.exercises);
@@ -122,42 +121,17 @@ export default function ExercisesLibraryPage() {
   );
 
   return (
-    <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
-      {/* Structured Data para SEO */}
-      <StructuredData data={getOrganizationSchema()} id="org-schema" />
-      <StructuredData 
-        data={getWebPageSchema(
-          NAV_LABELS.exercises,
-          "Biblioteca completa de exercícios com classificações por padrões de movimento, lateralidade, planos e tipos de contração"
-        )} 
-        id="webpage-schema" 
-      />
-      <StructuredData 
-        data={getBreadcrumbSchema([
-          { label: "Home", href: "/" },
-          { label: NAV_LABELS.exercises, href: "/exercicios" }
-        ])} 
-        id="breadcrumb-schema" 
-      />
-      {exercises && exercises.length > 0 && (
-        <StructuredData 
-          data={getItemListSchema(
-            exercises.map(ex => ({ name: ex.name })),
-            "Biblioteca de Exercícios"
-          )} 
-          id="exercises-list-schema" 
-        />
-      )}
-      
-      <Breadcrumbs
-        items={[
-          { label: NAV_LABELS.exercises }
-        ]}
-      />
-      
-      <AppHeader
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.exercises, "Biblioteca completa de exercícios com classificações por padrões de movimento, lateralidade, planos e tipos de contração"), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.exercises, href: "/exercicios" }]), id: "breadcrumb-schema" },
+        ...(exercises && exercises.length > 0 ? [{ data: getItemListSchema(exercises.map(ex => ({ name: ex.name })), "Biblioteca de Exercícios"), id: "exercises-list-schema" }] : []),
+      ]}
+    >
+      <PageHeader
         title={NAV_LABELS.exercises}
-        subtitle={NAV_LABELS.subtitleExercises}
+        description={NAV_LABELS.subtitleExercises}
+        breadcrumbs={[{ label: NAV_LABELS.exercises }]}
         actions={
           <div className="flex gap-xs">
             <DropdownMenu>
@@ -599,6 +573,6 @@ export default function ExercisesLibraryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageLayout>
   );
 }

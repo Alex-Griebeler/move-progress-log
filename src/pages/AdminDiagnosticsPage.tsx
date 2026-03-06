@@ -8,14 +8,15 @@ import { Button } from "@/components/ui/button";
 import { ExerciseDistributionDiagnostic } from "@/components/ExerciseDistributionDiagnostic";
 import { ArrowLeft, Shield, Upload, Loader2, FileSpreadsheet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { AppHeader } from "@/components/AppHeader";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { NAV_LABELS, ROUTES } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
+import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import exercisesJSON from "@/data/exercicios_fabrik_categorizado.json";
@@ -224,23 +225,24 @@ const AdminDiagnosticsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-6">
-        <Breadcrumbs 
-          items={[
-            { label: NAV_LABELS.students, href: "/alunos" },
-            { label: NAV_LABELS.adminDiagnostics, icon: Shield }
-          ]}
-        />
-        
-        <AppHeader
-          title={NAV_LABELS.adminDiagnostics}
-          actions={
-            <Button variant="ghost" size="icon" onClick={() => navigate(ROUTES.students)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          }
-        />
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.adminDiagnostics, "Diagnósticos e monitoramento do sistema"), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.students, href: "/alunos" }, { label: NAV_LABELS.adminDiagnostics }]), id: "breadcrumb-schema" },
+      ]}
+    >
+      <PageHeader
+        title={NAV_LABELS.adminDiagnostics}
+        breadcrumbs={[
+          { label: NAV_LABELS.students, href: "/alunos" },
+          { label: NAV_LABELS.adminDiagnostics, icon: Shield },
+        ]}
+        actions={
+          <Button variant="ghost" size="icon" onClick={() => navigate(ROUTES.students)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        }
+      />
 
         {/* Import Exercises Section */}
         <Card>
@@ -397,8 +399,7 @@ const AdminDiagnosticsPage = () => {
             </CardContent>
           </Card>
         )}
-      </div>
-    </div>
+    </PageLayout>
   );
 };
 
