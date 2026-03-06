@@ -29,6 +29,8 @@ const StudentOnboardingPage = lazy(() => import("./pages/StudentOnboardingPage")
 const OnboardingSuccessPage = lazy(() => import("./pages/OnboardingSuccessPage"));
 const OuraErrorPage = lazy(() => import("./pages/OuraErrorPage"));
 const AIBuilderPage = lazy(() => import("./features/ai-builder/AIBuilderPage"));
+const AthleteInsightsDashboard = lazy(() => import("./pages/AthleteInsightsDashboard"));
+const CoachConsole = lazy(() => import("./pages/CoachConsole"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -74,6 +76,8 @@ const App = () => (
                             <Route path="/admin/diagnostico-oura" element={<AdminDiagnosticsPage />} />
                             <Route path="/admin/usuarios" element={<AdminUsersPage />} />
                             <Route path="/ai-builder" element={<AIBuilderPage />} />
+                            <Route path="/athlete-insights" element={<AthleteInsightsDashboard />} />
+                            <Route path="/coach-console" element={<CoachConsole />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
                         </main>

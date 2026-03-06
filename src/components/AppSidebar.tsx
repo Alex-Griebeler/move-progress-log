@@ -1,4 +1,4 @@
-import { Home, Users, Library, FileText, Heart, LogOut, Shield, UserCog, Bot, LucideIcon } from "lucide-react";
+import { Home, Users, Library, FileText, Heart, LogOut, Shield, UserCog, Bot, BarChart2, Brain, LucideIcon } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -40,6 +40,8 @@ const adminItems: MenuItem[] = [
   { title: NAV_LABELS.adminUsers, url: "/admin/usuarios", icon: UserCog },
   { title: NAV_LABELS.adminDiagnostics, url: "/admin/diagnostico-oura", icon: Shield },
   { title: NAV_LABELS.aiBuilder, url: "/ai-builder", icon: Bot },
+  { title: NAV_LABELS.athleteInsights, url: "/athlete-insights", icon: BarChart2 },
+  { title: NAV_LABELS.coachConsole,    url: "/coach-console",    icon: Brain },
 ];
 
 export function AppSidebar() {

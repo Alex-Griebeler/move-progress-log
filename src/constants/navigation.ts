@@ -59,6 +59,8 @@ export const NAV_LABELS = {
   subtitleComparison: "Visualize e compare dados de até 10 alunos simultaneamente",
   subtitleAdminUsers: "Gerencie contas, perfis e permissões de todos os usuários do sistema",
   aiBuilder: "AI Builder",
+  athleteInsights: "Insights do Atleta",
+  coachConsole: "Coach Console",
   subtitleDiagnostics: "Painel técnico para administradores",
 } as const;
 
