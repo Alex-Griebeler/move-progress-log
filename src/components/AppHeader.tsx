@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useIsAdmin } from "@/hooks/useUserRole";
-import logoFabrik from "@/assets/logo-fabrik.webp";
+import logoFabrik from "@/assets/logo-fabrik.png";
 import { NAV_LABELS } from "@/constants/navigation";
 
 interface AppHeaderProps {

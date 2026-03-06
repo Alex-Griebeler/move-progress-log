@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { ROUTES, ROUTE_CONFIG, POST_LOGIN_ROUTE, RouteDefinition, NAV_LABELS } from "@/constants/navigation";
-import logoFabrik from "@/assets/logo-fabrik.webp";
+import logoFabrik from "@/assets/logo-fabrik.png";
 import { isRouteActive } from "@/lib/navigationUtils";
 import { useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
