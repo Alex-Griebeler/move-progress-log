@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { Home, Users, ClipboardList, Library, FileText, Heart, UserCog, Shield, Bot } from "lucide-react";
+import { Home, Users, ClipboardList, Library, FileText, Heart, UserCog, Shield, Bot, BarChart2, Brain } from "lucide-react";
 
 /**
  * Constantes de navegação e nomenclaturas
@@ -34,6 +34,8 @@ export const ROUTES = {
   adminUsers: "/admin/usuarios",
   adminDiagnostics: "/admin/diagnostico-oura",
   aiBuilder: "/ai-builder",
+  athleteInsights: "/athlete-insights",
+  coachConsole: "/coach-console",
 } as const;
 
 /**
@@ -65,6 +67,8 @@ export const ROUTE_CONFIG: RouteDefinition[] = [
   { path: ROUTES.adminUsers, label: "Usuários", icon: UserCog, requiresAdmin: true },
   { path: ROUTES.adminDiagnostics, label: "Admin - Diagnóstico Oura", icon: Shield, requiresAdmin: true },
   { path: ROUTES.aiBuilder, label: "AI Builder", icon: Bot, requiresAdmin: true },
+  { path: ROUTES.athleteInsights, label: "Insights do Atleta", icon: BarChart2, requiresAdmin: true },
+  { path: ROUTES.coachConsole, label: "Coach Console", icon: Brain, requiresAdmin: true },
 ];
 
 export const NAV_LABELS = {
