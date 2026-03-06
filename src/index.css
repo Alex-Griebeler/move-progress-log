@@ -37,11 +37,11 @@ All colors MUST be HSL.
     --secondary-foreground: 0 0% 100%;
 
     --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 30%;
+    --muted-foreground: 0 0% 45%;
 
-    /* Accent neutro */
-    --accent: 0 0% 20%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent - warm neutral for light mode */
+    --accent: 0 0% 95%;
+    --accent-foreground: 0 0% 15%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
@@ -133,8 +133,8 @@ All colors MUST be HSL.
     
     /* Legacy tokens (mantidos para compatibilidade) */
     --radius: var(--radius-md);
-    --shadow-primary: 0 8px 24px -4px hsl(var(--primary) / 0.25);
-    --shadow-card: 0 2px 12px -2px hsl(0 0% 10% / 0.06);
+    --shadow-primary: 0 8px 24px -4px hsl(var(--primary) / 0.15);
+    --shadow-card: 0 2px 12px -2px hsl(0 0% 0% / 0.06);
 
     /* Sidebar tokens */
     --sidebar-background: 0 0% 98%;
@@ -273,7 +273,6 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    background-color: hsl(0 0% 10%) !important;
   }
 
   /* Melhorias de Acessibilidade - Focus States MAIS PROEMINENTES */
