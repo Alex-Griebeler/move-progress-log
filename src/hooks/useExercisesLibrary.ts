@@ -109,7 +109,8 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
       let query = supabase
         .from("exercises_library")
         .select("*")
-        .order("name");
+        .order("name")
+        .limit(2000);
 
       if (filters?.movement_pattern) {
         query = query.eq("movement_pattern", filters.movement_pattern);

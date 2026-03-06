@@ -1,4 +1,4 @@
-import { Home, Users, Library, FileText, Heart, LogOut, Shield, UserCog, LucideIcon } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
