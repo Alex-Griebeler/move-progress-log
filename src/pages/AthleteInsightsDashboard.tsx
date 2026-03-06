@@ -27,7 +27,7 @@ export default function AthleteInsightsDashboard() {
     enabled: !!studentId,
     queryFn: async () => {
       const since = new Date(Date.now() - days * 86_400_000).toISOString().split('T')[0];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('athlete_metric_trends').select('*')
         .eq('student_id', studentId).gte('date', since).order('date');
       if (error) throw error;
@@ -39,7 +39,7 @@ export default function AthleteInsightsDashboard() {
     queryKey: ['athlete-records', studentId],
     enabled: !!studentId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('athlete_records').select('*')
         .eq('student_id', studentId).order('achieved_at', { ascending: false }).limit(15);
       if (error) throw error;
@@ -51,7 +51,7 @@ export default function AthleteInsightsDashboard() {
     queryKey: ['athlete-goals', studentId],
     enabled: !!studentId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('athlete_goals').select('*')
         .eq('student_id', studentId).eq('status', 'active');
       if (error) throw error;
