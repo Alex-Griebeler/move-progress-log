@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { logger } from "@/utils/logger";
 
 interface SyncAllResult {
   message: string;
@@ -54,7 +55,7 @@ export const useOuraSyncAll = () => {
       }
     },
     onError: (error: Error) => {
-      console.error("Error in sync all:", error);
+      logger.error("Error in sync all:", error);
       notify.error(i18n.modules.oura.errorSyncAll, {
         description: error.message || i18n.errors.unknown
       });

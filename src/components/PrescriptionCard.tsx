@@ -14,10 +14,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { usePrescriptionDetails, WorkoutPrescription, PrescriptionExercise } from "@/hooks/usePrescriptions";
 import { useFolders } from "@/hooks/useFolders";
-import { Calendar, Users, ClipboardList, Pencil, Clock, Dumbbell, MoreVertical, FolderInput, FolderX } from "lucide-react";
+import { Calendar, Users, ClipboardList, Pencil, MoreVertical, FolderInput, FolderX, Trash2, Monitor } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
+import { memo, useState } from "react";
+import { PrescriptionTVMode } from "@/components/PrescriptionTVMode";
+import { ExerciseLoadHistoryPopover } from "@/components/ExerciseLoadHistoryPopover";
 
 // Agrupa exercícios baseado no campo group_with_previous
 const groupExercises = (exercises: PrescriptionExercise[]) => {
@@ -61,14 +64,15 @@ interface PrescriptionCardProps {
   onEdit: (id: string) => void;
   onAssign: (id: string) => void;
   onAddSession: (id: string) => void;
-  onMoveToFolder: (prescriptionId: string) => void;
+  onMoveToFolder: (prescriptionId: string, folderId: string) => void;
   onRemoveFromFolder: (prescriptionId: string) => void;
+  onDelete?: (prescriptionId: string) => void;
 }
 
 const getAssignmentBadge = (count: number) => {
   if (count === 0) {
     return (
-      <Badge variant="outline" className="gap-1.5 border-destructive/50 text-destructive">
+      <Badge variant="outline" className="gap-xs border-destructive/50 text-destructive">
         <div className="h-2 w-2 rounded-full bg-destructive" />
         Não atribuída
       </Badge>
@@ -76,42 +80,39 @@ const getAssignmentBadge = (count: number) => {
   }
   if (count === 1) {
     return (
-      <Badge variant="outline" className="gap-1.5 border-yellow-500/50 text-yellow-600 dark:text-yellow-500">
-        <div className="h-2 w-2 rounded-full bg-yellow-500" />
+      <Badge variant="outline-warning" className="gap-xs">
+        <div className="h-2 w-2 rounded-full bg-warning" />
         1 aluno
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="gap-1.5 border-green-500/50 text-green-600 dark:text-green-500">
-      <div className="h-2 w-2 rounded-full bg-green-500" />
+    <Badge variant="outline-success" className="gap-xs">
+      <div className="h-2 w-2 rounded-full bg-success" />
       {count} alunos
     </Badge>
   );
 };
 
-const formatInterval = (seconds: number | null) => {
-  if (!seconds) return "-";
-  return `${seconds}s`;
-};
-
-export function PrescriptionCard({ 
+const PrescriptionCardComponent = ({ 
   prescription, 
   onEdit, 
   onAssign, 
   onAddSession,
   onMoveToFolder,
-  onRemoveFromFolder 
-}: PrescriptionCardProps) {
+  onRemoveFromFolder,
+  onDelete
+}: PrescriptionCardProps) => {
   const { data: details, isLoading } = usePrescriptionDetails(prescription.id);
   const { data: folders } = useFolders();
+  const [tvMode, setTvMode] = useState(false);
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-3 flex-wrap">
+    <Card className="animate-fade-in card-interactive">
+      <CardHeader className="pb-sm">
+        <div className="flex items-start justify-between gap-sm flex-wrap">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-2">
+            <div className="flex items-center gap-sm mb-2">
               <CardTitle className="text-2xl">{prescription.name}</CardTitle>
               {getAssignmentBadge(prescription.assigned_students_count || 0)}
             </div>
@@ -120,14 +121,24 @@ export function PrescriptionCard({
                 {prescription.objective}
               </CardDescription>
             )}
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-3">
+            <div className="flex items-center gap-xs text-sm text-muted-foreground mt-3">
               <Calendar className="h-4 w-4" />
               <span>
                 Criada em {format(new Date(prescription.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
               </span>
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-xs flex-wrap items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => setTvMode(true)}
+              title="Modo TV"
+            >
+              <Monitor className="h-4 w-4" />
+              Modo TV
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -168,21 +179,20 @@ export function PrescriptionCard({
                   <span className="sr-only">Menu da prescrição</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-56 bg-background z-50">
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <FolderInput className="h-4 w-4 mr-2" />
                     Mover para Pasta
                   </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
+                  <DropdownMenuSubContent className="bg-background z-50">
                     {folders && folders.length > 0 ? (
                       folders
                         .filter(f => f.id !== prescription.folder_id)
                         .map(folder => (
                           <DropdownMenuItem
                             key={folder.id}
-                            onClick={() => onMoveToFolder(prescription.id)}
-                            data-folder-id={folder.id}
+                            onClick={() => onMoveToFolder(prescription.id, folder.id)}
                           >
                             {folder.name}
                           </DropdownMenuItem>
@@ -204,6 +214,19 @@ export function PrescriptionCard({
                     </DropdownMenuItem>
                   </>
                 )}
+                
+                {onDelete && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => onDelete(prescription.id)}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Excluir Prescrição
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -211,7 +234,7 @@ export function PrescriptionCard({
       </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-sm">
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
             <Skeleton className="h-10 w-full" />
@@ -221,26 +244,34 @@ export function PrescriptionCard({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="font-semibold">#</TableHead>
-                  <TableHead className="font-semibold">Exercício</TableHead>
-                  <TableHead className="font-semibold text-center">Séries</TableHead>
-                  <TableHead className="font-semibold text-center">Reps</TableHead>
-                  <TableHead className="font-semibold text-center">Carga</TableHead>
-                  <TableHead className="font-semibold text-center">Intervalo</TableHead>
-                  <TableHead className="font-semibold text-center">Método</TableHead>
-                  <TableHead className="font-semibold">Observações</TableHead>
+                  <TableHead className="font-semibold text-center uppercase tracking-wider">Exercício</TableHead>
+                  <TableHead className="font-semibold text-center uppercase tracking-wider">Sets x Reps / Int</TableHead>
+                  <TableHead className="font-semibold text-center uppercase tracking-wider">
+                    {prescription.prescription_type === 'individual' ? 'Carga' : 'PSE'}
+                  </TableHead>
+                  {prescription.prescription_type === 'individual' && (
+                    <TableHead className="font-semibold text-center uppercase tracking-wider">RR</TableHead>
+                  )}
+                  <TableHead className="font-semibold text-center uppercase tracking-wider">Método</TableHead>
+                  <TableHead className="font-semibold text-center uppercase tracking-wider">OBS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {(() => {
                   const groups = groupExercises(details.exercises);
-                  let exerciseCounter = 0;
                   
                   return groups.map((group, groupIndex) => {
                     return group.exercises.map((exercise, exIndex) => {
                       const isFirstInGroup = exIndex === 0;
                       const isLastInGroup = exIndex === group.exercises.length - 1;
-                      exerciseCounter += 1;
+
+                      const setsReps = `${exercise.sets} x ${exercise.reps}`;
+                      const interval = exercise.interval_seconds ? ` / ${exercise.interval_seconds}s` : '';
+                      const setsRepsInt = `${setsReps}${interval}`;
+
+                      const intensityValue = prescription.prescription_type === 'individual' 
+                        ? exercise.load 
+                        : exercise.pse;
                       
                       return (
                         <TableRow 
@@ -252,35 +283,33 @@ export function PrescriptionCard({
                             borderLeft: '4px solid hsl(var(--primary) / 0.6)'
                           } : undefined}
                         >
-                          <TableCell className="font-medium text-muted-foreground text-center">
-                            {exerciseCounter}
-                          </TableCell>
                           <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Dumbbell className="h-4 w-4 text-muted-foreground" />
-                              {exercise.exercise_name}
-                            </div>
+                            {exercise.exercise_name}
                           </TableCell>
-                          <TableCell className="text-center font-semibold">
-                            {exercise.sets}
-                          </TableCell>
-                          <TableCell className="text-center font-semibold">
-                            {exercise.reps}
+                          <TableCell className="text-center font-semibold whitespace-nowrap">
+                            {setsRepsInt}
                           </TableCell>
                           <TableCell className="text-center">
-                            {exercise.pse ? (
-                              <Badge variant="outline" className="text-xs whitespace-nowrap">
-                                {exercise.pse}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                            <ExerciseLoadHistoryPopover
+                              exerciseName={exercise.exercise_name}
+                              prescriptionId={prescription.id}
+                            >
+                              {intensityValue ? (
+                                <span className="text-sm font-medium">{intensityValue}</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </ExerciseLoadHistoryPopover>
                           </TableCell>
-                          <TableCell className="text-center">
-                            <span className="text-sm font-medium">
-                              {formatInterval(exercise.interval_seconds)}
-                            </span>
-                          </TableCell>
+                          {prescription.prescription_type === 'individual' && (
+                            <TableCell className="text-center">
+                              {exercise.rir ? (
+                                <span className="text-sm font-medium">{exercise.rir}</span>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                          )}
                           {!(group.isGroup && !isFirstInGroup) && (
                             <TableCell className="text-center" rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}>
                               {exercise.training_method ? (
@@ -292,7 +321,7 @@ export function PrescriptionCard({
                               )}
                             </TableCell>
                           )}
-                          <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
+                          <TableCell className="text-sm text-muted-foreground text-center max-w-xs truncate">
                             {exercise.observations || "-"}
                           </TableCell>
                         </TableRow>
@@ -309,6 +338,25 @@ export function PrescriptionCard({
           </div>
         )}
       </CardContent>
+
+      {/* TV Mode Overlay */}
+      <PrescriptionTVMode
+        open={tvMode}
+        onClose={() => setTvMode(false)}
+        prescription={prescription}
+        exercises={details?.exercises || []}
+      />
     </Card>
   );
-}
+};
+
+export const PrescriptionCard = memo(PrescriptionCardComponent, (prevProps, nextProps) => {
+  return (
+    prevProps.prescription.id === nextProps.prescription.id &&
+    prevProps.prescription.name === nextProps.prescription.name &&
+    prevProps.prescription.objective === nextProps.prescription.objective &&
+    prevProps.prescription.folder_id === nextProps.prescription.folder_id &&
+    prevProps.prescription.updated_at === nextProps.prescription.updated_at &&
+    prevProps.prescription.prescription_type === nextProps.prescription.prescription_type
+  );
+});

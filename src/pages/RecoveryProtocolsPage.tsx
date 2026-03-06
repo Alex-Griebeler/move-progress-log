@@ -4,29 +4,27 @@ import RecoveryProtocolCard from "@/components/RecoveryProtocolCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AppHeader } from "@/components/AppHeader";
-import { Heart, Sparkles } from "lucide-react";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { Heart } from "lucide-react";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
-import { StructuredData } from "@/components/StructuredData";
-import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
+import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 
 const RecoveryProtocolsPage = () => {
   usePageTitle(NAV_LABELS.protocols);
   useSEOHead(SEO_PRESETS.private);
   useOpenGraph({
     ...FABRIK_OG_DEFAULTS,
-    title: `${NAV_LABELS.protocols} · Fabrik Performance`,
-    description: 'Protocolos de recuperação com imersão no gelo, exposição ao calor, respiração e mindfulness.',
+    title: 'Protocolos · Fabrik Performance',
     type: 'website',
     url: true,
   });
-  
+
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
   const { data: protocols, isLoading } = useRecoveryProtocols(selectedCategory);
 
@@ -37,50 +35,42 @@ const RecoveryProtocolsPage = () => {
   };
 
   return (
-    <div id="main-content" className="min-h-screen bg-background" role="main">
-      {/* Structured Data para SEO */}
-      <StructuredData data={getOrganizationSchema()} id="org-schema" />
-      <StructuredData 
-        data={getWebPageSchema(
-          NAV_LABELS.protocols,
-          "Biblioteca completa de protocolos de recuperação baseados em evidências científicas: termoterapia, respiração, mindfulness e atividade leve"
-        )} 
-        id="webpage-schema" 
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.protocols, "Biblioteca completa de protocolos de recuperação baseados em evidências científicas"), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.protocols, href: "/protocolos" }]), id: "breadcrumb-schema" },
+      ]}
+    >
+      <PageHeader
+        title={NAV_LABELS.protocols}
+        description={NAV_LABELS.subtitleProtocols}
+        breadcrumbs={[{ label: NAV_LABELS.protocols }]}
       />
-      <StructuredData 
-        data={getBreadcrumbSchema([
-          { label: "Home", href: "/" },
-          { label: NAV_LABELS.protocols, href: "/protocolos" }
-        ])} 
-        id="breadcrumb-schema" 
-      />
-      
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <Breadcrumbs
-          items={[
-            { label: NAV_LABELS.protocols }
-          ]}
-        />
-        
-        <AppHeader
-          title={NAV_LABELS.protocols}
-          subtitle={NAV_LABELS.subtitleProtocols}
-        />
-
-        <div className="space-y-6">
 
       {isLoading ? (
-        <LoadingSpinner text="Carregando protocolos..." />
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="animate-fade-in">
+              <CardContent className="pt-6">
+                <Skeleton className="h-20 w-full" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : !protocols || protocols.length === 0 ? (
         <EmptyState
           icon={<Heart className="h-6 w-6" />}
-          title="Nenhum protocolo disponível"
-          description="Os protocolos de recuperação baseados em evidências científicas serão carregados em breve."
+          title="Carregando protocolos de recuperação"
+          description="Os protocolos baseados em evidências científicas para otimização da recuperação e performance estão sendo carregados."
         />
       ) : (
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all" onClick={() => setSelectedCategory(undefined)}>
+          <TabsList className="grid w-full grid-cols-5 bg-primary/5">
+            <TabsTrigger 
+              value="all" 
+              onClick={() => setSelectedCategory(undefined)}
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+            >
               Todos ({protocols?.length || 0})
             </TabsTrigger>
             {categories.map((category) => (
@@ -88,6 +78,7 @@ const RecoveryProtocolsPage = () => {
                 key={category}
                 value={category}
                 onClick={() => setSelectedCategory(category)}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 {category} ({getProtocolsByCategory(category).length})
               </TabsTrigger>
@@ -123,9 +114,7 @@ const RecoveryProtocolsPage = () => {
           ))}
         </Tabs>
       )}
-        </div>
-      </div>
-    </div>
+    </PageLayout>
   );
 };
 

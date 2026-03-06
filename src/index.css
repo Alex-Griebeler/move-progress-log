@@ -2,110 +2,275 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 10%;
+    /* ========================================
+       LIGHT MODE — Warm Terracotta Identity
+       ======================================== */
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    /* Base Colors - warm off-white */
+    --background: 30 20% 98%;
+    --foreground: 20 10% 12%;
+
+    --card: 30 15% 99%;
+    --card-foreground: 20 10% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
+    --popover-foreground: 20 10% 12%;
 
-    /* Fabrik Terracota - RGB(164, 82, 72) */
-    --primary: 7 49% 46%;
+    /* Fabrik Terracota — A45248 → hsl(7, 39%, 46%) */
+    --primary: 7 39% 46%;
     --primary-foreground: 0 0% 100%;
 
-    /* Cinza Grafite */
-    --secondary: 0 0% 35%;
-    --secondary-foreground: 0 0% 100%;
+    /* Secondary — warm gray */
+    --secondary: 20 6% 93%;
+    --secondary-foreground: 20 10% 20%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 35%; /* Melhorado de 45% para 35% - AUD-015 */
+    --muted: 25 10% 95%;
+    --muted-foreground: 20 6% 42%;
 
-    /* Accent neutro */
-    --accent: 0 0% 20%;
-    --accent-foreground: 0 0% 100%;
+    /* Accent — subtle terracotta tint */
+    --accent: 15 12% 93%;
+    --accent-foreground: 20 10% 15%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 95%;
-    --ring: 7 49% 46%;
+    --border: 25 8% 88%;
+    --input: 25 10% 93%;
+    --ring: 7 39% 46%;
 
-    --radius: 0.5rem;
+    /* ========================================
+       DESIGN SYSTEM FOUNDATION - ETAPA 3
+       ======================================== */
+
+    /* Success/Info/Warning Tokens */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
+
+    /* Estado Tokens */
+    --hover-opacity: 0.9;
+    --active-opacity: 0.8;
+    --disabled-opacity: 0.5;
+
+    /* Spacing System (8px base) */
+    --spacing-xs: 0.5rem;    /* 8px */
+    --spacing-sm: 0.75rem;   /* 12px */
+    --spacing-md: 1rem;      /* 16px */
+    --spacing-lg: 1.5rem;    /* 24px */
+    --spacing-xl: 2rem;      /* 32px */
+    --spacing-2xl: 3rem;     /* 48px */
+    --spacing-3xl: 4rem;     /* 64px */
+
+    /* Typography System */
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-size-xs: 0.75rem;   /* 12px */
+    --font-size-sm: 0.875rem;  /* 14px */
+    --font-size-base: 1rem;    /* 16px */
+    --font-size-lg: 1.125rem;  /* 18px */
+    --font-size-xl: 1.25rem;   /* 20px */
+    --font-size-2xl: 1.5rem;   /* 24px */
+    --font-size-3xl: 2rem;     /* 32px */
+    --font-size-4xl: 2.5rem;   /* 40px */
+
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    /* Line Heights */
+    --leading-tight: 1.25;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.75;
+
+    /* Shadow System - Premium Elevations */
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.1), 0 2px 4px -2px hsl(0 0% 0% / 0.1);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.1), 0 4px 6px -4px hsl(0 0% 0% / 0.1);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.1), 0 8px 10px -6px hsl(0 0% 0% / 0.1);
+    --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.25);
+
+    /* Border Radius System */
+    --radius-xs: 0.25rem;  /* 4px */
+    --radius-sm: 0.375rem; /* 6px */
+    --radius-md: 0.5rem;   /* 8px */
+    --radius-lg: 0.75rem;  /* 12px */
+    --radius-xl: 1rem;     /* 16px */
+    --radius-2xl: 1.5rem;  /* 24px */
+    --radius-full: 9999px;
+
+    /* ========================================
+       GRADIENT SYSTEM - Premium Reusable Tokens
+       ======================================== */
     
-    --gradient-primary: linear-gradient(135deg, hsl(7 49% 46%), hsl(0 0% 20%));
-    --gradient-card: linear-gradient(135deg, hsl(7 49% 46% / 0.08), hsl(0 0% 20% / 0.05));
-    --shadow-primary: 0 8px 24px -4px hsl(7 49% 46% / 0.25);
-    --shadow-card: 0 2px 12px -2px hsl(0 0% 10% / 0.06);
+    /* Primary Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    --gradient-primary-subtle: linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--accent) / 0.05));
+    --gradient-primary-emphasis: linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.15));
+    
+    /* Card Gradients */
+    --gradient-card: linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--accent) / 0.05));
+    --gradient-card-hover: linear-gradient(135deg, hsl(var(--primary) / 0.12), hsl(var(--accent) / 0.08));
+    
+    /* Directional Gradients */
+    --gradient-to-right: linear-gradient(to right, hsl(var(--primary) / 0.05), hsl(var(--accent) / 0.05));
+    --gradient-to-bottom: linear-gradient(to bottom, hsl(var(--background)), hsl(var(--muted) / 0.3));
+    
+    /* Legacy tokens (mantidos para compatibilidade) */
+    --radius: var(--radius-md);
+    --shadow-primary: 0 8px 24px -4px hsl(var(--primary) / 0.15);
+    --shadow-card: 0 2px 12px -2px hsl(0 0% 0% / 0.06);
 
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar tokens - Light Mode */
+    --sidebar-background: 25 15% 96%;
+    --sidebar-foreground: 20 10% 20%;
+    --sidebar-primary: 7 39% 46%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 15 12% 92%;
+    --sidebar-accent-foreground: 20 10% 15%;
+    --sidebar-border: 25 8% 88%;
+    --sidebar-ring: 7 39% 46%;
   }
 
+  /* ========================================
+     INTERACTIVE STATES - Premium Utilities
+     ======================================== */
+  
+  .card-interactive {
+    @apply cursor-pointer transition-smooth;
+    @apply hover:shadow-premium hover:scale-[1.01];
+    @apply active:scale-[0.99];
+  }
+
+
   .dark {
-    --background: 0 0% 10%;
-    --foreground: 0 0% 98%;
+    /* ========================================
+       DARK MODE — Warm Neutral + Terracotta
+       ======================================== */
 
-    --card: 0 0% 15%;
-    --card-foreground: 0 0% 98%;
+    /* Base Colors - warm dark */
+    --background: 20 8% 9%;
+    --foreground: 30 10% 95%;
 
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 98%;
+    --card: 20 6% 13%;
+    --card-foreground: 30 10% 95%;
 
-    /* Fabrik Terracota - mais vibrante no dark */
-    --primary: 7 55% 52%;
+    --popover: 20 6% 13%;
+    --popover-foreground: 30 10% 95%;
+
+    /* Fabrik Terracota — ligeiramente mais vibrante no dark */
+    --primary: 7 50% 55%;
     --primary-foreground: 0 0% 100%;
 
-    /* Cinza Grafite claro */
-    --secondary: 0 0% 25%;
-    --secondary-foreground: 0 0% 98%;
+    /* Secondary — warm dark gray */
+    --secondary: 20 5% 20%;
+    --secondary-foreground: 30 10% 92%;
 
-    --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 70%; /* Melhorado de 65% para 70% - AUD-015 */
+    --muted: 20 5% 17%;
+    --muted-foreground: 25 6% 65%;
 
-    --accent: 0 0% 30%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 15 6% 22%;
+    --accent-foreground: 30 10% 95%;
 
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 55% 40%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 25%;
-    --input: 0 0% 20%;
-    --ring: 7 55% 52%;
-    
-    --gradient-primary: linear-gradient(135deg, hsl(7 55% 52%), hsl(0 0% 30%));
-    --gradient-card: linear-gradient(135deg, hsl(7 55% 52% / 0.12), hsl(0 0% 30% / 0.08));
-    --shadow-primary: 0 8px 24px -4px hsl(7 55% 52% / 0.3);
-    --shadow-card: 0 2px 12px -2px hsl(0 0% 100% / 0.08);
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --border: 20 5% 22%;
+    --input: 20 5% 17%;
+    --ring: 7 50% 55%;
+
+    /* Success/Info/Warning Tokens - Dark Mode */
+    --success: 142 60% 42%;
+    --success-foreground: 0 0% 100%;
+    --info: 199 80% 50%;
+    --info-foreground: 0 0% 100%;
+    --warning: 38 85% 52%;
+    --warning-foreground: 0 0% 10%;
+
+    /* Shadow System - Dark Mode */
+    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
+    --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.35), 0 1px 2px -1px hsl(0 0% 0% / 0.35);
+    --shadow-md: 0 4px 6px -1px hsl(0 0% 0% / 0.35), 0 2px 4px -2px hsl(0 0% 0% / 0.35);
+    --shadow-lg: 0 10px 15px -3px hsl(0 0% 0% / 0.45), 0 4px 6px -4px hsl(0 0% 0% / 0.45);
+    --shadow-xl: 0 20px 25px -5px hsl(0 0% 0% / 0.55), 0 8px 10px -6px hsl(0 0% 0% / 0.55);
+    --shadow-2xl: 0 25px 50px -12px hsl(0 0% 0% / 0.65);
+
+    /* Legacy tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(7 50% 55%), hsl(15 6% 22%));
+    --gradient-card: linear-gradient(135deg, hsl(7 50% 55% / 0.12), hsl(15 6% 22% / 0.08));
+    --shadow-primary: 0 8px 24px -4px hsl(7 50% 55% / 0.3);
+    --shadow-card: 0 2px 12px -2px hsl(0 0% 100% / 0.06);
+
+    /* Sidebar tokens - Dark Mode */
+    --sidebar-background: 20 8% 9%;
+    --sidebar-foreground: 30 10% 90%;
+    --sidebar-primary: 7 50% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 20 5% 15%;
+    --sidebar-accent-foreground: 30 10% 90%;
+    --sidebar-border: 20 5% 18%;
+    --sidebar-ring: 7 50% 55%;
+  }
+}
+
+@layer components {
+  /* ========================================
+     UTILITY CLASSES - GRADIENTES PADRONIZADOS
+     ======================================== */
+  
+
+  /* ========================================
+     DRAG AND DROP FEEDBACK
+     ======================================== */
+  
+  .dragging-active {
+    opacity: 0.5;
+    transform: scale(0.98);
+    transition: all 0.2s ease;
+  }
+
+  .drop-zone-active {
+    background: hsl(var(--primary) / 0.05);
+    border: 2px dashed hsl(var(--primary));
+    border-radius: var(--radius-md);
+    transition: all 0.2s ease;
+  }
+
+  .drop-zone-hover {
+    background: hsl(var(--primary) / 0.1);
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+  }
+
+  /* ========================================
+     SMOOTH TRANSITIONS
+     ======================================== */
+  
+  .transition-smooth {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .shadow-premium {
+    box-shadow: var(--shadow-lg);
   }
 }
 
@@ -116,12 +281,11 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    background-color: hsl(0 0% 10%) !important;
   }
 
-  /* Melhorias de Acessibilidade - Focus States */
+  /* Melhorias de Acessibilidade - Focus States MAIS PROEMINENTES */
   *:focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    @apply outline-none ring-4 ring-ring ring-offset-2 ring-offset-background;
   }
 
   /* Smooth scrolling para navegação */
@@ -249,5 +413,166 @@ All colors MUST be HSL.
     overflow: visible;
     clip: auto;
     white-space: normal;
+  }
+
+  /* ===========================
+     PREMIUM DESIGN SYSTEM
+     =========================== */
+
+  /* Glassmorphism Effects */
+
+
+  /* Premium Typography */
+  .text-display-xl {
+    font-size: 4rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .text-display-lg {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .text-display-md {
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+
+  .text-display-number {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" on, "lnum" on;
+  }
+
+  /* Shimmer Animation */
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 3s infinite;
+  }
+
+  /* Shimmer Border Effect for Premium Badges */
+  .shimmer-border {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .shimmer-border::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(90deg, 
+      transparent,
+      hsl(var(--primary) / 0.4),
+      transparent
+    );
+    animation: shimmer 3s infinite;
+    border-radius: inherit;
+    z-index: -1;
+  }
+
+  /* Ring Progress Custom Styles */
+  .CircularProgressbar-path {
+    transition: stroke-dashoffset 0.5s ease 0s;
+  }
+
+  .CircularProgressbar-trail {
+    stroke: hsl(var(--muted));
+  }
+
+  /* Objective Badge Gradients */
+  .badge-emagrecimento {
+    background: linear-gradient(135deg, hsl(25 95% 95% / 0.2), hsl(0 84% 95% / 0.2));
+    border: 2px solid hsl(25 95% 53% / 0.3);
+    color: hsl(25 95% 40%);
+  }
+
+  .dark .badge-emagrecimento {
+    background: linear-gradient(135deg, hsl(25 95% 20% / 0.2), hsl(0 84% 20% / 0.2));
+    color: hsl(25 95% 70%);
+  }
+
+  .badge-hipertrofia {
+    background: linear-gradient(135deg, hsl(221 83% 95% / 0.2), hsl(271 91% 95% / 0.2));
+    border: 2px solid hsl(221 83% 53% / 0.3);
+    color: hsl(221 83% 40%);
+  }
+
+  .dark .badge-hipertrofia {
+    background: linear-gradient(135deg, hsl(221 83% 20% / 0.2), hsl(271 91% 20% / 0.2));
+    color: hsl(221 83% 70%);
+  }
+
+  .badge-saude {
+    background: linear-gradient(135deg, hsl(346 77% 95% / 0.2), hsl(330 81% 95% / 0.2));
+    border: 2px solid hsl(346 77% 50% / 0.3);
+    color: hsl(346 77% 40%);
+  }
+
+  .dark .badge-saude {
+    background: linear-gradient(135deg, hsl(346 77% 20% / 0.2), hsl(330 81% 20% / 0.2));
+    color: hsl(346 77% 70%);
+  }
+
+  .badge-performance {
+    background: linear-gradient(135deg, hsl(142 76% 95% / 0.2), hsl(160 84% 95% / 0.2));
+    border: 2px solid hsl(142 76% 45% / 0.3);
+    color: hsl(142 76% 35%);
+  }
+
+  .dark .badge-performance {
+    background: linear-gradient(135deg, hsl(142 76% 20% / 0.2), hsl(160 84% 20% / 0.2));
+    color: hsl(142 76% 70%);
+  }
+
+  .badge-reabilitacao {
+    background: linear-gradient(135deg, hsl(48 96% 95% / 0.2), hsl(38 92% 95% / 0.2));
+    border: 2px solid hsl(48 96% 53% / 0.3);
+    color: hsl(48 96% 40%);
+  }
+
+  .dark .badge-reabilitacao {
+    background: linear-gradient(135deg, hsl(48 96% 20% / 0.2), hsl(38 92% 20% / 0.2));
+    color: hsl(48 96% 70%);
+  }
+
+  /* Card Interactive - Premium hover state */
+  .card-interactive {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card-interactive:hover {
+    box-shadow: var(--shadow-lg);
+    transform: scale(1.01);
+  }
+
+  .card-interactive:active {
+    transform: scale(0.99);
+  }
+
+  /* ✅ NOVA: Classe global para estados de foco acessíveis (WCAG AA) */
+  .focus-visible-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  /* Pulse animation for alerts */
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 }

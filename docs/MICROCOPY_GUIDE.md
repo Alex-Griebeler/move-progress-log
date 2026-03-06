@@ -2,7 +2,10 @@
 
 ## 📋 Visão Geral
 
-Este documento define os padrões de linguagem, tom e estilo para toda a interface da Fabrik Performance. O objetivo é criar uma experiência consistente, clara e profissional em todos os pontos de contato com o usuário.
+Este documento define os **padrões de linguagem, tom e estilo** para toda a interface da Fabrik Performance. O objetivo é criar uma experiência consistente, clara e profissional em todos os pontos de contato com o usuário.
+
+> **Implemente com**: [MICROCOPY_IMPLEMENTATION.md](./MICROCOPY_IMPLEMENTATION.md) para detalhes técnicos.  
+> **Valide com**: [MICROCOPY_CHECKLIST.md](./MICROCOPY_CHECKLIST.md) antes de commit.
 
 ---
 
@@ -629,6 +632,494 @@ loader.error("Erro na sincronização", {
 
 // 3. Toast
 notify.success("Aluno excluído com sucesso");
+```
+
+---
+
+## 🔄 Estados por Módulo
+
+Esta seção documenta os estados específicos dos principais módulos do sistema, incluindo mensagens de erro, feedback de sucesso e estados de loading.
+
+### Login e Autenticação (`AuthPage`)
+
+#### Estados de Loading
+```typescript
+// Login em progresso
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Entrando...
+</Button>
+
+// Cadastro em progresso
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Criando conta...
+</Button>
+
+// Google Sign-In
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Conectando com Google...
+</Button>
+```
+
+#### Mensagens de Erro
+| Erro | Mensagem ao Usuário | Ação |
+|------|-------------------|-------|
+| **Email já cadastrado** | "Este email já está cadastrado. Tente fazer login ou use outro email." | Redirecionar para login |
+| **Email inválido** | "Email inválido. Verifique o formato do email." | Corrigir campo |
+| **Senha curta** | "A senha deve ter pelo menos 6 caracteres." | Aumentar senha |
+| **Credenciais inválidas** | "Email ou senha incorretos. Verifique seus dados e tente novamente." | Tentar novamente |
+| **Email não confirmado** | "Email não confirmado. Verifique sua caixa de entrada." | Verificar email |
+| **Muitas tentativas** | "Muitas tentativas. Aguarde alguns minutos e tente novamente." | Aguardar |
+| **Senha vazada** | "Esta senha foi encontrada em vazamentos de dados. Use outra senha." | Trocar senha |
+
+#### Mensagens de Sucesso
+```typescript
+// Login bem-sucedido
+toast.success("Login realizado com sucesso");
+
+// Cadastro bem-sucedido
+toast.success("Conta criada com sucesso. Redirecionando...");
+
+// 2FA configurado
+toast.success("Autenticação em dois fatores ativada com sucesso");
+```
+
+#### Estados de Validação (Senha)
+```typescript
+// Verificando segurança
+<div>
+  <Loader2 className="animate-spin" />
+  Verificando segurança da senha...
+</div>
+
+// Senha segura
+<Alert variant="default">
+  <Check className="text-green-500" />
+  Senha forte e segura
+</Alert>
+
+// Senha fraca
+<Alert variant="destructive">
+  <AlertCircle />
+  Senha fraca. Adicione números e caracteres especiais.
+</Alert>
+
+// Senha vazada
+<Alert variant="destructive">
+  <AlertCircle />
+  Esta senha foi encontrada em vazamentos de dados.
+</Alert>
+```
+
+---
+
+### Registro de Sessões por Voz
+
+#### Individual (`RecordIndividualSessionDialog`)
+
+**Estados do Diálogo**:
+- `setup`: Configuração inicial
+- `recording`: Gravando áudio
+- `processing`: Processando com IA
+- `preview`: Visualizando dados
+- `edit`: Editando exercícios/observações
+
+**Mensagens**:
+```typescript
+// Gravando
+"Gravando segmento {N} de {MAX}"
+badge: "Gravando..." (pulsando)
+
+// Processando
+"Processando áudio com IA..."
+<Loader2 /> + texto
+
+// Erro - Microfone negado
+toast.error("Permissão de microfone necessária para gravar sessões");
+
+// Erro - Áudio muito curto
+toast.error("Grave pelo menos 1 segundo de áudio");
+
+// Erro - IA falhou
+toast.error("Erro ao processar áudio. Tente novamente ou use modo manual");
+
+// Sucesso
+toast.success("Sessão registrada com sucesso");
+```
+
+#### Grupo (`RecordGroupSessionDialog`)
+
+**Estados Adicionais**:
+- `context-setup`: Configuração de alunos/sala/prescrição
+- `mode-selection`: Escolher voz ou manual
+- `manual-entry`: Entrada manual
+
+**Mensagens Específicas**:
+```typescript
+// Validação de contexto
+"Selecione pelo menos 1 aluno"
+"Defina a sala do treino"
+"Selecione a data e horário"
+
+// Gravação múltipla
+"Gravação {N} de {MAX}"
+<Badge>10 gravações máximas</Badge>
+
+// Agrupando alunos
+"Agrupando dados por aluno..."
+<Loader2 />
+
+// Aluno não reconhecido
+<Badge variant="warning">Auto-adicionado</Badge>
+"Este aluno foi adicionado automaticamente. Verifique o nome."
+
+// Exercício precisa validação
+<Badge variant="warning">Validar exercício</Badge>
+"Clique para selecionar o exercício correto da biblioteca"
+
+// Sucesso grupo
+toast.success("{N} sessões registradas com sucesso");
+```
+
+---
+
+### Geração de Relatórios
+
+#### Diálogo (`GenerateReportDialog`)
+
+**Estados**:
+```typescript
+// Configurando
+"Selecione o período de análise"
+"Selecione pelo menos 1 exercício para rastrear"
+
+// Validação
+<Alert variant="warning">
+  Selecione pelo menos 1 exercício para gerar o relatório.
+</Alert>
+
+// Gerando
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Gerando relatório...
+</Button>
+
+// Erro
+toast.error("Erro ao gerar relatório. Tente novamente.");
+
+// Sucesso
+toast.success("Relatório gerado com sucesso");
+// → Redireciona para visualização
+```
+
+#### Visualização (`StudentReportView`)
+
+**Estados de Dados**:
+```typescript
+// Carregando
+<Skeleton className="h-32" />
+"Carregando relatório..."
+
+// Relatório não encontrado
+<EmptyState
+  icon={<FileText />}
+  title="Relatório não encontrado"
+  description="Este relatório pode ter sido excluído ou você não tem permissão."
+/>
+
+// Sem dados no período
+<Alert variant="warning">
+  <AlertCircle />
+  Nenhuma sessão encontrada no período selecionado.
+</Alert>
+
+// Dados Oura insuficientes
+<Alert variant="info">
+  Dados Oura insuficientes (menos de 7 dias). Métricas podem não ser representativas.
+</Alert>
+```
+
+#### Status do Relatório
+```typescript
+// Gerando (status: generating)
+<Badge variant="warning">
+  <Loader2 className="animate-spin" />
+  Gerando...
+</Badge>
+
+// Pronto (status: ready)
+<Badge variant="success">
+  <Check />
+  Pronto
+</Badge>
+
+// Falhou (status: failed)
+<Badge variant="destructive">
+  <XCircle />
+  Erro na geração
+</Badge>
+<Button onClick={retry}>Tentar novamente</Button>
+```
+
+---
+
+### Sincronização Oura Ring
+
+#### Conexão (`OuraConnectionCard`)
+
+**Estados**:
+```typescript
+// Não conectado
+<Alert variant="warning">
+  Conecte sua Oura Ring para métricas detalhadas
+</Alert>
+<Button>Conectar Oura Ring</Button>
+
+// Conectando
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Conectando...
+</Button>
+
+// Conectado
+<Badge variant="success">Conectado</Badge>
+"Última sincronização: {timestamp}"
+
+// Erro de conexão
+<Badge variant="destructive">Erro</Badge>
+toast.error("Erro ao conectar. Verifique suas credenciais Oura.");
+
+// Desconectando
+<Button variant="destructive" disabled>
+  <Loader2 className="animate-spin" />
+  Desconectando...
+</Button>
+```
+
+#### Sincronização (`OuraSyncAllButton`)
+
+**Estados**:
+```typescript
+// Sincronizando
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Sincronizando {current} de {total} alunos...
+</Button>
+
+// Progresso
+<Progress value={(current / total) * 100} />
+"{current}/{total} alunos sincronizados"
+
+// Sucesso
+toast.success("Sincronização concluída", {
+  description: "{count} métricas adicionadas"
+});
+
+// Sucesso parcial
+toast.warning("Sincronização parcial", {
+  description: "{success} de {total} alunos sincronizados"
+});
+
+// Erro
+toast.error("Erro na sincronização", {
+  description: "Verifique a conexão com o Oura Ring"
+});
+```
+
+---
+
+### Gestão de Alunos
+
+#### Lista (`StudentsPage`)
+
+**Estados**:
+```typescript
+// Carregando
+<Skeleton count={5} />
+
+// Vazio
+<EmptyState
+  icon={<Users />}
+  title="Nenhum aluno cadastrado"
+  description="Comece adicionando seu primeiro aluno."
+  action={<Button>Adicionar aluno</Button>}
+/>
+
+// Busca sem resultados
+<EmptyState
+  icon={<Search />}
+  title="Nenhum aluno encontrado"
+  description="Tente buscar por outro nome ou limpe o filtro."
+/>
+```
+
+#### Criação/Edição (`AddStudentDialog`, `EditStudentDialog`)
+
+**Estados**:
+```typescript
+// Salvando
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Salvando...
+</Button>
+
+// Sucesso - Criar
+toast.success("Aluno criado com sucesso");
+
+// Sucesso - Editar
+toast.success("Dados atualizados com sucesso");
+
+// Erro
+toast.error("Erro ao salvar aluno", {
+  description: "Verifique os campos e tente novamente"
+});
+
+// Validação
+<Alert variant="destructive">
+  <AlertCircle />
+  Preencha todos os campos obrigatórios.
+</Alert>
+```
+
+---
+
+### Prescrições de Treino
+
+#### Lista (`PrescriptionsPage`)
+
+**Estados**:
+```typescript
+// Vazio
+<EmptyState
+  icon={<FileText />}
+  title="Nenhuma prescrição criada"
+  description="Crie sua primeira prescrição de treino."
+  action={<Button>Criar prescrição</Button>}
+/>
+
+// Busca
+"Buscando prescrições..."
+<Loader2 />
+
+// Sem resultados
+"Nenhuma prescrição encontrada para '{searchTerm}'"
+```
+
+#### Criação/Edição
+
+**Estados**:
+```typescript
+// Validação - Nome vazio
+<Alert variant="destructive">
+  O nome da prescrição é obrigatório.
+</Alert>
+
+// Validação - Sem exercícios
+<Alert variant="warning">
+  Adicione pelo menos 1 exercício à prescrição.
+</Alert>
+
+// Salvando
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Salvando prescrição...
+</Button>
+
+// Sucesso
+toast.success("Prescrição criada com sucesso");
+
+// Erro
+toast.error("Erro ao salvar prescrição");
+```
+
+---
+
+### Biblioteca de Exercícios
+
+#### Lista (`ExercisesLibraryPage`)
+
+**Estados**:
+```typescript
+// Carregando
+"Carregando biblioteca..."
+<Skeleton count={10} />
+
+// Filtrando
+"Filtrando por: {pattern}, {level}"
+<Badge>{count} exercícios</Badge>
+
+// Sem resultados
+<EmptyState
+  title="Nenhum exercício encontrado"
+  description="Ajuste os filtros ou adicione um novo exercício."
+/>
+```
+
+#### Criação/Edição
+
+**Estados**:
+```typescript
+// Validação
+<Alert variant="destructive">
+  Preencha o nome e padrão de movimento.
+</Alert>
+
+// Salvando
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Salvando...
+</Button>
+
+// Sucesso - Criar
+toast.success("Exercício adicionado à biblioteca");
+
+// Sucesso - Editar
+toast.success("Exercício atualizado com sucesso");
+
+// Erro
+toast.error("Erro ao salvar exercício");
+```
+
+---
+
+### Observações Clínicas
+
+#### Criação (`StudentObservationsDialog`)
+
+**Estados**:
+```typescript
+// Validação
+<Alert variant="destructive">
+  Escreva uma observação antes de salvar.
+</Alert>
+
+// Salvando
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Salvando observação...
+</Button>
+
+// Sucesso
+toast.success("Observação registrada com sucesso");
+```
+
+#### Resolução
+
+**Estados**:
+```typescript
+// Resolvendo
+<Button disabled>
+  <Loader2 className="animate-spin" />
+  Marcando como resolvida...
+</Button>
+
+// Sucesso
+toast.success("Observação marcada como resolvida");
+
+// Reabrir
+toast.success("Observação reaberta");
 ```
 
 ---

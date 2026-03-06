@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useStudents } from "@/hooks/useStudents";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AppHeader } from "@/components/AppHeader";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { ArrowLeft, Users, TrendingUp, Calendar, Dumbbell, Filter, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,12 +20,12 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
+import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 
 interface StudentStats {
   studentId: string;
@@ -39,6 +40,7 @@ interface StudentStats {
     reps: number;
     date: string;
     prescription: string | null;
+    loadDescription: string | null;
   }>;
 }
 
@@ -53,12 +55,25 @@ const StudentsComparisonPage = () => {
     url: true,
   });
   
-  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [startDate, setStartDate] = useState<Date | undefined>();
-  const [endDate, setEndDate] = useState<Date | undefined>();
-  const [selectedExercise, setSelectedExercise] = useState<string>("all");
-  const [selectedPrescription, setSelectedPrescription] = useState<string>("all");
+  const [searchParams] = useSearchParams();
+  
+  // Read query params and initialize state
+  const initialStudents = searchParams.get('students')?.split(',').filter(Boolean) || [];
+  const initialPrescription = searchParams.get('prescription') || 'all';
+  const initialStartDateStr = searchParams.get('startDate');
+  const initialEndDateStr = searchParams.get('endDate');
+  
+  const [selectedStudents, setSelectedStudents] = useState<string[]>(initialStudents);
+  const [startDate, setStartDate] = useState<Date | undefined>(
+    initialStartDateStr ? new Date(initialStartDateStr) : undefined
+  );
+  const [endDate, setEndDate] = useState<Date | undefined>(
+    initialEndDateStr ? new Date(initialEndDateStr) : undefined
+  );
+  const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
+  const [selectedPrescription, setSelectedPrescription] = useState<string>(initialPrescription);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [exerciseSearchQuery, setExerciseSearchQuery] = useState<string>("");
   
   const { data: students, isLoading: studentsLoading } = useStudents();
 
@@ -85,7 +100,7 @@ const StudentsComparisonPage = () => {
   });
 
   const { data: studentsStats, isLoading: statsLoading } = useQuery({
-    queryKey: ["students-comparison-stats", selectedStudents, startDate, endDate, selectedExercise, selectedPrescription],
+    queryKey: ["students-comparison-stats", selectedStudents, startDate, endDate, selectedExercises, selectedPrescription],
     enabled: selectedStudents.length > 0,
     queryFn: async () => {
       const stats = await Promise.all(
@@ -138,11 +153,11 @@ const StudentsComparisonPage = () => {
 
           let exercisesQuery = supabase
             .from("exercises")
-            .select("load_kg, reps, session_id, exercise_name")
+            .select("load_kg, reps, session_id, exercise_name, load_description")
             .in("session_id", filteredSessions.map(s => s.id));
 
-          if (selectedExercise !== "all") {
-            exercisesQuery = exercisesQuery.eq("exercise_name", selectedExercise);
+          if (selectedExercises.length > 0) {
+            exercisesQuery = exercisesQuery.in("exercise_name", selectedExercises);
           }
 
           const { data: exercisesData } = await exercisesQuery;
@@ -165,6 +180,7 @@ const StudentsComparisonPage = () => {
                 reps: exercise.reps || 0,
                 date: session?.date || "",
                 prescription: assignment?.prescription?.name || "Sem prescrição",
+                loadDescription: exercise.load_description || null,
               };
             })
           );
@@ -225,26 +241,27 @@ const StudentsComparisonPage = () => {
   }, [students, selectedStudents]);
 
   return (
-    <div id="main-content" className="min-h-screen bg-background" role="main">
-      <div className="container mx-auto p-6 space-y-6">
-        <Breadcrumbs 
-          items={[
-            { label: NAV_LABELS.students, href: "/alunos" },
-            { label: NAV_LABELS.studentsComparison }
-          ]}
-        />
-        
-        <AppHeader
-          title={NAV_LABELS.studentsComparison}
-          subtitle={NAV_LABELS.subtitleComparison}
-          actions={
-            <Link to="/alunos">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-          }
-        />
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.studentsComparison, NAV_LABELS.subtitleComparison), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.students, href: "/alunos" }, { label: NAV_LABELS.studentsComparison }]), id: "breadcrumb-schema" },
+      ]}
+    >
+      <PageHeader
+        title={NAV_LABELS.studentsComparison}
+        description={NAV_LABELS.subtitleComparison}
+        breadcrumbs={[
+          { label: NAV_LABELS.students, href: "/alunos" },
+          { label: NAV_LABELS.studentsComparison },
+        ]}
+        actions={
+          <Link to="/alunos">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          </Link>
+        }
+      />
 
         <Card>
           <CardHeader>
@@ -313,20 +330,84 @@ const StudentsComparisonPage = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Exercício</label>
-                <Select value={selectedExercise} onValueChange={setSelectedExercise}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Todos os exercícios" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os exercícios</SelectItem>
-                    {exercises?.map((exercise) => (
-                      <SelectItem key={exercise.id} value={exercise.name}>
-                        {exercise.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-sm font-medium">
+                  Exercícios {selectedExercises.length > 0 && `(${selectedExercises.length}/10)`}
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <Dumbbell className="mr-2 h-4 w-4" />
+                      {selectedExercises.length === 0
+                        ? "Todos os exercícios"
+                        : selectedExercises.length === 1
+                        ? selectedExercises[0]
+                        : `${selectedExercises.length} selecionados`}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0" align="start">
+                    <div className="p-2 border-b">
+                      <div className="relative">
+                        <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar exercício..."
+                          value={exerciseSearchQuery}
+                          onChange={(e) => setExerciseSearchQuery(e.target.value)}
+                          className="pl-8 h-9"
+                        />
+                      </div>
+                    </div>
+                    <ScrollArea className="h-[280px]">
+                      <div className="p-2 space-y-1">
+                        {exercises
+                          ?.filter((ex) =>
+                            ex.name.toLowerCase().includes(exerciseSearchQuery.toLowerCase())
+                          )
+                          .map((exercise) => (
+                            <div
+                              key={exercise.id}
+                              className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent transition-colors"
+                            >
+                              <Checkbox
+                                checked={selectedExercises.includes(exercise.name)}
+                                onCheckedChange={() => {
+                                  setSelectedExercises((prev) => {
+                                    if (prev.includes(exercise.name)) {
+                                      return prev.filter((e) => e !== exercise.name);
+                                    } else if (prev.length < 10) {
+                                      return [...prev, exercise.name];
+                                    }
+                                    return prev;
+                                  });
+                                }}
+                                disabled={
+                                  !selectedExercises.includes(exercise.name) &&
+                                  selectedExercises.length >= 10
+                                }
+                              />
+                              <label className="flex-1 cursor-pointer text-sm">
+                                {exercise.name}
+                              </label>
+                            </div>
+                          ))}
+                      </div>
+                    </ScrollArea>
+                    {selectedExercises.length > 0 && (
+                      <div className="p-2 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => setSelectedExercises([])}
+                        >
+                          Limpar seleção
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
@@ -347,7 +428,7 @@ const StudentsComparisonPage = () => {
               </div>
             </div>
 
-            {(startDate || endDate || selectedExercise !== "all" || selectedPrescription !== "all") && (
+            {(startDate || endDate || selectedExercises.length > 0 || selectedPrescription !== "all") && (
               <Button
                 variant="outline"
                 size="sm"
@@ -355,7 +436,7 @@ const StudentsComparisonPage = () => {
                 onClick={() => {
                   setStartDate(undefined);
                   setEndDate(undefined);
-                  setSelectedExercise("all");
+                  setSelectedExercises([]);
                   setSelectedPrescription("all");
                 }}
               >
@@ -505,23 +586,27 @@ const StudentsComparisonPage = () => {
                               {stats?.exerciseDetails && stats.exerciseDetails.length > 0 ? (
                                 <div className="rounded-md border">
                                   <Table>
-                                    <TableHeader>
+                                     <TableHeader>
                                       <TableRow>
                                         <TableHead>Data</TableHead>
                                         <TableHead>Exercício</TableHead>
                                         <TableHead>Carga</TableHead>
+                                        <TableHead>Descrição Carga</TableHead>
                                         <TableHead>Reps</TableHead>
                                         <TableHead>Treino</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {stats.exerciseDetails.map((detail, idx) => (
+                                       {stats.exerciseDetails.map((detail, idx) => (
                                         <TableRow key={idx}>
                                           <TableCell className="font-medium">
                                             {new Date(detail.date).toLocaleDateString('pt-BR')}
                                           </TableCell>
                                           <TableCell>{detail.exerciseName}</TableCell>
                                           <TableCell>{detail.load} kg</TableCell>
+                                          <TableCell className="text-muted-foreground text-sm">
+                                            {detail.loadDescription || "—"}
+                                          </TableCell>
                                           <TableCell>{detail.reps}</TableCell>
                                           <TableCell>
                                             <Badge variant="outline">{detail.prescription}</Badge>
@@ -547,8 +632,7 @@ const StudentsComparisonPage = () => {
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </PageLayout>
   );
 };
 

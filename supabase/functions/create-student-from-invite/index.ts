@@ -3,7 +3,7 @@ import { decode } from 'https://deno.land/std@0.193.0/encoding/base64.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 Deno.serve(async (req) => {
@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Creating student from invite: ${invite_token}`);
+    console.log('Processing student invite: [redacted]');
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -85,8 +85,8 @@ Deno.serve(async (req) => {
             const { data: urlData } = supabaseClient.storage
               .from('student-avatars')
               .getPublicUrl(fileName);
-            avatar_url = urlData.publicUrl;
-            console.log('Avatar uploaded:', avatar_url);
+            avatar_url = fileName;
+            console.log('Avatar uploaded successfully');
           }
         }
       } catch (avatarError) {
@@ -128,6 +128,16 @@ Deno.serve(async (req) => {
 
     const studentToUpdate = existingStudent || orphanStudent;
 
+    // Helper to convert objectives string to array if needed
+    const normalizeObjectives = (objectives: any): string[] | null => {
+      if (!objectives) return null;
+      if (Array.isArray(objectives)) return objectives;
+      if (typeof objectives === 'string') {
+        return objectives.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0);
+      }
+      return null;
+    };
+
     let student;
     if (studentToUpdate) {
       // Update existing student OR adopt orphan
@@ -142,7 +152,7 @@ Deno.serve(async (req) => {
           weight_kg: student_data.weight_kg || null,
           height_cm: student_data.height_cm || null,
           fitness_level: student_data.fitness_level || null,
-          objectives: student_data.objectives || null,
+          objectives: normalizeObjectives(student_data.objectives),
           limitations: student_data.limitations || null,
           injury_history: student_data.injury_history || null,
           preferences: student_data.preferences || null,
@@ -175,7 +185,7 @@ Deno.serve(async (req) => {
           weight_kg: student_data.weight_kg || null,
           height_cm: student_data.height_cm || null,
           fitness_level: student_data.fitness_level || null,
-          objectives: student_data.objectives || null,
+          objectives: normalizeObjectives(student_data.objectives),
           limitations: student_data.limitations || null,
           injury_history: student_data.injury_history || null,
           preferences: student_data.preferences || null,
@@ -225,7 +235,7 @@ Deno.serve(async (req) => {
       }
 
       const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
-      const state = `${student.id}:${invite_token}`;
+      const state = `${student.id}:${invite.id}`;
       const scope = 'email personal daily heartrate workout session spo2 tag sleep stress ring_configuration';
 
       const ouraAuthUrl = `https://cloud.ouraring.com/oauth/authorize?response_type=code&client_id=${ouraClientId}&redirect_uri=${encodeURIComponent(

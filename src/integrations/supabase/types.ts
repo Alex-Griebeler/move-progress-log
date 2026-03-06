@@ -47,6 +47,458 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_builder_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_builder_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          issue_url: string | null
+          message_type: string | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          issue_url?: string | null
+          message_type?: string | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          issue_url?: string | null
+          message_type?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_builder_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_builder_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_project_memory: {
+        Row: {
+          content: string
+          key: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          key: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          key?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      anamnesis_responses: {
+        Row: {
+          activity_duration_minutes: number | null
+          activity_frequency: number | null
+          activity_types: Json | null
+          assessment_id: string
+          birth_date: string | null
+          created_at: string
+          has_red_flags: boolean | null
+          height_cm: number | null
+          id: string
+          laterality: Database["public"]["Enums"]["laterality_type"] | null
+          lgpd_consent: boolean | null
+          lgpd_consent_date: string | null
+          objectives: string | null
+          occupation: string | null
+          pain_history: Json | null
+          red_flags: Json | null
+          sedentary_hours_per_day: number | null
+          sleep_hours: number | null
+          sleep_quality: number | null
+          sports: Json | null
+          surgeries: Json | null
+          time_horizon: string | null
+          updated_at: string
+          weight_kg: number | null
+          work_type: string | null
+        }
+        Insert: {
+          activity_duration_minutes?: number | null
+          activity_frequency?: number | null
+          activity_types?: Json | null
+          assessment_id: string
+          birth_date?: string | null
+          created_at?: string
+          has_red_flags?: boolean | null
+          height_cm?: number | null
+          id?: string
+          laterality?: Database["public"]["Enums"]["laterality_type"] | null
+          lgpd_consent?: boolean | null
+          lgpd_consent_date?: string | null
+          objectives?: string | null
+          occupation?: string | null
+          pain_history?: Json | null
+          red_flags?: Json | null
+          sedentary_hours_per_day?: number | null
+          sleep_hours?: number | null
+          sleep_quality?: number | null
+          sports?: Json | null
+          surgeries?: Json | null
+          time_horizon?: string | null
+          updated_at?: string
+          weight_kg?: number | null
+          work_type?: string | null
+        }
+        Update: {
+          activity_duration_minutes?: number | null
+          activity_frequency?: number | null
+          activity_types?: Json | null
+          assessment_id?: string
+          birth_date?: string | null
+          created_at?: string
+          has_red_flags?: boolean | null
+          height_cm?: number | null
+          id?: string
+          laterality?: Database["public"]["Enums"]["laterality_type"] | null
+          lgpd_consent?: boolean | null
+          lgpd_consent_date?: string | null
+          objectives?: string | null
+          occupation?: string | null
+          pain_history?: Json | null
+          red_flags?: Json | null
+          sedentary_hours_per_day?: number | null
+          sleep_hours?: number | null
+          sleep_quality?: number | null
+          sports?: Json | null
+          surgeries?: Json | null
+          time_horizon?: string | null
+          updated_at?: string
+          weight_kg?: number | null
+          work_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anamnesis_responses_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessment_exercises: {
+        Row: {
+          body_region: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          fabrik_phase: Database["public"]["Enums"]["fabrik_phase"]
+          id: string
+          is_active: boolean | null
+          name: string
+          progression_criteria: string | null
+          target_classifications: Json | null
+          target_muscles: Json | null
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          body_region: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          fabrik_phase: Database["public"]["Enums"]["fabrik_phase"]
+          id?: string
+          is_active?: boolean | null
+          name: string
+          progression_criteria?: string | null
+          target_classifications?: Json | null
+          target_muscles?: Json | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          body_region?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          fabrik_phase?: Database["public"]["Enums"]["fabrik_phase"]
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          progression_criteria?: string | null
+          target_classifications?: Json | null
+          target_muscles?: Json | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      assessment_progress_logs: {
+        Row: {
+          completed_at: string
+          difficulty_rating: number | null
+          exercise_id: string
+          id: string
+          notes: string | null
+          protocol_id: string
+          student_id: string
+        }
+        Insert: {
+          completed_at?: string
+          difficulty_rating?: number | null
+          exercise_id: string
+          id?: string
+          notes?: string | null
+          protocol_id: string
+          student_id: string
+        }
+        Update: {
+          completed_at?: string
+          difficulty_rating?: number | null
+          exercise_id?: string
+          id?: string
+          notes?: string | null
+          protocol_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_progress_logs_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessment_progress_logs_protocol_id_fkey"
+            columns: ["protocol_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_protocols"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessment_protocols: {
+        Row: {
+          assessment_id: string
+          completion_percentage: number | null
+          created_at: string
+          duration_weeks: number | null
+          exercises: Json
+          frequency_per_week: number | null
+          id: string
+          name: string | null
+          next_review_date: string | null
+          phase: number | null
+          priority_level: Database["public"]["Enums"]["priority_level"]
+          updated_at: string
+        }
+        Insert: {
+          assessment_id: string
+          completion_percentage?: number | null
+          created_at?: string
+          duration_weeks?: number | null
+          exercises?: Json
+          frequency_per_week?: number | null
+          id?: string
+          name?: string | null
+          next_review_date?: string | null
+          phase?: number | null
+          priority_level?: Database["public"]["Enums"]["priority_level"]
+          updated_at?: string
+        }
+        Update: {
+          assessment_id?: string
+          completion_percentage?: number | null
+          created_at?: string
+          duration_weeks?: number | null
+          exercises?: Json
+          frequency_per_week?: number | null
+          id?: string
+          name?: string | null
+          next_review_date?: string | null
+          phase?: number | null
+          priority_level?: Database["public"]["Enums"]["priority_level"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_protocols_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessments: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          professional_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["assessment_status"]
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          professional_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["assessment_status"]
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          professional_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["assessment_status"]
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      breathing_protocols: {
+        Row: {
+          audio_cues: string[] | null
+          benefits: Json | null
+          category: string
+          created_at: string | null
+          duration_seconds: number
+          id: string
+          instructions: string
+          is_active: boolean | null
+          name: string
+          rhythm: string | null
+          technique: string
+          updated_at: string | null
+          when_to_use: string[] | null
+        }
+        Insert: {
+          audio_cues?: string[] | null
+          benefits?: Json | null
+          category: string
+          created_at?: string | null
+          duration_seconds: number
+          id?: string
+          instructions: string
+          is_active?: boolean | null
+          name: string
+          rhythm?: string | null
+          technique: string
+          updated_at?: string | null
+          when_to_use?: string[] | null
+        }
+        Update: {
+          audio_cues?: string[] | null
+          benefits?: Json | null
+          category?: string
+          created_at?: string | null
+          duration_seconds?: number
+          id?: string
+          instructions?: string
+          is_active?: boolean | null
+          name?: string
+          rhythm?: string | null
+          technique?: string
+          updated_at?: string | null
+          when_to_use?: string[] | null
+        }
+        Relationships: []
+      }
+      equipment_inventory: {
+        Row: {
+          category: string
+          created_at: string | null
+          id: string
+          is_available: boolean | null
+          location: string | null
+          name: string
+          notes: string | null
+          quantity: number
+          updated_at: string | null
+          weight_kg: number | null
+          weight_range: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          id?: string
+          is_available?: boolean | null
+          location?: string | null
+          name: string
+          notes?: string | null
+          quantity?: number
+          updated_at?: string | null
+          weight_kg?: number | null
+          weight_range?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          id?: string
+          is_available?: boolean | null
+          location?: string | null
+          name?: string
+          notes?: string | null
+          quantity?: number
+          updated_at?: string | null
+          weight_kg?: number | null
+          weight_range?: string | null
+        }
+        Relationships: []
+      }
       exercise_adaptations: {
         Row: {
           adaptation_type: string
@@ -153,42 +605,217 @@ export type Database = {
       }
       exercises_library: {
         Row: {
+          axial_load: number | null
+          boyle_score: number | null
+          category: string | null
           contraction_type: string | null
           created_at: string
+          default_reps: string | null
+          default_sets: string | null
           description: string | null
+          emphasis: string | null
+          equipment_required: string[] | null
+          functional_group: string | null
+          hip_dominance: number | null
           id: string
+          knee_dominance: number | null
           laterality: string | null
           level: string | null
-          movement_pattern: string
+          lumbar_demand: number | null
+          metabolic_potential: number | null
+          movement_pattern: string | null
           movement_plane: string | null
           name: string
+          numeric_level: number | null
+          plyometric_phase: number | null
+          prerequisites: Json | null
+          primary_muscles: string[] | null
+          risk_level: string | null
+          stability_position: string | null
+          subcategory: string | null
+          surface_modifier: string | null
+          tags: string[] | null
+          technical_complexity: number | null
+          updated_at: string
+          video_url: string | null
+        }
+        Insert: {
+          axial_load?: number | null
+          boyle_score?: number | null
+          category?: string | null
+          contraction_type?: string | null
+          created_at?: string
+          default_reps?: string | null
+          default_sets?: string | null
+          description?: string | null
+          emphasis?: string | null
+          equipment_required?: string[] | null
+          functional_group?: string | null
+          hip_dominance?: number | null
+          id?: string
+          knee_dominance?: number | null
+          laterality?: string | null
+          level?: string | null
+          lumbar_demand?: number | null
+          metabolic_potential?: number | null
+          movement_pattern?: string | null
+          movement_plane?: string | null
+          name: string
+          numeric_level?: number | null
+          plyometric_phase?: number | null
+          prerequisites?: Json | null
+          primary_muscles?: string[] | null
+          risk_level?: string | null
+          stability_position?: string | null
+          subcategory?: string | null
+          surface_modifier?: string | null
+          tags?: string[] | null
+          technical_complexity?: number | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Update: {
+          axial_load?: number | null
+          boyle_score?: number | null
+          category?: string | null
+          contraction_type?: string | null
+          created_at?: string
+          default_reps?: string | null
+          default_sets?: string | null
+          description?: string | null
+          emphasis?: string | null
+          equipment_required?: string[] | null
+          functional_group?: string | null
+          hip_dominance?: number | null
+          id?: string
+          knee_dominance?: number | null
+          laterality?: string | null
+          level?: string | null
+          lumbar_demand?: number | null
+          metabolic_potential?: number | null
+          movement_pattern?: string | null
+          movement_plane?: string | null
+          name?: string
+          numeric_level?: number | null
+          plyometric_phase?: number | null
+          prerequisites?: Json | null
+          primary_muscles?: string[] | null
+          risk_level?: string | null
+          stability_position?: string | null
+          subcategory?: string | null
+          surface_modifier?: string | null
+          tags?: string[] | null
+          technical_complexity?: number | null
+          updated_at?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
+      functional_findings: {
+        Row: {
+          assessment_id: string
+          associated_injuries: Json | null
+          biomechanical_importance: number | null
+          body_region: string
+          classification_tag: string
+          context_weight: number | null
+          created_at: string
+          hyperactive_muscles: Json | null
+          hypoactive_muscles: Json | null
+          id: string
+          priority_score: number | null
+          severity: Database["public"]["Enums"]["severity_level"]
+        }
+        Insert: {
+          assessment_id: string
+          associated_injuries?: Json | null
+          biomechanical_importance?: number | null
+          body_region: string
+          classification_tag: string
+          context_weight?: number | null
+          created_at?: string
+          hyperactive_muscles?: Json | null
+          hypoactive_muscles?: Json | null
+          id?: string
+          priority_score?: number | null
+          severity?: Database["public"]["Enums"]["severity_level"]
+        }
+        Update: {
+          assessment_id?: string
+          associated_injuries?: Json | null
+          biomechanical_importance?: number | null
+          body_region?: string
+          classification_tag?: string
+          context_weight?: number | null
+          created_at?: string
+          hyperactive_muscles?: Json | null
+          hypoactive_muscles?: Json | null
+          id?: string
+          priority_score?: number | null
+          severity?: Database["public"]["Enums"]["severity_level"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "functional_findings_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      global_test_results: {
+        Row: {
+          anterior_view: Json | null
+          assessment_id: string
+          created_at: string
+          id: string
+          lateral_view: Json | null
+          left_side: Json | null
+          media_urls: Json | null
+          notes: string | null
+          posterior_view: Json | null
+          right_side: Json | null
+          test_name: string
           updated_at: string
         }
         Insert: {
-          contraction_type?: string | null
+          anterior_view?: Json | null
+          assessment_id: string
           created_at?: string
-          description?: string | null
           id?: string
-          laterality?: string | null
-          level?: string | null
-          movement_pattern: string
-          movement_plane?: string | null
-          name: string
+          lateral_view?: Json | null
+          left_side?: Json | null
+          media_urls?: Json | null
+          notes?: string | null
+          posterior_view?: Json | null
+          right_side?: Json | null
+          test_name: string
           updated_at?: string
         }
         Update: {
-          contraction_type?: string | null
+          anterior_view?: Json | null
+          assessment_id?: string
           created_at?: string
-          description?: string | null
           id?: string
-          laterality?: string | null
-          level?: string | null
-          movement_pattern?: string
-          movement_plane?: string | null
-          name?: string
+          lateral_view?: Json | null
+          left_side?: Json | null
+          media_urls?: Json | null
+          notes?: string | null
+          posterior_view?: Json | null
+          right_side?: Json | null
+          test_name?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "global_test_results_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       oura_connections: {
         Row: {
@@ -514,11 +1141,13 @@ export type Database = {
           group_with_previous: boolean
           id: string
           interval_seconds: number | null
+          load: string | null
           observations: string | null
           order_index: number
           prescription_id: string
           pse: string | null
           reps: string
+          rir: string | null
           sets: string
           should_track: boolean
           training_method: string | null
@@ -529,11 +1158,13 @@ export type Database = {
           group_with_previous?: boolean
           id?: string
           interval_seconds?: number | null
+          load?: string | null
           observations?: string | null
           order_index: number
           prescription_id: string
           pse?: string | null
           reps: string
+          rir?: string | null
           sets: string
           should_track?: boolean
           training_method?: string | null
@@ -544,11 +1175,13 @@ export type Database = {
           group_with_previous?: boolean
           id?: string
           interval_seconds?: number | null
+          load?: string | null
           observations?: string | null
           order_index?: number
           prescription_id?: string
           pse?: string | null
           reps?: string
+          rir?: string | null
           sets?: string
           should_track?: boolean
           training_method?: string | null
@@ -610,6 +1243,100 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "prescription_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      professional_students: {
+        Row: {
+          created_at: string
+          id: string
+          professional_id: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          professional_id: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          professional_id?: string
+          student_id?: string
+        }
+        Relationships: []
+      }
+      protocol_adherence: {
+        Row: {
+          created_at: string
+          followed: boolean
+          followed_at: string | null
+          hrv_after: number | null
+          hrv_before: number | null
+          hrv_delta: number | null
+          id: string
+          notes: string | null
+          protocol_id: string
+          readiness_after: number | null
+          readiness_before: number | null
+          readiness_delta: number | null
+          recommendation_id: string | null
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          followed?: boolean
+          followed_at?: string | null
+          hrv_after?: number | null
+          hrv_before?: number | null
+          hrv_delta?: number | null
+          id?: string
+          notes?: string | null
+          protocol_id: string
+          readiness_after?: number | null
+          readiness_before?: number | null
+          readiness_delta?: number | null
+          recommendation_id?: string | null
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          followed?: boolean
+          followed_at?: string | null
+          hrv_after?: number | null
+          hrv_before?: number | null
+          hrv_delta?: number | null
+          id?: string
+          notes?: string | null
+          protocol_id?: string
+          readiness_after?: number | null
+          readiness_before?: number | null
+          readiness_delta?: number | null
+          recommendation_id?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_adherence_protocol_id_fkey"
+            columns: ["protocol_id"]
+            isOneToOne: false
+            referencedRelation: "recovery_protocols"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_adherence_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "protocol_recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "protocol_adherence_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -740,6 +1467,125 @@ export type Database = {
         }
         Relationships: []
       }
+      report_tracked_exercises: {
+        Row: {
+          created_at: string
+          exercise_library_id: string | null
+          exercise_name: string
+          final_load: number | null
+          final_total_work: number | null
+          id: string
+          initial_load: number | null
+          initial_total_work: number | null
+          load_variation_percentage: number | null
+          report_id: string
+          weekly_progression: Json | null
+          work_variation_percentage: number | null
+        }
+        Insert: {
+          created_at?: string
+          exercise_library_id?: string | null
+          exercise_name: string
+          final_load?: number | null
+          final_total_work?: number | null
+          id?: string
+          initial_load?: number | null
+          initial_total_work?: number | null
+          load_variation_percentage?: number | null
+          report_id: string
+          weekly_progression?: Json | null
+          work_variation_percentage?: number | null
+        }
+        Update: {
+          created_at?: string
+          exercise_library_id?: string | null
+          exercise_name?: string
+          final_load?: number | null
+          final_total_work?: number | null
+          id?: string
+          initial_load?: number | null
+          initial_total_work?: number | null
+          load_variation_percentage?: number | null
+          report_id?: string
+          weekly_progression?: Json | null
+          work_variation_percentage?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_tracked_exercises_exercise_library_id_fkey"
+            columns: ["exercise_library_id"]
+            isOneToOne: false
+            referencedRelation: "exercises_library"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "report_tracked_exercises_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "student_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      segmental_test_results: {
+        Row: {
+          assessment_id: string
+          body_region: string
+          created_at: string
+          cutoff_value: number | null
+          id: string
+          left_value: number | null
+          media_urls: Json | null
+          notes: string | null
+          pass_fail_left: boolean | null
+          pass_fail_right: boolean | null
+          right_value: number | null
+          test_name: string
+          unit: string | null
+          updated_at: string
+        }
+        Insert: {
+          assessment_id: string
+          body_region: string
+          created_at?: string
+          cutoff_value?: number | null
+          id?: string
+          left_value?: number | null
+          media_urls?: Json | null
+          notes?: string | null
+          pass_fail_left?: boolean | null
+          pass_fail_right?: boolean | null
+          right_value?: number | null
+          test_name: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assessment_id?: string
+          body_region?: string
+          created_at?: string
+          cutoff_value?: number | null
+          id?: string
+          left_value?: number | null
+          media_urls?: Json | null
+          notes?: string | null
+          pass_fail_left?: boolean | null
+          pass_fail_right?: boolean | null
+          right_value?: number | null
+          test_name?: string
+          unit?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "segmental_test_results_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       session_audio_segments: {
         Row: {
           audio_duration_seconds: number | null
@@ -780,6 +1626,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      session_templates: {
+        Row: {
+          core_triplanar_check: Json | null
+          created_at: string | null
+          cycle: string
+          duration_minutes: number
+          equipment_used: string[] | null
+          focus: string | null
+          format: string
+          id: string
+          is_favorite: boolean | null
+          name: string
+          phases: Json
+          trainer_id: string
+          updated_at: string | null
+          use_count: number | null
+          valences: string[]
+        }
+        Insert: {
+          core_triplanar_check?: Json | null
+          created_at?: string | null
+          cycle: string
+          duration_minutes: number
+          equipment_used?: string[] | null
+          focus?: string | null
+          format: string
+          id?: string
+          is_favorite?: boolean | null
+          name: string
+          phases?: Json
+          trainer_id: string
+          updated_at?: string | null
+          use_count?: number | null
+          valences: string[]
+        }
+        Update: {
+          core_triplanar_check?: Json | null
+          created_at?: string | null
+          cycle?: string
+          duration_minutes?: number
+          equipment_used?: string[] | null
+          focus?: string | null
+          format?: string
+          id?: string
+          is_favorite?: boolean | null
+          name?: string
+          phases?: Json
+          trainer_id?: string
+          updated_at?: string | null
+          use_count?: number | null
+          valences?: string[]
+        }
+        Relationships: []
       }
       student_invites: {
         Row: {
@@ -903,6 +1803,83 @@ export type Database = {
           },
         ]
       }
+      student_reports: {
+        Row: {
+          adherence_percentage: number | null
+          attention_points: string | null
+          consistency_analysis: string | null
+          created_at: string
+          generated_at: string | null
+          id: string
+          next_cycle_plan: string | null
+          oura_data: Json | null
+          period_end: string
+          period_start: string
+          report_type: string
+          sessions_proposed: number | null
+          status: string
+          strength_analysis: string | null
+          student_id: string
+          total_sessions: number
+          trainer_highlights: string | null
+          trainer_id: string
+          updated_at: string
+          weekly_average: number | null
+        }
+        Insert: {
+          adherence_percentage?: number | null
+          attention_points?: string | null
+          consistency_analysis?: string | null
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          next_cycle_plan?: string | null
+          oura_data?: Json | null
+          period_end: string
+          period_start: string
+          report_type: string
+          sessions_proposed?: number | null
+          status?: string
+          strength_analysis?: string | null
+          student_id: string
+          total_sessions?: number
+          trainer_highlights?: string | null
+          trainer_id: string
+          updated_at?: string
+          weekly_average?: number | null
+        }
+        Update: {
+          adherence_percentage?: number | null
+          attention_points?: string | null
+          consistency_analysis?: string | null
+          created_at?: string
+          generated_at?: string | null
+          id?: string
+          next_cycle_plan?: string | null
+          oura_data?: Json | null
+          period_end?: string
+          period_start?: string
+          report_type?: string
+          sessions_proposed?: number | null
+          status?: string
+          strength_analysis?: string | null
+          student_id?: string
+          total_sessions?: number
+          trainer_highlights?: string | null
+          trainer_id?: string
+          updated_at?: string
+          weekly_average?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_reports_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       students: {
         Row: {
           avatar_url: string | null
@@ -915,7 +1892,7 @@ export type Database = {
           limitations: string | null
           max_heart_rate: number | null
           name: string
-          objectives: string | null
+          objectives: string[] | null
           preferences: string | null
           trainer_id: string
           updated_at: string
@@ -933,7 +1910,7 @@ export type Database = {
           limitations?: string | null
           max_heart_rate?: number | null
           name: string
-          objectives?: string | null
+          objectives?: string[] | null
           preferences?: string | null
           trainer_id: string
           updated_at?: string
@@ -951,7 +1928,7 @@ export type Database = {
           limitations?: string | null
           max_heart_rate?: number | null
           name?: string
-          objectives?: string | null
+          objectives?: string[] | null
           preferences?: string | null
           trainer_id?: string
           updated_at?: string
@@ -1037,6 +2014,7 @@ export type Database = {
           name: string
           objective: string | null
           order_index: number
+          prescription_type: string
           trainer_id: string
           updated_at: string
         }
@@ -1047,6 +2025,7 @@ export type Database = {
           name: string
           objective?: string | null
           order_index?: number
+          prescription_type?: string
           trainer_id: string
           updated_at?: string
         }
@@ -1057,6 +2036,7 @@ export type Database = {
           name?: string
           objective?: string | null
           order_index?: number
+          prescription_type?: string
           trainer_id?: string
           updated_at?: string
         }
@@ -1079,6 +2059,7 @@ export type Database = {
           is_finalized: boolean | null
           prescription_id: string | null
           room_name: string | null
+          session_type: string
           student_id: string
           time: string
           trainer_name: string | null
@@ -1093,6 +2074,7 @@ export type Database = {
           is_finalized?: boolean | null
           prescription_id?: string | null
           room_name?: string | null
+          session_type: string
           student_id: string
           time: string
           trainer_name?: string | null
@@ -1107,6 +2089,7 @@ export type Database = {
           is_finalized?: boolean | null
           prescription_id?: string | null
           room_name?: string | null
+          session_type?: string
           student_id?: string
           time?: string
           trainer_name?: string | null
@@ -1135,11 +2118,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calc_oura_baseline: {
+        Args: { p_days?: number; p_student_id: string }
+        Returns: {
+          avg_hrv: number
+          avg_rhr: number
+          avg_sleep_score: number
+          data_points: number
+        }[]
+      }
       can_access_trainer: {
         Args: { _trainer_id: string; _viewer_id: string }
         Returns: boolean
       }
       cleanup_rate_limit_attempts: { Args: never; Returns: undefined }
+      count_active_students: { Args: { p_since: string }; Returns: number }
+      delete_prescription_cascade: {
+        Args: { p_prescription_id: string }
+        Returns: undefined
+      }
+      get_oura_access_token: { Args: { p_student_id: string }; Returns: string }
+      get_oura_refresh_token: {
+        Args: { p_student_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1147,9 +2149,51 @@ export type Database = {
         }
         Returns: boolean
       }
+      migrate_oura_tokens_to_vault: { Args: never; Returns: undefined }
+      normalize_objective: { Args: { obj: string }; Returns: string }
+      search_exercises_by_name: {
+        Args: { p_limit?: number; p_movement_pattern?: string; p_query: string }
+        Returns: {
+          id: string
+          name: string
+          similarity: number
+        }[]
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      store_oura_tokens: {
+        Args: {
+          p_access_token: string
+          p_refresh_token: string
+          p_student_id: string
+          p_token_expires_at: string
+        }
+        Returns: undefined
+      }
+      update_prescription_with_exercises: {
+        Args: {
+          p_exercises: Json
+          p_name: string
+          p_objective: string
+          p_prescription_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "trainer" | "moderator"
+      assessment_status: "draft" | "in_progress" | "completed" | "archived"
+      fabrik_phase:
+        | "mobility"
+        | "inhibition"
+        | "activation"
+        | "stability"
+        | "strength"
+        | "integration"
+      laterality_type: "right" | "left" | "ambidextrous"
+      priority_level: "critical" | "high" | "medium" | "low" | "maintenance"
+      severity_level: "none" | "mild" | "moderate" | "severe"
+      test_type: "global" | "segmental"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1278,6 +2322,19 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "trainer", "moderator"],
+      assessment_status: ["draft", "in_progress", "completed", "archived"],
+      fabrik_phase: [
+        "mobility",
+        "inhibition",
+        "activation",
+        "stability",
+        "strength",
+        "integration",
+      ],
+      laterality_type: ["right", "left", "ambidextrous"],
+      priority_level: ["critical", "high", "medium", "low", "maintenance"],
+      severity_level: ["none", "mild", "moderate", "severe"],
+      test_type: ["global", "segmental"],
     },
   },
 } as const

@@ -1,27 +1,36 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Search } from "lucide-react";
-import { usePrescriptions } from "@/hooks/usePrescriptions";
+import { Plus, Search, FolderPlus, MoreVertical, Sparkles, FileUp } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { usePrescriptions, useDeletePrescription } from "@/hooks/usePrescriptions";
 import { useFolders, useMovePrescription, useReorderPrescriptions, useDeleteFolder, PrescriptionFolder } from "@/hooks/useFolders";
 import { usePrescriptionSearch } from "@/hooks/usePrescriptionSearch";
 import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog";
+import { ImportPrescriptionFromWordDialog } from "@/components/ImportPrescriptionFromWordDialog";
 import { EditPrescriptionDialog } from "@/components/EditPrescriptionDialog";
 import { AssignPrescriptionDialog } from "@/components/AssignPrescriptionDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
+import { GenerateGroupSessionDialog } from "@/components/GenerateGroupSessionDialog";
 import { CreateSubfolderDialog } from "@/components/CreateSubfolderDialog";
 import { RenameFolderDialog } from "@/components/RenameFolderDialog";
 import { FolderTree } from "@/components/FolderTree";
 import { PrescriptionSearchBar } from "@/components/PrescriptionSearchBar";
 import { FolderSection } from "@/components/FolderSection";
-import { AppHeader } from "@/components/AppHeader";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
+import { PrescriptionCardSkeleton } from "@/components/skeletons/PrescriptionCardSkeleton";
 import EmptyState from "@/components/EmptyState";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
-import { StructuredData } from "@/components/StructuredData";
-import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
+import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import {
@@ -44,6 +53,7 @@ export default function PrescriptionsPage() {
   const movePrescription = useMovePrescription();
   const reorderPrescriptions = useReorderPrescriptions();
   const deleteFolder = useDeleteFolder();
+  const deletePrescription = useDeletePrescription();
 
   // Search and filter states
   const [searchFilters, setSearchFilters] = useState<{
@@ -62,9 +72,11 @@ export default function PrescriptionsPage() {
 
   // Dialog states
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [importWordDialogOpen, setImportWordDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [recordGroupDialogOpen, setRecordGroupDialogOpen] = useState(false);
+  const [generateSessionDialogOpen, setGenerateSessionDialogOpen] = useState(false);
   const [createSubfolderDialogOpen, setCreateSubfolderDialogOpen] = useState(false);
   const [renameFolderDialogOpen, setRenameFolderDialogOpen] = useState(false);
   const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = useState(false);
@@ -169,9 +181,21 @@ export default function PrescriptionsPage() {
     setSelectedFolder(null);
   };
 
-  const handleMoveToFolder = (prescriptionId: string) => {
-    // Placeholder - will be enhanced with folder selection menu
-    console.log("Move to folder:", prescriptionId);
+  const handleMoveToFolder = async (prescriptionId: string, folderId: string) => {
+    // Get prescriptions in target folder
+    const targetFolderPrescriptions = prescriptions?.filter(
+      p => p.folder_id === folderId
+    ) || [];
+    
+    const maxOrder = targetFolderPrescriptions.length > 0
+      ? Math.max(...targetFolderPrescriptions.map(p => p.order_index))
+      : -1;
+
+    await movePrescription.mutateAsync({
+      prescriptionId,
+      folderId,
+      orderIndex: maxOrder + 1,
+    });
   };
 
   const handleRemoveFromFolder = async (prescriptionId: string) => {
@@ -189,6 +213,21 @@ export default function PrescriptionsPage() {
       folderId: null,
       orderIndex: maxOrder + 1,
     });
+  };
+
+  const [deletePrescriptionDialogOpen, setDeletePrescriptionDialogOpen] = useState(false);
+  const [prescriptionToDelete, setPrescriptionToDelete] = useState<string | null>(null);
+
+  const handleDeletePrescription = (prescriptionId: string) => {
+    setPrescriptionToDelete(prescriptionId);
+    setDeletePrescriptionDialogOpen(true);
+  };
+
+  const handleConfirmDeletePrescription = async () => {
+    if (!prescriptionToDelete) return;
+    await deletePrescription.mutateAsync(prescriptionToDelete);
+    setDeletePrescriptionDialogOpen(false);
+    setPrescriptionToDelete(null);
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -258,63 +297,71 @@ export default function PrescriptionsPage() {
   const noFolderPrescriptions = groupedPrescriptions['no-folder'] || [];
 
   return (
-    <div id="main-content" className="min-h-screen bg-background p-8" role="main">
-      {/* Structured Data */}
-      <StructuredData data={getOrganizationSchema()} id="org-schema" />
-      <StructuredData 
-        data={getWebPageSchema(
-          NAV_LABELS.prescriptions,
-          "Crie e gerencie prescrições de treino personalizadas com organização hierárquica em pastas"
-        )} 
-        id="webpage-schema" 
-      />
-      <StructuredData 
-        data={getBreadcrumbSchema([
-          { label: "Home", href: "/" },
-          { label: NAV_LABELS.prescriptions, href: "/prescricoes" }
-        ])} 
-        id="breadcrumb-schema" 
-      />
-      
-      <div className="max-w-7xl mx-auto space-y-8">
-        <Breadcrumbs items={[{ label: NAV_LABELS.prescriptions }]} />
-        
-        <AppHeader
-          title={NAV_LABELS.prescriptions}
-          subtitle={NAV_LABELS.subtitlePrescriptions}
-          actions={
-            <div className="flex gap-2">
-              <Button
-                onClick={() => setShowSearch(!showSearch)}
-                variant={showSearch ? "default" : "outline"}
-                size="sm"
-                aria-label="Buscar prescrições"
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-              <Button
-                onClick={() => {
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.prescriptions, "Crie e gerencie prescrições de treino personalizadas com organização hierárquica em pastas"), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.prescriptions, href: "/prescricoes" }]), id: "breadcrumb-schema" },
+      ]}
+    >
+      <PageHeader
+        title={NAV_LABELS.prescriptions}
+        breadcrumbs={[{ label: NAV_LABELS.prescriptions }]}
+        actions={
+          <div className="flex gap-xs">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon" aria-label="Ações secundárias">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setShowSearch(!showSearch)}>
+                  <Search className="h-4 w-4 mr-2" />
+                  Buscar prescrições
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
                   setSelectedParentFolderId(null);
                   setCreateSubfolderDialogOpen(true);
-                }}
-                variant="outline"
-                size="sm"
-                aria-label="Nova pasta"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Pasta
-              </Button>
-              <Button
-                onClick={() => setCreateDialogOpen(true)}
-                size="sm"
-                aria-label="Nova prescrição"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Prescrição
-              </Button>
-            </div>
-          }
-        />
+                }}>
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  Nova pasta
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
+            <Button
+              onClick={() => setGenerateSessionDialogOpen(true)}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              aria-label="Gerar sessão com IA"
+            >
+              <Sparkles className="h-4 w-4" />
+              Gerar com IA
+            </Button>
+
+            <Button
+              onClick={() => setImportWordDialogOpen(true)}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              aria-label="Importar prescrição do Word"
+            >
+              <FileUp className="h-4 w-4" />
+              Importar Word
+            </Button>
+            
+            <Button
+              onClick={() => setCreateDialogOpen(true)}
+              variant="default"
+              aria-label="Nova prescrição"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Prescrição
+            </Button>
+          </div>
+        }
+      />
 
         {/* Search bar */}
         {showSearch && (
@@ -334,14 +381,18 @@ export default function PrescriptionsPage() {
         )}
 
         {isLoading ? (
-          <LoadingSpinner text="Carregando prescrições..." />
+          <div className="space-y-md">
+            {[...Array(4)].map((_, i) => (
+              <PrescriptionCardSkeleton key={i} />
+            ))}
+          </div>
         ) : hasContent ? (
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <div className="space-y-6">
+            <div className="space-y-lg">
               {/* Hierarchical folder tree */}
               {folders && folders.length > 0 && (
                 <FolderTree
@@ -357,6 +408,7 @@ export default function PrescriptionsPage() {
                   onAddSession={handleAddSession}
                   onMoveToFolder={handleMoveToFolder}
                   onRemoveFromFolder={handleRemoveFromFolder}
+                  onDeletePrescription={handleDeletePrescription}
                 />
               )}
 
@@ -372,27 +424,46 @@ export default function PrescriptionsPage() {
                   onAddSession={handleAddSession}
                   onMoveToFolder={handleMoveToFolder}
                   onRemoveFromFolder={handleRemoveFromFolder}
+                  onDeletePrescription={handleDeletePrescription}
                 />
               )}
             </div>
           </DndContext>
+        ) : hasActiveSearch ? (
+          <EmptyState
+            icon={<Search className="h-6 w-6" />}
+            title="Nenhuma prescrição encontrada"
+            description="Nenhuma prescrição corresponde aos critérios de busca. Tente ajustar os termos de busca, limpar os filtros ou criar uma nova prescrição."
+            primaryAction={{
+              label: "Limpar Filtros",
+              onClick: () => setSearchFilters({})
+            }}
+            secondaryAction={{
+              label: "Nova Prescrição",
+              onClick: () => setCreateDialogOpen(true)
+            }}
+          />
         ) : (
           <EmptyState
             icon={<Plus className="h-6 w-6" />}
-            title="Nenhuma prescrição criada"
-            description="Crie sua primeira prescrição de treino para começar a atribuir exercícios e monitorar o progresso dos seus alunos."
+            title="Comece criando sua primeira prescrição"
+            description="Prescrições são templates de treino que você pode atribuir aos seus alunos. Organize exercícios, defina séries e repetições, e acompanhe a evolução de forma estruturada."
             primaryAction={{
               label: "Criar Primeira Prescrição",
               onClick: () => setCreateDialogOpen(true)
             }}
           />
         )}
-      </div>
 
       {/* Dialogs */}
       <CreatePrescriptionDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
+      />
+
+      <ImportPrescriptionFromWordDialog
+        open={importWordDialogOpen}
+        onOpenChange={setImportWordDialogOpen}
       />
       
       <EditPrescriptionDialog
@@ -413,6 +484,11 @@ export default function PrescriptionsPage() {
         prescriptionId={selectedPrescriptionId}
         reopenDate={reopenGroupSession?.date}
         reopenTime={reopenGroupSession?.time}
+      />
+
+      <GenerateGroupSessionDialog
+        open={generateSessionDialogOpen}
+        onOpenChange={setGenerateSessionDialogOpen}
       />
 
       <CreateSubfolderDialog
@@ -459,8 +535,29 @@ export default function PrescriptionsPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+
+          {/* Delete Prescription Confirmation */}
+          <AlertDialog open={deletePrescriptionDialogOpen} onOpenChange={setDeletePrescriptionDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir prescrição</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir esta prescrição? Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleConfirmDeletePrescription}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
-    </div>
+    </PageLayout>
   );
 }

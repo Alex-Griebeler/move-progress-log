@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
+import { logger } from "@/utils/logger";
 import {
   Dialog,
   DialogContent,
@@ -77,7 +78,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
     setIsSubmitting(true);
 
     try {
-      console.log("Creating user with data:", { 
+      logger.log("Creating user with data:", { 
         email: values.email, 
         fullName: values.fullName, 
         role: values.role 
@@ -98,15 +99,15 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
         },
       });
 
-      console.log("Response from admin-create-user:", { data, error });
+      logger.log("Response from admin-create-user:", { data, error });
 
       if (error) {
-        console.error("Edge function error:", error);
+        logger.error("Edge function error:", error);
         throw error;
       }
 
       if (data?.error) {
-        console.error("Data error:", data.error);
+        logger.error("Data error:", data.error);
         throw new Error(data.error);
       }
 
@@ -115,7 +116,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
-      console.error("Error creating user:", error);
+      logger.error("Error creating user:", error);
       notify.error("Erro ao criar usuário", {
         description: error.message || "Tente novamente mais tarde",
       });
@@ -138,7 +139,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-md">
             <FormField
               control={form.control}
               name="fullName"

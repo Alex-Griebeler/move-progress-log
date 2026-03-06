@@ -1,19 +1,24 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useEffect, useRef } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
-import { Plus } from "lucide-react";
+import { usePrescriptionDraft } from "@/hooks/usePrescriptionDraft";
+import { Plus, Save, History, Trash2 } from "lucide-react";
+import { PrescriptionDraftHistoryDialog } from "@/components/PrescriptionDraftHistoryDialog";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
+import { notify } from "@/lib/notify";
 import {
   DndContext,
   closestCenter,
@@ -38,6 +43,8 @@ interface Exercise {
   reps: string;
   interval_seconds: string;
   pse: string;
+  load: string;
+  rir: string;
   training_method: string;
   observations: string;
   group_with_previous: boolean;
@@ -56,6 +63,7 @@ interface CreatePrescriptionDialogProps {
 
 export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescriptionDialogProps) {
   const [name, setName] = useState("");
+  const [prescriptionType, setPrescriptionType] = useState<'group' | 'individual'>('group');
   const [objective, setObjective] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([
     {
@@ -65,6 +73,8 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       reps: "",
       interval_seconds: "",
       pse: "",
+      load: "",
+      rir: "",
       training_method: "",
       observations: "",
       group_with_previous: false,
@@ -75,9 +85,42 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
   ]);
   const [loadingRegressions, setLoadingRegressions] = useState<number | null>(null);
   const [focusedExerciseIndex, setFocusedExerciseIndex] = useState<number | null>(null);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const { data: exercisesLibrary } = useExercisesLibrary();
   const createPrescription = useCreatePrescription();
+  const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = usePrescriptionDraft();
+
+  // Carregar rascunho ao abrir dialog
+  useEffect(() => {
+    if (open && draft) {
+      setName(draft.name);
+      setObjective(draft.objective);
+      setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" })));
+    }
+  }, [open, draft]);
+
+  // Auto-save quando dados mudarem
+  useEffect(() => {
+    if (open && (name || objective || exercises.some(ex => ex.exercise_library_id))) {
+      saveDraft({ name, objective, exercises });
+    }
+  }, [name, objective, exercises, open, saveDraft]);
+
+  // Proteção ao navegar
+  useEffect(() => {
+    if (!open) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      if (name || objective || exercises.some(ex => ex.exercise_library_id)) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [open, name, objective, exercises]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -106,6 +149,8 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       reps: "",
       interval_seconds: "",
       pse: "",
+      load: "",
+      rir: "",
       training_method: "",
       observations: "",
       group_with_previous: false,
@@ -114,16 +159,29 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       showAdaptations: false,
     };
 
+    const scrollToFirstEmpty = (updatedExercises: Exercise[]) => {
+      setTimeout(() => {
+        const emptyIndex = updatedExercises.findIndex(ex => !ex.exercise_library_id);
+        if (emptyIndex === -1) return;
+        setFocusedExerciseIndex(emptyIndex);
+        const container = scrollContainerRef.current;
+        if (container) {
+          const items = container.querySelectorAll('[data-exercise-item]');
+          const target = items[emptyIndex];
+          target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+    };
+
     if (afterIndex !== undefined && afterIndex >= 0) {
-      console.log('Adding exercise after index:', afterIndex);
       const newExercises = [...exercises];
       newExercises.splice(afterIndex + 1, 0, newExercise);
       setExercises(newExercises);
-      setTimeout(() => setFocusedExerciseIndex(afterIndex + 1), 0);
+      scrollToFirstEmpty(newExercises);
     } else {
-      console.log('Adding exercise at end');
-      setExercises([...exercises, newExercise]);
-      setTimeout(() => setFocusedExerciseIndex(exercises.length), 0);
+      const newExercises = [...exercises, newExercise];
+      setExercises(newExercises);
+      scrollToFirstEmpty(newExercises);
     }
   };
 
@@ -192,19 +250,22 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     });
 
     try {
-      const { data, error } = await supabase.functions.invoke("suggest-regressions", {
+      const { data, error } = await supabase.functions.invoke("suggest-exercise-alternatives", {
         body: {
           exerciseId: selectedExercise.id,
           exerciseName: selectedExercise.name,
           movementPattern: selectedExercise.movement_pattern,
           movementPlane: selectedExercise.movement_plane,
           laterality: selectedExercise.laterality,
+          functionalGroup: (selectedExercise as any).functional_group,
+          direction: 'regression',
           availableExercises: exercisesLibrary.map((ex) => ({
             id: ex.id,
             name: ex.name,
             movement_pattern: ex.movement_pattern,
             movement_plane: ex.movement_plane,
             laterality: ex.laterality,
+            numeric_level: (ex as any).numeric_level,
           })),
         },
       });
@@ -237,61 +298,167 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
   };
 
   const handleSubmit = async () => {
+    // Validação de nome
     if (!name.trim()) {
+      notify.error("Nome obrigatório", {
+        description: "Por favor, informe o nome da prescrição antes de salvar."
+      });
+      return;
+    }
+
+    // Validação detalhada de exercícios e adaptações
+    const validationErrors: string[] = [];
+    
+    exercises.forEach((ex, index) => {
+      const exerciseName = exercisesLibrary?.find(e => e.id === ex.exercise_library_id)?.name || `Exercício ${index + 1}`;
+      
+      if (!ex.exercise_library_id) {
+        validationErrors.push(`${exerciseName}: selecione um exercício`);
+      } else if (!ex.sets) {
+        validationErrors.push(`${exerciseName}: informe as séries`);
+      } else if (!ex.reps) {
+        validationErrors.push(`${exerciseName}: informe as repetições`);
+      }
+      
+      // Validação de adaptações: se showAdaptations está ativo, todas as adaptações devem ter exercício selecionado
+      if (ex.showAdaptations && ex.adaptations.length > 0) {
+        ex.adaptations.forEach((adaptation, adaptIndex) => {
+          if (!adaptation.exercise_library_id) {
+            const adaptationLabel = adaptation.type === "regression_1" ? "Regressão 1" 
+              : adaptation.type === "regression_2" ? "Regressão 2" 
+              : "Regressão 3";
+            validationErrors.push(`${exerciseName} - ${adaptationLabel}: selecione um exercício de adaptação`);
+          }
+        });
+      }
+    });
+
+    if (validationErrors.length > 0) {
+      notify.error("Campos incompletos", {
+        description: `Corrija os seguintes campos:\n${validationErrors.slice(0, 3).join('\n')}${validationErrors.length > 3 ? `\n...e mais ${validationErrors.length - 3}` : ''}`
+      });
       return;
     }
 
     const validExercises = exercises.filter((ex) => ex.exercise_library_id && ex.sets && ex.reps);
 
     if (validExercises.length === 0) {
+      notify.error("Exercícios obrigatórios", {
+        description: "Adicione pelo menos um exercício válido com nome, séries e repetições."
+      });
       return;
     }
 
-    await createPrescription.mutateAsync({
-      name,
-      objective,
-      exercises: validExercises.map((ex, index) => ({
-        exercise_library_id: ex.exercise_library_id,
-        sets: ex.sets,
-        reps: ex.reps,
-        interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
-        pse: ex.pse || undefined,
-        training_method: ex.training_method || undefined,
-        observations: ex.observations || undefined,
-        group_with_previous: index > 0 ? ex.group_with_previous : false,
-        should_track: ex.should_track ?? true,
-        adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
-      })),
-    });
+    try {
+      await createPrescription.mutateAsync({
+        name,
+        objective,
+        prescription_type: prescriptionType,
+        exercises: validExercises.map((ex, index) => ({
+          exercise_library_id: ex.exercise_library_id,
+          sets: ex.sets,
+          reps: ex.reps,
+          interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
+          pse: prescriptionType === 'group' ? (ex.pse || undefined) : undefined,
+          load: prescriptionType === 'individual' ? (ex.load || undefined) : undefined,
+          rir: prescriptionType === 'individual' ? (ex.rir || undefined) : undefined,
+          training_method: ex.training_method || undefined,
+          observations: ex.observations || undefined,
+          group_with_previous: index > 0 ? ex.group_with_previous : false,
+          should_track: ex.should_track ?? true,
+          adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
+        })),
+      });
+      
+      // Limpar rascunho após sucesso
+      clearDraft();
 
-    setName("");
-    setObjective("");
-    setExercises([
-      {
-        id: crypto.randomUUID(),
-        exercise_library_id: "",
-        sets: "",
-        reps: "",
-        interval_seconds: "",
-        pse: "",
-        training_method: "",
-        observations: "",
-        group_with_previous: false,
-        should_track: true,
-        adaptations: [],
-        showAdaptations: false,
-      },
-    ]);
+      setName("");
+      setObjective("");
+      setExercises([
+        {
+          id: crypto.randomUUID(),
+          exercise_library_id: "",
+          sets: "",
+          reps: "",
+          interval_seconds: "",
+           pse: "",
+           load: "",
+           rir: "",
+           training_method: "",
+          observations: "",
+          group_with_previous: false,
+          should_track: true,
+          adaptations: [],
+          showAdaptations: false,
+        },
+      ]);
+      onOpenChange(false);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro inesperado. Tente novamente.";
+      notify.error("Erro ao criar prescrição", {
+        description: errorMessage
+      });
+    }
+  };
+
+  const handleClose = () => {
+    const hasContent = name || objective || exercises.some(ex => ex.exercise_library_id);
+    
+    if (hasContent) {
+      const confirmed = confirm(
+        'Você tem dados não salvos. Seu rascunho foi salvo automaticamente. Deseja sair?'
+      );
+      if (!confirmed) return;
+    }
+    
     onOpenChange(false);
+  };
+
+  const handleRestoreDraft = (draftData: any) => {
+    setName(draftData.name);
+    setObjective(draftData.objective);
+    setExercises(draftData.exercises);
+    restoreDraft(draftData);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Criar Nova Prescrição</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Criar Nova Prescrição</DialogTitle>
+            <div className="flex items-center gap-xs">
+              {lastSaved && (
+                <Badge variant="outline" className="gap-1">
+                  <Save className="h-3 w-3" />
+                  {formatDistanceToNow(lastSaved, { locale: ptBR, addSuffix: true })}
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setHistoryDialogOpen(true)}
+                className="gap-2"
+              >
+                <History className="h-4 w-4" />
+                Histórico
+              </Button>
+              {draft && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearDraft}
+                  className="gap-2 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Limpar
+                </Button>
+              )}
+            </div>
+          </div>
           {exercises.length > 0 && (
-            <div className="flex items-center gap-2 pt-2">
+            <div className="flex items-center gap-xs pt-xs">
               <Badge variant="secondary" className="text-sm">
                 {exercises.filter(ex => ex.should_track !== false).length} de {exercises.length} exercício(s) para registro
               </Badge>
@@ -304,92 +471,112 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           )}
         </DialogHeader>
 
-        <TooltipProvider>
-          <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome da Prescrição *</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Treino 1 - Potência/Força"
-                />
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pr-md">
+          <TooltipProvider>
+            <div className="space-y-lg">
+              <div className="space-y-md">
+                <div className="space-y-sm">
+                  <Label htmlFor="name">Nome da Prescrição *</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ex: Treino 1 - Potência/Força"
+                  />
+                </div>
+
+                <div className="space-y-sm">
+                  <Label>Tipo de Prescrição</Label>
+                  <Select value={prescriptionType} onValueChange={(v) => setPrescriptionType(v as 'group' | 'individual')}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="group">Grupo (PSE)</SelectItem>
+                      <SelectItem value="individual">Individual (Carga)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-sm">
+                  <Label htmlFor="objective">Objetivo</Label>
+                  <Textarea
+                    id="objective"
+                    value={objective}
+                    onChange={(e) => setObjective(e.target.value)}
+                    placeholder="Ex: Desenvolvimento de potência e força com ênfase em membros inferiores"
+                    rows={2}
+                  />
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="objective">Objetivo</Label>
-                <Textarea
-                  id="objective"
-                  value={objective}
-                  onChange={(e) => setObjective(e.target.value)}
-                  placeholder="Ex: Desenvolvimento de potência e força com ênfase em membros inferiores"
-                  rows={2}
-                />
+              <Separator />
+
+              <div className="space-y-md">
+                <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-sm -mx-md px-md border-b border-border/50">
+                  <Label className="text-base">Exercícios</Label>
+                  <Button 
+                    onClick={() => addExercise(focusedExerciseIndex ?? undefined)} 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Adicionar Exercício
+                  </Button>
+                </div>
+
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={exercises.map((ex) => ex.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {exercises.map((exercise, exerciseIndex) => (
+                      <SortableExerciseItem
+                        key={exercise.id}
+                        exercise={exercise}
+                        index={exerciseIndex}
+                        total={exercises.length}
+                        prescriptionType={prescriptionType}
+                        exercisesLibrary={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
+                        onUpdate={(field, value) => updateExercise(exerciseIndex, field, value)}
+                        onRemove={() => removeExercise(exerciseIndex)}
+                        onToggleAdaptations={() => toggleAdaptations(exerciseIndex)}
+                        onAddAdaptation={() => addAdaptation(exerciseIndex)}
+                        onRemoveAdaptation={(adaptIndex) => removeAdaptation(exerciseIndex, adaptIndex)}
+                        onUpdateAdaptation={(adaptIndex, exerciseId) => updateAdaptation(exerciseIndex, adaptIndex, exerciseId)}
+                        onSuggestRegressions={() => suggestRegressions(exerciseIndex)}
+                        loadingRegressions={loadingRegressions === exerciseIndex}
+                        onFocus={() => setFocusedExerciseIndex(exerciseIndex)}
+                        isFocused={focusedExerciseIndex === exerciseIndex}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
             </div>
+          </TooltipProvider>
+        </div>
 
-            <Separator />
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-base">Exercícios</Label>
-                <Button 
-                  onClick={() => addExercise(focusedExerciseIndex ?? undefined)} 
-                  variant="outline" 
-                  size="sm" 
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Adicionar Exercício
-                </Button>
-              </div>
-
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={exercises.map((ex) => ex.id)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {exercises.map((exercise, exerciseIndex) => (
-                    <SortableExerciseItem
-                      key={exercise.id}
-                      exercise={exercise}
-                      index={exerciseIndex}
-                      total={exercises.length}
-                      exercisesLibrary={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
-                      onUpdate={(field, value) => updateExercise(exerciseIndex, field, value)}
-                      onRemove={() => removeExercise(exerciseIndex)}
-                      onToggleAdaptations={() => toggleAdaptations(exerciseIndex)}
-                      onAddAdaptation={() => addAdaptation(exerciseIndex)}
-                      onRemoveAdaptation={(adaptIndex) => removeAdaptation(exerciseIndex, adaptIndex)}
-                      onUpdateAdaptation={(adaptIndex, exerciseId) => updateAdaptation(exerciseIndex, adaptIndex, exerciseId)}
-                      onSuggestRegressions={() => suggestRegressions(exerciseIndex)}
-                      loadingRegressions={loadingRegressions === exerciseIndex}
-                      onFocus={() => setFocusedExerciseIndex(exerciseIndex)}
-                      isFocused={focusedExerciseIndex === exerciseIndex}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
-            </div>
-          </div>
-        </ScrollArea>
-
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
           <Button onClick={handleSubmit} disabled={createPrescription.isPending}>
             {createPrescription.isPending ? "Criando..." : "Criar Prescrição"}
           </Button>
-        </div>
-        </TooltipProvider>
+        </DialogFooter>
       </DialogContent>
+
+      <PrescriptionDraftHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        onRestoreDraft={handleRestoreDraft}
+      />
     </Dialog>
   );
 }

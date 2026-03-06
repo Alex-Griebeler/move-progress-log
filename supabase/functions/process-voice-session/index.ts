@@ -5,7 +5,7 @@ import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -14,6 +14,55 @@ const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
 const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY')!;
 const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY);
+
+// ═══════════════════════════════════════════════════════════════
+// SHARED: manter sincronizado com voice-session/index.ts
+// ═══════════════════════════════════════════════════════════════
+
+/** Constantes de conversão de unidades */
+const POUND_TO_KG_CONVERSION = 0.4536;
+const DECIMAL_PLACES = 1;
+
+/** Correções terminológicas padrão para transcrição PT-BR */
+const TERMINOLOGY_CORRECTIONS: Record<string, string> = {
+  'alteres': 'halteres',
+  'querobel': 'kettlebell',
+  'ketobel': 'kettlebell',
+  'quetobell': 'kettlebell',
+  'quetobel': 'kettlebell',
+  'sandbeg': 'sandbag',
+  'land mine': 'landmine',
+};
+
+/** Categorias clínicas para observações extraídas */
+const CLINICAL_CATEGORIES = ['dor', 'mobilidade', 'força', 'técnica', 'geral'] as const;
+
+/** Níveis de severidade para observações clínicas */
+const SEVERITY_LEVELS = {
+  ALTA: 'alta',   // Dor aguda, limitações severas
+  MEDIA: 'média', // Desconfortos, déficits de ativação
+  BAIXA: 'baixa', // Comentários técnicos leves, fadiga normal
+} as const;
+
+/** Regras de carga por tipo de equipamento */
+const EQUIPMENT_LOAD_RULES = {
+  KETTLEBELL_DUPLO: 'Multiplicar por 2 (soma de ambos)',
+  HALTERES_DUPLO: 'Multiplicar por 2 (soma de ambos)',
+  BARRA_BILATERAL: 'Se "de cada lado" → multiplicar por 2 + barra',
+  LANDMINE: 'Apenas carga adicionada, NÃO multiplicar por 2',
+  SANDBAG: 'Carga direta, sem multiplicação',
+  PESO_CORPORAL: 'Usar weight_kg do aluno se disponível, senão null',
+  ELASTICO: 'NUNCA converter para kg, registrar como observação',
+} as const;
+
+// ═══════════════════════════════════════════════════════════════
+// FIM SHARED
+// ═══════════════════════════════════════════════════════════════
+
+const roundToDecimal = (value: number, decimals: number = DECIMAL_PLACES): number => {
+  const multiplier = Math.pow(10, decimals);
+  return Math.round(value * multiplier) / multiplier;
+};
 
 // Processar base64 em chunks para prevenir problemas de memória
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
@@ -51,7 +100,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log("📥 Received request to process voice session");
+    // Processing voice session
     
     // Validate authentication
     const authHeader = req.headers.get('Authorization');
@@ -70,7 +119,7 @@ serve(async (req) => {
     // Verify user authentication
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
-      console.error('❌ Authentication error:', authError);
+      // Authentication failed
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -94,7 +143,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`👤 User ${user.id} processing session${prescriptionId ? ` for prescription ${prescriptionId}` : ' (free session)'}`);
+    
 
     // Verify trainer owns the prescription (only if prescriptionId is provided)
     if (prescriptionId) {
@@ -105,7 +154,7 @@ serve(async (req) => {
         .single();
 
       if (prescriptionError || !prescription) {
-        console.error('❌ Prescription not found:', prescriptionError);
+        
         return new Response(
           JSON.stringify({ error: 'Prescription not found' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -113,7 +162,7 @@ serve(async (req) => {
       }
 
       if (prescription.trainer_id !== user.id) {
-        console.error('❌ Unauthorized access attempt:', user.id, 'to prescription:', prescriptionId);
+        
         return new Response(
           JSON.stringify({ error: 'Unauthorized access to prescription data' }),
           { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -128,7 +177,7 @@ serve(async (req) => {
       .in('id', students.map((s: any) => s.id));
 
     if (studentsError || !studentRecords) {
-      console.error('❌ Error fetching students:', studentsError);
+      
       return new Response(
         JSON.stringify({ error: 'Error validating students' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -137,14 +186,14 @@ serve(async (req) => {
 
     const unauthorizedStudents = studentRecords.filter(s => s.trainer_id !== user.id);
     if (unauthorizedStudents.length > 0) {
-      console.error('❌ Unauthorized student access attempt:', unauthorizedStudents.map(s => s.id));
+      
       return new Response(
         JSON.stringify({ error: 'Unauthorized access to one or more students' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log("🎤 Processing audio with Gemini...");
+    
     
     // 1️⃣ Transcrever áudio usando Gemini
     const binaryAudio = processBase64Chunks(audio);
@@ -162,6 +211,10 @@ serve(async (req) => {
       model: "gemini-2.0-flash-exp" 
     });
 
+    const terminologyCorrectionsPrompt = Object.entries(TERMINOLOGY_CORRECTIONS)
+      .map(([k, v]) => `- "${k}" → "${v}"`)
+      .join('\n');
+
     const transcriptionResult = await model.generateContent([
       {
         inlineData: {
@@ -169,19 +222,23 @@ serve(async (req) => {
           data: audioBase64
         }
       },
-      `Transcreva este áudio em português brasileiro sobre treino físico. 
-  
+      `Transcreva este áudio em português brasileiro sobre treino físico.
+Tolere ruído, interrupções, correções e comentários paralelos.
+
 CORREÇÕES OBRIGATÓRIAS:
-- "alteres" → "halteres"
-- "querobel", "ketobel", "quetobell", "quetobel" → "kettlebell"
+${terminologyCorrectionsPrompt}
 - "supino" (manter assim)
 - "agachamento" (manter assim)
+
+CORREÇÕES NO MEIO DO ÁUDIO:
+- Se houver correção ("não é 17,5, é 20", "anota 20 em vez de 15"), transcreva AMBAS as versões fielmente.
+- O sistema de extração usará apenas a carga final corrigida.
 
 Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     ]);
 
     const transcription = transcriptionResult.response.text();
-    console.log("✅ Transcription completed:", transcription.substring(0, 100) + "...");
+    
 
     // 2️⃣ Buscar detalhes completos da prescrição (se fornecida)
     let prescriptionDetails = null;
@@ -189,12 +246,12 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     if (prescriptionId) {
       const { data: prescDetailsData, error: prescDetailsError } = await supabaseClient
         .from('workout_prescriptions')
-        .select(`*, prescription_exercises (id, sets, reps, order_index, exercises_library (name))`)
+        .select(`*, prescription_exercises (id, sets, reps, order_index, should_track, exercises_library (name))`)
         .eq('id', prescriptionId)
         .single();
       
       if (prescDetailsError || !prescDetailsData) {
-        console.error('❌ Error fetching prescription details:', prescDetailsError);
+        
         throw new Error('Erro ao buscar detalhes da prescrição');
       }
       
@@ -207,14 +264,25 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     
     const exercisesInfo = prescriptionDetails 
       ? prescriptionDetails.prescription_exercises
+          .filter((ex: any) => ex.should_track !== false)
           .map((ex: any) => `  ${ex.order_index + 1}. ${ex.exercises_library.name}: ${ex.sets} séries × ${ex.reps} reps`)
           .join('\n')
       : '  (Sessão livre - sem prescrição definida)';
 
     // 3️⃣ Processar com Gemini para extrair dados estruturados
-    console.log("🤖 Processing structured data with Gemini...");
     
-    const systemPrompt = `Você é um assistente especializado em extrair dados estruturados de sessões de treino EM GRUPO seguindo o padrão Fabrik Time Efficient.
+    
+    const systemPrompt = `Você é o sistema oficial de consolidação de cargas da Fabrik.
+Sua função é interpretar transcrições de treino em português (PT-BR), tolerando ruído, interrupções, correções e comentários paralelos, e extrair apenas os dados estruturais finais.
+
+PRIORIDADE: Exatidão matemática > Fidelidade ao áudio > Clareza estrutural
+
+❌ PROIBIÇÕES ABSOLUTAS:
+- Nunca invente dados
+- Nunca infira repetições não mencionadas
+- Nunca assuma pesos não informados
+- Nunca use memória histórica
+- Nunca estime peso de elástico
 
 CONTEXTO DA SESSÃO:
 📅 Data: ${date}
@@ -243,6 +311,14 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
    - Se o áudio menciona "fez agachamento" mas não menciona outros exercícios prescritos, registre APENAS o agachamento
    - NUNCA preencha exercícios automaticamente da prescrição se eles não foram mencionados
 
+🔁 **CORREÇÕES NO MEIO DO ÁUDIO (CRÍTICO)**:
+   - Se houver correção durante a gravação:
+     * "anota 20" (substituindo valor anterior)
+     * "não é 17,5, é 20"
+     * "corrige pra 25"
+   - → considerar APENAS a carga final corrigida
+   - → descartar valores anteriores que foram explicitamente corrigidos
+
 **IMPORTANTE - PESO CORPORAL (CÁLCULO AUTOMÁTICO)**:
    - Se o exercício usa "peso corporal" ou "PC" e você TEM o peso do aluno (weight_kg):
      * SEMPRE calcule automaticamente: load_kg = weight_kg do aluno
@@ -252,19 +328,34 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
      * load_breakdown: "Peso corporal"
      * load_kg: null
 
+**IMPORTANTE - ELÁSTICO / BANDA (AUXÍLIO)**:
+   - Se o exercício usa elástico como auxílio:
+     * load_breakdown: "Peso corporal" (ou com valor se disponível)
+     * observations: "Auxílio do elástico [cor]" (ex: "Auxílio do elástico roxo")
+     * NUNCA converter elástico para kg
+     * NUNCA estimar peso do elástico
+
 3. **Carga - FORMATO OBRIGATÓRIO DE load_breakdown**:
    
    a) **load_breakdown** (descrição completa da montagem):
       - **REGRA CRÍTICA**: Quando houver múltiplos pesos de cada lado, TODOS devem estar DENTRO do parêntese
       - ✅ CORRETO: "(25 lb + 2 kg + 1 kg) de cada lado + barra 10 kg"
       - ❌ ERRADO: "(25 lb) de cada lado + 2 kg + barra 10 kg"
-      - ❌ ERRADO: "(10 lb) de cada lado + 1 kg + barra 10 kg"
       
       **KETTLEBELLS DUPLOS (CRÍTICO)**:
       - "duplo kettlebell de 32 kg" → load_breakdown: "2 kettlebells de 32 kg", load_kg: 64.0
       - "kettlebell duplo de 24 kg" → load_breakdown: "2 kettlebells de 24 kg", load_kg: 48.0
       - "2 kettlebells de 28 kg" → load_breakdown: "2 kettlebells de 28 kg", load_kg: 56.0
       - "dois halteres de 15 kg" → load_breakdown: "2 halteres de 15 kg", load_kg: 30.0
+      
+      **LANDMINE (CRÍTICO - NÃO multiplicar por 2)**:
+      - Landmine usa apenas carga adicionada, NÃO multiplica por 2
+      - "Landmine press com 15 kg" → load_breakdown: "15 kg", load_kg: 15.0
+      - Se peso da barra não for informado → registrar normalmente + incluir alerta nas observations
+      
+      **SANDBAG**:
+      - Carga direta, sem multiplicação
+      - "Sandbag de 20 kg" → load_breakdown: "20 kg", load_kg: 20.0
       
       **Exemplos válidos:**
       - "(10 lb + 5 kg) de cada lado + barra 20 kg"
@@ -280,10 +371,15 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
       - Se não mencionado: null
 
 4. **Conversão de Libras (PADRÃO FABRIK)**:
-   - **1 lb = 0.45 kg** (usar este valor, não o técnico)
+   - **1 lb = 0.4536 kg** (padrão Fabrik)
+   - Converter antes de somar. Arredondar apenas no resultado final.
    - **ATENÇÃO: "de cada lado" significa multiplicar por 2**
    - **CÁLCULO OBRIGATÓRIO**: Se load_breakdown foi preenchido, load_kg NUNCA pode ser null
-   - **ARREDONDAMENTO**: Sempre 1 casa decimal
+   
+   **BARRA BILATERAL**:
+   - Se disser "X kg" sem especificar lado → assumir que é por lado e multiplicar por 2
+   - Se disser "de cada lado" → multiplicar por 2
+   - Se peso da barra não for informado → NÃO inventar, registrar sem barra, incluir alerta
    
    Exemplos detalhados:
    
@@ -301,9 +397,9 @@ INSTRUÇÕES CRÍTICAS (PADRÃO FABRIK):
    c) "15 lb + 2 kg de cada lado + barra 10 kg"
       * Passo 1: 15 lb = 15 × 0.45 = 6.8 kg
       * Passo 2: (6.8 + 2) × 2 lados = 17.6 kg
-       * Passo 3: 17.6 + 10 (barra) = 27.6 kg
-        * load_breakdown: "(15 lb + 2 kg) de cada lado + barra 10 kg"
-        * load_kg: 27.6
+      * Passo 3: 17.6 + 10 (barra) = 27.6 kg
+      * load_breakdown: "(15 lb + 2 kg) de cada lado + barra 10 kg"
+      * load_kg: 27.6
 
 **CASOS ESPECIAIS DE UNIDADES MISTAS (CRÍTICO)**:
 
@@ -338,7 +434,7 @@ JSON ESPERADO:
 - ❌ ERRADO: "(25 lb) de cada lado + 5 kg + barra 20 kg"
 - ✅ CORRETO: "(25 lb + 5 kg) de cada lado + barra 20 kg"
 
-**EXEMPLOS PRÁTICOS DE CARGA (12 CENÁRIOS REAIS)**:
+**EXEMPLOS PRÁTICOS DE CARGA (14 CENÁRIOS REAIS)**:
 
 a) **Peso corporal COM registro:**
    Áudio: "Fez flexão de braço"
@@ -405,6 +501,16 @@ l) **Exercício sem carga externa:**
    → load_breakdown: "Peso corporal = 75.0 kg" (se peso cadastrado)
    → load_kg: 75.0
 
+m) **Landmine (NÃO multiplicar por 2):**
+   Áudio: "Landmine press com 15 kg"
+   → load_breakdown: "15 kg"
+   → load_kg: 15.0
+
+n) **Sandbag (carga direta):**
+   Áudio: "Carry com sandbag de 30 kg"
+   → load_breakdown: "30 kg"
+   → load_kg: 30.0
+
 **REGRAS PARA CAMPOS NÃO PREENCHIDOS**:
 - Se a carga NÃO foi mencionada no áudio:
   * load_breakdown: null (não "", não "não informado")
@@ -423,20 +529,21 @@ l) **Exercício sem carga externa:**
    - Exemplos: "Afundo (pegada taça)", "Remada unilateral (halter)"
 
 6. **is_best_set**:
-   - Sempre true (registramos apenas a maior carga da sessão)
+   - Registrar apenas a MAIOR CARGA da sessão por exercício
+   - Sempre true
 
 7. **Observações Técnicas** (campo observations):
    - Incluir: "carga submáxima", "dificuldade perna X", "boa execução"
    - Incluir qualquer comentário técnico relevante
+   - Incluir alertas de precisão quando aplicável:
+     * Peso da barra não informado → "⚠️ Peso da barra não informado"
+     * Substituição de exercício → "⚠️ Substituição: [original] → [substituto]"
 
 8. **Observações Clínicas** (campo separado clinical_observations):
    - Extraia: DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE/ATIVAÇÃO
    - **CAPITALIZE a primeira letra de cada observation_text**
    - Exemplo: "dor no joelho" → "Dor no joelho"
-   - Exemplo: "desconforto no quadril" → "Desconforto no quadril"
    - UMA observação pode ter MÚLTIPLAS categorias
-   - Exemplo: "Dor no joelho esquerdo e dificuldade de mobilidade"
-     * categories: ["dor", "mobilidade"]
    - Categorias possíveis: "dor", "mobilidade", "força", "técnica", "geral"
    
    **CLASSIFICAÇÃO DE SEVERIDADE (CRÍTICO)**:
@@ -444,11 +551,18 @@ l) **Exercício sem carga externa:**
      * Exemplo: "Dor intensa no joelho que impediu o agachamento"
    - **MÉDIA**: Desconfortos, déficits de ativação, limitações moderadas
      * Exemplo: "Desconforto no quadril por déficit de ativação do glúteo"
-     * Exemplo: "Dificuldade de mobilidade no tornozelo"
    - **BAIXA**: Comentários técnicos leves, fadiga normal
      * Exemplo: "Leve cansaço ao final da série"
    
    **REGRA GERAL**: Qualquer DOR, DESCONFORTO ou DÉFICIT deve ser no mínimo "média"
+
+🎯 **PONTOS DE ATENÇÃO TÉCNICOS** (campo tech_points - gerar apenas quando houver):
+   - Dor ou desconforto relatado
+   - Técnica comprometida
+   - Carga claramente submáxima
+   - Progressão evidente
+   - Substituição por limitação
+   - Curto. Técnico. Objetivo. Sem diagnóstico médico.
 
 9. **prescribed_exercise_name** (IMPORTANTE):
    - Tente SEMPRE associar o exercício executado com um dos exercícios prescritos
@@ -471,12 +585,14 @@ FORMATO DE SAÍDA:
           "severity": "baixa|média|alta"
         }
       ],
+      "tech_points": ["ponto técnico 1", "ponto técnico 2"],
+      "precision_alerts": ["Peso da barra não informado no supino", "Repetições ausentes no agachamento"],
       "exercises": [
         {
           "prescribed_exercise_name": "nome do exercício prescrito (ou null)",
           "executed_exercise_name": "nome executado (com pegada)",
           "sets": número ou null,
-          "reps": número obrigatório,
+          "reps": número ou null,
           "load_kg": número com 1 casa decimal (ex: 25.0) ou null,
           "load_breakdown": "descrição EXATA ou null",
           "observations": "observações técnicas ou null",
@@ -501,22 +617,18 @@ FORMATO DE SAÍDA:
 
     const extractedData = JSON.parse(extractionResult.response.text());
     
-    console.log("📊 Extracted data:", JSON.stringify(extractedData, null, 2));
-    
-    // 🆕 FASE 3: Preservar exercícios mencionados sem reps e marcá-los para input manual
+    // Preservar exercícios mencionados sem reps e marcá-los para input manual
     if (extractedData.sessions) {
       extractedData.sessions.forEach((session: any) => {
         if (session.exercises) {
           session.exercises = session.exercises.map((ex: any) => {
             if (!ex.reps || ex.reps === 0) {
-              console.log(`🔴 [${session.student_name}] Exercício mencionado sem reps: "${ex.executed_exercise_name}" - marcando para input manual`);
-              
-              // Preservar o exercício mas marcar para preenchimento manual
+              // REGRA FABRIK: usar null para dados não informados, NUNCA 0
               return {
                 ...ex,
-                reps: 0,
-                sets: ex.sets || 0,
-                load_kg: ex.load_kg || 0,
+                reps: null,
+                sets: ex.sets || null,
+                load_kg: ex.load_kg || null,
                 observations: ex.observations 
                   ? `🔴 EXERCÍCIO MENCIONADO SEM REPETIÇÕES - PREENCHER MANUALMENTE\n\n${ex.observations}`
                   : '🔴 EXERCÍCIO MENCIONADO SEM REPETIÇÕES - PREENCHER MANUALMENTE',
@@ -525,42 +637,23 @@ FORMATO DE SAÍDA:
             }
             return ex;
           });
-          
-          const needsManualCount = session.exercises.filter((ex: any) => ex.needs_manual_input).length;
-          if (needsManualCount > 0) {
-            console.log(`⚠️ [${session.student_name}] ${needsManualCount} exercício(s) marcado(s) para input manual`);
-          }
         }
       });
     }
     
-    console.log("🔧 Iniciando validação e sanitização de dados...");
-    
     // Função para normalizar load_breakdown com erros de formato
     function normalizeBreakdown(breakdown: string): string {
-      console.log(`🔧 Normalizando: "${breakdown}"`);
-      
-      // Detectar "de cada lado"
       const hasEachSide = /de cada lado/i.test(breakdown);
-      if (!hasEachSide) {
-        console.log('✅ Sem "de cada lado", não precisa normalizar');
-        return breakdown;
-      }
+      if (!hasEachSide) return breakdown;
       
-      // Detectar se há pesos FORA do parêntese antes de "barra"
-      // Exemplo errado: "(25 lb) de cada lado + 5 kg + barra 20 kg"
       const match = breakdown.match(/\((.*?)\)\s*de cada lado(.*?)(?:barra|\+\s*barra|$)/i);
-      if (!match) {
-        console.log('✅ Formato já está correto ou não tem barra');
-        return breakdown;
-      }
+      if (!match) return breakdown;
       
-      const insideParens = match[1]; // "25 lb"
-      const afterEachSide = match[2].trim(); // "+ 5 kg +"
+      const insideParens = match[1];
+      const afterEachSide = match[2].trim();
       const barraMatch = breakdown.match(/(barra\s+\d+(?:\.\d+)?\s*kg)/i);
       const barra = barraMatch ? barraMatch[1] : '';
       
-      // Extrair pesos soltos entre "de cada lado" e "barra"
       const looseWeights: string[] = [];
       const weightRegex = /(\d+(?:\.\d+)?)\s*(kg|lb)/gi;
       let weightMatch;
@@ -569,17 +662,10 @@ FORMATO DE SAÍDA:
         looseWeights.push(`${weightMatch[1]} ${weightMatch[2]}`);
       }
       
-      if (looseWeights.length === 0) {
-        console.log('✅ Nenhum peso solto encontrado');
-        return breakdown;
-      }
+      if (looseWeights.length === 0) return breakdown;
       
-      // Reconstruir: mover pesos soltos para dentro do parêntese
       const newInsideParens = [insideParens, ...looseWeights].join(' + ');
-      const normalized = `(${newInsideParens}) de cada lado${barra ? ' + ' + barra : ''}`;
-      
-      console.log(`✅ Normalizado: "${normalized}"`);
-      return normalized;
+      return `(${newInsideParens}) de cada lado${barra ? ' + ' + barra : ''}`;
     }
 
     // Função auxiliar para calcular carga (ROBUSTA)
@@ -587,28 +673,20 @@ FORMATO DE SAÍDA:
       if (!breakdown) return null;
       
       try {
-        console.log(`🧮 Calculando carga de: "${breakdown}"`);
-        
         // 1. DETECTAR PESO CORPORAL COM VALOR
         const bodyCorporalWithValue = breakdown.match(/Peso corporal\s*=\s*(\d+(?:\.\d+)?)\s*kg/i);
         if (bodyCorporalWithValue) {
-          const value = parseFloat(bodyCorporalWithValue[1]);
-          console.log(`✅ Peso corporal detectado: ${value} kg`);
-          return Math.round(value * 10) / 10;
+          return roundToDecimal(parseFloat(bodyCorporalWithValue[1]));
         }
         
         // 2. DETECTAR PESO CORPORAL SEM VALOR
         if (/Peso corporal/i.test(breakdown) && !/\d/.test(breakdown)) {
-          console.log(`⚠️ Peso corporal sem valor registrado`);
           return null;
         }
         
-        // 3. DETECTAR ELÁSTICOS/BANDAS (ignorar se for única carga)
+        // 3. DETECTAR ELÁSTICOS/BANDAS
         const hasOnlyElastic = /^(elástico|banda|elastic)/i.test(breakdown.trim()) && !/\d+\s*(kg|lb)/i.test(breakdown);
-        if (hasOnlyElastic) {
-          console.log(`⚠️ Apenas elástico/banda, sem peso mensurável`);
-          return null;
-        }
+        if (hasOnlyElastic) return null;
         
         let total = 0;
         let processedEachSide = false;
@@ -619,21 +697,14 @@ FORMATO DE SAÍDA:
           const content = eachSideMatch[1];
           processedEachSide = true;
           
-          // Kg matches dentro do parêntese
           const kgMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
           for (const m of kgMatches) {
-            const value = parseFloat(m[1].replace(',', '.'));
-            total += value * 2;
-            console.log(`  + ${value} kg × 2 lados = ${value * 2} kg`);
+            total += parseFloat(m[1].replace(',', '.')) * 2;
           }
           
-          // Lb matches dentro do parêntese (converter para kg)
           const lbMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
           for (const m of lbMatches) {
-            const value = parseFloat(m[1].replace(',', '.'));
-            const kg = value * 0.45;
-            total += kg * 2;
-            console.log(`  + ${value} lb × 0.45 × 2 lados = ${kg * 2} kg`);
+            total += parseFloat(m[1].replace(',', '.')) * POUND_TO_KG_CONVERSION * 2;
           }
         }
         
@@ -642,54 +713,41 @@ FORMATO DE SAÍDA:
         if (multiKbMatch && !processedEachSide) {
           const value = parseFloat(multiKbMatch[2].replace(',', '.'));
           const unit = multiKbMatch[3].toLowerCase();
-          const kg = unit === 'lb' ? value * 0.45 : value;
+          const kg = unit === 'lb' ? value * POUND_TO_KG_CONVERSION : value;
           total += kg * 2;
-          console.log(`  + 2 kettlebells/halteres de ${value} ${unit} = ${kg * 2} kg`);
         }
         
-        // 6. EXTRAIR PESO DA BARRA (sempre adicionar)
+        // 6. EXTRAIR PESO DA BARRA
         const barraMatch = breakdown.match(/barra\s*(\d+(?:[.,]\d+)?)\s*kg/i);
         if (barraMatch) {
-          const value = parseFloat(barraMatch[1].replace(',', '.'));
-          total += value;
-          console.log(`  + barra ${value} kg`);
+          total += parseFloat(barraMatch[1].replace(',', '.'));
         }
         
-        // 7. SE NÃO TEM "de cada lado" NEM "duplo", somar pesos normais
+        // 7. PESOS SIMPLES (sem "de cada lado" nem "duplo")
         if (!processedEachSide && !multiKbMatch) {
           const kgMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
           for (const m of kgMatches) {
-            // Não contar se já contou na barra
             const matchText = breakdown.substring(Math.max(0, (m.index || 0) - 6), (m.index || 0) + m[0].length);
             if (!/barra/i.test(matchText)) {
-              const value = parseFloat(m[1].replace(',', '.'));
-              total += value;
-              console.log(`  + ${value} kg`);
+              total += parseFloat(m[1].replace(',', '.'));
             }
           }
           
           const lbMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
           for (const m of lbMatches) {
-            const value = parseFloat(m[1].replace(',', '.'));
-            const kg = value * 0.45;
-            total += kg;
-            console.log(`  + ${value} lb = ${kg} kg`);
+            total += parseFloat(m[1].replace(',', '.')) * POUND_TO_KG_CONVERSION;
           }
         }
         
-        const result = total > 0 ? Math.round(total * 10) / 10 : null;
-        console.log(`✅ Carga total: ${result} kg`);
-        return result;
-      } catch (err) {
-        console.error('❌ Erro ao calcular carga:', err);
+        return total > 0 ? roundToDecimal(total) : null;
+      } catch {
         return null;
       }
     }
     
-    // Função para sanitizar dados (converter 0 e "" para null)
+    // Sanitizar dados (converter 0 e "" para null)
     function sanitizeExerciseData(exercise: any) {
       const fieldsToSanitize = ['load_kg', 'load_breakdown', 'reps', 'sets', 'observations'];
-      
       for (const field of fieldsToSanitize) {
         if (exercise[field] === 0 || exercise[field] === '' || exercise[field] === 'não informado') {
           exercise[field] = null;
@@ -697,73 +755,140 @@ FORMATO DE SAÍDA:
       }
     }
 
-    // Função para validar e recalcular load_kg se necessário
-    function validateAndRecalculateLoad(exercise: any, sessionIdx: number, exIdx: number) {
-      // 1. Sanitizar primeiro
+    // Validar e recalcular load_kg se necessário
+    function validateAndRecalculateLoad(exercise: any, _sessionIdx: number, _exIdx: number) {
       sanitizeExerciseData(exercise);
       
-      // 2. Se não tem load_breakdown, load_kg deve ser null
       if (!exercise.load_breakdown) {
-        if (exercise.load_kg !== null) {
-          console.log(`⚠️ Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: Removendo load_kg sem load_breakdown`);
-          exercise.load_kg = null;
-        }
+        if (exercise.load_kg !== null) exercise.load_kg = null;
         return;
       }
       
-      // 3. Normalizar load_breakdown (corrigir formato se necessário)
-      const originalBreakdown = exercise.load_breakdown;
       exercise.load_breakdown = normalizeBreakdown(exercise.load_breakdown);
-      if (originalBreakdown !== exercise.load_breakdown) {
-        console.log(`🔧 Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: Breakdown normalizado`);
-      }
-      
-      // 4. Calcular load_kg esperado
       const calculatedLoadKg = calculateLoadFromBreakdown(exercise.load_breakdown);
       
-      // 5. Se Gemini não calculou, usar o calculado
       if (exercise.load_kg === null || exercise.load_kg === undefined) {
-        console.log(`⚠️ Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: load_kg ausente, usando calculado`);
         exercise.load_kg = calculatedLoadKg;
         return;
       }
       
-      // 6. Validar consistência (tolerância de 0.1 kg)
+      // Validar consistência (tolerância de 0.1 kg)
       if (calculatedLoadKg !== null) {
         const diff = Math.abs(exercise.load_kg - calculatedLoadKg);
         if (diff > 0.1) {
-          console.log(`❌ Sessão ${sessionIdx + 1}, Ex ${exIdx + 1}: INCONSISTÊNCIA DETECTADA!`);
-          console.log(`   Gemini: ${exercise.load_kg} kg`);
-          console.log(`   Calculado: ${calculatedLoadKg} kg`);
-          console.log(`   Diferença: ${diff.toFixed(1)} kg`);
-          console.log(`   ✅ Usando valor calculado (mais confiável)`);
+          // Usar valor calculado (mais confiável que o Gemini)
           exercise.load_kg = calculatedLoadKg;
         } else {
-          // Garantir 1 casa decimal
           exercise.load_kg = Math.round(exercise.load_kg * 10) / 10;
         }
       }
     }
 
     // APLICAR VALIDAÇÃO COMPLETA
-    console.log('🔧 Iniciando validação e sanitização de dados...');
     extractedData.sessions?.forEach((session: any, sessionIdx: number) => {
       session.exercises?.forEach((ex: any, exIdx: number) => {
         validateAndRecalculateLoad(ex, sessionIdx, exIdx);
       });
     });
-    console.log('✅ Validação e sanitização concluídas');
     
-    console.log("✅ Structured data extraction completed");
-    console.log("📊 Extracted data:", JSON.stringify(extractedData, null, 2));
+    // ═══════════════════════════════════════════════════════════
+    // MEL-IA-006: Validação de Desvio da Prescrição
+    // ═══════════════════════════════════════════════════════════
+    let prescriptionDeviations: any[] = [];
+    
+    if (prescriptionDetails && prescriptionDetails.prescription_exercises) {
+      const prescribedExercises = prescriptionDetails.prescription_exercises.map((pe: any) => ({
+        name: pe.exercises_library.name,
+        sets: pe.sets,
+        reps: pe.reps,
+      }));
+      
+      extractedData.sessions?.forEach((session: any) => {
+        const sessionDeviations: any[] = [];
+        const executedNames = (session.exercises || []).map((ex: any) => 
+          (ex.executed_exercise_name || '').toLowerCase().trim()
+        );
+        const prescribedNames = prescribedExercises.map((pe: any) => pe.name.toLowerCase().trim());
+        
+        // 1. Exercícios prescritos mas NÃO executados (omissões)
+        prescribedExercises.forEach((pe: any) => {
+          const peName = pe.name.toLowerCase().trim();
+          const wasExecuted = executedNames.some((en: string) => 
+            en.includes(peName) || peName.includes(en) || 
+            (session.exercises || []).some((ex: any) => 
+              ex.prescribed_exercise_name?.toLowerCase().trim() === peName
+            )
+          );
+          
+          if (!wasExecuted) {
+            sessionDeviations.push({
+              type: 'exercicio_omitido',
+              prescribed_name: pe.name,
+              message: `Exercício prescrito "${pe.name}" não foi executado`,
+            });
+          }
+        });
+        
+        // 2. Exercícios executados mas NÃO prescritos (substituições/adições)
+        (session.exercises || []).forEach((ex: any) => {
+          const exName = (ex.executed_exercise_name || '').toLowerCase().trim();
+          const isFromPrescription = prescribedNames.some((pn: string) => 
+            pn.includes(exName) || exName.includes(pn)
+          ) || (ex.prescribed_exercise_name && prescribedNames.includes(
+            ex.prescribed_exercise_name.toLowerCase().trim()
+          ));
+          
+          if (!isFromPrescription) {
+            sessionDeviations.push({
+              type: 'exercicio_substituido',
+              executed_name: ex.executed_exercise_name,
+              message: `Exercício "${ex.executed_exercise_name}" não estava na prescrição`,
+            });
+          }
+        });
+        
+        // 3. Desvios de volume (séries diferentes do prescrito)
+        (session.exercises || []).forEach((ex: any) => {
+          if (ex.prescribed_exercise_name && ex.sets) {
+            const prescribed = prescribedExercises.find((pe: any) => 
+              pe.name.toLowerCase().trim() === ex.prescribed_exercise_name.toLowerCase().trim()
+            );
+            if (prescribed) {
+              const prescribedSets = parseInt(prescribed.sets);
+              if (!isNaN(prescribedSets) && ex.sets !== prescribedSets) {
+                sessionDeviations.push({
+                  type: 'desvio_volume',
+                  exercise_name: ex.executed_exercise_name,
+                  prescribed_sets: prescribed.sets,
+                  executed_sets: ex.sets,
+                  message: `"${ex.executed_exercise_name}": ${ex.sets} séries (prescrito: ${prescribed.sets})`,
+                });
+              }
+            }
+          }
+        });
+        
+        if (sessionDeviations.length > 0) {
+          session.prescription_deviations = sessionDeviations;
+        }
+      });
+      
+      // Collect all deviations for the response
+      prescriptionDeviations = extractedData.sessions?.flatMap((s: any) => 
+        (s.prescription_deviations || []).map((d: any) => ({ ...d, student_name: s.student_name }))
+      ) || [];
+    }
+    // ═══════════════════════════════════════════════════════════
+    // FIM MEL-IA-006
+    // ═══════════════════════════════════════════════════════════
+    
 
     const response = {
       success: true,
       transcription,
-      data: extractedData
+      data: extractedData,
+      prescriptionDeviations: prescriptionDeviations.length > 0 ? prescriptionDeviations : undefined,
     };
-    
-    console.log("📤 Sending response:", JSON.stringify(response, null, 2));
 
     return new Response(
       JSON.stringify(response),
@@ -773,7 +898,7 @@ FORMATO DE SAÍDA:
     );
 
   } catch (error) {
-    console.error('❌ Error processing voice session:', error);
+    // Error processing voice session
     return new Response(
       JSON.stringify({ 
         success: false,

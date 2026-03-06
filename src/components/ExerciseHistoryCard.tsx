@@ -45,35 +45,35 @@ const ExerciseHistoryCard = ({ studentId, exerciseName }: ExerciseHistoryCardPro
           Histórico: {exerciseName}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-md">
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-md">
+          <div className="space-y-xs">
+            <div className="flex items-center gap-xs text-xs text-muted-foreground">
               <Award className="h-3 w-3" />
               <span>Carga Máxima</span>
             </div>
             <p className="text-xl font-bold text-primary">{stats.maxLoad}kg</p>
           </div>
           
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <div className="space-y-xs">
+            <div className="flex items-center gap-xs text-xs text-muted-foreground">
               <TrendingUp className="h-3 w-3" />
               <span>Média de Carga</span>
             </div>
             <p className="text-xl font-bold">{stats.avgLoad}kg</p>
           </div>
           
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <div className="space-y-xs">
+            <div className="flex items-center gap-xs text-xs text-muted-foreground">
               <Dumbbell className="h-3 w-3" />
               <span>Volume Total</span>
             </div>
             <p className="text-xl font-bold">{stats.totalVolume}kg</p>
           </div>
           
-          <div className="space-y-1">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <div className="space-y-xs">
+            <div className="flex items-center gap-xs text-xs text-muted-foreground">
               <Calendar className="h-3 w-3" />
               <span>Sessões</span>
             </div>
@@ -83,9 +83,9 @@ const ExerciseHistoryCard = ({ studentId, exerciseName }: ExerciseHistoryCardPro
 
         {/* Last Session */}
         {stats.lastSession && (
-          <div className="pt-3 border-t">
-            <p className="text-sm font-medium mb-2">Última Sessão:</p>
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="pt-md border-t">
+            <p className="text-sm font-medium mb-sm">Última Sessão:</p>
+            <div className="flex items-center gap-sm flex-wrap">
               <Badge variant="outline">
                 {new Date(stats.lastSession.session_date).toLocaleDateString('pt-BR')}
               </Badge>

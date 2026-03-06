@@ -66,12 +66,12 @@ export const PageHeader = ({
       
       {/* Título e Ações */}
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-1 flex-1">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <div className="space-y-sm flex-1">
+          <h1 className="text-[1.75rem] font-bold tracking-tight text-foreground leading-tight">
             {title}
           </h1>
           {description && (
-            <p className="text-base text-muted-foreground max-w-2xl">
+            <p className="text-base text-muted-foreground max-w-2xl leading-normal">
               {description}
             </p>
           )}

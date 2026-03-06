@@ -1,11 +1,12 @@
-import { Home, Users, Library, FileText, Heart, LogOut, Shield, UserCog, Bot, BarChart2, Brain, LucideIcon } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useIsAdmin } from "@/hooks/useUserRole";
-import { NAV_LABELS } from "@/constants/navigation";
-import logoFabrik from "@/assets/logo-fabrik.webp";
+import { ROUTES, ROUTE_CONFIG, POST_LOGIN_ROUTE, RouteDefinition, NAV_LABELS } from "@/constants/navigation";
+import logoFabrik from "@/assets/logo-fabrik.png";
+import { isRouteActive } from "@/lib/navigationUtils";
 import { useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -22,28 +23,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-interface MenuItem {
-  title: string;
-  url: string;
-  icon: LucideIcon;
-}
-
-const mainItems: MenuItem[] = [
-  { title: NAV_LABELS.dashboard, url: "/", icon: Home },
-  { title: NAV_LABELS.students, url: "/alunos", icon: Users },
-  { title: NAV_LABELS.exercises, url: "/exercicios", icon: Library },
-  { title: NAV_LABELS.prescriptions, url: "/prescricoes", icon: FileText },
-  { title: NAV_LABELS.protocols, url: "/protocolos", icon: Heart },
-];
-
-const adminItems: MenuItem[] = [
-  { title: NAV_LABELS.adminUsers, url: "/admin/usuarios", icon: UserCog },
-  { title: NAV_LABELS.adminDiagnostics, url: "/admin/diagnostico-oura", icon: Shield },
-  { title: NAV_LABELS.aiBuilder, url: "/ai-builder", icon: Bot },
-  { title: NAV_LABELS.athleteInsights, url: "/athlete-insights", icon: BarChart2 },
-  { title: NAV_LABELS.coachConsole,    url: "/coach-console",    icon: Brain },
-];
-
 export function AppSidebar() {
   const { open, setOpen, isMobile } = useSidebar();
   const navigate = useNavigate();
@@ -58,6 +37,11 @@ export function AppSidebar() {
     }
   }, [location.pathname, isMobile, setOpen]);
 
+  // Filtrar rotas baseado em permissões
+  const items = ROUTE_CONFIG.filter(item => 
+    !item.requiresAdmin || isAdmin
+  );
+
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -67,29 +51,28 @@ export function AppSidebar() {
         variant: "destructive",
       });
     } else {
-      navigate("/auth");
+      navigate(ROUTES.auth);
     }
   };
 
-  const MenuItemComponent = ({ item }: { item: MenuItem }) => {
-    const isActive = location.pathname === item.url || 
-      (item.url === "/" && location.pathname === "/");
+  const MenuItemComponent = ({ item }: { item: RouteDefinition }) => {
+    const active = isRouteActive(location.pathname, item.path, { exact: true });
     
     const button = (
       <SidebarMenuButton asChild>
         <NavLink 
-          to={item.url} 
-          end={item.url === "/"}
+          to={item.path} 
+          end={item.path === ROUTES.dashboard}
           className={
-            isActive 
+            active 
               ? "bg-primary/10 text-primary font-medium border-l-2 border-primary" 
               : "hover:bg-muted/50 hover:border-l-2 hover:border-muted-foreground/20"
           }
-          aria-label={item.title}
-          aria-current={isActive ? "page" : undefined}
+          aria-label={item.label}
+          aria-current={active ? "page" : undefined}
         >
-          <item.icon className="h-4 w-4" aria-hidden="true" />
-          {open && <span className="truncate">{item.title}</span>}
+          {item.icon && <item.icon className="h-4 w-4" aria-hidden="true" />}
+          {open && <span className="truncate">{item.label}</span>}
         </NavLink>
       </SidebarMenuButton>
     );
@@ -101,7 +84,7 @@ export function AppSidebar() {
             {button}
           </TooltipTrigger>
           <TooltipContent side="right" className="font-medium">
-            {item.title}
+            {item.label}
           </TooltipContent>
         </Tooltip>
       );
@@ -114,10 +97,10 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent>
         {/* Logo - sem border para alinhamento */}
-        <div className="h-14 flex items-center px-4">
+        <div className="h-14 flex items-center px-md">
           <NavLink 
-            to="/" 
-            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            to={ROUTES.dashboard} 
+            className="flex items-center gap-sm hover:opacity-80 transition-opacity"
             aria-label="Página inicial - Fabrik Performance"
           >
             <img 
@@ -133,35 +116,19 @@ export function AppSidebar() {
           </NavLink>
         </div>
 
-        {/* Main Navigation */}
-        <SidebarGroup className="overflow-hidden">
-          <SidebarGroupLabel className="overflow-hidden">Navegação</SidebarGroupLabel>
+        {/* Navegação centralizada via ROUTE_CONFIG */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu role="navigation" aria-label="Navegação principal">
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
+            <SidebarMenu>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.path}>
                   <MenuItemComponent item={item} />
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Admin Navigation */}
-        {isAdmin && (
-          <SidebarGroup className="overflow-hidden">
-            <SidebarGroupLabel className="overflow-hidden">Administração</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu role="navigation" aria-label="Navegação administrativa">
-                {adminItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <MenuItemComponent item={item} />
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
       {/* Footer with Logout */}

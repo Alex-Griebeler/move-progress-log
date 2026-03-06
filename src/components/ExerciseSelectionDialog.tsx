@@ -16,6 +16,7 @@ import { Search, Sparkles, CheckCircle, XCircle } from "lucide-react";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
+import { logger } from "@/utils/logger";
 
 interface ExerciseSelectionDialogProps {
   open: boolean;
@@ -73,7 +74,7 @@ export function ExerciseSelectionDialog({
         });
       }
     } catch (error) {
-      console.error('Erro ao buscar sugestão:', error);
+      logger.error('Erro ao buscar sugestão:', error);
       notify.error("Erro ao buscar sugestão", {
         description: "Selecione manualmente da lista",
       });

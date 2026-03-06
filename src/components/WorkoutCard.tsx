@@ -1,106 +1,208 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, TrendingUp, FolderOpen, Lock, Edit } from "lucide-react";
+import { User, Users, MoreVertical, Eye, Edit, FolderOpen, FileText, Check } from "lucide-react";
+import { memo, useState } from "react";
 
 interface WorkoutCardProps {
   name: string;
+  avatarUrl?: string;
   exercises: number;
   date: string;
+  sessionType?: 'individual' | 'group';
   totalVolume?: number;
+  hasImportantObservations?: boolean;
   isFinalized?: boolean;
   canReopen?: boolean;
   onReopen?: () => void;
   onEdit?: () => void;
+  onFinalize?: () => void;
   sessionId?: string;
+  onClick?: () => void;
 }
 
-const WorkoutCard = ({ name, exercises, date, totalVolume, isFinalized, canReopen, onReopen, onEdit, sessionId }: WorkoutCardProps) => {
-  const displayName = name?.trim() || 'Aluno Desconhecido';
+const WorkoutCard = memo(({ 
+  name, 
+  avatarUrl,
+  exercises, 
+  date, 
+  sessionType, 
+  totalVolume, 
+  hasImportantObservations,
+  isFinalized,
+  canReopen, 
+  onReopen, 
+  onEdit, 
+  onFinalize,
+  onClick 
+}: WorkoutCardProps) => {
+  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
   
-  const getIntensityBadge = (volume: number | undefined) => {
-    if (!volume) return null;
-    if (volume >= 5000) return { label: 'Alta', variant: 'destructive' as const };
-    if (volume >= 3000) return { label: 'Média', variant: 'default' as const };
-    return { label: 'Leve', variant: 'secondary' as const };
+  const displayName = name?.trim() || 'Aluno Desconhecido';
+  const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  
+  const sessionTypeLabel = sessionType === 'group' ? 'Grupo' : 'Individual';
+
+  const handleFinalizeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowFinalizeConfirm(true);
   };
 
-  const intensity = getIntensityBadge(totalVolume);
+  const handleConfirmFinalize = () => {
+    setShowFinalizeConfirm(false);
+    onFinalize?.();
+  };
   
   return (
-    <Card className="hover:shadow-lg transition-all duration-300 border-border/50 backdrop-blur-sm group">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 group-hover:from-primary/30 group-hover:to-accent/30 transition-colors">
-              <Dumbbell className="h-5 w-5 text-primary" />
-            </div>
-            <div className="flex flex-col">
-              <CardTitle className="text-lg">{displayName}</CardTitle>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs text-muted-foreground">{exercises} exercícios</span>
-                {intensity && (
-                  <>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <Badge variant={intensity.variant} className="text-xs h-5">
-                      {intensity.label}
+    <>
+      <Card 
+        className={`min-h-[120px] h-auto ${onClick ? 'card-interactive hover:shadow-premium' : ''} overflow-hidden transition-smooth`}
+        onClick={onClick}
+      >
+        <CardHeader className="h-full flex flex-col justify-between p-lg pb-sm">
+          <div className="flex items-start justify-between gap-sm">
+            <div className="flex items-center gap-sm flex-1 min-w-0">
+              <Avatar className="h-16 w-16 shrink-0">
+                <AvatarImage src={avatarUrl || undefined} />
+                <AvatarFallback className="bg-primary/10 text-foreground text-lg font-semibold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              
+              <div className="flex flex-col gap-xs flex-1 min-w-0">
+                <span className="text-lg font-semibold truncate">{displayName}</span>
+                
+                <div className="flex items-center gap-xs overflow-hidden">
+                  {sessionType && (
+                    <Badge variant="outline" className="text-xs capitalize shrink-0 opacity-70 gap-xs">
+                      {sessionType === 'group' ? <Users className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                      {sessionTypeLabel}
                     </Badge>
-                  </>
-                )}
+                  )}
+                  
+                  <Badge variant="outline" className="text-xs capitalize shrink-0 opacity-70">
+                    {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                  </Badge>
+                  
+                  {hasImportantObservations && (
+                    <Badge variant="outline" className="text-xs capitalize shrink-0 opacity-70 gap-xs">
+                      <FileText className="h-3 w-3" />
+                      Observações
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          <Badge variant="secondary" className="text-xs">
-            {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {totalVolume && (
-          <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/10">
-            <span className="text-sm font-medium text-muted-foreground">Volume Total</span>
-            <div className="flex items-center gap-2 text-primary">
-              <TrendingUp className="h-4 w-4" />
-              <span className="text-lg font-bold">{totalVolume.toLocaleString('pt-BR')}kg</span>
-            </div>
-          </div>
-        )}
-        
-        {isFinalized && (
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Lock className="h-3 w-3" />
-              <span>Sessão Finalizada</span>
-            </div>
-            <div className="flex gap-2">
-              {onEdit && (
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button 
-                  onClick={onEdit}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-2"
+                  variant="ghost" 
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  aria-label="Menu de ações da sessão"
                 >
-                  <Edit className="h-3 w-3" />
-                  Editar
+                  <MoreVertical className="h-4 w-4" />
                 </Button>
-              )}
-              {canReopen && onReopen && (
-                <Button 
-                  onClick={onReopen}
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-2"
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {!isFinalized && onEdit && (
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit();
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar Sessão
+                  </DropdownMenuItem>
+                )}
+                
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClick?.();
+                  }}
                 >
-                  <FolderOpen className="h-3 w-3" />
-                  Reabrir
-                </Button>
-              )}
-            </div>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Ver Detalhes
+                </DropdownMenuItem>
+                
+                {!isFinalized && onFinalize && (
+                  <DropdownMenuItem onClick={handleFinalizeClick}>
+                    <Check className="h-4 w-4 mr-2" />
+                    Finalizar Sessão
+                  </DropdownMenuItem>
+                )}
+                
+                {isFinalized && canReopen && onReopen && (
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReopen();
+                    }}
+                  >
+                    <FolderOpen className="h-4 w-4 mr-2" />
+                    Reabrir Sessão
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardHeader>
+      </Card>
+
+      <AlertDialog open={showFinalizeConfirm} onOpenChange={setShowFinalizeConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finalizar sessão?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja finalizar esta sessão de <strong>{displayName}</strong>? 
+              Após finalizar, você ainda poderá reabrir a sessão se necessário.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmFinalize}>
+              Finalizar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
-};
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.name === nextProps.name &&
+    prevProps.avatarUrl === nextProps.avatarUrl &&
+    prevProps.exercises === nextProps.exercises &&
+    prevProps.date === nextProps.date &&
+    prevProps.sessionType === nextProps.sessionType &&
+    prevProps.totalVolume === nextProps.totalVolume &&
+    prevProps.hasImportantObservations === nextProps.hasImportantObservations &&
+    prevProps.isFinalized === nextProps.isFinalized &&
+    prevProps.canReopen === nextProps.canReopen &&
+    prevProps.sessionId === nextProps.sessionId
+  );
+});
+
+WorkoutCard.displayName = 'WorkoutCard';
 
 export default WorkoutCard;

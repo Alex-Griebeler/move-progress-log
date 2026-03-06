@@ -1,18 +1,27 @@
+import { useState, useRef } from "react";
 import { useStudents } from "@/hooks/useStudents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { OuraApiDiagnosticsCard } from "@/components/OuraApiDiagnosticsCard";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Shield } from "lucide-react";
+import { ExerciseDistributionDiagnostic } from "@/components/ExerciseDistributionDiagnostic";
+import { ArrowLeft, Shield, Upload, Loader2, FileSpreadsheet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { AppHeader } from "@/components/AppHeader";
+import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { NAV_LABELS } from "@/constants/navigation";
+import { NAV_LABELS, ROUTES } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
+import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import exercisesJSON from "@/data/exercicios_fabrik_categorizado.json";
+import * as XLSX from "xlsx";
+import { logger } from "@/utils/logger";
 
 const AdminDiagnosticsPage = () => {
   usePageTitle(NAV_LABELS.adminDiagnostics);
@@ -28,14 +37,176 @@ const AdminDiagnosticsPage = () => {
   const navigate = useNavigate();
   const { data: students, isLoading } = useStudents();
   const { isAdmin, isLoading: isLoadingRole } = useIsAdmin();
+  const [importing, setImporting] = useState(false);
+  const [importingXlsx, setImportingXlsx] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
+  const [importResult, setImportResult] = useState<Record<string, unknown> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportExercises = async () => {
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("import-exercises", {
+        body: exercisesJSON,
+      });
+      if (error) throw error;
+      setImportResult(data);
+      toast.success(`Importação concluída: ${data.inserted} inseridos, ${data.updated} atualizados`);
+    } catch (err) {
+      toast.error(`Erro na importação: ${(err as Error).message}`);
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const [xlsxDebug, setXlsxDebug] = useState<Record<string, unknown> | null>(null);
+
+  const BATCH_SIZE = 5;
+
+  const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setImportingXlsx(true);
+    setImportResult(null);
+    setXlsxDebug(null);
+    setImportProgress(null);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const targetSheetName = workbook.SheetNames.find(
+        (n: string) => n.toLowerCase().includes("exercicio") || n.toLowerCase().includes("consolidado")
+      ) || workbook.SheetNames[0];
+      const sheet = workbook.Sheets[targetSheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
+      
+      const firstRow = rows[0] || {};
+      const rawKeys = Object.keys(firstRow);
+      const debugInfo: Record<string, unknown> = {
+        sheetName: targetSheetName,
+        totalSheets: workbook.SheetNames.length,
+        allSheetNames: workbook.SheetNames,
+        rowCount: rows.length,
+        rawKeys,
+        firstRowSample: Object.entries(firstRow).slice(0, 8).map(([k, v]) => `${k}=${v}`),
+      };
+      setXlsxDebug(debugInfo);
+
+      const normalizeKey = (key: string) => 
+        key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      
+      const exercises = rows.map(row => {
+        const normalized: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(row)) {
+          normalized[normalizeKey(key)] = value;
+          normalized[key] = value;
+        }
+        return {
+          exercicio_pt: normalized["exercicio_pt"] || normalized["nome"] || normalized["name"],
+          aliases_origem: normalized["aliases_origem"] || "",
+          Padrao_movimento: normalized["Padrao_movimento"] || normalized["padrao_movimento"],
+          subcategoria: normalized["subcategoria"],
+          boyle_score: normalized["boyle_score"] != null ? Number(normalized["boyle_score"]) : undefined,
+          AX: normalized["AX"] != null ? Number(normalized["AX"]) : undefined,
+          LOM: normalized["LOM"] != null ? Number(normalized["LOM"]) : undefined,
+          TEC: normalized["TEC"] != null ? Number(normalized["TEC"]) : undefined,
+          MET: normalized["MET"] != null ? Number(normalized["MET"]) : undefined,
+          JOE: normalized["JOE"] != null ? Number(normalized["JOE"]) : undefined,
+          QUA: normalized["QUA"] != null ? Number(normalized["QUA"]) : undefined,
+          grupo_muscular: normalized["grupo_muscular"],
+          "Ênfase": normalized["Ênfase"] || normalized["enfase"] || normalized["ênfase"],
+          Base: normalized["Base"] || normalized["base"],
+          lateralidade: normalized["lateralidade"],
+          "Posição": normalized["Posição"] || normalized["posicao"],
+          plano: normalized["plano"],
+          Tipo_contracao: normalized["Tipo_contracao"] || normalized["tipo_contracao"],
+          risco: normalized["risco"],
+          nivel_boyle: normalized["nivel_boyle"],
+          equipamento: normalized["equipamento"],
+          Implemento: normalized["Implemento"] || normalized["implemento"],
+        };
+      });
+
+      debugInfo.exercisesWithName = exercises.filter(e => e.exercicio_pt).length;
+      debugInfo.exercisesTotal = exercises.length;
+      debugInfo.firstMapped = exercises[0];
+      setXlsxDebug({ ...debugInfo });
+
+      // Split into batches
+      const batches: typeof exercises[] = [];
+      for (let i = 0; i < exercises.length; i += BATCH_SIZE) {
+        batches.push(exercises.slice(i, i + BATCH_SIZE));
+      }
+
+      let totalInserted = 0;
+      let totalUpdated = 0;
+      let totalSkipped = 0;
+      let totalOrphansReclassified = 0;
+      let lastResult: Record<string, unknown> = {};
+
+      for (let i = 0; i < batches.length; i++) {
+        setImportProgress({ current: i * BATCH_SIZE, total: exercises.length });
+        
+        const isLastBatch = i === batches.length - 1;
+        const payload = { 
+          format: "spreadsheet", 
+          exercises: batches[i],
+          skip_orphans: !isLastBatch,
+        };
+
+        logger.log(`[import] Batch ${i + 1}/${batches.length}, size: ${batches[i].length}`);
+
+        let result: Record<string, unknown>;
+        try {
+          const { data, error } = await supabase.functions.invoke("import-exercises", {
+            body: payload,
+          });
+          if (error) {
+            logger.error(`[import] Batch ${i + 1} invoke error:`, error);
+            throw error;
+          }
+          result = data;
+        } catch (invokeErr) {
+          logger.error(`[import] Batch ${i + 1} failed:`, invokeErr);
+          throw new Error(`Batch ${i + 1} falhou: ${(invokeErr as Error).message}`);
+        }
+        
+        totalInserted += Number(result.inserted || 0);
+        totalUpdated += Number(result.updated || 0);
+        totalSkipped += Number(result.skipped || 0);
+        totalOrphansReclassified += Number(result.orphans_reclassified || 0);
+        lastResult = result;
+
+        // Yield to UI
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      setImportProgress({ current: exercises.length, total: exercises.length });
+      
+      const aggregatedResult = {
+        ...lastResult,
+        format: "spreadsheet",
+        inserted: totalInserted,
+        updated: totalUpdated,
+        skipped: totalSkipped,
+        orphans_reclassified: totalOrphansReclassified,
+        total_processed: exercises.length,
+        batches_sent: batches.length,
+      };
+      setImportResult(aggregatedResult);
+      toast.success(`Importação XLSX: ${totalInserted} inseridos, ${totalUpdated} atualizados, ${totalOrphansReclassified} órfãos reclassificados`);
+    } catch (err) {
+      toast.error(`Erro na importação XLSX: ${(err as Error).message}`);
+    } finally {
+      setImportingXlsx(false);
+      setImportProgress(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   if (isLoadingRole) {
-    return (
-      <div className="container mx-auto p-6 space-y-6">
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96 w-full" />
-      </div>
-    );
+    return <PageLoadingSkeleton layout="list" />;
   }
 
   if (!isAdmin) {
@@ -46,7 +217,7 @@ const AdminDiagnosticsPage = () => {
             Você não tem permissão para acessar esta página. Apenas administradores podem ver o diagnóstico da API Oura.
           </AlertDescription>
         </Alert>
-        <Button onClick={() => navigate("/alunos")} className="mt-4">
+        <Button onClick={() => navigate(ROUTES.students)} className="mt-4">
           Voltar para Alunos
         </Button>
       </div>
@@ -54,24 +225,139 @@ const AdminDiagnosticsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-6 space-y-6">
-        <Breadcrumbs 
-          items={[
-            { label: NAV_LABELS.students, href: "/alunos" },
-            { label: NAV_LABELS.adminDiagnostics, icon: Shield }
-          ]}
-        />
-        
-        <AppHeader
-          title={NAV_LABELS.adminDiagnostics}
-          subtitle={NAV_LABELS.subtitleDiagnostics}
-          actions={
-            <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          }
-        />
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.adminDiagnostics, "Diagnósticos e monitoramento do sistema"), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.students, href: "/alunos" }, { label: NAV_LABELS.adminDiagnostics }]), id: "breadcrumb-schema" },
+      ]}
+    >
+      <PageHeader
+        title={NAV_LABELS.adminDiagnostics}
+        breadcrumbs={[
+          { label: NAV_LABELS.students, href: "/alunos" },
+          { label: NAV_LABELS.adminDiagnostics, icon: Shield },
+        ]}
+        actions={
+          <Button variant="ghost" size="icon" onClick={() => navigate(ROUTES.students)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        }
+      />
+
+        {/* Import Exercises Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              Importar Exercícios
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              {/* JSON Import */}
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  JSON oficial (491 exercícios categorizados)
+                </p>
+                <Button 
+                  onClick={handleImportExercises} 
+                  disabled={importing || importingXlsx}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {importing ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando JSON...</>
+                  ) : (
+                    <><Upload className="h-4 w-4 mr-2" />Importar JSON</>
+                  )}
+                </Button>
+              </div>
+
+              {/* XLSX Import */}
+              <div className="flex-1 space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Planilha XLSX com scores multidimensionais (AX, LOM, TEC, MET, JOE, QUA)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleImportXlsx}
+                  className="hidden"
+                />
+                <Button 
+                  onClick={() => fileInputRef.current?.click()} 
+                  disabled={importing || importingXlsx}
+                  variant="default"
+                  className="w-full"
+                >
+                  {importingXlsx && importProgress ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lote {Math.ceil(importProgress.current / 50)}/{Math.ceil(importProgress.total / 50)}…</>
+                  ) : importingXlsx ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lendo planilha...</>
+                  ) : (
+                    <><FileSpreadsheet className="h-4 w-4 mr-2" />Importar Planilha XLSX</>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {xlsxDebug && (
+              <div className="rounded-md border border-amber-500 p-4 space-y-2 text-sm bg-amber-500/10">
+                <p className="font-semibold text-amber-600">📊 Debug da Planilha (frontend)</p>
+                <pre className="text-xs max-h-60 overflow-auto bg-muted p-2 rounded">
+                  {JSON.stringify(xlsxDebug, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {importResult && (
+              <div className="rounded-md border p-4 space-y-2 text-sm">
+                <p><strong>Formato:</strong> {String(importResult.format || "json")}</p>
+                <p><strong>Inseridos:</strong> {String(importResult.inserted)}</p>
+                <p><strong>Atualizados:</strong> {String(importResult.updated)}</p>
+                {importResult.skipped != null && Number(importResult.skipped) > 0 && (
+                  <p><strong>Ignorados (MetCon):</strong> {String(importResult.skipped)}</p>
+                )}
+                {importResult.orphans_reclassified != null && (
+                  <p><strong>Órfãos reclassificados:</strong> {String(importResult.orphans_reclassified)}</p>
+                )}
+                <p><strong>Total processado:</strong> {String(importResult.total_processed)}</p>
+                {importResult.errors_total && Number(importResult.errors_total) > 0 && (
+                  <div>
+                    <p className="text-destructive font-medium">Erros: {String(importResult.errors_total)}</p>
+                    <pre className="text-xs mt-1 max-h-40 overflow-auto bg-muted p-2 rounded">
+                      {JSON.stringify(importResult.errors, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                {importResult.orphans_total && Number(importResult.orphans_total) > 0 && (
+                  <details>
+                    <summary className="cursor-pointer text-muted-foreground">
+                      Exercícios órfãos ({String(importResult.orphans_total)}) — não estão na fonte importada
+                    </summary>
+                    <pre className="text-xs mt-1 max-h-40 overflow-auto bg-muted p-2 rounded">
+                      {JSON.stringify(importResult.orphans, null, 2)}
+                    </pre>
+                  </details>
+                )}
+                {importResult.debug_samples && (
+                  <details open>
+                    <summary className="cursor-pointer text-amber-600 font-medium">
+                      🔍 Debug: primeiros exercícios recebidos
+                    </summary>
+                    <pre className="text-xs mt-1 max-h-60 overflow-auto bg-muted p-2 rounded">
+                      {JSON.stringify(importResult.debug_samples, null, 2)}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Exercise Distribution Diagnostic */}
+        <ExerciseDistributionDiagnostic />
 
         {isLoading ? (
           <div className="space-y-6">
@@ -95,7 +381,7 @@ const AdminDiagnosticsPage = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/alunos/${student.id}`)}
+                    onClick={() => navigate(ROUTES.studentDetail(student.id))}
                   >
                     Ver Detalhes
                   </Button>
@@ -113,8 +399,7 @@ const AdminDiagnosticsPage = () => {
             </CardContent>
           </Card>
         )}
-      </div>
-    </div>
+    </PageLayout>
   );
 };
 

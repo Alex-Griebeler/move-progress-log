@@ -75,6 +75,8 @@ export const useOuraMetrics = (studentId: string, limit?: number) => {
 
       if (limit) {
         query = query.limit(limit);
+      } else {
+        query = query.limit(365);
       }
 
       const { data, error } = await query;

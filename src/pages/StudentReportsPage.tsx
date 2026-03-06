@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { PageLayout } from "@/components/PageLayout";
+import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,26 +56,27 @@ export default function StudentReportsPage() {
 
   return (
     <PageLayout>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <Button
-            variant="ghost"
-            onClick={() => navigate(`/students/${studentId}`)}
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar para perfil do aluno
-          </Button>
-          <h1 className="text-3xl font-bold">Relatórios - {student?.name}</h1>
-          <p className="text-muted-foreground">
-            Visualize e gere relatórios periódicos de evolução
-          </p>
-        </div>
-        <Button onClick={() => setGenerateDialogOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Gerar Novo Relatório
+      <div className="mb-6">
+        <Button
+          variant="ghost"
+          onClick={() => navigate(ROUTES.studentDetail(studentId!))}
+          className="mb-4"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Voltar para perfil do aluno
         </Button>
       </div>
+      
+      <PageHeader
+        title={`Relatórios - ${student?.name || ''}`}
+        description="Visualize e gere relatórios periódicos de evolução"
+        actions={
+          <Button onClick={() => setGenerateDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Gerar Novo Relatório
+          </Button>
+        }
+      />
 
       {!reports || reports.length === 0 ? (
         <Card className="p-12 text-center">

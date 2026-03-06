@@ -4,12 +4,55 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, upgrade',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, upgrade, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+
+// ═══════════════════════════════════════════════════════════════
+// SHARED: manter sincronizado com process-voice-session/index.ts
+// ═══════════════════════════════════════════════════════════════
+
+/** Constantes de conversão de unidades */
+const POUND_TO_KG_CONVERSION = 0.4536;
+
+/** Correções terminológicas padrão para transcrição PT-BR */
+const TERMINOLOGY_CORRECTIONS: Record<string, string> = {
+  'alteres': 'halteres',
+  'querobel': 'kettlebell',
+  'ketobel': 'kettlebell',
+  'quetobell': 'kettlebell',
+  'quetobel': 'kettlebell',
+  'sandbeg': 'sandbag',
+  'land mine': 'landmine',
+};
+
+/** Categorias clínicas para observações extraídas */
+const CLINICAL_CATEGORIES = ['dor', 'mobilidade', 'força', 'técnica', 'geral'] as const;
+
+/** Níveis de severidade para observações clínicas */
+const SEVERITY_LEVELS = {
+  ALTA: 'alta',   // Dor aguda, limitações severas
+  MEDIA: 'média', // Desconfortos, déficits de ativação
+  BAIXA: 'baixa', // Comentários técnicos leves, fadiga normal
+} as const;
+
+/** Regras de carga por tipo de equipamento */
+const EQUIPMENT_LOAD_RULES = {
+  KETTLEBELL_DUPLO: 'Multiplicar por 2 (soma de ambos)',
+  HALTERES_DUPLO: 'Multiplicar por 2 (soma de ambos)',
+  BARRA_BILATERAL: 'Se "de cada lado" → multiplicar por 2 + barra',
+  LANDMINE: 'Apenas carga adicionada, NÃO multiplicar por 2',
+  SANDBAG: 'Carga direta, sem multiplicação',
+  PESO_CORPORAL: 'Usar weight_kg do aluno se disponível, senão null',
+  ELASTICO: 'NUNCA converter para kg, registrar como observação',
+} as const;
+
+// ═══════════════════════════════════════════════════════════════
+// FIM SHARED
+// ═══════════════════════════════════════════════════════════════
 
 interface SessionContext {
   prescriptionId: string;
@@ -29,7 +72,8 @@ interface SessionContext {
   time: string;
 }
 
-let sessionContext: SessionContext | null = null;
+// Session context is now scoped per-connection (inside serve handler)
+// to prevent race conditions between concurrent WebSocket connections
 
 const buildInstructions = (context: SessionContext): string => {
   const studentsInfo = context.students
@@ -52,6 +96,9 @@ ${studentsInfo}
 💪 EXERCÍCIOS PRESCRITOS:
 ${exercisesInfo}
 
+CORREÇÕES TERMINOLÓGICAS OBRIGATÓRIAS:
+${Object.entries(TERMINOLOGY_CORRECTIONS).map(([k, v]) => `- "${k}" → "${v}"`).join('\n')}
+
 INSTRUÇÕES:
 1. Ouça o treinador descrever a sessão de treino
 2. Faça perguntas de confirmação se necessário
@@ -59,15 +106,21 @@ INSTRUÇÕES:
 4. Repetições são OBRIGATÓRIAS - pergunte se não foram mencionadas
 5. Séries: NULL se não mencionado (usará prescrito)
 6. Peso corporal: se aluno tem peso, use o valor; senão NULL
-7. Converta libras para kg (1 lb = 0.453592 kg)
+7. Converta libras para kg (1 lb = ${POUND_TO_KG_CONVERSION} kg)
 8. Detecte adaptações: "X substituindo Y"
 
-9. **OBSERVAÇÕES CLÍNICAS**:
-    - Extraia DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE
-    - Categorize: "dor", "mobilidade", "força", "técnica", "geral"
-    - Severidade: "baixa", "média", "alta"
+9. **REGRAS DE CARGA POR EQUIPAMENTO**:
+${Object.entries(EQUIPMENT_LOAD_RULES).map(([k, v]) => `   - ${k}: ${v}`).join('\n')}
 
-10. **IMPORTANTE**: Quando o treinador terminar de descrever a sessão:
+10. **OBSERVAÇÕES CLÍNICAS**:
+    - Extraia DOR, DESCONFORTO, LIMITAÇÕES, DÉFICITS DE MOBILIDADE
+    - Categorize: ${CLINICAL_CATEGORIES.map(c => `"${c}"`).join(', ')}
+    - Severidade: ${Object.values(SEVERITY_LEVELS).map(s => `"${s}"`).join(', ')}
+    - ALTA: Dor aguda, limitações severas
+    - MÉDIA: Desconfortos, déficits de ativação
+    - BAIXA: Comentários técnicos leves
+
+11. **IMPORTANTE**: Quando o treinador terminar de descrever a sessão:
     - Confirme todos os dados
     - CHAME a função "extract_session_data" com todos os dados coletados
     - Os dados serão enviados para revisão antes de salvar`;
@@ -148,32 +201,27 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Validate authentication - check for token in Authorization header or query parameter
-  const url = new URL(req.url);
-  const tokenFromQuery = url.searchParams.get('token');
+  // BUG-008: Authenticate via Authorization header only — never accept token from URL query
   const authHeader = req.headers.get('Authorization');
-  const token = authHeader?.replace('Bearer ', '') || tokenFromQuery;
-
-  if (!token) {
-    return new Response('Autenticação obrigatória', { 
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Autenticação obrigatória' }), { 
       status: 401, 
-      headers: corsHeaders 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 
+  const token = authHeader.replace('Bearer ', '');
   const authClient = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     { global: { headers: { Authorization: `Bearer ${token}` } } }
   );
 
-  const { data: { user }, error: authError } = await authClient.auth.getUser();
-
-  if (authError || !user) {
-    console.error('Authentication error:', authError);
-    return new Response('Token inválido', { 
+  const { data: { user }, error: userError } = await authClient.auth.getUser();
+  if (userError || !user) {
+    return new Response(JSON.stringify({ error: 'Token inválido' }), { 
       status: 401, 
-      headers: corsHeaders 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 
@@ -186,19 +234,17 @@ serve(async (req) => {
 
   const { socket, response } = Deno.upgradeWebSocket(req);
   let openAISocket: WebSocket | null = null;
+  // Per-connection context — prevents race conditions between concurrent users
+  let sessionContext: SessionContext | null = null;
 
   socket.onopen = async () => {
-    console.log("Client connected - waiting for session context...");
   };
 
   socket.onmessage = async (event) => {
     try {
       const message = JSON.parse(event.data);
-      console.log("📨 Received message type:", message.type);
       
       if (message.type === 'session.context') {
-        console.log("✅ Received context, initializing OpenAI session...");
-        console.log("Context data:", JSON.stringify(message.context));
         
         const { data: prescription, error } = await supabaseClient
           .from('workout_prescriptions')
@@ -284,7 +330,6 @@ serve(async (req) => {
         ]);
 
         openAISocket.onopen = () => {
-          console.log("Connected to OpenAI with full configuration");
           socket.send(JSON.stringify({ type: 'session.context_received' }));
         };
 
@@ -295,7 +340,6 @@ serve(async (req) => {
           if (data.type === 'response.function_call_arguments.done') {
             try {
               const functionArgs = JSON.parse(data.arguments);
-              console.log('Dados extraídos:', functionArgs);
               
               // Enviar os dados estruturados para o frontend
               socket.send(JSON.stringify({
@@ -312,16 +356,15 @@ serve(async (req) => {
                   output: JSON.stringify({ success: true, message: 'Dados recebidos para revisão' })
                 }
               }));
-            } catch (e) {
-              console.error('Erro ao processar function call:', e);
+            } catch (_e) {
+              // Error processing function call - silently handled
             }
           }
           
           socket.send(event.data);
         };
 
-        openAISocket.onerror = (error) => {
-          console.error("OpenAI error:", error);
+        openAISocket.onerror = (_error) => {
           socket.send(JSON.stringify({ type: "error", error: "OpenAI connection failed" }));
         };
 
@@ -335,13 +378,12 @@ serve(async (req) => {
       if (openAISocket?.readyState === WebSocket.OPEN) {
         openAISocket.send(event.data);
       }
-    } catch (error) {
-      console.error("Error:", error);
+    } catch (_error) {
+      // Message handling error - connection will be cleaned up on close
     }
   };
 
   socket.onclose = () => {
-    console.log("Client disconnected");
     openAISocket?.close();
     sessionContext = null;
   };

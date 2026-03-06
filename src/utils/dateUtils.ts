@@ -1,5 +1,6 @@
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { logger } from "@/utils/logger";
 
 /**
  * Converte data UTC do Oura para timezone local e formata
@@ -10,7 +11,7 @@ export const formatOuraDate = (dateString: string, formatStr: string = "PPP"): s
     const date = parseISO(dateString);
     return format(date, formatStr, { locale: ptBR });
   } catch (error) {
-    console.error('Error formatting Oura date:', error);
+    logger.error('Error formatting Oura date:', error);
     return dateString;
   }
 };
@@ -23,7 +24,7 @@ export const formatOuraDateTime = (datetimeString: string, formatStr: string = "
     const date = parseISO(datetimeString);
     return format(date, formatStr, { locale: ptBR });
   } catch (error) {
-    console.error('Error formatting Oura datetime:', error);
+    logger.error('Error formatting Oura datetime:', error);
     return datetimeString;
   }
 };

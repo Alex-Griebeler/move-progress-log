@@ -8,3 +8,18 @@ export const STUDENT_OBJECTIVES = [
 ] as const;
 
 export type ObjectiveValue = typeof STUDENT_OBJECTIVES[number]["value"];
+
+export const MAX_OBJECTIVES = 2;
+
+export const validateObjectives = (objectives: string[]): boolean => {
+  return (
+    objectives.length <= MAX_OBJECTIVES &&
+    objectives.every((obj) =>
+      STUDENT_OBJECTIVES.some((so) => so.value === obj)
+    )
+  );
+};
+
+export const getObjectiveLabel = (value: string): string => {
+  return STUDENT_OBJECTIVES.find((obj) => obj.value === value)?.label || value;
+};

@@ -1,0 +1,5132 @@
+{
+  "metadata": {
+    "fonte": "Lista de Exercícios FABRIK Studio",
+    "versao": "1.0",
+    "total_exercicios": 491,
+    "descricao": "Base de exercícios categorizada para sistema de prescrição por IA"
+  },
+  "abreviacoes": {
+    "1/2 AJ": "semi ajoelhado",
+    "AJ": "ajoelhado",
+    "ALT": "alternado",
+    "ARG": "argolas",
+    "BB": "barra",
+    "BCO": "banco",
+    "BI": "bilateral",
+    "CC": "concêntrica",
+    "CNTL": "contra lateral",
+    "DB": "dumbbell / halter",
+    "DD": "decúbito dorsal",
+    "DL": "decúbito lateral",
+    "DNC": "dinâmico",
+    "DV": "decúbito ventral",
+    "ECC": "excêntrico",
+    "EL": "em linha",
+    "G7": "polia",
+    "ISO": "isométrico",
+    "KB": "kettlebell",
+    "MB": "mini band",
+    "PC": "peso corporal",
+    "PE": "pés elevados",
+    "PFE": "pé da frente elevado",
+    "PTE": "pé de trás elevado",
+    "ROT": "Rotação",
+    "SB": "super band",
+    "UNL": "unilateral"
+  },
+  "padroes_de_movimento": {
+    "empurrar": {
+      "descricao": "Padrão de empurrar - horizontal e vertical",
+      "subcategorias": {
+        "empurrar_horizontal": {
+          "descricao": "Empurrar no plano horizontal (flexão de braços, supino)",
+          "exercicios": {
+            "flexao_de_bracos": {
+              "grupo": "Flexão de Braços",
+              "nivel_progressao": "basico_a_avancado",
+              "exercicios": [
+                {
+                  "nome": "Flexão de braços c/ elevação AJ",
+                  "base": "bilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 1,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "regressao",
+                    "iniciante"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços AJ",
+                  "base": "bilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 2,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "regressao"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços c/ elevação",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 3,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "regressao"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços no solo",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 4,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "base"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços (PE)",
+                  "base": "bilateral",
+                  "posicao": "pes_elevados",
+                  "nivel": 5,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "progressao"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços (PE) c/ sobrecarga",
+                  "base": "bilateral",
+                  "posicao": "pes_elevados",
+                  "nivel": 6,
+                  "equipamento": "peso_corporal+carga",
+                  "tags": [
+                    "progressao",
+                    "avancado"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços c/ SB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "progressao"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços c/ deslocamento",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 6,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "progressao",
+                    "coordenacao"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços + canivete oposto",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 6,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "progressao",
+                    "core",
+                    "coordenacao"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços fechada",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "triceps"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços pliométrica",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 7,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "potencia",
+                    "avancado"
+                  ]
+                }
+              ]
+            },
+            "flexao_suspensao": {
+              "grupo": "Flexão em Suspensão (Argolas)",
+              "nivel_progressao": "intermediario_a_avancado",
+              "exercicios": [
+                {
+                  "nome": "Flexão de braços nas argolas",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "argolas",
+                  "tags": [
+                    "instabilidade"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços (PE) nas argolas",
+                  "base": "bilateral",
+                  "posicao": "pes_elevados",
+                  "nivel": 6,
+                  "equipamento": "argolas",
+                  "tags": [
+                    "instabilidade",
+                    "progressao"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços nas argolas (PE) c/ sobrecarga",
+                  "base": "bilateral",
+                  "posicao": "pes_elevados",
+                  "nivel": 7,
+                  "equipamento": "argolas+carga",
+                  "tags": [
+                    "instabilidade",
+                    "avancado"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços em suspensão",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "suspensao",
+                  "tags": [
+                    "instabilidade"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços em suspensão (PE)",
+                  "base": "bilateral",
+                  "posicao": "pes_elevados",
+                  "nivel": 6,
+                  "equipamento": "suspensao",
+                  "tags": [
+                    "instabilidade"
+                  ]
+                },
+                {
+                  "nome": "Flexão de braços em suspensão (PE) c/ sobrecarga",
+                  "base": "bilateral",
+                  "posicao": "pes_elevados",
+                  "nivel": 7,
+                  "equipamento": "suspensao+carga",
+                  "tags": [
+                    "instabilidade",
+                    "avancado"
+                  ]
+                }
+              ]
+            },
+            "supino": {
+              "grupo": "Supino",
+              "nivel_progressao": "basico_a_avancado",
+              "exercicios": [
+                {
+                  "nome": "Supino reto no solo 2KB/DB",
+                  "base": "bilateral",
+                  "posicao": "solo",
+                  "nivel": 3,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "base"
+                  ]
+                },
+                {
+                  "nome": "Supino reto UNL no solo 1KB/DB",
+                  "base": "unilateral",
+                  "posicao": "solo",
+                  "nivel": 4,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Supino reto em ponte 2KB/DB",
+                  "base": "bilateral",
+                  "posicao": "ponte",
+                  "nivel": 4,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "core",
+                    "gluteos"
+                  ]
+                },
+                {
+                  "nome": "Supino reto UNL em ponte 1KB/DB",
+                  "base": "unilateral",
+                  "posicao": "ponte",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "core",
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Supino reto 2KB/DB",
+                  "base": "bilateral",
+                  "posicao": "banco",
+                  "nivel": 4,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "base"
+                  ]
+                },
+                {
+                  "nome": "Supino reto DB ALT",
+                  "base": "alternado",
+                  "posicao": "banco",
+                  "nivel": 5,
+                  "equipamento": "DB",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Supino reto UNL BCO",
+                  "base": "unilateral",
+                  "posicao": "banco",
+                  "nivel": 5,
+                  "equipamento": "DB",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Supino em ponte 2 KB/DB",
+                  "base": "bilateral",
+                  "posicao": "ponte",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Supino em ponte 1 KB/DB",
+                  "base": "unilateral",
+                  "posicao": "ponte",
+                  "nivel": 6,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "core",
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Supino reto BB",
+                  "base": "bilateral",
+                  "posicao": "banco",
+                  "nivel": 5,
+                  "equipamento": "barra",
+                  "tags": [
+                    "forca_maxima"
+                  ]
+                },
+                {
+                  "nome": "Supino inclinado 2KB/DB",
+                  "base": "bilateral",
+                  "posicao": "banco_inclinado",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": []
+                },
+                {
+                  "nome": "Supino inclinado DB",
+                  "base": "bilateral",
+                  "posicao": "banco_inclinado",
+                  "nivel": 5,
+                  "equipamento": "DB",
+                  "tags": []
+                },
+                {
+                  "nome": "Supino em pé BB nas argolas",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 6,
+                  "equipamento": "argolas+barra",
+                  "tags": [
+                    "instabilidade",
+                    "avancado"
+                  ]
+                },
+                {
+                  "nome": "Supino UNL na polia AJ",
+                  "base": "unilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 4,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Supino UNL na polia 1/2 AJ",
+                  "base": "unilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Supino UNL Split Squat ISO",
+                  "base": "unilateral",
+                  "posicao": "split_squat",
+                  "nivel": 6,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao",
+                    "integrado"
+                  ]
+                },
+                {
+                  "nome": "Supino em pé G7",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "funcional"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "empurrar_vertical": {
+          "descricao": "Empurrar no plano vertical (press, push press, pike)",
+          "exercicios": {
+            "press_landmine": {
+              "grupo": "Press Landmine",
+              "exercicios": [
+                {
+                  "nome": "Press Landmine sentado",
+                  "base": "bilateral",
+                  "posicao": "sentado",
+                  "nivel": 3,
+                  "equipamento": "landmine",
+                  "tags": [
+                    "base",
+                    "ombro_seguro"
+                  ]
+                },
+                {
+                  "nome": "Press Landmine AJ",
+                  "base": "bilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 4,
+                  "equipamento": "landmine",
+                  "tags": [
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Press Landmine 1/2 AJ",
+                  "base": "bilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "landmine",
+                  "tags": [
+                    "core",
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Press Landmine",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "landmine",
+                  "tags": []
+                },
+                {
+                  "nome": "Press UNL Landmine sentado",
+                  "base": "unilateral",
+                  "posicao": "sentado",
+                  "nivel": 4,
+                  "equipamento": "landmine",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Press UNL Landmine AJ",
+                  "base": "unilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "landmine",
+                  "tags": [
+                    "anti_rotacao",
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Press UNL Landmine 1/2 AJ",
+                  "base": "unilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 6,
+                  "equipamento": "landmine",
+                  "tags": [
+                    "anti_rotacao",
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Press UNL Landmine",
+                  "base": "unilateral",
+                  "posicao": "em_pe",
+                  "nivel": 6,
+                  "equipamento": "landmine",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                }
+              ]
+            },
+            "press_vertical_KB_DB": {
+              "grupo": "Press Vertical KB/DB",
+              "exercicios": [
+                {
+                  "nome": "Press vertical ALT 2KB/DB sentado",
+                  "base": "alternado",
+                  "posicao": "sentado",
+                  "nivel": 3,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "base"
+                  ]
+                },
+                {
+                  "nome": "Press vertical ALT 2KB/DB AJ",
+                  "base": "alternado",
+                  "posicao": "ajoelhado",
+                  "nivel": 4,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Press vertical ALT 2KB/DB 1/2 AJ",
+                  "base": "alternado",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "core",
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Press vertical ALT 2KB/DB",
+                  "base": "alternado",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": []
+                },
+                {
+                  "nome": "Press vertical UNL 1KB/DB sentado",
+                  "base": "unilateral",
+                  "posicao": "sentado",
+                  "nivel": 4,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Press vertical UNL 1KB/DB AJ",
+                  "base": "unilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "anti_rotacao",
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Press vertical UNL 1KB/DB 1/2 AJ",
+                  "base": "unilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 6,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "anti_rotacao",
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Press vertical UNL 1KB/DB",
+                  "base": "unilateral",
+                  "posicao": "em_pe",
+                  "nivel": 6,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Press vertical UNL 1KB/DB (PFE)",
+                  "base": "unilateral",
+                  "posicao": "pe_frente_elevado",
+                  "nivel": 7,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "anti_rotacao",
+                    "avancado"
+                  ]
+                }
+              ]
+            },
+            "press_vertical_outros": {
+              "grupo": "Press Vertical - Barra e Outros",
+              "exercicios": [
+                {
+                  "nome": "Push Press 1KB/DB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 6,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "potencia"
+                  ]
+                },
+                {
+                  "nome": "Push Press 2KB/DB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 6,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "potencia"
+                  ]
+                },
+                {
+                  "nome": "Press vertical sentado BB",
+                  "base": "bilateral",
+                  "posicao": "sentado",
+                  "nivel": 5,
+                  "equipamento": "barra",
+                  "tags": [
+                    "forca_maxima"
+                  ]
+                },
+                {
+                  "nome": "Press vertical BB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 6,
+                  "equipamento": "barra",
+                  "tags": [
+                    "forca_maxima"
+                  ]
+                },
+                {
+                  "nome": "Push Press BB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 7,
+                  "equipamento": "barra",
+                  "tags": [
+                    "potencia",
+                    "avancado"
+                  ]
+                },
+                {
+                  "nome": "Press vertical c/ SB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 4,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "acessivel"
+                  ]
+                },
+                {
+                  "nome": "Press vertical UNL c/ SB",
+                  "base": "unilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Press vertical AJ",
+                  "base": "bilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 4,
+                  "equipamento": "DB",
+                  "tags": [
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Press vertical UNL AJ",
+                  "base": "unilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "DB",
+                  "tags": [
+                    "core",
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Press vertical UNL 1/2 AJ",
+                  "base": "unilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 6,
+                  "equipamento": "DB",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Press vertical DB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "DB",
+                  "tags": []
+                },
+                {
+                  "nome": "Press vertical UNL DB",
+                  "base": "unilateral",
+                  "posicao": "em_pe",
+                  "nivel": 6,
+                  "equipamento": "DB",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                }
+              ]
+            },
+            "paralela_e_pike": {
+              "grupo": "Paralela e Pike Push-up",
+              "exercicios": [
+                {
+                  "nome": "Paralela bco c/ joelhos flexionados",
+                  "base": "bilateral",
+                  "posicao": "banco",
+                  "nivel": 3,
+                  "equipamento": "banco",
+                  "tags": [
+                    "regressao"
+                  ]
+                },
+                {
+                  "nome": "Paralela c/ joelhos estendidos",
+                  "base": "bilateral",
+                  "posicao": "banco",
+                  "nivel": 4,
+                  "equipamento": "banco",
+                  "tags": []
+                },
+                {
+                  "nome": "Paralela (PE)",
+                  "base": "bilateral",
+                  "posicao": "pes_elevados",
+                  "nivel": 5,
+                  "equipamento": "banco",
+                  "tags": [
+                    "progressao"
+                  ]
+                },
+                {
+                  "nome": "Barra paralela",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 6,
+                  "equipamento": "barra_paralela",
+                  "tags": [
+                    "avancado"
+                  ]
+                },
+                {
+                  "nome": "Pike push-up",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "ombro"
+                  ]
+                },
+                {
+                  "nome": "Pike push-up (PE)",
+                  "base": "bilateral",
+                  "posicao": "pes_elevados",
+                  "nivel": 6,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "ombro",
+                    "progressao"
+                  ]
+                },
+                {
+                  "nome": "HSPU",
+                  "base": "bilateral",
+                  "posicao": "invertido",
+                  "nivel": 8,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "avancado",
+                    "calistenico"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "puxar": {
+      "descricao": "Padrão de puxar - horizontal e vertical",
+      "subcategorias": {
+        "puxar_horizontal": {
+          "descricao": "Puxar no plano horizontal (remadas)",
+          "exercicios": {
+            "remada_argolas_suspensao": {
+              "grupo": "Remada em Argolas/Suspensão",
+              "exercicios": [
+                {
+                  "nome": "Remada fechada nas argolas",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 3,
+                  "equipamento": "argolas",
+                  "tags": [
+                    "base"
+                  ]
+                },
+                {
+                  "nome": "Remada aberta nas argolas",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 3,
+                  "equipamento": "argolas",
+                  "tags": [
+                    "base",
+                    "escapula"
+                  ]
+                },
+                {
+                  "nome": "Remada fechada em ponte nas argolas",
+                  "base": "bilateral",
+                  "posicao": "ponte",
+                  "nivel": 4,
+                  "equipamento": "argolas",
+                  "tags": [
+                    "gluteos"
+                  ]
+                },
+                {
+                  "nome": "Remada aberta em ponte nas argolas",
+                  "base": "bilateral",
+                  "posicao": "ponte",
+                  "nivel": 4,
+                  "equipamento": "argolas",
+                  "tags": [
+                    "gluteos",
+                    "escapula"
+                  ]
+                },
+                {
+                  "nome": "Remada fechada nas argolas (PE)",
+                  "base": "bilateral",
+                  "posicao": "pes_elevados",
+                  "nivel": 5,
+                  "equipamento": "argolas",
+                  "tags": [
+                    "progressao"
+                  ]
+                },
+                {
+                  "nome": "Remada aberta nas argolas (PE)",
+                  "base": "bilateral",
+                  "posicao": "pes_elevados",
+                  "nivel": 5,
+                  "equipamento": "argolas",
+                  "tags": [
+                    "progressao"
+                  ]
+                },
+                {
+                  "nome": "Remada fechada UNL nas argolas",
+                  "base": "unilateral",
+                  "posicao": "suspensao",
+                  "nivel": 5,
+                  "equipamento": "argolas",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada fechada UNL nas argolas c/ rotação",
+                  "base": "unilateral",
+                  "posicao": "suspensao",
+                  "nivel": 6,
+                  "equipamento": "argolas",
+                  "tags": [
+                    "anti_rotacao",
+                    "rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada unilateral na argola + KB contralateral",
+                  "base": "unilateral",
+                  "posicao": "suspensao",
+                  "nivel": 7,
+                  "equipamento": "argolas+KB",
+                  "tags": [
+                    "anti_rotacao",
+                    "avancado",
+                    "integrado"
+                  ]
+                },
+                {
+                  "nome": "Remada suspensa",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 4,
+                  "equipamento": "suspensao",
+                  "tags": []
+                },
+                {
+                  "nome": "Remada adaptada na mesa",
+                  "base": "bilateral",
+                  "posicao": "solo",
+                  "nivel": 1,
+                  "equipamento": "mesa",
+                  "tags": [
+                    "regressao",
+                    "iniciante",
+                    "acessivel"
+                  ]
+                },
+                {
+                  "nome": "Remada adaptada c/ cabo de vassoura",
+                  "base": "bilateral",
+                  "posicao": "solo",
+                  "nivel": 1,
+                  "equipamento": "vassoura",
+                  "tags": [
+                    "regressao",
+                    "iniciante",
+                    "acessivel"
+                  ]
+                },
+                {
+                  "nome": "Remada adaptada sentado c/ toalha",
+                  "base": "bilateral",
+                  "posicao": "sentado",
+                  "nivel": 1,
+                  "equipamento": "toalha",
+                  "tags": [
+                    "regressao",
+                    "iniciante",
+                    "acessivel"
+                  ]
+                },
+                {
+                  "nome": "Prancha inversa",
+                  "base": "bilateral",
+                  "posicao": "solo",
+                  "nivel": 3,
+                  "equipamento": "peso_corporal",
+                  "tags": [
+                    "escapula",
+                    "extensao_ombro"
+                  ]
+                }
+              ]
+            },
+            "remada_polia": {
+              "grupo": "Remada na Polia",
+              "exercicios": [
+                {
+                  "nome": "Remada UNL AJ na polia",
+                  "base": "unilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 4,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada 1/2 AJ na polia",
+                  "base": "bilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 4,
+                  "equipamento": "polia",
+                  "tags": [
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Remada UNL 1/2 AJ na polia",
+                  "base": "unilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao",
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Remada curvado na polia",
+                  "base": "bilateral",
+                  "posicao": "curvado",
+                  "nivel": 4,
+                  "equipamento": "polia",
+                  "tags": [
+                    "hinge"
+                  ]
+                },
+                {
+                  "nome": "Remada UNL curvado na polia",
+                  "base": "unilateral",
+                  "posicao": "curvado",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "hinge",
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada UNL em pé na polia",
+                  "base": "unilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "funcional"
+                  ]
+                },
+                {
+                  "nome": "Remada UNL base UNL na polia",
+                  "base": "unilateral",
+                  "posicao": "base_unilateral",
+                  "nivel": 6,
+                  "equipamento": "polia",
+                  "tags": [
+                    "funcional",
+                    "equilibrio"
+                  ]
+                }
+              ]
+            },
+            "remada_polia_mike_boyle": {
+              "grupo": "Remada na Polia (Mike Boyle)",
+              "exercicios": [
+                {
+                  "nome": "Remada AJ G7",
+                  "base": "bilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 4,
+                  "equipamento": "polia",
+                  "tags": []
+                },
+                {
+                  "nome": "Remada AJ UNL G7",
+                  "base": "unilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada 1/2 AJ G7",
+                  "base": "bilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 4,
+                  "equipamento": "polia",
+                  "tags": []
+                },
+                {
+                  "nome": "Remada 1/2 AJ UNL G7",
+                  "base": "unilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada pos. Potência G7",
+                  "base": "bilateral",
+                  "posicao": "potencia",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "hinge"
+                  ]
+                },
+                {
+                  "nome": "Remada pos. Potência UNL G7",
+                  "base": "unilateral",
+                  "posicao": "potencia",
+                  "nivel": 6,
+                  "equipamento": "polia",
+                  "tags": [
+                    "hinge",
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada ISO Split Squat G7",
+                  "base": "bilateral",
+                  "posicao": "split_squat",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "integrado"
+                  ]
+                },
+                {
+                  "nome": "Remada ISO Split Squat UNL G7",
+                  "base": "unilateral",
+                  "posicao": "split_squat",
+                  "nivel": 6,
+                  "equipamento": "polia",
+                  "tags": [
+                    "integrado",
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada em pé UNL G7",
+                  "base": "unilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": []
+                },
+                {
+                  "nome": "Remada em pé UNL base UNL G7",
+                  "base": "unilateral",
+                  "posicao": "base_unilateral",
+                  "nivel": 6,
+                  "equipamento": "polia",
+                  "tags": [
+                    "equilibrio"
+                  ]
+                },
+                {
+                  "nome": "Remada em pé UNL base UNL DNC",
+                  "base": "unilateral",
+                  "posicao": "base_unilateral",
+                  "nivel": 7,
+                  "equipamento": "polia",
+                  "tags": [
+                    "equilibrio",
+                    "dinamico",
+                    "avancado"
+                  ]
+                },
+                {
+                  "nome": "Remada em pé UNL c/ ROT",
+                  "base": "unilateral",
+                  "posicao": "em_pe",
+                  "nivel": 6,
+                  "equipamento": "polia",
+                  "tags": [
+                    "rotacao"
+                  ]
+                }
+              ]
+            },
+            "remada_livre": {
+              "grupo": "Remada Livre (KB/DB/BB)",
+              "exercicios": [
+                {
+                  "nome": "Remada UNL 1/2 AJ DB/KB",
+                  "base": "unilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 4,
+                  "equipamento": "KB/DB",
+                  "tags": []
+                },
+                {
+                  "nome": "Remada UNL DB/KB c/ apoio da mão",
+                  "base": "unilateral",
+                  "posicao": "curvado",
+                  "nivel": 4,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "base"
+                  ]
+                },
+                {
+                  "nome": "Remada c/ apoio no BCO 2KB/DB",
+                  "base": "bilateral",
+                  "posicao": "banco",
+                  "nivel": 4,
+                  "equipamento": "KB/DB",
+                  "tags": []
+                },
+                {
+                  "nome": "Remada serrote no BCO 1KB/DB",
+                  "base": "unilateral",
+                  "posicao": "banco",
+                  "nivel": 4,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "classico"
+                  ]
+                },
+                {
+                  "nome": "Remada UNL curvada c/ apoio 1KB/DB",
+                  "base": "unilateral",
+                  "posicao": "curvado",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": []
+                },
+                {
+                  "nome": "Remada UNL curvado 1KB/DB",
+                  "base": "unilateral",
+                  "posicao": "curvado",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada curvada 2KB/DB",
+                  "base": "bilateral",
+                  "posicao": "curvado",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "hinge"
+                  ]
+                },
+                {
+                  "nome": "Remada BI DB/KB",
+                  "base": "bilateral",
+                  "posicao": "curvado",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": []
+                },
+                {
+                  "nome": "Remada curvada BB",
+                  "base": "bilateral",
+                  "posicao": "curvado",
+                  "nivel": 5,
+                  "equipamento": "barra",
+                  "tags": [
+                    "forca_maxima"
+                  ]
+                },
+                {
+                  "nome": "Remada curvada c/ SB",
+                  "base": "bilateral",
+                  "posicao": "curvado",
+                  "nivel": 3,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "acessivel"
+                  ]
+                },
+                {
+                  "nome": "Remada bilateral c/ SB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 3,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "acessivel"
+                  ]
+                },
+                {
+                  "nome": "Remada em pé c/ SB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 3,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "acessivel"
+                  ]
+                },
+                {
+                  "nome": "Remada UNL em pé c/ SB",
+                  "base": "unilateral",
+                  "posicao": "em_pe",
+                  "nivel": 4,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "acessivel",
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada em pé c/ SB (potência)",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "potencia"
+                  ]
+                },
+                {
+                  "nome": "Remada curvada landmine",
+                  "base": "bilateral",
+                  "posicao": "curvado",
+                  "nivel": 5,
+                  "equipamento": "landmine",
+                  "tags": []
+                },
+                {
+                  "nome": "Remada UNL landmine",
+                  "base": "unilateral",
+                  "posicao": "curvado",
+                  "nivel": 5,
+                  "equipamento": "landmine",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Remada curvada UNL 1KB",
+                  "base": "unilateral",
+                  "posicao": "curvado",
+                  "nivel": 5,
+                  "equipamento": "KB",
+                  "tags": []
+                },
+                {
+                  "nome": "Remada curvada UNL 1KB (PTE)",
+                  "base": "unilateral",
+                  "posicao": "pe_tras_elevado",
+                  "nivel": 6,
+                  "equipamento": "KB",
+                  "tags": [
+                    "equilibrio"
+                  ]
+                },
+                {
+                  "nome": "Remada UNL base assimétrica",
+                  "base": "unilateral",
+                  "posicao": "base_assimetrica",
+                  "nivel": 6,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "equilibrio"
+                  ]
+                }
+              ]
+            },
+            "remada_alta_face_pull": {
+              "grupo": "Remada Alta e Face Pull",
+              "exercicios": [
+                {
+                  "nome": "Face Pull c/ SB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 3,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "saude_ombro",
+                    "corretivo"
+                  ]
+                },
+                {
+                  "nome": "Remada alta c/ SB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 4,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "potencia"
+                  ]
+                },
+                {
+                  "nome": "Remada alta na polia",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 4,
+                  "equipamento": "polia",
+                  "tags": [
+                    "potencia"
+                  ]
+                },
+                {
+                  "nome": "Remada alta BB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "barra",
+                  "tags": [
+                    "potencia"
+                  ]
+                },
+                {
+                  "nome": "Remada alta 2KB/DB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 5,
+                  "equipamento": "KB/DB",
+                  "tags": [
+                    "potencia"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "puxar_vertical": {
+          "descricao": "Puxar no plano vertical (puxada, barra fixa)",
+          "exercicios": {
+            "puxada_polia_SB": {
+              "grupo": "Puxada na Polia/SB",
+              "exercicios": [
+                {
+                  "nome": "Puxada vertical c/ SB",
+                  "base": "bilateral",
+                  "posicao": "em_pe",
+                  "nivel": 2,
+                  "equipamento": "super_band",
+                  "tags": [
+                    "regressao",
+                    "acessivel"
+                  ]
+                },
+                {
+                  "nome": "Puxada vertical suspensa",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 3,
+                  "equipamento": "suspensao",
+                  "tags": []
+                },
+                {
+                  "nome": "Puxada sentado na polia alta",
+                  "base": "bilateral",
+                  "posicao": "sentado",
+                  "nivel": 3,
+                  "equipamento": "polia",
+                  "tags": [
+                    "base"
+                  ]
+                },
+                {
+                  "nome": "Puxada UNL sentado na polia alta",
+                  "base": "unilateral",
+                  "posicao": "sentado",
+                  "nivel": 4,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                },
+                {
+                  "nome": "Puxada UNL AJ na polia",
+                  "base": "unilateral",
+                  "posicao": "ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao",
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Puxada UNL 1/2 AJ na polia",
+                  "base": "unilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao",
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Puxada sentado G7",
+                  "base": "bilateral",
+                  "posicao": "sentado",
+                  "nivel": 3,
+                  "equipamento": "polia",
+                  "tags": []
+                },
+                {
+                  "nome": "Puxada cruzada G7 1/2 AJ",
+                  "base": "bilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 4,
+                  "equipamento": "polia",
+                  "tags": [
+                    "core"
+                  ]
+                },
+                {
+                  "nome": "Puxada UNL G7 1/2 AJ",
+                  "base": "unilateral",
+                  "posicao": "semi_ajoelhado",
+                  "nivel": 5,
+                  "equipamento": "polia",
+                  "tags": [
+                    "anti_rotacao"
+                  ]
+                }
+              ]
+            },
+            "barra_fixa": {
+              "grupo": "Barra Fixa",
+              "exercicios": [
+                {
+                  "nome": "Barra supinada c/ auxílio SB",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 4,
+                  "equipamento": "barra+super_band",
+                  "tags": [
+                    "assistido"
+                  ]
+                },
+                {
+                  "nome": "Barra neutra c/ auxílio SB",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 4,
+                  "equipamento": "barra+super_band",
+                  "tags": [
+                    "assistido"
+                  ]
+                },
+                {
+                  "nome": "Barra pronada c/ auxílio SB",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 4,
+                  "equipamento": "barra+super_band",
+                  "tags": [
+                    "assistido"
+                  ]
+                },
+                {
+                  "nome": "Barra ECC",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 5,
+                  "equipamento": "barra_fixa",
+                  "tags": [
+                    "excentrico"
+                  ]
+                },
+                {
+                  "nome": "Barra supinada",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 6,
+                  "equipamento": "barra_fixa",
+                  "tags": [
+                    "base"
+                  ]
+                },
+                {
+                  "nome": "Barra neutra",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 6,
+                  "equipamento": "barra_fixa",
+                  "tags": []
+                },
+                {
+                  "nome": "Barra pronada",
+                  "base": "bilateral",
+                  "posicao": "suspensao",
+                  "nivel": 7,
+                  "equipamento": "barra_fixa",
+                  "tags": [
+                    "avancado"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "dominancia_de_joelho": {
+      "descricao": "Padrão de agachamento e lunge - dominância de joelho",
+      "subcategorias": {
+        "agachamento_bilateral": {
+          "descricao": "Agachamentos bilaterais",
+          "exercicios": [
+            {
+              "nome": "Air squat",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 1,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base",
+                "iniciante"
+              ]
+            },
+            {
+              "nome": "Agachamento c/ auxílio ARG",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 1,
+              "equipamento": "argolas",
+              "tags": [
+                "regressao",
+                "assistido"
+              ]
+            },
+            {
+              "nome": "Agachamento peso corporal",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Agachamento taça",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "KB/DB",
+              "tags": [
+                "base",
+                "essencial"
+              ]
+            },
+            {
+              "nome": "Agachamento taça c/ SB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "KB+super_band",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Agachamento pos. Rack 2KB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB",
+              "tags": [
+                "core"
+              ]
+            },
+            {
+              "nome": "Agachamento pos. Rack 1KB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB",
+              "tags": [
+                "anti_flexao_lateral"
+              ]
+            },
+            {
+              "nome": "Agachamento frontal BB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "barra",
+              "tags": [
+                "core",
+                "mobilidade"
+              ]
+            },
+            {
+              "nome": "Front Squat BB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "barra",
+              "tags": [
+                "core",
+                "mobilidade"
+              ]
+            },
+            {
+              "nome": "Agachamento BB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "barra",
+              "tags": [
+                "forca_maxima"
+              ]
+            },
+            {
+              "nome": "Agachamento overhead",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "barra/DB",
+              "tags": [
+                "avancado",
+                "mobilidade_total"
+              ]
+            },
+            {
+              "nome": "Agachamento sumô KB/DB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "KB/DB",
+              "tags": [
+                "adutores"
+              ]
+            }
+          ]
+        },
+        "agachamento_lateral": {
+          "descricao": "Agachamentos laterais",
+          "exercicios": [
+            {
+              "nome": "Agachamento lateral peso corporal",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Agachamento lateral",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Agachamento lateral no slide",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "slide",
+              "tags": [
+                "plano_frontal",
+                "adutores"
+              ]
+            },
+            {
+              "nome": "Agachamento lateral Medball",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "medball",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Agachamento lateral pos. baixa 1DB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "DB",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Agachamento lateral pos. baixa 2DB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "DB",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Agachamento lateral pos. rack 1 KB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB",
+              "tags": [
+                "plano_frontal",
+                "anti_flexao_lateral"
+              ]
+            },
+            {
+              "nome": "Agachamento lateral pos. rack 2 KB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Cossack squat",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "plano_frontal",
+                "mobilidade"
+              ]
+            }
+          ]
+        },
+        "base_assimetrica_split_squat": {
+          "descricao": "Split squat e base assimétrica",
+          "exercicios": [
+            {
+              "nome": "Split Squat c/ auxílio ARG",
+              "base": "assimetrica",
+              "posicao": "split",
+              "nivel": 2,
+              "equipamento": "argolas",
+              "tags": [
+                "regressao",
+                "assistido"
+              ]
+            },
+            {
+              "nome": "Split Squat peso corporal",
+              "base": "assimetrica",
+              "posicao": "split",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Split Squat ISO",
+              "base": "assimetrica",
+              "posicao": "split",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "isometrico"
+              ]
+            },
+            {
+              "nome": "Split Squat Lunge Matrix",
+              "base": "assimetrica",
+              "posicao": "split",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "multiplanar"
+              ]
+            },
+            {
+              "nome": "Split Squat Taça",
+              "base": "assimetrica",
+              "posicao": "split",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": []
+            },
+            {
+              "nome": "Split Squat 2 DB/KB",
+              "base": "assimetrica",
+              "posicao": "split",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": []
+            },
+            {
+              "nome": "Split Squat PTE",
+              "base": "assimetrica",
+              "posicao": "pe_tras_elevado",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "bulgaro"
+              ]
+            },
+            {
+              "nome": "Agachamento búlgaro",
+              "base": "assimetrica",
+              "posicao": "pe_tras_elevado",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": [
+                "essencial"
+              ]
+            }
+          ]
+        },
+        "lunge": {
+          "descricao": "Lunges em diferentes direções",
+          "exercicios": [
+            {
+              "nome": "Lunge a frente peso corporal",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "dinamico"
+              ]
+            },
+            {
+              "nome": "Lunge a frente taça",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": [
+                "dinamico"
+              ]
+            },
+            {
+              "nome": "Lunge a frente 2 DB/KB",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": [
+                "dinamico"
+              ]
+            },
+            {
+              "nome": "Lunge a frente 1 DB/KB",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": [
+                "dinamico",
+                "anti_flexao_lateral"
+              ]
+            },
+            {
+              "nome": "Lunge a frente pos. rack 2 KB",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB",
+              "tags": [
+                "dinamico"
+              ]
+            },
+            {
+              "nome": "Lunge a frente alternado",
+              "base": "alternado",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": [
+                "dinamico"
+              ]
+            },
+            {
+              "nome": "Lunge reverso",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "joelho_seguro"
+              ]
+            },
+            {
+              "nome": "Lunge reverso taça",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": [
+                "joelho_seguro"
+              ]
+            },
+            {
+              "nome": "Lunge reverso slide",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "slide",
+              "tags": [
+                "joelho_seguro"
+              ]
+            },
+            {
+              "nome": "Afundo",
+              "base": "assimetrica",
+              "posicao": "estatico",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Afundo taça",
+              "base": "assimetrica",
+              "posicao": "estatico",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": []
+            },
+            {
+              "nome": "Lunge lateral",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Lunge alternado em prancha alta",
+              "base": "alternado",
+              "posicao": "prancha",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "core",
+                "integrado"
+              ]
+            },
+            {
+              "nome": "Lunge matrix",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "multiplanar"
+              ]
+            }
+          ]
+        },
+        "lunge_slideboard": {
+          "descricao": "Lunges no Slideboard",
+          "exercicios": [
+            {
+              "nome": "Lunge Reverso peso corporal Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "slideboard",
+              "tags": [
+                "excentrico"
+              ]
+            },
+            {
+              "nome": "Lunge Lateral peso corporal Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "slideboard",
+              "tags": [
+                "plano_frontal",
+                "excentrico"
+              ]
+            },
+            {
+              "nome": "Lunge Reverso Taça Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "slideboard+KB",
+              "tags": [
+                "excentrico"
+              ]
+            },
+            {
+              "nome": "Lunge Lateral Taça Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "slideboard+KB",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Lunge Reverso 1KB/DB Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "slideboard+KB/DB",
+              "tags": [
+                "anti_flexao_lateral"
+              ]
+            },
+            {
+              "nome": "Lunge Lateral 1KB/DB Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "slideboard+KB/DB",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Lunge Reverso 2KB/DB Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "slideboard+KB/DB",
+              "tags": []
+            },
+            {
+              "nome": "Lunge Lateral 2KB/DB Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "slideboard+KB/DB",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Lunge Reverso Pos. Rack 1KB/DB Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "slideboard+KB/DB",
+              "tags": []
+            },
+            {
+              "nome": "Lunge Lateral Pos. Rack 1KB/DB Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "slideboard+KB/DB",
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Lunge Reverso Pos. Rack 2KB/DB Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 7,
+              "equipamento": "slideboard+KB/DB",
+              "tags": [
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Lunge Lateral Pos. Rack 2KB/DB Slideboard",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 7,
+              "equipamento": "slideboard+KB/DB",
+              "tags": [
+                "plano_frontal",
+                "avancado"
+              ]
+            }
+          ]
+        },
+        "agachamento_unilateral": {
+          "descricao": "Agachamentos unilaterais",
+          "exercicios": [
+            {
+              "nome": "Agachamento UNL c/ peso corporal",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "equilibrio"
+              ]
+            },
+            {
+              "nome": "Agachamento UNL na caixa",
+              "base": "unilateral",
+              "posicao": "caixa",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "regressao_unilateral"
+              ]
+            },
+            {
+              "nome": "Agachamento UNL Lacrosse Ball 2DB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "DB+lacrosse_ball",
+              "tags": [
+                "propriocepcao"
+              ]
+            },
+            {
+              "nome": "Agachamento UNL caixa 1DB/KB CNTL",
+              "base": "unilateral",
+              "posicao": "caixa",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": [
+                "contralateral"
+              ]
+            },
+            {
+              "nome": "Agachamento UNL",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "KB/DB",
+              "tags": [
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Skater squat",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Step down",
+              "base": "unilateral",
+              "posicao": "caixa",
+              "nivel": 4,
+              "equipamento": "caixa",
+              "tags": [
+                "excentrico",
+                "joelho"
+              ]
+            },
+            {
+              "nome": "Step up",
+              "base": "unilateral",
+              "posicao": "caixa",
+              "nivel": 4,
+              "equipamento": "caixa",
+              "tags": [
+                "funcional"
+              ]
+            },
+            {
+              "nome": "Flexão nórdica inversa",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "quadriceps",
+                "excentrico"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "dominancia_de_quadril": {
+      "descricao": "Padrão de dobradiça (hinge) - dominância de quadril",
+      "subcategorias": {
+        "deadlift_bilateral": {
+          "descricao": "Deadlift e variações bilaterais",
+          "exercicios": [
+            {
+              "nome": "Deadlift peso corporal (Hip-Hinge)",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 1,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "tecnica",
+                "iniciante"
+              ]
+            },
+            {
+              "nome": "Deadlift c/ bastão nas costas (técnica)",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 1,
+              "equipamento": "bastao",
+              "tags": [
+                "tecnica",
+                "iniciante"
+              ]
+            },
+            {
+              "nome": "Deadlift c/ SB na cintura (técnica)",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 2,
+              "equipamento": "super_band",
+              "tags": [
+                "tecnica"
+              ]
+            },
+            {
+              "nome": "Hinge AJ (técnica)",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "tecnica"
+              ]
+            },
+            {
+              "nome": "Deadlift 1KB/DB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "KB/DB",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Deadlift Sumô 1KB/DB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "KB/DB",
+              "tags": [
+                "adutores"
+              ]
+            },
+            {
+              "nome": "KB Deadlift",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "KB",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Deadlift BB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "barra",
+              "tags": [
+                "forca_maxima"
+              ]
+            },
+            {
+              "nome": "Deadlift Sumô BB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "barra",
+              "tags": [
+                "forca_maxima",
+                "adutores"
+              ]
+            },
+            {
+              "nome": "Deadlift sumô",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "barra",
+              "tags": [
+                "forca_maxima"
+              ]
+            },
+            {
+              "nome": "Bom dia peso corporal",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "tecnica"
+              ]
+            },
+            {
+              "nome": "Bom dia BB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "barra",
+              "tags": [
+                "avancado"
+              ]
+            }
+          ]
+        },
+        "deadlift_unilateral": {
+          "descricao": "Deadlift unilateral e base assimétrica",
+          "exercicios": [
+            {
+              "nome": "Deadlift UNL c/ auxílio ARG",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "argolas",
+              "tags": [
+                "assistido"
+              ]
+            },
+            {
+              "nome": "Deadlift UNL + alcançar",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "mobilidade"
+              ]
+            },
+            {
+              "nome": "Deadlift UNL pés no chão 1KB/DB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": [
+                "kickstand"
+              ]
+            },
+            {
+              "nome": "Deadlift UNL 1/2 apoio KB/DB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": []
+            },
+            {
+              "nome": "Deadlift UNL (PTE) 1KB/DB",
+              "base": "unilateral",
+              "posicao": "pe_tras_elevado",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": []
+            },
+            {
+              "nome": "Deadlift UNL s/ apoio 1KB/DB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "KB/DB",
+              "tags": [
+                "equilibrio"
+              ]
+            },
+            {
+              "nome": "Deadlift UNL pés no chão 2KB/DB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": [
+                "kickstand"
+              ]
+            },
+            {
+              "nome": "Deadlift UNL 1/2 apoio 2KB/DB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "KB/DB",
+              "tags": []
+            },
+            {
+              "nome": "Deadlift UNL (PTE) 2KB/DB",
+              "base": "unilateral",
+              "posicao": "pe_tras_elevado",
+              "nivel": 6,
+              "equipamento": "KB/DB",
+              "tags": []
+            },
+            {
+              "nome": "Deadlift UNL auxílio ARG 2KB/DB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB/DB+argolas",
+              "tags": [
+                "assistido"
+              ]
+            },
+            {
+              "nome": "Deadlift UNL s/apoio 2KB/DB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 7,
+              "equipamento": "KB/DB",
+              "tags": [
+                "equilibrio",
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Deadlift UNL BB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 7,
+              "equipamento": "barra",
+              "tags": [
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Deadlift UNL",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": []
+            },
+            {
+              "nome": "Deadlift UNL c/ SB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "super_band",
+              "tags": [
+                "acessivel"
+              ]
+            },
+            {
+              "nome": "Deadlift c/ SB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "super_band",
+              "tags": [
+                "acessivel"
+              ]
+            }
+          ]
+        },
+        "rdl_stiff": {
+          "descricao": "RDL e Stiff",
+          "exercicios": [
+            {
+              "nome": "RDL c/ SB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "super_band",
+              "tags": [
+                "acessivel"
+              ]
+            },
+            {
+              "nome": "RDL BB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "barra",
+              "tags": [
+                "forca_maxima"
+              ]
+            },
+            {
+              "nome": "RDL em base assimétrica",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "barra/DB",
+              "tags": []
+            },
+            {
+              "nome": "SLDL",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": [
+                "equilibrio"
+              ]
+            },
+            {
+              "nome": "Stiff",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "barra",
+              "tags": [
+                "isquiotibiais"
+              ]
+            },
+            {
+              "nome": "Pull Through",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "polia",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Lunge reverso taça",
+              "base": "assimetrica",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": [
+                "hibrido_joelho_quadril"
+              ]
+            }
+          ]
+        },
+        "ponte_hip_thrust": {
+          "descricao": "Ponte, elevação de quadril e hip thrust",
+          "exercicios": [
+            {
+              "nome": "Ponte no solo",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 1,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base",
+                "iniciante"
+              ]
+            },
+            {
+              "nome": "Ponte c/ MB",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 2,
+              "equipamento": "mini_band",
+              "tags": [
+                "ativacao_gluteos"
+              ]
+            },
+            {
+              "nome": "Ponte UNL no solo",
+              "base": "unilateral",
+              "posicao": "solo",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Elevação do quadril pés elevados",
+              "base": "bilateral",
+              "posicao": "pes_elevados",
+              "nivel": 3,
+              "equipamento": "caixa",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Elevação do quadril UNL pés elevados",
+              "base": "unilateral",
+              "posicao": "pes_elevados",
+              "nivel": 4,
+              "equipamento": "caixa",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Hip Thrust",
+              "base": "bilateral",
+              "posicao": "banco",
+              "nivel": 4,
+              "equipamento": "banco",
+              "tags": [
+                "gluteos",
+                "essencial"
+              ]
+            },
+            {
+              "nome": "Hip Thrust c/ SB",
+              "base": "bilateral",
+              "posicao": "banco",
+              "nivel": 4,
+              "equipamento": "banco+super_band",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Hip Thrust UNL",
+              "base": "unilateral",
+              "posicao": "banco",
+              "nivel": 5,
+              "equipamento": "banco",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Hip Thrust UNL c/ SB",
+              "base": "unilateral",
+              "posicao": "banco",
+              "nivel": 5,
+              "equipamento": "banco+super_band",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Hip Thrust BB",
+              "base": "bilateral",
+              "posicao": "banco",
+              "nivel": 5,
+              "equipamento": "banco+barra",
+              "tags": [
+                "forca_maxima",
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Hip Thrust c/ MB",
+              "base": "bilateral",
+              "posicao": "banco",
+              "nivel": 4,
+              "equipamento": "banco+mini_band",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Ponte (7s iso) + hinge drop (5 reps)",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "ativacao",
+                "combo"
+              ]
+            },
+            {
+              "nome": "Ponte + ext. ombro c/ SB",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 3,
+              "equipamento": "super_band",
+              "tags": [
+                "integrado",
+                "ombro"
+              ]
+            },
+            {
+              "nome": "Ponte caminhando c/ calcanhar",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "isquiotibiais"
+              ]
+            },
+            {
+              "nome": "Elevação do quadril BI",
+              "base": "bilateral",
+              "posicao": "banco_caixa",
+              "nivel": 4,
+              "equipamento": "caixa",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Elevação do quadril UNL",
+              "base": "unilateral",
+              "posicao": "banco_caixa",
+              "nivel": 5,
+              "equipamento": "caixa",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Elevação do quadril BI (Caixa/BCO)",
+              "base": "bilateral",
+              "posicao": "banco_caixa",
+              "nivel": 4,
+              "equipamento": "caixa/banco",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Elevação do quadril UNL (Caixa/BCO)",
+              "base": "unilateral",
+              "posicao": "banco_caixa",
+              "nivel": 5,
+              "equipamento": "caixa/banco",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Hip Thruster BI",
+              "base": "bilateral",
+              "posicao": "banco",
+              "nivel": 5,
+              "equipamento": "banco+carga",
+              "tags": [
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Hip Thruster UNL",
+              "base": "unilateral",
+              "posicao": "banco",
+              "nivel": 6,
+              "equipamento": "banco+carga",
+              "tags": [
+                "gluteos"
+              ]
+            }
+          ]
+        },
+        "flexao_joelhos_nordica": {
+          "descricao": "Flexão dos joelhos e nórdica (isquiotibiais)",
+          "exercicios": [
+            {
+              "nome": "Flexão dos joelhos na bola",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 4,
+              "equipamento": "bola",
+              "tags": [
+                "isquiotibiais"
+              ]
+            },
+            {
+              "nome": "Flexão dos joelhos no slide",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 4,
+              "equipamento": "slide",
+              "tags": [
+                "isquiotibiais"
+              ]
+            },
+            {
+              "nome": "Flexão dos joelhos em ponte c/ slide",
+              "base": "bilateral",
+              "posicao": "ponte",
+              "nivel": 5,
+              "equipamento": "slide",
+              "tags": [
+                "isquiotibiais",
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Flexão do joelho UNL em ponte c/ slide",
+              "base": "unilateral",
+              "posicao": "ponte",
+              "nivel": 6,
+              "equipamento": "slide",
+              "tags": [
+                "isquiotibiais",
+                "gluteos"
+              ]
+            },
+            {
+              "nome": "Flexão dos joelhos UNL no Slide",
+              "base": "unilateral",
+              "posicao": "solo",
+              "nivel": 5,
+              "equipamento": "slide",
+              "tags": [
+                "isquiotibiais"
+              ]
+            },
+            {
+              "nome": "Flexão ECC dos joelhos no Slide",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 5,
+              "equipamento": "slide",
+              "tags": [
+                "isquiotibiais",
+                "excentrico"
+              ]
+            },
+            {
+              "nome": "Flexão nórdica",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 6,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "isquiotibiais",
+                "excentrico",
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Flexão Nórdica ECC c/ auxílio SB",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 5,
+              "equipamento": "super_band",
+              "tags": [
+                "isquiotibiais",
+                "excentrico",
+                "assistido"
+              ]
+            },
+            {
+              "nome": "Flexão Nórdica ECC",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 6,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "isquiotibiais",
+                "excentrico"
+              ]
+            },
+            {
+              "nome": "Flexão Nórdica ECC + CC",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 7,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "isquiotibiais",
+                "avancado"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "carregar": {
+      "descricao": "Padrão de carregar (carry) - estabilidade dinâmica e core funcional",
+      "subcategorias": {
+        "carregamento": {
+          "descricao": "Todos os tipos de carregamento",
+          "exercicios": [
+            {
+              "nome": "Carregamento Taça KB/DB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "KB/DB",
+              "tags": [
+                "base",
+                "caminhada"
+              ]
+            },
+            {
+              "nome": "Carregamento pos. baixa 2KB/DB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": [
+                "farmer_walk",
+                "caminhada"
+              ]
+            },
+            {
+              "nome": "Carregamento pos. baixa 1KB/DB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": [
+                "anti_flexao_lateral",
+                "caminhada"
+              ]
+            },
+            {
+              "nome": "Carregamento pos. baixa BI G7",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "polia",
+              "tags": [
+                "caminhada"
+              ]
+            },
+            {
+              "nome": "Carregamento pos. baixa UNL G7",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "polia",
+              "tags": [
+                "anti_flexao_lateral",
+                "caminhada"
+              ]
+            },
+            {
+              "nome": "Carregamento AJ pos. Rack 2KB/DB",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 4,
+              "equipamento": "KB/DB",
+              "tags": [
+                "core",
+                "isometrico"
+              ]
+            },
+            {
+              "nome": "Carregamento AJ pos. Rack 1KB/DB",
+              "base": "unilateral",
+              "posicao": "ajoelhado",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": [
+                "anti_flexao_lateral",
+                "core"
+              ]
+            },
+            {
+              "nome": "Carregamento 1/2 AJ pos. Rack 2KB/DB",
+              "base": "bilateral",
+              "posicao": "semi_ajoelhado",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": [
+                "core"
+              ]
+            },
+            {
+              "nome": "Carregamento 1/2 AJ pos. Rack 1KB/DB",
+              "base": "unilateral",
+              "posicao": "semi_ajoelhado",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": [
+                "anti_flexao_lateral",
+                "core"
+              ]
+            },
+            {
+              "nome": "Carregamento pos. Rack 2KB/DB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": [
+                "caminhada"
+              ]
+            },
+            {
+              "nome": "Carregamento pos. Rack 1KB/DB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": [
+                "anti_flexao_lateral",
+                "caminhada"
+              ]
+            },
+            {
+              "nome": "Carregamento BI Overhead",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "KB/DB",
+              "tags": [
+                "overhead",
+                "ombro",
+                "avancado",
+                "caminhada"
+              ]
+            },
+            {
+              "nome": "Carregamento UNL Overhead",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 7,
+              "equipamento": "KB/DB",
+              "tags": [
+                "overhead",
+                "ombro",
+                "anti_flexao_lateral",
+                "avancado",
+                "caminhada"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "estabilidade": {
+      "descricao": "Estabilidade / Core - anti-movimento",
+      "subcategorias": {
+        "anti_extensao": {
+          "descricao": "Anti-extensão da coluna",
+          "exercicios": [
+            {
+              "nome": "Prancha em pé",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 1,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "regressao",
+                "iniciante"
+              ]
+            },
+            {
+              "nome": "Prancha baixa de joelhos + pos. elevada",
+              "base": "bilateral",
+              "posicao": "joelhos",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "regressao"
+              ]
+            },
+            {
+              "nome": "Prancha baixa pos. elevada",
+              "base": "bilateral",
+              "posicao": "elevada",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "regressao"
+              ]
+            },
+            {
+              "nome": "Prancha baixa de joelhos",
+              "base": "bilateral",
+              "posicao": "joelhos",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Prancha baixa",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base",
+                "essencial"
+              ]
+            },
+            {
+              "nome": "Prancha baixa pés elevados",
+              "base": "bilateral",
+              "posicao": "pes_elevados",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "progressao"
+              ]
+            },
+            {
+              "nome": "Prancha baixa AJ na bola",
+              "base": "bilateral",
+              "posicao": "bola",
+              "nivel": 5,
+              "equipamento": "bola",
+              "tags": [
+                "instabilidade"
+              ]
+            },
+            {
+              "nome": "Prancha baixa dinâmica na bola",
+              "base": "bilateral",
+              "posicao": "bola",
+              "nivel": 6,
+              "equipamento": "bola",
+              "tags": [
+                "instabilidade",
+                "dinamico"
+              ]
+            },
+            {
+              "nome": "Prancha baixa dinâmica na bola (PE)",
+              "base": "bilateral",
+              "posicao": "bola_pes_elevados",
+              "nivel": 7,
+              "equipamento": "bola",
+              "tags": [
+                "instabilidade",
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Prancha alta",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Prancha baixa slide nos pés",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 5,
+              "equipamento": "slide",
+              "tags": [
+                "dinamico"
+              ]
+            },
+            {
+              "nome": "ABD isométrico 1 perna estendida",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Bear hold",
+              "base": "bilateral",
+              "posicao": "4_apoios",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "isometrico"
+              ]
+            },
+            {
+              "nome": "Bear crawl",
+              "base": "bilateral",
+              "posicao": "4_apoios",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "locomotor"
+              ]
+            },
+            {
+              "nome": "Dead Bug",
+              "base": "bilateral",
+              "posicao": "decubito_dorsal",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base",
+                "coordenacao"
+              ]
+            },
+            {
+              "nome": "Prancha dinâmica na bola",
+              "base": "bilateral",
+              "posicao": "bola",
+              "nivel": 5,
+              "equipamento": "bola",
+              "tags": [
+                "instabilidade"
+              ]
+            },
+            {
+              "nome": "Prancha na bola",
+              "base": "bilateral",
+              "posicao": "bola",
+              "nivel": 5,
+              "equipamento": "bola",
+              "tags": [
+                "instabilidade"
+              ]
+            },
+            {
+              "nome": "Prancha na bola (PE)",
+              "base": "bilateral",
+              "posicao": "bola_pes_elevados",
+              "nivel": 6,
+              "equipamento": "bola",
+              "tags": [
+                "instabilidade"
+              ]
+            },
+            {
+              "nome": "Prancha na bola c/ rotação",
+              "base": "bilateral",
+              "posicao": "bola",
+              "nivel": 6,
+              "equipamento": "bola",
+              "tags": [
+                "instabilidade",
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Slide climber",
+              "base": "alternado",
+              "posicao": "prancha",
+              "nivel": 5,
+              "equipamento": "slide",
+              "tags": [
+                "dinamico"
+              ]
+            },
+            {
+              "nome": "Prancha alta nas argolas",
+              "base": "bilateral",
+              "posicao": "suspensao",
+              "nivel": 6,
+              "equipamento": "argolas",
+              "tags": [
+                "instabilidade"
+              ]
+            },
+            {
+              "nome": "Roda abdominal AJ",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 6,
+              "equipamento": "roda_abdominal",
+              "tags": [
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Roda abdominal em pé",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 8,
+              "equipamento": "roda_abdominal",
+              "tags": [
+                "muito_avancado"
+              ]
+            },
+            {
+              "nome": "Prancha dinâmica nas argolas",
+              "base": "bilateral",
+              "posicao": "suspensao",
+              "nivel": 7,
+              "equipamento": "argolas",
+              "tags": [
+                "instabilidade",
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Prancha dinâmica mãos no slide",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 6,
+              "equipamento": "slide",
+              "tags": [
+                "dinamico"
+              ]
+            },
+            {
+              "nome": "Rolamento na bola AJ",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 5,
+              "equipamento": "bola",
+              "tags": [
+                "instabilidade"
+              ]
+            },
+            {
+              "nome": "Rolamento na bola em pé",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 7,
+              "equipamento": "bola",
+              "tags": [
+                "instabilidade",
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Hollow",
+              "base": "bilateral",
+              "posicao": "decubito_dorsal",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "calistenico"
+              ]
+            }
+          ]
+        },
+        "anti_flexao_lateral": {
+          "descricao": "Anti-flexão lateral da coluna",
+          "exercicios": [
+            {
+              "nome": "Prancha lateral de joelhos",
+              "base": "unilateral",
+              "posicao": "joelhos",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "regressao"
+              ]
+            },
+            {
+              "nome": "Prancha lateral 1 joelho apoiado",
+              "base": "unilateral",
+              "posicao": "joelhos",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Prancha lateral",
+              "base": "unilateral",
+              "posicao": "solo",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base",
+                "essencial"
+              ]
+            },
+            {
+              "nome": "Prancha lateral quadril abduzido",
+              "base": "unilateral",
+              "posicao": "solo",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "gluteo_medio"
+              ]
+            },
+            {
+              "nome": "Prancha lateral quadril abduzido (PE)",
+              "base": "unilateral",
+              "posicao": "pes_elevados",
+              "nivel": 6,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "gluteo_medio",
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Prancha lateral apoio dos joelhos",
+              "base": "unilateral",
+              "posicao": "joelhos",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "regressao"
+              ]
+            },
+            {
+              "nome": "Prancha lateral PE",
+              "base": "unilateral",
+              "posicao": "pes_elevados",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "progressao"
+              ]
+            },
+            {
+              "nome": "Prancha lateral + remada",
+              "base": "unilateral",
+              "posicao": "solo",
+              "nivel": 6,
+              "equipamento": "polia/SB",
+              "tags": [
+                "integrado"
+              ]
+            }
+          ]
+        },
+        "anti_rotacao": {
+          "descricao": "Anti-rotação da coluna",
+          "exercicios": [
+            {
+              "nome": "Prancha alta c/ slide 1 braço AJ",
+              "base": "bilateral",
+              "posicao": "prancha",
+              "nivel": 4,
+              "equipamento": "slide",
+              "tags": []
+            },
+            {
+              "nome": "Prancha alta slide alternado",
+              "base": "alternado",
+              "posicao": "prancha",
+              "nivel": 5,
+              "equipamento": "slide",
+              "tags": []
+            },
+            {
+              "nome": "Prancha alta c/ alcance",
+              "base": "bilateral",
+              "posicao": "prancha",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Prancha alta mãos no ombro",
+              "base": "bilateral",
+              "posicao": "prancha",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Prancha alta mãos na parede",
+              "base": "bilateral",
+              "posicao": "prancha",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "regressao"
+              ]
+            },
+            {
+              "nome": "Perdigueiro",
+              "base": "bilateral",
+              "posicao": "4_apoios",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base",
+                "essencial"
+              ]
+            },
+            {
+              "nome": "Chop",
+              "base": "bilateral",
+              "posicao": "variavel",
+              "nivel": 4,
+              "equipamento": "polia/SB",
+              "tags": [
+                "rotacao_resistida"
+              ]
+            },
+            {
+              "nome": "Lift",
+              "base": "bilateral",
+              "posicao": "variavel",
+              "nivel": 4,
+              "equipamento": "polia/SB",
+              "tags": [
+                "rotacao_resistida"
+              ]
+            },
+            {
+              "nome": "Pallof press",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "polia/SB",
+              "tags": [
+                "essencial"
+              ]
+            },
+            {
+              "nome": "Pallof press AJ c/ SB",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 4,
+              "equipamento": "super_band",
+              "tags": [
+                "core"
+              ]
+            },
+            {
+              "nome": "Pallof press em base assimétrica",
+              "base": "bilateral",
+              "posicao": "base_assimetrica",
+              "nivel": 5,
+              "equipamento": "polia/SB",
+              "tags": [
+                "funcional"
+              ]
+            },
+            {
+              "nome": "Pallof press overhead",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "polia/SB",
+              "tags": [
+                "progressao"
+              ]
+            },
+            {
+              "nome": "Anti-rotação DD c/ SB",
+              "base": "bilateral",
+              "posicao": "decubito_dorsal",
+              "nivel": 3,
+              "equipamento": "super_band",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Anti-rotação AJ c/ SB",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 4,
+              "equipamento": "super_band",
+              "tags": []
+            },
+            {
+              "nome": "Anti-rotação em linha 1/2 AJ c/ SB",
+              "base": "bilateral",
+              "posicao": "semi_ajoelhado",
+              "nivel": 5,
+              "equipamento": "super_band",
+              "tags": []
+            },
+            {
+              "nome": "Anti-rotação ISO Split Squat c/ SB",
+              "base": "bilateral",
+              "posicao": "split_squat",
+              "nivel": 5,
+              "equipamento": "super_band",
+              "tags": [
+                "integrado"
+              ]
+            },
+            {
+              "nome": "Anti-rotação ISO Squat c/ SB",
+              "base": "bilateral",
+              "posicao": "agachamento",
+              "nivel": 5,
+              "equipamento": "super_band",
+              "tags": [
+                "integrado"
+              ]
+            },
+            {
+              "nome": "Anti-rotação em pé c/ SB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "super_band",
+              "tags": []
+            },
+            {
+              "nome": "Anti-rotação em prancha lateral",
+              "base": "unilateral",
+              "posicao": "prancha_lateral",
+              "nivel": 6,
+              "equipamento": "super_band",
+              "tags": [
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Remada em prancha lateral c/ SB",
+              "base": "unilateral",
+              "posicao": "prancha_lateral",
+              "nivel": 6,
+              "equipamento": "super_band",
+              "tags": [
+                "integrado"
+              ]
+            },
+            {
+              "nome": "Remada em prancha alta c/ SB",
+              "base": "bilateral",
+              "posicao": "prancha",
+              "nivel": 5,
+              "equipamento": "super_band",
+              "tags": [
+                "integrado"
+              ]
+            },
+            {
+              "nome": "Relógio em prancha",
+              "base": "bilateral",
+              "posicao": "prancha",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "coordenacao"
+              ]
+            },
+            {
+              "nome": "Flexão + prancha alta 3 apoios",
+              "base": "bilateral",
+              "posicao": "prancha",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "integrado"
+              ]
+            },
+            {
+              "nome": "Prancha baixa + braço a frente",
+              "base": "bilateral",
+              "posicao": "prancha",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Prancha alta + mão na parede",
+              "base": "bilateral",
+              "posicao": "prancha",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Puxar/Empurrar AJ",
+              "base": "bilateral",
+              "posicao": "ajoelhado",
+              "nivel": 4,
+              "equipamento": "polia",
+              "tags": [
+                "integrado"
+              ]
+            },
+            {
+              "nome": "Puxar/Empurrar 1/2 AJ",
+              "base": "bilateral",
+              "posicao": "semi_ajoelhado",
+              "nivel": 5,
+              "equipamento": "polia",
+              "tags": [
+                "integrado"
+              ]
+            },
+            {
+              "nome": "Puxar/Empurrar em pé",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "polia",
+              "tags": [
+                "integrado"
+              ]
+            },
+            {
+              "nome": "Puxar/Empurrar dinâmico",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 6,
+              "equipamento": "polia",
+              "tags": [
+                "integrado",
+                "dinamico"
+              ]
+            }
+          ]
+        },
+        "escapula": {
+          "descricao": "Estabilidade escapular",
+          "exercicios": [
+            {
+              "nome": "Cobra",
+              "base": "bilateral",
+              "posicao": "decubito_ventral",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Y em DV",
+              "base": "bilateral",
+              "posicao": "decubito_ventral",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "W em DV",
+              "base": "bilateral",
+              "posicao": "decubito_ventral",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Ext. horizontal dos ombros em DV",
+              "base": "bilateral",
+              "posicao": "decubito_ventral",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Abdução dos ombros c/ SB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "super_band",
+              "tags": []
+            },
+            {
+              "nome": "Extensão diagonal dos ombros",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "polia/SB",
+              "tags": []
+            },
+            {
+              "nome": "Snow angel reverso",
+              "base": "bilateral",
+              "posicao": "decubito_ventral",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Extensão horizontal dos ombros c/ SB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "super_band",
+              "tags": []
+            },
+            {
+              "nome": "Flexão escapular",
+              "base": "bilateral",
+              "posicao": "suspensao",
+              "nivel": 4,
+              "equipamento": "barra_fixa",
+              "tags": [
+                "pre_barra"
+              ]
+            }
+          ]
+        },
+        "gluteos_estabilidade": {
+          "descricao": "Ativação e estabilidade de glúteos",
+          "exercicios": [
+            {
+              "nome": "4 apoios",
+              "base": "bilateral",
+              "posicao": "4_apoios",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "ativacao"
+              ]
+            },
+            {
+              "nome": "Agachamento UNL ISO c/ SB + glúteo total",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "super_band",
+              "tags": [
+                "integrado"
+              ]
+            },
+            {
+              "nome": "Airplane",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "equilibrio",
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Clam Shell",
+              "base": "unilateral",
+              "posicao": "decubito_lateral",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "ativacao",
+                "base"
+              ]
+            },
+            {
+              "nome": "Clam Shell c/ MB",
+              "base": "unilateral",
+              "posicao": "decubito_lateral",
+              "nivel": 3,
+              "equipamento": "mini_band",
+              "tags": [
+                "ativacao"
+              ]
+            },
+            {
+              "nome": "Glúteo Complex UNL c/ MB",
+              "base": "unilateral",
+              "posicao": "decubito_lateral",
+              "nivel": 4,
+              "equipamento": "mini_band",
+              "tags": [
+                "ativacao",
+                "complexo"
+              ]
+            },
+            {
+              "nome": "Ponte",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Ponte c/ MB",
+              "base": "bilateral",
+              "posicao": "solo",
+              "nivel": 3,
+              "equipamento": "mini_band",
+              "tags": [
+                "ativacao"
+              ]
+            },
+            {
+              "nome": "Ponte UNL",
+              "base": "unilateral",
+              "posicao": "solo",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Ponte UNL 1 joelho estendido",
+              "base": "unilateral",
+              "posicao": "solo",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "avancado"
+              ]
+            },
+            {
+              "nome": "Prancha lateral",
+              "base": "unilateral",
+              "posicao": "solo",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "gluteo_medio"
+              ]
+            },
+            {
+              "nome": "Prancha lateral c/ abdução do quadril",
+              "base": "unilateral",
+              "posicao": "solo",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "gluteo_medio"
+              ]
+            },
+            {
+              "nome": "Prancha lateral de joelhos",
+              "base": "unilateral",
+              "posicao": "joelhos",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "regressao"
+              ]
+            },
+            {
+              "nome": "SLDL",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 5,
+              "equipamento": "KB/DB",
+              "tags": [
+                "equilibrio"
+              ]
+            },
+            {
+              "nome": "Superman",
+              "base": "bilateral",
+              "posicao": "decubito_ventral",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "extensores"
+              ]
+            },
+            {
+              "nome": "Troca de pegada base UNL",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "KB",
+              "tags": [
+                "equilibrio",
+                "coordenacao"
+              ]
+            },
+            {
+              "nome": "Y teste em pé",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "avaliacao",
+                "equilibrio"
+              ]
+            },
+            {
+              "nome": "Abdução do quadril UNL ISO na bola",
+              "base": "unilateral",
+              "posicao": "bola",
+              "nivel": 5,
+              "equipamento": "bola",
+              "tags": [
+                "gluteo_medio",
+                "instabilidade"
+              ]
+            },
+            {
+              "nome": "Monster Walk",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "mini_band",
+              "tags": [
+                "ativacao",
+                "caminhada"
+              ]
+            },
+            {
+              "nome": "Passada lateral c/ MB",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "mini_band",
+              "tags": [
+                "ativacao",
+                "caminhada"
+              ]
+            },
+            {
+              "nome": "Flex-Ext quadril DD c/ MB",
+              "base": "bilateral",
+              "posicao": "decubito_dorsal",
+              "nivel": 3,
+              "equipamento": "mini_band",
+              "tags": [
+                "ativacao"
+              ]
+            }
+          ]
+        },
+        "pe_tornozelo": {
+          "descricao": "Estabilidade de pé e tornozelo",
+          "exercicios": [
+            {
+              "nome": "Troca de pegada 1KB",
+              "base": "unilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "KB",
+              "tags": [
+                "propriocepcao"
+              ]
+            },
+            {
+              "nome": "Flexão plantar c/ SB (ênfase fibulares)",
+              "base": "bilateral",
+              "posicao": "em_pe",
+              "nivel": 3,
+              "equipamento": "super_band",
+              "tags": [
+                "tornozelo",
+                "fibulares"
+              ]
+            }
+          ]
+        },
+        "corretivos_quadril": {
+          "descricao": "Exercícios corretivos do quadril (Mike Boyle)",
+          "exercicios": {
+            "flexores": [
+              {
+                "nome": "Flexão do quadril UNL no Slideboard",
+                "base": "unilateral",
+                "posicao": "em_pe",
+                "nivel": 4,
+                "equipamento": "slideboard",
+                "tags": [
+                  "corretivo"
+                ]
+              },
+              {
+                "nome": "Flexão ISO do quadril em pé",
+                "base": "unilateral",
+                "posicao": "em_pe",
+                "nivel": 3,
+                "equipamento": "peso_corporal",
+                "tags": [
+                  "corretivo",
+                  "isometrico"
+                ]
+              },
+              {
+                "nome": "Flexão do quadril UNL DD c/ SB",
+                "base": "unilateral",
+                "posicao": "decubito_dorsal",
+                "nivel": 3,
+                "equipamento": "super_band",
+                "tags": [
+                  "corretivo"
+                ]
+              },
+              {
+                "nome": "Flexão do quadril UNL G7",
+                "base": "unilateral",
+                "posicao": "em_pe",
+                "nivel": 4,
+                "equipamento": "polia",
+                "tags": [
+                  "corretivo"
+                ]
+              }
+            ],
+            "postero_lateral": [
+              {
+                "nome": "Prancha lateral AJ pos. elevada",
+                "base": "unilateral",
+                "posicao": "ajoelhado",
+                "nivel": 3,
+                "equipamento": "peso_corporal",
+                "tags": [
+                  "corretivo"
+                ]
+              },
+              {
+                "nome": "Prancha lateral AJ no solo",
+                "base": "unilateral",
+                "posicao": "ajoelhado",
+                "nivel": 3,
+                "equipamento": "peso_corporal",
+                "tags": [
+                  "corretivo"
+                ]
+              },
+              {
+                "nome": "Prancha lateral c/ abdução do quadril",
+                "base": "unilateral",
+                "posicao": "solo",
+                "nivel": 5,
+                "equipamento": "peso_corporal",
+                "tags": [
+                  "corretivo",
+                  "gluteo_medio"
+                ]
+              },
+              {
+                "nome": "Prancha lateral AJ c/ MB",
+                "base": "unilateral",
+                "posicao": "ajoelhado",
+                "nivel": 4,
+                "equipamento": "mini_band",
+                "tags": [
+                  "corretivo"
+                ]
+              },
+              {
+                "nome": "Ponte BI joelhos flexionados",
+                "base": "bilateral",
+                "posicao": "solo",
+                "nivel": 2,
+                "equipamento": "peso_corporal",
+                "tags": [
+                  "corretivo"
+                ]
+              },
+              {
+                "nome": "Ponte BI joelhos flexionados c/ MB",
+                "base": "bilateral",
+                "posicao": "solo",
+                "nivel": 3,
+                "equipamento": "mini_band",
+                "tags": [
+                  "corretivo"
+                ]
+              },
+              {
+                "nome": "Ponte UNL joelhos flexionados",
+                "base": "unilateral",
+                "posicao": "solo",
+                "nivel": 4,
+                "equipamento": "peso_corporal",
+                "tags": [
+                  "corretivo"
+                ]
+              },
+              {
+                "nome": "Ponte UNL joelhos flexionados ISO",
+                "base": "unilateral",
+                "posicao": "solo",
+                "nivel": 4,
+                "equipamento": "peso_corporal",
+                "tags": [
+                  "corretivo",
+                  "isometrico"
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "mobilidade": {
+      "descricao": "Exercícios de mobilidade por região articular",
+      "subcategorias": {
+        "tornozelo": {
+          "descricao": "Mobilidade de tornozelo (dorsiflexão)",
+          "exercicios": [
+            {
+              "nome": "Joelho na parede",
+              "nivel": 2,
+              "equipamento": "parede",
+              "tags": [
+                "avaliacao",
+                "base"
+              ]
+            },
+            {
+              "nome": "Joelho a frente em 1/2 base",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": []
+            }
+          ]
+        },
+        "quadril": {
+          "descricao": "Mobilidade de quadril",
+          "exercicios": [
+            {
+              "nome": "Flexores do quadril 1/2 AJ",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "flexores",
+                "base"
+              ]
+            },
+            {
+              "nome": "Couch stretch",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "flexores"
+              ]
+            },
+            {
+              "nome": "Spider man",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "flexores",
+                "adutores"
+              ]
+            },
+            {
+              "nome": "Melhor do mundo c/ rotação",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "global",
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Cócoras + 1 joelho a frente",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "profundo"
+              ]
+            },
+            {
+              "nome": "Guerreiro 1",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "flexores"
+              ]
+            },
+            {
+              "nome": "Hip shift",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "capsula"
+              ]
+            },
+            {
+              "nome": "Guerreiro 3",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "equilibrio"
+              ]
+            },
+            {
+              "nome": "Agachamento lateral AJ",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "adutores"
+              ]
+            },
+            {
+              "nome": "Adutor rock",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "adutores"
+              ]
+            },
+            {
+              "nome": "90/90 c/ rotação",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "rotacao_interna_externa"
+              ]
+            },
+            {
+              "nome": "SLDL",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "cadeia_posterior"
+              ]
+            },
+            {
+              "nome": "Canivete Oposto",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Caminhada de mãos",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "global"
+              ]
+            },
+            {
+              "nome": "Hinge overhead base assimétrica",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "cadeia_posterior"
+              ]
+            },
+            {
+              "nome": "Hinge mãos na parede",
+              "nivel": 2,
+              "equipamento": "parede",
+              "tags": [
+                "cadeia_posterior",
+                "base"
+              ]
+            },
+            {
+              "nome": "Bom dia",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "cadeia_posterior"
+              ]
+            },
+            {
+              "nome": "Elevação da perna estendida",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "isquiotibiais"
+              ]
+            },
+            {
+              "nome": "Ext. do joelho quadril flex. DD",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "isquiotibiais"
+              ]
+            }
+          ]
+        },
+        "coluna_toracica": {
+          "descricao": "Mobilidade da coluna torácica",
+          "exercicios": [
+            {
+              "nome": "Cat/Camel",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base",
+                "global"
+              ]
+            },
+            {
+              "nome": "Rotação torácica 3 apoios",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Deslizamento escapular DD",
+              "nivel": 2,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Deslizamento escapular sentado",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Deslizamento escapular em pé",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": []
+            },
+            {
+              "nome": "Rot. pélvica braços abertos DD",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Rot. torácica em DL",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Rotação torácica 1/2 AJ",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Extensão torácica no rolo",
+              "nivel": 3,
+              "equipamento": "foam_roll",
+              "tags": [
+                "extensao"
+              ]
+            },
+            {
+              "nome": "Extensão torácica BB",
+              "nivel": 4,
+              "equipamento": "barra",
+              "tags": [
+                "extensao"
+              ]
+            },
+            {
+              "nome": "Extensão torácica na caixa",
+              "nivel": 3,
+              "equipamento": "caixa",
+              "tags": [
+                "extensao"
+              ]
+            },
+            {
+              "nome": "Extensão torácica AJ braços no BCO",
+              "nivel": 3,
+              "equipamento": "banco",
+              "tags": [
+                "extensao"
+              ]
+            },
+            {
+              "nome": "Ext. torácica AJ braços estendidos",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "extensao"
+              ]
+            },
+            {
+              "nome": "Rotação torácica 1/2 AJ c/ rolo",
+              "nivel": 4,
+              "equipamento": "foam_roll",
+              "tags": [
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Rotação torácica DL",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "rotacao"
+              ]
+            }
+          ]
+        },
+        "integrados": {
+          "descricao": "Mobilidade integrada (multi-articular)",
+          "exercicios": [
+            {
+              "nome": "Dobradiça UNL overhead",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "quadril",
+                "ombro"
+              ]
+            },
+            {
+              "nome": "Agachamento overhead na parede",
+              "nivel": 4,
+              "equipamento": "parede",
+              "tags": [
+                "global"
+              ]
+            },
+            {
+              "nome": "Overhead squat c/ SB",
+              "nivel": 4,
+              "equipamento": "super_band",
+              "tags": [
+                "global",
+                "avaliacao"
+              ]
+            },
+            {
+              "nome": "Agachamento overhead",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "global",
+                "avaliacao"
+              ]
+            },
+            {
+              "nome": "Cócoras + overhead",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "global"
+              ]
+            },
+            {
+              "nome": "Cócoras + avanço do joelho",
+              "nivel": 3,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "tornozelo",
+                "quadril"
+              ]
+            },
+            {
+              "nome": "Windmill",
+              "nivel": 5,
+              "equipamento": "KB",
+              "tags": [
+                "global",
+                "rotacao",
+                "avancado"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "pliometria": {
+      "descricao": "Exercícios pliométricos organizados por fase e direção",
+      "subcategorias": {
+        "bilateral_linear": {
+          "descricao": "Pliometria bilateral linear",
+          "exercicios": [
+            {
+              "nome": "Tripla extensão c/ aterrissagem",
+              "fase": "preparatoria",
+              "sets_reps": "3x8",
+              "nivel": 1,
+              "tags": [
+                "fundacao",
+                "aterrissagem"
+              ]
+            },
+            {
+              "nome": "Box Jump",
+              "fase": 1,
+              "sets_reps": "3x5",
+              "nivel": 2,
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Salto vertical bilat. pausado",
+              "fase": 2,
+              "sets_reps": "3x5",
+              "nivel": 3,
+              "tags": [
+                "concentrico"
+              ]
+            },
+            {
+              "nome": "Salto pausado sobre barreira",
+              "fase": 3,
+              "sets_reps": "3x5",
+              "nivel": 4,
+              "tags": [
+                "excentrico"
+              ]
+            },
+            {
+              "nome": "Salto sobre barreira c/ saltito",
+              "fase": 4,
+              "sets_reps": "3x5",
+              "nivel": 5,
+              "tags": [
+                "reativo"
+              ]
+            },
+            {
+              "nome": "Salto sobre barreira contínuo",
+              "fase": 5,
+              "sets_reps": "3x5",
+              "nivel": 6,
+              "tags": [
+                "reativo",
+                "avancado"
+              ]
+            }
+          ]
+        },
+        "unilateral_linear": {
+          "descricao": "Pliometria unilateral linear",
+          "exercicios": [
+            {
+              "nome": "Tripla extensão c/ aterrissagem unilat.",
+              "fase": 6,
+              "sets_reps": "3x8",
+              "nivel": 3,
+              "tags": [
+                "fundacao",
+                "aterrissagem"
+              ]
+            },
+            {
+              "nome": "Box jump unilat.",
+              "fase": 7,
+              "sets_reps": "3x5",
+              "nivel": 4,
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "Salto vertical unilat. pausado",
+              "fase": 8,
+              "sets_reps": "3x5",
+              "nivel": 5,
+              "tags": [
+                "concentrico"
+              ]
+            },
+            {
+              "nome": "Salto unilat. sobre barreira pausado",
+              "fase": 9,
+              "sets_reps": "3x5",
+              "nivel": 6,
+              "tags": [
+                "excentrico"
+              ]
+            },
+            {
+              "nome": "Salto unilat. sobre barreira c/ saltito",
+              "fase": 10,
+              "sets_reps": "3x5",
+              "nivel": 7,
+              "tags": [
+                "reativo"
+              ]
+            },
+            {
+              "nome": "Salto unilat. sobre barreira contínuo",
+              "fase": 11,
+              "sets_reps": "3x5",
+              "nivel": 8,
+              "tags": [
+                "reativo",
+                "avancado"
+              ]
+            }
+          ]
+        },
+        "unilateral_lateral": {
+          "descricao": "Pliometria unilateral lateral",
+          "exercicios": [
+            {
+              "nome": "Salto unilat. lateral alternado",
+              "fase": 12,
+              "sets_reps": "3x5",
+              "nivel": 5,
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Salto unilat. alternado pausado 45°",
+              "fase": 13,
+              "sets_reps": "3x5",
+              "nivel": 6,
+              "tags": [
+                "diagonal"
+              ]
+            },
+            {
+              "nome": "Salto unilat. alternado c/ saltito 45°",
+              "fase": 14,
+              "sets_reps": "3x5",
+              "nivel": 7,
+              "tags": [
+                "diagonal",
+                "reativo"
+              ]
+            },
+            {
+              "nome": "Salto unilat. alternado contínuo 45°",
+              "fase": 15,
+              "sets_reps": "3x5",
+              "nivel": 8,
+              "tags": [
+                "diagonal",
+                "reativo",
+                "avancado"
+              ]
+            }
+          ]
+        },
+        "unilateral_lateral_medial": {
+          "descricao": "Pliometria unilateral lateral-medial",
+          "exercicios": [
+            {
+              "nome": "Box jump unilat. lat/med",
+              "fase": 16,
+              "sets_reps": "3x5",
+              "nivel": 6,
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Salto unilat. lat/med. pausado sobre barreira",
+              "fase": 17,
+              "sets_reps": "3x5",
+              "nivel": 7,
+              "tags": [
+                "plano_frontal"
+              ]
+            },
+            {
+              "nome": "Salto unilat. lat/med. sobre barreira c/ saltito",
+              "fase": 18,
+              "sets_reps": "3x5",
+              "nivel": 8,
+              "tags": [
+                "plano_frontal",
+                "reativo"
+              ]
+            },
+            {
+              "nome": "Salto unilat. lat/med. sobre barreira contínuo",
+              "fase": 19,
+              "sets_reps": "3x5",
+              "nivel": 9,
+              "tags": [
+                "plano_frontal",
+                "reativo",
+                "avancado"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "exercicios_nao_convencionais": {
+      "descricao": "Exercícios com strap, patterns funcionais avançados",
+      "subcategorias": {
+        "frontal": {
+          "descricao": "Plano frontal",
+          "exercicios": [
+            {
+              "nome": "Shuffle na parede (tripla extensão)",
+              "nivel": 3,
+              "equipamento": "parede",
+              "tags": [
+                "velocidade",
+                "potencia"
+              ]
+            },
+            {
+              "nome": "Shuffle c/ MB",
+              "nivel": 4,
+              "equipamento": "medball",
+              "tags": [
+                "velocidade"
+              ]
+            },
+            {
+              "nome": "Shuffle c/ MB + mudança de direção",
+              "nivel": 5,
+              "equipamento": "medball",
+              "tags": [
+                "agilidade"
+              ]
+            },
+            {
+              "nome": "Shuffle c/ SB lateral + mudança de direção",
+              "nivel": 5,
+              "equipamento": "super_band",
+              "tags": [
+                "agilidade"
+              ]
+            },
+            {
+              "nome": "Shuffle c/ strap lateral",
+              "nivel": 5,
+              "equipamento": "strap",
+              "tags": [
+                "resistido"
+              ]
+            }
+          ]
+        },
+        "sagital": {
+          "descricao": "Plano sagital",
+          "exercicios": [
+            {
+              "nome": "Avanço overhead AJ c/ bastão",
+              "nivel": 3,
+              "equipamento": "bastao",
+              "tags": [
+                "mobilidade",
+                "ombro"
+              ]
+            },
+            {
+              "nome": "Avanço 1/2 AJ em flexão plantar",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "arco_plantar"
+              ]
+            },
+            {
+              "nome": "Avanço 1/2 AJ em flexão plantar c/ SB",
+              "nivel": 5,
+              "equipamento": "super_band",
+              "tags": [
+                "arco_plantar"
+              ]
+            },
+            {
+              "nome": "Skipe na parede",
+              "nivel": 3,
+              "equipamento": "parede",
+              "tags": [
+                "corrida",
+                "tecnica"
+              ]
+            },
+            {
+              "nome": "Skipe na parede c/ SB diagonal baixa (cintura)",
+              "nivel": 4,
+              "equipamento": "super_band",
+              "tags": [
+                "corrida",
+                "resistido"
+              ]
+            },
+            {
+              "nome": "Skipe na parede c/ SB no pé",
+              "nivel": 4,
+              "equipamento": "super_band",
+              "tags": [
+                "corrida",
+                "resistido"
+              ]
+            },
+            {
+              "nome": "Clean to box c/ bloqueio do quadril (pausa)",
+              "nivel": 5,
+              "equipamento": "KB",
+              "tags": [
+                "potencia"
+              ]
+            },
+            {
+              "nome": "Clean to box c/ strap",
+              "nivel": 5,
+              "equipamento": "strap",
+              "tags": [
+                "potencia",
+                "resistido"
+              ]
+            },
+            {
+              "nome": "Clean to box (potência)",
+              "nivel": 6,
+              "equipamento": "KB",
+              "tags": [
+                "potencia"
+              ]
+            },
+            {
+              "nome": "Hip hinge c/ strap (bastão)",
+              "nivel": 4,
+              "equipamento": "strap+bastao",
+              "tags": [
+                "hinge",
+                "resistido"
+              ]
+            },
+            {
+              "nome": "Tripla extensão bilat. + rotação c/ strap (bastão)",
+              "nivel": 5,
+              "equipamento": "strap+bastao",
+              "tags": [
+                "potencia",
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "SLDL c/ apoio (PT)",
+              "nivel": 4,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "equilibrio"
+              ]
+            },
+            {
+              "nome": "SLDL c/ apoio (PT) + flexão quadril CTRL",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "equilibrio",
+                "controle"
+              ]
+            },
+            {
+              "nome": "SLDL c/ rotação do tronco",
+              "nivel": 5,
+              "equipamento": "peso_corporal",
+              "tags": [
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Marcha c/ SB diagonal baixa",
+              "nivel": 3,
+              "equipamento": "super_band",
+              "tags": [
+                "marcha",
+                "corrida"
+              ]
+            }
+          ]
+        },
+        "transverso": {
+          "descricao": "Plano transverso (rotação)",
+          "exercicios": [
+            {
+              "nome": "Rotação do tronco c/ strap (pés paralelos)",
+              "nivel": 4,
+              "equipamento": "strap",
+              "tags": [
+                "rotacao"
+              ]
+            },
+            {
+              "nome": "Rotação do tronco c/ strap (base assimétrica)",
+              "nivel": 5,
+              "equipamento": "strap",
+              "tags": [
+                "rotacao",
+                "funcional"
+              ]
+            },
+            {
+              "nome": "Rotação pélvica c/ strap (bastão)",
+              "nivel": 4,
+              "equipamento": "strap+bastao",
+              "tags": [
+                "rotacao",
+                "dissociacao"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "liberacao_miofascial": {
+      "descricao": "Liberação miofascial por região",
+      "subcategorias": {
+        "regioes": {
+          "exercicios": [
+            {
+              "nome": "LMF planta do pé",
+              "regiao": "pe",
+              "cadeia": "posterior",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "LMF panturrilha",
+              "regiao": "panturrilha",
+              "cadeia": "posterior",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "LMF posteriores da coxa",
+              "regiao": "isquiotibiais",
+              "cadeia": "posterior",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "LMF flexores do quadril/quadríceps",
+              "regiao": "quadril_anterior",
+              "cadeia": "anterior",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "LMF adutores",
+              "regiao": "adutores",
+              "cadeia": "espiral",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "LMF TFL",
+              "regiao": "tfl",
+              "cadeia": "lateral",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "LMF glúteos",
+              "regiao": "gluteos",
+              "cadeia": "posterior",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "LMF coluna torácica",
+              "regiao": "toracica",
+              "cadeia": "posterior",
+              "tags": [
+                "base"
+              ]
+            },
+            {
+              "nome": "LMF latíssimo",
+              "regiao": "latissimo",
+              "cadeia": "espiral",
+              "tags": []
+            },
+            {
+              "nome": "LMF peitoral",
+              "regiao": "peitoral",
+              "cadeia": "anterior",
+              "tags": []
+            }
+          ]
+        }
+      }
+    },
+    "respiracao": {
+      "descricao": "Técnicas de respiração para abertura da sessão",
+      "subcategorias": {
+        "tecnicas": {
+          "exercicios": [
+            {
+              "nome": "Respiração 4-7-8",
+              "nivel": 1,
+              "tags": [
+                "calmante",
+                "base"
+              ]
+            },
+            {
+              "nome": "Respiração Wim Hof",
+              "nivel": 3,
+              "tags": [
+                "ativacao",
+                "avancado"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

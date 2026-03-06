@@ -123,7 +123,7 @@ const ManualProtocolRecommendationDialog = ({ studentId }: ManualProtocolRecomme
 
           <div className="space-y-2">
             <Label>Prioridade</Label>
-            <Select value={priority} onValueChange={(value: any) => setPriority(value)}>
+            <Select value={priority} onValueChange={(value: string) => setPriority(value as "low" | "medium" | "high")}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>

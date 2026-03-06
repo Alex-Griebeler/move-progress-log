@@ -26,8 +26,9 @@ interface FolderSectionProps {
   onEdit: (id: string) => void;
   onAssign: (id: string) => void;
   onAddSession: (id: string) => void;
-  onMoveToFolder: (prescriptionId: string) => void;
+  onMoveToFolder: (prescriptionId: string, folderId: string) => void;
   onRemoveFromFolder: (prescriptionId: string) => void;
+  onDeletePrescription?: (prescriptionId: string) => void;
 }
 
 export function FolderSection({
@@ -42,6 +43,7 @@ export function FolderSection({
   onAddSession,
   onMoveToFolder,
   onRemoveFromFolder,
+  onDeletePrescription,
 }: FolderSectionProps) {
   const folderId = folder?.id || "no-folder";
   const folderName = folder?.name || "Sem Pasta";
@@ -61,14 +63,16 @@ export function FolderSection({
       <div
         ref={setNodeRef}
         className={cn(
-          "flex items-center justify-between p-3 rounded-lg transition-colors",
-          isOver && "bg-primary/10 border-2 border-primary border-dashed",
+          "flex items-center justify-between p-3 rounded-md transition-all duration-200",
+          isOver && "drop-zone-hover",
           !isOver && "hover:bg-muted/50"
         )}
       >
         <button
           onClick={onToggleExpand}
           className="flex items-center gap-2 flex-1 text-left"
+          aria-label={`${isExpanded ? 'Recolher' : 'Expandir'} pasta ${folderName}`}
+          aria-expanded={isExpanded}
         >
           {isExpanded ? (
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -98,6 +102,7 @@ export function FolderSection({
                 size="icon"
                 className="h-8 w-8"
                 onClick={(e) => e.stopPropagation()}
+                aria-label={`Mais opções para pasta ${folderName}`}
               >
                 <MoreVertical className="h-4 w-4" />
                 <span className="sr-only">Menu da pasta</span>
@@ -144,6 +149,7 @@ export function FolderSection({
                   onAddSession={onAddSession}
                   onMoveToFolder={onMoveToFolder}
                   onRemoveFromFolder={onRemoveFromFolder}
+                  onDelete={onDeletePrescription}
                 />
               ))}
             </SortableContext>

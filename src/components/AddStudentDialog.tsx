@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -21,13 +23,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { Loader2, Upload, X } from "lucide-react";
 import { useCreateStudent } from "@/hooks/useStudents";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { STUDENT_OBJECTIVES } from "@/constants/objectives";
+import { STUDENT_OBJECTIVES, MAX_OBJECTIVES, getObjectiveLabel } from "@/constants/objectives";
+import { NAV_LABELS } from "@/constants/navigation";
 
 const formSchema = z.object({
   name: z.string().trim().min(1, i18n.errors.required).max(100, i18n.errors.maxLength.replace("{{max}}", "100")),
@@ -39,7 +43,7 @@ const formSchema = z.object({
     return birthDate <= today;
   }, i18n.validation.dateFuture),
   weekly_sessions_proposed: z.coerce.number().min(1, i18n.errors.min.replace("{{min}}", "1")).max(7, i18n.errors.max.replace("{{max}}", "7")),
-  objectives: z.string().optional(),
+  objectives: z.array(z.string()).max(2, "Selecione no máximo 2 objetivos").optional(),
   limitations: z.string().optional(),
   preferences: z.string().optional(),
   max_heart_rate: z.coerce.number().optional().nullable(),
@@ -51,10 +55,26 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+interface Student {
+  id: string;
+  name: string;
+  weight_kg?: number | null;
+  height_cm?: number | null;
+  birth_date?: string | null;
+  objectives?: string[] | null;
+  limitations?: string | null;
+  preferences?: string | null;
+  injury_history?: string | null;
+  fitness_level?: string | null;
+  max_heart_rate?: number | null;
+  weekly_sessions_proposed?: number;
+  avatar_url?: string | null;
+}
+
 interface AddStudentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onStudentCreated?: (student: { id: string; name: string }) => void;
+  onStudentCreated?: (student: Student) => void;
 }
 
 export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddStudentDialogProps) => {
@@ -69,7 +89,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
       name: "",
       birth_date: "",
       weekly_sessions_proposed: 2,
-      objectives: "",
+      objectives: [],
       limitations: "",
       preferences: "",
       max_heart_rate: null,
@@ -133,11 +153,8 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
           throw new Error(i18n.modules.upload.error);
         }
 
-        const { data: { publicUrl } } = supabase.storage
-          .from('student-avatars')
-          .getPublicUrl(fileName);
-
-        avatarUrl = publicUrl;
+        // Store just the file path for signed URL generation
+        avatarUrl = fileName;
       }
 
       const newStudent = await createStudent.mutateAsync({
@@ -163,10 +180,10 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
       
       // Notify parent component about the new student
       if (onStudentCreated && newStudent) {
-        onStudentCreated({ id: newStudent.id, name: newStudent.name });
+        onStudentCreated(newStudent);
       }
-    } catch (error: any) {
-      loader.error(i18n.modules.students.errorCreate, error.message);
+    } catch (error) {
+      loader.error(i18n.modules.students.errorCreate, error instanceof Error ? error.message : "Erro desconhecido");
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -176,19 +193,19 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Adicionar Aluno</DialogTitle>
+          <DialogTitle>{NAV_LABELS.addStudent}</DialogTitle>
           <DialogDescription>
             Cadastre um novo aluno no sistema
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-            <div className="flex flex-col items-center gap-4 pb-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-md max-h-[70vh] overflow-y-auto pr-sm">
+            <div className="flex flex-col items-center gap-md pb-lg">
               <Avatar className="h-24 w-24">
                 <AvatarImage src={avatarPreview || undefined} className="object-cover" />
                 <AvatarFallback>?</AvatarFallback>
               </Avatar>
-              <div className="flex gap-2">
+              <div className="flex gap-xs">
                 <Button
                   type="button"
                   variant="outline"
@@ -238,7 +255,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-md">
               <FormField
                 control={form.control}
                 name="birth_date"
@@ -267,7 +284,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-md">
               <FormField
                 control={form.control}
                 name="weight_kg"
@@ -358,21 +375,49 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
               name="objectives"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Objetivos</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o objetivo principal" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {STUDENT_OBJECTIVES.map((objective) => (
-                        <SelectItem key={objective.value} value={objective.value}>
-                          {objective.label}
-                        </SelectItem>
+                  <FormLabel>Objetivos (até {MAX_OBJECTIVES})</FormLabel>
+                  <div className="space-y-xs">
+                    {STUDENT_OBJECTIVES.map((objective) => {
+                      const isChecked = field.value?.includes(objective.value) || false;
+                      const isDisabled = !isChecked && (field.value?.length || 0) >= MAX_OBJECTIVES;
+                      
+                      return (
+                        <div key={objective.value} className="flex items-center gap-xs">
+                          <Checkbox
+                            checked={isChecked}
+                            disabled={isDisabled}
+                            onCheckedChange={(checked) => {
+                              const current = field.value || [];
+                              const updated = checked 
+                                ? [...current, objective.value]
+                                : current.filter(v => v !== objective.value);
+                              field.onChange(updated);
+                            }}
+                          />
+                          <Label className={isDisabled ? "opacity-50" : ""}>
+                            {objective.label}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Badges dos objetivos selecionados */}
+                  {field.value && field.value.length > 0 && (
+                    <div className="flex flex-wrap gap-xs mt-xs">
+                      {field.value.map((value) => (
+                        <Badge key={value} variant="secondary" className="gap-1">
+                          {getObjectiveLabel(value)}
+                          <X 
+                            className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                            onClick={() => {
+                              field.onChange(field.value!.filter(v => v !== value));
+                            }}
+                          />
+                        </Badge>
                       ))}
-                    </SelectContent>
-                  </Select>
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -431,7 +476,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                 </FormItem>
               )}
             />
-            <div className="flex gap-2 pt-4">
+            <div className="flex gap-sm pt-lg">
                 <Button
                   type="button"
                   variant="outline"
@@ -442,7 +487,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                 </Button>
                 <Button
                   type="submit"
-                  variant="gradient"
+                  variant="default"
                   className="flex-1"
                   disabled={createStudent.isPending || isUploadingAvatar}
                 >
@@ -452,7 +497,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                       {i18n.feedback.saving}
                     </>
                   ) : (
-                    i18n.actions.save
+                    NAV_LABELS.saveStudent
                   )}
                 </Button>
             </div>

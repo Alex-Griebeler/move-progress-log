@@ -96,7 +96,7 @@ export function EditGroupSessionDialog({
 
       // Para cada sessão, buscar seus exercícios
       const sessionsWithExercises = await Promise.all(
-        sessions.map(async (session: any) => {
+        sessions.map(async (session: { id: string; student_id: string; students: { name: string } }) => {
           const { data: exercises, error: exercisesError } = await supabase
             .from('exercises')
             .select('*')
@@ -116,16 +116,16 @@ export function EditGroupSessionDialog({
 
       setSessionsData(sessionsWithExercises);
       setCurrentStudentIndex(0);
-    } catch (error: any) {
+    } catch (error) {
       notify.error("Erro ao carregar sessões", {
-        description: error.message,
+        description: error instanceof Error ? error.message : "Erro desconhecido",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const updateExercise = (index: number, field: keyof Exercise, value: any) => {
+  const updateExercise = (index: number, field: keyof Exercise, value: Exercise[keyof Exercise]) => {
     const updated = [...editableExercises];
     updated[index] = { ...updated[index], [field]: value };
     setEditableExercises(updated);
@@ -217,9 +217,9 @@ export function EditGroupSessionDialog({
         // Avançar para o próximo aluno
         setCurrentStudentIndex(prev => prev + 1);
       }
-    } catch (error: any) {
+    } catch (error) {
       notify.error("Erro ao salvar alterações", {
-        description: error.message,
+        description: error instanceof Error ? error.message : "Erro desconhecido",
       });
     } finally {
       setLoading(false);

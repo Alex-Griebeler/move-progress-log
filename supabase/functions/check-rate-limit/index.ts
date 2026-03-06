@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface RateLimitConfig {
@@ -30,10 +30,17 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { ip_address, action, increment = false } = await req.json();
+    // Extract real IP server-side from proxy headers
+    const ip_address =
+      req.headers.get('cf-connecting-ip') ||
+      req.headers.get('x-real-ip') ||
+      req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      'unknown';
 
-    if (!ip_address || !action) {
-      throw new Error("Missing required parameters: ip_address and action");
+    const { action, increment = false } = await req.json();
+
+    if (!action) {
+      throw new Error("Missing required parameter: action");
     }
 
     const config = RATE_LIMITS[action];

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Shield, AlertCircle } from "lucide-react";
 import { logger } from "@/utils/logger";
 import { useNavigate } from "react-router-dom";
+import { POST_LOGIN_ROUTE } from "@/constants/navigation";
 
 interface Verify2FADialogProps {
   open: boolean;
@@ -41,7 +42,7 @@ export const Verify2FADialog = ({ open, onOpenChange, factorId }: Verify2FADialo
 
       toast.success('Login realizado com sucesso!');
       onOpenChange(false);
-      navigate('/');
+      navigate(POST_LOGIN_ROUTE);
     } catch (error: any) {
       logger.error('Error verifying 2FA code:', error);
       toast.error('Código incorreto', {

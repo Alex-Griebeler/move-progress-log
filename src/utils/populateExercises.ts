@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 interface ExerciseData {
   name: string;
@@ -14,10 +15,10 @@ const mapLaterality = (base: string): string => {
   const baseNormalized = base.toLowerCase().trim();
   
   if (baseNormalized.includes('bilateral') && baseNormalized.includes('assimétrica')) {
-    return 'base assimétrica';
+    return 'base_assimetrica';
   }
   if (baseNormalized.includes('unilateral') && baseNormalized.includes('assimétrica')) {
-    return 'base assimétrica';
+    return 'unilateral';
   }
   if (baseNormalized.includes('bilateral')) {
     return 'bilateral';
@@ -94,11 +95,11 @@ const exercises: ExerciseData[] = [
   { name: "Bom dia (barra)", movement_pattern: "Dominância de quadril", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
   { name: "Pull-through", movement_pattern: "Dominância de quadril", laterality: "bilateral", contraction_type: "Dinâmica controlada", level: "Intermediário" },
   { name: "Swing (kettlebell)", movement_pattern: "Dominância de quadril", laterality: "bilateral", contraction_type: "Dinâmica explosiva", level: "Intermediário/Avançado" },
-  { name: "RDL base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário" },
-  { name: "RDL base assimétrica unilateral", movement_pattern: "Dominância de quadril", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
-  { name: "Good morning base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
-  { name: "Hip thrust base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário" },
-  { name: "Hip thrust base assimétrica unilateral", movement_pattern: "Dominância de quadril", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Avançado" },
+  { name: "RDL base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário" },
+  { name: "RDL base assimétrica unilateral", movement_pattern: "Dominância de quadril", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
+  { name: "Good morning base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
+  { name: "Hip thrust base assimétrica", movement_pattern: "Dominância de quadril", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário" },
+  { name: "Hip thrust base assimétrica unilateral", movement_pattern: "Dominância de quadril", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Avançado" },
 
   // EMPURRAR HORIZONTAL
   { name: "Flexão de braços em posição elevada", movement_pattern: "Empurrar horizontal", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Iniciante" },
@@ -127,7 +128,7 @@ const exercises: ExerciseData[] = [
   { name: "Landmine press ajoelhado", movement_pattern: "Empurrar vertical", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Iniciante" },
   { name: "Landmine press semi-ajoelhado", movement_pattern: "Empurrar vertical", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário" },
   { name: "Landmine press em pé", movement_pattern: "Empurrar vertical", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Intermediário/Avançado" },
-  { name: "Landmine press base assimétrica", movement_pattern: "Empurrar vertical", laterality: "base assimétrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Avançado" },
+  { name: "Landmine press base assimétrica", movement_pattern: "Empurrar vertical", laterality: "base_assimetrica", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Avançado" },
 
   // PUXAR HORIZONTAL
   { name: "Remada baixa assistida (supino invertido)", movement_pattern: "Puxar horizontal", laterality: "bilateral", contraction_type: "Dinâmica controlada (ênfase excêntrica)", level: "Iniciante" },
@@ -222,7 +223,7 @@ const exercises: ExerciseData[] = [
 ];
 
 export const populateExercisesLibrary = async () => {
-  console.log("Iniciando população do banco de dados...");
+  logger.log("Iniciando população do banco de dados...");
   
   // Buscar todos os exercícios existentes
   const { data: existingExercises, error: fetchError } = await supabase
@@ -230,7 +231,7 @@ export const populateExercisesLibrary = async () => {
     .select('name');
   
   if (fetchError) {
-    console.error("Erro ao buscar exercícios existentes:", fetchError);
+    logger.error("Erro ao buscar exercícios existentes:", fetchError);
     return { success: false, error: fetchError };
   }
   
@@ -238,17 +239,17 @@ export const populateExercisesLibrary = async () => {
     existingExercises?.map(ex => ex.name.toLowerCase().trim()) || []
   );
   
-  console.log(`Encontrados ${existingNames.size} exercícios existentes`);
+  logger.log(`Encontrados ${existingNames.size} exercícios existentes`);
   
   // Filtrar apenas exercícios novos
   const newExercises = exercises.filter(
     ex => !existingNames.has(ex.name.toLowerCase().trim())
   );
   
-  console.log(`${newExercises.length} novos exercícios para adicionar`);
+  logger.log(`${newExercises.length} novos exercícios para adicionar`);
   
   if (newExercises.length === 0) {
-    console.log("Nenhum exercício novo para adicionar");
+    logger.log("Nenhum exercício novo para adicionar");
     return { success: true, added: 0, skipped: exercises.length };
   }
   
@@ -265,11 +266,11 @@ export const populateExercisesLibrary = async () => {
     })));
   
   if (error) {
-    console.error("Erro ao inserir exercícios:", error);
+    logger.error("Erro ao inserir exercícios:", error);
     return { success: false, error };
   }
   
-  console.log(`${newExercises.length} exercícios adicionados com sucesso!`);
+  logger.log(`${newExercises.length} exercícios adicionados com sucesso!`);
   
   return { 
     success: true, 

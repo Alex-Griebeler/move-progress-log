@@ -11,6 +11,7 @@ export interface WorkoutSession {
   student_id: string;
   date: string;
   time: string;
+  session_type: 'individual' | 'group';
   workout_name?: string;
   room_name?: string;
   trainer_name?: string;
@@ -42,7 +43,8 @@ export const useWorkoutSessions = (studentId?: string) => {
         .from("workout_sessions")
         .select("*")
         .order("date", { ascending: false })
-        .order("time", { ascending: false });
+        .order("time", { ascending: false })
+        .limit(500);
 
       if (studentId) {
         query = query.eq("student_id", studentId);
@@ -99,6 +101,7 @@ export const useCreateWorkoutSession = () => {
           student_id: data.student_id,
           date: data.date,
           time: data.time,
+          session_type: 'individual',
         })
         .select()
         .single();
@@ -164,7 +167,7 @@ export const useCreateGroupWorkoutSessions = () => {
         }>;
       }>;
     }) => {
-      console.log("Creating group workout sessions:", data);
+      // INC-002: removed console.log
       
       const results = [];
       
@@ -177,16 +180,16 @@ export const useCreateGroupWorkoutSessions = () => {
               prescription_id: data.prescriptionId,
               date: data.date,
               time: data.time,
+              session_type: 'group',
             })
             .select()
             .single();
 
           if (sessionError) {
-            console.error(`Error creating session for ${session.student_name}:`, sessionError);
             throw sessionError;
           }
 
-          console.log(`Session created for ${session.student_name}:`, workoutSession.id);
+          
 
           const exercisesToInsert = session.exercises.map((ex) => {
             const finalSets = ex.sets !== null && ex.sets !== undefined 
@@ -214,14 +217,13 @@ export const useCreateGroupWorkoutSessions = () => {
             };
           });
 
-          console.log(`Inserting ${exercisesToInsert.length} exercises for ${session.student_name}`);
+          
 
           const { error: exercisesError } = await supabase
             .from("exercises")
             .insert(exercisesToInsert);
 
           if (exercisesError) {
-            console.error(`Error creating exercises for ${session.student_name}:`, exercisesError);
             throw exercisesError;
           }
           
@@ -232,7 +234,7 @@ export const useCreateGroupWorkoutSessions = () => {
           });
           
         } catch (error) {
-          console.error(`Failed to create session for ${session.student_name}:`, error);
+          
           results.push({ 
             student: session.student_name, 
             success: false, 
@@ -268,7 +270,7 @@ export const useCreateGroupWorkoutSessions = () => {
       }
     },
     onError: (error) => {
-      console.error("Error in useCreateGroupWorkoutSessions:", error);
+      
       notify.error(workoutKeys.errorGroupSessions, {
         description: error instanceof Error ? error.message : i18n.errors.unknown,
       });
@@ -281,11 +283,48 @@ export const useReopenWorkoutSession = () => {
 
   return useMutation({
     mutationFn: async (sessionId: string) => {
+      // INC-004: removed manual updated_at — handled by DB trigger
       const { data, error } = await supabase
         .from("workout_sessions")
         .update({ 
           is_finalized: false,
-          updated_at: new Date().toISOString()
+        })
+        .eq("id", sessionId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      // Invalidar TODAS as queries relacionadas a sessões
+      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["session-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+      
+      notify.success("Sessão reaberta com sucesso", {
+        description: "Você pode continuar editando esta sessão",
+      });
+    },
+    onError: (error) => {
+      notify.error("Erro ao reabrir sessão", {
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+      });
+    },
+  });
+};
+
+export const useFinalizeWorkoutSession = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      const { data, error } = await supabase
+        .from("workout_sessions")
+        .update({ 
+          is_finalized: true,
         })
         .eq("id", sessionId)
         .select()
@@ -297,12 +336,16 @@ export const useReopenWorkoutSession = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
-      notify.success("Sessão reaberta com sucesso", {
-        description: "Você pode continuar editando esta sessão",
+      queryClient.invalidateQueries({ queryKey: ["session-detail"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+      
+      notify.success("Sessão finalizada", {
+        description: "A sessão foi salva e finalizada com sucesso",
       });
     },
     onError: (error) => {
-      notify.error("Erro ao reabrir sessão", {
+      notify.error("Erro ao finalizar sessão", {
         description: error instanceof Error ? error.message : "Erro desconhecido",
       });
     },

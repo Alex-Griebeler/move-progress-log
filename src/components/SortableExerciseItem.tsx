@@ -19,6 +19,8 @@ interface Exercise {
   reps: string;
   interval_seconds: string;
   pse: string;
+  load: string;
+  rir: string;
   training_method: string;
   observations: string;
   group_with_previous: boolean;
@@ -34,8 +36,9 @@ interface SortableExerciseItemProps {
   exercise: Exercise;
   index: number;
   total: number;
+  prescriptionType?: 'group' | 'individual';
   exercisesLibrary: Array<{ id: string; name: string }>;
-  onUpdate: (field: keyof Exercise, value: any) => void;
+  onUpdate: (field: keyof Exercise, value: Exercise[keyof Exercise]) => void;
   onRemove: () => void;
   onToggleAdaptations: () => void;
   onAddAdaptation: () => void;
@@ -52,6 +55,7 @@ export function SortableExerciseItem({
   exercise,
   index,
   total,
+  prescriptionType = 'group',
   exercisesLibrary,
   onUpdate,
   onRemove,
@@ -84,8 +88,9 @@ export function SortableExerciseItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`space-y-4 p-4 border rounded-lg bg-muted/30 transition-all ${
-        isFocused ? 'ring-2 ring-primary shadow-lg' : ''
+      data-exercise-item
+      className={`space-y-md p-lg border rounded-radius-lg bg-muted/30 transition-smooth ${
+        isFocused ? 'ring-2 ring-primary shadow-premium' : ''
       }`}
       onClick={onFocus}
     >
@@ -224,14 +229,35 @@ export function SortableExerciseItem({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label>Carga</Label>
-          <Input
-            value={exercise.pse}
-            onChange={(e) => onUpdate("pse", e.target.value)}
-            placeholder="Ex: 2RR, 80kg, ~85%"
-          />
-        </div>
+        {prescriptionType === 'individual' ? (
+          <>
+            <div className="space-y-2">
+              <Label>Carga</Label>
+              <Input
+                value={exercise.load}
+                onChange={(e) => onUpdate("load", e.target.value)}
+                placeholder="Ex: 20kg, Leve"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>RR</Label>
+              <Input
+                value={exercise.rir}
+                onChange={(e) => onUpdate("rir", e.target.value)}
+                placeholder="Ex: 2, 3"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="space-y-2">
+            <Label>PSE</Label>
+            <Input
+              value={exercise.pse}
+              onChange={(e) => onUpdate("pse", e.target.value)}
+              placeholder="Ex: 7, ~85%"
+            />
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label>Método</Label>

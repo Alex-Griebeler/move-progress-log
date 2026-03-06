@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { z } from "zod";
+import { logger } from "@/utils/logger";
 
 interface PasswordSecurityResult {
   isSecure: boolean;
@@ -72,7 +73,7 @@ export const usePasswordSecurity = () => {
       });
 
       if (!response.ok) {
-        console.error('[Security] Erro ao consultar HaveIBeenPwned:', response.status);
+        logger.error('[Security] Erro ao consultar HaveIBeenPwned:', response.status);
         // Em caso de erro, permitir (fail-safe)
         return false;
       }
@@ -92,7 +93,7 @@ export const usePasswordSecurity = () => {
       // Senha segura (não encontrada)
       return false;
     } catch (error) {
-      console.error('[Security] Erro ao verificar senha:', error);
+      logger.error('[Security] Erro ao verificar senha:', error);
       // Em caso de erro, permitir (fail-safe)
       return false;
     }

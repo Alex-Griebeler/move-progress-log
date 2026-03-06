@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mic, Square, Loader2 } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 interface AudioSegment {
   segmentOrder: number;
@@ -96,7 +97,7 @@ export function AudioSegmentRecorder({
         description: "Fale sobre a sessão. Clique em 'Parar' quando terminar este segmento.",
       });
     } catch (error) {
-      console.error("Error starting recording:", error);
+      logger.error("Error starting recording:", error);
       if (permissionToastId) sonnerToast.dismiss(permissionToastId);
 
       const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
@@ -165,7 +166,7 @@ export function AudioSegmentRecorder({
         throw new Error(data.error || "Erro ao processar áudio");
       }
     } catch (error) {
-      console.error("Error processing audio:", error);
+      logger.error("Error processing audio:", error);
 
       if (processingToastId) sonnerToast.dismiss(processingToastId);
 

@@ -1,12 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2, History, UserPlus, AlertTriangle } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
+import { useSessionDraft } from "@/hooks/useSessionDraft";
+import { DraftHistoryDialog } from "./DraftHistoryDialog";
+import { SessionDraft } from "@/hooks/useSessionDraftHistory";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { logger } from "@/utils/logger";
+import { 
+  MIN_LOAD_KG, 
+  MAX_LOAD_KG, 
+  roundToDecimal,
+  isValidLoad,
+  getLoadErrorMessage 
+} from "@/constants/units";
+import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 
 interface ManualSessionEntryProps {
   prescriptionExercises: Array<{
@@ -24,6 +39,10 @@ interface ManualSessionEntryProps {
     name: string;
     weight_kg?: number;
   }>;
+  date: string;
+  time: string;
+  trainer: string;
+  prescriptionId: string | null;
   onSave: (data: {
     studentExercises: Array<{
       studentId: string;
@@ -36,16 +55,26 @@ interface ManualSessionEntryProps {
         observations: string;
       }>;
     }>;
-  }) => void;
+  }) => Promise<void>;
   onCancel?: () => void;
+  onAddStudent?: () => void;
 }
 
 export function ManualSessionEntry({
   prescriptionExercises,
   selectedStudents,
+  date,
+  time,
+  trainer,
+  prescriptionId,
   onSave,
   onCancel,
+  onAddStudent,
 }: ManualSessionEntryProps) {
+  
+  const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = useSessionDraft();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   
   // Estado para controlar o aluno atual (visualização página por página)
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
@@ -69,6 +98,11 @@ export function ManualSessionEntry({
       observations: string;
     }>;
   }>(() => {
+    // Tentar carregar do rascunho primeiro
+    if (draft?.studentExercises) {
+      return draft.studentExercises;
+    }
+    
     // Inicializar com os exercícios da prescrição para cada aluno
     const initial: any = {};
     selectedStudents.forEach(student => {
@@ -83,6 +117,45 @@ export function ManualSessionEntry({
     });
     return initial;
   });
+
+  // Auto-save quando studentExercises mudar
+  useEffect(() => {
+    if (Object.keys(studentExercises).length > 0) {
+      saveDraft({
+        date,
+        time,
+        trainer,
+        prescriptionId,
+        selectedStudents,
+        studentExercises,
+      });
+    }
+  }, [studentExercises, date, time, trainer, prescriptionId, selectedStudents, saveDraft]);
+
+  // Inicializar exercícios para novos alunos adicionados dinamicamente
+  useEffect(() => {
+    setStudentExercises(prev => {
+      const newStudentExercises = { ...prev };
+      let hasNewStudents = false;
+
+      selectedStudents.forEach(student => {
+        if (!newStudentExercises[student.id]) {
+          // Novo aluno sem exercícios inicializados
+          newStudentExercises[student.id] = prescriptionExercises.map(ex => ({
+            exercise_name: ex.exercise_name,
+            sets: parseInt(ex.sets) || 0,
+            reps: parseInt(ex.reps) || 0,
+            load_kg: null,
+            load_breakdown: '',
+            observations: ex.observations || '',
+          }));
+          hasNewStudents = true;
+        }
+      });
+
+      return hasNewStudents ? newStudentExercises : prev;
+    });
+  }, [selectedStudents, prescriptionExercises]);
 
   const currentStudent = selectedStudents[currentStudentIndex];
 
@@ -126,59 +199,14 @@ export function ManualSessionEntry({
     });
   };
 
-  // Função para calcular a carga baseada na descrição
+  // Função para calcular a carga baseada na descrição (usa função centralizada)
   const calculateLoadFromDescription = (studentId: string, exerciseIndex: number) => {
     const exercise = studentExercises[studentId]?.[exerciseIndex];
     if (!exercise?.load_breakdown) return;
 
-    const description = exercise.load_breakdown.toLowerCase().trim();
     const student = selectedStudents.find(s => s.id === studentId);
-    let calculatedLoad: number | null = null;
-
-    // Peso corporal
-    if (description.includes('peso corporal') || description.includes('corporal')) {
-      calculatedLoad = student?.weight_kg || null;
-    }
-    // Elástico/banda - não tem peso mensurável
-    else if (description.includes('elástico') || description.includes('banda')) {
-      calculatedLoad = null;
-    }
-    // Formato: "2x10kg" ou "2 x 10kg"
-    else if (/(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*kg/i.test(description)) {
-      const match = description.match(/(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*kg/i);
-      if (match) {
-        const quantity = parseInt(match[1]);
-        const weight = parseFloat(match[2]);
-        calculatedLoad = quantity * weight;
-      }
-    }
-    // Formato: "10kg cada lado" ou "10kg each side"
-    else if (/(\d+(?:\.\d+)?)\s*kg\s*(cada|each)/i.test(description)) {
-      const match = description.match(/(\d+(?:\.\d+)?)\s*kg/i);
-      if (match) {
-        calculatedLoad = parseFloat(match[1]) * 2;
-      }
-    }
-    // Formato simples: "20kg" ou "20.5kg"
-    else if (/(\d+(?:\.\d+)?)\s*kg/i.test(description)) {
-      const match = description.match(/(\d+(?:\.\d+)?)\s*kg/i);
-      if (match) {
-        calculatedLoad = parseFloat(match[1]);
-      }
-    }
-    // Formato em libras: "20lb" ou "20lbs"
-    else if (/(\d+(?:\.\d+)?)\s*lbs?/i.test(description)) {
-      const match = description.match(/(\d+(?:\.\d+)?)\s*lbs?/i);
-      if (match) {
-        // Converter libras para kg (1 lb = 0.453592 kg)
-        calculatedLoad = parseFloat(match[1]) * 0.453592;
-      }
-    }
-
-    // Atualizar o campo load_kg com o valor calculado
-    if (calculatedLoad !== null) {
-      updateExercise(studentId, exerciseIndex, 'load_kg', calculatedLoad);
-    }
+    const calculatedLoad = calculateLoadFromBreakdown(exercise.load_breakdown, student?.weight_kg);
+    updateExercise(studentId, exerciseIndex, 'load_kg', calculatedLoad);
   };
 
   const goToNextStudent = () => {
@@ -193,14 +221,41 @@ export function ManualSessionEntry({
     }
   };
 
-  const handleSubmit = () => {
+  // Função para verificar se um exercício precisa de revisão manual
+  const needsManualReview = (exercise: typeof studentExercises[string][0]): boolean => {
+    return !!exercise.load_breakdown && exercise.load_kg === null;
+  };
+
+  // Contar exercícios que precisam de revisão manual para o aluno atual
+  const getManualReviewCount = (studentId: string): number => {
+    return studentExercises[studentId]?.filter(ex => needsManualReview(ex)).length || 0;
+  };
+
+  const handleSubmit = async () => {
+    if (isSubmitting) {
+      logger.warn('⚠️ Salvamento já em progresso, ignorando clique');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     const data = {
       studentExercises: selectedStudents.map(student => ({
         studentId: student.id,
         exercises: studentExercises[student.id] || []
       }))
     };
-    onSave(data);
+    
+    try {
+      await onSave(data); // ✅ Espera completar
+      clearDraft(); // ✅ Limpa APENAS após sucesso confirmado
+      // Sucesso já é tratado pelo RecordGroupSessionDialog
+    } catch (error) {
+      // Erro já foi exibido pelo RecordGroupSessionDialog
+      logger.error('❌ Erro ao salvar:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isValid = selectedStudents.every(student => 
@@ -243,8 +298,74 @@ export function ManualSessionEntry({
     setSelectedExerciseForReplacement(null);
   };
 
+  const handleRestoreDraft = (historicalDraft: SessionDraft) => {
+    // Restaurar o rascunho do histórico
+    restoreDraft(historicalDraft);
+    
+    // Atualizar o estado local com os dados restaurados
+    setStudentExercises(historicalDraft.studentExercises);
+    setCurrentStudentIndex(0); // Reset para o primeiro aluno
+  };
+
   return (
     <div className="space-y-6">
+      {/* Indicador de rascunho e auto-save */}
+      {(lastSaved || isSaving) && (
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg text-sm">
+          <div className="flex items-center gap-2">
+            {isSaving ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                <span className="text-muted-foreground">Salvando rascunho...</span>
+              </>
+            ) : lastSaved ? (
+              <>
+                <Save className="h-3 w-3 text-green-600" />
+                <span className="text-muted-foreground">
+                  Rascunho salvo {formatDistanceToNow(lastSaved, { addSuffix: true, locale: ptBR })}
+                </span>
+              </>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setHistoryDialogOpen(true)}
+              className="h-7 text-xs gap-1"
+            >
+              <History className="h-3 w-3" />
+              Histórico
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearDraft}
+              className="h-7 text-xs"
+            >
+              <Trash className="h-3 w-3 mr-1" />
+              Limpar rascunho
+            </Button>
+          </div>
+        </div>
+      )}
+      
+      {/* Botão de adicionar aluno */}
+      {onAddStudent && (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onAddStudent}
+            className="gap-1.5"
+          >
+            <UserPlus className="h-4 w-4" />
+            Adicionar Aluno
+          </Button>
+        </div>
+      )}
+
       {/* Navegação entre alunos */}
       <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
         <Button
@@ -283,16 +404,25 @@ export function ManualSessionEntry({
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Exercícios - {currentStudent.name}</span>
-            <Badge variant="secondary">
-              {studentExercises[currentStudent.id]?.length || 0} exercícios
-            </Badge>
+            <div className="flex gap-2">
+              {getManualReviewCount(currentStudent.id) > 0 && (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  {getManualReviewCount(currentStudent.id)} para revisar
+                </Badge>
+              )}
+              <Badge variant="secondary">
+                {studentExercises[currentStudent.id]?.length || 0} exercícios
+              </Badge>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {studentExercises[currentStudent.id]?.map((exercise, idx) => {
               const prescribedEx = prescriptionExercises[idx];
+              const requiresReview = needsManualReview(exercise);
               return (
-                <div key={idx} className="border-b pb-4 last:border-0 last:pb-0">
+                <div key={idx} className={`border-b pb-4 last:border-0 last:pb-0 ${requiresReview ? 'bg-amber-50/50 dark:bg-amber-950/20 rounded-lg p-3 -mx-3' : ''}`}>
                    <div className="flex items-start justify-between mb-3">
                      <div className="flex-1 space-y-2">
                        <div className="flex items-center justify-between">
@@ -392,14 +522,50 @@ export function ManualSessionEntry({
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">Carga (kg)</Label>
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs">Carga (kg)</Label>
+                        {requiresReview && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600 dark:text-amber-400 dark:border-amber-400 cursor-help">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                Revisar
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="font-medium">Carga não calculada automaticamente</p>
+                              <p className="text-muted-foreground text-xs mt-1">
+                                Verifique a descrição da carga e insira o valor manualmente.
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                       <Input
                         type="number"
                         step="0.1"
+                        min={MIN_LOAD_KG}
+                        max={MAX_LOAD_KG}
                         value={exercise.load_kg || ''}
-                        onChange={(e) => updateExercise(currentStudent.id, idx, 'load_kg', parseFloat(e.target.value) || null)}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || null;
+                          updateExercise(currentStudent.id, idx, 'load_kg', value);
+                        }}
                         disabled={exercise.load_breakdown.toLowerCase().includes('peso corporal')}
+                        className={requiresReview ? 'border-amber-500 focus-visible:ring-amber-500' : ''}
                       />
+                      {requiresReview && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          Carga não calculada. Insira manualmente.
+                        </p>
+                      )}
+                      {exercise.load_kg !== null && !isValidLoad(exercise.load_kg) && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          {getLoadErrorMessage(exercise.load_kg)}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -425,17 +591,28 @@ export function ManualSessionEntry({
             onClick={onCancel}
             variant="outline"
             size="lg"
+            disabled={isSubmitting}
           >
             Voltar
           </Button>
         )}
         <Button
           onClick={handleSubmit}
-          disabled={!isValid}
+          disabled={!isValid || isSubmitting}
           size="lg"
           className="gap-2 ml-auto"
         >
-          Salvar Sessão
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Salvando...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4" />
+              Salvar Sessão
+            </>
+          )}
         </Button>
       </div>
 
@@ -446,6 +623,13 @@ export function ManualSessionEntry({
         currentExerciseName={selectedExerciseForReplacement?.currentName || ""}
         onExerciseSelected={handleExerciseSelected}
         autoSuggest={false}
+      />
+
+      {/* Dialog de histórico de rascunhos */}
+      <DraftHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        onRestoreDraft={handleRestoreDraft}
       />
     </div>
   );

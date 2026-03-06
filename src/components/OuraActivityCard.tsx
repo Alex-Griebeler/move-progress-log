@@ -98,15 +98,15 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Steps and Calories */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-card border">
+        <div className="grid grid-cols-2 gap-md">
+          <div className="flex items-center gap-md p-md rounded-radius-lg bg-card border">
             <Footprints className="h-8 w-8 text-primary" />
             <div>
               <p className="text-sm text-muted-foreground">Passos</p>
               <p className="text-2xl font-bold">{metrics.steps?.toLocaleString() || "—"}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-card border">
+          <div className="flex items-center gap-md p-md rounded-radius-lg bg-card border">
             <Flame className="h-8 w-8 text-destructive" />
             <div>
               <p className="text-sm text-muted-foreground">Calorias Ativas</p>
@@ -188,7 +188,7 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
 
         {/* Sedentary Warning */}
         {metrics.sedentary_time && metrics.sedentary_time > 28800 && (
-          <div className="p-3 bg-secondary border rounded-lg">
+          <div className="p-md rounded-radius-lg bg-secondary border">
             <p className="text-sm text-secondary-foreground">
               ⚠️ Tempo sedentário elevado: {formatTime(metrics.sedentary_time)}. Considere pausas ativas a cada hora.
             </p>

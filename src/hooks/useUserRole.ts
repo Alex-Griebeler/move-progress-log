@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 // Mapeamento dos papéis do sistema
 export type AppRole = 'admin' | 'moderator' | 'user';
@@ -12,14 +13,15 @@ export const useUserRole = () => {
       
       if (!user) return null;
 
+      // BUG-004 fix: maybeSingle() instead of single() to avoid error when no role exists
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        console.error("Error fetching user role:", error);
+        logger.error("Error fetching user role:", error);
         return null;
       }
 

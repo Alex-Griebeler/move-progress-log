@@ -1,19 +1,24 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useState, useEffect, useRef } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useUpdatePrescription, usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
-import { Plus } from "lucide-react";
+import { usePrescriptionDraft } from "@/hooks/usePrescriptionDraft";
+import { Plus, Save, History, Trash2 } from "lucide-react";
+import { PrescriptionDraftHistoryDialog } from "@/components/PrescriptionDraftHistoryDialog";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
+import { notify } from "@/lib/notify";
 import {
   DndContext,
   closestCenter,
@@ -38,6 +43,8 @@ interface Exercise {
   reps: string;
   interval_seconds: string;
   pse: string;
+  load: string;
+  rir: string;
   training_method: string;
   observations: string;
   group_with_previous: boolean;
@@ -57,6 +64,7 @@ interface EditPrescriptionDialogProps {
 
 export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: EditPrescriptionDialogProps) {
   const [name, setName] = useState("");
+  const [prescriptionType, setPrescriptionType] = useState<'group' | 'individual'>('group');
   const [objective, setObjective] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([
     {
@@ -66,6 +74,8 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       reps: "",
       interval_seconds: "",
       pse: "",
+      load: "",
+      rir: "",
       training_method: "",
       observations: "",
       group_with_previous: false,
@@ -76,10 +86,16 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   ]);
   const [loadingRegressions, setLoadingRegressions] = useState<number | null>(null);
   const [focusedExerciseIndex, setFocusedExerciseIndex] = useState<number | null>(null);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   const { data: prescriptionData } = usePrescriptionDetails(prescriptionId);
   const { data: exercisesLibrary } = useExercisesLibrary();
   const updatePrescription = useUpdatePrescription();
+  
+  const editEntityId = prescriptionId ? `edit-${prescriptionId}` : 'edit';
+  const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = usePrescriptionDraft(editEntityId);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -102,8 +118,9 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
 
   // Load prescription data when dialog opens
   useEffect(() => {
-    if (prescriptionData && open) {
+    if (prescriptionData && open && !dataLoaded) {
       setName(prescriptionData.name);
+      setPrescriptionType((prescriptionData as any).prescription_type || 'group');
       setObjective(prescriptionData.objective || "");
       
       if (prescriptionData.exercises && prescriptionData.exercises.length > 0) {
@@ -115,6 +132,8 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             reps: ex.reps,
             interval_seconds: ex.interval_seconds?.toString() || "",
             pse: ex.pse || "",
+            load: ex.load || "",
+            rir: ex.rir || "",
             training_method: ex.training_method || "",
             observations: ex.observations || "",
             group_with_previous: ex.group_with_previous || false,
@@ -127,8 +146,46 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
           }))
         );
       }
+      setDataLoaded(true);
     }
-  }, [prescriptionData, open]);
+  }, [prescriptionData, open, dataLoaded]);
+
+  // Carregar rascunho após dados originais (sobrescreve se houver)
+  useEffect(() => {
+    if (open && dataLoaded && draft) {
+      setName(draft.name);
+      setObjective(draft.objective);
+      setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" })));
+    }
+  }, [open, dataLoaded, draft]);
+
+  // Resetar estado ao fechar
+  useEffect(() => {
+    if (!open) {
+      setDataLoaded(false);
+    }
+  }, [open]);
+
+  // Auto-save quando dados mudarem
+  useEffect(() => {
+    if (open && dataLoaded && (name || objective || exercises.some(ex => ex.exercise_library_id))) {
+      saveDraft({ name, objective, exercises });
+    }
+  }, [name, objective, exercises, open, dataLoaded, saveDraft]);
+
+  // Proteção ao navegar
+  useEffect(() => {
+    if (!open) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      if (name || objective || exercises.some(ex => ex.exercise_library_id)) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [open, name, objective, exercises]);
 
   const addExercise = (afterIndex?: number) => {
     const newExercise = {
@@ -138,6 +195,8 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       reps: "",
       interval_seconds: "",
       pse: "",
+      load: "",
+      rir: "",
       training_method: "",
       observations: "",
       group_with_previous: false,
@@ -146,16 +205,29 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       showAdaptations: false,
     };
 
+    const scrollToFirstEmpty = (updatedExercises: typeof exercises) => {
+      setTimeout(() => {
+        const emptyIndex = updatedExercises.findIndex(ex => !ex.exercise_library_id);
+        if (emptyIndex === -1) return;
+        setFocusedExerciseIndex(emptyIndex);
+        const container = scrollContainerRef.current;
+        if (container) {
+          const items = container.querySelectorAll('[data-exercise-item]');
+          const target = items[emptyIndex];
+          target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 50);
+    };
+
     if (afterIndex !== undefined && afterIndex >= 0) {
-      console.log('Adding exercise after index:', afterIndex);
       const newExercises = [...exercises];
       newExercises.splice(afterIndex + 1, 0, newExercise);
       setExercises(newExercises);
-      setTimeout(() => setFocusedExerciseIndex(afterIndex + 1), 0);
+      scrollToFirstEmpty(newExercises);
     } else {
-      console.log('Adding exercise at end');
-      setExercises([...exercises, newExercise]);
-      setTimeout(() => setFocusedExerciseIndex(exercises.length), 0);
+      const newExercises = [...exercises, newExercise];
+      setExercises(newExercises);
+      scrollToFirstEmpty(newExercises);
     }
   };
 
@@ -224,19 +296,22 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     });
 
     try {
-      const { data, error } = await supabase.functions.invoke("suggest-regressions", {
+      const { data, error } = await supabase.functions.invoke("suggest-exercise-alternatives", {
         body: {
           exerciseId: selectedExercise.id,
           exerciseName: selectedExercise.name,
           movementPattern: selectedExercise.movement_pattern,
           movementPlane: selectedExercise.movement_plane,
           laterality: selectedExercise.laterality,
+          functionalGroup: (selectedExercise as any).functional_group,
+          direction: 'regression',
           availableExercises: exercisesLibrary.map((ex) => ({
             id: ex.id,
             name: ex.name,
             movement_pattern: ex.movement_pattern,
             movement_plane: ex.movement_plane,
             laterality: ex.laterality,
+            numeric_level: (ex as any).numeric_level,
           })),
         },
       });
@@ -269,43 +344,163 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !prescriptionId) {
+    
+    // Validação de ID da prescrição
+    if (!prescriptionId) {
+      notify.error("Erro interno", {
+        description: "ID da prescrição não encontrado. Recarregue a página e tente novamente."
+      });
+      return;
+    }
+
+    // Validação de nome
+    if (!name.trim()) {
+      notify.error("Nome obrigatório", {
+        description: "Por favor, informe o nome da prescrição antes de salvar."
+      });
+      return;
+    }
+
+    // Validação detalhada de exercícios
+    const invalidExercises: string[] = [];
+    
+    exercises.forEach((ex, index) => {
+      const exerciseName = exercisesLibrary?.find(e => e.id === ex.exercise_library_id)?.name || `Exercício ${index + 1}`;
+      
+      if (!ex.exercise_library_id) {
+        invalidExercises.push(`${exerciseName}: selecione um exercício`);
+      } else if (!ex.sets) {
+        invalidExercises.push(`${exerciseName}: informe as séries`);
+      } else if (!ex.reps) {
+        invalidExercises.push(`${exerciseName}: informe as repetições`);
+      }
+    });
+
+    if (invalidExercises.length > 0) {
+      notify.error("Exercícios incompletos", {
+        description: `Corrija os seguintes campos:\n${invalidExercises.slice(0, 3).join('\n')}${invalidExercises.length > 3 ? `\n...e mais ${invalidExercises.length - 3}` : ''}`
+      });
+      return;
+    }
+
+    // Validação de adaptações: se showAdaptations está ativo, todas as adaptações devem ter exercício selecionado
+    const incompleteAdaptations: string[] = [];
+    exercises.forEach((ex, index) => {
+      if (ex.showAdaptations && ex.adaptations.length > 0) {
+        const exerciseName = exercisesLibrary?.find(e => e.id === ex.exercise_library_id)?.name || `Exercício ${index + 1}`;
+        const missingAdaptations = ex.adaptations.filter(a => !a.exercise_library_id);
+        if (missingAdaptations.length > 0) {
+          incompleteAdaptations.push(`${exerciseName}: ${missingAdaptations.length} adaptação(ões) sem exercício selecionado`);
+        }
+      }
+    });
+
+    if (incompleteAdaptations.length > 0) {
+      notify.error("Adaptações incompletas", {
+        description: `Selecione os exercícios para todas as adaptações ou desative-as:\n${incompleteAdaptations.slice(0, 3).join('\n')}${incompleteAdaptations.length > 3 ? `\n...e mais ${incompleteAdaptations.length - 3}` : ''}`
+      });
       return;
     }
 
     const validExercises = exercises.filter((ex) => ex.exercise_library_id && ex.sets && ex.reps);
 
     if (validExercises.length === 0) {
+      notify.error("Exercícios obrigatórios", {
+        description: "Adicione pelo menos um exercício válido com nome, séries e repetições."
+      });
       return;
     }
 
-    await updatePrescription.mutateAsync({
-      id: prescriptionId,
-      name,
-      objective,
-      exercises: validExercises.map((ex, index) => ({
-        exercise_library_id: ex.exercise_library_id,
-        sets: ex.sets,
-        reps: ex.reps,
-        interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
-        pse: ex.pse || undefined,
-        training_method: ex.training_method || undefined,
-        observations: ex.observations || undefined,
-        group_with_previous: index > 0 ? ex.group_with_previous : false,
-        adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
-      })),
-    });
+    try {
+      await updatePrescription.mutateAsync({
+        id: prescriptionId,
+        name,
+        objective,
+        prescription_type: prescriptionType,
+        exercises: validExercises.map((ex, index) => ({
+          exercise_library_id: ex.exercise_library_id,
+          sets: ex.sets,
+          reps: ex.reps,
+          interval_seconds: ex.interval_seconds ? parseInt(ex.interval_seconds) : undefined,
+          pse: prescriptionType === 'group' ? (ex.pse || undefined) : undefined,
+          load: prescriptionType === 'individual' ? (ex.load || undefined) : undefined,
+          rir: prescriptionType === 'individual' ? (ex.rir || undefined) : undefined,
+          training_method: ex.training_method || undefined,
+          observations: ex.observations || undefined,
+          group_with_previous: index > 0 ? ex.group_with_previous : false,
+          should_track: ex.should_track ?? true,
+          adaptations: ex.adaptations.filter((a) => a.exercise_library_id),
+        })),
+      });
 
+      // Limpar rascunho após sucesso
+      clearDraft();
+      
+      onOpenChange(false);
+    } catch (error: any) {
+      notify.error("Erro ao atualizar prescrição", {
+        description: error?.message || "Ocorreu um erro inesperado. Tente novamente."
+      });
+    }
+  };
+
+  const handleClose = () => {
+    const hasContent = name || objective || exercises.some(ex => ex.exercise_library_id);
+    
+    if (hasContent) {
+      const confirmed = confirm(
+        'Você tem alterações não salvas. Seu rascunho foi salvo automaticamente. Deseja sair?'
+      );
+      if (!confirmed) return;
+    }
+    
     onOpenChange(false);
+  };
+
+  const handleRestoreDraft = (draftData: any) => {
+    setName(draftData.name);
+    setObjective(draftData.objective);
+    setExercises(draftData.exercises);
+    restoreDraft(draftData);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Editar Prescrição</DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle>Editar Prescrição</DialogTitle>
+            <div className="flex items-center gap-xs">
+              {lastSaved && (
+                <Badge variant="outline" className="gap-1">
+                  <Save className="h-3 w-3" />
+                  {formatDistanceToNow(lastSaved, { locale: ptBR, addSuffix: true })}
+                </Badge>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setHistoryDialogOpen(true)}
+                className="gap-2"
+              >
+                <History className="h-4 w-4" />
+                Histórico
+              </Button>
+              {draft && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearDraft}
+                  className="gap-2 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Limpar
+                </Button>
+              )}
+            </div>
+          </div>
           {exercises.length > 0 && (
-            <div className="flex items-center gap-2 pt-2">
+            <div className="flex items-center gap-xs pt-xs">
               <Badge variant="secondary" className="text-sm">
                 {exercises.filter(ex => ex.should_track !== false).length} de {exercises.length} exercício(s) para registro
               </Badge>
@@ -318,11 +513,11 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
           )}
         </DialogHeader>
 
-        <TooltipProvider>
-          <ScrollArea className="max-h-[calc(90vh-120px)] pr-4">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pr-md">
+          <TooltipProvider>
+            <div className="space-y-lg">
+            <div className="space-y-md">
+              <div className="space-y-sm">
                 <Label htmlFor="name">Nome da Prescrição *</Label>
                 <Input
                   id="name"
@@ -330,6 +525,19 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ex: Treino 1 - Potência/Força"
                 />
+              </div>
+
+              <div className="space-y-sm">
+                <Label>Tipo de Prescrição</Label>
+                <Select value={prescriptionType} onValueChange={(v) => setPrescriptionType(v as 'group' | 'individual')}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="group">Grupo (PSE)</SelectItem>
+                    <SelectItem value="individual">Individual (Carga)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -346,8 +554,8 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
 
             <Separator />
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="space-y-md">
+              <div className="flex items-center justify-between sticky top-0 z-10 bg-background py-sm -mx-md px-md border-b border-border/50">
                 <Label className="text-base">Exercícios</Label>
                 <Button 
                   onClick={() => addExercise(focusedExerciseIndex ?? undefined)} 
@@ -376,6 +584,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                       exercise={exercise}
                       index={exerciseIndex}
                       total={exercises.length}
+                      prescriptionType={prescriptionType}
                       exercisesLibrary={exercisesLibrary?.map((ex) => ({ id: ex.id, name: ex.name })) || []}
                       onUpdate={(field, value) => updateExercise(exerciseIndex, field, value)}
                       onRemove={() => removeExercise(exerciseIndex)}
@@ -393,19 +602,25 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
                 </SortableContext>
               </DndContext>
             </div>
-          </div>
-        </ScrollArea>
+            </div>
+          </TooltipProvider>
+        </div>
 
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="mt-md">
+          <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
           <Button onClick={handleSubmit} disabled={updatePrescription.isPending}>
             {updatePrescription.isPending ? "Salvando..." : "Salvar Alterações"}
           </Button>
-        </div>
-        </TooltipProvider>
+        </DialogFooter>
       </DialogContent>
+
+      <PrescriptionDraftHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        onRestoreDraft={handleRestoreDraft}
+      />
     </Dialog>
   );
 }

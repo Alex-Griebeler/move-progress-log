@@ -1,8 +1,11 @@
 # Checklist de Microcopy - Fabrik Performance
 
-## 📋 Checklist Geral
+## 📋 Visão Geral
 
-Use este checklist ao criar ou revisar qualquer feature da aplicação.
+Use este checklist para **validar** implementações antes de commit/PR.
+
+> **Leia antes**: [MICROCOPY_GUIDE.md](./MICROCOPY_GUIDE.md) para entender regras.  
+> **Implemente com**: [MICROCOPY_IMPLEMENTATION.md](./MICROCOPY_IMPLEMENTATION.md) para detalhes técnicos.
 
 ---
 
@@ -37,21 +40,7 @@ Use este checklist ao criar ou revisar qualquer feature da aplicação.
 - [ ] Textos vêm do i18n (`modules.*.created`, etc)
 - [ ] Loading toast atualizado progressivamente em operações longas
 
-**Estrutura padrão**:
-```typescript
-// Sucesso
-notify.success(i18n.modules.students.created);
-
-// Erro com detalhes
-notify.error(i18n.modules.students.errorCreate, {
-  description: error.message
-});
-
-// Loading progressivo
-const loader = notify.loading("Salvando aluno...");
-loader.update("Validando dados...");
-loader.success("Aluno salvo com sucesso");
-```
+> Veja exemplos de código completos em [MICROCOPY_IMPLEMENTATION.md](./MICROCOPY_IMPLEMENTATION.md#utilitário-de-toasts)
 
 ---
 
@@ -65,23 +54,12 @@ loader.success("Aluno salvo com sucesso");
 - [ ] Textos vêm do i18n (`empty.*`)
 - [ ] `role="status"` e `aria-live="polite"` presentes
 
-**Estrutura padrão**:
-```typescript
-<EmptyState
-  icon={<Users className="h-6 w-6" />}
-  title={i18n.empty.students.title}
-  description={i18n.empty.students.description}
-  primaryAction={{
-    label: i18n.actions.create,
-    onClick: () => openDialog()
-  }}
-/>
-```
-
 **Cenários específicos**:
 - [ ] Listagem inicial vazia: "Nenhum [item] cadastrado" + CTA
 - [ ] Filtros sem resultado: "Nenhum resultado encontrado" + "Limpar filtros"
 - [ ] Recurso desabilitado: "Recurso não disponível" + explicação
+
+> Veja exemplos de código completos em [MICROCOPY_IMPLEMENTATION.md](./MICROCOPY_IMPLEMENTATION.md#emptystate-component)
 
 ---
 
@@ -94,19 +72,12 @@ loader.success("Aluno salvo com sucesso");
 - [ ] `role="alert"` e `aria-live="polite"` presentes
 - [ ] Textos vêm do i18n (`errors.*`, `modules.*.error*`)
 
-**Estrutura padrão**:
-```typescript
-<ErrorState
-  title={i18n.modules.students.errorLoad}
-  description="Não foi possível conectar ao servidor"
-  onRetry={() => refetch()}
-/>
-```
-
 **Cenários específicos**:
 - [ ] Erro de rede: título + "Verifique sua conexão"
 - [ ] Erro de permissão: "Acesso negado" + explicação
 - [ ] Erro desconhecido: "Algo deu errado" + retry
+
+> Veja exemplos de código completos em [MICROCOPY_IMPLEMENTATION.md](./MICROCOPY_IMPLEMENTATION.md#errorstate-component)
 
 ---
 
@@ -121,20 +92,7 @@ loader.success("Aluno salvo com sucesso");
 - [ ] Helpers instrucionais quando necessário
 - [ ] Labels vêm do i18n (`forms.*`)
 
-**Estrutura padrão**:
-```typescript
-<div>
-  <label htmlFor="name">{i18n.forms.name}</label>
-  <input
-    id="name"
-    placeholder={i18n.forms.placeholder.name}
-    aria-describedby="name-help"
-  />
-  <p id="name-help" className="text-xs text-muted-foreground">
-    {i18n.forms.helper.name}
-  </p>
-</div>
-```
+> Veja exemplos de código completos em [MICROCOPY_IMPLEMENTATION.md](./MICROCOPY_IMPLEMENTATION.md#formulários-com-validação)
 
 ### Validações
 

@@ -86,7 +86,7 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Total Sleep Duration */}
-        <div className="flex items-center justify-between p-4 rounded-lg bg-card border">
+        <div className="flex items-center justify-between p-lg rounded-radius-lg bg-card border">
           <div>
             <p className="text-sm text-muted-foreground">Duração Total do Sono</p>
             <p className="text-3xl font-bold">{formatDuration(metrics.total_sleep_duration)}</p>

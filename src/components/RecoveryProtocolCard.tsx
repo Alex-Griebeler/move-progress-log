@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, AlertCircle, BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, AlertCircle, BookOpen, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { RecoveryProtocol } from "@/hooks/useRecoveryProtocols";
 import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface RecoveryProtocolCardProps {
   protocol: RecoveryProtocol;
@@ -30,19 +31,19 @@ const RecoveryProtocolCard = ({ protocol }: RecoveryProtocolCardProps) => {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-all duration-300">
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2 flex-1">
+    <Card className="hover:shadow-premium transition-smooth rounded-lg">
+      <CardHeader className="space-y-sm">
+        <div className="flex items-start justify-between gap-md">
+          <div className="space-y-sm flex-1">
             <CardTitle className="text-xl">{protocol.name}</CardTitle>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-sm flex-wrap">
               <Badge className={getCategoryColor(protocol.category)}>
                 {protocol.category}
               </Badge>
               {protocol.subcategory && (
                 <Badge variant="outline">{protocol.subcategory}</Badge>
               )}
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <div className="flex items-center gap-xs text-sm text-muted-foreground">
                 <Clock className="h-4 w-4" />
                 <span>{protocol.duration_minutes} min</span>
               </div>
@@ -50,11 +51,11 @@ const RecoveryProtocolCard = ({ protocol }: RecoveryProtocolCardProps) => {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-md">
         {/* Benefits */}
         <div>
-          <p className="text-sm font-medium mb-2">Benefícios:</p>
-          <div className="flex flex-wrap gap-2">
+          <p className="text-base font-medium mb-sm">Benefícios:</p>
+          <div className="flex flex-wrap gap-sm">
             {formatBenefits(protocol.benefits).map((benefit, idx) => (
               <Badge key={idx} variant="secondary" className="text-xs">
                 {benefit.value} {benefit.key}
@@ -65,11 +66,23 @@ const RecoveryProtocolCard = ({ protocol }: RecoveryProtocolCardProps) => {
 
         {/* Contraindications Warning */}
         {protocol.contraindications && (
-          <div className="flex items-start gap-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
+          <div className="flex items-start gap-sm p-sm bg-destructive/10 rounded-lg border border-destructive/20">
             <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
-            <div className="text-sm">
-              <p className="font-medium text-destructive">Contraindicações:</p>
-              <p className="text-muted-foreground">{protocol.contraindications}</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-xs mb-xs">
+                <p className="text-xs font-medium text-destructive">Contraindicações</p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-3 w-3 text-destructive/60 cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="max-w-xs text-sm">Situações onde este protocolo não deve ser aplicado</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{protocol.contraindications}</p>
             </div>
           </div>
         )}
@@ -80,28 +93,28 @@ const RecoveryProtocolCard = ({ protocol }: RecoveryProtocolCardProps) => {
             variant="outline"
             size="sm"
             onClick={() => setExpanded(!expanded)}
-            className="w-full gap-2"
+            className="w-full gap-sm"
           >
             {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             {expanded ? "Ocultar Instruções" : "Ver Instruções Detalhadas"}
           </Button>
 
           {expanded && (
-            <div className="mt-4 space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Instruções:</p>
-                <div className="text-sm text-muted-foreground whitespace-pre-line bg-muted/50 p-4 rounded-lg">
+            <div className="mt-md space-y-md">
+              <div className="space-y-sm">
+                <p className="text-base font-medium">Instruções:</p>
+                <div className="text-base text-muted-foreground whitespace-pre-line bg-muted/50 p-md rounded-lg leading-relaxed">
                   {protocol.instructions}
                 </div>
               </div>
 
               {protocol.scientific_references && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-sm">
+                  <div className="flex items-center gap-sm">
                     <BookOpen className="h-4 w-4" />
-                    <p className="text-sm font-medium">Referências Científicas:</p>
+                    <p className="text-base font-medium">Referências Científicas:</p>
                   </div>
-                  <p className="text-xs text-muted-foreground italic bg-muted/30 p-3 rounded-lg">
+                  <p className="text-sm text-muted-foreground italic bg-muted/30 p-sm rounded-lg leading-relaxed">
                     {protocol.scientific_references}
                   </p>
                 </div>

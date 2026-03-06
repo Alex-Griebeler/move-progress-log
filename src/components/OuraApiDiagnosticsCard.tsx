@@ -143,13 +143,30 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
 
   if (!metrics) {
     return (
-      <Card>
+      <Card className="border-primary/20">
         <CardHeader>
-          <CardTitle>🔍 Diagnóstico API Oura</CardTitle>
-          <CardDescription>
-            Nenhum dado de sincronização encontrado
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <AlertCircle className="h-5 w-5 text-primary" />
+            Integração Oura não configurada
+          </CardTitle>
         </CardHeader>
+        <CardContent>
+          <div className="space-y-4 text-sm">
+            <p className="text-muted-foreground leading-relaxed">
+              Para visualizar diagnósticos detalhados da API Oura, é necessário:
+            </p>
+            <ol className="space-y-2 list-decimal list-inside text-muted-foreground ml-2">
+              <li>Conectar o Oura Ring do aluno através do perfil</li>
+              <li>Realizar a primeira sincronização de dados</li>
+              <li>Aguardar o processamento das métricas (pode levar alguns minutos)</li>
+            </ol>
+            <div className="pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                Os dados serão atualizados automaticamente após a configuração inicial.
+              </p>
+            </div>
+          </div>
+        </CardContent>
       </Card>
     );
   }
@@ -208,7 +225,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
               ))}
             </div>
 
-            <div className="p-3 rounded-lg bg-muted">
+            <div className="p-md rounded-radius-lg bg-muted">
               <p className="text-xs text-muted-foreground">
                 <strong>📌 Problema principal identificado:</strong> O endpoint{" "}
                 <code className="bg-background px-1 py-0.5 rounded">

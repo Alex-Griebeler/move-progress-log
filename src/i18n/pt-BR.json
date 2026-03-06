@@ -26,7 +26,9 @@
     "previous": "Anterior",
     "finish": "Finalizar",
     "download": "Baixar",
-    "upload": "Enviar"
+    "upload": "Enviar",
+    "selectStudents": "Selecione os alunos",
+    "studentsSelected": "{{count}} alunos selecionados"
   },
   "feedback": {
     "success": "Operação realizada com sucesso",
@@ -91,7 +93,13 @@
     "selectStudent": "Selecione um aluno",
     "dateRequired": "Data é obrigatória",
     "timeRequired": "Horário é obrigatório",
-    "exerciseNameRequired": "Nome do exercício é obrigatório"
+    "exerciseNameRequired": "Nome do exercício é obrigatório",
+    "emailAlreadyRegistered": "Este email já está cadastrado. Tente fazer login ou use outro email.",
+    "invalidEmailFormat": "Email inválido. Verifique o formato do email.",
+    "passwordTooShort": "A senha deve ter pelo menos 6 caracteres.",
+    "invalidCredentials": "Email ou senha incorretos. Verifique seus dados e tente novamente.",
+    "emailNotConfirmed": "Email não confirmado. Verifique sua caixa de entrada.",
+    "tooManyRequests": "Muitas tentativas. Aguarde alguns minutos e tente novamente."
   },
   "forms": {
     "name": "Nome",

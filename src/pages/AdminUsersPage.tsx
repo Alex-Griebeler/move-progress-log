@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { PageLayout } from "@/components/PageLayout";
@@ -34,6 +35,7 @@ import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { AddUserDialog } from "@/components/AddUserDialog";
 import { EditUserDialog } from "@/components/EditUserDialog";
+import { logger } from "@/utils/logger";
 
 interface UserWithRole {
   id: string;
@@ -87,7 +89,7 @@ export default function AdminUsersPage() {
         description: "Você não tem permissão para acessar esta página.",
         variant: "destructive",
       });
-      navigate("/");
+      navigate(ROUTES.dashboard);
     }
   }, [isAdmin, roleLoading, navigate]);
 
@@ -127,8 +129,8 @@ export default function AdminUsersPage() {
       if (studentsError) throw studentsError;
 
       // Combinar dados de trainers/admins
-      const trainersData: UserWithRole[] = (profiles || []).map((profile: any) => {
-        const roleData = roles?.find((r: any) => r.user_id === profile.id);
+      const trainersData: UserWithRole[] = (profiles || []).map((profile) => {
+        const roleData = roles?.find((r) => r.user_id === profile.id);
 
         return {
           id: profile.id,
@@ -141,7 +143,7 @@ export default function AdminUsersPage() {
       });
 
       // Adicionar alunos como usuários com role 'user'
-      const studentsData: UserWithRole[] = (students || []).map((student: any) => ({
+      const studentsData: UserWithRole[] = (students || []).map((student) => ({
         id: student.id,
         email: 'aluno@fabrikbrasil.com', // Placeholder - alunos não têm email no sistema
         full_name: student.name,
@@ -151,11 +153,11 @@ export default function AdminUsersPage() {
       }));
 
       setUsers([...trainersData, ...studentsData]);
-    } catch (error: any) {
-      console.error("Error fetching users:", error);
+    } catch (error) {
+      logger.error("Error fetching users:", error);
       toast({
         title: "Erro ao carregar usuários",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Erro desconhecido",
         variant: "destructive",
       });
     } finally {
@@ -308,39 +310,19 @@ export default function AdminUsersPage() {
         </CardHeader>
 
         <CardContent>
-
-            {loading ? (
-              <div className="space-y-4">
-                {/* Skeleton para filtros */}
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
-                  <Skeleton className="h-10 flex-1" />
-                  <Skeleton className="h-10 w-full md:w-48" />
-                </div>
-                
-                {/* Skeleton para tabela */}
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="bg-muted p-4">
-                    <div className="flex gap-4">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-4 w-48" />
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-4 w-20" />
-                    </div>
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-4 p-4 border rounded-lg animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
+                  <Skeleton className="h-12 w-12 rounded-full shrink-0" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-32" />
                   </div>
-                  <div className="divide-y">
-                    {[...Array(8)].map((_, i) => (
-                      <div key={i} className="p-4 flex gap-4 items-center">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-4 w-48" />
-                        <Skeleton className="h-6 w-24 rounded-full" />
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-8 w-20" />
-                      </div>
-                    ))}
-                  </div>
+                  <Skeleton className="h-8 w-24 shrink-0" />
                 </div>
-              </div>
+              ))}
+            </div>
           ) : (
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
@@ -375,9 +357,22 @@ export default function AdminUsersPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAndSortedUsers.map((user) => (
-                      <tr key={user.id} className="border-t hover:bg-muted/50">
-                        <td className="p-4">{user.full_name}</td>
+                     {filteredAndSortedUsers.map((user) => (
+                      <tr key={user.id} className="border-t hover:bg-muted/50 transition-colors">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`flex items-center justify-center h-10 w-10 rounded-full ${
+                              user.role === 'admin' ? 'bg-destructive/10' : 
+                              user.role === 'moderator' ? 'bg-primary/10' : 
+                              'bg-secondary/10'
+                            }`}>
+                              {user.role === 'admin' && <Shield className="h-5 w-5 text-destructive" />}
+                              {user.role === 'moderator' && <UserCog className="h-5 w-5 text-primary" />}
+                              {user.role === 'user' && <Users className="h-5 w-5 text-muted-foreground" />}
+                            </div>
+                            <span className="font-medium">{user.full_name || 'Sem nome'}</span>
+                          </div>
+                        </td>
                         <td className="p-4 text-sm text-muted-foreground">{user.email}</td>
                         <td className="p-4">
                           <Badge variant={roleVariants[user.role]}>

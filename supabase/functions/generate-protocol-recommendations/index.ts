@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // Input validation schema
@@ -66,7 +66,6 @@ serve(async (req) => {
     // Verify user authentication
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
-      console.error('Authentication error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -92,8 +91,6 @@ serve(async (req) => {
       );
     }
 
-    console.log('Generating recommendations for student:', student_id, 'by user:', user.id);
-
     // Create service client for data operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -105,7 +102,6 @@ serve(async (req) => {
       .single();
 
     if (studentError || !student) {
-      console.error('Student not found:', studentError);
       return new Response(
         JSON.stringify({ error: 'Student not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -113,7 +109,6 @@ serve(async (req) => {
     }
 
     if (student.trainer_id !== user.id) {
-      console.error('Unauthorized access attempt:', user.id, 'to student:', student_id);
       return new Response(
         JSON.stringify({ error: 'Unauthorized access to student data' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -130,14 +125,11 @@ serve(async (req) => {
       .single();
 
     if (metricsError || !latestMetrics) {
-      console.log('No Oura metrics found for student:', student_id);
       return new Response(
         JSON.stringify({ message: 'No Oura metrics available for this student' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('Latest metrics:', latestMetrics);
 
     // Get all adaptation rules
     const { data: rules, error: rulesError } = await supabase
@@ -146,14 +138,45 @@ serve(async (req) => {
 
     if (rulesError) throw rulesError;
 
-    console.log('Loaded adaptation rules:', rules?.length);
-
     // Get all protocols
     const { data: protocols, error: protocolsError } = await supabase
       .from('recovery_protocols')
       .select('id, name, category, subcategory');
 
     if (protocolsError) throw protocolsError;
+
+    // ═══════════════════════════════════════════════════════════
+    // MEL-IA-007: Query adherence history for effectiveness-based prioritization
+    // ═══════════════════════════════════════════════════════════
+    const { data: adherenceHistory } = await supabase
+      .from('protocol_adherence')
+      .select('protocol_id, followed, hrv_delta, readiness_delta')
+      .eq('student_id', student_id)
+      .eq('followed', true)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    // Calculate effectiveness score per protocol
+    const protocolEffectiveness: Record<string, { avgHrvDelta: number; avgReadinessDelta: number; count: number }> = {};
+    if (adherenceHistory) {
+      for (const entry of adherenceHistory) {
+        if (!protocolEffectiveness[entry.protocol_id]) {
+          protocolEffectiveness[entry.protocol_id] = { avgHrvDelta: 0, avgReadinessDelta: 0, count: 0 };
+        }
+        const eff = protocolEffectiveness[entry.protocol_id];
+        eff.count++;
+        if (entry.hrv_delta != null) eff.avgHrvDelta += entry.hrv_delta;
+        if (entry.readiness_delta != null) eff.avgReadinessDelta += entry.readiness_delta;
+      }
+      for (const key of Object.keys(protocolEffectiveness)) {
+        const eff = protocolEffectiveness[key];
+        if (eff.count > 0) {
+          eff.avgHrvDelta /= eff.count;
+          eff.avgReadinessDelta /= eff.count;
+        }
+      }
+    }
+    // ═══════════════════════════════════════════════════════════
 
     // Analyze metrics and generate recommendations
     const recommendations: Array<{
@@ -183,24 +206,37 @@ serve(async (req) => {
       }
 
       if (triggered) {
-        console.log(`Rule triggered: ${rule.metric_name} ${rule.condition} ${rule.threshold_value}, value: ${metricValue}`);
-
         // Generate protocol recommendations based on the rule
-        const recommendedProtocols = getProtocolsForAction(rule.action_type, protocols as Protocol[]);
+        let recommendedProtocols = getProtocolsForAction(rule.action_type, protocols as Protocol[]);
+
+        // MEL-IA-007: Sort by effectiveness (protocols with positive HRV/readiness delta first)
+        recommendedProtocols.sort((a, b) => {
+          const effA = protocolEffectiveness[a.id];
+          const effB = protocolEffectiveness[b.id];
+          if (!effA && !effB) return 0;
+          if (!effA) return 1;
+          if (!effB) return -1;
+          const scoreA = effA.avgHrvDelta + effA.avgReadinessDelta;
+          const scoreB = effB.avgHrvDelta + effB.avgReadinessDelta;
+          return scoreB - scoreA; // Higher effectiveness first
+        });
 
         for (const protocol of recommendedProtocols) {
+          const eff = protocolEffectiveness[protocol.id];
+          const effNote = eff && eff.count >= 3
+            ? ` (efetividade histórica: HRV ${eff.avgHrvDelta > 0 ? '+' : ''}${eff.avgHrvDelta.toFixed(1)}, Readiness ${eff.avgReadinessDelta > 0 ? '+' : ''}${eff.avgReadinessDelta.toFixed(0)})`
+            : '';
+
           recommendations.push({
             student_id: student_id,
             protocol_id: protocol.id,
             recommended_date: today,
-            reason: `${rule.description}. ${rule.metric_name}: ${metricValue}`,
+            reason: `${rule.description}. ${rule.metric_name}: ${metricValue}${effNote}`,
             priority: rule.severity,
           });
         }
       }
     }
-
-    console.log(`Generated ${recommendations.length} recommendations`);
 
     // Delete old recommendations for today (to avoid duplicates)
     await supabase
@@ -232,7 +268,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error generating recommendations:', error);
+    // Error generating recommendations
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { 

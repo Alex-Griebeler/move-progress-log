@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 Deno.serve(async (req) => {
@@ -20,17 +20,63 @@ Deno.serve(async (req) => {
       );
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+    // Authentication: Allow service role (internal calls) OR authenticated trainer
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+
+    // Check if this is a service role call (from oura-sync-all / oura-sync-scheduled)
+    const isServiceRole = token === serviceRoleKey;
+
+    if (!isServiceRole) {
+      // Validate user JWT and check trainer ownership
+      const supabaseAuth = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } }
+      });
+      const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired token' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
+      }
+
+      const userId = claimsData.claims.sub;
+
+      // Verify the user is the trainer for this student
+      const supabaseCheck = createClient(supabaseUrl, serviceRoleKey);
+      const { data: student, error: studentError } = await supabaseCheck
+        .from('students')
+        .select('trainer_id')
+        .eq('id', student_id)
+        .single();
+
+      if (studentError || !student || student.trainer_id !== userId) {
+        return new Response(
+          JSON.stringify({ error: 'Access denied: you are not this student\'s trainer' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+    }
+
     console.log(`Syncing Oura data for student ${student_id}, date: ${date || 'today'}`);
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get Oura connection
+    // Get Oura connection metadata
     const { data: connection, error: connError } = await supabaseClient
       .from('oura_connections')
-      .select('*')
+      .select('id, student_id, token_expires_at, is_active, last_sync_at')
       .eq('student_id', student_id)
       .eq('is_active', true)
       .single();
@@ -43,7 +89,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    let accessToken = connection.access_token;
+    // Retrieve decrypted access token from Vault
+    const { data: accessToken, error: tokenError } = await supabaseClient
+      .rpc('get_oura_access_token', { p_student_id: student_id });
+    
+    if (tokenError || !accessToken) {
+      console.error('Failed to retrieve access token:', tokenError);
+      return new Response(
+        JSON.stringify({ error: 'Falha ao recuperar token de acesso' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    let currentAccessToken = accessToken;
 
     // Check if token expired
     const now = new Date();
@@ -51,12 +109,24 @@ Deno.serve(async (req) => {
     if (now >= expiresAt) {
       console.log('Access token expired, refreshing...');
 
+      // Retrieve refresh token from Vault
+      const { data: refreshToken, error: refreshTokenError } = await supabaseClient
+        .rpc('get_oura_refresh_token', { p_student_id: student_id });
+      
+      if (refreshTokenError || !refreshToken) {
+        console.error('Failed to retrieve refresh token:', refreshTokenError);
+        return new Response(
+          JSON.stringify({ error: 'Falha ao recuperar refresh token' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+
       const refreshResponse = await fetch('https://api.ouraring.com/oauth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
-          refresh_token: connection.refresh_token,
+          refresh_token: refreshToken,
           client_id: Deno.env.get('OURA_CLIENT_ID') || '',
           client_secret: Deno.env.get('OURA_CLIENT_SECRET') || '',
         }).toString(),
@@ -79,20 +149,18 @@ Deno.serve(async (req) => {
       }
 
       const refreshData = await refreshResponse.json();
-      accessToken = refreshData.access_token;
+      currentAccessToken = refreshData.access_token;
 
       const newExpiresAt = new Date();
       newExpiresAt.setSeconds(newExpiresAt.getSeconds() + refreshData.expires_in);
 
-      // Update tokens
-      await supabaseClient
-        .from('oura_connections')
-        .update({
-          access_token: refreshData.access_token,
-          refresh_token: refreshData.refresh_token,
-          token_expires_at: newExpiresAt.toISOString(),
-        })
-        .eq('id', connection.id);
+      // Store refreshed tokens securely in Vault
+      await supabaseClient.rpc('store_oura_tokens', {
+        p_student_id: student_id,
+        p_access_token: refreshData.access_token,
+        p_refresh_token: refreshData.refresh_token,
+        p_token_expires_at: newExpiresAt.toISOString(),
+      });
 
       console.log('Token refreshed successfully');
     }
@@ -148,7 +216,7 @@ Deno.serve(async (req) => {
 
     // Fetch Oura data
     const headers = {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${currentAccessToken}`,
     };
 
     console.log('🌐 API ENDPOINTS BEING CALLED:');

@@ -11,6 +11,7 @@ export interface WorkoutPrescription {
   updated_at: string;
   folder_id: string | null;
   order_index: number;
+  prescription_type: 'group' | 'individual';
   assigned_students_count?: number;
 }
 
@@ -26,6 +27,8 @@ export interface PrescriptionExercise {
   training_method: string | null;
   observations: string | null;
   group_with_previous: boolean;
+  load: string | null;
+  rir: string | null;
   exercise_name?: string;
   adaptations?: ExerciseAdaptation[];
 }
@@ -43,13 +46,24 @@ export interface ExerciseAdaptation {
   exercise_name?: string;
 }
 
+// INC-008: Tipagem formal para custom_adaptations
+export interface CustomAdaptation {
+  exercise_library_id: string;
+  adaptation_type: string;
+  sets?: string | null;
+  reps?: string | null;
+  interval_seconds?: number | null;
+  pse?: string | null;
+  observations?: string | null;
+}
+
 export interface PrescriptionAssignment {
   id: string;
   prescription_id: string;
   student_id: string;
   start_date: string;
   end_date: string | null;
-  custom_adaptations: any;
+  custom_adaptations: CustomAdaptation[] | null;
   student_name?: string;
 }
 
@@ -64,7 +78,8 @@ export const usePrescriptions = () => {
           prescription_assignments(student_id)
         `)
         .order("folder_id", { ascending: true, nullsFirst: false })
-        .order("order_index", { ascending: true });
+        .order("order_index", { ascending: true })
+        .limit(500);
 
       if (error) throw error;
       
@@ -103,6 +118,12 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
       if (exError) throw exError;
 
       const exerciseIds = exercises.map((ex) => ex.id);
+
+      // BUG-006 fix: guard against empty array in .in()
+      if (exerciseIds.length === 0) {
+        return { ...prescription, exercises: [] };
+      }
+
       const { data: adaptations, error: adaptError } = await supabase
         .from("exercise_adaptations")
         .select(`
@@ -139,12 +160,15 @@ export const useCreatePrescription = () => {
     mutationFn: async (data: {
       name: string;
       objective?: string;
+      prescription_type?: 'group' | 'individual';
       exercises: Array<{
         exercise_library_id: string;
         sets: string;
         reps: string;
         interval_seconds?: number;
         pse?: string;
+        load?: string;
+        rir?: string;
         training_method?: string;
         observations?: string;
         group_with_previous?: boolean;
@@ -169,53 +193,72 @@ export const useCreatePrescription = () => {
         .insert({
           name: data.name,
           objective: data.objective || null,
+          prescription_type: data.prescription_type || 'group',
           trainer_id: user.id,
-        })
+        } as any)
         .select()
         .single();
 
       if (prescError) throw prescError;
 
-      for (let i = 0; i < data.exercises.length; i++) {
-        const ex = data.exercises[i];
-        const { data: exercise, error: exError } = await supabase
-          .from("prescription_exercises")
-          .insert({
-            prescription_id: prescription.id,
-            exercise_library_id: ex.exercise_library_id,
-            order_index: i,
-            sets: ex.sets,
-            reps: ex.reps,
-            interval_seconds: ex.interval_seconds || null,
-            pse: ex.pse || null,
-            training_method: ex.training_method || null,
-            observations: ex.observations || null,
-            group_with_previous: ex.group_with_previous || false,
-            should_track: ex.should_track ?? true,
-          })
-          .select()
-          .single();
+      // MEL-001: Batch insert exercises (exercises without adaptations)
+      const exercisesToInsert = data.exercises.map((ex, i) => ({
+        prescription_id: prescription.id,
+        exercise_library_id: ex.exercise_library_id,
+        order_index: i,
+        sets: ex.sets,
+        reps: ex.reps,
+        interval_seconds: ex.interval_seconds || null,
+        pse: ex.pse || null,
+        load: ex.load || null,
+        rir: ex.rir || null,
+        training_method: ex.training_method || null,
+        observations: ex.observations || null,
+        group_with_previous: ex.group_with_previous || false,
+        should_track: ex.should_track ?? true,
+      }));
 
-        if (exError) throw exError;
+      const { data: insertedExercises, error: exError } = await supabase
+        .from("prescription_exercises")
+        .insert(exercisesToInsert)
+        .select();
 
-        if (ex.adaptations && ex.adaptations.length > 0) {
-          const adaptationsToInsert = ex.adaptations.map((adapt) => ({
-            prescription_exercise_id: exercise.id,
-            adaptation_type: adapt.type,
-            exercise_library_id: adapt.exercise_library_id,
-            sets: adapt.sets || null,
-            reps: adapt.reps || null,
-            interval_seconds: adapt.interval_seconds || null,
-            pse: adapt.pse || null,
-            observations: adapt.observations || null,
-          }));
+      if (exError) throw exError;
 
-          const { error: adaptError } = await supabase
-            .from("exercise_adaptations")
-            .insert(adaptationsToInsert);
-
-          if (adaptError) throw adaptError;
+      // Batch insert adaptations for all exercises that have them
+      const allAdaptations: Array<{
+        prescription_exercise_id: string;
+        adaptation_type: string;
+        exercise_library_id: string;
+        sets: string | null;
+        reps: string | null;
+        interval_seconds: number | null;
+        pse: string | null;
+        observations: string | null;
+      }> = [];
+      data.exercises.forEach((ex, i) => {
+        if (ex.adaptations && ex.adaptations.length > 0 && insertedExercises[i]) {
+          ex.adaptations.forEach((adapt) => {
+            allAdaptations.push({
+              prescription_exercise_id: insertedExercises[i].id,
+              adaptation_type: adapt.type,
+              exercise_library_id: adapt.exercise_library_id,
+              sets: adapt.sets || null,
+              reps: adapt.reps || null,
+              interval_seconds: adapt.interval_seconds || null,
+              pse: adapt.pse || null,
+              observations: adapt.observations || null,
+            });
+          });
         }
+      });
+
+      if (allAdaptations.length > 0) {
+        const { error: adaptError } = await supabase
+          .from("exercise_adaptations")
+          .insert(allAdaptations);
+
+        if (adaptError) throw adaptError;
       }
 
       return prescription;
@@ -280,12 +323,15 @@ export const useUpdatePrescription = () => {
       id: string;
       name: string;
       objective?: string;
+      prescription_type?: 'group' | 'individual';
       exercises: Array<{
         exercise_library_id: string;
         sets: string;
         reps: string;
         interval_seconds?: number;
         pse?: string;
+        load?: string;
+        rir?: string;
         training_method?: string;
         observations?: string;
         group_with_previous?: boolean;
@@ -301,81 +347,46 @@ export const useUpdatePrescription = () => {
         }>;
       }>;
     }) => {
-      // Update prescription basic info
-      const { error: updateError } = await supabase
-        .from("workout_prescriptions")
-        .update({
-          name: data.name,
-          objective: data.objective || null,
-        })
-        .eq("id", data.id);
-
-      if (updateError) throw updateError;
-
-      // Delete existing exercises and their adaptations
-      const { data: existingExercises } = await supabase
-        .from("prescription_exercises")
-        .select("id")
-        .eq("prescription_id", data.id);
-
-      if (existingExercises && existingExercises.length > 0) {
-        const exerciseIds = existingExercises.map((ex) => ex.id);
-        
-        // Delete adaptations first (foreign key constraint)
+      // BUG-001 fix: Use atomic stored procedure instead of delete-then-reinsert
+      // Update prescription_type if provided
+      if (data.prescription_type) {
         await supabase
-          .from("exercise_adaptations")
-          .delete()
-          .in("prescription_exercise_id", exerciseIds);
-
-        // Delete exercises
-        await supabase
-          .from("prescription_exercises")
-          .delete()
-          .eq("prescription_id", data.id);
+          .from("workout_prescriptions")
+          .update({ prescription_type: data.prescription_type } as any)
+          .eq("id", data.id);
       }
 
-      // Insert new exercises
-      for (let i = 0; i < data.exercises.length; i++) {
-        const ex = data.exercises[i];
-        const { data: exercise, error: exError } = await supabase
-          .from("prescription_exercises")
-          .insert({
-            prescription_id: data.id,
-            exercise_library_id: ex.exercise_library_id,
-            order_index: i,
-            sets: ex.sets,
-            reps: ex.reps,
-            interval_seconds: ex.interval_seconds || null,
-            pse: ex.pse || null,
-            training_method: ex.training_method || null,
-            observations: ex.observations || null,
-            group_with_previous: ex.group_with_previous || false,
-            should_track: ex.should_track ?? true,
-          })
-          .select()
-          .single();
+      const exercisesPayload = data.exercises.map((ex) => ({
+        exercise_library_id: ex.exercise_library_id,
+        sets: ex.sets,
+        reps: ex.reps,
+        interval_seconds: ex.interval_seconds || null,
+        pse: ex.pse || null,
+        load: ex.load || null,
+        rir: ex.rir || null,
+        training_method: ex.training_method || null,
+        observations: ex.observations || null,
+        group_with_previous: ex.group_with_previous || false,
+        should_track: ex.should_track ?? true,
+        adaptations: (ex.adaptations || []).map((adapt) => ({
+          type: adapt.type,
+          exercise_library_id: adapt.exercise_library_id,
+          sets: adapt.sets || null,
+          reps: adapt.reps || null,
+          interval_seconds: adapt.interval_seconds || null,
+          pse: adapt.pse || null,
+          observations: adapt.observations || null,
+        })),
+      }));
 
-        if (exError) throw exError;
+      const { error } = await supabase.rpc('update_prescription_with_exercises', {
+        p_prescription_id: data.id,
+        p_name: data.name,
+        p_objective: data.objective || null,
+        p_exercises: exercisesPayload,
+      });
 
-        if (ex.adaptations && ex.adaptations.length > 0) {
-          const adaptationsToInsert = ex.adaptations.map((adapt) => ({
-            prescription_exercise_id: exercise.id,
-            adaptation_type: adapt.type,
-            exercise_library_id: adapt.exercise_library_id,
-            sets: adapt.sets || null,
-            reps: adapt.reps || null,
-            interval_seconds: adapt.interval_seconds || null,
-            pse: adapt.pse || null,
-            observations: adapt.observations || null,
-          }));
-
-          const { error: adaptError } = await supabase
-            .from("exercise_adaptations")
-            .insert(adaptationsToInsert);
-
-          if (adaptError) throw adaptError;
-        }
-      }
+      if (error) throw error;
 
       return data.id;
     },
@@ -434,10 +445,35 @@ export const useDeletePrescriptionAssignment = () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
-      notify.success("Atribuição excluída com sucesso");
+      // INC-009: usando chaves i18n
+      notify.success(i18n.modules.prescriptions.deleted);
     },
     onError: (error) => {
-      notify.error("Erro ao excluir atribuição", {
+      notify.error(i18n.modules.prescriptions.errorDelete, {
+        description: error.message
+      });
+    },
+  });
+};
+
+export const useDeletePrescription = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (prescriptionId: string) => {
+      const { error } = await supabase.rpc('delete_prescription_cascade', {
+        p_prescription_id: prescriptionId,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      notify.success(i18n.modules.prescriptions.deleted);
+    },
+    onError: (error) => {
+      notify.error(i18n.modules.prescriptions.errorDelete, {
         description: error.message
       });
     },

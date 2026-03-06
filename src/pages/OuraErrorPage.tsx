@@ -1,10 +1,12 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { logger } from "@/utils/logger";
 
 export default function OuraErrorPage() {
   const [searchParams] = useSearchParams();
@@ -87,7 +89,7 @@ export default function OuraErrorPage() {
         window.location.href = ouraAuthUrl;
       }, 2000);
     } catch (error) {
-      console.error("Error generating OAuth URL:", error);
+      logger.error("Error generating OAuth URL:", error);
       toast.error("Erro ao tentar reconectar");
       setIsRetrying(false);
     }
@@ -95,9 +97,9 @@ export default function OuraErrorPage() {
 
   const handleContinueWithoutOura = () => {
     if (studentId) {
-      navigate(`/alunos/${studentId}`);
+      navigate(ROUTES.studentDetail(studentId));
     } else {
-      navigate("/");
+      navigate(ROUTES.dashboard);
     }
   };
 

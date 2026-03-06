@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
-import { getClientIP } from "@/lib/rateLimiter";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,8 +32,8 @@ export const AuthDebugPanel = () => {
       setSession(session);
     });
 
-    // Get client IP
-    getClientIP().then(setClientIP);
+    // IP is now extracted server-side
+    setClientIP("server-side");
 
     return () => subscription.unsubscribe();
   }, []);
@@ -133,7 +133,7 @@ export const AuthDebugPanel = () => {
     return (
       <Button
         onClick={() => setIsExpanded(true)}
-        className="fixed bottom-4 right-4 z-50 shadow-lg"
+        className="fixed bottom-lg right-lg z-50 shadow-premium"
         size="sm"
         variant="secondary"
       >
@@ -144,7 +144,7 @@ export const AuthDebugPanel = () => {
   }
 
   return (
-    <Card className="fixed bottom-4 right-4 z-50 w-80 p-4 shadow-lg bg-background/95 backdrop-blur-sm border-primary/20">
+    <Card className="fixed bottom-lg right-lg z-50 w-80 p-lg shadow-premium bg-background/95 backdrop-blur-sm border-primary/20">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold">🔧 Auth Debug Panel</h3>
         <Button

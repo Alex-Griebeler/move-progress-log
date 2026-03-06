@@ -26,19 +26,17 @@ export const useStats = () => {
         .select("*", { count: "exact", head: true })
         .gte("date", firstDayOfMonth);
       
-      // Alunos ativos (com pelo menos uma sessão)
-      const { data: activeStudentsData } = await supabase
-        .from("workout_sessions")
-        .select("student_id")
-        .gte("date", firstDayOfMonth);
+      // Alunos ativos (com pelo menos uma sessão) — NOVO-002: count distinct via RPC
+      const { data: activeStudentsCount } = await supabase
+        .rpc('count_active_students', { p_since: firstDayOfMonth });
+      const activeStudents = activeStudentsCount || 0;
       
-      const uniqueStudents = new Set(activeStudentsData?.map(s => s.student_id) || []);
-      const activeStudents = uniqueStudents.size;
-      
-      // Carga média por sessão
+      // Carga média por sessão — BUG-003 fix: filtrar pelo mês corrente + limite
       const { data: exercises } = await supabase
         .from("exercises")
-        .select("load_kg, session_id");
+        .select("load_kg, session_id")
+        .gte("created_at", firstDayOfMonth)
+        .limit(5000);
       
       if (exercises && exercises.length > 0) {
         const sessionLoads = new Map<string, number>();

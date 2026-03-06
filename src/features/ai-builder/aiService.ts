@@ -1,29 +1,37 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
 export interface AIBuilderResponse {
-  type: 'conversation' | 'planning' | 'build';
+  type: "conversation" | "planning" | "build";
   message: string;
   issue_url?: string;
+  error?: string;
 }
 
-export async function sendMessage(message: string): Promise<AIBuilderResponse> {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) throw new Error('Não autenticado');
+interface ChatHistoryMessage {
+  role: "user" | "assistant";
+  content: string;
+}
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const response = await fetch(`${supabaseUrl}/functions/v1/ai-builder-chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ message }),
+export async function sendAIBuilderMessage(
+  message: string,
+  history: ChatHistoryMessage[] = []
+): Promise<AIBuilderResponse> {
+  const { data, error } = await supabase.functions.invoke("ai-builder-chat", {
+    body: { message, history },
   });
 
-  if (!response.ok) {
-    const err = await response.json();
-    throw new Error(err.error || 'Erro ao processar mensagem');
+  if (error) {
+    throw new Error(error.message || "Erro ao conectar com o AI Builder");
   }
 
-  return response.json();
+  if (data?.error) {
+    throw new Error(data.error);
+  }
+
+  // Validate response shape
+  if (!data || typeof data.message !== "string" || typeof data.type !== "string") {
+    throw new Error("Resposta inválida do AI Builder");
+  }
+
+  return data as AIBuilderResponse;
 }

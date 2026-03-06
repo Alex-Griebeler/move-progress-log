@@ -2,13 +2,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { logger } from "@/utils/logger";
 
 export const useOuraTestSync = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (student_id: string) => {
-      console.log('🧪 Calling test sync for student:', student_id);
+      logger.log('🧪 Calling test sync for student:', student_id);
       
       const { data, error } = await supabase.functions.invoke('oura-sync-test', {
         body: { student_id }
@@ -18,7 +19,7 @@ export const useOuraTestSync = () => {
       return data;
     },
     onSuccess: (data, student_id) => {
-      console.log('✅ Test sync completed:', data);
+      logger.log('✅ Test sync completed:', data);
       
       // Invalidate all Oura-related queries
       queryClient.invalidateQueries({ queryKey: ['oura-metrics', student_id] });
@@ -31,7 +32,7 @@ export const useOuraTestSync = () => {
       });
     },
     onError: (error: any) => {
-      console.error('❌ Test sync error:', error);
+      logger.error('❌ Test sync error:', error);
       notify.error(i18n.modules.oura.errorTest, {
         description: error.message || 'Falha ao processar dados mock do Oura',
       });

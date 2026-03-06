@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
+import { ROUTES } from "@/constants/navigation";
 import { useStudents } from "@/hooks/useStudents";
 import { useStudentPrescriptions, useSessionsWithExercises } from "@/hooks/useStudentDetail";
 import { useDeletePrescriptionAssignment } from "@/hooks/usePrescriptions";
@@ -6,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, Trash2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, Trash2, AlertCircle, User, Filter } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StudentAvatarImage } from "@/components/StudentAvatarImage";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import WorkoutCard from "@/components/WorkoutCard";
 import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
@@ -30,11 +32,14 @@ import PersonalizedTrainingDashboard from "@/components/PersonalizedTrainingDash
 import { StudentObservationsCard } from "@/components/StudentObservationsCard";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
+import { SessionDetailDialog } from "@/components/SessionDetailDialog";
+import { EditStudentDialog } from "@/components/EditStudentDialog";
+import { StudentOverviewDashboard } from "@/components/StudentOverviewDashboard";
 import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useReopenWorkoutSession } from "@/hooks/useWorkoutSessions";
+import { useReopenWorkoutSession, useFinalizeWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
@@ -42,6 +47,10 @@ import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getPersonSchema } from "@/utils/structuredData";
+import { ErrorState } from "@/components/ErrorState";
+import { StudentHeaderSkeleton } from "@/components/skeletons/StudentHeaderSkeleton";
+import { getObjectiveLabel } from "@/constants/objectives";
+import { logger } from "@/utils/logger";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -57,8 +66,13 @@ const StudentDetailPage = () => {
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [studentNotFound, setStudentNotFound] = useState(false);
+  const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'individual' | 'group'>('all');
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [editStudentOpen, setEditStudentOpen] = useState(false);
   const deleteAssignment = useDeletePrescriptionAssignment();
   const reopenSession = useReopenWorkoutSession();
+  const finalizeSession = useFinalizeWorkoutSession();
 
   const student = students?.find((s) => s.id === id);
   
@@ -90,11 +104,13 @@ const StudentDetailPage = () => {
 
   if (!student) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Aluno não encontrado</h2>
-          <Button onClick={() => navigate("/alunos")}>Voltar</Button>
-        </div>
+      <div className="container mx-auto p-6 flex items-center justify-center min-h-[60vh]">
+        <ErrorState
+          title="Aluno não encontrado"
+          description="O aluno que você está procurando não existe ou foi removido."
+          onRetry={() => navigate(ROUTES.students)}
+          retryLabel="Voltar para Alunos"
+        />
       </div>
     );
   }
@@ -123,6 +139,19 @@ const StudentDetailPage = () => {
 
   const missingFields = getMissingFields();
   const hasIncompleteData = missingFields.length > 0;
+
+  // Calculate age
+  const age = useMemo(() => {
+    if (!student.birth_date) return null;
+    const today = new Date();
+    const birthDate = new Date(student.birth_date);
+    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      calculatedAge--;
+    }
+    return calculatedAge;
+  }, [student.birth_date]);
 
   return (
     <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
@@ -158,65 +187,120 @@ const StudentDetailPage = () => {
         ]}
       />
       
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/alunos")} aria-label="Voltar para lista de alunos">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <Avatar className="h-16 w-16">
-            <AvatarImage src={student.avatar_url || undefined} className="object-cover" />
-            <AvatarFallback className="text-2xl">{student.name.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-3xl font-bold">{student.name}</h1>
-            <p className="text-muted-foreground">
-              {student.birth_date && (() => {
-                const [year, month, day] = student.birth_date.split('-');
-                return `Nascimento: ${day}/${month}/${year}`;
-              })()}
-            </p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
+      {loadingStudents ? (
+        <StudentHeaderSkeleton />
+      ) : (
+        <Card className="bg-card border border-primary/15 shadow-sm rounded-xl mb-md animate-fade-in">
+          <CardContent className="p-lg">
+            <div className="flex flex-col md:flex-row items-start justify-between gap-lg">
+              {/* Coluna 1: Perfil */}
+              <div className="flex gap-md items-start w-full md:w-auto">
                 <Button 
-                  onClick={() => navigate(`/alunos/${id}/relatorios`)} 
-                  className="gap-2"
-                  variant="outline"
-                  aria-label="Ver Relatórios"
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => navigate(ROUTES.students)} 
+                  aria-label="Voltar para lista de alunos"
+                  className="shrink-0"
                 >
-                  <FileText className="h-4 w-4" />
-                  Relatórios
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Visualizar e gerar relatórios periódicos de evolução</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  onClick={() => setRecordSessionOpen(true)} 
-                  className="gap-2 animate-pulse hover:animate-none"
-                  variant="gradient"
-                  aria-label={NAV_LABELS.recordSession}
-                >
-                  <Mic className="h-4 w-4" />
-                  {NAV_LABELS.recordSession}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Grave uma sessão de treino usando sua voz</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
+                
+                <Avatar className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-primary/20 ring-offset-4 ring-offset-background transition-transform duration-300 hover:scale-105 cursor-pointer shrink-0">
+                  <StudentAvatarImage avatarUrl={student.avatar_url} className="object-cover" />
+                  <AvatarFallback className="text-2xl md:text-3xl font-bold">
+                    {student.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="space-y-sm flex-1 min-w-0">
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-bold mb-xs break-words leading-tight">{student.name}</h1>
+                    <div className="flex items-center gap-xs text-sm text-muted-foreground flex-wrap">
+                      <Calendar className="h-4 w-4 shrink-0" />
+                      <span>{age} anos</span>
+                    </div>
+                  </div>
+                  
+                  {/* Badges Row com stagger animation */}
+                  <div className="flex flex-wrap gap-xs">
+                    {student.fitness_level && (
+                      <Badge 
+                        variant="secondary" 
+                        className="gap-xs animate-fade-in"
+                        style={{ animationDelay: '0ms' }}
+                      >
+                        <TrendingUp className="h-3 w-3" />
+                        {student.fitness_level}
+                      </Badge>
+                    )}
+                    {ouraConnection?.is_active && (
+                      <Badge 
+                        variant="default" 
+                        className="gap-xs animate-fade-in shimmer-border"
+                        style={{ animationDelay: '100ms' }}
+                      >
+                        <Activity className="h-3 w-3 animate-pulse" />
+                        Oura Conectado
+                      </Badge>
+                    )}
+                    {student.objectives?.slice(0, 2).map((obj, index) => (
+                      <Badge 
+                        key={obj}
+                        variant="outline" 
+                        className="gap-xs animate-fade-in"
+                        style={{ animationDelay: `${(index + 2) * 100}ms` }}
+                      >
+                        {getObjectiveLabel(obj)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Coluna 2: Ações */}
+              <div className="flex flex-col sm:flex-row gap-sm w-full md:w-auto">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        onClick={() => navigate(ROUTES.studentReports(id!))} 
+                        className="gap-2 w-full sm:w-auto"
+                        variant="outline"
+                        aria-label="Ver Relatórios"
+                      >
+                        <FileText className="h-4 w-4" />
+                        Relatórios
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Visualizar e gerar relatórios periódicos de evolução</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        onClick={() => setRecordSessionOpen(true)} 
+                       className="gap-2 w-full sm:w-auto"
+                        variant="default"
+                        aria-label={NAV_LABELS.recordSession}
+                      >
+                        <Mic className="h-4 w-4" />
+                        {NAV_LABELS.recordSession}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Grave uma sessão de treino usando sua voz</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Alerta de Dados Incompletos - Detalhado */}
       {hasIncompleteData && (
@@ -241,7 +325,7 @@ const StudentDetailPage = () => {
           <TabsTrigger value="oura">{NAV_LABELS.tabOura}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="training" className="space-y-6">
+        <TabsContent value="training" className="space-y-6 animate-fade-in">
           <PersonalizedTrainingDashboard
             latestMetrics={latestOuraMetrics}
             recentMetrics={ouraMetrics || []}
@@ -251,104 +335,75 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="overview" className="space-y-6">
-          <StudentObservationsCard studentId={id!} />
-          
-          <div className="grid gap-6 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Informações Pessoais
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {(student.weight_kg || student.height_cm) && (
-                  <div className="flex gap-4">
-                    {student.weight_kg && (
-                      <div>
-                        <span className="font-semibold">Peso:</span>{" "}
-                        <span className="text-muted-foreground">{student.weight_kg} kg</span>
-                      </div>
-                    )}
-                    {student.height_cm && (
-                      <div>
-                        <span className="font-semibold">Altura:</span>{" "}
-                        <span className="text-muted-foreground">{student.height_cm} cm</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {student.fitness_level && (
-                  <div>
-                    <span className="font-semibold">Nível:</span>{" "}
-                    <Badge variant="secondary">{student.fitness_level}</Badge>
-                  </div>
-                )}
-                {student.objectives && (
-                  <div>
-                    <span className="font-semibold">Objetivos:</span>
-                    <p className="text-muted-foreground mt-1">{student.objectives}</p>
-                  </div>
-                )}
-                {student.injury_history && (
-                  <div>
-                    <span className="font-semibold">Histórico de Lesões:</span>
-                    <p className="text-red-500 mt-1">{student.injury_history}</p>
-                  </div>
-                )}
-                {student.limitations && (
-                  <div>
-                    <span className="font-semibold">Limitações:</span>
-                    <p className="text-muted-foreground mt-1">{student.limitations}</p>
-                  </div>
-                )}
-                {student.preferences && (
-                  <div>
-                    <span className="font-semibold">Preferências:</span>
-                    <p className="text-muted-foreground mt-1">{student.preferences}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Estatísticas
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Total de Sessões</span>
-                  <span className="text-2xl font-bold">{sessions?.length || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Prescrições Ativas</span>
-                  <span className="text-2xl font-bold">{assignments?.length || 0}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Exercícios Únicos</span>
-                  <span className="text-2xl font-bold">{uniqueExercises.length}</span>
-                </div>
-                {student.weekly_sessions_proposed && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Sessões/Semana</span>
-                    <span className="text-2xl font-bold">{student.weekly_sessions_proposed}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <TrainingZonesCard maxHeartRate={student.max_heart_rate} />
-            <ProtocolRecommendationsCard studentId={id!} />
-          </div>
+        <TabsContent value="overview" className="space-y-6 animate-fade-in">
+          <StudentOverviewDashboard
+            student={student}
+            sessions={sessions || []}
+            assignments={assignments || []}
+            latestOuraMetrics={latestOuraMetrics}
+            ouraConnection={ouraConnection}
+            onEditStudent={() => setEditStudentOpen(true)}
+            onNavigateToOura={() => {
+              const ouraTab = document.querySelector('[value="oura"]') as HTMLElement;
+              if (ouraTab) ouraTab.click();
+            }}
+          />
         </TabsContent>
 
-        <TabsContent value="sessions" className="space-y-4">
+        <TabsContent value="sessions" className="space-y-4 animate-fade-in">
+          {/* Filtros de tipo de sessão */}
+          <Card className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Filtrar por tipo:</span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant={sessionTypeFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSessionTypeFilter('all')}
+                  className="gap-1.5"
+                >
+                  Todas
+                  {sessions && (
+                    <Badge variant={sessionTypeFilter === 'all' ? 'secondary' : 'outline'} className="ml-1">
+                      {sessions.length}
+                    </Badge>
+                  )}
+                </Button>
+                <Button
+                  variant={sessionTypeFilter === 'individual' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSessionTypeFilter('individual')}
+                  className="gap-1.5"
+                >
+                  <User className="h-3.5 w-3.5" />
+                  Individual
+                  {sessions && (
+                    <Badge variant={sessionTypeFilter === 'individual' ? 'secondary' : 'outline'} className="ml-1">
+                      {sessions.filter(s => s.session_type === 'individual').length}
+                    </Badge>
+                  )}
+                </Button>
+                <Button
+                  variant={sessionTypeFilter === 'group' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSessionTypeFilter('group')}
+                  className="gap-1.5"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  Grupo
+                  {sessions && (
+                    <Badge variant={sessionTypeFilter === 'group' ? 'secondary' : 'outline'} className="ml-1">
+                      {sessions.filter(s => s.session_type === 'group').length}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </Card>
+
           {loadingSessions ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
@@ -357,7 +412,12 @@ const StudentDetailPage = () => {
             </div>
           ) : sessions && sessions.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {sessions.map((session) => {
+              {sessions
+                .filter(session => {
+                  if (sessionTypeFilter === 'all') return true;
+                  return session.session_type === sessionTypeFilter;
+                })
+                .map((session) => {
                 const totalVolume = session.exercises?.reduce((sum, ex) => {
                   const volume = ex.reps && ex.load_kg 
                     ? ex.reps * ex.load_kg 
@@ -372,6 +432,7 @@ const StudentDetailPage = () => {
                     name={session.workout_name || `Treino - ${session.time}`}
                     exercises={session.exercises?.length || 0}
                     date={session.date}
+                    sessionType={session.session_type as 'individual' | 'group'}
                     totalVolume={totalVolume}
                     isFinalized={session.is_finalized}
                     canReopen={session.can_reopen}
@@ -384,10 +445,38 @@ const StudentDetailPage = () => {
                         }
                       });
                     }}
+                    onFinalize={() => finalizeSession.mutate(session.id)}
+                    onClick={() => {
+                      logger.log("CLICOU NO CARD - Session ID:", session.id, "Session:", session);
+                      setSelectedSessionId(session.id);
+                    }}
                   />
                 );
               })}
             </div>
+          ) : sessionTypeFilter !== 'all' ? (
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+                <div className="rounded-full bg-muted p-4">
+                  <Calendar className="h-12 w-12 text-muted-foreground" />
+                </div>
+                <div className="text-center space-y-2">
+                  <h3 className="text-lg font-semibold">
+                    Nenhuma sessão {sessionTypeFilter === 'individual' ? 'individual' : 'em grupo'} encontrada
+                  </h3>
+                  <p className="text-muted-foreground text-sm max-w-md">
+                    Não há sessões {sessionTypeFilter === 'individual' ? 'individuais' : 'em grupo'} registradas para este período
+                  </p>
+                </div>
+                <Button 
+                  variant="outline"
+                  onClick={() => setSessionTypeFilter('all')}
+                  className="gap-2 mt-4"
+                >
+                  Ver todas as sessões
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
@@ -402,7 +491,7 @@ const StudentDetailPage = () => {
                 </div>
                 <Button 
                   onClick={() => setRecordSessionOpen(true)}
-                  variant="gradient"
+                  variant="default"
                   className="gap-2 mt-4"
                 >
                   <Mic className="h-4 w-4" />
@@ -413,7 +502,7 @@ const StudentDetailPage = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="exercises" className="space-y-4">
+        <TabsContent value="exercises" className="space-y-4 animate-fade-in">
           <div className="mb-4">
             <h3 className="text-lg font-semibold mb-2">Selecione um exercício para ver o histórico:</h3>
             <div className="flex flex-wrap gap-2">
@@ -441,7 +530,7 @@ const StudentDetailPage = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="prescriptions" className="space-y-4">
+        <TabsContent value="prescriptions" className="space-y-4 animate-fade-in">
           {loadingAssignments ? (
             <Skeleton className="h-32" />
           ) : assignments && assignments.length > 0 ? (
@@ -522,7 +611,7 @@ const StudentDetailPage = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="oura" className="space-y-6">
+        <TabsContent value="oura" className="space-y-6 animate-fade-in">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-2xl font-bold">Métricas do Oura Ring</h3>
@@ -569,7 +658,7 @@ const StudentDetailPage = () => {
                 <TabsTrigger value="advanced">Avançado</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="overview" className="space-y-4 mt-6">
+              <TabsContent value="overview" className="space-y-4 mt-6 animate-fade-in">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {ouraMetrics.slice(0, 7).map((metrics) => (
                     <OuraMetricsCard key={metrics.id} metrics={metrics} />
@@ -577,7 +666,7 @@ const StudentDetailPage = () => {
                 </div>
               </TabsContent>
 
-              <TabsContent value="activity" className="space-y-4 mt-6">
+              <TabsContent value="activity" className="space-y-4 mt-6 animate-fade-in">
                 {ouraMetrics[0] && <OuraActivityCard metrics={ouraMetrics[0]} />}
                 {ouraMetrics.length > 1 && (
                   <div className="mt-4">
@@ -591,7 +680,7 @@ const StudentDetailPage = () => {
                 )}
               </TabsContent>
 
-              <TabsContent value="sleep" className="space-y-4 mt-6">
+              <TabsContent value="sleep" className="space-y-4 mt-6 animate-fade-in">
                 {ouraMetrics[0] && <OuraSleepDetailCard metrics={ouraMetrics[0]} />}
                 {ouraMetrics.length > 1 && (
                   <div className="mt-4">
@@ -605,7 +694,7 @@ const StudentDetailPage = () => {
                 )}
               </TabsContent>
 
-              <TabsContent value="stress" className="space-y-4 mt-6">
+              <TabsContent value="stress" className="space-y-4 mt-6 animate-fade-in">
                 {ouraMetrics[0] && <OuraStressCard metrics={ouraMetrics[0]} />}
                 {ouraMetrics.length > 1 && (
                   <div className="mt-4">
@@ -619,11 +708,11 @@ const StudentDetailPage = () => {
                 )}
               </TabsContent>
 
-              <TabsContent value="workouts" className="space-y-4 mt-6">
+              <TabsContent value="workouts" className="space-y-4 mt-6 animate-fade-in">
                 <OuraWorkoutsCard studentId={id!} limit={20} />
               </TabsContent>
 
-              <TabsContent value="advanced" className="space-y-4 mt-6">
+              <TabsContent value="advanced" className="space-y-4 mt-6 animate-fade-in">
                 {ouraMetrics[0] && <OuraAdvancedMetricsCard metrics={ouraMetrics[0]} />}
                 {ouraMetrics.length > 1 && (
                   <div className="mt-4">
@@ -682,14 +771,41 @@ const StudentDetailPage = () => {
         onOpenChange={(open) => !open && setEditingSessionId(null)}
         sessionId={editingSessionId}
         onSuccess={() => {
-          // Refetch sessions after successful edit
-          window.location.reload();
+          // Não fazer reload - as queries são invalidadas automaticamente
+          setEditingSessionId(null);
         }}
         onReopenForRecording={(sessionId) => {
           setEditingSessionId(null);
           setSessionToReopen(sessionId);
           setRecordSessionOpen(true);
         }}
+      />
+
+      <SessionDetailDialog
+        sessionId={selectedSessionId}
+        open={!!selectedSessionId}
+        onOpenChange={(open) => {
+          logger.log("DIALOG ONCHANGE - open:", open, "selectedSessionId:", selectedSessionId);
+          if (!open) setSelectedSessionId(null);
+        }}
+        onReopenSession={(sessionId) => {
+          reopenSession.mutate(sessionId, {
+            onSuccess: () => {
+              setSessionToReopen(sessionId);
+              setRecordSessionOpen(true);
+            }
+          });
+        }}
+        onEditSession={(sessionId) => {
+          setSelectedSessionId(null);
+          setEditingSessionId(sessionId);
+        }}
+      />
+
+      <EditStudentDialog
+        student={student}
+        open={editStudentOpen}
+        onOpenChange={setEditStudentOpen}
       />
     </div>
   );

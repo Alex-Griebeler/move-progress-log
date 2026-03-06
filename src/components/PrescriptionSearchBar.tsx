@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, X, FolderOpen, Calendar } from "lucide-react";
+import { Search, X, FolderOpen, Calendar, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,12 @@ import {
 } from "@/components/ui/select";
 import { PrescriptionFolder } from "@/hooks/useFolders";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 
 interface PrescriptionSearchBarProps {
   onSearchChange: (searchText: string) => void;
@@ -70,32 +76,33 @@ export function PrescriptionSearchBar({
   };
 
   return (
-    <div className="space-y-3">
-      {/* Main search bar */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Buscar prescrições por nome ou objetivo..."
-          value={searchText}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="pl-10 pr-10"
-          aria-label="Buscar prescrições"
-        />
-        {searchText && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
-            onClick={() => handleSearchChange("")}
-            aria-label="Limpar busca"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        )}
-      </div>
+    <TooltipProvider>
+      <div className="space-y-sm">
+        {/* Main search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar prescrições por nome ou objetivo..."
+            value={searchText}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="pl-10 pr-10"
+            aria-label="Buscar prescrições"
+          />
+          {searchText && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+              onClick={() => handleSearchChange("")}
+              aria-label="Limpar busca"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-xs">
         {/* Folder filter */}
         <Select
           value={activeFilters.folderId === null ? "no-folder" : activeFilters.folderId || "all"}
@@ -146,35 +153,59 @@ export function PrescriptionSearchBar({
           </SelectContent>
         </Select>
 
-        {/* Clear all filters */}
+        {/* Active filter indicator and clear button */}
         {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearAllFilters}
-            className="h-9"
-          >
-            <X className="h-4 w-4 mr-2" />
-            Limpar filtros
-          </Button>
-        )}
-
-        {/* Active filters badges */}
-        {hasActiveFilters && (
-          <div className="flex items-center gap-2 ml-2">
-            {activeFilters.searchText && (
-              <Badge variant="secondary" className="text-xs">
-                Busca: {activeFilters.searchText}
-              </Badge>
-            )}
-            {activeFilters.dayOfWeek && (
-              <Badge variant="secondary" className="text-xs">
-                {DAYS_OF_WEEK.find(d => d.value === activeFilters.dayOfWeek)?.label}
-              </Badge>
-            )}
+          <div className="flex items-center gap-xs">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge variant="secondary" className="gap-1.5 cursor-help">
+                  <Filter className="h-3 w-3" />
+                  {[
+                    activeFilters.searchText && 'Busca',
+                    activeFilters.folderId !== undefined && 'Pasta',
+                    activeFilters.dayOfWeek && 'Dia',
+                  ].filter(Boolean).length} {[
+                    activeFilters.searchText && 'Busca',
+                    activeFilters.folderId !== undefined && 'Pasta',
+                    activeFilters.dayOfWeek && 'Dia',
+                  ].filter(Boolean).length === 1 ? 'filtro ativo' : 'filtros ativos'}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <div className="space-y-1 text-xs">
+                  <p className="font-semibold">Filtros aplicados:</p>
+                  {activeFilters.searchText && (
+                    <p>• Busca: "{activeFilters.searchText}"</p>
+                  )}
+                  {activeFilters.folderId !== undefined && (
+                    <p>
+                      • Pasta:{" "}
+                      {activeFilters.folderId === null
+                        ? "Sem pasta"
+                        : flatFolders.find((f) => f.id === activeFilters.folderId)?.name || "Filtrada"}
+                    </p>
+                  )}
+                  {activeFilters.dayOfWeek && (
+                    <p>
+                      • Dia: {DAYS_OF_WEEK.find((d) => d.value === activeFilters.dayOfWeek)?.label}
+                    </p>
+                  )}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearAllFilters}
+              className="h-8 gap-1.5 text-xs"
+            >
+              <X className="h-3.5 w-3.5" />
+              Limpar
+            </Button>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
