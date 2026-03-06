@@ -65,23 +65,19 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
   return createPortal(
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[100] flex flex-col overflow-auto animate-fade-in"
-      style={{ background: "#0a0a0a", color: "#f0f0f0" }}
+      className="fixed inset-0 z-[100] flex flex-col overflow-auto animate-fade-in bg-background text-foreground"
       role="dialog"
       aria-modal="true"
       aria-label={`Modo TV — ${prescription.name}`}
     >
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-10 py-6 shrink-0"
-        style={{ borderBottom: "1px solid #222" }}
-      >
+      <div className="flex items-center justify-between px-10 py-6 shrink-0 border-b border-border">
         <div className="flex items-center gap-4">
-          <Monitor className="h-8 w-8" style={{ color: "#888" }} />
+          <Monitor className="h-8 w-8 text-muted-foreground" />
           <div>
             <h1 className="text-4xl font-bold tracking-tight">{prescription.name}</h1>
             {prescription.objective && (
-              <p className="text-xl mt-1" style={{ color: "#999" }}>{prescription.objective}</p>
+              <p className="text-xl mt-1 text-muted-foreground">{prescription.objective}</p>
             )}
           </div>
         </div>
@@ -89,8 +85,7 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
           variant="ghost"
           size="lg"
           onClick={onClose}
-          className="focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          style={{ color: "#888" }}
+          className="text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           aria-label="Sair do modo TV"
         >
           <X className="h-6 w-6 mr-2" />
@@ -100,18 +95,18 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
 
       {/* Table */}
       <div className="flex-1 px-10 py-8">
-        <div className="rounded-lg overflow-hidden" style={{ border: "1px solid #333" }}>
+        <div className="rounded-lg overflow-hidden border border-border">
           <table className="w-full text-lg">
             <thead>
-              <tr style={{ background: "#161616", borderBottom: "1px solid #333" }}>
-                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>Exercício</th>
-                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>Sets × Reps / Int</th>
-                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>{intensityLabel}</th>
+              <tr className="bg-muted border-b border-border">
+                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">Exercício</th>
+                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">Sets × Reps / Int</th>
+                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">{intensityLabel}</th>
                 {prescription.prescription_type === 'individual' && (
-                  <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>RR</th>
+                  <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">RR</th>
                 )}
-                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>Método</th>
-                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6" style={{ color: "#ccc" }}>OBS</th>
+                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">Método</th>
+                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">OBS</th>
               </tr>
             </thead>
             <tbody>
@@ -130,15 +125,12 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                   return (
                     <tr
                       key={exercise.id}
-                      style={{
-                        borderBottom: group.isGroup && !isLastInGroup ? "none" : "1px solid #222",
-                        borderLeft: group.isGroup ? "4px solid hsl(var(--primary) / 0.6)" : undefined,
-                      }}
+                      className={`${group.isGroup && !isLastInGroup ? "" : "border-b border-border/50"} ${group.isGroup ? "border-l-4 border-l-primary/60" : ""}`}
                     >
-                      <td className="font-semibold text-xl py-5 px-6" style={{ color: "#f0f0f0" }}>
+                      <td className="font-semibold text-xl py-5 px-6 text-foreground">
                         {exercise.exercise_name}
                       </td>
-                      <td className="text-center font-bold text-xl whitespace-nowrap py-5 px-6" style={{ color: "#e0e0e0" }}>
+                      <td className="text-center font-bold text-xl whitespace-nowrap py-5 px-6 text-foreground/90">
                         {setsRepsInt}
                       </td>
                       <td className="text-center py-5 px-6">
@@ -148,18 +140,18 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                           darkMode
                         >
                           {intensityValue ? (
-                            <span className="text-xl font-semibold" style={{ color: "#e0e0e0" }}>{intensityValue}</span>
+                            <span className="text-xl font-semibold text-foreground/90">{intensityValue}</span>
                           ) : (
-                            <span style={{ color: "#555" }}>—</span>
+                            <span className="text-muted-foreground/50">—</span>
                           )}
                         </ExerciseLoadHistoryPopover>
                       </td>
                       {prescription.prescription_type === 'individual' && (
                         <td className="text-center py-5 px-6">
                           {exercise.rir ? (
-                            <span className="text-xl font-semibold" style={{ color: "#e0e0e0" }}>{exercise.rir}</span>
+                            <span className="text-xl font-semibold text-foreground/90">{exercise.rir}</span>
                           ) : (
-                            <span style={{ color: "#555" }}>—</span>
+                            <span className="text-muted-foreground/50">—</span>
                           )}
                         </td>
                       )}
@@ -169,18 +161,15 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                           rowSpan={group.isGroup && isFirstInGroup ? group.exercises.length : undefined}
                         >
                           {exercise.training_method ? (
-                            <Badge
-                              className="text-base"
-                              style={{ background: "#2a2a2a", color: "#ccc", border: "1px solid #444" }}
-                            >
+                            <Badge className="text-base bg-muted text-muted-foreground border border-border">
                               {exercise.training_method}
                             </Badge>
                           ) : (
-                            <span style={{ color: "#555" }}>—</span>
+                            <span className="text-muted-foreground/50">—</span>
                           )}
                         </td>
                       )}
-                      <td className="text-lg text-center max-w-md py-5 px-6" style={{ color: "#999" }}>
+                      <td className="text-lg text-center max-w-md py-5 px-6 text-muted-foreground">
                         {exercise.observations || "—"}
                       </td>
                     </tr>
@@ -193,8 +182,8 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
       </div>
 
       {/* Footer */}
-      <div className="px-10 py-4 text-center shrink-0" style={{ borderTop: "1px solid #222" }}>
-        <p className="text-sm" style={{ color: "#555" }}>
+      <div className="px-10 py-4 text-center shrink-0 border-t border-border">
+        <p className="text-sm text-muted-foreground/60">
           Pressione ESC para sair do modo TV
         </p>
       </div>
