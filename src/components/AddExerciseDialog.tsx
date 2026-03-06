@@ -41,10 +41,37 @@ import { notify } from "@/lib/notify";
 // Flatten equipment for selection
 const ALL_EQUIPMENT = Object.values(EQUIPMENT_CATEGORIES).flat();
 
+export interface ExerciseDefaultValues {
+  movementPattern?: string;
+  laterality?: string;
+  movementPlane?: string;
+  contractionType?: string;
+  boyleScore?: string;
+  axialLoad?: string;
+  lumbarDemand?: string;
+  technicalComplexity?: string;
+  metabolicPotential?: string;
+  kneeDominance?: string;
+  hipDominance?: string;
+  emphasis?: string;
+  description?: string;
+  videoUrl?: string;
+  riskLevel?: string;
+  category?: string;
+  subcategory?: string;
+  plyometricPhase?: string;
+  defaultSets?: string;
+  defaultReps?: string;
+  selectedEquipment?: string[];
+  stabilityPosition?: string;
+  surfaceModifier?: string;
+}
+
 interface AddExerciseDialogProps {
   externalOpen?: boolean;
   onExternalOpenChange?: (open: boolean) => void;
   defaultName?: string;
+  defaultValues?: ExerciseDefaultValues;
   onCreated?: (exercise: { id: string; name: string }) => void;
 }
 
@@ -52,6 +79,7 @@ export const AddExerciseDialog = ({
   externalOpen,
   onExternalOpenChange,
   defaultName,
+  defaultValues,
   onCreated,
 }: AddExerciseDialogProps = {}) => {
   const isControlled = externalOpen !== undefined;
@@ -60,12 +88,37 @@ export const AddExerciseDialog = ({
   const setDialogOpen = isControlled ? (onExternalOpenChange || (() => {})) : setInternalOpen;
   const [name, setName] = useState(defaultName || "");
 
-  // Sync defaultName when dialog opens externally
+  // Sync defaults when dialog opens externally
   useEffect(() => {
-    if (isControlled && externalOpen && defaultName) {
-      setName(defaultName);
+    if (isControlled && externalOpen) {
+      if (defaultName) setName(defaultName);
+      if (defaultValues) {
+        setMovementPattern(defaultValues.movementPattern || "");
+        setLaterality(defaultValues.laterality || "");
+        setMovementPlane(defaultValues.movementPlane || "");
+        setContractionType(defaultValues.contractionType || "");
+        setBoyleScore(defaultValues.boyleScore || "");
+        setAxialLoad(defaultValues.axialLoad || "");
+        setLumbarDemand(defaultValues.lumbarDemand || "");
+        setTechnicalComplexity(defaultValues.technicalComplexity || "");
+        setMetabolicPotential(defaultValues.metabolicPotential || "");
+        setKneeDominance(defaultValues.kneeDominance || "");
+        setHipDominance(defaultValues.hipDominance || "");
+        setEmphasis(defaultValues.emphasis || "");
+        setDescription(defaultValues.description || "");
+        setVideoUrl(defaultValues.videoUrl || "");
+        setRiskLevel(defaultValues.riskLevel || "");
+        setCategory(defaultValues.category || "");
+        setSubcategory(defaultValues.subcategory || "");
+        setPlyometricPhase(defaultValues.plyometricPhase || "");
+        setDefaultSets(defaultValues.defaultSets || "");
+        setDefaultReps(defaultValues.defaultReps || "");
+        setSelectedEquipment(defaultValues.selectedEquipment || []);
+        setStabilityPosition(defaultValues.stabilityPosition || "");
+        setSurfaceModifier(defaultValues.surfaceModifier || "");
+      }
     }
-  }, [isControlled, externalOpen, defaultName]);
+  }, [isControlled, externalOpen, defaultName, defaultValues]);
 
   const [movementPattern, setMovementPattern] = useState("");
   const [laterality, setLaterality] = useState("");
