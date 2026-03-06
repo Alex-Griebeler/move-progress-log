@@ -66,7 +66,7 @@ export default function AthleteInsightsDashboard() {
 
   return (
     <PageLayout>
-      <PageHeader title='Insights do Atleta' subtitle='Performance, recordes e progressão de carga' />
+      <PageHeader title='Insights do Atleta' description='Performance, recordes e progressão de carga' />
       <div className='p-6 space-y-6'>
 
         <div className='flex gap-3 flex-wrap'>
