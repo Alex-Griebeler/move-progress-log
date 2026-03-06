@@ -73,19 +73,23 @@ export function AssignPrescriptionDialog({
       customAdaptations.time = time;
     }
 
-    await assignPrescription.mutateAsync({
-      prescription_id: prescriptionId,
-      student_ids: selectedStudents,
-      start_date: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-      end_date: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
-      custom_adaptations: Object.keys(customAdaptations).length > 0 ? customAdaptations : undefined,
-    });
+    try {
+      await assignPrescription.mutateAsync({
+        prescription_id: prescriptionId,
+        student_ids: selectedStudents,
+        start_date: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+        end_date: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
+        custom_adaptations: Object.keys(customAdaptations).length > 0 ? customAdaptations : undefined,
+      });
 
-    setSelectedStudents([]);
-    setDateRange(undefined);
-    setSelectedWeekdays([]);
-    setTime("");
-    onOpenChange(false);
+      setSelectedStudents([]);
+      setDateRange(undefined);
+      setSelectedWeekdays([]);
+      setTime("");
+      onOpenChange(false);
+    } catch {
+      // Error handled by mutation's onError callback
+    }
   };
 
   return (

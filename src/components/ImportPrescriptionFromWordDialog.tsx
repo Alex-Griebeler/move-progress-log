@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { notify } from "@/lib/notify";
+import { logger } from "@/utils/logger";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { AddExerciseDialog, type ExerciseDefaultValues } from "@/components/AddExerciseDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -111,7 +112,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
       setSelectedIndex(0);
       setStep("review");
     } catch (err: any) {
-      console.error("Import error:", err);
+      logger.error("Import error:", err);
       notify.error("Erro ao processar arquivo", { description: err.message });
       setStep("upload");
     }

@@ -90,14 +90,12 @@ export const notify = {
       
       /** Finaliza com sucesso */
       success(message: string, description?: string) {
-        toast.success(message, { description, id });
-        toast.dismiss(id);
+        toast.success(message, { description, id, duration: 4000 });
       },
       
       /** Finaliza com erro */
       error(message: string, description?: string) {
-        toast.error(message, { description, id });
-        toast.dismiss(id);
+        toast.error(message, { description, id, duration: 6000 });
       },
       
       /** Remove o toast */
