@@ -46,10 +46,6 @@ export function usePrescriptionDraft(entityId?: string) {
         const parsed = JSON.parse(stored) as PrescriptionDraft;
         setDraft(parsed);
         setLastSaved(new Date(parsed.timestamp));
-        
-        notify.info("Rascunho encontrado", {
-          description: "Seus dados foram restaurados automaticamente",
-        });
       } catch (error) {
         logger.error('Erro ao carregar rascunho:', error);
         localStorage.removeItem(draftKey);
