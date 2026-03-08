@@ -194,7 +194,12 @@ export default function SessionsPage() {
   }
 
   return (
-    <PageLayout>
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.sessions, NAV_LABELS.subtitleSessions), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.sessions, href: "/sessoes" }]), id: "breadcrumb-schema" },
+      ]}
+    >
       <PageHeader
         title={NAV_LABELS.sessions}
         description={NAV_LABELS.subtitleSessions}
