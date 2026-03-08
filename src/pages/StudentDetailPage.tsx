@@ -789,7 +789,7 @@ const StudentDetailPage = () => {
         open={editStudentOpen}
         onOpenChange={setEditStudentOpen}
       />
-    </div>
+    </PageLayout>
   );
 };
 
