@@ -155,32 +155,13 @@ const StudentDetailPage = () => {
   const hasIncompleteData = missingFields.length > 0;
 
   return (
-    <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
-      {/* Structured Data para SEO */}
-      <StructuredData data={getOrganizationSchema()} id="org-schema" />
-      <StructuredData 
-        data={getWebPageSchema(
-          student.name,
-          `Perfil completo de ${student.name} - Métricas, sessões de treino, exercícios e dados Oura Ring`
-        )} 
-        id="webpage-schema" 
-      />
-      <StructuredData 
-        data={getBreadcrumbSchema([
-          { label: "Home", href: "/" },
-          { label: NAV_LABELS.students, href: "/alunos" },
-          { label: student.name }
-        ])} 
-        id="breadcrumb-schema" 
-      />
-      <StructuredData 
-        data={getPersonSchema({
-          name: student.name,
-          description: `Aluno da Fabrik Performance${student.objectives ? ` - Objetivos: ${student.objectives}` : ''}`
-        })} 
-        id="person-schema" 
-      />
-      
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(student.name, `Perfil completo de ${student.name} - Métricas, sessões de treino, exercícios e dados Oura Ring`), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.students, href: "/alunos" }, { label: student.name }]), id: "breadcrumb-schema" },
+        { data: getPersonSchema({ name: student.name, description: `Aluno da Fabrik Performance${student.objectives ? ` - Objetivos: ${student.objectives}` : ''}` }), id: "person-schema" },
+      ]}
+    >
       <Breadcrumbs
         items={[
           { label: NAV_LABELS.students, href: "/alunos", icon: Users },
