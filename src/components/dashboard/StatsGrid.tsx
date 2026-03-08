@@ -10,7 +10,7 @@ export const StatsGrid = () => {
   const { data: stats, isLoading } = useStats();
 
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
       {isLoading ? (
         <>
           <StatCardSkeleton />

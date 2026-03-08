@@ -53,9 +53,9 @@ import {
 // Funções auxiliares movidas para fora do componente (otimização)
 const getReadinessColor = (score: number | null | undefined) => {
   if (!score) return 'text-muted-foreground';
-  if (score >= 85) return 'text-green-500';
-  if (score >= 70) return 'text-yellow-500';
-  return 'text-red-500';
+  if (score >= 85) return 'text-success';
+  if (score >= 70) return 'text-warning';
+  return 'text-destructive';
 };
 
 const getReadinessLabel = (score: number | null | undefined) => {

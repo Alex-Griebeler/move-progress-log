@@ -40,9 +40,11 @@ const Index = () => {
     >
       <PageHeader
         title={NAV_LABELS.dashboard}
+        description={NAV_LABELS.subtitleDefault}
+        breadcrumbs={[{ label: NAV_LABELS.dashboard }]}
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="gap-2">
+          <div className="flex items-center gap-xs">
+            <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="gap-xs">
               <Upload className="h-4 w-4" />
               {NAV_LABELS.importExcel}
             </Button>

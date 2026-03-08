@@ -523,7 +523,7 @@ export default function ExercisesLibraryPage() {
                   </div>
                 </details>
 
-                <div className="flex gap-2">
+                <div className="flex gap-xs">
                   <Button
                     variant="outline"
                     size="sm"
