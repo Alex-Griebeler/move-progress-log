@@ -95,10 +95,10 @@ const StudentDetailPage = () => {
 
   if (loadingStudents) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <PageLayout>
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-96 w-full" />
-      </div>
+      </PageLayout>
     );
   }
 
