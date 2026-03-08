@@ -22,7 +22,7 @@ export default function AthleteInsightsDashboard() {
     },
   });
 
-  const { data: trends } = useQuery({
+  const { data: trends, isError: trendsError } = useQuery({
     queryKey: ['athlete-trends', studentId, days],
     enabled: !!studentId,
     queryFn: async () => {
@@ -83,6 +83,10 @@ export default function AthleteInsightsDashboard() {
             </SelectContent>
           </Select>
         </div>
+
+        {trendsError && (
+          <p className='text-destructive text-sm'>Erro ao carregar dados do atleta. Tente novamente.</p>
+        )}
 
         {studentId ? (
           <>

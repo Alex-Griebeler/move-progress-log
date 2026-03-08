@@ -9,15 +9,15 @@ import { ChevronDown, ChevronUp, Copy, RefreshCw, Trash2, LogOut } from "lucide-
 import { useToast } from "@/hooks/use-toast";
 
 export const AuthDebugPanel = () => {
-  // Only show in development
-  if (import.meta.env.PROD) return null;
-
   const [isExpanded, setIsExpanded] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [clientIP, setClientIP] = useState<string>("Loading...");
   const [timeUntilExpiry, setTimeUntilExpiry] = useState<number>(0);
   const [timeUntilRefresh, setTimeUntilRefresh] = useState<number>(0);
   const { toast } = useToast();
+
+  // Rules of Hooks: conditional return must come after all hook calls
+  if (import.meta.env.PROD) return null;
 
   useEffect(() => {
     // Get initial session

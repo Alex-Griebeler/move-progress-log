@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AdminRoute } from "@/components/AdminRoute";
 import { SkipToContent } from "@/components/SkipToContent";
 import { TrainingProvider } from "@/contexts/TrainingContext";
 import { lazy, Suspense } from "react";
@@ -40,7 +41,15 @@ const AthleteInsightsDashboard = lazy(() => import("./pages/AthleteInsightsDashb
 const CoachConsole = lazy(() => import("./pages/CoachConsole"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,       // 1 minuto
+      retry: 1,                 // 1 retry em vez de 3 (padrão)
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <ErrorBoundary>
@@ -86,9 +95,9 @@ const App = () => (
                                   <Route path="/exercicios" element={<ExercisesLibraryPage />} />
                                   <Route path="/prescricoes" element={<PrescriptionsPage />} />
                                   <Route path="/protocolos" element={<RecoveryProtocolsPage />} />
-                                  <Route path="/admin/diagnostico-oura" element={<AdminDiagnosticsPage />} />
-                                  <Route path="/admin/usuarios" element={<AdminUsersPage />} />
-                                  <Route path="/admin/revisao-exercicios" element={<ExerciseReviewPage />} />
+                                  <Route path="/admin/diagnostico-oura" element={<AdminRoute><AdminDiagnosticsPage /></AdminRoute>} />
+                                  <Route path="/admin/usuarios" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+                                  <Route path="/admin/revisao-exercicios" element={<AdminRoute><ExerciseReviewPage /></AdminRoute>} />
                                   <Route path="/ai-builder" element={<AIBuilderPage />} />
                                   <Route path="/athlete-insights" element={<AthleteInsightsDashboard />} />
                                   <Route path="/coach-console" element={<CoachConsole />} />

@@ -8,9 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePasswordSecurity } from "@/hooks/usePasswordSecurity";
-import { AlertCircle, Check, X, Loader2, Shield, Lock } from "lucide-react";
+import { AlertCircle, Check, X, Loader2, Shield } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Checkbox } from "@/components/ui/checkbox";
 import { checkRateLimit, recordFailedAttempt, type RateLimitAction } from "@/lib/rateLimiter";
 import { logger } from "@/utils/logger";
 import { Enable2FADialog } from "@/components/Enable2FADialog";
@@ -24,7 +23,6 @@ export default function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [passwordSecurity, setPasswordSecurity] = useState<any>(null);
   const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
@@ -353,19 +351,7 @@ export default function AuthPage() {
                     required
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="remember-me"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="h-4 w-4 rounded border-input"
-                    />
-                    <Label htmlFor="remember-me" className="text-sm cursor-pointer">
-                      {NAV_LABELS.rememberMe}
-                    </Label>
-                  </div>
+                <div className="flex items-center justify-end">
                   <a href="/reset-password" className="text-sm text-primary hover:underline">
                     {NAV_LABELS.forgotPassword}
                   </a>
@@ -561,14 +547,7 @@ export default function AuthPage() {
                     className="h-4 w-4 rounded border-input"
                   />
                   <Label htmlFor="accept-terms" className="text-sm cursor-pointer">
-                    Aceito os{" "}
-                    <a href="/terms" className="text-primary hover:underline">
-                      termos de uso
-                    </a>{" "}
-                    e{" "}
-                    <a href="/privacy" className="text-primary hover:underline">
-                      política de privacidade
-                    </a>
+                    Aceito os termos de uso e política de privacidade
                   </Label>
                 </div>
                 
@@ -614,18 +593,6 @@ export default function AuthPage() {
             </TabsContent>
           </Tabs>
 
-          {/* Link para ativar 2FA - aparece após login bem-sucedido */}
-          <div className="mt-4 text-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShow2FASetup(true)}
-              className="text-xs text-muted-foreground hover:text-primary"
-            >
-              <Lock className="h-3 w-3 mr-1" />
-              Ativar Autenticação em Duas Etapas (2FA)
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
