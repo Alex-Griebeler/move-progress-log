@@ -37,7 +37,7 @@ const handler = async (req: Request): Promise<Response> => {
       req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
       'unknown';
 
-    const { action, increment = false } = await req.json();
+    const { action, increment = false, user_id } = await req.json();
 
     if (!action) {
       throw new Error("Missing required parameter: action");
@@ -48,13 +48,15 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Invalid action: ${action}`);
     }
 
-    console.log(`[Rate Limit] Checking: ${action} from IP ${ip_address}`);
+    // Authenticated users are identified by user_id to avoid shared-IP false-positives
+    const identifier = user_id ?? ip_address;
+    console.log(`[Rate Limit] Checking: ${action} for ${user_id ? `user:${user_id}` : `ip:${ip_address}`}`);
 
     // Get or create rate limit record
     const { data: existingAttempt, error: fetchError } = await supabase
       .from("rate_limit_attempts")
       .select("*")
-      .eq("ip_address", ip_address)
+      .eq("ip_address", identifier)
       .eq("action", action)
       .maybeSingle();
 
@@ -70,7 +72,7 @@ const handler = async (req: Request): Promise<Response> => {
       const blockedUntil = new Date(existingAttempt.blocked_until);
       if (blockedUntil > now) {
         const minutesRemaining = Math.ceil((blockedUntil.getTime() - now.getTime()) / 60000);
-        console.log(`[Rate Limit] IP ${ip_address} blocked for ${minutesRemaining} more minutes`);
+        console.log(`[Rate Limit] ${identifier} blocked for ${minutesRemaining} more minutes`);
         
         return new Response(
           JSON.stringify({
@@ -96,7 +98,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (windowExpired) {
         shouldReset = true;
-        console.log(`[Rate Limit] Window expired for ${ip_address}, resetting counter`);
+        console.log(`[Rate Limit] Window expired for ${identifier}, resetting counter`);
       }
     }
 
@@ -143,7 +145,7 @@ const handler = async (req: Request): Promise<Response> => {
         const { error: insertError } = await supabase
           .from("rate_limit_attempts")
           .insert({
-            ip_address,
+            ip_address: identifier,
             action,
             ...updateData,
           });
@@ -158,7 +160,7 @@ const handler = async (req: Request): Promise<Response> => {
     const remainingAttempts = Math.max(0, config.maxAttempts - newAttemptCount);
 
     if (shouldBlock && increment) {
-      console.log(`[Rate Limit] IP ${ip_address} blocked for ${config.blockDurationMinutes} minutes`);
+      console.log(`[Rate Limit] ${identifier} blocked for ${config.blockDurationMinutes} minutes`);
       return new Response(
         JSON.stringify({
           allowed: false,
@@ -174,7 +176,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`[Rate Limit] Allowed. Remaining attempts: ${remainingAttempts}/${config.maxAttempts}`);
+    console.log(`[Rate Limit] Allowed for ${identifier}. Remaining: ${remainingAttempts}/${config.maxAttempts}`);
 
     return new Response(
       JSON.stringify({
