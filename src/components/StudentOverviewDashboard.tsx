@@ -490,8 +490,8 @@ export const StudentOverviewDashboard = ({
                 </CardTitle>
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-warning/10"
+                  size="icon-sm"
+                  className="text-muted-foreground hover:text-foreground hover:bg-warning/10"
                   onClick={handleDismissMedicalAlert}
                   aria-label="Dispensar alerta"
                 >
