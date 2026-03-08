@@ -104,14 +104,14 @@ const StudentDetailPage = () => {
 
   if (!student) {
     return (
-      <div className="container mx-auto p-6 flex items-center justify-center min-h-[60vh]">
+      <PageLayout>
         <ErrorState
           title="Aluno não encontrado"
           description="O aluno que você está procurando não existe ou foi removido."
           onRetry={() => navigate(ROUTES.students)}
           retryLabel="Voltar para Alunos"
         />
-      </div>
+      </PageLayout>
     );
   }
 
