@@ -43,15 +43,15 @@ Deno.serve(async (req) => {
       const supabaseAuth = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: `Bearer ${token}` } }
       });
-      const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
+      const { data: { user }, error: claimsError } = await supabaseAuth.auth.getUser();
+      if (claimsError || !user) {
         return new Response(
           JSON.stringify({ error: 'Invalid or expired token' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         );
       }
 
-      const userId = claimsData.claims.sub;
+      const userId = user.id;
 
       // Verify the user is the trainer for this student
       const supabaseCheck = createClient(supabaseUrl, serviceRoleKey);

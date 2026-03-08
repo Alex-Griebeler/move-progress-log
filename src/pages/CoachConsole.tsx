@@ -8,13 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Brain, BarChart2, FileText, Send, Loader2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 type Tab = 'coach' | 'analyst' | 'report';
-const BASE = () => `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
-const authHdr = async () => {
-  const { data: { session } } = await supabase.auth.getSession();
-  return `Bearer ${session?.access_token}`;
-};
 
 export default function CoachConsole() {
   const [tab, setTab]             = useState<Tab>('coach');
@@ -38,33 +34,33 @@ export default function CoachConsole() {
 
   const coachMut = useMutation({
     mutationFn: async () => {
-      const r = await fetch(`${BASE()}/ai-coach`, { method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: await authHdr() },
-        body: JSON.stringify({ student_id: studentId, question }) });
-      if (!r.ok) throw new Error((await r.json()).error ?? 'Erro');
-      return r.json();
+      const { data, error } = await supabase.functions.invoke('ai-coach', {
+        body: { student_id: studentId, question },
+      });
+      if (error) throw new Error(error.message ?? 'Erro');
+      return data;
     },
     onSuccess: d => setCoachOut(d.answer),
   });
 
   const analystMut = useMutation({
     mutationFn: async () => {
-      const r = await fetch(`${BASE()}/ai-training-analyst`, { method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: await authHdr() },
-        body: JSON.stringify({ student_id: studentId, period_days: period }) });
-      if (!r.ok) throw new Error((await r.json()).error ?? 'Erro');
-      return r.json();
+      const { data, error } = await supabase.functions.invoke('ai-training-analyst', {
+        body: { student_id: studentId, period_days: period },
+      });
+      if (error) throw new Error(error.message ?? 'Erro');
+      return data;
     },
     onSuccess: d => setAnalyst(d.analysis),
   });
 
   const reportMut = useMutation({
     mutationFn: async () => {
-      const r = await fetch(`${BASE()}/ai-report-generator`, { method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: await authHdr() },
-        body: JSON.stringify({ student_id: studentId, period_start: dateFrom, period_end: dateTo }) });
-      if (!r.ok) throw new Error((await r.json()).error ?? 'Erro');
-      return r.json();
+      const { data, error } = await supabase.functions.invoke('ai-report-generator', {
+        body: { student_id: studentId, period_start: dateFrom, period_end: dateTo },
+      });
+      if (error) throw new Error(error.message ?? 'Erro');
+      return data;
     },
     onSuccess: d => setReport(d.report),
   });
@@ -143,13 +139,13 @@ export default function CoachConsole() {
             <CardContent className='space-y-4'>
               <div className='flex gap-4 flex-wrap items-end'>
                 <div className='space-y-1'>
-                  <label className='text-sm font-medium'>Início</label>
-                  <input type='date' value={dateFrom} onChange={e => setFrom(e.target.value)}
+                  <Label htmlFor='date-from'>Início</Label>
+                  <input id='date-from' type='date' value={dateFrom} onChange={e => setFrom(e.target.value)}
                     className='flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm' />
                 </div>
                 <div className='space-y-1'>
-                  <label className='text-sm font-medium'>Fim</label>
-                  <input type='date' value={dateTo} onChange={e => setTo(e.target.value)}
+                  <Label htmlFor='date-to'>Fim</Label>
+                  <input id='date-to' type='date' value={dateTo} onChange={e => setTo(e.target.value)}
                     className='flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm' />
                 </div>
               </div>

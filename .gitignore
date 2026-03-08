@@ -1,3 +1,8 @@
+# Variáveis de ambiente — NUNCA commitar .env com credenciais reais
+.env
+.env.*
+!.env.example
+
 # Logs
 logs
 *.log

@@ -1,9 +1,10 @@
 name: AI Engineer
 on:
   issues:
-    types: [opened]
+    types: [labeled]
 jobs:
   run-agent:
+    if: github.event.label.name == 'ai-engineer'
     runs-on: ubuntu-latest
     permissions:
       contents: write

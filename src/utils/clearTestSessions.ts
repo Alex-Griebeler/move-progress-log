@@ -2,6 +2,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/utils/logger";
 
 export const clearTestSessions = async () => {
+  if (import.meta.env.PROD) {
+    throw new Error('clearTestSessions não pode ser executado em produção.');
+  }
+
   try {
     // Deletar todos os exercícios primeiro (devido à foreign key)
     const { error: exercisesError } = await supabase
