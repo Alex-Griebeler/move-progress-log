@@ -68,6 +68,16 @@ import { NAV_LABELS } from "@/constants/navigation";
 import { cn } from "@/lib/utils";
 
 export default function SessionsPage() {
+  usePageTitle(NAV_LABELS.sessions);
+  useSEOHead(SEO_PRESETS.private);
+  useOpenGraph({
+    ...FABRIK_OG_DEFAULTS,
+    title: `${NAV_LABELS.sessions} · Fabrik Performance`,
+    description: NAV_LABELS.subtitleSessions,
+    type: 'website',
+    url: true,
+  });
+
   // Filters state
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [selectedPrescriptionIds, setSelectedPrescriptionIds] = useState<string[]>([]);
