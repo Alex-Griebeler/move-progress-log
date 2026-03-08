@@ -286,12 +286,12 @@ const StudentDetailPage = () => {
 
       {/* Alerta de Dados Incompletos - Detalhado */}
       {hasIncompleteData && (
-        <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30">
-          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
-          <AlertDescription className="text-amber-800 dark:text-amber-300">
+        <Alert className="border-warning/30 bg-warning/5">
+          <AlertCircle className="h-5 w-5 text-warning" />
+          <AlertDescription className="text-foreground">
             <span className="font-semibold block mb-1">Dados incompletos detectados</span>
-            <span className="text-sm">
-              Complete os seguintes campos para melhor análise: <strong>{missingFields.join(', ')}</strong>
+            <span className="text-sm text-muted-foreground">
+              Complete os seguintes campos para melhor análise: <strong className="text-foreground">{missingFields.join(', ')}</strong>
             </span>
           </AlertDescription>
         </Alert>
