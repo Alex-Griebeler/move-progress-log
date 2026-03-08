@@ -209,7 +209,7 @@ export default function SessionsPage() {
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-xs">
                 <Plus className="h-4 w-4" />
                 {NAV_LABELS.recordSession}
               </Button>

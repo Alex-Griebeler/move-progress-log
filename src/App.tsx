@@ -79,7 +79,7 @@ const App = () => (
                         <div className="flex min-h-screen w-full">
                           <AppSidebar />
                           <div className="flex-1 flex flex-col">
-                            <header className="h-14 flex items-center justify-between border-b border-border px-4 sticky top-0 bg-background z-50 backdrop-blur-sm">
+                            <header className="h-14 flex items-center justify-between border-b border-border px-md sticky top-0 bg-background/95 z-50 backdrop-blur-md">
                               <SidebarTrigger aria-label="Abrir/Fechar menu lateral" />
                               <ThemeToggle />
                             </header>
