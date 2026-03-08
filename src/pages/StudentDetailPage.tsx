@@ -154,19 +154,6 @@ const StudentDetailPage = () => {
   const missingFields = getMissingFields();
   const hasIncompleteData = missingFields.length > 0;
 
-  // Calculate age
-  const age = useMemo(() => {
-    if (!student.birth_date) return null;
-    const today = new Date();
-    const birthDate = new Date(student.birth_date);
-    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      calculatedAge--;
-    }
-    return calculatedAge;
-  }, [student.birth_date]);
-
   return (
     <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
       {/* Structured Data para SEO */}
