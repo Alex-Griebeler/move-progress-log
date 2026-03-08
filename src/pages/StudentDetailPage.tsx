@@ -48,6 +48,7 @@ import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getPersonSchema } from "@/utils/structuredData";
 import { ErrorState } from "@/components/ErrorState";
+import { PageLayout } from "@/components/PageLayout";
 import { StudentHeaderSkeleton } from "@/components/skeletons/StudentHeaderSkeleton";
 import { getObjectiveLabel } from "@/constants/objectives";
 import { logger } from "@/utils/logger";
