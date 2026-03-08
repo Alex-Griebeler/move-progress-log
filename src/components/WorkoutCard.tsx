@@ -115,8 +115,8 @@ const WorkoutCard = memo(({
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button 
                   variant="ghost" 
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
+                  size="icon-sm"
+                  className="shrink-0"
                   aria-label="Menu de ações da sessão"
                 >
                   <MoreVertical className="h-4 w-4" />

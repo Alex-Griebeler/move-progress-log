@@ -99,8 +99,7 @@ export function FolderSection({
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                size="icon"
-                className="h-8 w-8"
+                size="icon-sm"
                 onClick={(e) => e.stopPropagation()}
                 aria-label={`Mais opções para pasta ${folderName}`}
               >
