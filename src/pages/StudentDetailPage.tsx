@@ -94,6 +94,19 @@ const StudentDetailPage = () => {
     url: true,
   });
 
+  // Calculate age (must be before early returns to respect hooks order)
+  const age = useMemo(() => {
+    if (!student?.birth_date) return null;
+    const today = new Date();
+    const birthDate = new Date(student.birth_date);
+    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      calculatedAge--;
+    }
+    return calculatedAge;
+  }, [student?.birth_date]);
+
   if (loadingStudents) {
     return (
       <PageLayout>
