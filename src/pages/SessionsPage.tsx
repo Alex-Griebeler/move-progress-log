@@ -1,4 +1,8 @@
 import { useState, useMemo } from "react";
+import { usePageTitle } from "@/hooks/usePageTitle";
+import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
+import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
+import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -64,6 +68,16 @@ import { NAV_LABELS } from "@/constants/navigation";
 import { cn } from "@/lib/utils";
 
 export default function SessionsPage() {
+  usePageTitle(NAV_LABELS.sessions);
+  useSEOHead(SEO_PRESETS.private);
+  useOpenGraph({
+    ...FABRIK_OG_DEFAULTS,
+    title: `${NAV_LABELS.sessions} · Fabrik Performance`,
+    description: NAV_LABELS.subtitleSessions,
+    type: 'website',
+    url: true,
+  });
+
   // Filters state
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [selectedPrescriptionIds, setSelectedPrescriptionIds] = useState<string[]>([]);
@@ -180,7 +194,12 @@ export default function SessionsPage() {
   }
 
   return (
-    <PageLayout>
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(NAV_LABELS.sessions, NAV_LABELS.subtitleSessions), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.sessions, href: "/sessoes" }]), id: "breadcrumb-schema" },
+      ]}
+    >
       <PageHeader
         title={NAV_LABELS.sessions}
         description={NAV_LABELS.subtitleSessions}
@@ -190,7 +209,7 @@ export default function SessionsPage() {
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gap-2">
+              <Button className="gap-xs">
                 <Plus className="h-4 w-4" />
                 {NAV_LABELS.recordSession}
               </Button>

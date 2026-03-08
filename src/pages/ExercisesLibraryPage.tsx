@@ -372,7 +372,7 @@ export default function ExercisesLibraryPage() {
 
       {/* Exercise List */}
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i} className="animate-fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
               <CardContent className="pt-6 space-y-3">
@@ -523,7 +523,7 @@ export default function ExercisesLibraryPage() {
                   </div>
                 </details>
 
-                <div className="flex gap-2">
+                <div className="flex gap-xs">
                   <Button
                     variant="outline"
                     size="sm"

@@ -48,6 +48,7 @@ import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { StructuredData } from "@/components/StructuredData";
 import { getOrganizationSchema, getWebPageSchema, getBreadcrumbSchema, getPersonSchema } from "@/utils/structuredData";
 import { ErrorState } from "@/components/ErrorState";
+import { PageLayout } from "@/components/PageLayout";
 import { StudentHeaderSkeleton } from "@/components/skeletons/StudentHeaderSkeleton";
 import { getObjectiveLabel } from "@/constants/objectives";
 import { logger } from "@/utils/logger";
@@ -93,25 +94,38 @@ const StudentDetailPage = () => {
     url: true,
   });
 
+  // Calculate age (must be before early returns to respect hooks order)
+  const age = useMemo(() => {
+    if (!student?.birth_date) return null;
+    const today = new Date();
+    const birthDate = new Date(student.birth_date);
+    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      calculatedAge--;
+    }
+    return calculatedAge;
+  }, [student?.birth_date]);
+
   if (loadingStudents) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <PageLayout>
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-96 w-full" />
-      </div>
+      </PageLayout>
     );
   }
 
   if (!student) {
     return (
-      <div className="container mx-auto p-6 flex items-center justify-center min-h-[60vh]">
+      <PageLayout>
         <ErrorState
           title="Aluno não encontrado"
           description="O aluno que você está procurando não existe ou foi removido."
           onRetry={() => navigate(ROUTES.students)}
           retryLabel="Voltar para Alunos"
         />
-      </div>
+      </PageLayout>
     );
   }
 
@@ -140,46 +154,14 @@ const StudentDetailPage = () => {
   const missingFields = getMissingFields();
   const hasIncompleteData = missingFields.length > 0;
 
-  // Calculate age
-  const age = useMemo(() => {
-    if (!student.birth_date) return null;
-    const today = new Date();
-    const birthDate = new Date(student.birth_date);
-    let calculatedAge = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      calculatedAge--;
-    }
-    return calculatedAge;
-  }, [student.birth_date]);
-
   return (
-    <div id="main-content" className="container mx-auto p-6 space-y-6" role="main">
-      {/* Structured Data para SEO */}
-      <StructuredData data={getOrganizationSchema()} id="org-schema" />
-      <StructuredData 
-        data={getWebPageSchema(
-          student.name,
-          `Perfil completo de ${student.name} - Métricas, sessões de treino, exercícios e dados Oura Ring`
-        )} 
-        id="webpage-schema" 
-      />
-      <StructuredData 
-        data={getBreadcrumbSchema([
-          { label: "Home", href: "/" },
-          { label: NAV_LABELS.students, href: "/alunos" },
-          { label: student.name }
-        ])} 
-        id="breadcrumb-schema" 
-      />
-      <StructuredData 
-        data={getPersonSchema({
-          name: student.name,
-          description: `Aluno da Fabrik Performance${student.objectives ? ` - Objetivos: ${student.objectives}` : ''}`
-        })} 
-        id="person-schema" 
-      />
-      
+    <PageLayout
+      structuredData={[
+        { data: getWebPageSchema(student.name, `Perfil completo de ${student.name} - Métricas, sessões de treino, exercícios e dados Oura Ring`), id: "webpage-schema" },
+        { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.students, href: "/alunos" }, { label: student.name }]), id: "breadcrumb-schema" },
+        { data: getPersonSchema({ name: student.name, description: `Aluno da Fabrik Performance${student.objectives ? ` - Objetivos: ${student.objectives}` : ''}` }), id: "person-schema" },
+      ]}
+    >
       <Breadcrumbs
         items={[
           { label: NAV_LABELS.students, href: "/alunos", icon: Users },
@@ -304,12 +286,12 @@ const StudentDetailPage = () => {
 
       {/* Alerta de Dados Incompletos - Detalhado */}
       {hasIncompleteData && (
-        <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/30">
-          <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-500" />
-          <AlertDescription className="text-amber-800 dark:text-amber-300">
+        <Alert className="border-warning/30 bg-warning/5">
+          <AlertCircle className="h-5 w-5 text-warning" />
+          <AlertDescription className="text-foreground">
             <span className="font-semibold block mb-1">Dados incompletos detectados</span>
-            <span className="text-sm">
-              Complete os seguintes campos para melhor análise: <strong>{missingFields.join(', ')}</strong>
+            <span className="text-sm text-muted-foreground">
+              Complete os seguintes campos para melhor análise: <strong className="text-foreground">{missingFields.join(', ')}</strong>
             </span>
           </AlertDescription>
         </Alert>
@@ -807,7 +789,7 @@ const StudentDetailPage = () => {
         open={editStudentOpen}
         onOpenChange={setEditStudentOpen}
       />
-    </div>
+    </PageLayout>
   );
 };
 
