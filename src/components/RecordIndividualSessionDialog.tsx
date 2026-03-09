@@ -446,7 +446,7 @@ export function RecordIndividualSessionDialog({
           {dialogState === 'setup' && (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={() => setDialogState('recording')}><Mic className="h-4 w-4 mr-2" />Iniciar Gravação</Button>
+              <Button onClick={handleStartRecording}><Mic className="h-4 w-4 mr-2" />Iniciar Gravação</Button>
             </>
           )}
 

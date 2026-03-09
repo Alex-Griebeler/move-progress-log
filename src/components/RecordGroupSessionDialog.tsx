@@ -228,7 +228,7 @@ export function RecordGroupSessionDialog({
         }
         
         session.exercises.forEach((newEx) => {
-          if (!newEx.reps || newEx.reps === 0) return;
+          // Preserve exercises with null reps (needs_manual_input) for manual correction
           if (!merged.exercises.some(ex => ex.executed_exercise_name === newEx.executed_exercise_name && ex.reps === newEx.reps && ex.load_kg === newEx.load_kg)) {
             merged.exercises.push(newEx);
           }
