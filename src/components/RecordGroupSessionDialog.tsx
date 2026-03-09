@@ -228,7 +228,7 @@ export function RecordGroupSessionDialog({
         }
         
         session.exercises.forEach((newEx) => {
-          if (!newEx.reps || newEx.reps === 0) return;
+          // Preserve exercises with null reps (needs_manual_input) for manual correction
           if (!merged.exercises.some(ex => ex.executed_exercise_name === newEx.executed_exercise_name && ex.reps === newEx.reps && ex.load_kg === newEx.load_kg)) {
             merged.exercises.push(newEx);
           }
@@ -413,21 +413,40 @@ export function RecordGroupSessionDialog({
 
     await createGroupSessions.mutateAsync({ prescriptionId, date, time, sessions: sessionsToSave as any });
 
-    // Save clinical observations
+    // Save clinical observations and audio segments per student
     for (const merged of mergedStudents) {
+      const student = selectedStudents.find(s => s.name.toLowerCase() === merged.student_name.toLowerCase());
+      if (!student) continue;
+
+      const { data: sessionData } = await supabase.from('workout_sessions').select('id').eq('student_id', student.id).eq('date', date).eq('time', time).order('created_at', { ascending: false }).limit(1).single();
+      if (!sessionData) continue;
+
+      // Save clinical observations
       if (merged.clinical_observations && merged.clinical_observations.length > 0) {
-        const student = selectedStudents.find(s => s.name.toLowerCase() === merged.student_name.toLowerCase());
-        if (student) {
-          const { data: sessionData } = await supabase.from('workout_sessions').select('id').eq('student_id', student.id).eq('date', date).eq('time', time).order('created_at', { ascending: false }).limit(1).single();
-          if (sessionData) {
-            const observationsToInsert = merged.clinical_observations.map(obs => ({
-              student_id: student.id, observation_text: obs.observation_text, categories: obs.categories, severity: obs.severity, session_id: sessionData.id, is_resolved: false,
-            }));
-            const { error } = await supabase.from('student_observations').insert(observationsToInsert);
-            if (error) {
-              logger.error('Error saving clinical observations:', error);
-              notify.error(i18n.modules.workouts.warning, { description: `${i18n.modules.workouts.clinicalObservationsNotSaved}: ${student.name}` });
-            }
+        const observationsToInsert = merged.clinical_observations.map(obs => ({
+          student_id: student.id, observation_text: obs.observation_text, categories: obs.categories, severity: obs.severity, session_id: sessionData.id, is_resolved: false,
+        }));
+        const { error } = await supabase.from('student_observations').insert(observationsToInsert);
+        if (error) {
+          logger.error('Error saving clinical observations:', error);
+          notify.error(i18n.modules.workouts.warning, { description: `${i18n.modules.workouts.clinicalObservationsNotSaved}: ${student.name}` });
+        }
+      }
+
+      // Save audio segments (transcription data)
+      if (accumulatedRecordings.length > 0) {
+        const audioSegments = accumulatedRecordings
+          .filter((recording) => recording.rawTranscription)
+          .map((recording) => ({
+            session_id: sessionData.id,
+            segment_order: recording.recordingNumber,
+            raw_transcription: recording.rawTranscription || 'Sem transcrição disponível',
+            edited_transcription: recording.editedTranscription || null,
+          }));
+        if (audioSegments.length > 0) {
+          const { error: segmentsError } = await supabase.from('session_audio_segments').insert(audioSegments);
+          if (segmentsError) {
+            logger.error('Error saving audio segments for group:', segmentsError);
           }
         }
       }

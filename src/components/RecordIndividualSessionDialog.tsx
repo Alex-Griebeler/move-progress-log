@@ -94,6 +94,18 @@ export function RecordIndividualSessionDialog({
   const createSession = useCreateWorkoutSession();
   const isReopening = !!existingSessionId;
 
+  // Fetch student weight for bodyweight calculations
+  const { data: studentData } = useQuery({
+    queryKey: ['student-weight', studentId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('students').select('weight_kg').eq('id', studentId).single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!studentId,
+  });
+  const studentWeightKg = studentData?.weight_kg ?? undefined;
+
   const { data: existingSessionData } = useQuery({
     queryKey: ['existing-session', existingSessionId],
     queryFn: async () => {
@@ -164,8 +176,8 @@ export function RecordIndividualSessionDialog({
       }
 
       if (session.exercises && session.exercises.length > 0) {
+        // Preserve exercises with null reps (needs_manual_input) for manual correction
         session.exercises.forEach((ex) => {
-          if (!ex.reps || ex.reps === 0) return;
           allExercises.push(ex);
         });
       }
@@ -363,7 +375,7 @@ export function RecordIndividualSessionDialog({
         {dialogState === 'recording' && (
           <MultiSegmentRecorder
             prescriptionId={selectedPrescriptionId || undefined}
-            selectedStudents={[{ id: studentId, name: studentName, weight_kg: undefined }]}
+            selectedStudents={[{ id: studentId, name: studentName, weight_kg: studentWeightKg }]}
             date={date} time={time}
             onComplete={(segments) => {
               const allObservations: any[] = [];
@@ -446,7 +458,7 @@ export function RecordIndividualSessionDialog({
           {dialogState === 'setup' && (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={() => setDialogState('recording')}><Mic className="h-4 w-4 mr-2" />Iniciar Gravação</Button>
+              <Button onClick={handleStartRecording}><Mic className="h-4 w-4 mr-2" />Iniciar Gravação</Button>
             </>
           )}
 

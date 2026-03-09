@@ -1,59 +1,154 @@
+# 🔍 Plano de Auditoria Completa — Fabrik Performance
 
+## Escopo Total
+- **50 hooks** (src/hooks/)
+- **18 páginas** (src/pages/)
+- **26 Edge Functions** (supabase/functions/)
+- **~80 componentes** (src/components/)
+- **Utilitários, contextos, constantes**
 
-# Comparação: Diretrizes ChatGPT vs. Edge Function Atual
+---
 
-## Resultado da Análise
+## Fase 1 — Core Hooks & Data Layer (Crítico)
+**Risco: ALTO** — Bugs aqui afetam todo o app.
 
-A Edge Function `process-voice-session` já implementa **100% das regras** do seu ChatGPT customizado, e vai além em vários pontos. Segue o comparativo detalhado:
+### 1.1 Hooks de CRUD principal
+- `useStudents` / `useStudentDetail` / `useStudentsCardData`
+- `useExercisesLibrary` (já marcado para refatoração)
+- `usePrescriptions` / `usePrescriptionSearch` / `usePrescriptionDraft`
+- `useWorkoutSessions` / `useAllSessions` / `useSessionDetail`
+- `useWorkouts`
 
-## Cobertura Completa (já implementado)
+### 1.2 Hooks de integração Oura
+- `useOuraConnection` / `useOuraConnectionStatus`
+- `useOuraMetrics` / `useOuraTrends` / `useOuraBaseline`
+- `useOuraSyncAll` / `useOuraSyncLogs` / `useOuraTestSync`
+- `useOuraWorkouts`
 
-| Diretriz ChatGPT | Status na Edge Function |
-|---|---|
-| 1 lb = 0,4536 kg | Constante `POUND_TO_KG_CONVERSION` (linha 23) |
-| Halteres/Kettlebell duplo (×2) | 14 cenários documentados no prompt (linhas 346-512) |
-| Barra bilateral ("de cada lado" ×2) | Regra completa + recálculo determinístico (linhas 379-402) |
-| Landmine (NÃO ×2) | Cenário explícito (linhas 351-354, 504-507) |
-| Sandbag (carga direta) | Cenário explícito (linhas 357-358, 509-512) |
-| Peso corporal (usar weight_kg) | Lógica completa com/sem peso cadastrado (linhas 322-329) |
-| Elástico (nunca converter para kg) | Regra explícita (linhas 331-336) |
-| Correções no meio do áudio | Instrução na transcrição E na extração (linhas 314-320) |
-| Nunca inventar dados / inferir reps | Proibições explícitas (linhas 280-285) |
-| Campos não informados = null (nunca 0) | Regra reforçada + sanitização server-side (linhas 514-525, 748-756) |
-| Registrar maior carga por exercício | `is_best_set: true` (linhas 531-533) |
-| Arredondar para 1 casa decimal | `roundToDecimal` (linha 62) |
-| Alertas de Precisão | Campo `precision_alerts` no JSON de saída (linha 589) |
-| Pontos de Atenção Técnicos | Campo `tech_points` no JSON de saída (linhas 559-565) |
-| Prioridade: exatidão > fidelidade > clareza | Linha 278 |
+### 1.3 Hooks auxiliares
+- `useUserRole` / `useTrainers`
+- `useFolders` / `useStudentInvites`
+- `useStats` / `useStudentReports`
+- `useExerciseHistory` / `useExerciseLoadHistory`
 
-## Funcionalidades EXTRAS (que o ChatGPT NÃO tem)
+**Checklist:**
+- [ ] Queries sem `.limit()` que podem bater no teto de 1000 rows
+- [ ] Tratamento de erro consistente (try/catch vs onError)
+- [ ] Cache invalidation correto (queryKey matching)
+- [ ] Tipos TypeScript vs schema real do Supabase
+- [ ] Hooks com `any` ou `as never`
 
-A Edge Function vai **além** das diretrizes do ChatGPT em:
+---
 
-1. **Recálculo determinístico server-side**: Após o Gemini extrair os dados, a função recalcula `load_kg` matematicamente e sobrescreve o valor do LLM se divergir >0.1kg (linhas 758-785). O ChatGPT confia apenas na própria resposta.
+## Fase 2 — Edge Functions (Backend)
+**Risco: ALTO** — Segurança e integridade de dados.
 
-2. **Normalização de formato**: `normalizeBreakdown()` corrige automaticamente formatos errados como `"(25 lb) de cada lado + 5 kg"` → `"(25 lb + 5 kg) de cada lado"` (linhas 644-669).
+### 2.1 Funções de autenticação e admin
+- `admin-create-user` / `admin-update-user`
+- `create-audit-admin`
+- `check-rate-limit`
 
-3. **Detecção de desvios da prescrição**: Compara exercícios executados vs. prescritos e gera alertas de omissão, substituição e desvio de volume (linhas 794-883).
+### 2.2 Funções de IA
+- `ai-builder-chat` / `chat-helper`
+- `classify-exercises`
+- `generate-group-session`
+- `generate-protocol-recommendations`
+- `generate-student-report`
+- `process-voice-session` / `voice-session`
+- `suggest-exercise` / `suggest-exercise-alternatives` / `suggest-regressions`
+- `parse-word-prescription`
 
-4. **Observações clínicas categorizadas**: Extrai observações com categorias (dor/mobilidade/força/técnica/geral) e severidade (alta/média/baixa), que o ChatGPT não estrutura.
+### 2.3 Funções de integração Oura
+- `oura-callback` / `oura-sync` / `oura-sync-all`
+- `oura-sync-scheduled` / `oura-sync-test` / `oura-disconnect`
 
-5. **Segmentação multi-áudio**: Suporte a múltiplos segmentos de gravação com merge inteligente por aluno.
+### 2.4 Funções de alunos
+- `generate-student-invite` / `validate-student-invite` / `create-student-from-invite`
+- `import-exercises`
 
-6. **Validação de propriedade**: JWT + verificação de trainer_id para segurança.
+**Checklist:**
+- [ ] CORS headers presentes em todas
+- [ ] Validação JWT consistente
+- [ ] Tratamento de erros (nunca retornar 500 genérico)
+- [ ] Secrets usados corretamente
+- [ ] SQL injection / input validation
 
-## Itens do ChatGPT que NÃO se aplicam
+---
 
-| Diretriz ChatGPT | Por que não se aplica |
-|---|---|
-| "Armazenamento interno em memória" | Conceito de conversa do ChatGPT. Nossa API é stateless — o banco de dados faz esse papel. |
-| "Controle de envio por data+horário" | Idem — o frontend controla isso via dialogs de setup. |
-| "Substituir versões anteriores quando houver correção" | O multi-segment merge já faz isso automaticamente. |
-| Coluna "RR" (Recorde de Referência) | Não temos esse conceito no schema atual. Seria um PR tracker — já existe separadamente via `pr-detector`. |
+## Fase 3 — Componentes de Formulário & Dialogs
+**Risco: MÉDIO** — UX e integridade de dados de entrada.
 
-## Conclusão
+### 3.1 Dialogs de CRUD
+- `AddStudentDialog` / `EditStudentDialog`
+- `AddExerciseDialog` / `EditExerciseLibraryDialog`
+- `CreatePrescriptionDialog` / `EditPrescriptionDialog`
+- `AddWorkoutDialog` / `AddWorkoutSessionDialog`
+- `EditSessionDialog` / `EditGroupSessionDialog`
+- `AddUserDialog` / `EditUserDialog`
 
-**Não há gaps a corrigir.** A implementação atual é uma versão mais robusta e segura do que o ChatGPT customizado oferece, com camadas adicionais de validação matemática, normalização e segurança que um chatbot conversacional não consegue garantir.
+### 3.2 Dialogs de registro de sessão (complexos)
+- `RecordGroupSessionDialog`
+- `RecordIndividualSessionDialog`
+- `VoiceSessionRecorder` / `MultiSegmentRecorder` / `AudioSegmentRecorder`
 
-Os bugs identificados na auditoria anterior (exercícios com `reps=null` descartados no merge, `weight_kg` não enviado no individual, audio segments não salvos no group) continuam sendo as prioridades reais de correção — mas são bugs de **frontend/integração**, não de lógica de extração.
+### 3.3 Dialogs auxiliares
+- Todos os demais dialogs
 
+**Checklist:**
+- [ ] Validação de formulário (Zod schemas)
+- [ ] Estados de loading/error/success
+- [ ] Reset de form ao fechar dialog
+- [ ] Acessibilidade (labels, aria)
+- [ ] Feedback visual ao usuário
+
+---
+
+## Fase 4 — Páginas & Navegação
+**Risco: MÉDIO** — UX e performance.
+
+**Checklist:**
+- [ ] Lazy loading funcionando
+- [ ] SEO (títulos, meta)
+- [ ] Estados vazios (EmptyState)
+- [ ] Responsividade
+- [ ] Permissões (admin vs trainer)
+
+---
+
+## Fase 5 — Utilitários, Contextos & Constantes
+**Risco: BAIXO** — Mas impacto transversal.
+
+**Checklist:**
+- [ ] Funções puras com testes
+- [ ] Constantes duplicadas ou inconsistentes
+- [ ] Logger vs console.log
+
+---
+
+## Fase 6 — Design System & Temas
+**Risco: BAIXO** — Visual e consistência.
+
+**Checklist:**
+- [ ] Tokens semânticos em todos os componentes
+- [ ] Light/dark mode consistente
+- [ ] Cores hardcoded remanescentes
+
+---
+
+## Critérios de Refatoração
+
+| Critério | Ação |
+|----------|------|
+| Bug confirmado | Corrigir imediatamente |
+| Inconsistência de tipos | Corrigir (baixo risco) |
+| Código duplicado | Avaliar custo/benefício |
+| Performance | Corrigir se impacto mensurável |
+| Refatoração estrutural | Só se risco < benefício |
+
+## Ordem de Execução
+1. Fase 1 → Hooks (fundação)
+2. Fase 2 → Edge Functions (segurança)
+3. Fase 3 → Formulários (entrada de dados)
+4. Fase 4 → Páginas (UX)
+5. Fase 5 → Utilitários
+6. Fase 6 → Design System
