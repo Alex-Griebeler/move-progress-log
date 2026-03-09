@@ -164,8 +164,8 @@ export function RecordIndividualSessionDialog({
       }
 
       if (session.exercises && session.exercises.length > 0) {
+        // Preserve exercises with null reps (needs_manual_input) for manual correction
         session.exercises.forEach((ex) => {
-          if (!ex.reps || ex.reps === 0) return;
           allExercises.push(ex);
         });
       }
