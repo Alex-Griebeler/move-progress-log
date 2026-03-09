@@ -363,7 +363,7 @@ export function RecordIndividualSessionDialog({
         {dialogState === 'recording' && (
           <MultiSegmentRecorder
             prescriptionId={selectedPrescriptionId || undefined}
-            selectedStudents={[{ id: studentId, name: studentName, weight_kg: undefined }]}
+            selectedStudents={[{ id: studentId, name: studentName, weight_kg: studentWeightKg }]}
             date={date} time={time}
             onComplete={(segments) => {
               const allObservations: any[] = [];
