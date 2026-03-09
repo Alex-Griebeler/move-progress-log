@@ -94,6 +94,18 @@ export function RecordIndividualSessionDialog({
   const createSession = useCreateWorkoutSession();
   const isReopening = !!existingSessionId;
 
+  // Fetch student weight for bodyweight calculations
+  const { data: studentData } = useQuery({
+    queryKey: ['student-weight', studentId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('students').select('weight_kg').eq('id', studentId).single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!studentId,
+  });
+  const studentWeightKg = studentData?.weight_kg ?? undefined;
+
   const { data: existingSessionData } = useQuery({
     queryKey: ['existing-session', existingSessionId],
     queryFn: async () => {
