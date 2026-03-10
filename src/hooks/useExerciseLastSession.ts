@@ -38,7 +38,7 @@ export const useExerciseLastSession = (
 
       // Chunk sessionIds to avoid URL length limits (max ~300 per query)
       const CHUNK_SIZE = 300;
-      const allExercises: typeof exercises = [];
+      const allExercises: Array<{ session_id: string; exercise_name: string; load_kg: number | null; load_breakdown: string | null; reps: number | null }> = [];
       for (let i = 0; i < sessionIds.length; i += CHUNK_SIZE) {
         const chunk = sessionIds.slice(i, i + CHUNK_SIZE);
         const { data: exercises, error: exError } = await supabase
