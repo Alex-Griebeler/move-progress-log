@@ -44,7 +44,7 @@ export const useExerciseLastSession = (
         const chunk = sessionIds.slice(i, i + CHUNK_SIZE);
         const { data: exercises, error: exError } = await supabase
           .from("exercises")
-          .select("session_id, exercise_name, load_kg, load_breakdown, reps")
+          .select("session_id, exercise_name, load_kg, load_breakdown, reps, observations")
           .in("session_id", chunk);
         if (exError) throw exError;
         if (exercises) allExercises.push(...exercises);
