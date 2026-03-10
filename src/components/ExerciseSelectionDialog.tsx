@@ -236,16 +236,42 @@ export function ExerciseSelectionDialog({
                     Nenhum exercício encontrado
                   </p>
                 ) : (
-                  filteredExercises.map((exercise) => (
-                    <Button
-                      key={exercise.id}
-                      variant="outline"
-                      className="w-full justify-start hover:bg-accent"
-                      onClick={() => handleSelect(exercise.id, exercise.name)}
-                    >
-                      <span className="truncate">{exercise.name}</span>
-                    </Button>
-                  ))
+                  filteredExercises.map((exercise, idx) => {
+                    const isSamePattern = !!initialMovementPattern && exercise.movement_pattern === initialMovementPattern;
+                    const isSameCategory = !!initialCategory && exercise.category === initialCategory;
+                    const prevExercise = idx > 0 ? filteredExercises[idx - 1] : null;
+                    const prevIsSamePattern = prevExercise && !!initialMovementPattern && prevExercise.movement_pattern === initialMovementPattern;
+                    
+                    // Show separator between groups
+                    const showSeparator = idx > 0 && !isSamePattern && prevIsSamePattern;
+
+                    return (
+                      <div key={exercise.id}>
+                        {showSeparator && (
+                          <div className="border-t border-border my-2 pt-2">
+                            <p className="text-[10px] text-muted-foreground mb-1">Outros exercícios</p>
+                          </div>
+                        )}
+                        <Button
+                          variant="outline"
+                          className={`w-full justify-start hover:bg-accent ${isSamePattern ? 'border-primary/40 bg-primary/5' : ''}`}
+                          onClick={() => handleSelect(exercise.id, exercise.name)}
+                        >
+                          <span className="truncate">{exercise.name}</span>
+                          {isSamePattern && (
+                            <Badge variant="secondary" className="ml-auto text-[9px] shrink-0">
+                              mesmo padrão
+                            </Badge>
+                          )}
+                          {!isSamePattern && isSameCategory && (
+                            <Badge variant="outline" className="ml-auto text-[9px] shrink-0">
+                              mesma categoria
+                            </Badge>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </ScrollArea>
