@@ -79,6 +79,69 @@ interface MergedStudent {
   exercises: SessionExercise[];
 }
 
+// Toggle sub-component for manual entry mode
+function ManualEntryWithToggle({
+  prescriptionDetails,
+  selectedStudents,
+  date, time, trainer,
+  prescriptionId,
+  onSave,
+  onCancel,
+  onAddStudent,
+}: {
+  prescriptionDetails: any;
+  selectedStudents: Array<{ id: string; name: string; weight_kg?: number; has_active_prescription: boolean }>;
+  date: string; time: string; trainer: string;
+  prescriptionId: string | null;
+  onSave: (data: any) => Promise<void>;
+  onCancel: () => void;
+  onAddStudent: () => void;
+}) {
+  const [entryMode, setEntryMode] = useState<'by-exercise' | 'by-student'>('by-exercise');
+
+  const exercises = prescriptionDetails?.exercises?.filter((ex: any) => ex.should_track !== false).map((ex: any) => ({
+    id: ex.id, exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps,
+    interval_seconds: ex.interval_seconds, pse: ex.pse, training_method: ex.training_method, observations: ex.observations,
+  })) || [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <Button variant={entryMode === 'by-exercise' ? 'default' : 'outline'} size="sm"
+          onClick={() => setEntryMode('by-exercise')}>
+          Por Exercício
+        </Button>
+        <Button variant={entryMode === 'by-student' ? 'default' : 'outline'} size="sm"
+          onClick={() => setEntryMode('by-student')}>
+          Por Aluno
+        </Button>
+      </div>
+
+      {entryMode === 'by-exercise' ? (
+        <ExerciseFirstSessionEntry
+          prescriptionExercises={exercises}
+          selectedStudents={selectedStudents}
+          date={date} time={time} trainer={trainer}
+          prescriptionId={prescriptionId}
+          onSave={onSave}
+          onCancel={onCancel}
+          onAddStudent={onAddStudent}
+        />
+      ) : (
+        <ManualSessionEntry
+          prescriptionExercises={exercises}
+          selectedStudents={selectedStudents}
+          date={date} time={time} trainer={trainer}
+          prescriptionId={prescriptionId}
+          onSave={onSave}
+          onCancel={onCancel}
+          onAddStudent={onAddStudent}
+        />
+      )}
+    </div>
+  );
+}
+
 export function RecordGroupSessionDialog({
   open,
   onOpenChange,
