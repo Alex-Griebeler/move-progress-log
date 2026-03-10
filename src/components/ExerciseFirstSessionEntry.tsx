@@ -108,7 +108,12 @@ export function ExerciseFirstSessionEntry({
     studentId: string;
     exerciseIdx: number;
     currentName: string;
+    category: string | null;
+    movementPattern: string | null;
   } | null>(null);
+
+  // Library lookup for exercise metadata
+  const { data: exercisesLibrary } = useExercisesLibrary();
 
   // Input refs for keyboard navigation: [studentIdx][field] where field: 0=load, 1=reps, 2=obs
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
