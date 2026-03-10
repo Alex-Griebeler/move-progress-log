@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
-import { expandLoadShorthand } from "@/utils/loadShorthand";
+import { expandLoadShorthand, compressLoadShorthand } from "@/utils/loadShorthand";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { useExerciseLastSession, type LastSessionData } from "@/hooks/useExerciseLastSession";
 import { formatDistanceToNow } from "date-fns";
