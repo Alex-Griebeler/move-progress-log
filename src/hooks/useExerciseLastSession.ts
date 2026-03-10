@@ -6,6 +6,7 @@ export interface LastSessionData {
   load_breakdown: string | null;
   reps: number | null;
   date: string | null;
+  observations: string | null;
 }
 
 /**
