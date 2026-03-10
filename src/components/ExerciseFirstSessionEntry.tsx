@@ -15,6 +15,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
+import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { expandLoadShorthand } from "@/utils/loadShorthand";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { useExerciseLastSession, type LastSessionData } from "@/hooks/useExerciseLastSession";
