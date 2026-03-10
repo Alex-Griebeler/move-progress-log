@@ -36,14 +36,20 @@ export const useExerciseLastSession = (
 
       const sessionIds = sessions.map(s => s.id);
 
-      // Get exercises for these sessions matching any of the exercise names
-      const { data: exercises, error: exError } = await supabase
-        .from("exercises")
-        .select("session_id, exercise_name, load_kg, load_breakdown, reps")
-        .in("session_id", sessionIds);
+      // Chunk sessionIds to avoid URL length limits (max ~300 per query)
+      const CHUNK_SIZE = 300;
+      const allExercises: Array<{ session_id: string; exercise_name: string; load_kg: number | null; load_breakdown: string | null; reps: number | null }> = [];
+      for (let i = 0; i < sessionIds.length; i += CHUNK_SIZE) {
+        const chunk = sessionIds.slice(i, i + CHUNK_SIZE);
+        const { data: exercises, error: exError } = await supabase
+          .from("exercises")
+          .select("session_id, exercise_name, load_kg, load_breakdown, reps")
+          .in("session_id", chunk);
+        if (exError) throw exError;
+        if (exercises) allExercises.push(...exercises);
+      }
 
-      if (exError) throw exError;
-      if (!exercises) return result;
+      if (allExercises.length === 0) return result;
 
       // Build session lookup
       const sessionMap = new Map(sessions.map(s => [s.id, s]));
@@ -51,7 +57,7 @@ export const useExerciseLastSession = (
       // Filter and find most recent per student+exercise
       const nameSet = new Set(exerciseNames.map(n => n.toLowerCase().trim()));
 
-      for (const ex of exercises) {
+      for (const ex of allExercises) {
         const exNameLower = ex.exercise_name.toLowerCase().trim();
         if (!nameSet.has(exNameLower)) continue;
 

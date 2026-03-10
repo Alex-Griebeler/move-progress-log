@@ -209,6 +209,17 @@ export function ExerciseFirstSessionEntry({
     }
     const source = data[firstFilled.id][exerciseIndex];
     let count = 0;
+    selectedStudents.forEach((s) => {
+      if (s.id === firstFilled.id) return;
+      const current = data[s.id]?.[exerciseIndex];
+      if (current && (!current.load_breakdown || current.load_breakdown.trim() === "")) {
+        count++;
+      }
+    });
+    if (count === 0) {
+      notify.info("Todos os alunos já possuem carga preenchida");
+      return;
+    }
     setData((prev) => {
       const updated = { ...prev };
       selectedStudents.forEach((s) => {
@@ -223,7 +234,6 @@ export function ExerciseFirstSessionEntry({
               load_kg: source.load_kg,
             },
           };
-          count++;
         }
       });
       return updated;
