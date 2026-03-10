@@ -15,6 +15,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
+import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { expandLoadShorthand } from "@/utils/loadShorthand";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { useExerciseLastSession, type LastSessionData } from "@/hooks/useExerciseLastSession";
@@ -107,7 +108,12 @@ export function ExerciseFirstSessionEntry({
     studentId: string;
     exerciseIdx: number;
     currentName: string;
+    category: string | null;
+    movementPattern: string | null;
   } | null>(null);
+
+  // Library lookup for exercise metadata
+  const { data: exercisesLibrary } = useExercisesLibrary();
 
   // Input refs for keyboard navigation: [studentIdx][field] where field: 0=load, 1=reps, 2=obs
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
@@ -268,14 +274,22 @@ export function ExerciseFirstSessionEntry({
     (studentId: string) => {
       const entry = data[studentId]?.[exerciseIndex];
       if (!entry) return;
+
+      // Look up exercise metadata from library
+      const libExercise = exercisesLibrary?.find(
+        (ex) => ex.name.toLowerCase().trim() === entry.exercise_name.toLowerCase().trim()
+      );
+
       setSelectionTarget({
         studentId,
         exerciseIdx: exerciseIndex,
         currentName: entry.exercise_name,
+        category: libExercise?.category ?? null,
+        movementPattern: libExercise?.movement_pattern ?? null,
       });
       setSelectionOpen(true);
     },
-    [data, exerciseIndex]
+    [data, exerciseIndex, exercisesLibrary]
   );
 
   const handleExerciseSelected = useCallback(
@@ -623,6 +637,8 @@ export function ExerciseFirstSessionEntry({
         currentExerciseName={selectionTarget?.currentName || ""}
         onExerciseSelected={handleExerciseSelected}
         autoSuggest={false}
+        initialCategory={selectionTarget?.category}
+        initialMovementPattern={selectionTarget?.movementPattern}
       />
     </div>
   );

@@ -23,7 +23,11 @@ interface ExerciseSelectionDialogProps {
   onOpenChange: (open: boolean) => void;
   currentExerciseName: string;
   onExerciseSelected: (exerciseId: string, exerciseName: string) => void;
-  autoSuggest?: boolean; // Se true, faz sugestão automática ao abrir
+  autoSuggest?: boolean;
+  /** Pre-filter by category (e.g. forca_hipertrofia) */
+  initialCategory?: string | null;
+  /** Pre-filter by movement pattern (e.g. cadeia_posterior) */
+  initialMovementPattern?: string | null;
 }
 
 export function ExerciseSelectionDialog({
@@ -32,6 +36,8 @@ export function ExerciseSelectionDialog({
   currentExerciseName,
   onExerciseSelected,
   autoSuggest = false,
+  initialCategory,
+  initialMovementPattern,
 }: ExerciseSelectionDialogProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [suggestedExercise, setSuggestedExercise] = useState<{
@@ -83,10 +89,32 @@ export function ExerciseSelectionDialog({
     }
   };
 
-  // Filtrar exercícios pela busca
-  const filteredExercises = exercises?.filter(ex =>
-    ex.name.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => a.name.localeCompare(b.name)) || [];
+  // Smart sorting: same movement_pattern first, then same category, then rest
+  const filteredExercises = (() => {
+    const base = exercises?.filter(ex =>
+      ex.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      ex.name.toLowerCase() !== currentExerciseName.toLowerCase()
+    ) || [];
+
+    if (!initialMovementPattern && !initialCategory) {
+      return base.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return base.sort((a, b) => {
+      const aPattern = a.movement_pattern === initialMovementPattern;
+      const bPattern = b.movement_pattern === initialMovementPattern;
+      const aCategory = a.category === initialCategory;
+      const bCategory = b.category === initialCategory;
+
+      // Same pattern first
+      if (aPattern && !bPattern) return -1;
+      if (!aPattern && bPattern) return 1;
+      // Then same category
+      if (aCategory && !bCategory) return -1;
+      if (!aCategory && bCategory) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  })();
 
   const handleSelect = (exerciseId: string, exerciseName: string) => {
     onExerciseSelected(exerciseId, exerciseName);
@@ -208,16 +236,42 @@ export function ExerciseSelectionDialog({
                     Nenhum exercício encontrado
                   </p>
                 ) : (
-                  filteredExercises.map((exercise) => (
-                    <Button
-                      key={exercise.id}
-                      variant="outline"
-                      className="w-full justify-start hover:bg-accent"
-                      onClick={() => handleSelect(exercise.id, exercise.name)}
-                    >
-                      <span className="truncate">{exercise.name}</span>
-                    </Button>
-                  ))
+                  filteredExercises.map((exercise, idx) => {
+                    const isSamePattern = !!initialMovementPattern && exercise.movement_pattern === initialMovementPattern;
+                    const isSameCategory = !!initialCategory && exercise.category === initialCategory;
+                    const prevExercise = idx > 0 ? filteredExercises[idx - 1] : null;
+                    const prevIsSamePattern = prevExercise && !!initialMovementPattern && prevExercise.movement_pattern === initialMovementPattern;
+                    
+                    // Show separator between groups
+                    const showSeparator = idx > 0 && !isSamePattern && prevIsSamePattern;
+
+                    return (
+                      <div key={exercise.id}>
+                        {showSeparator && (
+                          <div className="border-t border-border my-2 pt-2">
+                            <p className="text-[10px] text-muted-foreground mb-1">Outros exercícios</p>
+                          </div>
+                        )}
+                        <Button
+                          variant="outline"
+                          className={`w-full justify-start hover:bg-accent ${isSamePattern ? 'border-primary/40 bg-primary/5' : ''}`}
+                          onClick={() => handleSelect(exercise.id, exercise.name)}
+                        >
+                          <span className="truncate">{exercise.name}</span>
+                          {isSamePattern && (
+                            <Badge variant="secondary" className="ml-auto text-[9px] shrink-0">
+                              mesmo padrão
+                            </Badge>
+                          )}
+                          {!isSamePattern && isSameCategory && (
+                            <Badge variant="outline" className="ml-auto text-[9px] shrink-0">
+                              mesma categoria
+                            </Badge>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </ScrollArea>
