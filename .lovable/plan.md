@@ -1,154 +1,100 @@
-# 🔍 Plano de Auditoria Completa — Fabrik Performance
 
-## Escopo Total
-- **50 hooks** (src/hooks/)
-- **18 páginas** (src/pages/)
-- **26 Edge Functions** (supabase/functions/)
-- **~80 componentes** (src/components/)
-- **Utilitários, contextos, constantes**
 
----
+# Plano: Registro Manual "Exercise-First" para Small Group
 
-## Fase 1 — Core Hooks & Data Layer (Crítico)
-**Risco: ALTO** — Bugs aqui afetam todo o app.
+## Resumo
 
-### 1.1 Hooks de CRUD principal
-- `useStudents` / `useStudentDetail` / `useStudentsCardData`
-- `useExercisesLibrary` (já marcado para refatoração)
-- `usePrescriptions` / `usePrescriptionSearch` / `usePrescriptionDraft`
-- `useWorkoutSessions` / `useAllSessions` / `useSessionDetail`
-- `useWorkouts`
+Criar um novo componente `ExerciseFirstSessionEntry` que inverte a lógica atual (Aluno→Exercícios) para (Exercício→Alunos), com tabela inline, navegação por teclado, histórico de carga e atalhos de digitação. O componente atual `ManualSessionEntry` permanece como opção alternativa.
 
-### 1.2 Hooks de integração Oura
-- `useOuraConnection` / `useOuraConnectionStatus`
-- `useOuraMetrics` / `useOuraTrends` / `useOuraBaseline`
-- `useOuraSyncAll` / `useOuraSyncLogs` / `useOuraTestSync`
-- `useOuraWorkouts`
+## Arquivos
 
-### 1.3 Hooks auxiliares
-- `useUserRole` / `useTrainers`
-- `useFolders` / `useStudentInvites`
-- `useStats` / `useStudentReports`
-- `useExerciseHistory` / `useExerciseLoadHistory`
+### 1. Novo: `src/utils/loadShorthand.ts` (~60 linhas)
 
-**Checklist:**
-- [ ] Queries sem `.limit()` que podem bater no teto de 1000 rows
-- [ ] Tratamento de erro consistente (try/catch vs onError)
-- [ ] Cache invalidation correto (queryKey matching)
-- [ ] Tipos TypeScript vs schema real do Supabase
-- [ ] Hooks com `any` ou `as never`
+Parser de atalhos que traduz entradas rápidas para o formato canônico já suportado por `calculateLoadFromBreakdown`:
 
----
+| Atalho | Traduz para |
+|--------|------------|
+| `2x24` | `2 halteres 24kg` |
+| `KB 32` | `kettlebell 32kg` |
+| `2xKB24` | `2 kettlebells 24kg` |
+| `10cl b15` | `10kg de cada lado + barra 15kg` |
+| `25lb+2cl b15` | `(25lb + 2kg) de cada lado + barra 15kg` |
+| `PC` | `peso corporal` |
+| `b20` | `barra 20kg` |
 
-## Fase 2 — Edge Functions (Backend)
-**Risco: ALTO** — Segurança e integridade de dados.
+A função `expandLoadShorthand(input: string): string` retorna o formato expandido. Se o input não corresponder a nenhum atalho, retorna o valor original (passthrough para `calculateLoadFromBreakdown`).
 
-### 2.1 Funções de autenticação e admin
-- `admin-create-user` / `admin-update-user`
-- `create-audit-admin`
-- `check-rate-limit`
+### 2. Novo: `src/hooks/useExerciseLastSession.ts` (~50 linhas)
 
-### 2.2 Funções de IA
-- `ai-builder-chat` / `chat-helper`
-- `classify-exercises`
-- `generate-group-session`
-- `generate-protocol-recommendations`
-- `generate-student-report`
-- `process-voice-session` / `voice-session`
-- `suggest-exercise` / `suggest-exercise-alternatives` / `suggest-regressions`
-- `parse-word-prescription`
+Hook que busca a última carga de cada aluno para todos os exercícios da prescrição de uma vez (batch), evitando N queries separadas do `useExerciseLoadHistory`. Retorna `Map<studentId_exerciseName, { load_kg, load_breakdown, reps, date }>`.
 
-### 2.3 Funções de integração Oura
-- `oura-callback` / `oura-sync` / `oura-sync-all`
-- `oura-sync-scheduled` / `oura-sync-test` / `oura-disconnect`
+### 3. Novo: `src/components/ExerciseFirstSessionEntry.tsx` (~500 linhas)
 
-### 2.4 Funções de alunos
-- `generate-student-invite` / `validate-student-invite` / `create-student-from-invite`
-- `import-exercises`
+Componente principal. Estrutura:
 
-**Checklist:**
-- [ ] CORS headers presentes em todas
-- [ ] Validação JWT consistente
-- [ ] Tratamento de erros (nunca retornar 500 genérico)
-- [ ] Secrets usados corretamente
-- [ ] SQL injection / input validation
+```text
+┌──────────────────────────────────────────────────────┐
+│  ◄ Exercício 3/12 ►   Agachamento Búlgaro           │
+│  Prescrito: 4x8 · PSE 7 · Método: Simples           │
+├──────┬───────────┬──────────┬───────┬──────┬─────────┤
+│Aluno │ Exercício │Carga parc│ Total │ Reps │ Obs     │
+├──────┼───────────┼──────────┼───────┼──────┼─────────┤
+│Alex  │Búlgaro[⇄]│ 2x24     │ 48.0  │  8   │         │
+│      │ últ: 44kg x8 há 3d                            │
+│Marco │Búlgaro[⇄]│          │       │      │         │
+│      │ últ: 40kg x8 há 3d                            │
+│Jana  │Afundo  [⇄]│ 16      │ 16.0  │ 10   │ dor L   │
+├──────┴───────────┴──────────┴───────┴──────┴─────────┤
+│ [Aplicar carga p/ todos]              [Salvar Exer.] │
+└──────────────────────────────────────────────────────┘
+```
 
----
+**Estado interno:**
+- `exerciseIndex` — exercício atual na navegação
+- `data: Record<studentId, Record<exerciseIndex, { exercise_name, load_breakdown, load_kg, reps, sets, observations }>>` — dados por aluno por exercício
+- Cada aluno pode ter um `exercise_name` diferente (substituição individual)
 
-## Fase 3 — Componentes de Formulário & Dialogs
-**Risco: MÉDIO** — UX e integridade de dados de entrada.
+**Funcionalidades:**
+- **Navegação por exercício**: ◄/► avança entre exercícios da prescrição
+- **Tabela inline**: Todos os alunos em linhas, campos editáveis inline
+- **Keyboard flow**: Enter no input de carga → foco em reps → Enter → próximo aluno carga. Implementado via `onKeyDown` com `refs` array
+- **Carga parcial → total**: No `onBlur` do campo de carga, expande via `expandLoadShorthand` → calcula via `calculateLoadFromBreakdown` → preenche `load_kg` automaticamente
+- **Substituição individual**: Botão [⇄] na coluna exercício abre `ExerciseSelectionDialog` para aquele aluno/exercício específico
+- **Histórico**: Linha discreta abaixo de cada aluno mostrando última carga/reps/data via `useExerciseLastSession`
+- **"Aplicar para todos"**: Copia `load_breakdown` e `load_kg` da primeira linha preenchida para todas as outras linhas vazias
+- **Warning de desvio**: Se carga atual diverge >30% do histórico, borda amarela no campo
+- **Validação**: Mesmas regras do `ManualSessionEntry` (nome, sets>0, reps>0, load_breakdown)
 
-### 3.1 Dialogs de CRUD
-- `AddStudentDialog` / `EditStudentDialog`
-- `AddExerciseDialog` / `EditExerciseLibraryDialog`
-- `CreatePrescriptionDialog` / `EditPrescriptionDialog`
-- `AddWorkoutDialog` / `AddWorkoutSessionDialog`
-- `EditSessionDialog` / `EditGroupSessionDialog`
-- `AddUserDialog` / `EditUserDialog`
+**Saída (onSave):** Converte o estado interno para o mesmo formato `studentExercises[]` que o `ManualSessionEntry.onSave` espera. Zero mudança no backend.
 
-### 3.2 Dialogs de registro de sessão (complexos)
-- `RecordGroupSessionDialog`
-- `RecordIndividualSessionDialog`
-- `VoiceSessionRecorder` / `MultiSegmentRecorder` / `AudioSegmentRecorder`
+### 4. Editado: `src/components/RecordGroupSessionDialog.tsx`
 
-### 3.3 Dialogs auxiliares
-- Todos os demais dialogs
+No estado `manual-entry`, adicionar toggle antes do componente:
 
-**Checklist:**
-- [ ] Validação de formulário (Zod schemas)
-- [ ] Estados de loading/error/success
-- [ ] Reset de form ao fechar dialog
-- [ ] Acessibilidade (labels, aria)
-- [ ] Feedback visual ao usuário
+```tsx
+<div className="flex gap-2 mb-4">
+  <Button variant={entryMode === 'by-exercise' ? 'default' : 'outline'} 
+          onClick={() => setEntryMode('by-exercise')}>
+    Por Exercício
+  </Button>
+  <Button variant={entryMode === 'by-student' ? 'default' : 'outline'}
+          onClick={() => setEntryMode('by-student')}>
+    Por Aluno
+  </Button>
+</div>
+```
 
----
+- `entryMode === 'by-exercise'` → renderiza `ExerciseFirstSessionEntry`
+- `entryMode === 'by-student'` → renderiza `ManualSessionEntry` (atual)
+- Default: `'by-exercise'`
 
-## Fase 4 — Páginas & Navegação
-**Risco: MÉDIO** — UX e performance.
+Ambos recebem as mesmas props e chamam o mesmo `onSave`.
 
-**Checklist:**
-- [ ] Lazy loading funcionando
-- [ ] SEO (títulos, meta)
-- [ ] Estados vazios (EmptyState)
-- [ ] Responsividade
-- [ ] Permissões (admin vs trainer)
+### O que NÃO muda
 
----
+- `loadCalculation.ts` — nenhuma alteração na lógica de cálculo
+- `ManualSessionEntry.tsx` — mantido intacto como opção alternativa
+- Schema do banco — mesmas tabelas `workout_sessions` + `exercises`
+- Lógica de salvamento no `RecordGroupSessionDialog`
+- Edge Function `process-voice-session`
 
-## Fase 5 — Utilitários, Contextos & Constantes
-**Risco: BAIXO** — Mas impacto transversal.
-
-**Checklist:**
-- [ ] Funções puras com testes
-- [ ] Constantes duplicadas ou inconsistentes
-- [ ] Logger vs console.log
-
----
-
-## Fase 6 — Design System & Temas
-**Risco: BAIXO** — Visual e consistência.
-
-**Checklist:**
-- [ ] Tokens semânticos em todos os componentes
-- [ ] Light/dark mode consistente
-- [ ] Cores hardcoded remanescentes
-
----
-
-## Critérios de Refatoração
-
-| Critério | Ação |
-|----------|------|
-| Bug confirmado | Corrigir imediatamente |
-| Inconsistência de tipos | Corrigir (baixo risco) |
-| Código duplicado | Avaliar custo/benefício |
-| Performance | Corrigir se impacto mensurável |
-| Refatoração estrutural | Só se risco < benefício |
-
-## Ordem de Execução
-1. Fase 1 → Hooks (fundação)
-2. Fase 2 → Edge Functions (segurança)
-3. Fase 3 → Formulários (entrada de dados)
-4. Fase 4 → Páginas (UX)
-5. Fase 5 → Utilitários
-6. Fase 6 → Design System
