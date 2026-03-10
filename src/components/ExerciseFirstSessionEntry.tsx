@@ -274,14 +274,22 @@ export function ExerciseFirstSessionEntry({
     (studentId: string) => {
       const entry = data[studentId]?.[exerciseIndex];
       if (!entry) return;
+
+      // Look up exercise metadata from library
+      const libExercise = exercisesLibrary?.find(
+        (ex) => ex.name.toLowerCase().trim() === entry.exercise_name.toLowerCase().trim()
+      );
+
       setSelectionTarget({
         studentId,
         exerciseIdx: exerciseIndex,
         currentName: entry.exercise_name,
+        category: libExercise?.category ?? null,
+        movementPattern: libExercise?.movement_pattern ?? null,
       });
       setSelectionOpen(true);
     },
-    [data, exerciseIndex]
+    [data, exerciseIndex, exercisesLibrary]
   );
 
   const handleExerciseSelected = useCallback(
