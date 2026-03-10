@@ -455,11 +455,16 @@ export function ExerciseFirstSessionEntry({
 
                       <TableCell className="py-2">
                         <div className="flex items-center gap-1">
-                          <span className="text-xs truncate max-w-[90px]">
-                            {entry.exercise_name !== currentPrescribed.exercise_name
-                              ? entry.exercise_name
-                              : currentPrescribed.exercise_name.split(" ").slice(0, 2).join(" ")}
-                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-xs max-w-[130px] truncate cursor-default">
+                                {entry.exercise_name}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-[300px]">
+                              {entry.exercise_name}
+                            </TooltipContent>
+                          </Tooltip>
                           <Button
                             variant="ghost"
                             size="sm"
