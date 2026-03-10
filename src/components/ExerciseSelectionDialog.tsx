@@ -23,7 +23,11 @@ interface ExerciseSelectionDialogProps {
   onOpenChange: (open: boolean) => void;
   currentExerciseName: string;
   onExerciseSelected: (exerciseId: string, exerciseName: string) => void;
-  autoSuggest?: boolean; // Se true, faz sugestão automática ao abrir
+  autoSuggest?: boolean;
+  /** Pre-filter by category (e.g. forca_hipertrofia) */
+  initialCategory?: string | null;
+  /** Pre-filter by movement pattern (e.g. cadeia_posterior) */
+  initialMovementPattern?: string | null;
 }
 
 export function ExerciseSelectionDialog({
@@ -32,6 +36,8 @@ export function ExerciseSelectionDialog({
   currentExerciseName,
   onExerciseSelected,
   autoSuggest = false,
+  initialCategory,
+  initialMovementPattern,
 }: ExerciseSelectionDialogProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [suggestedExercise, setSuggestedExercise] = useState<{
