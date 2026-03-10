@@ -89,10 +89,32 @@ export function ExerciseSelectionDialog({
     }
   };
 
-  // Filtrar exercícios pela busca
-  const filteredExercises = exercises?.filter(ex =>
-    ex.name.toLowerCase().includes(searchTerm.toLowerCase())
-  ).sort((a, b) => a.name.localeCompare(b.name)) || [];
+  // Smart sorting: same movement_pattern first, then same category, then rest
+  const filteredExercises = (() => {
+    const base = exercises?.filter(ex =>
+      ex.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      ex.name.toLowerCase() !== currentExerciseName.toLowerCase()
+    ) || [];
+
+    if (!initialMovementPattern && !initialCategory) {
+      return base.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return base.sort((a, b) => {
+      const aPattern = a.movement_pattern === initialMovementPattern;
+      const bPattern = b.movement_pattern === initialMovementPattern;
+      const aCategory = a.category === initialCategory;
+      const bCategory = b.category === initialCategory;
+
+      // Same pattern first
+      if (aPattern && !bPattern) return -1;
+      if (!aPattern && bPattern) return 1;
+      // Then same category
+      if (aCategory && !bCategory) return -1;
+      if (!aCategory && bCategory) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  })();
 
   const handleSelect = (exerciseId: string, exerciseName: string) => {
     onExerciseSelected(exerciseId, exerciseName);
