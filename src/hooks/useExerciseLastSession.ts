@@ -49,8 +49,7 @@ export const useExerciseLastSession = (
         if (exercises) allExercises.push(...exercises);
       }
 
-      if (exError) throw exError;
-      if (!exercises) return result;
+      if (allExercises.length === 0) return result;
 
       // Build session lookup
       const sessionMap = new Map(sessions.map(s => [s.id, s]));
