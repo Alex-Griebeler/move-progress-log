@@ -637,6 +637,8 @@ export function ExerciseFirstSessionEntry({
         currentExerciseName={selectionTarget?.currentName || ""}
         onExerciseSelected={handleExerciseSelected}
         autoSuggest={false}
+        initialCategory={selectionTarget?.category}
+        initialMovementPattern={selectionTarget?.movementPattern}
       />
     </div>
   );
