@@ -57,7 +57,7 @@ export const useExerciseLastSession = (
       // Filter and find most recent per student+exercise
       const nameSet = new Set(exerciseNames.map(n => n.toLowerCase().trim()));
 
-      for (const ex of exercises) {
+      for (const ex of allExercises) {
         const exNameLower = ex.exercise_name.toLowerCase().trim();
         if (!nameSet.has(exNameLower)) continue;
 
