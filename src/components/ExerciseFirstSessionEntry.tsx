@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
-import { expandLoadShorthand } from "@/utils/loadShorthand";
+import { expandLoadShorthand, compressLoadShorthand } from "@/utils/loadShorthand";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { useExerciseLastSession, type LastSessionData } from "@/hooks/useExerciseLastSession";
 import { formatDistanceToNow } from "date-fns";
@@ -260,9 +260,10 @@ export function ExerciseFirstSessionEntry({
           ...prev[studentId],
           [exerciseIndex]: {
             ...prev[studentId][exerciseIndex],
-            load_breakdown: last.load_breakdown || "",
+            load_breakdown: compressLoadShorthand(last.load_breakdown || ""),
             load_kg: last.load_kg,
             reps: last.reps || prev[studentId][exerciseIndex].reps,
+            observations: last.observations || prev[studentId][exerciseIndex].observations,
           },
         },
       }));
@@ -437,31 +438,38 @@ export function ExerciseFirstSessionEntry({
                             {student.name.split(" ")[0]}
                           </p>
                           {last && (
-                            <div className="flex items-center gap-1 mt-1">
-                              <p className="text-[10px] text-muted-foreground">
-                                últ: {last.load_kg ?? "—"}kg ×{last.reps ?? "—"}
-                                {last.date && (
-                                  <span className="ml-0.5">
-                                    {formatDistanceToNow(new Date(last.date), {
-                                      addSuffix: false,
-                                      locale: ptBR,
-                                    })}
-                                  </span>
-                                )}
-                              </p>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-4 w-4 p-0"
-                                    onClick={() => handleRepeatLastLoad(student.id)}
-                                  >
-                                    <RefreshCw className="h-2.5 w-2.5" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Repetir carga anterior</TooltipContent>
-                              </Tooltip>
+                            <div className="mt-1 space-y-0.5">
+                              <div className="flex items-center gap-1">
+                                <p className="text-[10px] text-muted-foreground">
+                                  últ: {last.load_breakdown ? compressLoadShorthand(last.load_breakdown) : "—"} = {last.load_kg ?? "—"}kg ×{last.reps ?? "—"}
+                                  {last.date && (
+                                    <span className="ml-0.5">
+                                      {formatDistanceToNow(new Date(last.date), {
+                                        addSuffix: false,
+                                        locale: ptBR,
+                                      })}
+                                    </span>
+                                  )}
+                                </p>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-4 w-4 p-0"
+                                      onClick={() => handleRepeatLastLoad(student.id)}
+                                    >
+                                      <RefreshCw className="h-2.5 w-2.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Repetir carga anterior</TooltipContent>
+                                </Tooltip>
+                              </div>
+                              {last.observations && (
+                                <p className="text-[9px] text-muted-foreground/70 italic truncate max-w-[110px]" title={last.observations}>
+                                  {last.observations}
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>
