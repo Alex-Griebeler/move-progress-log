@@ -260,9 +260,10 @@ export function ExerciseFirstSessionEntry({
           ...prev[studentId],
           [exerciseIndex]: {
             ...prev[studentId][exerciseIndex],
-            load_breakdown: last.load_breakdown || "",
+            load_breakdown: compressLoadShorthand(last.load_breakdown || ""),
             load_kg: last.load_kg,
             reps: last.reps || prev[studentId][exerciseIndex].reps,
+            observations: last.observations || prev[studentId][exerciseIndex].observations,
           },
         },
       }));
