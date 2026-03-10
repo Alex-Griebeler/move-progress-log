@@ -733,14 +733,14 @@ export function RecordGroupSessionDialog({
         )}
 
         {dialogState === 'manual-entry' && (
-          <ManualSessionEntry
-            prescriptionExercises={prescriptionDetails?.exercises?.filter((ex: any) => ex.should_track !== false).map((ex: any) => ({
-              id: ex.id, exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps,
-              interval_seconds: ex.interval_seconds, pse: ex.pse, training_method: ex.training_method, observations: ex.observations,
-            })) || []}
-            selectedStudents={selectedStudents} date={date} time={time} trainer={trainer}
-            prescriptionId={prescriptionId || null} onSave={handleSaveManual}
-            onCancel={() => setDialogState('mode-selection')} onAddStudent={() => setShowAddStudentDialog(true)}
+          <ManualEntryWithToggle
+            prescriptionDetails={prescriptionDetails}
+            selectedStudents={selectedStudents}
+            date={date} time={time} trainer={trainer}
+            prescriptionId={prescriptionId || null}
+            onSave={handleSaveManual}
+            onCancel={() => setDialogState('mode-selection')}
+            onAddStudent={() => setShowAddStudentDialog(true)}
           />
         )}
 
