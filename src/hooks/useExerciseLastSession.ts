@@ -72,6 +72,7 @@ export const useExerciseLastSession = (
             load_breakdown: ex.load_breakdown ?? null,
             reps: ex.reps ?? null,
             date: session.date,
+            observations: ex.observations ?? null,
           });
         }
       }
