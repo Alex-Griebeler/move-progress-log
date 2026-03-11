@@ -31,8 +31,7 @@ export const expandLoadShorthand = (input: string): string => {
   }
 
   // Check if it looks like a shorthand (contains shorthand markers)
-  // cl = cada lado, kb = kettlebell, NxN = dual dumbbell, bN = barra
-  const hasShorthand = /cl$/im.test(trimmed) || /cl\s*\+/i.test(trimmed) || /\bkb/i.test(trimmed) || /^\d+\s*x\s*\d/i.test(trimmed) || /\bb\d/i.test(trimmed) || /\d\s*b\s*$/i.test(trimmed);
+  const hasShorthand = /cl(?:\s|$|\+)/i.test(trimmed) || /kb\d/i.test(trimmed) || /^\d+\s*x\s*\d/i.test(trimmed) || /\bb\d/i.test(trimmed) || /\d\s*b\s*$/i.test(trimmed);
   if (!hasShorthand) return input;
 
   // Split by "+" and parse each segment independently
