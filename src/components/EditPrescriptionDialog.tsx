@@ -151,12 +151,13 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     }
   }, [prescriptionData, open, dataLoaded]);
 
-  // Carregar rascunho após dados originais (sobrescreve se houver)
+  // Carregar rascunho após dados originais (sobrescreve se houver) — apenas uma vez
   useEffect(() => {
-    if (open && dataLoaded && draft) {
+    if (open && dataLoaded && draft && !draftRestoredRef.current) {
       setName(draft.name);
       setObjective(draft.objective);
       setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" })));
+      draftRestoredRef.current = true;
     }
   }, [open, dataLoaded, draft]);
 
@@ -164,6 +165,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   useEffect(() => {
     if (!open) {
       setDataLoaded(false);
+      draftRestoredRef.current = false;
     }
   }, [open]);
 

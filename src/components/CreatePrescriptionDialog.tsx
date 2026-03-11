@@ -87,17 +87,22 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
   const [focusedExerciseIndex, setFocusedExerciseIndex] = useState<number | null>(null);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const draftRestoredRef = useRef(false);
 
   const { data: exercisesLibrary } = useExercisesLibrary();
   const createPrescription = useCreatePrescription();
   const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = usePrescriptionDraft();
 
-  // Carregar rascunho ao abrir dialog
+  // Carregar rascunho ao abrir dialog — apenas uma vez por abertura
   useEffect(() => {
-    if (open && draft) {
+    if (open && draft && !draftRestoredRef.current) {
       setName(draft.name);
       setObjective(draft.objective);
       setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" })));
+      draftRestoredRef.current = true;
+    }
+    if (!open) {
+      draftRestoredRef.current = false;
     }
   }, [open, draft]);
 
