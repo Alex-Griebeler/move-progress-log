@@ -686,7 +686,6 @@ export function RecordGroupSessionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {dialogState === 'context-setup' && NAV_LABELS.recordGroupSession}
-            {dialogState === 'mode-selection' && (<><User className="h-5 w-5" />Escolher modo de registro</>)}
             {dialogState === 'recording' && (<><Mic className="h-5 w-5" />🎤 Gravação {currentRecordingNumber}</>)}
             {dialogState === 'manual-entry' && (<><BookOpen className="h-5 w-5" />Registro manual da sessão</>)}
             {dialogState === 'processing' && 'Processando...'}
