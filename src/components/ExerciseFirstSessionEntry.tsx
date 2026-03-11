@@ -342,11 +342,17 @@ export function ExerciseFirstSessionEntry({
     }
   };
 
+  const isLoadExemptCategory = (exerciseName: string) => {
+    const prescribed = prescriptionExercises.find(pe => pe.exercise_name === exerciseName);
+    const cat = prescribed?.category?.toLowerCase() || '';
+    return cat === 'respiracao' || cat === 'lmf';
+  };
+
   // Validation
   const isValid = selectedStudents.every((student) =>
     prescriptionExercises.every((_, idx) => {
       const entry = data[student.id]?.[idx];
-      return entry && entry.exercise_name && entry.sets > 0 && entry.reps > 0 && entry.load_breakdown;
+      return entry && entry.exercise_name && entry.sets > 0 && entry.reps > 0 && (isLoadExemptCategory(entry.exercise_name) || entry.load_breakdown);
     })
   );
 
