@@ -127,7 +127,7 @@ export function SessionSetupForm({
       <div className="space-y-2">
         <Label>Treinador Responsável *</Label>
         <Select value={trainerName} onValueChange={onTrainerNameChange}>
-          <SelectTrigger>
+          <SelectTrigger className={showValidation && !trainerName ? "border-destructive" : ""}>
             <SelectValue placeholder="Selecione o treinador" />
           </SelectTrigger>
           <SelectContent>
