@@ -500,30 +500,13 @@ export function ManualSessionEntry({
 
                     <div className="space-y-1">
                       <Label className="text-xs">Descrição Carga {!isLoadExemptCategory(exercise.exercise_name) && '*'}</Label>
-                      <div className="flex gap-1">
                         <Input
-                          placeholder="Ex: 20kg, 2x10kg, peso corporal"
+                          placeholder="Ex: 20kg, 2x10kg, 10cl b20"
                           value={exercise.load_breakdown}
                           onChange={(e) => updateExercise(currentStudent.id, idx, 'load_breakdown', e.target.value)}
+                          onBlur={() => handleLoadBlur(currentStudent.id, idx)}
                           className={!isLoadExemptCategory(exercise.exercise_name) && !exercise.load_breakdown ? "border-destructive" : ""}
                         />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => calculateLoadFromDescription(currentStudent.id, idx)}
-                          disabled={!exercise.load_breakdown}
-                          className="shrink-0"
-                          title="Calcular carga total"
-                        >
-                          <Calculator className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {exercise.load_breakdown.toLowerCase().includes('peso corporal') && currentStudent.weight_kg && (
-                        <p className="text-xs text-green-600">
-                          ✓ Carga calculada: {currentStudent.weight_kg} kg
-                        </p>
-                      )}
                     </div>
 
                     <div className="space-y-1">
