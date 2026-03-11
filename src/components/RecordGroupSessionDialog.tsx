@@ -416,7 +416,7 @@ export function RecordGroupSessionDialog({
   };
 
   const handleBack = () => {
-    setDialogState('mode-selection');
+    setDialogState('context-setup');
     setAccumulatedRecordings([]);
     setCurrentRecordingNumber(1);
     setMergedStudents([]);
