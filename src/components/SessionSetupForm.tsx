@@ -131,8 +131,8 @@ export function SessionSetupForm({
             <SelectValue placeholder="Selecione o treinador" />
           </SelectTrigger>
           <SelectContent>
-            {trainers?.map((trainer) => (
-              <SelectItem key={trainer.id} value={trainer.full_name || ''}>
+            {trainers?.filter(t => t.full_name).map((trainer) => (
+              <SelectItem key={trainer.id} value={trainer.full_name}>
                 {trainer.full_name}
               </SelectItem>
             ))}
