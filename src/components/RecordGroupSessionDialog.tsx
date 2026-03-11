@@ -884,14 +884,17 @@ export function RecordGroupSessionDialog({
 
         <DialogFooter>
           {dialogState === 'context-setup' && (
-            <>
+            <div className="flex items-center justify-between w-full">
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={() => setDialogState('mode-selection')} disabled={!date || !time || !trainer || selectedStudents.length === 0}>Continuar</Button>
-            </>
-          )}
-          
-          {dialogState === 'mode-selection' && (
-            <Button variant="outline" onClick={() => setDialogState('context-setup')}>Voltar</Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => handleModeSelection('voice')} disabled={!isContextValid}>
+                  <Mic className="h-4 w-4 mr-2" />Gravar por Voz
+                </Button>
+                <Button onClick={() => handleModeSelection('manual')} disabled={!isContextValid}>
+                  <BookOpen className="h-4 w-4 mr-2" />Registro Manual
+                </Button>
+              </div>
+            </div>
           )}
 
           {dialogState === 'preview' && (
