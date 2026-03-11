@@ -61,13 +61,17 @@ export function SessionSetupForm({
     has_active_prescription: activeStudentIds?.has(student.id) || false,
   })), [students, activeStudentIds]);
 
-  // Filtrar estudantes com busca tokenizada (suporta nomes compostos parciais)
+  // Normalizar texto removendo acentos para busca
+  const normalize = (text: string) =>
+    text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  // Filtrar estudantes com busca tokenizada (suporta nomes compostos parciais e acentos)
   const filteredStudents = useMemo(() => {
     if (!enrichedStudents) return [];
     if (!searchTerm.trim()) return enrichedStudents;
-    const searchTokens = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
+    const searchTokens = normalize(searchTerm).split(/\s+/).filter(Boolean);
     return enrichedStudents.filter(student => {
-      const nameTokens = student.name.toLowerCase().split(/\s+/);
+      const nameTokens = normalize(student.name).split(/\s+/);
       return searchTokens.every(st => nameTokens.some(nt => nt.startsWith(st)));
     });
   }, [enrichedStudents, searchTerm]);
