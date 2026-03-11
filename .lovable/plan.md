@@ -1,49 +1,154 @@
+# 🔍 Plano de Auditoria Completa — Fabrik Performance
 
-
-# Auditoria Completa: Sistema de Calculo de Carga
-
-## Bugs Encontrados
-
-### BUG-1: Race condition em ManualSessionEntry.calculateLoadFromDescription (CRITICO)
-A funcao chama `updateExercise` duas vezes em sequencia (linhas 211-217): uma para `load_breakdown` (expanded) e outra para `load_kg`. A segunda chamada usa o estado anterior ao primeiro update, sobrescrevendo o `load_breakdown` expandido de volta ao valor antigo. Resultado: o shorthand nunca e salvo no formato expandido.
-
-### BUG-2: ManualSessionEntry nao auto-calcula no blur (UX)
-Diferente do `ExerciseFirstSessionEntry` (que calcula no `onBlur`), o ManualSessionEntry exige que o usuario clique no botao Calculator. Inconsistencia de UX entre os dois modos de registro.
-
-### BUG-3: updateExercise auto-calc parcial e fragil (ManualSessionEntry linhas 175-183)
-O `updateExercise` so tenta auto-calcular para "peso corporal" usando `value.toLowerCase().includes('corporal')`, que pode dar match em textos nao relacionados. Alem disso, nao chama `expandLoadShorthand` nem `calculateLoadFromBreakdown` — so seta o `weight_kg` do aluno diretamente.
-
-### BUG-4: Sem testes para loadShorthand.ts
-Nao existe nenhum arquivo de teste para `expandLoadShorthand` nem `compressLoadShorthand`. Qualquer regressao passa despercebida.
-
-### BUG-5: hasShorthand detection fragil (loadShorthand.ts linha 34)
-A regex `/\b(cl|kb|^\d+x\d)/i` mistura `\b` com `^` dentro de alternation — funciona por acaso mas e confusa e fragil. Nao detecta inputs como "20" (numero simples sem unidade) que poderiam ter `kg` inferido.
+## Escopo Total
+- **50 hooks** (src/hooks/)
+- **18 páginas** (src/pages/)
+- **26 Edge Functions** (supabase/functions/)
+- **~80 componentes** (src/components/)
+- **Utilitários, contextos, constantes**
 
 ---
 
-## Plano de Correcao
+## Fase 1 — Core Hooks & Data Layer (Crítico)
+**Risco: ALTO** — Bugs aqui afetam todo o app.
 
-### 1. ManualSessionEntry — auto-calc no blur + fix race condition
-- Remover o botao Calculator separado
-- Adicionar `onBlur` no campo `load_breakdown` que: (a) expande shorthand, (b) calcula load_kg, (c) atualiza ambos numa unica chamada setState
-- Remover a logica parcial de "peso corporal" do `updateExercise` (linhas 175-183) — o blur handler centralizado cobre todos os casos
-- Manter campo `load_kg` editavel manualmente como fallback
+### 1.1 Hooks de CRUD principal
+- `useStudents` / `useStudentDetail` / `useStudentsCardData`
+- `useExercisesLibrary` (já marcado para refatoração)
+- `usePrescriptions` / `usePrescriptionSearch` / `usePrescriptionDraft`
+- `useWorkoutSessions` / `useAllSessions` / `useSessionDetail`
+- `useWorkouts`
 
-### 2. ExerciseFirstSessionEntry — auditar handleLoadBlur
-- Ja funciona corretamente no blur. Sem mudancas necessarias.
+### 1.2 Hooks de integração Oura
+- `useOuraConnection` / `useOuraConnectionStatus`
+- `useOuraMetrics` / `useOuraTrends` / `useOuraBaseline`
+- `useOuraSyncAll` / `useOuraSyncLogs` / `useOuraTestSync`
+- `useOuraWorkouts`
 
-### 3. loadShorthand.ts — limpar hasShorthand regex
-- Simplificar a regex de deteccao para ser mais explicita e legivel
-- Sem mudanca de comportamento, apenas clareza
+### 1.3 Hooks auxiliares
+- `useUserRole` / `useTrainers`
+- `useFolders` / `useStudentInvites`
+- `useStats` / `useStudentReports`
+- `useExerciseHistory` / `useExerciseLoadHistory`
 
-### 4. Testes para loadShorthand.ts
-- Criar `src/utils/__tests__/loadShorthand.test.ts` cobrindo:
-  - expand: PC, 2x24, KB32, 2xKB24, 10cl, 10cl b15, 35lb cl + 15kg b, b20, passthrough
-  - compress: peso corporal, 2 kettlebells 16kg, barra 20kg, Xcl, passthrough
-  - roundtrip: expand → compress e vice-versa
+**Checklist:**
+- [ ] Queries sem `.limit()` que podem bater no teto de 1000 rows
+- [ ] Tratamento de erro consistente (try/catch vs onError)
+- [ ] Cache invalidation correto (queryKey matching)
+- [ ] Tipos TypeScript vs schema real do Supabase
+- [ ] Hooks com `any` ou `as never`
 
-### Arquivos alterados:
-- `src/components/ManualSessionEntry.tsx` — auto-calc no blur, remover Calculator button, fix race condition
-- `src/utils/loadShorthand.ts` — limpar regex hasShorthand
-- `src/utils/__tests__/loadShorthand.test.ts` — novo arquivo de testes
+---
 
+## Fase 2 — Edge Functions (Backend)
+**Risco: ALTO** — Segurança e integridade de dados.
+
+### 2.1 Funções de autenticação e admin
+- `admin-create-user` / `admin-update-user`
+- `create-audit-admin`
+- `check-rate-limit`
+
+### 2.2 Funções de IA
+- `ai-builder-chat` / `chat-helper`
+- `classify-exercises`
+- `generate-group-session`
+- `generate-protocol-recommendations`
+- `generate-student-report`
+- `process-voice-session` / `voice-session`
+- `suggest-exercise` / `suggest-exercise-alternatives` / `suggest-regressions`
+- `parse-word-prescription`
+
+### 2.3 Funções de integração Oura
+- `oura-callback` / `oura-sync` / `oura-sync-all`
+- `oura-sync-scheduled` / `oura-sync-test` / `oura-disconnect`
+
+### 2.4 Funções de alunos
+- `generate-student-invite` / `validate-student-invite` / `create-student-from-invite`
+- `import-exercises`
+
+**Checklist:**
+- [ ] CORS headers presentes em todas
+- [ ] Validação JWT consistente
+- [ ] Tratamento de erros (nunca retornar 500 genérico)
+- [ ] Secrets usados corretamente
+- [ ] SQL injection / input validation
+
+---
+
+## Fase 3 — Componentes de Formulário & Dialogs
+**Risco: MÉDIO** — UX e integridade de dados de entrada.
+
+### 3.1 Dialogs de CRUD
+- `AddStudentDialog` / `EditStudentDialog`
+- `AddExerciseDialog` / `EditExerciseLibraryDialog`
+- `CreatePrescriptionDialog` / `EditPrescriptionDialog`
+- `AddWorkoutDialog` / `AddWorkoutSessionDialog`
+- `EditSessionDialog` / `EditGroupSessionDialog`
+- `AddUserDialog` / `EditUserDialog`
+
+### 3.2 Dialogs de registro de sessão (complexos)
+- `RecordGroupSessionDialog`
+- `RecordIndividualSessionDialog`
+- `VoiceSessionRecorder` / `MultiSegmentRecorder` / `AudioSegmentRecorder`
+
+### 3.3 Dialogs auxiliares
+- Todos os demais dialogs
+
+**Checklist:**
+- [ ] Validação de formulário (Zod schemas)
+- [ ] Estados de loading/error/success
+- [ ] Reset de form ao fechar dialog
+- [ ] Acessibilidade (labels, aria)
+- [ ] Feedback visual ao usuário
+
+---
+
+## Fase 4 — Páginas & Navegação
+**Risco: MÉDIO** — UX e performance.
+
+**Checklist:**
+- [ ] Lazy loading funcionando
+- [ ] SEO (títulos, meta)
+- [ ] Estados vazios (EmptyState)
+- [ ] Responsividade
+- [ ] Permissões (admin vs trainer)
+
+---
+
+## Fase 5 — Utilitários, Contextos & Constantes
+**Risco: BAIXO** — Mas impacto transversal.
+
+**Checklist:**
+- [ ] Funções puras com testes
+- [ ] Constantes duplicadas ou inconsistentes
+- [ ] Logger vs console.log
+
+---
+
+## Fase 6 — Design System & Temas
+**Risco: BAIXO** — Visual e consistência.
+
+**Checklist:**
+- [ ] Tokens semânticos em todos os componentes
+- [ ] Light/dark mode consistente
+- [ ] Cores hardcoded remanescentes
+
+---
+
+## Critérios de Refatoração
+
+| Critério | Ação |
+|----------|------|
+| Bug confirmado | Corrigir imediatamente |
+| Inconsistência de tipos | Corrigir (baixo risco) |
+| Código duplicado | Avaliar custo/benefício |
+| Performance | Corrigir se impacto mensurável |
+| Refatoração estrutural | Só se risco < benefício |
+
+## Ordem de Execução
+1. Fase 1 → Hooks (fundação)
+2. Fase 2 → Edge Functions (segurança)
+3. Fase 3 → Formulários (entrada de dados)
+4. Fase 4 → Páginas (UX)
+5. Fase 5 → Utilitários
+6. Fase 6 → Design System

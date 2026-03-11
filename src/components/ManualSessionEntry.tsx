@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2, History, UserPlus, AlertTriangle } from "lucide-react";
+import { Trash, ChevronLeft, ChevronRight, BookOpen, Save, Loader2, History, UserPlus, AlertTriangle } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { useSessionDraft } from "@/hooks/useSessionDraft";
 import { DraftHistoryDialog } from "./DraftHistoryDialog";
@@ -170,25 +170,31 @@ export function ManualSessionEntry({
     setStudentExercises(prev => {
       const updated = { ...prev };
       updated[studentId] = [...updated[studentId]];
-      
-      // Se estiver atualizando load_breakdown, calcular automaticamente load_kg se for peso corporal
-      if (field === 'load_breakdown') {
-        const student = selectedStudents.find(s => s.id === studentId);
-        const isPesoCorporal = value.toLowerCase().includes('peso corporal') || 
-                               value.toLowerCase().includes('corporal');
-        
-        updated[studentId][exerciseIndex] = {
-          ...updated[studentId][exerciseIndex],
-          [field]: value,
-          load_kg: isPesoCorporal && student?.weight_kg ? student.weight_kg : updated[studentId][exerciseIndex].load_kg
-        };
-      } else {
-        updated[studentId][exerciseIndex] = {
-          ...updated[studentId][exerciseIndex],
-          [field]: value
-        };
-      }
-      
+      updated[studentId][exerciseIndex] = {
+        ...updated[studentId][exerciseIndex],
+        [field]: value
+      };
+      return updated;
+    });
+  };
+
+  // Handler centralizado: expande shorthand + calcula load_kg numa única atualização
+  const handleLoadBlur = (studentId: string, exerciseIndex: number) => {
+    const exercise = studentExercises[studentId]?.[exerciseIndex];
+    if (!exercise?.load_breakdown) return;
+
+    const expanded = expandLoadShorthand(exercise.load_breakdown);
+    const student = selectedStudents.find(s => s.id === studentId);
+    const calculatedLoad = calculateLoadFromBreakdown(expanded, student?.weight_kg);
+
+    setStudentExercises(prev => {
+      const updated = { ...prev };
+      updated[studentId] = [...updated[studentId]];
+      updated[studentId][exerciseIndex] = {
+        ...updated[studentId][exerciseIndex],
+        load_breakdown: expanded,
+        load_kg: calculatedLoad,
+      };
       return updated;
     });
   };
@@ -201,21 +207,6 @@ export function ManualSessionEntry({
     });
   };
 
-  // Função para calcular a carga baseada na descrição (usa função centralizada)
-  const calculateLoadFromDescription = (studentId: string, exerciseIndex: number) => {
-    const exercise = studentExercises[studentId]?.[exerciseIndex];
-    if (!exercise?.load_breakdown) return;
-
-    // Expand shorthand before calculating
-    const expanded = expandLoadShorthand(exercise.load_breakdown);
-    if (expanded !== exercise.load_breakdown) {
-      updateExercise(studentId, exerciseIndex, 'load_breakdown', expanded);
-    }
-
-    const student = selectedStudents.find(s => s.id === studentId);
-    const calculatedLoad = calculateLoadFromBreakdown(expanded, student?.weight_kg);
-    updateExercise(studentId, exerciseIndex, 'load_kg', calculatedLoad);
-  };
 
   const goToNextStudent = () => {
     if (currentStudentIndex < selectedStudents.length - 1) {
@@ -509,30 +500,13 @@ export function ManualSessionEntry({
 
                     <div className="space-y-1">
                       <Label className="text-xs">Descrição Carga {!isLoadExemptCategory(exercise.exercise_name) && '*'}</Label>
-                      <div className="flex gap-1">
                         <Input
-                          placeholder="Ex: 20kg, 2x10kg, peso corporal"
+                          placeholder="Ex: 20kg, 2x10kg, 10cl b20"
                           value={exercise.load_breakdown}
                           onChange={(e) => updateExercise(currentStudent.id, idx, 'load_breakdown', e.target.value)}
+                          onBlur={() => handleLoadBlur(currentStudent.id, idx)}
                           className={!isLoadExemptCategory(exercise.exercise_name) && !exercise.load_breakdown ? "border-destructive" : ""}
                         />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => calculateLoadFromDescription(currentStudent.id, idx)}
-                          disabled={!exercise.load_breakdown}
-                          className="shrink-0"
-                          title="Calcular carga total"
-                        >
-                          <Calculator className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {exercise.load_breakdown.toLowerCase().includes('peso corporal') && currentStudent.weight_kg && (
-                        <p className="text-xs text-green-600">
-                          ✓ Carga calculada: {currentStudent.weight_kg} kg
-                        </p>
-                      )}
                     </div>
 
                     <div className="space-y-1">
