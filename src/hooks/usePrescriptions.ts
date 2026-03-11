@@ -110,7 +110,7 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
         .from("prescription_exercises")
         .select(`
           *,
-          exercises_library!prescription_exercises_exercise_library_id_fkey(name)
+          exercises_library!prescription_exercises_exercise_library_id_fkey(name, category)
         `)
         .eq("prescription_id", prescriptionId)
         .order("order_index");
