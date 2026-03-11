@@ -732,7 +732,7 @@ function buildMainBlocks(
   if (bp1Exercises.length > 0) {
     // Plyometrics opener for potência sessions
     if (valences.includes("potencia") && groupLevel !== "iniciante") {
-      const maxPlyoLevel = groupLevel === "avancado" ? 19 : 11;
+      const maxPlyoLevel = groupLevel === "avancado" ? 5 : 3;
       const plyoPool = exercises.filter(
         (ex) => ex.category === "potencia_pliometria" && !excludeIds.has(ex.id) &&
           (ex.numeric_level == null || ex.numeric_level <= maxPlyoLevel) &&
