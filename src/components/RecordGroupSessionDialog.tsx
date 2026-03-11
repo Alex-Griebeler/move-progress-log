@@ -151,7 +151,7 @@ export function RecordGroupSessionDialog({
 }: RecordGroupSessionDialogProps) {
   const isReopening = !!(reopenDate && reopenTime);
   const { hasUnsavedChanges, clearDraft } = useSessionDraft();
-  const [dialogState, setDialogState] = useState<DialogState>(isReopening ? 'mode-selection' : 'context-setup');
+  const [dialogState, setDialogState] = useState<DialogState>('context-setup');
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [date, setDate] = useState(reopenDate || new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
@@ -416,7 +416,7 @@ export function RecordGroupSessionDialog({
   };
 
   const handleBack = () => {
-    setDialogState('mode-selection');
+    setDialogState('context-setup');
     setAccumulatedRecordings([]);
     setCurrentRecordingNumber(1);
     setMergedStudents([]);
@@ -686,7 +686,6 @@ export function RecordGroupSessionDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {dialogState === 'context-setup' && NAV_LABELS.recordGroupSession}
-            {dialogState === 'mode-selection' && (<><User className="h-5 w-5" />Escolher modo de registro</>)}
             {dialogState === 'recording' && (<><Mic className="h-5 w-5" />🎤 Gravação {currentRecordingNumber}</>)}
             {dialogState === 'manual-entry' && (<><BookOpen className="h-5 w-5" />Registro manual da sessão</>)}
             {dialogState === 'processing' && 'Processando...'}
@@ -701,27 +700,6 @@ export function RecordGroupSessionDialog({
             onStudentToggle={toggleStudent} prescriptionId={prescriptionId} />
         )}
 
-        {dialogState === 'mode-selection' && (
-          <div className="space-y-6 py-8">
-            <p className="text-center text-muted-foreground">Escolha como deseja registrar a sessão em grupo:</p>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Button variant="outline" size="lg" className="h-32 flex flex-col gap-4 items-center justify-center" onClick={() => setDialogState('recording')}>
-                <Mic className="h-12 w-12" />
-                <div className="text-center">
-                  <div className="font-semibold">{NAV_LABELS.recordByVoice}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Grave uma única sessão contínua e processe no final</div>
-                </div>
-              </Button>
-              <Button variant="outline" size="lg" className="h-32 flex flex-col gap-4 items-center justify-center" onClick={() => setDialogState('manual-entry')}>
-                <BookOpen className="h-12 w-12" />
-                <div className="text-center">
-                  <div className="font-semibold">{NAV_LABELS.fillManually}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Preencha os dados da sessão manualmente</div>
-                </div>
-              </Button>
-            </div>
-          </div>
-        )}
 
         {dialogState === 'recording' && (
           <div className="space-y-4">
@@ -802,7 +780,7 @@ export function RecordGroupSessionDialog({
             date={date} time={time} trainer={trainer}
             prescriptionId={prescriptionId || null}
             onSave={handleSaveManual}
-            onCancel={() => setDialogState('mode-selection')}
+            onCancel={() => setDialogState('context-setup')}
             onAddStudent={() => setShowAddStudentDialog(true)}
           />
         )}
@@ -884,14 +862,17 @@ export function RecordGroupSessionDialog({
 
         <DialogFooter>
           {dialogState === 'context-setup' && (
-            <>
+            <div className="flex items-center justify-between w-full">
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={() => setDialogState('mode-selection')} disabled={!date || !time || !trainer || selectedStudents.length === 0}>Continuar</Button>
-            </>
-          )}
-          
-          {dialogState === 'mode-selection' && (
-            <Button variant="outline" onClick={() => setDialogState('context-setup')}>Voltar</Button>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => handleModeSelection('voice')} disabled={!isContextValid}>
+                  <Mic className="h-4 w-4 mr-2" />Gravar por Voz
+                </Button>
+                <Button onClick={() => handleModeSelection('manual')} disabled={!isContextValid}>
+                  <BookOpen className="h-4 w-4 mr-2" />Registro Manual
+                </Button>
+              </div>
+            </div>
           )}
 
           {dialogState === 'preview' && (
