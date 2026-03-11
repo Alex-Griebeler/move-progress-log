@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Trash, ChevronLeft, ChevronRight, Calculator, BookOpen, Save, Loader2, History, UserPlus, AlertTriangle } from "lucide-react";
+import { Trash, ChevronLeft, ChevronRight, BookOpen, Save, Loader2, History, UserPlus, AlertTriangle } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { useSessionDraft } from "@/hooks/useSessionDraft";
 import { DraftHistoryDialog } from "./DraftHistoryDialog";
