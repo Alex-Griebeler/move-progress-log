@@ -167,6 +167,7 @@ export function RecordGroupSessionDialog({
   const [editableObservations, setEditableObservations] = useState<GroupObservation[]>([]);
   const [editableExercises, setEditableExercises] = useState<SessionExercise[]>([]);
   const [trainer, setTrainer] = useState<string>('');
+  const [showValidation, setShowValidation] = useState(false);
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
 
   // Shared hook for exercise replacement
