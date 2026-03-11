@@ -22,6 +22,7 @@ import {
   getLoadErrorMessage 
 } from "@/constants/units";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
+import { expandLoadShorthand } from "@/utils/loadShorthand";
 
 interface ManualSessionEntryProps {
   prescriptionExercises: Array<{
