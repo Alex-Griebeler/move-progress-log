@@ -110,7 +110,7 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
         .from("prescription_exercises")
         .select(`
           *,
-          exercises_library!prescription_exercises_exercise_library_id_fkey(name)
+          exercises_library!prescription_exercises_exercise_library_id_fkey(name, category)
         `)
         .eq("prescription_id", prescriptionId)
         .order("order_index");
@@ -137,6 +137,7 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
       const exercisesWithAdaptations = exercises.map((ex: any) => ({
         ...ex,
         exercise_name: ex.exercises_library?.name,
+        category: ex.exercises_library?.category,
         adaptations: adaptations
           .filter((a: any) => a.prescription_exercise_id === ex.id)
           .map((a: any) => ({

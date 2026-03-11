@@ -102,6 +102,7 @@ function ManualEntryWithToggle({
   const exercises = prescriptionDetails?.exercises?.filter((ex: any) => ex.should_track !== false).map((ex: any) => ({
     id: ex.id, exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps,
     interval_seconds: ex.interval_seconds, pse: ex.pse, training_method: ex.training_method, observations: ex.observations,
+    category: ex.category || null,
   })) || [];
 
   return (
@@ -546,7 +547,10 @@ export function RecordGroupSessionDialog({
           if (!ex.exercise_name || ex.exercise_name.trim() === '') validationErrors.push(`${studentName} - Exercício ${exIdx + 1}: nome obrigatório`);
           if (ex.sets <= 0) validationErrors.push(`${studentName} - ${ex.exercise_name}: séries deve ser maior que 0`);
           if (ex.reps <= 0) validationErrors.push(`${studentName} - ${ex.exercise_name}: reps deve ser maior que 0`);
-          if (!ex.load_breakdown || ex.load_breakdown.trim() === '') validationErrors.push(`${studentName} - ${ex.exercise_name}: descrição da carga obrigatória`);
+          const matchedPrescribed = prescriptionDetails?.exercises?.find((pe: any) => pe.exercise_name === ex.exercise_name);
+          const exCategory = matchedPrescribed?.category?.toLowerCase() || '';
+          const isLoadExempt = exCategory === 'respiracao' || exCategory === 'lmf';
+          if (!isLoadExempt && (!ex.load_breakdown || ex.load_breakdown.trim() === '')) validationErrors.push(`${studentName} - ${ex.exercise_name}: descrição da carga obrigatória`);
         });
       });
 

@@ -40,6 +40,7 @@ interface PrescriptionExercise {
   pse: string | null;
   training_method: string | null;
   observations: string | null;
+  category?: string | null;
 }
 
 interface StudentInfo {
@@ -341,11 +342,17 @@ export function ExerciseFirstSessionEntry({
     }
   };
 
+  const isLoadExemptCategory = (exerciseName: string) => {
+    const prescribed = prescriptionExercises.find(pe => pe.exercise_name === exerciseName);
+    const cat = prescribed?.category?.toLowerCase() || '';
+    return cat === 'respiracao' || cat === 'lmf';
+  };
+
   // Validation
   const isValid = selectedStudents.every((student) =>
     prescriptionExercises.every((_, idx) => {
       const entry = data[student.id]?.[idx];
-      return entry && entry.exercise_name && entry.sets > 0 && entry.reps > 0 && entry.load_breakdown;
+      return entry && entry.exercise_name && entry.sets > 0 && entry.reps > 0 && (isLoadExemptCategory(entry.exercise_name) || entry.load_breakdown);
     })
   );
 
@@ -521,7 +528,7 @@ export function ExerciseFirstSessionEntry({
                           className={`h-8 text-xs ${
                             deviation
                               ? "border-amber-500 focus-visible:ring-amber-500"
-                              : !entry.load_breakdown
+                              : !isLoadExemptCategory(entry.exercise_name) && !entry.load_breakdown
                               ? "border-destructive/50"
                               : ""
                           }`}
@@ -593,7 +600,7 @@ export function ExerciseFirstSessionEntry({
         {prescriptionExercises.map((_, idx) => {
           const allFilled = selectedStudents.every((s) => {
             const e = data[s.id]?.[idx];
-            return e && e.load_breakdown && e.reps > 0;
+            return e && (isLoadExemptCategory(e.exercise_name) || e.load_breakdown) && e.reps > 0;
           });
           return (
             <button

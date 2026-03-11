@@ -33,6 +33,7 @@ interface ManualSessionEntryProps {
     pse: string | null;
     training_method: string | null;
     observations: string | null;
+    category?: string | null;
   }>;
   selectedStudents: Array<{
     id: string;
@@ -258,9 +259,15 @@ export function ManualSessionEntry({
     }
   };
 
+  const isLoadExemptCategory = (exerciseName: string) => {
+    const prescribed = prescriptionExercises.find(pe => pe.exercise_name === exerciseName);
+    const cat = prescribed?.category?.toLowerCase() || '';
+    return cat === 'respiracao' || cat === 'lmf';
+  };
+
   const isValid = selectedStudents.every(student => 
     studentExercises[student.id]?.every(ex => 
-      ex.exercise_name && ex.sets > 0 && ex.reps > 0 && ex.load_breakdown
+      ex.exercise_name && ex.sets > 0 && ex.reps > 0 && (isLoadExemptCategory(ex.exercise_name) || ex.load_breakdown)
     )
   );
 
@@ -272,7 +279,7 @@ export function ManualSessionEntry({
     if (!exercise.exercise_name) errors.push("Nome obrigatório");
     if (exercise.sets <= 0) errors.push("Séries deve ser > 0");
     if (exercise.reps <= 0) errors.push("Reps deve ser > 0");
-    if (!exercise.load_breakdown) errors.push("Descrição da carga obrigatória");
+    if (!isLoadExemptCategory(exercise.exercise_name) && !exercise.load_breakdown) errors.push("Descrição da carga obrigatória");
     
     return errors;
   };
@@ -494,13 +501,13 @@ export function ManualSessionEntry({
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">Descrição Carga *</Label>
+                      <Label className="text-xs">Descrição Carga {!isLoadExemptCategory(exercise.exercise_name) && '*'}</Label>
                       <div className="flex gap-1">
                         <Input
                           placeholder="Ex: 20kg, 2x10kg, peso corporal"
                           value={exercise.load_breakdown}
                           onChange={(e) => updateExercise(currentStudent.id, idx, 'load_breakdown', e.target.value)}
-                          className={!exercise.load_breakdown ? "border-destructive" : ""}
+                          className={!isLoadExemptCategory(exercise.exercise_name) && !exercise.load_breakdown ? "border-destructive" : ""}
                         />
                         <Button
                           type="button"
