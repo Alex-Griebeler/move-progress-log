@@ -188,7 +188,11 @@ export function SessionSetupForm({
               <Checkbox
                 id={`student-${student.id}`}
                 checked={selectedStudents.some(s => s.id === student.id)}
-                onCheckedChange={() => onStudentToggle(student)}
+                onCheckedChange={() => {
+                  onStudentToggle(student);
+                  // Preserve focus on search input after toggle
+                  requestAnimationFrame(() => searchInputRef.current?.focus());
+                }}
                 disabled={selectedStudents.length >= 10 && !selectedStudents.some(s => s.id === student.id)}
               />
               <label
