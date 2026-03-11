@@ -151,7 +151,7 @@ export function RecordGroupSessionDialog({
 }: RecordGroupSessionDialogProps) {
   const isReopening = !!(reopenDate && reopenTime);
   const { hasUnsavedChanges, clearDraft } = useSessionDraft();
-  const [dialogState, setDialogState] = useState<DialogState>(isReopening ? 'context-setup' : 'context-setup');
+  const [dialogState, setDialogState] = useState<DialogState>('context-setup');
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [date, setDate] = useState(reopenDate || new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
