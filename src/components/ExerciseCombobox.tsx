@@ -52,7 +52,11 @@ export function ExerciseCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[400px] p-0">
-        <Command>
+        <Command filter={(value, search) => {
+            const searchTokens = search.toLowerCase().split(/\s+/).filter(Boolean);
+            const nameTokens = value.toLowerCase().split(/\s+/);
+            return searchTokens.every(st => nameTokens.some(nt => nt.startsWith(st))) ? 1 : 0;
+          }}>
           <CommandInput placeholder={placeholder} />
           <CommandList>
             <CommandEmpty>Nenhum exercício encontrado.</CommandEmpty>
