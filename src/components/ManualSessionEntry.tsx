@@ -22,6 +22,7 @@ import {
   getLoadErrorMessage 
 } from "@/constants/units";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
+import { expandLoadShorthand } from "@/utils/loadShorthand";
 
 interface ManualSessionEntryProps {
   prescriptionExercises: Array<{
@@ -205,8 +206,14 @@ export function ManualSessionEntry({
     const exercise = studentExercises[studentId]?.[exerciseIndex];
     if (!exercise?.load_breakdown) return;
 
+    // Expand shorthand before calculating
+    const expanded = expandLoadShorthand(exercise.load_breakdown);
+    if (expanded !== exercise.load_breakdown) {
+      updateExercise(studentId, exerciseIndex, 'load_breakdown', expanded);
+    }
+
     const student = selectedStudents.find(s => s.id === studentId);
-    const calculatedLoad = calculateLoadFromBreakdown(exercise.load_breakdown, student?.weight_kg);
+    const calculatedLoad = calculateLoadFromBreakdown(expanded, student?.weight_kg);
     updateExercise(studentId, exerciseIndex, 'load_kg', calculatedLoad);
   };
 

@@ -31,74 +31,71 @@ export const expandLoadShorthand = (input: string): string => {
   }
 
   // Check if it looks like a shorthand (contains shorthand markers)
-  const hasShorthand = /\b(cl|b\d|kb|^\d+x\d)/i.test(trimmed);
+  const hasShorthand = /\b(cl|kb|^\d+x\d)/i.test(trimmed) || /\bb\s*$/i.test(trimmed) || /\bb(\d)/i.test(trimmed);
   if (!hasShorthand) return input;
 
-  const parts: string[] = [];
+  // Split by "+" and parse each segment independently
+  const segments = trimmed.split(/\s*\+\s*/);
+  const expandedParts: string[] = [];
 
-  // Extract bar component: "b20" or "b15" (standalone or at end)
-  let remaining = trimmed;
-  const barMatch = remaining.match(/\bb(\d+(?:[.,]\d+)?)\b/i);
-  let barPart = '';
-  if (barMatch) {
-    barPart = `barra ${barMatch[1].replace(',', '.')}kg`;
-    remaining = remaining.replace(barMatch[0], '').trim();
-  }
+  for (const seg of segments) {
+    const s = seg.trim();
 
-  // Extract "each side" components: "25lb+2cl" or "10cl"
-  const eachSideMatch = remaining.match(/^(.+?)cl$/i);
-  if (eachSideMatch) {
-    const eachSideContent = eachSideMatch[1].trim();
-    
-    // Multiple components: "25lb+2" → "(25lb + 2kg) de cada lado"
-    const components = eachSideContent.split(/[+]/).map(c => c.trim()).filter(Boolean);
-    
-    if (components.length > 1) {
-      const expanded = components.map(c => {
-        if (/lb$/i.test(c)) return c;
-        if (/kg$/i.test(c)) return c;
-        return `${c}kg`;
-      }).join(' + ');
-      parts.push(`(${expanded}) de cada lado`);
-    } else {
-      const comp = components[0];
-      if (/lb$/i.test(comp)) {
-        parts.push(`${comp} de cada lado`);
+    // "35lb cl" or "10cl" or "10 cl" → de cada lado
+    const clMatch = s.match(/^(.+?)\s*cl$/i);
+    if (clMatch) {
+      const weightPart = clMatch[1].trim();
+      // Multiple components separated by "+" already handled by outer split
+      if (/lb$/i.test(weightPart)) {
+        expandedParts.push(`${weightPart} de cada lado`);
+      } else if (/kg$/i.test(weightPart)) {
+        expandedParts.push(`${weightPart} de cada lado`);
       } else {
-        const val = comp.replace(/kg$/i, '');
-        parts.push(`${val}kg de cada lado`);
+        expandedParts.push(`${weightPart}kg de cada lado`);
       }
+      continue;
     }
-    remaining = '';
-  }
 
-  // Extract kettlebell patterns: "2xKB24" or "KB 32"
-  if (remaining) {
-    const dualKbMatch = remaining.match(/^2\s*x\s*kb\s*(\d+(?:[.,]\d+)?)/i);
-    const singleKbMatch = remaining.match(/^kb\s*(\d+(?:[.,]\d+)?)/i);
-    const dualDumbbellMatch = remaining.match(/^2\s*x\s*(\d+(?:[.,]\d+)?)\s*$/i);
+    // "15kg b" or "20 b" → barra Xkg (number before standalone "b")
+    const numBeforeBarMatch = s.match(/^(\d+(?:[.,]\d+)?)\s*(?:kg\s+)?b$/i);
+    if (numBeforeBarMatch) {
+      expandedParts.push(`barra ${numBeforeBarMatch[1].replace(',', '.')}kg`);
+      continue;
+    }
 
+    // "b20" or "b15" → barra Xkg (standalone b followed by number)
+    const barMatch = s.match(/^b(\d+(?:[.,]\d+)?)$/i);
+    if (barMatch) {
+      expandedParts.push(`barra ${barMatch[1].replace(',', '.')}kg`);
+      continue;
+    }
+
+    // "2xKB24" → 2 kettlebells 24kg
+    const dualKbMatch = s.match(/^2\s*x\s*kb\s*(\d+(?:[.,]\d+)?)/i);
     if (dualKbMatch) {
-      parts.push(`2 kettlebells ${dualKbMatch[1].replace(',', '.')}kg`);
-      remaining = '';
-    } else if (singleKbMatch) {
-      parts.push(`kettlebell ${singleKbMatch[1].replace(',', '.')}kg`);
-      remaining = '';
-    } else if (dualDumbbellMatch) {
-      parts.push(`2 halteres ${dualDumbbellMatch[1].replace(',', '.')}kg`);
-      remaining = '';
+      expandedParts.push(`2 kettlebells ${dualKbMatch[1].replace(',', '.')}kg`);
+      continue;
     }
+
+    // "KB32" → kettlebell 32kg
+    const singleKbMatch = s.match(/^kb\s*(\d+(?:[.,]\d+)?)/i);
+    if (singleKbMatch) {
+      expandedParts.push(`kettlebell ${singleKbMatch[1].replace(',', '.')}kg`);
+      continue;
+    }
+
+    // "2x24" → 2 halteres 24kg
+    const dualDumbbellMatch = s.match(/^2\s*x\s*(\d+(?:[.,]\d+)?)\s*$/i);
+    if (dualDumbbellMatch) {
+      expandedParts.push(`2 halteres ${dualDumbbellMatch[1].replace(',', '.')}kg`);
+      continue;
+    }
+
+    // No match — keep original segment
+    expandedParts.push(s);
   }
 
-  // If we parsed something, assemble the result
-  if (parts.length > 0 || barPart) {
-    const allParts = [...parts];
-    if (barPart) allParts.push(barPart);
-    return allParts.join(' + ');
-  }
-
-  // Fallback: return original input
-  return input;
+  return expandedParts.join(' + ');
 };
 
 /**
