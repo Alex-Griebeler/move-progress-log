@@ -54,15 +54,21 @@ export function SessionSetupForm({
   const { data: activeStudentIds } = useStudentsWithActivePrescriptions(studentIds);
 
   // Enriquecer estudantes com informação de prescrição ativa
-  const enrichedStudents = students?.map(student => ({
+  const enrichedStudents = useMemo(() => students?.map(student => ({
     ...student,
     has_active_prescription: activeStudentIds?.has(student.id) || false,
-  }));
+  })), [students, activeStudentIds]);
 
-  // Filtrar estudantes baseado no termo de busca
-  const filteredStudents = enrichedStudents?.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filtrar estudantes com busca tokenizada (suporta nomes compostos parciais)
+  const filteredStudents = useMemo(() => {
+    if (!enrichedStudents) return [];
+    if (!searchTerm.trim()) return enrichedStudents;
+    const searchTokens = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
+    return enrichedStudents.filter(student => {
+      const nameTokens = student.name.toLowerCase().split(/\s+/);
+      return searchTokens.every(st => nameTokens.some(nt => nt.startsWith(st)));
+    });
+  }, [enrichedStudents, searchTerm]);
 
   const handleStudentCreated = (newStudent: { id: string; name: string }) => {
     // Auto-select the newly created student
