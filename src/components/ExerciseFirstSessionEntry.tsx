@@ -528,7 +528,7 @@ export function ExerciseFirstSessionEntry({
                           className={`h-8 text-xs ${
                             deviation
                               ? "border-amber-500 focus-visible:ring-amber-500"
-                              : !entry.load_breakdown
+                              : !isLoadExemptCategory(entry.exercise_name) && !entry.load_breakdown
                               ? "border-destructive/50"
                               : ""
                           }`}
