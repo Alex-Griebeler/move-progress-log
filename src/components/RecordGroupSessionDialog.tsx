@@ -706,7 +706,7 @@ export function RecordGroupSessionDialog({
         {dialogState === 'context-setup' && (
           <SessionSetupForm date={date} time={time} trainerName={trainer} selectedStudents={selectedStudents}
             onDateChange={setDate} onTimeChange={setTime} onTrainerNameChange={setTrainer}
-            onStudentToggle={toggleStudent} prescriptionId={prescriptionId} />
+            onStudentToggle={toggleStudent} prescriptionId={prescriptionId} showValidation={showValidation} />
         )}
 
         {dialogState === 'mode-selection' && (
