@@ -167,6 +167,7 @@ export function RecordGroupSessionDialog({
   const [editableObservations, setEditableObservations] = useState<GroupObservation[]>([]);
   const [editableExercises, setEditableExercises] = useState<SessionExercise[]>([]);
   const [trainer, setTrainer] = useState<string>('');
+  const [showValidation, setShowValidation] = useState(false);
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
 
   // Shared hook for exercise replacement
@@ -705,7 +706,7 @@ export function RecordGroupSessionDialog({
         {dialogState === 'context-setup' && (
           <SessionSetupForm date={date} time={time} trainerName={trainer} selectedStudents={selectedStudents}
             onDateChange={setDate} onTimeChange={setTime} onTrainerNameChange={setTrainer}
-            onStudentToggle={toggleStudent} prescriptionId={prescriptionId} />
+            onStudentToggle={toggleStudent} prescriptionId={prescriptionId} showValidation={showValidation} />
         )}
 
         {dialogState === 'mode-selection' && (
@@ -893,7 +894,15 @@ export function RecordGroupSessionDialog({
           {dialogState === 'context-setup' && (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={() => setDialogState('mode-selection')} disabled={!date || !time || !trainer || selectedStudents.length === 0}>Continuar</Button>
+              <Button onClick={() => {
+                if (!date || !time || !trainer || selectedStudents.length === 0) {
+                  setShowValidation(true);
+                  notify.error("Preencha todos os campos obrigatórios");
+                  return;
+                }
+                setShowValidation(false);
+                setDialogState('mode-selection');
+              }}>Continuar</Button>
             </>
           )}
           

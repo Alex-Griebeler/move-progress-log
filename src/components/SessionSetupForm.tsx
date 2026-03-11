@@ -29,6 +29,7 @@ interface SessionSetupFormProps {
   onTrainerNameChange: (trainer: string) => void;
   onStudentToggle: (student: Student) => void;
   prescriptionId?: string | null;
+  showValidation?: boolean;
 }
 
 export function SessionSetupForm({
@@ -41,6 +42,7 @@ export function SessionSetupForm({
   onTrainerNameChange,
   onStudentToggle,
   prescriptionId,
+  showValidation = false,
 }: SessionSetupFormProps) {
   const { data: trainers } = useTrainers();
   const { data: students } = useStudents();
@@ -54,15 +56,21 @@ export function SessionSetupForm({
   const { data: activeStudentIds } = useStudentsWithActivePrescriptions(studentIds);
 
   // Enriquecer estudantes com informação de prescrição ativa
-  const enrichedStudents = students?.map(student => ({
+  const enrichedStudents = useMemo(() => students?.map(student => ({
     ...student,
     has_active_prescription: activeStudentIds?.has(student.id) || false,
-  }));
+  })), [students, activeStudentIds]);
 
-  // Filtrar estudantes baseado no termo de busca
-  const filteredStudents = enrichedStudents?.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filtrar estudantes com busca tokenizada (suporta nomes compostos parciais)
+  const filteredStudents = useMemo(() => {
+    if (!enrichedStudents) return [];
+    if (!searchTerm.trim()) return enrichedStudents;
+    const searchTokens = searchTerm.toLowerCase().split(/\s+/).filter(Boolean);
+    return enrichedStudents.filter(student => {
+      const nameTokens = student.name.toLowerCase().split(/\s+/);
+      return searchTokens.every(st => nameTokens.some(nt => nt.startsWith(st)));
+    });
+  }, [enrichedStudents, searchTerm]);
 
   const handleStudentCreated = (newStudent: { id: string; name: string }) => {
     // Auto-select the newly created student
@@ -101,6 +109,7 @@ export function SessionSetupForm({
             value={date}
             onChange={(e) => onDateChange(e.target.value)}
             max={new Date().toISOString().split('T')[0]}
+            className={showValidation && !date ? "border-destructive" : ""}
           />
         </div>
         <div className="space-y-2">
@@ -110,6 +119,7 @@ export function SessionSetupForm({
             type="time"
             value={time}
             onChange={(e) => onTimeChange(e.target.value)}
+            className={showValidation && !time ? "border-destructive" : ""}
           />
         </div>
       </div>
@@ -117,12 +127,12 @@ export function SessionSetupForm({
       <div className="space-y-2">
         <Label>Treinador Responsável *</Label>
         <Select value={trainerName} onValueChange={onTrainerNameChange}>
-          <SelectTrigger>
+          <SelectTrigger className={showValidation && !trainerName ? "border-destructive" : ""}>
             <SelectValue placeholder="Selecione o treinador" />
           </SelectTrigger>
           <SelectContent>
-            {trainers?.map((trainer) => (
-              <SelectItem key={trainer.id} value={trainer.full_name || ''}>
+            {trainers?.filter(t => t.full_name).map((trainer) => (
+              <SelectItem key={trainer.id} value={trainer.full_name}>
                 {trainer.full_name}
               </SelectItem>
             ))}
@@ -183,7 +193,7 @@ export function SessionSetupForm({
             className="pl-9"
           />
         </div>
-        <div className="border rounded-md p-4 max-h-[300px] overflow-y-auto space-y-3">
+        <div className={`border rounded-md p-4 max-h-[300px] overflow-y-auto space-y-3 ${showValidation && selectedStudents.length === 0 ? "border-destructive" : ""}`}>
           {filteredStudents?.map((student) => (
             <div key={student.id} className="flex items-center space-x-2">
               <Checkbox
