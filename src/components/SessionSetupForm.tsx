@@ -29,6 +29,7 @@ interface SessionSetupFormProps {
   onTrainerNameChange: (trainer: string) => void;
   onStudentToggle: (student: Student) => void;
   prescriptionId?: string | null;
+  showValidation?: boolean;
 }
 
 export function SessionSetupForm({
