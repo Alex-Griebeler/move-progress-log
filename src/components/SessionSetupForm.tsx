@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -47,8 +47,10 @@ export function SessionSetupForm({
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   // Buscar prescrições ativas de todos os alunos
-  const studentIds = students?.map(s => s.id) || [];
+  const studentIds = useMemo(() => students?.map(s => s.id) || [], [students]);
   const { data: activeStudentIds } = useStudentsWithActivePrescriptions(studentIds);
 
   // Enriquecer estudantes com informação de prescrição ativa
@@ -167,6 +169,7 @@ export function SessionSetupForm({
         <div className="relative mb-2">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
+            ref={searchInputRef}
             id="session-student-search"
             name="internal-session-student-filter"
             type="text"
@@ -186,7 +189,11 @@ export function SessionSetupForm({
               <Checkbox
                 id={`student-${student.id}`}
                 checked={selectedStudents.some(s => s.id === student.id)}
-                onCheckedChange={() => onStudentToggle(student)}
+                onCheckedChange={() => {
+                  onStudentToggle(student);
+                  // Preserve focus on search input after toggle
+                  requestAnimationFrame(() => searchInputRef.current?.focus());
+                }}
                 disabled={selectedStudents.length >= 10 && !selectedStudents.some(s => s.id === student.id)}
               />
               <label
