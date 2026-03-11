@@ -119,6 +119,7 @@ export function SessionSetupForm({
             type="time"
             value={time}
             onChange={(e) => onTimeChange(e.target.value)}
+            className={showValidation && !time ? "border-destructive" : ""}
           />
         </div>
       </div>
