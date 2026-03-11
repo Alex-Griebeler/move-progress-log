@@ -634,7 +634,14 @@ export function RecordGroupSessionDialog({
         return true;
       });
       const studentsToSelect = enrichedStudents.filter(student => relevantAssignments.some(a => a.student_id === student.id));
-      if (studentsToSelect.length > 0) { setSelectedStudents(studentsToSelect); setHasAutoSelected(true); }
+      if (studentsToSelect.length > 0) {
+        setSelectedStudents(prev => {
+          const existingIds = new Set(prev.map(s => s.id));
+          const newStudents = studentsToSelect.filter(s => !existingIds.has(s.id));
+          return newStudents.length > 0 ? [...prev, ...newStudents] : prev;
+        });
+        setHasAutoSelected(true);
+      }
     }
   }, [open, assignments, enrichedStudents, hasAutoSelected]);
 
