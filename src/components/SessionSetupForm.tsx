@@ -193,7 +193,7 @@ export function SessionSetupForm({
             className="pl-9"
           />
         </div>
-        <div className="border rounded-md p-4 max-h-[300px] overflow-y-auto space-y-3">
+        <div className={`border rounded-md p-4 max-h-[300px] overflow-y-auto space-y-3 ${showValidation && selectedStudents.length === 0 ? "border-destructive" : ""}`}>
           {filteredStudents?.map((student) => (
             <div key={student.id} className="flex items-center space-x-2">
               <Checkbox
