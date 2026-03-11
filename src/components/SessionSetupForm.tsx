@@ -109,6 +109,7 @@ export function SessionSetupForm({
             value={date}
             onChange={(e) => onDateChange(e.target.value)}
             max={new Date().toISOString().split('T')[0]}
+            className={showValidation && !date ? "border-destructive" : ""}
           />
         </div>
         <div className="space-y-2">
