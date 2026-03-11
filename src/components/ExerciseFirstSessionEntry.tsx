@@ -40,6 +40,7 @@ interface PrescriptionExercise {
   pse: string | null;
   training_method: string | null;
   observations: string | null;
+  category?: string | null;
 }
 
 interface StudentInfo {
