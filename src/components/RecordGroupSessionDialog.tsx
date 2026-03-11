@@ -186,14 +186,14 @@ export function RecordGroupSessionDialog({
   useEffect(() => { logger.debug("Dialog State mudou para:", dialogState); }, [dialogState]);
   useEffect(() => { logger.debug("Merged Students atualizado:", mergedStudents.length, "alunos"); }, [mergedStudents]);
 
-  const enrichedStudents = students?.map((student) => ({
+  const enrichedStudents = useMemo(() => students?.map((student) => ({
     ...student,
     has_active_prescription: assignments?.some(a => a.student_id === student.id) || false,
   })).sort((a, b) => {
     if (a.has_active_prescription && !b.has_active_prescription) return -1;
     if (!a.has_active_prescription && b.has_active_prescription) return 1;
     return a.name.localeCompare(b.name);
-  });
+  }), [students, assignments]);
 
   const handleModeSelection = (mode: 'voice' | 'manual') => {
     if (!trainer.trim()) { notify.error("Por favor, selecione o treinador antes de continuar"); return; }
