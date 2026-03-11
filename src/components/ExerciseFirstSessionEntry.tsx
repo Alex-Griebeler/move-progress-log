@@ -600,7 +600,7 @@ export function ExerciseFirstSessionEntry({
         {prescriptionExercises.map((_, idx) => {
           const allFilled = selectedStudents.every((s) => {
             const e = data[s.id]?.[idx];
-            return e && e.load_breakdown && e.reps > 0;
+            return e && (isLoadExemptCategory(e.exercise_name) || e.load_breakdown) && e.reps > 0;
           });
           return (
             <button

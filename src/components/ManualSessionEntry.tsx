@@ -501,13 +501,13 @@ export function ManualSessionEntry({
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">Descrição Carga *</Label>
+                      <Label className="text-xs">Descrição Carga {!isLoadExemptCategory(exercise.exercise_name) && '*'}</Label>
                       <div className="flex gap-1">
                         <Input
                           placeholder="Ex: 20kg, 2x10kg, peso corporal"
                           value={exercise.load_breakdown}
                           onChange={(e) => updateExercise(currentStudent.id, idx, 'load_breakdown', e.target.value)}
-                          className={!exercise.load_breakdown ? "border-destructive" : ""}
+                          className={!isLoadExemptCategory(exercise.exercise_name) && !exercise.load_breakdown ? "border-destructive" : ""}
                         />
                         <Button
                           type="button"
