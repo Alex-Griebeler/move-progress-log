@@ -894,7 +894,15 @@ export function RecordGroupSessionDialog({
           {dialogState === 'context-setup' && (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={() => setDialogState('mode-selection')} disabled={!date || !time || !trainer || selectedStudents.length === 0}>Continuar</Button>
+              <Button onClick={() => {
+                if (!date || !time || !trainer || selectedStudents.length === 0) {
+                  setShowValidation(true);
+                  notify.error("Preencha todos os campos obrigatórios");
+                  return;
+                }
+                setShowValidation(false);
+                setDialogState('mode-selection');
+              }}>Continuar</Button>
             </>
           )}
           
