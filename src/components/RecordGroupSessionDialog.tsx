@@ -701,27 +701,6 @@ export function RecordGroupSessionDialog({
             onStudentToggle={toggleStudent} prescriptionId={prescriptionId} />
         )}
 
-        {dialogState === 'mode-selection' && (
-          <div className="space-y-6 py-8">
-            <p className="text-center text-muted-foreground">Escolha como deseja registrar a sessão em grupo:</p>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Button variant="outline" size="lg" className="h-32 flex flex-col gap-4 items-center justify-center" onClick={() => setDialogState('recording')}>
-                <Mic className="h-12 w-12" />
-                <div className="text-center">
-                  <div className="font-semibold">{NAV_LABELS.recordByVoice}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Grave uma única sessão contínua e processe no final</div>
-                </div>
-              </Button>
-              <Button variant="outline" size="lg" className="h-32 flex flex-col gap-4 items-center justify-center" onClick={() => setDialogState('manual-entry')}>
-                <BookOpen className="h-12 w-12" />
-                <div className="text-center">
-                  <div className="font-semibold">{NAV_LABELS.fillManually}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Preencha os dados da sessão manualmente</div>
-                </div>
-              </Button>
-            </div>
-          </div>
-        )}
 
         {dialogState === 'recording' && (
           <div className="space-y-4">
