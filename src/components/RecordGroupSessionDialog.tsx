@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ExerciseFirstSessionEntry } from "./ExerciseFirstSessionEntry";
 import { Button } from "@/components/ui/button";
