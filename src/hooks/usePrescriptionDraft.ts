@@ -36,7 +36,7 @@ export function usePrescriptionDraft(entityId?: string) {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [lastHistorySave, setLastHistorySave] = useState<Date | null>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout>();
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   // Carregar rascunho ao montar
   useEffect(() => {
