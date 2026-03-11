@@ -47,8 +47,10 @@ export function SessionSetupForm({
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   // Buscar prescrições ativas de todos os alunos
-  const studentIds = students?.map(s => s.id) || [];
+  const studentIds = useMemo(() => students?.map(s => s.id) || [], [students]);
   const { data: activeStudentIds } = useStudentsWithActivePrescriptions(studentIds);
 
   // Enriquecer estudantes com informação de prescrição ativa
