@@ -170,25 +170,31 @@ export function ManualSessionEntry({
     setStudentExercises(prev => {
       const updated = { ...prev };
       updated[studentId] = [...updated[studentId]];
-      
-      // Se estiver atualizando load_breakdown, calcular automaticamente load_kg se for peso corporal
-      if (field === 'load_breakdown') {
-        const student = selectedStudents.find(s => s.id === studentId);
-        const isPesoCorporal = value.toLowerCase().includes('peso corporal') || 
-                               value.toLowerCase().includes('corporal');
-        
-        updated[studentId][exerciseIndex] = {
-          ...updated[studentId][exerciseIndex],
-          [field]: value,
-          load_kg: isPesoCorporal && student?.weight_kg ? student.weight_kg : updated[studentId][exerciseIndex].load_kg
-        };
-      } else {
-        updated[studentId][exerciseIndex] = {
-          ...updated[studentId][exerciseIndex],
-          [field]: value
-        };
-      }
-      
+      updated[studentId][exerciseIndex] = {
+        ...updated[studentId][exerciseIndex],
+        [field]: value
+      };
+      return updated;
+    });
+  };
+
+  // Handler centralizado: expande shorthand + calcula load_kg numa única atualização
+  const handleLoadBlur = (studentId: string, exerciseIndex: number) => {
+    const exercise = studentExercises[studentId]?.[exerciseIndex];
+    if (!exercise?.load_breakdown) return;
+
+    const expanded = expandLoadShorthand(exercise.load_breakdown);
+    const student = selectedStudents.find(s => s.id === studentId);
+    const calculatedLoad = calculateLoadFromBreakdown(expanded, student?.weight_kg);
+
+    setStudentExercises(prev => {
+      const updated = { ...prev };
+      updated[studentId] = [...updated[studentId]];
+      updated[studentId][exerciseIndex] = {
+        ...updated[studentId][exerciseIndex],
+        load_breakdown: expanded,
+        load_kg: calculatedLoad,
+      };
       return updated;
     });
   };
