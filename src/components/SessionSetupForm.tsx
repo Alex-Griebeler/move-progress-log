@@ -42,6 +42,7 @@ export function SessionSetupForm({
   onTrainerNameChange,
   onStudentToggle,
   prescriptionId,
+  showValidation = false,
 }: SessionSetupFormProps) {
   const { data: trainers } = useTrainers();
   const { data: students } = useStudents();
