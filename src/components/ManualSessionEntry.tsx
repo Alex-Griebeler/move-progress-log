@@ -259,9 +259,15 @@ export function ManualSessionEntry({
     }
   };
 
+  const isLoadExemptCategory = (exerciseName: string) => {
+    const prescribed = prescriptionExercises.find(pe => pe.exercise_name === exerciseName);
+    const cat = prescribed?.category?.toLowerCase() || '';
+    return cat === 'respiracao' || cat === 'lmf';
+  };
+
   const isValid = selectedStudents.every(student => 
     studentExercises[student.id]?.every(ex => 
-      ex.exercise_name && ex.sets > 0 && ex.reps > 0 && ex.load_breakdown
+      ex.exercise_name && ex.sets > 0 && ex.reps > 0 && (isLoadExemptCategory(ex.exercise_name) || ex.load_breakdown)
     )
   );
 
@@ -273,7 +279,7 @@ export function ManualSessionEntry({
     if (!exercise.exercise_name) errors.push("Nome obrigatório");
     if (exercise.sets <= 0) errors.push("Séries deve ser > 0");
     if (exercise.reps <= 0) errors.push("Reps deve ser > 0");
-    if (!exercise.load_breakdown) errors.push("Descrição da carga obrigatória");
+    if (!isLoadExemptCategory(exercise.exercise_name) && !exercise.load_breakdown) errors.push("Descrição da carga obrigatória");
     
     return errors;
   };
