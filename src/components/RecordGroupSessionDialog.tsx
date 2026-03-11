@@ -780,7 +780,7 @@ export function RecordGroupSessionDialog({
             date={date} time={time} trainer={trainer}
             prescriptionId={prescriptionId || null}
             onSave={handleSaveManual}
-            onCancel={() => setDialogState('mode-selection')}
+            onCancel={() => setDialogState('context-setup')}
             onAddStudent={() => setShowAddStudentDialog(true)}
           />
         )}
