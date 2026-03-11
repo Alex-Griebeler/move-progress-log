@@ -89,6 +89,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [dataLoaded, setDataLoaded] = useState(false);
+  const draftRestoredRef = useRef(false);
 
   const { data: prescriptionData } = usePrescriptionDetails(prescriptionId);
   const { data: exercisesLibrary } = useExercisesLibrary();
