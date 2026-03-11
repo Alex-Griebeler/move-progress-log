@@ -1,154 +1,103 @@
-# 🔍 Plano de Auditoria Completa — Fabrik Performance
 
-## Escopo Total
-- **50 hooks** (src/hooks/)
-- **18 páginas** (src/pages/)
-- **26 Edge Functions** (supabase/functions/)
-- **~80 componentes** (src/components/)
-- **Utilitários, contextos, constantes**
 
----
+# Analise de Impacto: Filtragem Hierarquica de Nivel (Boyle 1-5)
 
-## Fase 1 — Core Hooks & Data Layer (Crítico)
-**Risco: ALTO** — Bugs aqui afetam todo o app.
+## Problema Atual
 
-### 1.1 Hooks de CRUD principal
-- `useStudents` / `useStudentDetail` / `useStudentsCardData`
-- `useExercisesLibrary` (já marcado para refatoração)
-- `usePrescriptions` / `usePrescriptionSearch` / `usePrescriptionDraft`
-- `useWorkoutSessions` / `useAllSessions` / `useSessionDetail`
-- `useWorkouts`
+A funcao `filterByLevel` na edge function `generate-group-session` usa mapeamento **da escala antiga 1-9**:
 
-### 1.2 Hooks de integração Oura
-- `useOuraConnection` / `useOuraConnectionStatus`
-- `useOuraMetrics` / `useOuraTrends` / `useOuraBaseline`
-- `useOuraSyncAll` / `useOuraSyncLogs` / `useOuraTestSync`
-- `useOuraWorkouts`
+```text
+iniciante    → numeric_level <= 3
+intermediario → numeric_level <= 6
+avancado     → numeric_level <= 9
+```
 
-### 1.3 Hooks auxiliares
-- `useUserRole` / `useTrainers`
-- `useFolders` / `useStudentInvites`
-- `useStats` / `useStudentReports`
-- `useExerciseHistory` / `useExerciseLoadHistory`
-
-**Checklist:**
-- [ ] Queries sem `.limit()` que podem bater no teto de 1000 rows
-- [ ] Tratamento de erro consistente (try/catch vs onError)
-- [ ] Cache invalidation correto (queryKey matching)
-- [ ] Tipos TypeScript vs schema real do Supabase
-- [ ] Hooks com `any` ou `as never`
+Mas o banco agora usa **escala Boyle 1-5**. Resultado: **todos os exercicios passam no filtro** para qualquer nivel, tornando a filtragem inutil. Um aluno iniciante pode receber exercicios de nivel 5.
 
 ---
 
-## Fase 2 — Edge Functions (Backend)
-**Risco: ALTO** — Segurança e integridade de dados.
+## Mapeamento Correto (Boyle 1-5, hierarquico)
 
-### 2.1 Funções de autenticação e admin
-- `admin-create-user` / `admin-update-user`
-- `create-audit-admin`
-- `check-rate-limit`
+```text
+iniciante     → boyle_score <= 2  (niveis 1-2)
+intermediario → boyle_score <= 3  (niveis 1-3)
+avancado      → boyle_score <= 5  (niveis 1-5, tudo)
+```
 
-### 2.2 Funções de IA
-- `ai-builder-chat` / `chat-helper`
-- `classify-exercises`
-- `generate-group-session`
-- `generate-protocol-recommendations`
-- `generate-student-report`
-- `process-voice-session` / `voice-session`
-- `suggest-exercise` / `suggest-exercise-alternatives` / `suggest-regressions`
-- `parse-word-prescription`
-
-### 2.3 Funções de integração Oura
-- `oura-callback` / `oura-sync` / `oura-sync-all`
-- `oura-sync-scheduled` / `oura-sync-test` / `oura-disconnect`
-
-### 2.4 Funções de alunos
-- `generate-student-invite` / `validate-student-invite` / `create-student-from-invite`
-- `import-exercises`
-
-**Checklist:**
-- [ ] CORS headers presentes em todas
-- [ ] Validação JWT consistente
-- [ ] Tratamento de erros (nunca retornar 500 genérico)
-- [ ] Secrets usados corretamente
-- [ ] SQL injection / input validation
+Hierarquico: avancado ve tudo, intermediario ve ate 3, iniciante ve ate 2. "Todos os niveis" (level text) continua passando sempre.
 
 ---
 
-## Fase 3 — Componentes de Formulário & Dialogs
-**Risco: MÉDIO** — UX e integridade de dados de entrada.
+## Pontos de Impacto Mapeados
 
-### 3.1 Dialogs de CRUD
-- `AddStudentDialog` / `EditStudentDialog`
-- `AddExerciseDialog` / `EditExerciseLibraryDialog`
-- `CreatePrescriptionDialog` / `EditPrescriptionDialog`
-- `AddWorkoutDialog` / `AddWorkoutSessionDialog`
-- `EditSessionDialog` / `EditGroupSessionDialog`
-- `AddUserDialog` / `EditUserDialog`
+### 1. Edge Function `generate-group-session/index.ts` (CRITICO)
+- **Linha 367-383**: `filterByLevel()` — mapeamento errado da escala
+- **Linha 260-279**: `applyF4TeachableProgression()` — usa `numeric_level` para encontrar regressoes. Funciona corretamente ja que compara `<` relativo, nao absoluto
+- **Linha 730-735**: Filtro de pliometria usa `numeric_level` com `maxPlyoLevel`. Precisa revisar se os limites sao Boyle ou antigos
 
-### 3.2 Dialogs de registro de sessão (complexos)
-- `RecordGroupSessionDialog`
-- `RecordIndividualSessionDialog`
-- `VoiceSessionRecorder` / `MultiSegmentRecorder` / `AudioSegmentRecorder`
+### 2. Edge Function `suggest-exercise-alternatives/index.ts`
+- Linha 34: Recebe `numeric_level` no schema. Passa para o LLM como contexto. Sem filtragem direta — impacto baixo
 
-### 3.3 Dialogs auxiliares
-- Todos os demais dialogs
+### 3. Edge Function `suggest-regressions/index.ts`
+- Nao usa `numeric_level` para filtragem, so texto para o LLM. Sem impacto
 
-**Checklist:**
-- [ ] Validação de formulário (Zod schemas)
-- [ ] Estados de loading/error/success
-- [ ] Reset de form ao fechar dialog
-- [ ] Acessibilidade (labels, aria)
-- [ ] Feedback visual ao usuário
+### 4. Frontend `EditExerciseLibraryDialog.tsx` e `AddExerciseDialog.tsx`
+- Salvam `numeric_level` e `boyle_score` com o mesmo valor (correto na escala 1-5). Sem mudanca necessaria
 
----
+### 5. Frontend `ExercisesLibraryPage.tsx`
+- Exibe `boyle_score` como badge. Sem filtragem por nivel na listagem. Sem impacto
 
-## Fase 4 — Páginas & Navegação
-**Risco: MÉDIO** — UX e performance.
+### 6. Frontend `ExerciseReviewPage.tsx`
+- Usa `LEVEL_OPTIONS` para editar o campo `level` (texto). Sem impacto direto
 
-**Checklist:**
-- [ ] Lazy loading funcionando
-- [ ] SEO (títulos, meta)
-- [ ] Estados vazios (EmptyState)
-- [ ] Responsividade
-- [ ] Permissões (admin vs trainer)
+### 7. Constante `BOYLE_SCORE_SCALE` em `backToBasics.ts`
+- Ja esta correto (1-5). Nenhuma mudanca
+
+### 8. Edge Function `import-exercises/index.ts`
+- Linha 665: Converte nivel importado para `boyle_score` com mapeamento proprio. Usa escala diferente internamente. Sem impacto nesta mudanca
 
 ---
 
-## Fase 5 — Utilitários, Contextos & Constantes
-**Risco: BAIXO** — Mas impacto transversal.
+## Plano de Correcao
 
-**Checklist:**
-- [ ] Funções puras com testes
-- [ ] Constantes duplicadas ou inconsistentes
-- [ ] Logger vs console.log
+### Arquivo 1: `supabase/functions/generate-group-session/index.ts`
 
----
+**Correcao A — `filterByLevel` (linhas 367-383)**
+Substituir o mapeamento antigo:
+```typescript
+function filterByLevel(exercises: Exercise[], groupLevel: string): Exercise[] {
+  return exercises.filter((ex) => {
+    // Boyle score (1-5): hierarchical filtering
+    if (ex.numeric_level != null) {
+      const maxBoyle = groupLevel === "iniciante" ? 2 
+                     : groupLevel === "intermediario" ? 3 
+                     : 5;
+      return ex.numeric_level <= maxBoyle;
+    }
+    // Fallback: text level field
+    if (!ex.level) return true;
+    const levelOrder: Record<string, number> = { 
+      iniciante: 1, intermediario: 2, avancado: 3 
+    };
+    const groupLevelValue = levelOrder[groupLevel] || 2;
+    const levelMap: Record<string, number> = {
+      Iniciante: 1, "Iniciante/Intermediário": 1.5, 
+      Intermediário: 2, "Intermediário/Avançado": 2.5, 
+      Avançado: 3, "Todos os níveis": 0,
+    };
+    const exLevelValue = levelMap[ex.level] || 2;
+    return exLevelValue === 0 || exLevelValue <= groupLevelValue;
+  });
+}
+```
 
-## Fase 6 — Design System & Temas
-**Risco: BAIXO** — Visual e consistência.
+**Correcao B — Filtro de pliometria (~linha 732)**
+Verificar se `maxPlyoLevel` usa escala Boyle. Ajustar se necessario para consistencia.
 
-**Checklist:**
-- [ ] Tokens semânticos em todos os componentes
-- [ ] Light/dark mode consistente
-- [ ] Cores hardcoded remanescentes
+### Arquivos nao alterados
+- `suggest-regressions`, `suggest-exercise-alternatives`: sem filtragem por nivel
+- Frontend: ja usa Boyle 1-5 corretamente
+- `backToBasics.ts`: constantes ja corretas
 
----
+### Escopo total: 1 arquivo, 1 funcao principal + 1 verificacao secundaria
 
-## Critérios de Refatoração
-
-| Critério | Ação |
-|----------|------|
-| Bug confirmado | Corrigir imediatamente |
-| Inconsistência de tipos | Corrigir (baixo risco) |
-| Código duplicado | Avaliar custo/benefício |
-| Performance | Corrigir se impacto mensurável |
-| Refatoração estrutural | Só se risco < benefício |
-
-## Ordem de Execução
-1. Fase 1 → Hooks (fundação)
-2. Fase 2 → Edge Functions (segurança)
-3. Fase 3 → Formulários (entrada de dados)
-4. Fase 4 → Páginas (UX)
-5. Fase 5 → Utilitários
-6. Fase 6 → Design System
