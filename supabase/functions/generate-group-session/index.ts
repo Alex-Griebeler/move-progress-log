@@ -368,10 +368,14 @@ function filterByLevel(exercises: Exercise[], groupLevel: string): Exercise[] {
   const levelOrder: Record<string, number> = { iniciante: 1, intermediario: 2, avancado: 3 };
   const groupLevelValue = levelOrder[groupLevel] || 2;
   return exercises.filter((ex) => {
+    // Boyle score (1-5): hierarchical filtering
     if (ex.numeric_level != null) {
-      const maxNumeric = groupLevel === "iniciante" ? 3 : groupLevel === "intermediario" ? 6 : 9;
-      return ex.numeric_level <= maxNumeric;
+      const maxBoyle = groupLevel === "iniciante" ? 2 
+                     : groupLevel === "intermediario" ? 3 
+                     : 5;
+      return ex.numeric_level <= maxBoyle;
     }
+    // Fallback: text level field
     if (!ex.level) return true;
     const levelMap: Record<string, number> = {
       Iniciante: 1, "Iniciante/Intermediário": 1.5, Intermediário: 2,
