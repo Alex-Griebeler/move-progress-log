@@ -33,6 +33,7 @@ interface ManualSessionEntryProps {
     pse: string | null;
     training_method: string | null;
     observations: string | null;
+    category?: string | null;
   }>;
   selectedStudents: Array<{
     id: string;
