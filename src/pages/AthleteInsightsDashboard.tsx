@@ -22,6 +22,7 @@ interface AthleteRecord {
   metric: string;
   value: number;
   achieved_at: string;
+  record_type?: string;
 }
 
 interface AthleteGoal {
@@ -30,6 +31,10 @@ interface AthleteGoal {
   target: string;
   progress: number;
   status: string;
+  description?: string;
+  target_value?: number;
+  target_unit?: string;
+  target_date?: string;
 }
 
 export default function AthleteInsightsDashboard() {
