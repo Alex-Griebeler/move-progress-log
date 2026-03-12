@@ -67,32 +67,28 @@ serve(async (req) => {
       // pg_trgm failed, using fallback
     }
 
-    // Fallback: use allExercises from client if pg_trgm failed or returned nothing
+    // SE-03: Always use DB data — ignore allExercises from client payload to prevent manipulation
     if (!usedTrigram || candidates.length === 0) {
-      if (allExercises && allExercises.length > 0) {
-        // Filter by movement pattern if available
-        candidates = movementPattern
-          ? allExercises.filter((ex: any) => ex.movement_pattern === movementPattern)
-          : allExercises;
-        
-        // If filtered list is empty, use full list
-        if (candidates.length === 0) candidates = allExercises;
-        
-        // Fallback: using client exercises
+      // Fallback: query all exercises from DB
+      const query = supabase.from('exercises_library').select('id, name');
+      if (movementPattern) {
+        const { data: filteredFromDb } = await query.eq('movement_pattern', movementPattern).order('name');
+        candidates = filteredFromDb || [];
+        // If filtered list empty, query all
+        if (candidates.length === 0) {
+          const { data: allFromDb } = await supabase.from('exercises_library').select('id, name').order('name');
+          candidates = allFromDb || [];
+        }
       } else {
-        // Last resort: query all exercises from DB
-        const { data: allFromDb } = await supabase
-          .from('exercises_library')
-          .select('id, name')
-          .order('name');
+        const { data: allFromDb } = await query.order('name');
         candidates = allFromDb || [];
-        // Fallback: queried all from DB
       }
     }
 
     if (candidates.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, suggested: null, message: 'Nenhum exercício encontrado na base' }),
+        // SE-02: Include reason for null suggestion
+        JSON.stringify({ success: true, suggested: null, reason: 'no_candidates', message: 'Nenhum exercício encontrado na base' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
