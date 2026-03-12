@@ -860,7 +860,7 @@ FORMATO DE SAÍDA:
         });
         
         // 2. Exercícios executados mas NÃO prescritos (substituições/adições)
-        (session.exercises || []).forEach((ex: any) => {
+        ((session.exercises as Record<string, unknown>[] | undefined) || []).forEach((ex: Record<string, unknown>) => {
           const exName = (ex.executed_exercise_name || '').toLowerCase().trim();
           const isFromPrescription = prescribedNames.some((pn: string) => 
             pn.includes(exName) || exName.includes(pn)
