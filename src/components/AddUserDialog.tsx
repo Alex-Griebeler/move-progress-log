@@ -115,10 +115,10 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
       form.reset();
       onOpenChange(false);
       onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error creating user:", error);
       notify.error("Erro ao criar usuário", {
-        description: error.message || "Tente novamente mais tarde",
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde",
       });
     } finally {
       setIsSubmitting(false);

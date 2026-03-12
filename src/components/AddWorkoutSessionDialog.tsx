@@ -66,7 +66,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
     form.setValue("time", voiceData.time);
     
     // Map voice exercises to form format
-    const mappedExercises = voiceData.exercises.map((ex: any) => ({
+    const mappedExercises = voiceData.exercises.map((ex) => ({
       exercise_name: ex.name,
       reps: ex.reps,
       load_kg: ex.load_kg,

@@ -16,31 +16,31 @@ export const AuthDebugPanel = () => {
   const [timeUntilRefresh, setTimeUntilRefresh] = useState<number>(0);
   const { toast } = useToast();
 
-  // Rules of Hooks: conditional return must come after all hook calls
-  if (import.meta.env.PROD) return null;
+  const isProd = import.meta.env.PROD;
 
   useEffect(() => {
+    if (isProd) return;
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
+      setSession(s);
     });
 
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
+    } = supabase.auth.onAuthStateChange((_event, s) => {
+      setSession(s);
     });
 
     // IP is now extracted server-side
     setClientIP("server-side");
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isProd]);
 
   // Calculate time until expiry and refresh
   useEffect(() => {
-    if (!session) return;
+    if (isProd || !session) return;
 
     const interval = setInterval(() => {
       const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
@@ -55,7 +55,9 @@ export const AuthDebugPanel = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [session]);
+  }, [isProd, session]);
+
+  if (isProd) return null;
 
   const handleForceRefresh = async () => {
     try {

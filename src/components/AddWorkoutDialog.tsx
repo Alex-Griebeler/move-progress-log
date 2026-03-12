@@ -104,7 +104,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
       setExercises([{ exercise: "", load: "", reps: 0, observations: "" }]);
       setOpen(false);
       onWorkoutAdded();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Erro ao registrar sessão:", error);
       
       // Detectar erro de duplicata

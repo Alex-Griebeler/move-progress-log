@@ -13,8 +13,8 @@ interface AudioSegment {
   extractedData?: {
     sessions: Array<{
       student_name: string;
-      clinical_observations: any[];
-      exercises: any[];
+      clinical_observations: Array<{ observation: string }>;
+      exercises: Array<{ name: string; reps?: number; load_kg?: number; observations?: string }>;
     }>;
   };
 }
