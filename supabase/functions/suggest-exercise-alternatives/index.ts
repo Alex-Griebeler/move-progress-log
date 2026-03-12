@@ -88,7 +88,7 @@ function buildToolDefinition(direction: string) {
 
   const progressionProp = { ...regressionProp };
 
-  const properties: Record<string, any> = {};
+  const properties: Record<string, unknown> = {};
   const required: string[] = [];
 
   if (direction === 'regression' || direction === 'both') {
