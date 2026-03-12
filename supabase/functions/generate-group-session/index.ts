@@ -336,10 +336,22 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-function weightedSelect(exercises: Exercise[], count: number): Exercise[] {
+/** G-07: Optional seed for reproducible selection (Mulberry32 PRNG).
+ * If no seed, falls back to Math.random() (current behavior). */
+function mulberry32(seed: number): () => number {
+  return () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function weightedSelect(exercises: Exercise[], count: number, seed?: number): Exercise[] {
   if (exercises.length <= count) return exercises;
+  const rng = seed != null ? mulberry32(seed) : Math.random;
   const scored = exercises.map((ex) => {
-    let score = Math.random();
+    let score = typeof rng === 'function' ? (seed != null ? (rng as () => number)() : Math.random()) : Math.random();
     if (ex.equipment_required && ex.equipment_required.length > 0) score += 0.1;
     if (ex.movement_plane && ex.movement_plane !== "sagital") score += 0.15;
     return { ex, score };
