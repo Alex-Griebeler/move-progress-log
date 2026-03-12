@@ -126,7 +126,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       
       if (prescriptionData.exercises && prescriptionData.exercises.length > 0) {
         setExercises(
-          prescriptionData.exercises.map((ex: any) => ({
+          prescriptionData.exercises.map((ex: { id?: string; exercise_library_id: string; sets: string; reps: string; interval_seconds?: number | null; pse?: string | null; load?: string | null; rir?: string | null; training_method?: string | null; observations?: string | null; group_with_previous?: boolean; should_track?: boolean; adaptations?: Array<{ adaptation_type: string; exercise_library_id: string }> }) => ({
             id: ex.id || crypto.randomUUID(),
             exercise_library_id: ex.exercise_library_id,
             sets: ex.sets,
@@ -139,8 +139,8 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             observations: ex.observations || "",
             group_with_previous: ex.group_with_previous || false,
             should_track: ex.should_track ?? true,
-            adaptations: (ex.adaptations || []).map((adapt: any) => ({
-              type: adapt.adaptation_type,
+            adaptations: (ex.adaptations || []).map((adapt: { adaptation_type: string; exercise_library_id: string }) => ({
+              type: adapt.adaptation_type as "regression_1" | "regression_2" | "regression_3",
               exercise_library_id: adapt.exercise_library_id,
             })),
             showAdaptations: (ex.adaptations || []).length > 0,
