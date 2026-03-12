@@ -7,6 +7,7 @@ import { TranscriptionEditor } from "./TranscriptionEditor";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Plus, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import type { GroupObservation, SessionExercise } from "@/types/sessionRecording";
 
 interface AudioSegment {
   segmentOrder: number;
@@ -16,8 +17,8 @@ interface AudioSegment {
   extractedData?: {
     sessions: Array<{
       student_name: string;
-      clinical_observations: any[];
-      exercises: any[];
+      clinical_observations: GroupObservation[];
+      exercises: SessionExercise[];
     }>;
   };
 }

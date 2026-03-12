@@ -46,6 +46,74 @@ import { ObservationPreview } from "@/components/session/ObservationPreview";
 import { ValidationAlerts } from "@/components/session/ValidationAlerts";
 import { PrescriptionSidebar } from "@/components/session/PrescriptionSidebar";
 
+// ─── Local Types ────────────────────────────────────────
+
+interface PrescriptionExerciseDetail {
+  id: string;
+  exercise_name: string;
+  sets: string;
+  reps: string;
+  interval_seconds: number | null;
+  pse: string | null;
+  training_method: string | null;
+  observations: string | null;
+  should_track: boolean;
+  category?: string | null;
+  exercises_library?: { name: string; category: string | null } | null;
+}
+
+interface PrescriptionDetailsData {
+  id: string;
+  name: string;
+  objective: string;
+  exercises: PrescriptionExerciseDetail[];
+}
+
+interface ManualSavePayload {
+  studentExercises: Array<{
+    studentId: string;
+    exercises: Array<{
+      exercise_name: string;
+      sets: number;
+      reps: number;
+      load_kg: number | null;
+      load_breakdown: string;
+      observations: string;
+    }>;
+  }>;
+}
+
+interface SessionQueryRow {
+  id: string;
+  student_id: string;
+  students: { id: string; name: string; weight_kg: number | null };
+}
+
+interface ExerciseRow {
+  id: string;
+  exercise_name: string;
+  sets: number | null;
+  reps: number | null;
+  load_kg: number | null;
+  load_breakdown: string | null;
+  observations: string | null;
+  is_best_set: boolean | null;
+}
+
+interface GroupSessionToSave {
+  student_id: string;
+  student_name: string;
+  exercises: SessionExercise[];
+  clinical_observations: GroupObservation[];
+}
+
+interface CustomAdaptationsShape {
+  weekdays?: string[];
+  time?: string;
+}
+
+// ─── Component Types ────────────────────────────────────────
+
 interface RecordGroupSessionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -89,17 +157,17 @@ function ManualEntryWithToggle({
   onCancel,
   onAddStudent,
 }: {
-  prescriptionDetails: any;
+  prescriptionDetails: PrescriptionDetailsData | null | undefined;
   selectedStudents: Array<{ id: string; name: string; weight_kg?: number; has_active_prescription: boolean }>;
   date: string; time: string; trainer: string;
   prescriptionId: string | null;
-  onSave: (data: any) => Promise<void>;
+  onSave: (data: ManualSavePayload) => Promise<void>;
   onCancel: () => void;
   onAddStudent: () => void;
 }) {
   const [entryMode, setEntryMode] = useState<'by-exercise' | 'by-student'>('by-exercise');
 
-  const exercises = prescriptionDetails?.exercises?.filter((ex: any) => ex.should_track !== false).map((ex: any) => ({
+  const exercises = prescriptionDetails?.exercises?.filter((ex) => ex.should_track !== false).map((ex) => ({
     id: ex.id, exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps,
     interval_seconds: ex.interval_seconds, pse: ex.pse, training_method: ex.training_method, observations: ex.observations,
     category: ex.category || null,
@@ -222,26 +290,27 @@ export function RecordGroupSessionDialog({
         .eq('time', reopenTime);
       if (sessionsError) throw sessionsError;
       if (sessions && sessions.length > 0) {
-        const existingStudents = sessions.map((s: any) => ({
-          id: s.student_id, name: s.students.name, weight_kg: s.students.weight_kg, has_active_prescription: true,
+        const typedSessions = sessions as unknown as SessionQueryRow[];
+        const existingStudents = typedSessions.map((s) => ({
+          id: s.student_id, name: s.students.name, weight_kg: s.students.weight_kg ?? undefined, has_active_prescription: true,
         }));
         setSelectedStudents(existingStudents);
         const allExercises = await Promise.all(
-          sessions.map(async (session: any) => {
+          typedSessions.map(async (session) => {
             const { data: exercises } = await supabase.from('exercises').select('*').eq('session_id', session.id);
-            return { student_name: session.students.name, exercises: exercises || [] };
+            return { student_name: session.students.name, exercises: (exercises || []) as ExerciseRow[] };
           })
         );
         const merged: MergedStudent[] = allExercises.map((data) => ({
           student_name: data.student_name, recording_numbers: [0], clinical_observations: [],
-          exercises: data.exercises.map((ex: any) => ({
+          exercises: data.exercises.map((ex) => ({
             prescribed_exercise_name: null, executed_exercise_name: ex.exercise_name,
             sets: ex.sets, reps: ex.reps, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown || '',
             observations: ex.observations, is_best_set: ex.is_best_set || false,
           })),
         }));
         setMergedStudents(merged);
-        notify.info("Sessão carregada", { description: `${sessions.length} aluno(s) carregado(s). Você pode adicionar mais gravações.` });
+        notify.info("Sessão carregada", { description: `${typedSessions.length} aluno(s) carregado(s). Você pode adicionar mais gravações.` });
       }
     } catch (error) { logger.error("Erro ao carregar sessões existentes:", error); }
   };
@@ -258,7 +327,7 @@ export function RecordGroupSessionDialog({
     });
   };
 
-  const handleStudentCreated = (newStudent: any) => {
+  const handleStudentCreated = (newStudent: { id: string; name: string; weight_kg?: number }) => {
     toggleStudent({ ...newStudent, has_active_prescription: false });
   };
 
@@ -310,7 +379,7 @@ export function RecordGroupSessionDialog({
   const validateMergedData = (merged: MergedStudent[]) => {
     const warnings: string[] = [];
     const errors: string[] = [];
-    const prescribedExercises = prescriptionDetails?.exercises?.filter((ex: any) => ex.should_track !== false) || [];
+    const prescribedExercises = prescriptionDetails?.exercises?.filter((ex: PrescriptionExerciseDetail) => ex.should_track !== false) || [];
     
     merged.forEach(student => {
       const matchingStudent = selectedStudents.find(s => s.name.toLowerCase() === student.student_name.toLowerCase());
@@ -319,7 +388,7 @@ export function RecordGroupSessionDialog({
       if (student.exercises.length === 0) errors.push(`❌ ${student.student_name} foi mencionado mas não tem exercícios registrados`);
       
       if (prescribedExercises.length > 0) {
-        prescribedExercises.forEach((prescribed: any) => {
+        prescribedExercises.forEach((prescribed: PrescriptionExerciseDetail) => {
           const prescribedName = (prescribed.exercise_name || prescribed.exercises_library?.name || '').toLowerCase().trim();
           if (!prescribedName) return;
           const wasExecuted = student.exercises.some(ex => {
@@ -370,7 +439,7 @@ export function RecordGroupSessionDialog({
           const { data: studentData, error } = await supabase.from('students').select('*').ilike('name', session.student_name).single();
           if (error) { logger.warn(`Aluno "${session.student_name}" não encontrado:`, error); continue; }
           if (studentData) {
-            newStudents.push({ id: studentData.id, name: studentData.name, weight_kg: studentData.weight_kg, has_active_prescription: false });
+            newStudents.push({ id: studentData.id, name: studentData.name, weight_kg: studentData.weight_kg ?? undefined, has_active_prescription: false });
             data.sessions[i].auto_added = true;
           }
         }
@@ -471,13 +540,13 @@ export function RecordGroupSessionDialog({
       }
     }
 
-    const sessionsToSave = mergedStudents.map(merged => {
+    const sessionsToSave: GroupSessionToSave[] = mergedStudents.map(merged => {
       const student = selectedStudents.find(s => s.name.toLowerCase() === merged.student_name.toLowerCase());
       if (!student) { logger.error(`Student not found: ${merged.student_name}`); return null; }
       return { student_id: student.id, student_name: student.name, exercises: merged.exercises, clinical_observations: merged.clinical_observations || [] };
-    }).filter(Boolean);
+    }).filter((s): s is GroupSessionToSave => s !== null);
 
-    await createGroupSessions.mutateAsync({ prescriptionId, date, time, sessions: sessionsToSave as any });
+    await createGroupSessions.mutateAsync({ prescriptionId, date, time, sessions: sessionsToSave });
 
     // Save clinical observations and audio segments per student
     for (const merged of mergedStudents) {
@@ -527,12 +596,7 @@ export function RecordGroupSessionDialog({
     onOpenChange(false);
   };
 
-  const handleSaveManual = async (data: {
-    studentExercises: Array<{
-      studentId: string;
-      exercises: Array<{ exercise_name: string; sets: number; reps: number; load_kg: number | null; load_breakdown: string; observations: string }>;
-    }>;
-  }): Promise<void> => {
+  const handleSaveManual = async (data: ManualSavePayload): Promise<void> => {
     setIsSaving(true);
     try {
       if (!trainer || trainer.trim() === '') { notify.error("Campo obrigatório", { description: "Nome do treinador é obrigatório" }); throw new Error("Nome do treinador é obrigatório"); }
@@ -547,7 +611,7 @@ export function RecordGroupSessionDialog({
           if (!ex.exercise_name || ex.exercise_name.trim() === '') validationErrors.push(`${studentName} - Exercício ${exIdx + 1}: nome obrigatório`);
           if (ex.sets <= 0) validationErrors.push(`${studentName} - ${ex.exercise_name}: séries deve ser maior que 0`);
           if (ex.reps <= 0) validationErrors.push(`${studentName} - ${ex.exercise_name}: reps deve ser maior que 0`);
-          const matchedPrescribed = prescriptionDetails?.exercises?.find((pe: any) => pe.exercise_name === ex.exercise_name);
+          const matchedPrescribed = prescriptionDetails?.exercises?.find((pe: PrescriptionExerciseDetail) => pe.exercise_name === ex.exercise_name);
           const exCategory = matchedPrescribed?.category?.toLowerCase() || '';
           const isLoadExempt = exCategory === 'respiracao' || exCategory === 'lmf';
           if (!isLoadExempt && (!ex.load_breakdown || ex.load_breakdown.trim() === '')) validationErrors.push(`${studentName} - ${ex.exercise_name}: descrição da carga obrigatória`);
@@ -627,12 +691,13 @@ export function RecordGroupSessionDialog({
       const currentWeekday = weekdayMap[currentDate.getDay()];
       const currentTime = currentDate.toTimeString().slice(0, 5);
       const relevantAssignments = assignments.filter(assignment => {
-        const customAdaptations = assignment.custom_adaptations as any;
-        if (!customAdaptations) return false;
-        const hasWeekday = customAdaptations.weekdays?.includes(currentWeekday);
+        const customAdaptations = assignment.custom_adaptations as unknown;
+        if (!customAdaptations || typeof customAdaptations !== 'object') return false;
+        const adapted = customAdaptations as CustomAdaptationsShape;
+        const hasWeekday = adapted.weekdays?.includes(currentWeekday);
         if (!hasWeekday) return false;
-        if (customAdaptations.time) {
-          const [assignedHour, assignedMin] = customAdaptations.time.split(':').map(Number);
+        if (adapted.time) {
+          const [assignedHour, assignedMin] = adapted.time.split(':').map(Number);
           const [currentHour, currentMin] = currentTime.split(':').map(Number);
           return Math.abs((assignedHour * 60 + assignedMin) - (currentHour * 60 + currentMin)) <= 5;
         }
@@ -668,19 +733,19 @@ export function RecordGroupSessionDialog({
   // ─── Add Unmentioned Exercises ────────────────────────────────────────
 
   const handleAddUnmentionedExercises = () => {
-    const prescribedExercises = prescriptionDetails?.exercises?.filter((ex: any) => ex.should_track !== false) || [];
+    const prescribedExercises = prescriptionDetails?.exercises?.filter((ex: PrescriptionExerciseDetail) => ex.should_track !== false) || [];
     const updatedMergedStudents = mergedStudents.map(student => {
-      const unmentionedExercises = prescribedExercises.filter((prescribed: any) => {
+      const unmentionedExercises = prescribedExercises.filter((prescribed: PrescriptionExerciseDetail) => {
         const prescribedName = (prescribed.exercise_name || prescribed.exercises_library?.name || '').toLowerCase().trim();
         return !student.exercises.some(ex => {
           const executedName = ex.executed_exercise_name.toLowerCase().trim();
           return executedName.includes(prescribedName) || prescribedName.includes(executedName) || executedName === prescribedName;
         }) && prescribedName;
       });
-      const newExercises = unmentionedExercises.map((prescribed: any) => ({
+      const newExercises: SessionExercise[] = unmentionedExercises.map((prescribed: PrescriptionExerciseDetail) => ({
         prescribed_exercise_name: prescribed.exercise_name || prescribed.exercises_library?.name,
-        executed_exercise_name: prescribed.exercise_name || prescribed.exercises_library?.name,
-        sets: prescribed.sets || null, reps: null, load_kg: null, load_breakdown: '',
+        executed_exercise_name: prescribed.exercise_name || prescribed.exercises_library?.name || '',
+        sets: parseInt(prescribed.sets) || null, reps: null, load_kg: null, load_breakdown: '',
         observations: '⚠️ Exercício prescrito mas não mencionado - preencher manualmente', is_best_set: false,
       }));
       return { ...student, exercises: [...student.exercises, ...newExercises] };
@@ -797,7 +862,7 @@ export function RecordGroupSessionDialog({
                         }
                       });
                       return acc;
-                    }, [] as Array<{ student_name: string; exercises: any[]; clinical_observations: any[] }>);
+                    }, [] as Array<{ student_name: string; exercises: SessionExercise[]; clinical_observations: GroupObservation[] }>);
                     handleSessionData({ sessions: sessionsByStudent });
                   }}
                   onError={handleError}
