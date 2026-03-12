@@ -126,22 +126,25 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet) as SpreadsheetRow[];
 
       // Agrupa por aluno + data + hora
       const sessionsMap = new Map<string, SessionRow[]>();
 
       jsonData.forEach((row) => {
-        const sessionKey = `${row.Aluno || row.aluno}_${row.Data || row.data}_${row.Hora || row.hora}`;
+        const alunoRaw = getStringValue(row, ["Aluno", "aluno"]);
+        const dataRaw = row["Data"] ?? row["data"];
+        const horaRaw = row["Hora"] ?? row["hora"];
+        const sessionKey = `${alunoRaw}_${String(dataRaw ?? "")}_${String(horaRaw ?? "")}`;
         const sessionRow: SessionRow = {
-          aluno: row.Aluno || row.aluno,
-          data: parseExcelDate(row.Data || row.data),
-          hora: parseTime(row.Hora || row.hora),
-          exercicio: row.Exercicio || row.exercicio || row.Exercício,
-          series: row.Series || row.series || row.Séries,
-          reps: row.Reps || row.reps || row.Repetições,
-          carga: row.Carga || row.carga || row["Carga (kg)"],
-          observacoes: row.Observacoes || row.observacoes || row.Observações,
+          aluno: alunoRaw,
+          data: parseExcelDate(dataRaw),
+          hora: parseTime(horaRaw),
+          exercicio: getStringValue(row, ["Exercicio", "exercicio", "Exercício"]),
+          series: getNumberValue(row, ["Series", "series", "Séries"]),
+          reps: getNumberValue(row, ["Reps", "reps", "Repetições"]),
+          carga: getNumberValue(row, ["Carga", "carga", "Carga (kg)"]),
+          observacoes: getStringValue(row, ["Observacoes", "observacoes", "Observações"]) || undefined,
         };
 
         if (!sessionsMap.has(sessionKey)) {
