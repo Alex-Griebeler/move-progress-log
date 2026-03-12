@@ -48,8 +48,8 @@ export default function AuthPage() {
     return () => clearTimeout(timeoutId);
   }, [password, checkPasswordSecurity]);
 
-  const getErrorMessage = (error: any): string => {
-    const message = error.message.toLowerCase();
+  const getErrorMessage = (error: unknown): string => {
+    const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
     
     if (message.includes('email') && message.includes('already')) {
       return i18n.errors.emailAlreadyRegistered;
