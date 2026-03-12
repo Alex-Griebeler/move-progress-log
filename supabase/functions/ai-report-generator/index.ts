@@ -44,7 +44,7 @@ serve(async (req) => {
     const [{ data: sessions }, { data: records }] = await Promise.all([
       svc.from('workout_sessions').select('id, date, exercises(exercise_name, load_kg, reps, sets)').eq('student_id', student_id).gte('date', period_start).lte('date', period_end).order('date'),
       svc.from('exercises').select('exercise_name, load_kg, reps, sets, created_at, session_id').in('session_id', 
-        (await svc.from('workout_sessions').select('id').eq('student_id', student_id).gte('date', period_start).lte('date', period_end)).data?.map((s: any) => s.id) || []
+        (await svc.from('workout_sessions').select('id').eq('student_id', student_id).gte('date', period_start).lte('date', period_end)).data?.map((s: { id: string }) => s.id) || []
       ),
     ]);
 
