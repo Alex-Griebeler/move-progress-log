@@ -55,7 +55,7 @@ function sanitize(data: unknown): unknown {
   
   if (typeof data === 'object' && data !== null) {
     const record = data as Record<string, unknown>;
-    const sanitized: Record<string, unknown> = Array.isArray(data) ? [] : {};
+    const sanitized: Record<string, unknown> = {};
     for (const key in record) {
       if (/(token|password|secret|key)/i.test(key)) {
         sanitized[key] = '***';
