@@ -294,8 +294,8 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     
     const exercisesInfo = prescriptionDetails 
       ? prescriptionDetails.prescription_exercises
-          .filter((ex: any) => ex.should_track !== false)
-          .map((ex: any) => `  ${ex.order_index + 1}. ${ex.exercises_library.name}: ${ex.sets} séries × ${ex.reps} reps`)
+          .filter((ex: Record<string, unknown>) => ex.should_track !== false)
+          .map((ex: Record<string, unknown>) => `  ${(ex.order_index as number) + 1}. ${(ex.exercises_library as Record<string, unknown>).name}: ${ex.sets} séries × ${ex.reps} reps`)
           .join('\n')
       : '  (Sessão livre - sem prescrição definida)';
 
