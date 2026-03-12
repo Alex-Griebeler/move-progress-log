@@ -32,6 +32,7 @@ import {
   STABILITY_POSITION_OPTIONS,
   SURFACE_MODIFIER_OPTIONS,
   ExerciseLibrary,
+  CreateExerciseInput,
 } from "@/hooks/useExercisesLibrary";
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
