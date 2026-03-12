@@ -229,8 +229,8 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
 // Spreadsheet format (new XLSX import)
 // ============================================================================
 
-// deno-lint-ignore no-explicit-any
-type SpreadsheetExercise = Record<string, any>;
+
+type SpreadsheetExercise = Record<string, unknown>;
 
 // Helper to get a value from a spreadsheet row with normalized key fallback
 function getField(row: SpreadsheetExercise, ...keys: string[]): unknown {
@@ -509,8 +509,8 @@ Deno.serve(async (req: Request) => {
                                  const equipArr: string[] = [];
                                            const equipamento = getField(ex, "equipamento") as string | undefined;
                                            const implemento = getField(ex, "Implemento", "implemento") as string | undefined;
-                                           if (equipamento) equipArr.push(...equipamento.split(/[,;+\/]/).map((e: string) => e.trim()).filter(Boolean));
-                                           if (implemento) implemento.split(/[,;+\/]/).map((e: string) => e.trim()).filter(Boolean).forEach((e: string) => equipArr.push(e));
+                                            if (equipamento) equipArr.push(...equipamento.split(/[,;+/]/).map((e: string) => e.trim()).filter(Boolean));
+                                            if (implemento) implemento.split(/[,;+/]/).map((e: string) => e.trim()).filter(Boolean).forEach((e: string) => equipArr.push(e));
                                            if (equipArr.length > 0) record.equipment_required = [...new Set(equipArr)];
 
                                  // FIX PRINCIPAL: acumular em arrays em vez de fazer I/O individual
@@ -641,7 +641,7 @@ Deno.serve(async (req: Request) => {
                                                : null;
 
                                  const equipmentArr = ex.equipamento
-                                             ? ex.equipamento.split(/[+\/]/).map((e: string) => e.trim()).filter(Boolean)
+                                             ? ex.equipamento.split(/[+/]/).map((e: string) => e.trim()).filter(Boolean)
                                                : [];
 
                                  let sets: number | null = null;
