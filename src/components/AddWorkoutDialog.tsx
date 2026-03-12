@@ -104,21 +104,23 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
       setExercises([{ exercise: "", load: "", reps: 0, observations: "" }]);
       setOpen(false);
       onWorkoutAdded();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      const errCode = (error as { code?: string })?.code;
       logger.error("Erro ao registrar sessão:", error);
       
       // Detectar erro de duplicata
-      if (error.message?.includes('duplicate key') || error.code === '23505') {
+      if (err.message?.includes('duplicate key') || errCode === '23505') {
         toast.error("Sessão duplicada", {
           description: "Já existe uma sessão registrada para este aluno neste horário. Altere a data/hora ou edite a sessão existente."
         });
-      } else if (error.message?.includes('network')) {
+      } else if (err.message?.includes('network')) {
         toast.error("Erro de conexão", {
           description: "Verifique sua internet e tente novamente."
         });
       } else {
         toast.error("Erro ao registrar sessão", {
-          description: error.message || "Tente novamente ou contate o suporte."
+          description: err.message || "Tente novamente ou contate o suporte."
         });
       }
     }

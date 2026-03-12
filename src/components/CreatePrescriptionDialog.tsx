@@ -98,7 +98,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     if (open && draft && !draftRestoredRef.current) {
       setName(draft.name);
       setObjective(draft.objective);
-      setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" })));
+      setExercises(draft.exercises.map((ex: Partial<Exercise>) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" }) as Exercise));
       draftRestoredRef.current = true;
     }
     if (!open) {

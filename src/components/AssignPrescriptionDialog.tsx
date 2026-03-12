@@ -65,7 +65,7 @@ export function AssignPrescriptionDialog({
       return;
     }
 
-    const customAdaptations: any = {};
+    const customAdaptations: Record<string, string | string[]> = {};
     if (selectedWeekdays.length > 0) {
       customAdaptations.weekdays = selectedWeekdays;
     }

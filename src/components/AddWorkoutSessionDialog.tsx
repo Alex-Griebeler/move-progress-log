@@ -50,7 +50,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
     },
   });
 
-  const handleVoiceData = (voiceData: any) => {
+  const handleVoiceData = (voiceData: { student_name: string; date: string; time: string; exercises: Array<{ name: string; reps?: number; load_kg?: number; load_breakdown?: string; observations?: string }> }) => {
     logger.log("Voice data received:", voiceData);
     
     // Find student by name
@@ -66,7 +66,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
     form.setValue("time", voiceData.time);
     
     // Map voice exercises to form format
-    const mappedExercises = voiceData.exercises.map((ex: any) => ({
+    const mappedExercises = voiceData.exercises.map((ex) => ({
       exercise_name: ex.name,
       reps: ex.reps,
       load_kg: ex.load_kg,
