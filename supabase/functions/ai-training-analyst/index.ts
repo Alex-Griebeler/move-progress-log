@@ -54,7 +54,7 @@ serve(async (req) => {
 1. Progressão de carga e volume
 2. Recordes e destaques
 3. Recomendações para o próximo ciclo
-Dados: ${JSON.stringify({ trends, records, period_days })}
+Dados: ${JSON.stringify({ sessions, ouraMetrics, period_days })}
 Responda em português brasileiro com seções estruturadas.`;
 
     const res = await callAI({

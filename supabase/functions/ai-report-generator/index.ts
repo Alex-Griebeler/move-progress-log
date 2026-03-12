@@ -54,7 +54,7 @@ serve(async (req) => {
     const name = (student as any)?.name ?? 'Atleta';
     const prompt = `Gere um relatório ${report_type} profissional para ${name} (${period_start} a ${period_end}).
 Inclua: resumo executivo, análise de volume, recordes, progresso de metas, recomendações.
-Dados: ${JSON.stringify({ student, loads, records, goals })}
+Dados: ${JSON.stringify({ student, sessions, records })}
 Responda em português brasileiro formatado profissionalmente.`;
 
     const res = await callAI({
