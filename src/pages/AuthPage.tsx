@@ -437,16 +437,9 @@ export default function AuthPage() {
                       ) : passwordSecurity ? (
                         <>
                           {/* Mensagem principal */}
-                          <Alert 
-                            variant={passwordSecurity.isSecure ? "default" : "destructive"}
-                            className={
-                              passwordSecurity.isSecure
-                                ? "border-green-500 bg-green-50 text-green-900"
-                                : ""
-                            }
-                          >
+                          <Alert variant={passwordSecurity.isSecure ? "success" : "destructive"}>
                             {passwordSecurity.isSecure ? (
-                              <Check className="h-4 w-4 text-green-600" />
+                              <Check className="h-4 w-4 text-success" />
                             ) : (
                               <AlertCircle className="h-4 w-4" />
                             )}
