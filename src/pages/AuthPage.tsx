@@ -70,7 +70,7 @@ export default function AuthPage() {
       return i18n.errors.tooManyRequests;
     }
     
-    return error.message;
+    return error instanceof Error ? error.message : String(error);
   };
 
   const handleGoogleSignIn = async () => {
