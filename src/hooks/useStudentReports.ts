@@ -66,7 +66,7 @@ export const useReportById = (reportId: string | null) => {
       if (!reportId) return null;
 
       const { data, error } = await supabase
-        .from("student_reports" as any)
+        .from("student_reports")
         .select("*")
         .eq("id", reportId)
         .single();
