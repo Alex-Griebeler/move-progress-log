@@ -47,7 +47,8 @@ serve(async (req) => {
         .select('exercise_name, record_type, value')
         .eq('student_id', student_id)
         .in('exercise_name', exerciseNames)
-        .in('record_type', ['max_load', 'max_volume']);
+        // PR-03: Also detect max_reps and max_total_volume
+        .in('record_type', ['max_load', 'max_volume', 'max_reps', 'max_total_volume']);
 
       // Build in-memory lookup: "exercise_name:record_type" → best known value
       const recordMap = new Map<string, number>();
