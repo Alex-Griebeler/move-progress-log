@@ -37,10 +37,10 @@ export const Enable2FADialog = ({ open, onOpenChange }: Enable2FADialogProps) =>
         setSecret(data.totp.secret);
         setStep('verify');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error generating 2FA:', error);
       toast.error('Erro ao gerar 2FA', {
-        description: error.message || 'Tente novamente mais tarde',
+        description: error instanceof Error ? error.message : 'Tente novamente mais tarde',
       });
     } finally {
       setLoading(false);
