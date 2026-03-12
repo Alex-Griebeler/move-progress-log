@@ -904,8 +904,8 @@ FORMATO DE SAÍDA:
       });
       
       // Collect all deviations for the response
-      prescriptionDeviations = extractedData.sessions?.flatMap((s: any) => 
-        (s.prescription_deviations || []).map((d: any) => ({ ...d, student_name: s.student_name }))
+      prescriptionDeviations = extractedData.sessions?.flatMap((s: Record<string, unknown>) => 
+        ((s.prescription_deviations as Record<string, unknown>[]) || []).map((d: Record<string, unknown>) => ({ ...d, student_name: s.student_name }))
       ) || [];
     }
     // ═══════════════════════════════════════════════════════════
