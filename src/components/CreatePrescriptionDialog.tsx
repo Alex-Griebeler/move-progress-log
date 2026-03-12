@@ -420,7 +420,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     onOpenChange(false);
   };
 
-  const handleRestoreDraft = (draftData: any) => {
+  const handleRestoreDraft = (draftData: { name: string; objective: string; exercises: Exercise[] }) => {
     setName(draftData.name);
     setObjective(draftData.objective);
     setExercises(draftData.exercises);

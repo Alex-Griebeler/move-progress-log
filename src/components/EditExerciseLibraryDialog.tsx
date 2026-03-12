@@ -58,18 +58,18 @@ export const EditExerciseLibraryDialog = ({
   const [movementPlane, setMovementPlane] = useState(exercise.movement_plane || "");
   const [contractionType, setContractionType] = useState(exercise.contraction_type || "");
   const [boyleScore, setBoyleScore] = useState(
-    (exercise as any).boyle_score?.toString() || ""
+    exercise.boyle_score?.toString() || ""
   );
-  const [axialLoad, setAxialLoad] = useState((exercise as any).axial_load?.toString() || "");
-  const [lumbarDemand, setLumbarDemand] = useState((exercise as any).lumbar_demand?.toString() || "");
-  const [technicalComplexity, setTechnicalComplexity] = useState((exercise as any).technical_complexity?.toString() || "");
-  const [metabolicPotential, setMetabolicPotential] = useState((exercise as any).metabolic_potential?.toString() || "");
-  const [kneeDominance, setKneeDominance] = useState((exercise as any).knee_dominance?.toString() || "");
-  const [hipDominance, setHipDominance] = useState((exercise as any).hip_dominance?.toString() || "");
-  const [emphasis, setEmphasis] = useState((exercise as any).emphasis || "");
+  const [axialLoad, setAxialLoad] = useState(exercise.axial_load?.toString() || "");
+  const [lumbarDemand, setLumbarDemand] = useState(exercise.lumbar_demand?.toString() || "");
+  const [technicalComplexity, setTechnicalComplexity] = useState(exercise.technical_complexity?.toString() || "");
+  const [metabolicPotential, setMetabolicPotential] = useState(exercise.metabolic_potential?.toString() || "");
+  const [kneeDominance, setKneeDominance] = useState(exercise.knee_dominance?.toString() || "");
+  const [hipDominance, setHipDominance] = useState(exercise.hip_dominance?.toString() || "");
+  const [emphasis, setEmphasis] = useState(exercise.emphasis || "");
   const [description, setDescription] = useState(exercise.description || "");
-  const [stabilityPosition, setStabilityPosition] = useState((exercise as any).stability_position || "");
-  const [surfaceModifier, setSurfaceModifier] = useState((exercise as any).surface_modifier || "nenhum");
+  const [stabilityPosition, setStabilityPosition] = useState(exercise.stability_position || "");
+  const [surfaceModifier, setSurfaceModifier] = useState(exercise.surface_modifier || "nenhum");
   const [videoUrl, setVideoUrl] = useState(exercise.video_url || "");
   const [riskLevel, setRiskLevel] = useState(exercise.risk_level || "");
   const [category, setCategory] = useState(exercise.category || "");

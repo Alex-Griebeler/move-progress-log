@@ -90,11 +90,12 @@ export function CreateSubfolderDialog({
         parentId: parentId || undefined 
       });
       onOpenChange(false);
-    } catch (err: any) {
-      if (err.message.includes("Maximum folder depth")) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("Maximum folder depth")) {
         setError("Limite de profundidade atingido (máximo 3 níveis)");
       } else {
-        setError(err.message);
+        setError(msg);
       }
     }
   };
