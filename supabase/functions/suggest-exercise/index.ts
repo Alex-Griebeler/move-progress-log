@@ -164,7 +164,7 @@ Qual exercício da lista é mais similar? Retorne APENAS o nome exato ou "null".
 
     // Validate suggestion exists in candidates
     const suggestedExercise = candidates.find(
-      (ex: any) => normalize(ex.name) === normalize(suggestedName || '')
+      (ex) => normalize(ex.name) === normalize(suggestedName || '')
     );
 
     if (!suggestedExercise || suggestedName === 'null') {

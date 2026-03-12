@@ -11,7 +11,7 @@ interface SyncResult {
   status: 'success' | 'failed';
   attempt: number;
   error?: string;
-  metrics_synced?: any;
+  metrics_synced?: Record<string, unknown>;
 }
 
 /** Decode JWT payload without verification (verification done by getClaims) */

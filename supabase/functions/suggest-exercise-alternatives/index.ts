@@ -226,7 +226,7 @@ Retorne APENAS os IDs dos exercícios sugeridos como alternativas.`;
 
     // SR-03: Validate that each returned ID exists in the available exercises
     const availableIds = new Set(availableExercises.map(e => e.id));
-    const validateIds = (items: any[]) => items.filter((item: any) => availableIds.has(item.exercise_id));
+    const validateIds = (items: Array<{ exercise_id: string }>) => items.filter((item) => availableIds.has(item.exercise_id));
 
     const result = {
       regressions: validateIds(suggestions.regressions || []),
