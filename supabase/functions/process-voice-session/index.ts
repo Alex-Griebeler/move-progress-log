@@ -776,7 +776,7 @@ FORMATO DE SAÍDA:
     }
     
     // Sanitizar dados (converter 0 e "" para null)
-    function sanitizeExerciseData(exercise: any) {
+    function sanitizeExerciseData(exercise: Record<string, unknown>) {
       const fieldsToSanitize = ['load_kg', 'load_breakdown', 'reps', 'sets', 'observations'];
       for (const field of fieldsToSanitize) {
         if (exercise[field] === 0 || exercise[field] === '' || exercise[field] === 'não informado') {
@@ -786,7 +786,7 @@ FORMATO DE SAÍDA:
     }
 
     // Validar e recalcular load_kg se necessário
-    function validateAndRecalculateLoad(exercise: any, _sessionIdx: number, _exIdx: number) {
+    function validateAndRecalculateLoad(exercise: Record<string, unknown>, _sessionIdx: number, _exIdx: number) {
       sanitizeExerciseData(exercise);
       
       if (!exercise.load_breakdown) {
