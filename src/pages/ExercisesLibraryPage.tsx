@@ -478,9 +478,9 @@ export default function ExercisesLibraryPage() {
                           {LATERALITY_OPTIONS[exercise.laterality as keyof typeof LATERALITY_OPTIONS] || exercise.laterality}
                         </Badge>
                       )}
-                      {(exercise as any).stability_position && (
+                      {exercise.stability_position && (
                         <Badge variant="outline" className="text-xs">
-                          {STABILITY_POSITION_OPTIONS[(exercise as any).stability_position as keyof typeof STABILITY_POSITION_OPTIONS] || (exercise as any).stability_position}
+                          {STABILITY_POSITION_OPTIONS[exercise.stability_position as keyof typeof STABILITY_POSITION_OPTIONS] || exercise.stability_position}
                         </Badge>
                       )}
                       {exercise.movement_plane && (

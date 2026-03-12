@@ -50,10 +50,10 @@ export const usePrescriptionSearch = (filters: PrescriptionSearchFilters) => {
 
       if (error) throw error;
 
-      return (data as any[]).map((item) => ({
+      return (data ?? []).map((item) => ({
         ...item,
-        assigned_count: item.assigned_count[0]?.count || 0,
-      })) as WorkoutPrescription[];
+        assigned_count: Array.isArray(item.assigned_count) ? (item.assigned_count[0] as { count: number })?.count || 0 : 0,
+      })) as unknown as WorkoutPrescription[];
     },
     enabled: Object.keys(filters).some(key => 
       filters[key as keyof PrescriptionSearchFilters] !== undefined

@@ -3,6 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logger } from "@/utils/logger";
 
+export interface OuraReportData {
+  avgReadiness?: number;
+  avgSleep?: number;
+  avgHrv?: number;
+  avgRhr?: number;
+  dataPoints?: number;
+}
+
 export interface StudentReport {
   id: string;
   student_id: string;
@@ -18,7 +26,7 @@ export interface StudentReport {
   trainer_highlights: string | null;
   attention_points: string | null;
   next_cycle_plan: string | null;
-  oura_data: any;
+  oura_data: OuraReportData | null;
   consistency_analysis: string | null;
   strength_analysis: string | null;
   generated_at: string | null;
@@ -37,7 +45,7 @@ export interface TrackedExercise {
   initial_total_work: number | null;
   final_total_work: number | null;
   work_variation_percentage: number | null;
-  weekly_progression: any;
+  weekly_progression: Record<string, number> | null;
   created_at: string;
 }
 
@@ -47,7 +55,7 @@ export const useStudentReports = (studentId: string) => {
     enabled: !!studentId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("student_reports" as any)
+        .from("student_reports")
         .select("*")
         .eq("student_id", studentId)
         .order("period_end", { ascending: false });
@@ -66,7 +74,7 @@ export const useReportById = (reportId: string | null) => {
       if (!reportId) return null;
 
       const { data, error } = await supabase
-        .from("student_reports" as any)
+        .from("student_reports")
         .select("*")
         .eq("id", reportId)
         .single();
@@ -85,7 +93,7 @@ export const useReportTrackedExercises = (reportId: string | null) => {
       if (!reportId) return [];
 
       const { data, error } = await supabase
-        .from("report_tracked_exercises" as any)
+        .from("report_tracked_exercises")
         .select("*")
         .eq("report_id", reportId)
         .order("load_variation_percentage", { ascending: false });
@@ -157,7 +165,7 @@ export const useUpdateTrainerNotes = () => {
       nextCyclePlan?: string;
     }) => {
       const { data, error } = await supabase
-        .from("student_reports" as any)
+        .from("student_reports")
         .update({
           trainer_highlights: highlights,
           attention_points: attentionPoints,

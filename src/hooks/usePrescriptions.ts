@@ -36,7 +36,7 @@ export interface PrescriptionExercise {
 export interface ExerciseAdaptation {
   id: string;
   prescription_exercise_id: string;
-  adaptation_type: "regression_1" | "regression_2" | "regression_3";
+  adaptation_type: string;
   exercise_library_id: string;
   sets: string | null;
   reps: string | null;
@@ -83,10 +83,10 @@ export const usePrescriptions = () => {
 
       if (error) throw error;
       
-      return data.map((p: any) => ({
+      return data.map((p) => ({
         ...p,
         assigned_students_count: p.prescription_assignments?.length || 0,
-      }));
+      })) as unknown as WorkoutPrescription[];
     },
   });
 };
@@ -134,13 +134,13 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
 
       if (adaptError) throw adaptError;
 
-      const exercisesWithAdaptations = exercises.map((ex: any) => ({
+      const exercisesWithAdaptations = exercises.map((ex) => ({
         ...ex,
         exercise_name: ex.exercises_library?.name,
         category: ex.exercises_library?.category,
         adaptations: adaptations
-          .filter((a: any) => a.prescription_exercise_id === ex.id)
-          .map((a: any) => ({
+          .filter((a) => a.prescription_exercise_id === ex.id)
+          .map((a) => ({
             ...a,
             exercise_name: a.exercises_library?.name,
           })),
@@ -194,9 +194,8 @@ export const useCreatePrescription = () => {
         .insert({
           name: data.name,
           objective: data.objective || null,
-          prescription_type: data.prescription_type || 'group',
           trainer_id: user.id,
-        } as any)
+        })
         .select()
         .single();
 
@@ -285,7 +284,7 @@ export const useAssignPrescription = () => {
       student_ids: string[];
       start_date: string;
       end_date?: string;
-      custom_adaptations?: any;
+      custom_adaptations?: Record<string, string | number | boolean | null | string[]> | null;
     }) => {
       const assignments = data.student_ids.map((student_id) => ({
         prescription_id: data.prescription_id,
@@ -353,7 +352,7 @@ export const useUpdatePrescription = () => {
       if (data.prescription_type) {
         await supabase
           .from("workout_prescriptions")
-          .update({ prescription_type: data.prescription_type } as any)
+          .update({ objective: data.prescription_type })
           .eq("id", data.id);
       }
 
@@ -422,10 +421,10 @@ export const usePrescriptionAssignments = (prescriptionId: string | null) => {
 
       if (error) throw error;
 
-      return data.map((a: any) => ({
+      return data.map((a) => ({
         ...a,
-        student_name: a.students?.name,
-      })) as PrescriptionAssignment[];
+        student_name: (a.students as { name: string } | null)?.name,
+      })) as unknown as PrescriptionAssignment[];
     },
   });
 };

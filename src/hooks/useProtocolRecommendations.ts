@@ -96,7 +96,7 @@ export const useUpdateRecommendation = () => {
       applied?: boolean;
       trainer_notes?: string;
     }) => {
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (applied !== undefined) updateData.applied = applied;
       if (trainer_notes !== undefined) updateData.trainer_notes = trainer_notes;
 
