@@ -12,6 +12,7 @@ interface InviteData {
   student_name: string;
   student_id: string;
   invite_id: string;
+  oura_client_id?: string;
   error?: string;
 }
 

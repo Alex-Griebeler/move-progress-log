@@ -66,6 +66,35 @@ Deno.serve(async (req) => {
 
     console.log('Invite is valid');
 
+    // If this is an oura_connect type invite, return additional data
+    if (type === 'oura_connect' || invite.email === '__oura_connect__') {
+      const ouraClientId = Deno.env.get('OURA_CLIENT_ID');
+
+      // Get student name
+      let studentName = 'Aluno';
+      if (invite.created_student_id) {
+        const { data: student } = await supabaseClient
+          .from('students')
+          .select('name')
+          .eq('id', invite.created_student_id)
+          .single();
+        if (student) studentName = student.name;
+      }
+
+      return new Response(
+        JSON.stringify({
+          valid: true,
+          trainer_name: invite.trainer_profiles?.full_name || 'Seu treinador',
+          student_name: studentName,
+          student_id: invite.created_student_id,
+          invite_id: invite.id,
+          oura_client_id: ouraClientId || null,
+          expires_at: invite.expires_at,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
       JSON.stringify({
         valid: true,
