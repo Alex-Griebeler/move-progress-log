@@ -158,10 +158,10 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
       notify.success("Usuário atualizado com sucesso!");
       onOpenChange(false);
       onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error updating user:", error);
       notify.error("Erro ao atualizar usuário", {
-        description: error.message || "Tente novamente mais tarde",
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde",
       });
     } finally {
       setIsSubmitting(false);
@@ -181,10 +181,10 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
       notify.success("Email de reset enviado!", {
         description: `Um link de redefinição foi enviado para ${user.email}`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error sending reset email:", error);
       notify.error("Erro ao enviar email", {
-        description: error.message,
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde",
       });
     }
   };

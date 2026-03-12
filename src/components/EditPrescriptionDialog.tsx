@@ -334,11 +334,11 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
         title: "Regressões sugeridas com sucesso!",
         description: "A IA sugeriu 3 exercícios de regressão baseados no padrão de movimento.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       sonnerToast.dismiss(loadingToastId);
       toast({
         title: "Erro ao sugerir regressões",
-        description: error.message || "Tente novamente mais tarde.",
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde.",
         variant: "destructive",
       });
     } finally {
@@ -440,9 +440,9 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       clearDraft();
       
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       notify.error("Erro ao atualizar prescrição", {
-        description: error?.message || "Ocorreu um erro inesperado. Tente novamente."
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado. Tente novamente."
       });
     }
   };
@@ -460,10 +460,10 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     onOpenChange(false);
   };
 
-  const handleRestoreDraft = (draftData: any) => {
+  const handleRestoreDraft = (draftData: { timestamp: string; name: string; objective: string; exercises: Array<{ id: string; exercise_library_id: string; sets: string; reps: string; interval_seconds: string; pse: string; training_method: string; observations: string; group_with_previous: boolean; should_track: boolean; adaptations: Array<{ type: "regression_1" | "regression_2" | "regression_3"; exercise_library_id: string }>; showAdaptations: boolean }> }) => {
     setName(draftData.name);
     setObjective(draftData.objective);
-    setExercises(draftData.exercises);
+    setExercises(draftData.exercises.map(ex => ({ ...ex, load: "", rir: "" })));
     restoreDraft(draftData);
   };
 

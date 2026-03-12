@@ -37,7 +37,7 @@ export const ExerciseDimensionReview = () => {
   const { data: exercises, isLoading } = useQuery({
     queryKey: ["exercises-dimensions", filter, categoryFilter],
     queryFn: async () => {
-      let allData: any[] = [];
+      let allData: Array<{ id: string; name: string; category: string | null; movement_pattern: string | null; axial_load: number | null; lumbar_demand: number | null; technical_complexity: number | null; metabolic_potential: number | null; knee_dominance: number | null; hip_dominance: number | null }> = [];
       let from = 0;
       const batchSize = 500;
       let hasMore = true;
@@ -269,7 +269,7 @@ export const ExerciseDimensionReview = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-3 items-center">
-            <Select value={filter} onValueChange={(v) => setFilter(v as any)}>
+            <Select value={filter} onValueChange={(v) => setFilter(v as "all" | "classified" | "unclassified")}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue />
               </SelectTrigger>
