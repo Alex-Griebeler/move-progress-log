@@ -262,7 +262,7 @@ serve(async (req) => {
           students: message.context.students,
           prescriptionExercises: prescription.prescription_exercises.map((ex: Record<string, unknown>) => ({
             id: ex.id,
-            exercise_name: ex.exercises_library.name,
+            exercise_name: (ex.exercises_library as Record<string, unknown>).name,
             sets: ex.sets,
             reps: ex.reps,
             order_index: ex.order_index

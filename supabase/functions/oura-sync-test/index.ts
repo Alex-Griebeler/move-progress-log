@@ -423,19 +423,22 @@ Deno.serve(async (req) => {
 
     // Save workouts
     if (workoutsData?.data && workoutsData.data.length > 0) {
-      const workouts = workoutsData.data.map((w: Record<string, unknown>) => ({
-        student_id,
-        oura_workout_id: w.id,
-        activity: w.activity,
-        start_datetime: w.start_datetime,
-        end_datetime: w.end_datetime,
-        calories: w.calories || null,
-        distance: w.distance || null,
-        intensity: w.intensity || null,
-        average_heart_rate: w.heart_rate?.average || null,
-        max_heart_rate: w.heart_rate?.max || null,
-        source: w.source || null,
-      }));
+      const workouts = workoutsData.data.map((w: Record<string, unknown>) => {
+        const heartRate = w.heart_rate as Record<string, unknown> | undefined;
+        return {
+          student_id,
+          oura_workout_id: w.id,
+          activity: w.activity,
+          start_datetime: w.start_datetime,
+          end_datetime: w.end_datetime,
+          calories: w.calories || null,
+          distance: w.distance || null,
+          intensity: w.intensity || null,
+          average_heart_rate: heartRate?.average || null,
+          max_heart_rate: heartRate?.max || null,
+          source: w.source || null,
+        };
+      });
 
       const { error: workoutsError } = await supabaseClient
         .from('oura_workouts')
