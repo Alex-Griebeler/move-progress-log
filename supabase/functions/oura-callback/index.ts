@@ -74,16 +74,23 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
     
-    // Get frontend URL from request origin
-    const origin = req.headers.get('origin') || req.headers.get('referer');
-    let frontendUrl = 'https://move-progress-log.lovable.app';
+    // OCB-03: Derive frontend URL from SITE_URL env or allowed origins list
+    const ALLOWED_ORIGINS = [
+      'https://move-progress-log.lovable.app',
+      'https://id-preview--905d5174-1667-49dc-b1cc-1e7743b2741e.lovable.app',
+    ];
+    const siteUrl = Deno.env.get('SITE_URL');
+    let frontendUrl = siteUrl || ALLOWED_ORIGINS[0];
     
+    const origin = req.headers.get('origin') || req.headers.get('referer');
     if (origin) {
       try {
-        const originUrl = new URL(origin);
-        frontendUrl = originUrl.origin;
-      } catch (e) {
-        console.log('Could not parse origin, using default:', frontendUrl);
+        const originUrl = new URL(origin).origin;
+        if (ALLOWED_ORIGINS.includes(originUrl) || originUrl.endsWith('.lovable.app')) {
+          frontendUrl = originUrl;
+        }
+      } catch (_e) {
+        // Keep default
       }
     }
 
