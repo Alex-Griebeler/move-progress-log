@@ -2,7 +2,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { logger } from "@/utils/logger";
 
-interface PasswordSecurityResult {
+export interface PasswordSecurityResult {
   isSecure: boolean;
   strength: "weak" | "medium" | "strong";
   message: string;
