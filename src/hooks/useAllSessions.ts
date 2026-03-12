@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { PostgrestFilterBuilder } from "@supabase/postgrest-js";
 
 interface SessionFilters {
   studentIds?: string[];
