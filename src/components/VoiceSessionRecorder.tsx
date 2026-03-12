@@ -16,7 +16,7 @@ interface VoiceSessionRecorderProps {
   }>;
   date?: string;
   time?: string;
-  onSessionData: (data: any) => void;
+  onSessionData: (data: unknown) => void;
   onError?: (error: string) => void;
   autoStart?: boolean;
   onRecordingStarted?: () => void;
