@@ -10,7 +10,6 @@ import { Severity } from "@/types/sessionRecording";
 interface BaseObservation {
   observation_text: string;
   severity: Severity;
-  [key: string]: any;
 }
 
 interface ObservationEditorProps<T extends BaseObservation> {
