@@ -295,7 +295,6 @@ Deno.serve(async (req) => {
       // Fallback: use sleep period's lowest heart rate if available
       if (!restingHeartRate && sleepPeriod?.lowest_heart_rate) {
         restingHeartRate = sleepPeriod.lowest_heart_rate;
-        console.log('Using sleep period lowest_heart_rate as fallback:', restingHeartRate);
       }
     } catch (error) {
       console.error('Error calculating resting heart rate:', error);
