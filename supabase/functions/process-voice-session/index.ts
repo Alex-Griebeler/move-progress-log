@@ -289,7 +289,7 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     }
 
     const studentsInfo = students
-      .map((s: any) => `  - ${s.name}${s.weight_kg ? ` (peso: ${s.weight_kg} kg)` : ' (peso não cadastrado)'}`)
+      .map((s: { name: string; weight_kg?: number }) => `  - ${s.name}${s.weight_kg ? ` (peso: ${s.weight_kg} kg)` : ' (peso não cadastrado)'}`)
       .join('\n');
     
     const exercisesInfo = prescriptionDetails 
