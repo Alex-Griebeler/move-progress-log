@@ -44,9 +44,9 @@ const SESSION_SELECT = `
   exercises!session_id ( load_kg )
 `;
 
-type SessionQuery = ReturnType<ReturnType<typeof supabase.from>['select']>;
+type AnyBuilder = PostgrestFilterBuilder<never, never, unknown[]>;
 
-function applyFilters(query: SessionQuery, filters?: SessionFilters) {
+function applyFilters(query: AnyBuilder, filters?: SessionFilters): AnyBuilder {
   if (filters?.studentIds && filters.studentIds.length > 0) {
     query = query.in("student_id", filters.studentIds);
   }
