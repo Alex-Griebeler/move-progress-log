@@ -502,6 +502,20 @@ const StudentsPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {ouraConnectStudentId && (
+        <SendOuraConnectDialog
+          open={!!ouraConnectStudentId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setOuraConnectStudentId(null);
+              setOuraConnectStudentName("");
+            }
+          }}
+          studentId={ouraConnectStudentId}
+          studentName={ouraConnectStudentName}
+        />
+      )}
     </PageLayout>
   );
 };
