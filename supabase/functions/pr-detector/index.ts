@@ -61,9 +61,13 @@ serve(async (req) => {
       // Detect PRs entirely in memory — no extra DB reads
       const newRecords: object[] = [];
       for (const { session, ex } of items) {
+        // PR-03: Detect max_load, max_volume, max_reps, max_total_volume
+        const sets = (ex as any).sets || 1;
         const checks: [string, number][] = [
           ['max_load', ex.load_kg],
           ['max_volume', ex.load_kg * ex.reps],
+          ['max_reps', ex.reps],
+          ['max_total_volume', ex.load_kg * ex.reps * sets],
         ];
         for (const [record_type, val] of checks) {
           const key = `${ex.exercise_name}:${record_type}`;

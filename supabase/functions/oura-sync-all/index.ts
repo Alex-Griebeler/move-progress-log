@@ -125,100 +125,63 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${connections.length} students with active Oura connections`);
 
-    // Calculate Brazil date (UTC-3)
-    const now = new Date();
-    const utcHours = now.getUTCHours();
-    const utcDate = now.getUTCDate();
-    const utcMonth = now.getUTCMonth();
-    const utcYear = now.getUTCFullYear();
-
-    let brazilDate: Date;
-    if (utcHours < 3) {
-      brazilDate = new Date(utcYear, utcMonth, utcDate - 1);
-    } else {
-      brazilDate = new Date(utcYear, utcMonth, utcDate);
-    }
-
-    const dateStr = brazilDate.toISOString().split('T')[0];
+    // OA-04: Use Intl.DateTimeFormat for consistent Brazil date calculation
+    const dateStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
 
     const results: SyncResult[] = [];
 
-    // Sync each student with retry logic
-    for (const connection of connections) {
-      const studentId = connection.student_id;
-      const studentName = (connection.students as any)?.name || 'Unknown';
+    // OA-02: Process in parallel with concurrency limit of 5 (was sequential)
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < connections.length; i += BATCH_SIZE) {
+      const batch = connections.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.allSettled(
+        batch.map(async (connection) => {
+          const studentId = connection.student_id;
+          const studentName = (connection.students as any)?.name || 'Unknown';
+          let lastError = '';
 
-      let lastError = '';
-      let success = false;
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+              if (attempt > 1) {
+                await supabase.from('oura_sync_logs').insert({
+                  student_id: studentId, sync_date: dateStr, status: 'retrying',
+                  attempt_number: attempt, error_message: lastError
+                });
+              }
 
-      // Try up to 3 times
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          // Log retry attempt
-          if (attempt > 1) {
-            await supabase.from('oura_sync_logs').insert({
-              student_id: studentId,
-              sync_date: dateStr,
-              status: 'retrying',
-              attempt_number: attempt,
-              error_message: lastError
-            });
+              // OA-01: Pass service role key as Authorization header
+              const { data: syncData, error: syncError } = await supabase.functions.invoke('oura-sync', {
+                body: { student_id: studentId, date: dateStr },
+                headers: { Authorization: `Bearer ${supabaseKey}` }
+              });
+
+              if (syncError) throw syncError;
+
+              await supabase.from('oura_sync_logs').insert({
+                student_id: studentId, sync_date: dateStr, status: 'success',
+                attempt_number: attempt, metrics_synced: syncData
+              });
+
+              return { student_id: studentId, student_name: studentName, status: 'success' as const, attempt, metrics_synced: syncData };
+            } catch (error) {
+              lastError = (error as Error).message || String(error);
+              if (attempt === 3) {
+                await supabase.from('oura_sync_logs').insert({
+                  student_id: studentId, sync_date: dateStr, status: 'failed',
+                  attempt_number: attempt, error_message: lastError
+                });
+                return { student_id: studentId, student_name: studentName, status: 'failed' as const, attempt: 3, error: lastError };
+              }
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+            }
           }
+          return { student_id: studentId, student_name: studentName, status: 'failed' as const, attempt: 3, error: lastError };
+        })
+      );
 
-          // Call the oura-sync function
-          const { data: syncData, error: syncError } = await supabase.functions.invoke('oura-sync', {
-            body: { student_id: studentId, date: dateStr }
-          });
-
-          if (syncError) {
-            throw syncError;
-          }
-
-          success = true;
-
-          // Log success
-          await supabase.from('oura_sync_logs').insert({
-            student_id: studentId,
-            sync_date: dateStr,
-            status: 'success',
-            attempt_number: attempt,
-            metrics_synced: syncData
-          });
-
-          results.push({
-            student_id: studentId,
-            student_name: studentName,
-            status: 'success',
-            attempt,
-            metrics_synced: syncData
-          });
-
-          break;
-        } catch (error) {
-          const err = error as Error;
-          lastError = err.message || String(error);
-
-          if (attempt === 3) {
-            await supabase.from('oura_sync_logs').insert({
-              student_id: studentId,
-              sync_date: dateStr,
-              status: 'failed',
-              attempt_number: attempt,
-              error_message: lastError
-            });
-
-            results.push({
-              student_id: studentId,
-              student_name: studentName,
-              status: 'failed',
-              attempt: 3,
-              error: lastError
-            });
-          } else {
-            // Wait before retrying (exponential backoff)
-            const waitTime = Math.pow(2, attempt) * 1000;
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-          }
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          results.push(result.value as SyncResult);
         }
       }
     }

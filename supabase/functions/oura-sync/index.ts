@@ -425,7 +425,7 @@ Deno.serve(async (req) => {
       .update({ last_sync_at: new Date().toISOString() })
       .eq('id', connection.id);
 
-    console.log('Oura sync completed successfully');
+    if (DEBUG) console.log('Oura sync completed for', syncDate);
 
     return new Response(
       JSON.stringify({

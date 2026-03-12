@@ -48,6 +48,26 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Invalid action: ${action}`);
     }
 
+    // RL-01: For increment=true with user_id, validate JWT to prevent malicious pre-blocking
+    if (increment && user_id) {
+      const authHeader = req.headers.get('Authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '');
+        const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+        const supabaseAuth = createClient(Deno.env.get("SUPABASE_URL") ?? '', anonKey, {
+          global: { headers: { Authorization: `Bearer ${token}` } }
+        });
+        const { data: { user } } = await supabaseAuth.auth.getUser();
+        // If authenticated, user_id must match the JWT user
+        if (user && user.id !== user_id) {
+          return new Response(
+            JSON.stringify({ error: 'user_id does not match authenticated user' }),
+            { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+      }
+    }
+
     // Authenticated users are identified by user_id to avoid shared-IP false-positives
     const identifier = user_id ?? ip_address;
     console.log(`[Rate Limit] Checking: ${action} for ${user_id ? `user:${user_id}` : `ip:${ip_address}`}`);

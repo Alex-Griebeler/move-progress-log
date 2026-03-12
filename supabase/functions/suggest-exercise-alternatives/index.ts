@@ -224,10 +224,14 @@ Retorne APENAS os IDs dos exercícios sugeridos como alternativas.`;
 
     const suggestions = JSON.parse(toolCall.function.arguments);
 
-    // Normalizar resposta para sempre ter ambos os arrays
+    // SR-03: Validate that each returned ID exists in the available exercises
+    const availableIds = new Set(availableExercises.map(e => e.id));
+    const validateIds = (items: any[]) => items.filter((item: any) => availableIds.has(item.exercise_id));
+
     const result = {
-      regressions: suggestions.regressions || [],
-      progressions: suggestions.progressions || [],
+      regressions: validateIds(suggestions.regressions || []),
+      progressions: validateIds(suggestions.progressions || []),
+      availableCount: availableExercises.length,
     };
 
     return new Response(JSON.stringify(result), {

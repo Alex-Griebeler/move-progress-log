@@ -159,16 +159,19 @@ Qual exercício da lista é mais similar? Retorne APENAS o nome exato ou "null".
     const data = await response.json();
     const suggestedName = data.choices[0]?.message?.content?.trim();
 
-    // Suggestion resolved
+    // SE-04: Normalize accents for robust comparison
+    const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
     // Validate suggestion exists in candidates
     const suggestedExercise = candidates.find(
-      (ex: any) => ex.name.toLowerCase() === suggestedName?.toLowerCase()
+      (ex: any) => normalize(ex.name) === normalize(suggestedName || '')
     );
 
     if (!suggestedExercise || suggestedName === 'null') {
+      // SE-02: Include reason for null suggestion
+      const reason = !suggestedName || suggestedName === 'null' ? 'no_match' : 'low_confidence';
       return new Response(
-        JSON.stringify({ success: true, suggested: null, message: 'Nenhum exercício similar encontrado' }),
+        JSON.stringify({ success: true, suggested: null, reason, message: reason === 'no_match' ? 'Nenhum exercício similar encontrado' : 'Confiança insuficiente no mapeamento' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

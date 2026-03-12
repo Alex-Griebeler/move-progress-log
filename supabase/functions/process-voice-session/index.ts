@@ -228,14 +228,20 @@ serve(async (req) => {
       .map(([k, v]) => `- "${k}" → "${v}"`)
       .join('\n');
 
-    const transcriptionResult = await model.generateContent([
-      {
-        inlineData: {
-          mimeType: "audio/webm",
-          data: audioBase64
-        }
-      },
-      `Transcreva este áudio em português brasileiro sobre treino físico.
+    // V-06: AbortController with 30s timeout for transcription
+    const transcriptionController = new AbortController();
+    const transcriptionTimeout = setTimeout(() => transcriptionController.abort(), 30_000);
+
+    let transcriptionResult;
+    try {
+      transcriptionResult = await model.generateContent([
+        {
+          inlineData: {
+            mimeType: "audio/webm",
+            data: audioBase64
+          }
+        },
+        `Transcreva este áudio em português brasileiro sobre treino físico.
 Tolere ruído, interrupções, correções e comentários paralelos.
 
 CORREÇÕES OBRIGATÓRIAS:
@@ -248,7 +254,18 @@ CORREÇÕES NO MEIO DO ÁUDIO:
 - O sistema de extração usará apenas a carga final corrigida.
 
 Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
-    ]);
+      ]);
+    } catch (err) {
+      clearTimeout(transcriptionTimeout);
+      if ((err as Error).name === 'AbortError') {
+        return new Response(
+          JSON.stringify({ error: 'Transcrição excedeu o tempo limite (30s). Tente gravar um áudio mais curto.' }),
+          { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      throw err;
+    }
+    clearTimeout(transcriptionTimeout);
 
     const transcription = transcriptionResult.response.text();
     
