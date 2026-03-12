@@ -662,7 +662,6 @@ function buildCorePhase(
       coreExercises.push(picked);
       excludeIds.add(picked.id);
     } else {
-      // Fallback: any core not yet used
       const fallback = corePool.filter((ex) => !excludeIds.has(ex.id));
       if (fallback.length > 0) {
         const picked = fallback[Math.floor(Math.random() * fallback.length)];
@@ -678,8 +677,14 @@ function buildCorePhase(
       id: generateUUID(),
       name: `Core Biplanar (${targetPlanes.join(" + ")})`,
       method: "superset",
-      exercises: coreExercises.map((ex) =>
-        mapToGeneratedExercise(ex, { sets: "2", reps: "10-12", interval: 30 })
+      // G-09: Explicitly set subcategory from target plane so checkCoreTriplanar works correctly
+      exercises: coreExercises.map((ex, i) =>
+        mapToGeneratedExercise(ex, {
+          sets: "2",
+          reps: "10-12",
+          interval: 30,
+          ...(targetPlanes[i] ? { subcategory: targetPlanes[i] } : {}),
+        })
       ),
       restBetweenSets: 30,
       notes: `2 planos distintos: ${targetPlanes.join(", ")}. Cobertura triplanar na semana.`,
