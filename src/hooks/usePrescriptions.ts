@@ -194,9 +194,8 @@ export const useCreatePrescription = () => {
         .insert({
           name: data.name,
           objective: data.objective || null,
-          prescription_type: data.prescription_type || 'group',
           trainer_id: user.id,
-        } as any)
+        })
         .select()
         .single();
 
