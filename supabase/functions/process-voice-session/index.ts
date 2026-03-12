@@ -878,10 +878,10 @@ FORMATO DE SAÍDA:
         });
         
         // 3. Desvios de volume (séries diferentes do prescrito)
-        (session.exercises || []).forEach((ex: any) => {
+        ((session.exercises as Record<string, unknown>[] | undefined) || []).forEach((ex: Record<string, unknown>) => {
           if (ex.prescribed_exercise_name && ex.sets) {
-            const prescribed = prescribedExercises.find((pe: any) => 
-              pe.name.toLowerCase().trim() === ex.prescribed_exercise_name.toLowerCase().trim()
+            const prescribed = prescribedExercises.find((pe) => 
+              pe.name.toLowerCase().trim() === (ex.prescribed_exercise_name as string).toLowerCase().trim()
             );
             if (prescribed) {
               const prescribedSets = parseInt(prescribed.sets);
