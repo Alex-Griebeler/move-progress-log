@@ -129,9 +129,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
   };
 
   const handleConnect = () => {
-    // This would typically initiate OAuth flow from trainer side
-    // For now, we'll show a message that this should be done via invite link
-    alert("Para conectar o Oura Ring, gere um link de convite para o aluno.");
+    setShowOuraConnectDialog(true);
   };
 
   if (isLoading) {
