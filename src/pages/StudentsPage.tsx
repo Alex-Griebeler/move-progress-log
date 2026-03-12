@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
 import { StudentCardSkeleton } from "@/components/skeletons/StudentCardSkeleton";
-import { Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw } from "lucide-react";
+import { Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw, Activity } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
@@ -19,6 +19,7 @@ import { GenerateInviteLinkDialog } from "@/components/GenerateInviteLinkDialog"
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
 import { StudentObservationsDialog } from "@/components/StudentObservationsDialog";
+import { SendOuraConnectDialog } from "@/components/SendOuraConnectDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,6 +85,7 @@ interface StudentCardProps {
   onDelete: (id: string) => void;
   onRecordSession: (id: string, name: string) => void;
   onOpenGroupSession: () => void;
+  onOuraConnect: (id: string, name: string) => void;
 }
 
 // Componente StudentCard otimizado - recebe dados via props em vez de fazer queries
@@ -93,7 +95,8 @@ const StudentCard = memo(({
   onEdit, 
   onDelete, 
   onRecordSession,
-  onOpenGroupSession 
+  onOpenGroupSession,
+  onOuraConnect 
 }: StudentCardProps) => {
   const navigate = useNavigate();
   const [showObservationsDialog, setShowObservationsDialog] = useState(false);
@@ -238,6 +241,12 @@ const StudentCard = memo(({
                   <Edit className="h-4 w-4 mr-2" />
                   Editar Aluno
                 </DropdownMenuItem>
+                {!ouraStatus.isConnected && (
+                  <DropdownMenuItem onClick={() => onOuraConnect(student.id, student.name)}>
+                    <Activity className="h-4 w-4 mr-2" />
+                    Conectar Oura Ring
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => onDelete(student.id)}
                   className="text-destructive focus:text-destructive"
@@ -294,6 +303,8 @@ const StudentsPage = () => {
   const [recordingStudentName, setRecordingStudentName] = useState<string>("");
   const [isGroupSessionDialogOpen, setIsGroupSessionDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [ouraConnectStudentId, setOuraConnectStudentId] = useState<string | null>(null);
+  const [ouraConnectStudentName, setOuraConnectStudentName] = useState<string>("");
 
   // Batch hook - busca dados de todos os alunos em 3 queries em vez de N*3
   const studentIds = useMemo(() => students?.map(s => s.id) ?? [], [students]);
@@ -406,6 +417,10 @@ const StudentsPage = () => {
                 onDelete={setDeletingStudentId}
                 onRecordSession={handleRecordSession}
                 onOpenGroupSession={() => setIsGroupSessionDialogOpen(true)}
+                onOuraConnect={(id, name) => {
+                  setOuraConnectStudentId(id);
+                  setOuraConnectStudentName(name);
+                }}
               />
             ))}
           </div>
@@ -488,6 +503,20 @@ const StudentsPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {ouraConnectStudentId && (
+        <SendOuraConnectDialog
+          open={!!ouraConnectStudentId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setOuraConnectStudentId(null);
+              setOuraConnectStudentName("");
+            }
+          }}
+          studentId={ouraConnectStudentId}
+          studentName={ouraConnectStudentName}
+        />
+      )}
     </PageLayout>
   );
 };

@@ -18,6 +18,7 @@ export const ROUTES = {
   onboarding: (token: string) => `/onboarding/${token}`,
   onboardingSuccess: "/onboarding/success",
   ouraError: "/onboarding/oura-error",
+  ouraConnect: (token: string) => `/oura-connect/${token}`,
   
   // Protected routes
   dashboard: "/",

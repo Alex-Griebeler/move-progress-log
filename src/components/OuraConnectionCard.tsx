@@ -24,15 +24,18 @@ import {
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOfflineDetection } from "@/hooks/useOfflineDetection";
 import { useOuraTestSync } from "@/hooks/useOuraTestSync";
+import { SendOuraConnectDialog } from "@/components/SendOuraConnectDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface OuraConnectionCardProps {
   studentId: string;
+  studentName?: string;
 }
 
-export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
+export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraConnectionCardProps) => {
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [showOuraConnectDialog, setShowOuraConnectDialog] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStatus, setSyncStatus] = useState<string>("");
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -126,9 +129,7 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
   };
 
   const handleConnect = () => {
-    // This would typically initiate OAuth flow from trainer side
-    // For now, we'll show a message that this should be done via invite link
-    alert("Para conectar o Oura Ring, gere um link de convite para o aluno.");
+    setShowOuraConnectDialog(true);
   };
 
   if (isLoading) {
@@ -339,6 +340,13 @@ export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SendOuraConnectDialog
+        open={showOuraConnectDialog}
+        onOpenChange={setShowOuraConnectDialog}
+        studentId={studentId}
+        studentName={studentName}
+      />
     </>
   );
 };

@@ -36,6 +36,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const StudentOnboardingPage = lazy(() => import("./pages/StudentOnboardingPage"));
 const OnboardingSuccessPage = lazy(() => import("./pages/OnboardingSuccessPage"));
 const OuraErrorPage = lazy(() => import("./pages/OuraErrorPage"));
+const OuraConnectPage = lazy(() => import("./pages/OuraConnectPage"));
 const AIBuilderPage = lazy(() => import("./features/ai-builder/AIBuilderPage"));
 const AthleteInsightsDashboard = lazy(() => import("./pages/AthleteInsightsDashboard"));
 const CoachConsole = lazy(() => import("./pages/CoachConsole"));
@@ -71,6 +72,7 @@ const App = () => (
                   <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
                   <Route path={ROUTES.onboardingSuccess} element={<OnboardingSuccessPage />} />
                   <Route path={ROUTES.ouraError} element={<OuraErrorPage />} />
+                  <Route path="/oura-connect/:token" element={<OuraConnectPage />} />
                   
                   {/* Protected routes with sidebar */}
                   <Route path="/*" element={
