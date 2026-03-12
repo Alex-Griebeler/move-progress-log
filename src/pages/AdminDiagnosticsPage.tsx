@@ -20,7 +20,6 @@ import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import exercisesJSON from "@/data/exercicios_fabrik_categorizado.json";
-import ExcelJS from "exceljs";
 import { logger } from "@/utils/logger";
 
 const extractExcelCellValue = (value: unknown): unknown => {
@@ -103,6 +102,7 @@ const AdminDiagnosticsPage = () => {
     setXlsxDebug(null);
     setImportProgress(null);
     try {
+      const { default: ExcelJS } = await import("exceljs");
       const data = await file.arrayBuffer();
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(data);

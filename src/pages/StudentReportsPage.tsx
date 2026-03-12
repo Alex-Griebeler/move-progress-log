@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
 import { PageLayout } from "@/components/PageLayout";
@@ -6,14 +6,20 @@ import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { GenerateReportDialog } from "@/components/GenerateReportDialog";
-import { StudentReportView } from "@/components/StudentReportView";
 import { useStudentReports } from "@/hooks/useStudentReports";
 import { useStudents } from "@/hooks/useStudents";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Plus, FileText, Calendar, TrendingUp, BarChart3, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+const GenerateReportDialog = lazy(() =>
+  import("@/components/GenerateReportDialog").then((module) => ({ default: module.GenerateReportDialog }))
+);
+const StudentReportView = lazy(() =>
+  import("@/components/StudentReportView").then((module) => ({ default: module.StudentReportView }))
+);
+
 export default function StudentReportsPage() {
   const { studentId } = useParams<{ studentId: string }>();
   const navigate = useNavigate();
@@ -49,7 +55,9 @@ export default function StudentReportsPage() {
             Voltar para lista de relatórios
           </Button>
         </div>
-        <StudentReportView reportId={selectedReportId} studentName={student.name} />
+        <Suspense fallback={<LoadingSpinner />}>
+          <StudentReportView reportId={selectedReportId} studentName={student.name} />
+        </Suspense>
       </PageLayout>
     );
   }
@@ -145,13 +153,15 @@ export default function StudentReportsPage() {
         </div>
       )}
 
-      {student && (
-        <GenerateReportDialog
-          open={generateDialogOpen}
-          onOpenChange={setGenerateDialogOpen}
-          studentId={studentId}
-          studentName={student.name}
-        />
+      {student && generateDialogOpen && (
+        <Suspense fallback={null}>
+          <GenerateReportDialog
+            open={generateDialogOpen}
+            onOpenChange={setGenerateDialogOpen}
+            studentId={studentId}
+            studentName={student.name}
+          />
+        </Suspense>
       )}
     </PageLayout>
   );

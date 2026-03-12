@@ -20,10 +20,7 @@ import {
 import { useReportById, useReportTrackedExercises } from "@/hooks/useStudentReports";
 import { logger } from "@/utils/logger";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { pdf } from '@react-pdf/renderer';
-import { ReportPDFDocument } from "@/components/ReportPDFDocument";
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -31,6 +28,10 @@ interface StudentReportViewProps {
   reportId: string;
   studentName: string;
 }
+
+const ReportLoadChart = lazy(() =>
+  import("@/components/ReportLoadChart").then((module) => ({ default: module.ReportLoadChart }))
+);
 
 export function StudentReportView({ reportId, studentName }: StudentReportViewProps) {
   const { data: report, isLoading: reportLoading } = useReportById(reportId);
@@ -56,7 +57,12 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
         trainerName = profile?.full_name || undefined;
       }
 
-      // Generate PDF
+      // Generate PDF lazily to avoid loading @react-pdf on initial page render
+      const [{ pdf }, { ReportPDFDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/ReportPDFDocument"),
+      ]);
+
       const pdfDoc = (
         <ReportPDFDocument
           report={report}
@@ -214,28 +220,9 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
                 </div>
 
                 {exercise.weekly_progression && Array.isArray(exercise.weekly_progression) && exercise.weekly_progression.length > 0 && (
-                  <div className="h-[200px] mt-4">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={exercise.weekly_progression}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="week" 
-                          label={{ value: 'Semana', position: 'insideBottom', offset: -5 }}
-                        />
-                        <YAxis 
-                          label={{ value: 'Carga Média (kg)', angle: -90, position: 'insideLeft' }}
-                        />
-                        <Tooltip />
-                        <Line 
-                          type="monotone" 
-                          dataKey="avgLoad" 
-                          stroke="hsl(var(--primary))" 
-                          strokeWidth={2}
-                          name="Carga Média"
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <Suspense fallback={<div className="h-[200px] mt-4 animate-pulse rounded-md bg-muted" />}>
+                    <ReportLoadChart data={exercise.weekly_progression} />
+                  </Suspense>
                 )}
               </div>
             ))}

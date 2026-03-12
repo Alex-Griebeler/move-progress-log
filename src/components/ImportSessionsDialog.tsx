@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2 } from "lucide-react";
-import ExcelJS from "exceljs";
 import { useGetOrCreateStudent } from "@/hooks/useStudents";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -182,6 +181,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         description: "Processando planilha"
       });
 
+      const { default: ExcelJS } = await import("exceljs");
       const data = await file.arrayBuffer();
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(data);
