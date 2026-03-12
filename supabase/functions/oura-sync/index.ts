@@ -271,7 +271,7 @@ Deno.serve(async (req) => {
     let sleepPeriod = null;
     if (sleepPeriodsData?.data && sleepPeriodsData.data.length > 0) {
       sleepPeriod = sleepPeriodsData.data.reduce((longest: Record<string, unknown>, current: Record<string, unknown>) => {
-        return (current.total_sleep_duration || 0) > (longest.total_sleep_duration || 0) ? current : longest;
+        return ((current.total_sleep_duration as number) || 0) > ((longest.total_sleep_duration as number) || 0) ? current : longest;
       });
       if (DEBUG) console.log('Selected sleep period:', { duration: sleepPeriod.total_sleep_duration, deep: sleepPeriod.deep_sleep_duration });
     }
