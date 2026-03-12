@@ -301,8 +301,8 @@ export function RecordIndividualSessionDialog({
 
       if (accumulatedRecordings.length > 0) {
         const audioSegments = accumulatedRecordings
-          .filter((recording: any) => recording.rawTranscription)
-          .map((recording: any) => ({ session_id: sessionId, segment_order: recording.recordingNumber, raw_transcription: recording.rawTranscription || 'Sem transcrição disponível', edited_transcription: recording.editedTranscription || null }));
+          .filter((recording) => recording.rawTranscription)
+          .map((recording) => ({ session_id: sessionId, segment_order: recording.recordingNumber, raw_transcription: recording.rawTranscription || 'Sem transcrição disponível', edited_transcription: recording.editedTranscription || null }));
         if (audioSegments.length > 0) {
           const { error: segmentsError } = await supabase.from('session_audio_segments').insert(audioSegments);
           if (segmentsError) { logger.error('Error saving audio segments:', segmentsError); notify.warning("Aviso", { description: "Segmentos de áudio não foram salvos, mas a sessão foi criada com sucesso" }); }
