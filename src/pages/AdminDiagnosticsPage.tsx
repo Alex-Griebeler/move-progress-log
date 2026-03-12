@@ -23,6 +23,36 @@ import exercisesJSON from "@/data/exercicios_fabrik_categorizado.json";
 import ExcelJS from "exceljs";
 import { logger } from "@/utils/logger";
 
+const extractExcelCellValue = (value: unknown): unknown => {
+  if (value instanceof Date) return value;
+  if (typeof value !== "object" || value === null) return value;
+
+  const record = value as Record<string, unknown>;
+  if ("result" in record && record.result !== undefined && record.result !== null) {
+    return record.result;
+  }
+  if ("text" in record && typeof record.text === "string") {
+    return record.text;
+  }
+  if ("richText" in record && Array.isArray(record.richText)) {
+    return (record.richText as Array<{ text?: string }>)
+      .map((item) => item.text || "")
+      .join("")
+      .trim();
+  }
+  return value;
+};
+
+const toNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const normalized = value.replace(",", ".").trim();
+    const parsed = Number(normalized);
+    if (!Number.isNaN(parsed)) return parsed;
+  }
+  return undefined;
+};
+
 const AdminDiagnosticsPage = () => {
   usePageTitle(NAV_LABELS.adminDiagnostics);
   useSEOHead(SEO_PRESETS.private);
@@ -94,7 +124,7 @@ const AdminDiagnosticsPage = () => {
           const rowObj: Record<string, unknown> = {};
           row.eachCell((cell, colNumber) => {
             const key = headers[colNumber];
-            if (key) rowObj[key] = cell.value as unknown;
+            if (key) rowObj[key] = extractExcelCellValue(cell.value);
           });
           rows.push(rowObj);
         }
@@ -126,13 +156,13 @@ const AdminDiagnosticsPage = () => {
           aliases_origem: normalized["aliases_origem"] || "",
           Padrao_movimento: normalized["Padrao_movimento"] || normalized["padrao_movimento"],
           subcategoria: normalized["subcategoria"],
-          boyle_score: normalized["boyle_score"] != null ? Number(normalized["boyle_score"]) : undefined,
-          AX: normalized["AX"] != null ? Number(normalized["AX"]) : undefined,
-          LOM: normalized["LOM"] != null ? Number(normalized["LOM"]) : undefined,
-          TEC: normalized["TEC"] != null ? Number(normalized["TEC"]) : undefined,
-          MET: normalized["MET"] != null ? Number(normalized["MET"]) : undefined,
-          JOE: normalized["JOE"] != null ? Number(normalized["JOE"]) : undefined,
-          QUA: normalized["QUA"] != null ? Number(normalized["QUA"]) : undefined,
+          boyle_score: toNumber(normalized["boyle_score"]),
+          AX: toNumber(normalized["AX"]),
+          LOM: toNumber(normalized["LOM"]),
+          TEC: toNumber(normalized["TEC"]),
+          MET: toNumber(normalized["MET"]),
+          JOE: toNumber(normalized["JOE"]),
+          QUA: toNumber(normalized["QUA"]),
           grupo_muscular: normalized["grupo_muscular"],
           "Ênfase": normalized["Ênfase"] || normalized["enfase"] || normalized["ênfase"],
           Base: normalized["Base"] || normalized["base"],
@@ -311,7 +341,7 @@ const AdminDiagnosticsPage = () => {
                   className="w-full"
                 >
                   {importingXlsx && importProgress ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lote {Math.ceil(importProgress.current / 50)}/{Math.ceil(importProgress.total / 50)}…</>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lote {Math.ceil(importProgress.current / BATCH_SIZE)}/{Math.ceil(importProgress.total / BATCH_SIZE)}…</>
                   ) : importingXlsx ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lendo planilha...</>
                   ) : (

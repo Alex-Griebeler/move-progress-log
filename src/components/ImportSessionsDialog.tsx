@@ -64,6 +64,17 @@ const getNumberValue = (row: SpreadsheetRow, keys: string[]): number | undefined
   return undefined;
 };
 
+const parseAmPmTime = (input: string): string | null => {
+  const match = input.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const period = match[3].toUpperCase();
+  if (period === "PM" && hours < 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+};
+
 interface ImportSessionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -113,8 +124,8 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       const parts = excelDate.includes("/") ? excelDate.split("/") : excelDate.split("-");
       if (parts.length === 3) {
         if (parts[0].length === 4) {
-          // YYYY-MM-DD
-          return excelDate;
+          // YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
+          return excelDate.slice(0, 10);
         } else {
           // DD/MM/YYYY
           return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
@@ -143,6 +154,8 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       if (/^\d{2}:\d{2}(:\d{2})?$/.test(normalized)) {
         return normalized.slice(0, 5);
       }
+      const amPmParsed = parseAmPmTime(normalized);
+      if (amPmParsed) return amPmParsed;
       return normalized;
     }
     if (typeof timeValue === "number") {
@@ -199,12 +212,19 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         const alunoRaw = getStringValue(row, ["Aluno", "aluno"]);
         const dataRaw = row["Data"] ?? row["data"];
         const horaRaw = row["Hora"] ?? row["hora"];
-        const sessionKey = `${alunoRaw}_${String(dataRaw ?? "")}_${String(horaRaw ?? "")}`;
+        const parsedDate = parseExcelDate(dataRaw);
+        const parsedTime = parseTime(horaRaw);
+        const exerciseName = getStringValue(row, ["Exercicio", "exercicio", "Exercício"]);
+
+        // Skip blank lines or incomplete rows from spreadsheet exports.
+        if (!alunoRaw || !exerciseName) return;
+
+        const sessionKey = `${alunoRaw.toLowerCase()}_${parsedDate}_${parsedTime}`;
         const sessionRow: SessionRow = {
           aluno: alunoRaw,
-          data: parseExcelDate(dataRaw),
-          hora: parseTime(horaRaw),
-          exercicio: getStringValue(row, ["Exercicio", "exercicio", "Exercício"]),
+          data: parsedDate,
+          hora: parsedTime,
+          exercicio: exerciseName,
           series: getNumberValue(row, ["Series", "series", "Séries"]),
           reps: getNumberValue(row, ["Reps", "reps", "Repetições"]),
           carga: getNumberValue(row, ["Carga", "carga", "Carga (kg)"]),
