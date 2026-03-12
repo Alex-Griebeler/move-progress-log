@@ -3,6 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logger } from "@/utils/logger";
 
+export interface OuraReportData {
+  avgReadiness?: number;
+  avgSleep?: number;
+  avgHrv?: number;
+  avgRhr?: number;
+  dataPoints?: number;
+}
+
 export interface StudentReport {
   id: string;
   student_id: string;
