@@ -87,7 +87,3 @@ verify_jwt = false
 # Service role only - creates audit admin user
 [functions.create-audit-admin]
 verify_jwt = false
-
-# Temporary security smoke test
-[functions.security-smoke-test]
-verify_jwt = false
