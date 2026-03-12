@@ -122,15 +122,16 @@ Deno.serve(async (req) => {
 
     console.log('✅ Audit admin created successfully:', email);
 
+    // Log credentials server-side only — never expose in response
+    console.log(`🔐 Audit admin credentials — email: ${email}, password: ${password}`);
+
     return new Response(
       JSON.stringify({
         success: true,
-        credentials: {
-          email,
-          password,
-          userId: user.user.id
-        },
-        message: 'Conta de auditoria criada com sucesso. Guarde estas credenciais em local seguro.'
+        created: true,
+        userId: user.user.id,
+        email,
+        message: 'Conta de auditoria criada com sucesso. Credenciais registradas nos logs do servidor.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
