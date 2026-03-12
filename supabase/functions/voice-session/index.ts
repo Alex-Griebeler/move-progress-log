@@ -7,9 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, upgrade, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+// V-02: Client initialized inside handler to prevent shared state between requests
 
 // ═══════════════════════════════════════════════════════════════
 // SHARED: manter sincronizado com process-voice-session/index.ts
@@ -236,6 +234,8 @@ serve(async (req) => {
   let openAISocket: WebSocket | null = null;
   // Per-connection context — prevents race conditions between concurrent users
   let sessionContext: SessionContext | null = null;
+  // V-02: Create client per connection to prevent shared state
+  const supabaseClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
   socket.onopen = async () => {
   };
