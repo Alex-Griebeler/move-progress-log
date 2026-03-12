@@ -74,16 +74,23 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
     
-    // Get frontend URL from request origin
-    const origin = req.headers.get('origin') || req.headers.get('referer');
-    let frontendUrl = 'https://move-progress-log.lovable.app';
+    // OCB-03: Derive frontend URL from SITE_URL env or allowed origins list
+    const ALLOWED_ORIGINS = [
+      'https://move-progress-log.lovable.app',
+      'https://id-preview--905d5174-1667-49dc-b1cc-1e7743b2741e.lovable.app',
+    ];
+    const siteUrl = Deno.env.get('SITE_URL');
+    let frontendUrl = siteUrl || ALLOWED_ORIGINS[0];
     
+    const origin = req.headers.get('origin') || req.headers.get('referer');
     if (origin) {
       try {
-        const originUrl = new URL(origin);
-        frontendUrl = originUrl.origin;
-      } catch (e) {
-        console.log('Could not parse origin, using default:', frontendUrl);
+        const originUrl = new URL(origin).origin;
+        if (ALLOWED_ORIGINS.includes(originUrl) || originUrl.endsWith('.lovable.app')) {
+          frontendUrl = originUrl;
+        }
+      } catch (_e) {
+        // Keep default
       }
     }
 
@@ -147,40 +154,41 @@ Deno.serve(async (req) => {
 
     console.log(`Oura connection saved for student ${student_id}`);
 
-    // Sync initial data for the last 30 days (Oura keeps 30 days of data)
-    console.log('🔄 Starting initial Oura sync for the last 30 days...');
+    // OCB-02: Throttled initial sync — batch 5 at a time instead of 30 parallel
+    console.log('🔄 Starting initial Oura sync (throttled, last 30 days)...');
     try {
-      const syncPromises = [];
-      for (let i = 0; i < 30; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        syncPromises.push(
-          fetch(`${supabaseUrl}/functions/v1/oura-sync`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
-            },
-            body: JSON.stringify({ student_id, date: dateStr }),
-          }).then(res => {
-            if (!res.ok) {
-              console.error(`Sync failed for ${dateStr}:`, res.status);
-            }
-            return res;
-          })
-        );
+      const BATCH_SIZE = 5;
+      let successful = 0;
+      let failed = 0;
+
+      for (let batch = 0; batch < 30; batch += BATCH_SIZE) {
+        const batchPromises = [];
+        for (let i = batch; i < Math.min(batch + BATCH_SIZE, 30); i++) {
+          const date = new Date();
+          date.setDate(date.getDate() - i);
+          const dateStr = date.toISOString().split('T')[0];
+          
+          batchPromises.push(
+            fetch(`${supabaseUrl}/functions/v1/oura-sync`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+              },
+              body: JSON.stringify({ student_id, date: dateStr }),
+            }).then(async res => {
+              await res.text(); // consume body
+              if (!res.ok) failed++;
+              else successful++;
+            }).catch(() => { failed++; })
+          );
+        }
+        await Promise.allSettled(batchPromises);
       }
-      
-      const results = await Promise.allSettled(syncPromises);
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
       
       console.log(`✅ Initial sync completed: ${successful} successful, ${failed} failed`);
     } catch (syncError) {
       console.error('❌ Failed to trigger initial sync:', syncError);
-      // Don't fail the whole connection if sync fails
     }
 
     // Redirect based on origin

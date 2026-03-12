@@ -1609,8 +1609,12 @@ serve(async (req) => {
       warnings.push(`Carry: apenas ${carryCount}x/semana. Recomendado mínimo 2x/semana.`);
     }
 
-    // Enrich with LLM
-    await enrichWithLLM(workouts);
+    // G-02: Enrich with LLM (non-blocking, adds warning if fails)
+    try {
+      await enrichWithLLM(workouts);
+    } catch (enrichError) {
+      warnings.push('Enriquecimento por IA indisponível nesta geração. Cues de execução não foram adicionados.');
+    }
 
     // Phase 4: Build progression for configurable week count
     const hasMetcon = input.workouts.some((w) => w.valences.includes("condicionamento"));
