@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -58,19 +58,7 @@ export function EditGroupSessionDialog({
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
   const [editableExercises, setEditableExercises] = useState<Exercise[]>([]);
 
-  useEffect(() => {
-    if (open && prescriptionId && date && time) {
-      loadSessionsData();
-    }
-  }, [open, prescriptionId, date, time]);
-
-  useEffect(() => {
-    if (sessionsData.length > 0 && currentStudentIndex < sessionsData.length) {
-      setEditableExercises([...sessionsData[currentStudentIndex].exercises]);
-    }
-  }, [currentStudentIndex, sessionsData]);
-
-  const loadSessionsData = async () => {
+  const loadSessionsData = useCallback(async () => {
     if (!prescriptionId || !date || !time) return;
 
     setLoading(true);
@@ -123,7 +111,19 @@ export function EditGroupSessionDialog({
     } finally {
       setLoading(false);
     }
-  };
+  }, [date, onOpenChange, prescriptionId, time]);
+
+  useEffect(() => {
+    if (open && prescriptionId && date && time) {
+      loadSessionsData();
+    }
+  }, [open, prescriptionId, date, time, loadSessionsData]);
+
+  useEffect(() => {
+    if (sessionsData.length > 0 && currentStudentIndex < sessionsData.length) {
+      setEditableExercises([...sessionsData[currentStudentIndex].exercises]);
+    }
+  }, [currentStudentIndex, sessionsData]);
 
   const updateExercise = (index: number, field: keyof Exercise, value: Exercise[keyof Exercise]) => {
     const updated = [...editableExercises];

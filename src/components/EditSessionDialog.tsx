@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -74,13 +74,7 @@ export function EditSessionDialog({
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
 
-  useEffect(() => {
-    if (open && sessionId) {
-      loadSessionData();
-    }
-  }, [open, sessionId]);
-
-  const loadSessionData = async () => {
+  const loadSessionData = useCallback(async () => {
     if (!sessionId) return;
 
     setLoading(true);
@@ -118,7 +112,13 @@ export function EditSessionDialog({
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (open && sessionId) {
+      loadSessionData();
+    }
+  }, [open, sessionId, loadSessionData]);
 
   const updateExercise = (index: number, field: keyof Exercise, value: string | number | boolean | null) => {
     const updated = [...exercises];

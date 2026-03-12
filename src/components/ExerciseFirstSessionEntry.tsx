@@ -134,7 +134,7 @@ export function ExerciseFirstSessionEntry({
   // Ensure refs array matches student count
   useEffect(() => {
     inputRefs.current = selectedStudents.map(() => [null, null, null]);
-  }, [selectedStudents.length]);
+  }, [selectedStudents]);
 
   const getLastSession = useCallback(
     (studentId: string, exerciseName: string): LastSessionData | undefined => {

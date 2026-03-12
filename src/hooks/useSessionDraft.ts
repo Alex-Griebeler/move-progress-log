@@ -140,12 +140,15 @@ export function useSessionDraft(entityId: string = 'default') {
 
   // Cleanup ao desmontar
   useEffect(() => {
+    const saveTimeout = saveTimeoutRef.current;
+    const historyTimeout = historyTimeoutRef.current;
+
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
+      if (saveTimeout) {
+        clearTimeout(saveTimeout);
       }
-      if (historyTimeoutRef.current) {
-        clearTimeout(historyTimeoutRef.current);
+      if (historyTimeout) {
+        clearTimeout(historyTimeout);
       }
     };
   }, []);

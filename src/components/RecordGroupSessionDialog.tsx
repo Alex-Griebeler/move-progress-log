@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ExerciseFirstSessionEntry } from "./ExerciseFirstSessionEntry";
 import { Button } from "@/components/ui/button";
@@ -272,14 +272,7 @@ export function RecordGroupSessionDialog({
     setDialogState(mode === 'voice' ? 'recording' : 'manual-entry');
   };
 
-  // Load existing sessions when reopening
-  useEffect(() => {
-    if (isReopening && prescriptionId && reopenDate && reopenTime && open) {
-      loadExistingSessionsData();
-    }
-  }, [isReopening, prescriptionId, reopenDate, reopenTime, open]);
-
-  const loadExistingSessionsData = async () => {
+  const loadExistingSessionsData = useCallback(async () => {
     if (!prescriptionId || !reopenDate || !reopenTime) return;
     try {
       const { data: sessions, error: sessionsError } = await supabase
@@ -313,7 +306,14 @@ export function RecordGroupSessionDialog({
         notify.info("Sessão carregada", { description: `${typedSessions.length} aluno(s) carregado(s). Você pode adicionar mais gravações.` });
       }
     } catch (error) { logger.error("Erro ao carregar sessões existentes:", error); }
-  };
+  }, [prescriptionId, reopenDate, reopenTime]);
+
+  // Load existing sessions when reopening
+  useEffect(() => {
+    if (isReopening && prescriptionId && reopenDate && reopenTime && open) {
+      loadExistingSessionsData();
+    }
+  }, [isReopening, prescriptionId, reopenDate, reopenTime, open, loadExistingSessionsData]);
 
   const toggleStudent = (student: Student) => {
     setSelectedStudents((prev) => {

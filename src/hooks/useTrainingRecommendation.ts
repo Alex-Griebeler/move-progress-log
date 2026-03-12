@@ -48,18 +48,18 @@ export function useTrainingRecommendation(
   baseline?: OuraBaseline,
   userGoals?: Partial<UserGoals>
 ): TrainingRecommendation | null {
-  // Fallback defaults caso baseline não seja fornecido
-  const effectiveBaseline = baseline ?? {
-    avgHRV: 65,
-    avgRHR: 60,
-    avgSleepScore: 75,
-    dataPoints: 0,
-    hasMinimumData: false,
-  };
-  const goals = { ...DEFAULT_GOALS, ...userGoals };
-
   return useMemo(() => {
     if (!metrics) return null;
+
+    // Fallback defaults caso baseline não seja fornecido
+    const effectiveBaseline = baseline ?? {
+      avgHRV: 65,
+      avgRHR: 60,
+      avgSleepScore: 75,
+      dataPoints: 0,
+      hasMinimumData: false,
+    };
+    const goals = { ...DEFAULT_GOALS, ...userGoals };
 
     const alerts: TrainingRecommendation['alerts'] = [];
 
@@ -174,5 +174,5 @@ export function useTrainingRecommendation(
       trainingType, intensity, duration, recoveryScore, fatigueLevel,
       reason, alerts, confidence, emoji, priorityProtocols,
     };
-  }, [metrics, recentMetrics, effectiveBaseline, goals]);
+  }, [metrics, recentMetrics, baseline, userGoals]);
 }

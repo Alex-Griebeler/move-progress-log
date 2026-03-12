@@ -32,11 +32,6 @@ const MAX_DRAFTS = 10;
 export function usePrescriptionDraftHistory() {
   const [draftHistory, setDraftHistory] = useState<PrescriptionDraft[]>([]);
 
-  // Carregar histórico ao montar
-  useEffect(() => {
-    loadHistory();
-  }, []);
-
   const loadHistory = useCallback(() => {
     const stored = localStorage.getItem(DRAFT_HISTORY_KEY);
     if (stored) {
@@ -53,6 +48,11 @@ export function usePrescriptionDraftHistory() {
       }
     }
   }, []);
+
+  // Carregar histórico ao montar
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   const saveDraftToHistory = useCallback((draft: Omit<PrescriptionDraft, 'id' | 'timestamp'>) => {
     const newDraft: PrescriptionDraft = {

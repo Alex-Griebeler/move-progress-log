@@ -36,11 +36,6 @@ const MAX_DRAFTS = 10; // Manter apenas os últimos 10 rascunhos
 export function useSessionDraftHistory() {
   const [draftHistory, setDraftHistory] = useState<SessionDraft[]>([]);
 
-  // Carregar histórico ao montar
-  useEffect(() => {
-    loadHistory();
-  }, []);
-
   const loadHistory = useCallback(() => {
     const stored = localStorage.getItem(DRAFT_HISTORY_KEY);
     if (stored) {
@@ -58,6 +53,11 @@ export function useSessionDraftHistory() {
       }
     }
   }, []);
+
+  // Carregar histórico ao montar
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   const saveDraftToHistory = useCallback((draft: Omit<SessionDraft, 'id' | 'timestamp'>) => {
     const newDraft: SessionDraft = {

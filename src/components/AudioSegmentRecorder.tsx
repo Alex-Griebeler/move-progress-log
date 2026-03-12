@@ -48,68 +48,7 @@ export function AudioSegmentRecorder({
   const startTimeRef = useRef<number>(0);
   const durationIntervalRef = useRef<number>();
 
-  const startRecording = useCallback(async () => {
-    if (isRecording || isProcessing) return;
-
-    let permissionToastId: string | number | undefined;
-
-    try {
-      permissionToastId = sonnerToast.loading("Solicitando acesso ao microfone...");
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: 16000,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
-      });
-
-      streamRef.current = stream;
-      audioChunksRef.current = [];
-      startTimeRef.current = Date.now();
-
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
-        await processAudioSegment(duration);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-
-      // Atualizar duração a cada segundo
-      durationIntervalRef.current = window.setInterval(() => {
-        setRecordingDuration((prev) => prev + 1);
-      }, 1000);
-
-      if (permissionToastId) sonnerToast.dismiss(permissionToastId);
-
-      sonnerToast.success(`Gravando Segmento ${currentSegmentNumber}! 🎙️`, {
-        description: "Fale sobre a sessão. Clique em 'Parar' quando terminar este segmento.",
-      });
-    } catch (error) {
-      logger.error("Error starting recording:", error);
-      if (permissionToastId) sonnerToast.dismiss(permissionToastId);
-
-      const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
-      sonnerToast.error("Erro ao acessar microfone", {
-        description: errorMsg,
-      });
-
-      if (onError) onError(errorMsg);
-    }
-  }, [isRecording, isProcessing, currentSegmentNumber, onError]);
-
-  const processAudioSegment = async (duration: number) => {
+  const processAudioSegment = useCallback(async (duration: number) => {
     setIsProcessing(true);
     setIsRecording(false);
 
@@ -186,7 +125,68 @@ export function AudioSegmentRecorder({
         streamRef.current = null;
       }
     }
-  };
+  }, [currentSegmentNumber, date, onError, onSegmentComplete, prescriptionId, selectedStudents, time]);
+
+  const startRecording = useCallback(async () => {
+    if (isRecording || isProcessing) return;
+
+    let permissionToastId: string | number | undefined;
+
+    try {
+      permissionToastId = sonnerToast.loading("Solicitando acesso ao microfone...");
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+        },
+      });
+
+      streamRef.current = stream;
+      audioChunksRef.current = [];
+      startTimeRef.current = Date.now();
+
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const duration = Math.floor((Date.now() - startTimeRef.current) / 1000);
+        await processAudioSegment(duration);
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+
+      // Atualizar duração a cada segundo
+      durationIntervalRef.current = window.setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+
+      if (permissionToastId) sonnerToast.dismiss(permissionToastId);
+
+      sonnerToast.success(`Gravando Segmento ${currentSegmentNumber}! 🎙️`, {
+        description: "Fale sobre a sessão. Clique em 'Parar' quando terminar este segmento.",
+      });
+    } catch (error) {
+      logger.error("Error starting recording:", error);
+      if (permissionToastId) sonnerToast.dismiss(permissionToastId);
+
+      const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
+      sonnerToast.error("Erro ao acessar microfone", {
+        description: errorMsg,
+      });
+
+      if (onError) onError(errorMsg);
+    }
+  }, [isRecording, isProcessing, currentSegmentNumber, onError, processAudioSegment]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {

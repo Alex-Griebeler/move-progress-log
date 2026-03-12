@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -48,14 +48,7 @@ export function ExerciseSelectionDialog({
   
   const { data: exercises, isLoading } = useExercisesLibrary();
 
-  // Buscar sugestão automática ao abrir (se autoSuggest=true)
-  useEffect(() => {
-    if (open && autoSuggest && currentExerciseName && exercises && exercises.length > 0) {
-      fetchAISuggestion();
-    }
-  }, [open, autoSuggest, currentExerciseName, exercises]);
-
-  const fetchAISuggestion = async () => {
+  const fetchAISuggestion = useCallback(async () => {
     if (!exercises || exercises.length === 0) return;
     
     setIsLoadingSuggestion(true);
@@ -87,7 +80,14 @@ export function ExerciseSelectionDialog({
     } finally {
       setIsLoadingSuggestion(false);
     }
-  };
+  }, [currentExerciseName, exercises]);
+
+  // Buscar sugestão automática ao abrir (se autoSuggest=true)
+  useEffect(() => {
+    if (open && autoSuggest && currentExerciseName && exercises && exercises.length > 0) {
+      fetchAISuggestion();
+    }
+  }, [open, autoSuggest, currentExerciseName, exercises, fetchAISuggestion]);
 
   // Smart sorting: same movement_pattern first, then same category, then rest
   const filteredExercises = (() => {
