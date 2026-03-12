@@ -352,7 +352,7 @@ export const useUpdatePrescription = () => {
       if (data.prescription_type) {
         await supabase
           .from("workout_prescriptions")
-          .update({ prescription_type: data.prescription_type } as any)
+          .update({ objective: data.prescription_type })
           .eq("id", data.id);
       }
 
