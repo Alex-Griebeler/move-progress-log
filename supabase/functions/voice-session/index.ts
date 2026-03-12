@@ -260,7 +260,7 @@ serve(async (req) => {
         sessionContext = {
           prescriptionId: message.context.prescriptionId,
           students: message.context.students,
-          prescriptionExercises: prescription.prescription_exercises.map((ex: any) => ({
+          prescriptionExercises: prescription.prescription_exercises.map((ex: Record<string, unknown>) => ({
             id: ex.id,
             exercise_name: ex.exercises_library.name,
             sets: ex.sets,
