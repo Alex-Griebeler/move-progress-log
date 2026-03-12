@@ -368,7 +368,7 @@ export const EditExerciseLibraryDialog = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-plyometric-phase">Fase Pliométrica (1-19)</Label>
+                  <Label htmlFor="edit-plyometric-phase">Fase Pliométrica (1-5)</Label>
                   <Input
                     id="edit-plyometric-phase"
                     type="number"
