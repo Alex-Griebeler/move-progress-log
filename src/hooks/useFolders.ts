@@ -136,7 +136,7 @@ export const useUpdateFolder = () => {
       queryClient.invalidateQueries({ queryKey: ["prescription-folders"] });
       notify.success("Pasta renomeada com sucesso!");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao renomear pasta", {
         description: error.message
       });
