@@ -32,7 +32,7 @@ export const useExerciseLoadHistory = (
       const studentMap = new Map(
         assignments.map((a) => [
           a.student_id,
-          (a.students as any)?.name || "—",
+          (a.students as { name: string } | null)?.name || "—",
         ])
       );
 

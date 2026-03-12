@@ -111,7 +111,7 @@ export const useCreateFolder = () => {
       queryClient.invalidateQueries({ queryKey: ["prescription-folders"] });
       notify.success("Pasta criada com sucesso!");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao criar pasta", {
         description: error.message
       });
@@ -136,7 +136,7 @@ export const useUpdateFolder = () => {
       queryClient.invalidateQueries({ queryKey: ["prescription-folders"] });
       notify.success("Pasta renomeada com sucesso!");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao renomear pasta", {
         description: error.message
       });
@@ -163,7 +163,7 @@ export const useDeleteFolder = () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
       notify.success("Pasta excluída com sucesso!");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao excluir pasta", {
         description: error.message
       });
@@ -190,7 +190,7 @@ export const useReorderFolders = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescription-folders"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao reordenar pastas", {
         description: error.message
       });
@@ -225,7 +225,7 @@ export const useMovePrescription = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao mover prescrição", {
         description: error.message
       });
@@ -251,7 +251,7 @@ export const useReorderPrescriptions = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao reordenar prescrições", {
         description: error.message
       });

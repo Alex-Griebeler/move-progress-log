@@ -31,7 +31,7 @@ export const useOuraTestSync = () => {
         duration: 5000,
       });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       logger.error('❌ Test sync error:', error);
       notify.error(i18n.modules.oura.errorTest, {
         description: error.message || 'Falha ao processar dados mock do Oura',
