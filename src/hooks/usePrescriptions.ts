@@ -284,7 +284,7 @@ export const useAssignPrescription = () => {
       student_ids: string[];
       start_date: string;
       end_date?: string;
-      custom_adaptations?: any;
+      custom_adaptations?: Record<string, unknown>;
     }) => {
       const assignments = data.student_ids.map((student_id) => ({
         prescription_id: data.prescription_id,
