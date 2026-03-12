@@ -357,7 +357,7 @@ Deno.serve(async (req) => {
       resilience_level: resilience?.level || null,
     };
 
-    console.log('Extracted metrics:', metrics);
+    if (DEBUG) console.log('Extracted metrics:', metrics);
 
     // Check if all values are null (no data available)
     const hasData = metrics.readiness_score !== null || 
