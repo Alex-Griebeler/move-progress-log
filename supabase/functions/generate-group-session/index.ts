@@ -258,24 +258,24 @@ const AUDIENCE_PRESETS: Record<string, {
   },
 };
 
-/** Phase 4: F4 — Teachable progression: prefer exercises with regressions available */
-function applyF4TeachableProgression(pool: Exercise[], allExercises: Exercise[]): Exercise[] {
-  // Exercises that share the same movement_pattern and have lower numeric_level are potential regressions
-  // Prefer exercises that have at least one regression available
-  if (pool.length <= 5) return pool; // Don't filter if pool is too small
+/** Phase 4: F4 — Teachable progression: prefer exercises with regressions available
+ * G-06: Uses filteredPool (not allExercises) to find regressions within the same filtered universe
+ */
+function applyF4TeachableProgression(pool: Exercise[], filteredPool: Exercise[]): Exercise[] {
+  if (pool.length <= 5) return pool;
   
   const withRegressions = pool.filter((ex) => {
     if (!ex.movement_pattern || ex.numeric_level == null) return true;
-    const regressions = allExercises.filter(
+    // G-06: Search regressions only within the already-filtered pool
+    const regressions = filteredPool.filter(
       (alt) => alt.movement_pattern === ex.movement_pattern &&
         alt.id !== ex.id &&
         alt.numeric_level != null &&
         alt.numeric_level < ex.numeric_level!
     );
-    return regressions.length >= 1; // Has at least 1 regression option
+    return regressions.length >= 1;
   });
 
-  // Only use filtered pool if it still has enough exercises
   return withRegressions.length >= Math.min(5, pool.length * 0.5) ? withRegressions : pool;
 }
 
