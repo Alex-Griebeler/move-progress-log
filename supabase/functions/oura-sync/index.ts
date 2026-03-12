@@ -171,140 +171,92 @@ Deno.serve(async (req) => {
       console.log('Token refreshed successfully');
     }
 
-    // Determine date to sync - CRITICAL: Calculate in user timezone (Brazil UTC-3)
+    // Determine date to sync — O-03: Use Intl.DateTimeFormat for correct Brazil timezone
     let syncDate: string;
-    
-    // 🔍 DETAILED TIMEZONE DEBUG LOGGING
-    const nowUTC = new Date();
-    console.log('🕐 === DETAILED TIMEZONE CALCULATION START ===');
-    console.log('⏰ Current UTC Time:', nowUTC.toISOString());
-    console.log('⏰ Current UTC Date:', nowUTC.toISOString().split('T')[0]);
-    console.log('⏰ Current UTC Hours:', nowUTC.getUTCHours());
-    console.log('⏰ Current UTC Minutes:', nowUTC.getUTCMinutes());
-    console.log('🌎 Brazil Timezone: UTC-3 (3 hours behind UTC)');
+    const DEBUG = Deno.env.get('DEBUG_OURA') === 'true';
     
     if (date) {
-      // If date is provided explicitly, use it
       syncDate = date;
-      console.log('📅 ✅ Using explicitly provided date:', syncDate);
-      console.log('⚠️  Skipping timezone calculation (date provided by caller)');
+      if (DEBUG) console.log('Using explicitly provided date:', syncDate);
     } else {
-      // Calculate today in Brazil timezone (UTC-3)
-      const brazilOffsetMinutes = 3 * 60; // Brazil is UTC-3
-      const brazilOffsetMs = brazilOffsetMinutes * 60 * 1000;
-      console.log('🧮 Calculating Brazil time...');
-      console.log('🧮 Offset in minutes:', brazilOffsetMinutes);
-      console.log('🧮 Offset in milliseconds:', brazilOffsetMs);
-      console.log('🧮 UTC timestamp (ms):', nowUTC.getTime());
-      
-      const nowBrazil = new Date(nowUTC.getTime() - brazilOffsetMs);
-      console.log('🇧🇷 Brazil Time (calculated):', nowBrazil.toISOString());
-      console.log('🇧🇷 Brazil Hours:', nowBrazil.getUTCHours(), '(should be 3 hours less than UTC)');
-      console.log('🇧🇷 Brazil Minutes:', nowBrazil.getUTCMinutes());
-      
-      syncDate = nowBrazil.toISOString().split('T')[0];
-      console.log('📅 Brazil Date extracted:', syncDate);
-      
-      console.log('✅ TIMEZONE CALCULATION COMPLETE:', {
-        utc_time_full: nowUTC.toISOString(),
-        utc_date_only: nowUTC.toISOString().split('T')[0],
-        brazil_time_full: nowBrazil.toISOString(),
-        brazil_date_only: syncDate,
-        offset_applied: '-3 hours (UTC-3)',
-        calculation: `${nowUTC.getTime()} - ${brazilOffsetMs} = ${nowBrazil.getTime()}`
-      });
+      // O-03: Intl.DateTimeFormat handles DST automatically
+      syncDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+      if (DEBUG) console.log('Calculated Brazil date:', syncDate);
     }
-    
-    console.log('🕐 === TIMEZONE CALCULATION END ===');
-    console.log('');
-    console.log('📅 🎯 FINAL DATE BEING SENT TO OURA API:', syncDate);
-    console.log('⚠️  Remember: Oura API expects dates in user local timezone (Brazil UTC-3)');
 
-    // Fetch Oura data
+    // O-05: Idempotency check — skip if already synced recently
+    const { data: existingMetric } = await supabaseClient
+      .from('oura_metrics')
+      .select('created_at')
+      .eq('student_id', student_id)
+      .eq('date', syncDate)
+      .maybeSingle();
+
+    if (existingMetric) {
+      const lastSyncTime = new Date(existingMetric.created_at || 0).getTime();
+      const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+      if (lastSyncTime > twoHoursAgo) {
+        return new Response(
+          JSON.stringify({ success: true, cached: true, message: 'Dados já sincronizados nas últimas 2 horas', date: syncDate }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    if (DEBUG) console.log('Final date for Oura API:', syncDate);
+
+    // Fetch Oura data — O-01: Individual timeout per API call (15s)
     const headers = {
       Authorization: `Bearer ${currentAccessToken}`,
     };
 
-    console.log('🌐 API ENDPOINTS BEING CALLED:');
-    console.log(`  Daily Readiness: https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${syncDate}&end_date=${syncDate}`);
-    console.log(`  Daily Sleep: https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${syncDate}&end_date=${syncDate}`);
-    console.log(`  Sleep Periods: https://api.ouraring.com/v2/usercollection/sleep?start_date=${syncDate}&end_date=${syncDate}`);
-    console.log(`  Activity: https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${syncDate}&end_date=${syncDate}`);
+    const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+      Promise.race([
+        promise,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), ms))
+      ]);
+
+    const OURA_TIMEOUT = 15_000;
+    const apiCalls = [
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'readiness'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'daily_sleep'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'sleep_periods'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/heartrate?start_datetime=${syncDate}T00:00:00&end_datetime=${syncDate}T23:59:59`, { headers }), OURA_TIMEOUT, 'heartrate'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'activity'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/workout?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'workouts'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_stress?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'stress'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_spo2?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'spo2'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/vo2_max?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'vo2'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'resilience'),
+    ];
+
+    const results = await Promise.allSettled(apiCalls);
     
-    const [readinessRes, dailySleepRes, sleepPeriodsRes, heartrateRes, activityRes, workoutsRes, stressRes, spo2Res, vo2Res, resilienceRes] = await Promise.all([
-      fetch(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
-      fetch(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
-      fetch(`https://api.ouraring.com/v2/usercollection/sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
-      fetch(`https://api.ouraring.com/v2/usercollection/heartrate?start_datetime=${syncDate}T00:00:00&end_datetime=${syncDate}T23:59:59`, { headers }),
-      fetch(`https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
-      fetch(`https://api.ouraring.com/v2/usercollection/workout?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
-      fetch(`https://api.ouraring.com/v2/usercollection/daily_stress?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
-      fetch(`https://api.ouraring.com/v2/usercollection/daily_spo2?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
-      fetch(`https://api.ouraring.com/v2/usercollection/vo2_max?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
-      fetch(`https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=${syncDate}&end_date=${syncDate}`, { headers }),
+    const safeResult = (i: number): Response | null => {
+      const r = results[i];
+      if (r.status === 'fulfilled') return r.value;
+      console.error(`Oura API call ${i} failed:`, (r as PromiseRejectedResult).reason?.message);
+      return null;
+    };
+
+    const [readinessRes, dailySleepRes, sleepPeriodsRes, heartrateRes, activityRes, workoutsRes, stressRes, spo2Res, vo2Res, resilienceRes] = 
+      Array.from({ length: 10 }, (_, i) => safeResult(i));
+
+    const safeJson = async (res: Response | null) => res && res.ok ? await res.json() : null;
+    
+    const [readinessData, dailySleepData, sleepPeriodsData, heartrateData, activityData, workoutsData, stressData, spo2Data, vo2Data, resilienceData] = await Promise.all([
+      safeJson(readinessRes), safeJson(dailySleepRes), safeJson(sleepPeriodsRes), safeJson(heartrateRes),
+      safeJson(activityRes), safeJson(workoutsRes), safeJson(stressRes), safeJson(spo2Res), safeJson(vo2Res), safeJson(resilienceRes),
     ]);
 
-    const readinessData = readinessRes.ok ? await readinessRes.json() : null;
-    const dailySleepData = dailySleepRes.ok ? await dailySleepRes.json() : null;
-    const sleepPeriodsData = sleepPeriodsRes.ok ? await sleepPeriodsRes.json() : null;
-    const heartrateData = heartrateRes.ok ? await heartrateRes.json() : null;
-    const activityData = activityRes.ok ? await activityRes.json() : null;
-    const workoutsData = workoutsRes.ok ? await workoutsRes.json() : null;
-    const stressData = stressRes.ok ? await stressRes.json() : null;
-    const spo2Data = spo2Res.ok ? await spo2Res.json() : null;
-    const vo2Data = vo2Res.ok ? await vo2Res.json() : null;
-    const resilienceData = resilienceRes.ok ? await resilienceRes.json() : null;
-
-    console.log('📊 Oura API responses received for date:', syncDate);
-    console.log('Readiness:', {
-      status: readinessRes.status,
-      count: readinessData?.data?.length || 0,
-      score: readinessData?.data?.[0]?.score || 'none'
-    });
-    console.log('Daily Sleep:', {
-      status: dailySleepRes.status,
-      count: dailySleepData?.data?.length || 0,
-      score: dailySleepData?.data?.[0]?.score || 'none'
-    });
-    console.log('Sleep Periods:', {
-      status: sleepPeriodsRes.status,
-      count: sleepPeriodsData?.data?.length || 0,
-      has_durations: !!(sleepPeriodsData?.data?.[0]?.total_sleep_duration),
-      raw_response: sleepPeriodsData?.data?.length > 0 
-        ? JSON.stringify(sleepPeriodsData.data[0], null, 2)
-        : 'NO DATA',
-      full_response: sleepPeriodsData ? JSON.stringify(sleepPeriodsData, null, 2).substring(0, 500) : 'NULL'
-    });
-    console.log('Activity:', {
-      status: activityRes.status,
-      count: activityData?.data?.length || 0,
-      score: activityData?.data?.[0]?.score || 'none',
-      has_steps: !!(activityData?.data?.[0]?.steps)
-    });
-    console.log('Heartrate:', {
-      status: heartrateRes.status,
-      samples: heartrateData?.data?.length || 0
-    });
-    console.log('Workouts:', {
-      status: workoutsRes.status,
-      ok: workoutsRes.ok,
-      count: workoutsData?.data?.length || 0,
-      raw_data: workoutsData ? JSON.stringify(workoutsData, null, 2).substring(0, 1000) : 'NULL',
-      endpoint: `https://api.ouraring.com/v2/usercollection/workout?start_date=${syncDate}&end_date=${syncDate}`
-    });
-    console.log('Stress:', {
-      status: stressRes.status,
-      count: stressData?.data?.length || 0,
-      has_high_time: !!(stressData?.data?.[0]?.stress_high)
-    });
-    
-    // Log de erros da API
-    if (!readinessRes.ok) console.error('❌ Readiness API error:', await readinessRes.text());
-    if (!dailySleepRes.ok) console.error('❌ Daily Sleep API error:', await dailySleepRes.text());
-    if (!sleepPeriodsRes.ok) console.error('❌ Sleep Periods API error:', await sleepPeriodsRes.text());
-    if (!activityRes.ok) console.error('❌ Activity API error:', await activityRes.text());
-    if (!heartrateRes.ok) console.error('❌ Heartrate API error:', await heartrateRes.text());
-    if (!workoutsRes.ok) console.error('❌ Workouts API error:', await workoutsRes.text());
+    // O-02: Conditional debug logging
+    if (DEBUG) {
+      console.log('Oura API responses for date:', syncDate);
+      console.log('Readiness:', { count: readinessData?.data?.length || 0, score: readinessData?.data?.[0]?.score || 'none' });
+      console.log('Sleep:', { count: dailySleepData?.data?.length || 0, score: dailySleepData?.data?.[0]?.score || 'none' });
+      console.log('Activity:', { count: activityData?.data?.length || 0, score: activityData?.data?.[0]?.score || 'none' });
+      console.log('Workouts:', { count: workoutsData?.data?.length || 0 });
+    }
 
     // Extract metrics
     const readiness = readinessData?.data?.[0];
