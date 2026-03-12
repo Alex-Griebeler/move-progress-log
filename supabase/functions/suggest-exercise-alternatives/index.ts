@@ -81,7 +81,8 @@ function buildToolDefinition(direction: string) {
       required: ["exercise_id", "reasoning"],
       additionalProperties: false,
     },
-    minItems: 3,
+    // SR-03: Dynamic minItems based on available exercises count
+    minItems: 1,
     maxItems: 3,
   };
 
