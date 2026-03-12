@@ -1,3 +1,35 @@
+## Staging Approval — Commit d152289 (perf-bundle-baseline)
+
+### Decision Record
+
+**Status: GO for Staging (conditional)**
+
+The commit `d152289` (`perf-bundle-baseline`) is approved for staging based on:
+
+- CI green (lint, test, build, security audit all passing)
+- Deep static analysis PASS on changed code paths identified in this commit for the 4 critical scenarios
+- Zero preview console/network errors
+- Bundle splitting correctly isolates `vendor-exceljs` and `vendor-react-pdf`
+
+### Conditions for Production GO
+
+Production promotion remains blocked until all 4 interactive smoke tests pass manually in staging:
+
+| # | Scenario | Validation Method | Status |
+|---|----------|-------------------|--------|
+| 1 | ImportSessionsDialog - XLSX upload | Manual test in staging | Pending |
+| 2 | AdminDiagnosticsPage - XLSX batch import | Manual test in staging | Pending |
+| 3 | StudentReportsPage - lazy load | Manual test in staging | Pending |
+| 4 | Export PDF - download | Manual test in staging | Pending |
+
+### Guardrails for This Step
+
+- Documentation-only update in this step
+- No source code, security, RLS, migration, or edge function changes
+- Staging-only decision record; production GO requires 4/4 manual PASS
+
+---
+
 # 🔍 Plano de Auditoria Completa — Fabrik Performance
 
 ## Escopo Total
