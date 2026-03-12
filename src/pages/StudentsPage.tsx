@@ -416,6 +416,10 @@ const StudentsPage = () => {
                 onDelete={setDeletingStudentId}
                 onRecordSession={handleRecordSession}
                 onOpenGroupSession={() => setIsGroupSessionDialogOpen(true)}
+                onOuraConnect={(id, name) => {
+                  setOuraConnectStudentId(id);
+                  setOuraConnectStudentName(name);
+                }}
               />
             ))}
           </div>
