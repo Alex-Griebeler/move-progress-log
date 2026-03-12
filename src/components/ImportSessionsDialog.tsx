@@ -124,9 +124,27 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       });
 
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as SpreadsheetRow[];
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data);
+      const worksheet = workbook.worksheets[0];
+      
+      // Convert ExcelJS worksheet to array of objects
+      const jsonData: SpreadsheetRow[] = [];
+      const headers: string[] = [];
+      worksheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) {
+          row.eachCell((cell, colNumber) => {
+            headers[colNumber] = String(cell.value ?? "");
+          });
+        } else {
+          const rowObj: SpreadsheetRow = {};
+          row.eachCell((cell, colNumber) => {
+            const key = headers[colNumber];
+            if (key) rowObj[key] = cell.value as unknown;
+          });
+          jsonData.push(rowObj);
+        }
+      });
 
       // Agrupa por aluno + data + hora
       const sessionsMap = new Map<string, SessionRow[]>();
