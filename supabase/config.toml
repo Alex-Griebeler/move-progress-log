@@ -18,6 +18,9 @@ verify_jwt = false
 [functions.generate-student-invite]
 verify_jwt = true
 
+[functions.generate-oura-connect-link]
+verify_jwt = true
+
 # OAuth callback - validates authorization code with Oura API
 [functions.oura-callback]
 verify_jwt = false
