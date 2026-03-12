@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
 import { StudentCardSkeleton } from "@/components/skeletons/StudentCardSkeleton";
-import { Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw } from "lucide-react";
+import { Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw, Activity } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
