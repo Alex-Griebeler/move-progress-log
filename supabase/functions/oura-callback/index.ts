@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
       return new Response('Missing authorization code or state', { status: 400 });
     }
 
-    console.log(`Oura callback - code received, state: ${state}`);
+    console.log('Oura callback - code received');
 
     // Parse state to get student_id and invite_token
     const [student_id, invite_token] = state.split(':');
@@ -26,6 +26,46 @@ Deno.serve(async (req) => {
     if (!student_id) {
       console.error('Invalid state format');
       return new Response('Invalid state parameter', { status: 400 });
+    }
+
+    // OCB-01: Validate state against database to prevent CSRF/state injection
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseValidationClient = createClient(
+      supabaseUrl ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    if (invite_token && invite_token !== 'retry') {
+      // Validate that this invite exists and belongs to this student
+      const { data: invite, error: inviteError } = await supabaseValidationClient
+        .from('student_invites')
+        .select('id, created_student_id')
+        .eq('id', invite_token)
+        .single();
+
+      if (inviteError || !invite) {
+        console.error('OCB-01: Invalid state - invite not found');
+        return new Response('Invalid OAuth state', { status: 400 });
+      }
+
+      // If student was already created, verify it matches the state
+      if (invite.created_student_id && invite.created_student_id !== student_id) {
+        console.error('OCB-01: State mismatch - student_id does not match invite');
+        return new Response('Invalid OAuth state', { status: 400 });
+      }
+    } else {
+      // Retry flow: validate that the student exists
+      const { data: student, error: studentError } = await supabaseValidationClient
+        .from('students')
+        .select('id')
+        .eq('id', student_id)
+        .single();
+
+      if (studentError || !student) {
+        console.error('OCB-01: Invalid state - student not found for retry');
+        return new Response('Invalid OAuth state', { status: 400 });
+      }
     }
 
     // Exchange code for tokens

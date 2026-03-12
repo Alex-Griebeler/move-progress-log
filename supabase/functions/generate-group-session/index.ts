@@ -1382,7 +1382,8 @@ function generateSingleWorkout(
   const kneePool = exercises.filter(
     (ex) => ex.movement_pattern && SESSION_PATTERN_GROUPS.lower_knee.includes(ex.movement_pattern) && !excludeIds.has(ex.id)
   );
-  const likelyBp1Pattern = kneePool.length > 0 ? kneePool[0].movement_pattern : null;
+  // G-01: Random selection instead of deterministic kneePool[0]
+  const likelyBp1Pattern = kneePool.length > 0 ? kneePool[Math.floor(Math.random() * kneePool.length)].movement_pattern : null;
 
   // Phase 1: Opening (Resp + LMF)
   const openingPhase = buildOpeningPhase(exercises, excludeIds, config.valences, breathingProtocols);
