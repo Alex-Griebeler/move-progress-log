@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
     const studentToUpdate = existingStudent || orphanStudent;
 
     // Helper to convert objectives string to array if needed
-    const normalizeObjectives = (objectives: any): string[] | null => {
+    const normalizeObjectives = (objectives: unknown): string[] | null => {
       if (!objectives) return null;
       if (Array.isArray(objectives)) return objectives;
       if (typeof objectives === 'string') {
