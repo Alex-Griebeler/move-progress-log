@@ -101,23 +101,14 @@ export function ManualSessionEntry({
   } | null>(null);
   
   // Estado para armazenar os dados de execução de cada aluno
-  const [studentExercises, setStudentExercises] = useState<{
-    [studentId: string]: Array<{
-      exercise_name: string;
-      sets: number;
-      reps: number;
-      load_kg: number | null;
-      load_breakdown: string;
-      observations: string;
-    }>;
-  }>(() => {
+  const [studentExercises, setStudentExercises] = useState<StudentExercisesMap>(() => {
     // Tentar carregar do rascunho primeiro
     if (draft?.studentExercises) {
       return draft.studentExercises;
     }
     
     // Inicializar com os exercícios da prescrição para cada aluno
-    const initial: any = {};
+    const initial: StudentExercisesMap = {};
     selectedStudents.forEach(student => {
       initial[student.id] = prescriptionExercises.map(ex => ({
         exercise_name: ex.exercise_name,
