@@ -33,15 +33,23 @@ serve(async (req) => {
     if (!student_id || !question) return json({ error: 'student_id e question obrigatórios' }, 400);
     if (!UUID_RE.test(student_id)) return json({ error: 'student_id inválido' }, 400);
 
+    // AI-05: Validate trainer ownership before accessing student data
     const svc = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const [{ data: student }, { data: sessions }, { data: goals }, { data: records }] = await Promise.all([
-      svc.from('students').select('*').eq('id', student_id).single(),
+    
+    const { data: student, error: studentError } = await svc
+      .from('students')
+      .select('*')
+      .eq('id', student_id)
+      .single();
+
+    if (studentError || !student) return json({ error: 'Atleta não encontrado' }, 404);
+    if (student.trainer_id !== user.id) return json({ error: 'Acesso negado — aluno não pertence a este treinador' }, 403);
+
+    const [{ data: sessions }, { data: goals }, { data: records }] = await Promise.all([
       svc.from('workout_sessions').select('date, exercises(exercise_name,load_kg,reps)').eq('student_id', student_id).order('date', { ascending: false }).limit(10),
       svc.from('athlete_goals').select('*').eq('student_id', student_id).eq('status', 'active'),
       svc.from('athlete_records').select('*').eq('student_id', student_id).order('achieved_at', { ascending: false }).limit(10),
     ]);
-
-    if (!student) return json({ error: 'Atleta não encontrado' }, 404);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY não configurada');
