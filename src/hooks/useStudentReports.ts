@@ -47,7 +47,7 @@ export const useStudentReports = (studentId: string) => {
     enabled: !!studentId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("student_reports" as any)
+        .from("student_reports")
         .select("*")
         .eq("student_id", studentId)
         .order("period_end", { ascending: false });
