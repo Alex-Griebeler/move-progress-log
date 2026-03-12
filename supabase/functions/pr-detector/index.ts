@@ -15,13 +15,14 @@ serve(async (req) => {
     if (authError || !user) return json({ error: 'Não autorizado' }, 401);
 
     const svc = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().split('T')[0];
-    const today     = new Date().toISOString().split('T')[0];
+    // PR-02: Detect PRs from sessions up to 7 days ago (not just yesterday) to catch delayed registrations
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
 
     const { data: sessions } = await svc
       .from('workout_sessions')
       .select('id, student_id, date, exercises(exercise_name, load_kg, reps)')
-      .gte('date', yesterday).lt('date', today);
+      .gte('date', sevenDaysAgo).lt('date', today);
 
     const sessionList = sessions ?? [];
     const detected: unknown[] = [];
