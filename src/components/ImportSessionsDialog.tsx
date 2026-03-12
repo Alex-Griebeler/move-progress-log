@@ -9,6 +9,29 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
+type SpreadsheetRow = Record<string, unknown>;
+
+const getStringValue = (row: SpreadsheetRow, keys: string[]): string => {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "string" && value.trim() !== "") return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+  return "";
+};
+
+const getNumberValue = (row: SpreadsheetRow, keys: string[]): number | undefined => {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Number(value.replace(",", "."));
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+  }
+  return undefined;
+};
+
 interface ImportSessionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -48,7 +71,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     }
   };
 
-  const parseExcelDate = (excelDate: any): string => {
+  const parseExcelDate = (excelDate: unknown): string => {
     if (typeof excelDate === "string") {
       // Tenta parsear string no formato DD/MM/YYYY ou YYYY-MM-DD
       const parts = excelDate.includes("/") ? excelDate.split("/") : excelDate.split("-");
@@ -72,7 +95,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     return new Date().toISOString().split("T")[0];
   };
 
-  const parseTime = (timeValue: any): string => {
+  const parseTime = (timeValue: unknown): string => {
     if (typeof timeValue === "string") {
       return timeValue;
     }
@@ -103,22 +126,25 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet) as SpreadsheetRow[];
 
       // Agrupa por aluno + data + hora
       const sessionsMap = new Map<string, SessionRow[]>();
 
       jsonData.forEach((row) => {
-        const sessionKey = `${row.Aluno || row.aluno}_${row.Data || row.data}_${row.Hora || row.hora}`;
+        const alunoRaw = getStringValue(row, ["Aluno", "aluno"]);
+        const dataRaw = row["Data"] ?? row["data"];
+        const horaRaw = row["Hora"] ?? row["hora"];
+        const sessionKey = `${alunoRaw}_${String(dataRaw ?? "")}_${String(horaRaw ?? "")}`;
         const sessionRow: SessionRow = {
-          aluno: row.Aluno || row.aluno,
-          data: parseExcelDate(row.Data || row.data),
-          hora: parseTime(row.Hora || row.hora),
-          exercicio: row.Exercicio || row.exercicio || row.Exercício,
-          series: row.Series || row.series || row.Séries,
-          reps: row.Reps || row.reps || row.Repetições,
-          carga: row.Carga || row.carga || row["Carga (kg)"],
-          observacoes: row.Observacoes || row.observacoes || row.Observações,
+          aluno: alunoRaw,
+          data: parseExcelDate(dataRaw),
+          hora: parseTime(horaRaw),
+          exercicio: getStringValue(row, ["Exercicio", "exercicio", "Exercício"]),
+          series: getNumberValue(row, ["Series", "series", "Séries"]),
+          reps: getNumberValue(row, ["Reps", "reps", "Repetições"]),
+          carga: getNumberValue(row, ["Carga", "carga", "Carga (kg)"]),
+          observacoes: getStringValue(row, ["Observacoes", "observacoes", "Observações"]) || undefined,
         };
 
         if (!sessionsMap.has(sessionKey)) {
@@ -168,8 +194,9 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
           processed++;
           setStatus((prev) => ({ ...prev!, processed }));
-        } catch (error: any) {
-          errors.push(`Sessão ${key}: ${error.message}`);
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
+          errors.push(`Sessão ${key}: ${message}`);
         }
       }
 
@@ -194,17 +221,19 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         errors,
         success: errors.length === 0,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (toastId) toast.dismiss(toastId);
       
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      
       toast.error("Erro ao processar arquivo", {
-        description: error.message || "Verifique o formato do arquivo Excel e tente novamente.",
+        description: message || "Verifique o formato do arquivo Excel e tente novamente.",
       });
       
       setStatus({
         total: 0,
         processed: 0,
-        errors: [error.message],
+        errors: [message],
         success: false,
       });
     } finally {

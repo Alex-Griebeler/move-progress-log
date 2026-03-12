@@ -24,6 +24,17 @@ import {
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { expandLoadShorthand } from "@/utils/loadShorthand";
 
+type StudentExerciseEntry = {
+  exercise_name: string;
+  sets: number;
+  reps: number;
+  load_kg: number | null;
+  load_breakdown: string;
+  observations: string;
+};
+
+type StudentExercisesMap = Record<string, StudentExerciseEntry[]>;
+
 interface ManualSessionEntryProps {
   prescriptionExercises: Array<{
     id: string;
@@ -90,23 +101,14 @@ export function ManualSessionEntry({
   } | null>(null);
   
   // Estado para armazenar os dados de execução de cada aluno
-  const [studentExercises, setStudentExercises] = useState<{
-    [studentId: string]: Array<{
-      exercise_name: string;
-      sets: number;
-      reps: number;
-      load_kg: number | null;
-      load_breakdown: string;
-      observations: string;
-    }>;
-  }>(() => {
+  const [studentExercises, setStudentExercises] = useState<StudentExercisesMap>(() => {
     // Tentar carregar do rascunho primeiro
     if (draft?.studentExercises) {
       return draft.studentExercises;
     }
     
     // Inicializar com os exercícios da prescrição para cada aluno
-    const initial: any = {};
+    const initial: StudentExercisesMap = {};
     selectedStudents.forEach(student => {
       initial[student.id] = prescriptionExercises.map(ex => ({
         exercise_name: ex.exercise_name,
@@ -164,8 +166,8 @@ export function ManualSessionEntry({
   const updateExercise = (
     studentId: string, 
     exerciseIndex: number, 
-    field: string, 
-    value: any
+    field: keyof StudentExerciseEntry, 
+    value: StudentExerciseEntry[keyof StudentExerciseEntry]
   ) => {
     setStudentExercises(prev => {
       const updated = { ...prev };
