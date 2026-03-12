@@ -9,6 +9,17 @@ import { CheckCircle, Plus, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { GroupObservation, SessionExercise } from "@/types/sessionRecording";
 
+interface RawObservation {
+  observation: string;
+}
+
+interface RawExercise {
+  name: string;
+  reps?: number;
+  load_kg?: number;
+  observations?: string;
+}
+
 interface AudioSegment {
   segmentOrder: number;
   rawTranscription: string;
@@ -17,8 +28,8 @@ interface AudioSegment {
   extractedData?: {
     sessions: Array<{
       student_name: string;
-      clinical_observations: GroupObservation[];
-      exercises: SessionExercise[];
+      clinical_observations: RawObservation[];
+      exercises: RawExercise[];
     }>;
   };
 }
