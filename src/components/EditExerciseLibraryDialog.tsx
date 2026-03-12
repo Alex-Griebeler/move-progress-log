@@ -161,7 +161,7 @@ export const EditExerciseLibraryDialog = ({
         equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
         surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",
         stability_position: stabilityPosition && stabilityPosition !== "none" ? stabilityPosition : null,
-      } as any);
+      } satisfies Partial<CreateExerciseInput> & { id: string });
 
       onOpenChange(false);
     } catch {
