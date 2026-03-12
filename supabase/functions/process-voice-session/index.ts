@@ -649,9 +649,9 @@ FORMATO DE SAÍDA:
     
     // Preservar exercícios mencionados sem reps e marcá-los para input manual
     if (extractedData.sessions) {
-      extractedData.sessions.forEach((session: any) => {
+      extractedData.sessions.forEach((session: Record<string, unknown>) => {
         if (session.exercises) {
-          session.exercises = session.exercises.map((ex: any) => {
+          session.exercises = (session.exercises as Record<string, unknown>[]).map((ex: Record<string, unknown>) => {
             if (!ex.reps || ex.reps === 0) {
               // REGRA FABRIK: usar null para dados não informados, NUNCA 0
               return {
