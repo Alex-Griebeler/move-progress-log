@@ -194,7 +194,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     setExercises(exercises.filter((_, i) => i !== index));
   };
 
-  const updateExercise = (index: number, field: keyof Exercise, value: any) => {
+  const updateExercise = (index: number, field: keyof Exercise, value: Exercise[keyof Exercise]) => {
     const updated = [...exercises];
     updated[index] = { ...updated[index], [field]: value };
     setExercises(updated);
