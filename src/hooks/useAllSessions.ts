@@ -44,7 +44,7 @@ const SESSION_SELECT = `
   exercises!session_id ( load_kg )
 `;
 
-type AnyBuilder = PostgrestFilterBuilder<never, never, unknown[]>;
+type AnyBuilder = PostgrestFilterBuilder<never, never, never, unknown[]>;
 
 function applyFilters(query: AnyBuilder, filters?: SessionFilters): AnyBuilder {
   if (filters?.studentIds && filters.studentIds.length > 0) {
