@@ -123,7 +123,7 @@ export default function AthleteInsightsDashboard() {
               <CardContent>
                 {records?.length ? (
                   <div className='space-y-2'>
-                    {records.map((r: any) => (
+                    {records.map((r) => (
                       <div key={r.id} className='flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors'>
                         <div>
                           <span className='font-medium'>{r.exercise_name}</span>
