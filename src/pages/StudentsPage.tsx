@@ -84,6 +84,7 @@ interface StudentCardProps {
   onDelete: (id: string) => void;
   onRecordSession: (id: string, name: string) => void;
   onOpenGroupSession: () => void;
+  onOuraConnect: (id: string, name: string) => void;
 }
 
 // Componente StudentCard otimizado - recebe dados via props em vez de fazer queries
@@ -93,7 +94,8 @@ const StudentCard = memo(({
   onEdit, 
   onDelete, 
   onRecordSession,
-  onOpenGroupSession 
+  onOpenGroupSession,
+  onOuraConnect 
 }: StudentCardProps) => {
   const navigate = useNavigate();
   const [showObservationsDialog, setShowObservationsDialog] = useState(false);
