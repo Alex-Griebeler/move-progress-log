@@ -440,9 +440,9 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
       clearDraft();
       
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       notify.error("Erro ao atualizar prescrição", {
-        description: error?.message || "Ocorreu um erro inesperado. Tente novamente."
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado. Tente novamente."
       });
     }
   };
