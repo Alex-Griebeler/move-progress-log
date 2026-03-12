@@ -34,11 +34,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Security audit
-        run: npm audit --audit-level=high --omit=dev || true
-        # Note: npm audit may report transitive dependency issues
-        # that cannot be fixed without upstream updates.
-        # We allow warnings but the audit output is still visible.
+      - name: Security audit (fix & check)
+        run: |
+          npm audit fix --audit-level=high || true
+          npm audit --audit-level=high
 
       - name: Upload build artifacts
         if: always()
