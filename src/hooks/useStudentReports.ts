@@ -18,7 +18,7 @@ export interface StudentReport {
   trainer_highlights: string | null;
   attention_points: string | null;
   next_cycle_plan: string | null;
-  oura_data: any;
+  oura_data: Record<string, unknown> | null;
   consistency_analysis: string | null;
   strength_analysis: string | null;
   generated_at: string | null;
