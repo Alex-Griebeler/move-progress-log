@@ -794,8 +794,8 @@ FORMATO DE SAÍDA:
         return;
       }
       
-      exercise.load_breakdown = normalizeBreakdown(exercise.load_breakdown);
-      const calculatedLoadKg = calculateLoadFromBreakdown(exercise.load_breakdown);
+      exercise.load_breakdown = normalizeBreakdown(exercise.load_breakdown as string);
+      const calculatedLoadKg = calculateLoadFromBreakdown(exercise.load_breakdown as string);
       
       if (exercise.load_kg === null || exercise.load_kg === undefined) {
         exercise.load_kg = calculatedLoadKg;
@@ -804,12 +804,12 @@ FORMATO DE SAÍDA:
       
       // Validar consistência (tolerância de 0.1 kg)
       if (calculatedLoadKg !== null) {
-        const diff = Math.abs(exercise.load_kg - calculatedLoadKg);
+        const diff = Math.abs((exercise.load_kg as number) - calculatedLoadKg);
         if (diff > 0.1) {
           // Usar valor calculado (mais confiável que o Gemini)
           exercise.load_kg = calculatedLoadKg;
         } else {
-          exercise.load_kg = Math.round(exercise.load_kg * 10) / 10;
+          exercise.load_kg = Math.round((exercise.load_kg as number) * 10) / 10;
         }
       }
     }
