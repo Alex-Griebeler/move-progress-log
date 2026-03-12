@@ -240,6 +240,12 @@ const StudentCard = memo(({
                   <Edit className="h-4 w-4 mr-2" />
                   Editar Aluno
                 </DropdownMenuItem>
+                {!ouraStatus.isConnected && (
+                  <DropdownMenuItem onClick={() => onOuraConnect(student.id, student.name)}>
+                    <Activity className="h-4 w-4 mr-2" />
+                    Conectar Oura Ring
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem
                   onClick={() => onDelete(student.id)}
                   className="text-destructive focus:text-destructive"

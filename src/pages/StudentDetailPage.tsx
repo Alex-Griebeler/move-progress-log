@@ -602,7 +602,7 @@ const StudentDetailPage = () => {
             <ManualProtocolRecommendationDialog studentId={id!} />
           </div>
 
-          <OuraConnectionCard studentId={id!} />
+          <OuraConnectionCard studentId={id!} studentName={student?.name} />
           
           {/* Status de conexão discreto apenas para alunos */}
           {!isAdmin && (
