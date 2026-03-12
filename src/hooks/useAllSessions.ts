@@ -43,7 +43,9 @@ const SESSION_SELECT = `
   exercises!session_id ( load_kg )
 `;
 
-function applyFilters(query: any, filters?: SessionFilters) {
+type SessionQuery = ReturnType<typeof supabase.from<'workout_sessions'>>;
+
+function applyFilters(query: SessionQuery, filters?: SessionFilters) {
   if (filters?.studentIds && filters.studentIds.length > 0) {
     query = query.in("student_id", filters.studentIds);
   }
