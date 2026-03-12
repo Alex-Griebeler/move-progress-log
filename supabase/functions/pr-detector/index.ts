@@ -30,7 +30,7 @@ serve(async (req) => {
     // Group valid exercises by student_id to minimise DB round-trips
     const byStudent = new Map<string, { session: (typeof sessionList)[0]; ex: { exercise_name: string; load_kg: number; reps: number } }[]>();
     for (const session of sessionList) {
-      for (const ex of (session as any).exercises ?? []) {
+      for (const ex of ((session as Record<string, unknown>).exercises as Array<{ exercise_name: string; load_kg: number; reps: number; sets?: number }>) ?? []) {
         if (!ex.load_kg || !ex.reps) continue;
         const list = byStudent.get(session.student_id) ?? [];
         list.push({ session, ex });
