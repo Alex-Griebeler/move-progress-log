@@ -209,12 +209,13 @@ export const EditExerciseLibraryDialog = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-movement-pattern">Padrão de Movimento *</Label>
-                  <Select value={movementPattern} onValueChange={handleMovementPatternChange} required>
+                  <Label htmlFor="edit-movement-pattern">Padrão de Movimento</Label>
+                  <Select value={movementPattern} onValueChange={handleMovementPatternChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o padrão" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
                       {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
                         <SelectItem key={key} value={key}>
                           {label}
