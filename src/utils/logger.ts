@@ -53,6 +53,10 @@ function sanitize(data: unknown): unknown {
       .replace(/([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '$1@***');
   }
   
+  if (Array.isArray(data)) {
+    return data.map(sanitize);
+  }
+
   if (typeof data === 'object' && data !== null) {
     const record = data as Record<string, unknown>;
     const sanitized: Record<string, unknown> = {};
