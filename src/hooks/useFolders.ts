@@ -111,7 +111,7 @@ export const useCreateFolder = () => {
       queryClient.invalidateQueries({ queryKey: ["prescription-folders"] });
       notify.success("Pasta criada com sucesso!");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao criar pasta", {
         description: error.message
       });
