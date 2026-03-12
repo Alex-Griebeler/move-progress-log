@@ -262,7 +262,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           movementPattern: selectedExercise.movement_pattern,
           movementPlane: selectedExercise.movement_plane,
           laterality: selectedExercise.laterality,
-          functionalGroup: (selectedExercise as any).functional_group,
+          functionalGroup: selectedExercise.functional_group,
           direction: 'regression',
           availableExercises: exercisesLibrary.map((ex) => ({
             id: ex.id,
@@ -270,7 +270,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
             movement_pattern: ex.movement_pattern,
             movement_plane: ex.movement_plane,
             laterality: ex.laterality,
-            numeric_level: (ex as any).numeric_level,
+            numeric_level: ex.numeric_level,
           })),
         },
       });
