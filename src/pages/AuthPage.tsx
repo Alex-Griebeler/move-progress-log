@@ -125,7 +125,7 @@ export default function AuthPage() {
 
       logger.log('Redirecting to Google OAuth...');
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Unexpected Google OAuth error:', err);
       setLoading(false);
       toast({

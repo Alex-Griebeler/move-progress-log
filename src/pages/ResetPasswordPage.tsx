@@ -171,10 +171,10 @@ export default function ResetPasswordPage() {
       setTimeout(() => {
         navigate(ROUTES.auth);
       }, 2000);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error updating password:", error);
-      
-      if (error.message?.includes("token")) {
+      const errMsg = error instanceof Error ? error.message : "";
+      if (errMsg.includes("token")) {
         toast({
           title: "Link expirado",
           description: "Este link de reset expirou. Solicite um novo reset de senha.",
@@ -183,7 +183,7 @@ export default function ResetPasswordPage() {
       } else {
         toast({
           title: "Erro ao atualizar senha",
-          description: error.message || "Tente novamente mais tarde.",
+          description: errMsg || "Tente novamente mais tarde.",
           variant: "destructive",
         });
       }
