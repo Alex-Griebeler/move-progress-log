@@ -50,7 +50,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
     },
   });
 
-  const handleVoiceData = (voiceData: any) => {
+  const handleVoiceData = (voiceData: { student_name: string; date: string; time: string; exercises: Array<{ name: string; reps?: number; load_kg?: number; load_breakdown?: string; observations?: string }> }) => {
     logger.log("Voice data received:", voiceData);
     
     // Find student by name
