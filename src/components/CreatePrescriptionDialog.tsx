@@ -290,11 +290,11 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         title: "Regressões sugeridas com sucesso!",
         description: "A IA sugeriu 3 exercícios de regressão baseados no padrão de movimento.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       sonnerToast.dismiss(loadingToastId);
       toast({
         title: "Erro ao sugerir regressões",
-        description: error.message || "Tente novamente mais tarde.",
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde.",
         variant: "destructive",
       });
     } finally {
