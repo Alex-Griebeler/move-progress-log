@@ -19,6 +19,7 @@ import { GenerateInviteLinkDialog } from "@/components/GenerateInviteLinkDialog"
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
 import { StudentObservationsDialog } from "@/components/StudentObservationsDialog";
+import { SendOuraConnectDialog } from "@/components/SendOuraConnectDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
