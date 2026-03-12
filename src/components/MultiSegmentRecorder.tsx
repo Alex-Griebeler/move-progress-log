@@ -7,7 +7,7 @@ import { TranscriptionEditor } from "./TranscriptionEditor";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Plus, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import type { GroupObservation, SessionExercise } from "@/types/sessionRecording";
+
 
 interface RawObservation {
   observation: string;
