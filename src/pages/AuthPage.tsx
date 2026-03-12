@@ -520,9 +520,9 @@ export default function AuthPage() {
                     minLength={12}
                     className={
                       confirmPassword && password !== confirmPassword
-                        ? "border-red-500 focus-visible:ring-red-500"
+                        ? "border-destructive focus-visible:ring-destructive"
                         : confirmPassword && password === confirmPassword
-                        ? "border-green-500 focus-visible:ring-green-500"
+                        ? "border-success focus-visible:ring-success"
                         : ""
                     }
                   />
