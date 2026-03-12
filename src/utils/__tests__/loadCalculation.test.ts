@@ -12,7 +12,7 @@ describe('calculateLoadFromBreakdown', () => {
   });
 
   it('returns null for undefined-like input', () => {
-    expect(calculateLoadFromBreakdown(null as any)).toBeNull();
+    expect(calculateLoadFromBreakdown(null as unknown as string)).toBeNull();
   });
 
   // Body weight

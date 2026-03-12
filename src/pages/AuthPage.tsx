@@ -527,7 +527,7 @@ export default function AuthPage() {
                     }
                   />
                   {confirmPassword && password !== confirmPassword && (
-                    <p className="text-xs text-red-500">As senhas não coincidem</p>
+                    <p className="text-xs text-destructive">As senhas não coincidem</p>
                   )}
                 </div>
 
