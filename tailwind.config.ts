@@ -121,6 +121,7 @@ export default {
         'xl': 'var(--shadow-xl)',
         '2xl': 'var(--shadow-2xl)',
         'primary': 'var(--shadow-primary)',
+        'premium': 'var(--shadow-xl)',
         'card': 'var(--shadow-card)',
       },
       /* Premium Border Radius System */
