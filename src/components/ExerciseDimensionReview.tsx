@@ -269,7 +269,7 @@ export const ExerciseDimensionReview = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-3 items-center">
-            <Select value={filter} onValueChange={(v) => setFilter(v as any)}>
+            <Select value={filter} onValueChange={(v) => setFilter(v as "all" | "classified" | "unclassified")}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue />
               </SelectTrigger>

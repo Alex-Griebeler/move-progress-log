@@ -181,10 +181,10 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
       notify.success("Email de reset enviado!", {
         description: `Um link de redefinição foi enviado para ${user.email}`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error sending reset email:", error);
       notify.error("Erro ao enviar email", {
-        description: error.message,
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde",
       });
     }
   };

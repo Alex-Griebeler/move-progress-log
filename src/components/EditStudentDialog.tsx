@@ -183,8 +183,8 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
       
       loader.dismiss();
       onOpenChange(false);
-    } catch (error: any) {
-      loader.error(i18n.modules.students.errorUpdate, error.message);
+    } catch (error: unknown) {
+      loader.error(i18n.modules.students.errorUpdate, error instanceof Error ? error.message : "Erro desconhecido");
     } finally {
       setIsUploadingAvatar(false);
     }

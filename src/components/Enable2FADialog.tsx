@@ -80,10 +80,10 @@ export const Enable2FADialog = ({ open, onOpenChange }: Enable2FADialogProps) =>
       setQrCode('');
       setSecret('');
       setVerificationCode('');
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error verifying 2FA:', error);
       toast.error('Erro ao verificar código', {
-        description: error.message || 'Código incorreto. Tente novamente.',
+        description: error instanceof Error ? error.message : 'Código incorreto. Tente novamente.',
       });
     } finally {
       setLoading(false);
