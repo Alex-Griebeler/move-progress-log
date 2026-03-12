@@ -902,19 +902,28 @@ function buildMainBlocks(
  * Fase 8: Finalizador — Carry
  * v14.5 G8 — Posição A (superset) ou B (finalizador), nunca isolado, mín 2/semana
  */
+/** G-04: Returns null if no carry exercises available (caller should skip phase) */
 function buildFinalizerPhase(
   exercises: Exercise[],
   excludeIds: Set<string>,
   volumeMultiplier: number,
   valences: string[],
-  sessionSelectedExercises: Exercise[]
-): SessionPhase {
+  sessionSelectedExercises: Exercise[],
+  warnings: string[]
+): SessionPhase | null {
   let carryPool = exercises.filter(
     (ex) => ex.movement_pattern === "carregar" && !excludeIds.has(ex.id)
   );
   carryPool = applyLumbarFilter(carryPool, sessionSelectedExercises);
 
   const selected = weightedSelect(carryPool, 1);
+  
+  // G-04: If no carry exercises after filters, skip phase entirely
+  if (selected.length === 0) {
+    warnings.push('Fase Finalizador omitida: nenhum exercício de carry disponível após filtros. Considere adicionar exercícios de carry à biblioteca.');
+    return null;
+  }
+  
   selected.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); });
 
   const config = VALENCE_CONFIG[valences[0] as keyof typeof VALENCE_CONFIG] || VALENCE_CONFIG.forca;
@@ -924,7 +933,7 @@ function buildFinalizerPhase(
     name: SESSION_STRUCTURE.phases.finalizador.name,
     order: 9,
     duration: SESSION_STRUCTURE.phases.finalizador.duration,
-    blocks: selected.length > 0 ? [{
+    blocks: [{
       id: generateUUID(),
       name: "Finalizador — Carry",
       method: "tradicional",
@@ -938,7 +947,7 @@ function buildFinalizerPhase(
       ),
       restBetweenSets: 60,
       notes: "Carry como finalizador. Postura ereta, core ativado, respiração controlada.",
-    }] : [],
+    }],
   };
 }
 
