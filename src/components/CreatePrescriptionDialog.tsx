@@ -194,7 +194,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     setExercises(exercises.filter((_, i) => i !== index));
   };
 
-  const updateExercise = (index: number, field: keyof Exercise, value: any) => {
+  const updateExercise = (index: number, field: keyof Exercise, value: Exercise[keyof Exercise]) => {
     const updated = [...exercises];
     updated[index] = { ...updated[index], [field]: value };
     setExercises(updated);
@@ -217,7 +217,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
 
     updateExercise(exerciseIndex, "adaptations", [
       ...exercise.adaptations,
-      { type: adaptationType as any, exercise_library_id: "" },
+      { type: adaptationType as "regression_1" | "regression_2" | "regression_3", exercise_library_id: "" },
     ]);
   };
 
@@ -262,7 +262,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
           movementPattern: selectedExercise.movement_pattern,
           movementPlane: selectedExercise.movement_plane,
           laterality: selectedExercise.laterality,
-          functionalGroup: (selectedExercise as any).functional_group,
+          functionalGroup: (selectedExercise as unknown as Record<string, unknown>).functional_group,
           direction: 'regression',
           availableExercises: exercisesLibrary.map((ex) => ({
             id: ex.id,
@@ -270,15 +270,15 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
             movement_pattern: ex.movement_pattern,
             movement_plane: ex.movement_plane,
             laterality: ex.laterality,
-            numeric_level: (ex as any).numeric_level,
+            numeric_level: (ex as unknown as Record<string, unknown>).numeric_level,
           })),
         },
       });
 
       if (error) throw error;
 
-      const suggestions = data.regressions.map((r: any, i: number) => ({
-        type: i === 0 ? "regression_1" : i === 1 ? "regression_2" : "regression_3",
+      const suggestions = data.regressions.map((r: { exercise_id: string }, i: number) => ({
+        type: (i === 0 ? "regression_1" : i === 1 ? "regression_2" : "regression_3") as "regression_1" | "regression_2" | "regression_3",
         exercise_library_id: r.exercise_id,
       }));
 
@@ -290,11 +290,11 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
         title: "Regressões sugeridas com sucesso!",
         description: "A IA sugeriu 3 exercícios de regressão baseados no padrão de movimento.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       sonnerToast.dismiss(loadingToastId);
       toast({
         title: "Erro ao sugerir regressões",
-        description: error.message || "Tente novamente mais tarde.",
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde.",
         variant: "destructive",
       });
     } finally {
@@ -420,10 +420,10 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     onOpenChange(false);
   };
 
-  const handleRestoreDraft = (draftData: any) => {
+  const handleRestoreDraft = (draftData: { timestamp: string; name: string; objective: string; exercises: Array<{ id: string; exercise_library_id: string; sets: string; reps: string; interval_seconds: string; pse: string; training_method: string; observations: string; group_with_previous: boolean; should_track: boolean; adaptations: Array<{ type: "regression_1" | "regression_2" | "regression_3"; exercise_library_id: string }>; showAdaptations: boolean }> }) => {
     setName(draftData.name);
     setObjective(draftData.objective);
-    setExercises(draftData.exercises);
+    setExercises(draftData.exercises.map(ex => ({ ...ex, load: "", rir: "" })));
     restoreDraft(draftData);
   };
 
