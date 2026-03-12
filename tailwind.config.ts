@@ -21,12 +21,6 @@ export default {
         'pos-0': '0% 0%',
         'pos-100': '100% 100%',
       },
-      /* Premium Shadows */
-      boxShadow: {
-        'premium': 'var(--shadow-xl)',
-        'card': 'var(--shadow-card)',
-        'primary': 'var(--shadow-primary)',
-      },
       /* ========================================
          DESIGN SYSTEM FOUNDATION - ETAPA 3
          ======================================== */
@@ -127,6 +121,7 @@ export default {
         'xl': 'var(--shadow-xl)',
         '2xl': 'var(--shadow-2xl)',
         'primary': 'var(--shadow-primary)',
+        'premium': 'var(--shadow-xl)',
         'card': 'var(--shadow-card)',
       },
       /* Premium Border Radius System */
