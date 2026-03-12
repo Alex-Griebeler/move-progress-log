@@ -841,12 +841,29 @@ export function RecordGroupSessionDialog({
                   selectedStudents={selectedStudents.map(s => ({ id: s.id, name: s.name, weight_kg: s.weight_kg }))}
                   date={date} time={time}
                   onComplete={(segments) => {
+                    // Map raw audio data to typed SessionExercise/GroupObservation
+                    const mapRawExercise = (raw: { name: string; reps?: number; load_kg?: number; observations?: string }): SessionExercise => ({
+                      executed_exercise_name: raw.name,
+                      reps: raw.reps ?? null,
+                      load_kg: raw.load_kg ?? null,
+                      load_breakdown: '',
+                      observations: raw.observations ?? null,
+                      is_best_set: false,
+                    });
+                    const mapRawObs = (raw: { observation: string }): GroupObservation => ({
+                      observation_text: raw.observation,
+                      categories: ['geral'],
+                      severity: 'média',
+                    });
+
                     const sessionsByStudent = segments.reduce((acc, segment) => {
                       if (!segment.extractedData?.sessions) return acc;
                       segment.extractedData.sessions.forEach(session => {
+                        const mappedExercises = session.exercises.map(mapRawExercise);
+                        const mappedObs = session.clinical_observations.map(mapRawObs);
                         const existing = acc.find(s => s.student_name.toLowerCase() === session.student_name.toLowerCase());
                         if (existing) {
-                          session.exercises.forEach(newEx => {
+                          mappedExercises.forEach(newEx => {
                             const newExName = newEx.executed_exercise_name.toLowerCase().trim();
                             const duplicateIndex = existing.exercises.findIndex(existingEx => {
                               const existingExName = existingEx.executed_exercise_name.toLowerCase().trim();
@@ -856,9 +873,9 @@ export function RecordGroupSessionDialog({
                               if ((newEx.load_kg || 0) >= (existing.exercises[duplicateIndex].load_kg || 0)) existing.exercises[duplicateIndex] = newEx;
                             } else { existing.exercises.push(newEx); }
                           });
-                          existing.clinical_observations = [...existing.clinical_observations, ...session.clinical_observations];
+                          existing.clinical_observations = [...existing.clinical_observations, ...mappedObs];
                         } else {
-                          acc.push({ student_name: session.student_name, exercises: [...session.exercises], clinical_observations: [...session.clinical_observations] });
+                          acc.push({ student_name: session.student_name, exercises: [...mappedExercises], clinical_observations: [...mappedObs] });
                         }
                       });
                       return acc;
