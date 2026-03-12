@@ -141,6 +141,14 @@ serve(async (req) => {
       );
     }
 
+    // V-04: Validate audio payload size before processing
+    if (typeof audio === 'string' && audio.length > MAX_AUDIO_SIZE_CHARS) {
+      return new Response(
+        JSON.stringify({ error: `Áudio excede o tamanho máximo permitido (~15MB). Tente gravar segmentos menores.` }),
+        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!date || !time) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: date or time' }),
