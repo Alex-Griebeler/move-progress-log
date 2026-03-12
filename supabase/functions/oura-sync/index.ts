@@ -366,16 +366,12 @@ Deno.serve(async (req) => {
                     metrics.resting_heart_rate !== null;
 
     if (!hasData) {
-      console.log('⚠️ No Oura data available for date:', syncDate);
-      console.log('Possible reasons:');
-      console.log('1. Data not yet available (Oura processes data after sleep + sync)');
-      console.log('2. User has not worn the ring on this date');
-      console.log('3. Ring was not synced to the Oura app');
+      if (DEBUG) console.log('No Oura data available for date:', syncDate);
       
       return new Response(
         JSON.stringify({
           success: true,
-          message: `Sem dados do Oura Ring para ${syncDate}. Possíveis motivos:\n\n• Os dados ainda não foram processados pelo Oura (isso acontece após dormir e sincronizar o anel)\n• O anel não foi usado nesta data\n• O anel não foi sincronizado com o app Oura\n\nTente sincronizar novamente mais tarde.`,
+          message: `Sem dados do Oura Ring para ${syncDate}.`,
           synced_metrics: null,
           date: syncDate,
         }),
