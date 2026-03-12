@@ -221,17 +221,19 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         errors,
         success: errors.length === 0,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (toastId) toast.dismiss(toastId);
       
+      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      
       toast.error("Erro ao processar arquivo", {
-        description: error.message || "Verifique o formato do arquivo Excel e tente novamente.",
+        description: message || "Verifique o formato do arquivo Excel e tente novamente.",
       });
       
       setStatus({
         total: 0,
         processed: 0,
-        errors: [error.message],
+        errors: [message],
         success: false,
       });
     } finally {

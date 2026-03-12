@@ -166,8 +166,8 @@ export function ManualSessionEntry({
   const updateExercise = (
     studentId: string, 
     exerciseIndex: number, 
-    field: string, 
-    value: any
+    field: keyof StudentExerciseEntry, 
+    value: StudentExerciseEntry[keyof StudentExerciseEntry]
   ) => {
     setStudentExercises(prev => {
       const updated = { ...prev };

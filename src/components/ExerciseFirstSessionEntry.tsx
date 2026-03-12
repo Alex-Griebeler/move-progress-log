@@ -145,7 +145,7 @@ export function ExerciseFirstSessionEntry({
   );
 
   const updateField = useCallback(
-    (studentId: string, exIdx: number, field: keyof ExerciseData, value: any) => {
+    (studentId: string, exIdx: number, field: keyof ExerciseData, value: ExerciseData[keyof ExerciseData]) => {
       setData((prev) => ({
         ...prev,
         [studentId]: {
