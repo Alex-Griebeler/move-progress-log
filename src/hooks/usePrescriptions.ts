@@ -134,13 +134,13 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
 
       if (adaptError) throw adaptError;
 
-      const exercisesWithAdaptations = exercises.map((ex: any) => ({
+      const exercisesWithAdaptations = exercises.map((ex) => ({
         ...ex,
         exercise_name: ex.exercises_library?.name,
         category: ex.exercises_library?.category,
         adaptations: adaptations
-          .filter((a: any) => a.prescription_exercise_id === ex.id)
-          .map((a: any) => ({
+          .filter((a) => a.prescription_exercise_id === ex.id)
+          .map((a) => ({
             ...a,
             exercise_name: a.exercises_library?.name,
           })),
