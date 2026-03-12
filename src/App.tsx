@@ -36,6 +36,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const StudentOnboardingPage = lazy(() => import("./pages/StudentOnboardingPage"));
 const OnboardingSuccessPage = lazy(() => import("./pages/OnboardingSuccessPage"));
 const OuraErrorPage = lazy(() => import("./pages/OuraErrorPage"));
+const OuraConnectPage = lazy(() => import("./pages/OuraConnectPage"));
 const AIBuilderPage = lazy(() => import("./features/ai-builder/AIBuilderPage"));
 const AthleteInsightsDashboard = lazy(() => import("./pages/AthleteInsightsDashboard"));
 const CoachConsole = lazy(() => import("./pages/CoachConsole"));
