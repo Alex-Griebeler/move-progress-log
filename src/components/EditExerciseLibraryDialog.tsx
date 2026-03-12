@@ -177,7 +177,7 @@ export const EditExerciseLibraryDialog = ({
           <DialogTitle>Editar Exercício</DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto pr-4">
           <form onSubmit={handleSubmit} className="space-y-4" id="edit-exercise-form">
             {/* Basic Info Section */}
             <div className="space-y-4">
