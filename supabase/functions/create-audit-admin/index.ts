@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -19,6 +21,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // --- Bootstrap guard: only runs when explicitly enabled ---
+    const bootstrapEnabled = Deno.env.get('ENABLE_AUDIT_ADMIN_BOOTSTRAP');
+    if (bootstrapEnabled !== 'true') {
+      return new Response(
+        JSON.stringify({ error: 'Bootstrap disabled. Set ENABLE_AUDIT_ADMIN_BOOTSTRAP=true to enable.' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // --- Authentication: require service_role ---
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -41,20 +52,13 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    const supabaseAdmin = await (await import('https://esm.sh/@supabase/supabase-js@2')).createClient(
-      supabaseUrl,
-      supabaseServiceKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
 
     const { adminKey } = await req.json();
 
-    // Validar chave de segurança para criar admin
+    // Validar chave de segurança
     const expectedKey = Deno.env.get('ADMIN_CREATION_KEY');
     if (!expectedKey || adminKey !== expectedKey) {
       return new Response(
@@ -63,9 +67,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Criar usuário para auditoria da IA Adapta
+    // Criar usuário de auditoria
     const email = 'auditoria@adapta.ai';
-    const password = crypto.randomUUID(); // Senha aleatória segura
+    const password = crypto.randomUUID();
 
     const { data: user, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
@@ -78,7 +82,7 @@ Deno.serve(async (req) => {
     });
 
     if (createError) {
-      console.error('Error creating user:', createError);
+      console.error('[create-audit-admin] User creation failed');
       return new Response(
         JSON.stringify({ error: createError.message }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -95,35 +99,27 @@ Deno.serve(async (req) => {
     // Criar perfil de trainer
     const { error: profileError } = await supabaseAdmin
       .from('trainer_profiles')
-      .insert({
-        id: user.user.id,
-        full_name: 'Adapta One 26 (Audit AI)',
-      });
+      .insert({ id: user.user.id, full_name: 'Adapta One 26 (Audit AI)' });
 
     if (profileError) {
-      console.error('Error creating trainer profile:', profileError);
+      console.error('[create-audit-admin] Profile creation failed');
     }
 
     // Atribuir role de admin
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
-      .insert({
-        user_id: user.user.id,
-        role: 'admin'
-      });
+      .insert({ user_id: user.user.id, role: 'admin' });
 
     if (roleError) {
-      console.error('Error assigning admin role:', roleError);
+      console.error('[create-audit-admin] Role assignment failed');
       return new Response(
         JSON.stringify({ error: 'Failed to assign admin role' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('✅ Audit admin created successfully:', email);
-
-    // Log credentials server-side only — never expose in response
-    console.log(`🔐 Audit admin credentials — email: ${email}, password: ${password}`);
+    // SECURITY: No credentials, passwords, or tokens in logs or response
+    console.log('[create-audit-admin] Audit admin provisioned successfully');
 
     return new Response(
       JSON.stringify({
@@ -131,13 +127,13 @@ Deno.serve(async (req) => {
         created: true,
         userId: user.user.id,
         email,
-        message: 'Conta de auditoria criada com sucesso. Credenciais registradas nos logs do servidor.'
+        message: 'Conta de auditoria criada. Utilize o painel de administração para gerenciar credenciais.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error:', error);
+    console.error('[create-audit-admin] Unexpected error');
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
     return new Response(
       JSON.stringify({ error: errorMessage }),
