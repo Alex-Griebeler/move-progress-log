@@ -225,7 +225,7 @@ export const useMovePrescription = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao mover prescrição", {
         description: error.message
       });
