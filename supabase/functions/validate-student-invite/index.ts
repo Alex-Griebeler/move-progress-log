@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     // Fetch invite
     const { data: invite, error: inviteError } = await supabaseClient
       .from('student_invites')
-      .select('*, trainer_profiles!inner(full_name)')
+      .select('*, trainer_profiles(full_name)')
       .eq('invite_token', token)
       .single();
 

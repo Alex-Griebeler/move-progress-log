@@ -71,7 +71,6 @@ Deno.serve(async (req) => {
     // Exchange code for tokens
     const ouraClientId = Deno.env.get('OURA_CLIENT_ID');
     const ouraClientSecret = Deno.env.get('OURA_CLIENT_SECRET');
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
     
     // OCB-03: Derive frontend URL from SITE_URL env or allowed origins list
