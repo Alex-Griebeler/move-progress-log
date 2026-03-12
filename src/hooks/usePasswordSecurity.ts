@@ -182,6 +182,6 @@ export const passwordSchema = z
   .regex(/[a-z]/, "A senha deve conter pelo menos uma letra minúscula")
   .regex(/[0-9]/, "A senha deve conter pelo menos um número")
   .regex(
-    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/,
+    /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/,
     "A senha deve conter pelo menos um caractere especial"
   );

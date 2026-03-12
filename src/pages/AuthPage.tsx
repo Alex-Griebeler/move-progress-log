@@ -24,7 +24,7 @@ export default function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [passwordSecurity, setPasswordSecurity] = useState<any>(null);
+  const [passwordSecurity, setPasswordSecurity] = useState<PasswordSecurityResult | null>(null);
   const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
   const [show2FASetup, setShow2FASetup] = useState(false);
   const [show2FAVerify, setShow2FAVerify] = useState(false);
