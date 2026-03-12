@@ -163,7 +163,7 @@ export const useDeleteFolder = () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
       notify.success("Pasta excluída com sucesso!");
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao excluir pasta", {
         description: error.message
       });
