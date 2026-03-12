@@ -378,8 +378,8 @@ export function RecordIndividualSessionDialog({
             selectedStudents={[{ id: studentId, name: studentName, weight_kg: studentWeightKg }]}
             date={date} time={time}
             onComplete={(segments) => {
-              const allObservations: any[] = [];
-              const allExercises: any[] = [];
+              const allObservations: Array<{ observation: string }> = [];
+              const allExercises: Array<{ name: string; reps?: number; load_kg?: number; observations?: string }> = [];
               segments.forEach(segment => {
                 if (segment.extractedData?.sessions) {
                   segment.extractedData.sessions.forEach(session => {
