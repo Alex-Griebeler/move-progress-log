@@ -420,10 +420,10 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     onOpenChange(false);
   };
 
-  const handleRestoreDraft = (draftData: { name: string; objective: string; exercises: Exercise[] }) => {
+  const handleRestoreDraft = (draftData: { timestamp: string; name: string; objective: string; exercises: Array<{ id: string; exercise_library_id: string; sets: string; reps: string; interval_seconds: string; pse: string; training_method: string; observations: string; group_with_previous: boolean; should_track: boolean; adaptations: Array<{ type: "regression_1" | "regression_2" | "regression_3"; exercise_library_id: string }>; showAdaptations: boolean }> }) => {
     setName(draftData.name);
     setObjective(draftData.objective);
-    setExercises(draftData.exercises);
+    setExercises(draftData.exercises.map(ex => ({ ...ex, load: "", rir: "" })));
     restoreDraft(draftData);
   };
 
