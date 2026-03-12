@@ -305,7 +305,7 @@ export const useAssignPrescription = () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       notify.success(i18n.modules.prescriptions.assigned);
     },
-    onError: (error: any) => {
+    onError: (error: Error & { code?: string }) => {
       const isAlreadyAssigned = error.code === "23505" || error.message?.includes("duplicate key");
       notify.error(i18n.modules.prescriptions.errorAssign, {
         description: isAlreadyAssigned 

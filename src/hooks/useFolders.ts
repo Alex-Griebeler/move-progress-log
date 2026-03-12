@@ -251,7 +251,7 @@ export const useReorderPrescriptions = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao reordenar prescrições", {
         description: error.message
       });
