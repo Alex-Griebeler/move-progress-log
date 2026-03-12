@@ -7,7 +7,7 @@ import { Plus, Trash } from "lucide-react";
 import { Severity } from "@/types/sessionRecording";
 
 // Generic observation that works for both group (categories[]) and individual (category)
-interface BaseObservation extends Record<string, unknown> {
+interface BaseObservation {
   observation_text: string;
   severity: Severity;
 }
