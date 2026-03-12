@@ -142,7 +142,20 @@ serve(async (req) => {
 
     const body = await req.json();
     const validated = requestSchema.parse(body);
-    const { exerciseName, movementPattern, movementPlane, laterality, functionalGroup, direction, studentLevel, availableExercises } = validated;
+    const { exerciseName, movementPattern, movementPlane, laterality, functionalGroup, direction, studentLevel } = validated;
+    
+    // SR-02: Pre-filter to same movement_pattern (+ adjacent for progressions) before sending to LLM
+    let filteredExercises = validated.availableExercises.filter(
+      (ex) => ex.movement_pattern === movementPattern
+    );
+    
+    // For progressions, include adjacent patterns
+    if (direction !== 'regression' && filteredExercises.length < 10) {
+      filteredExercises = validated.availableExercises;
+    }
+    
+    // SR-03: Cap at 50 candidates for LLM efficiency
+    const availableExercises = filteredExercises.slice(0, 50);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
