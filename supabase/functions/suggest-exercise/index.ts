@@ -98,7 +98,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY não configurada');
     }
 
-    const exercisesList = candidates.map((ex: any) => ex.name).join('\n');
+    const exercisesList = candidates.map((ex) => ex.name).join('\n');
 
     const systemPrompt = `Você é um especialista em exercícios físicos e deve ajudar a padronizar nomes de exercícios.
 
