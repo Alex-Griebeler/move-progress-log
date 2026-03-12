@@ -24,6 +24,17 @@ import {
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { expandLoadShorthand } from "@/utils/loadShorthand";
 
+type StudentExerciseEntry = {
+  exercise_name: string;
+  sets: number;
+  reps: number;
+  load_kg: number | null;
+  load_breakdown: string;
+  observations: string;
+};
+
+type StudentExercisesMap = Record<string, StudentExerciseEntry[]>;
+
 interface ManualSessionEntryProps {
   prescriptionExercises: Array<{
     id: string;
