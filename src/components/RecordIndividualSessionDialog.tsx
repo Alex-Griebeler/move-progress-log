@@ -378,22 +378,33 @@ export function RecordIndividualSessionDialog({
             selectedStudents={[{ id: studentId, name: studentName, weight_kg: studentWeightKg }]}
             date={date} time={time}
             onComplete={(segments) => {
-              const allObservations: Array<{ observation: string }> = [];
-              const allExercises: Array<{ name: string; reps?: number; load_kg?: number; observations?: string }> = [];
+              const allObservations: IndividualObservation[] = [];
+              const allExercises: SessionExercise[] = [];
               segments.forEach(segment => {
                 if (segment.extractedData?.sessions) {
                   segment.extractedData.sessions.forEach(session => {
-                    if (session.clinical_observations) allObservations.push(...session.clinical_observations);
-                    if (session.exercises) allExercises.push(...session.exercises);
+                    if (session.clinical_observations) {
+                      session.clinical_observations.forEach(obs => {
+                        allObservations.push({ observation_text: obs.observation, category: 'geral', severity: 'baixa' });
+                      });
+                    }
+                    if (session.exercises) {
+                      session.exercises.forEach(ex => {
+                        allExercises.push({
+                          executed_exercise_name: ex.name, reps: ex.reps ?? null, load_kg: ex.load_kg ?? null,
+                          load_breakdown: '', observations: ex.observations ?? null, is_best_set: false,
+                        });
+                      });
+                    }
                   });
                 }
               });
-              const recordingsData = segments.map((seg) => ({
+              const recordingsData: AccumulatedRecording<SessionData>[] = segments.map((seg) => ({
                 recordingNumber: seg.segmentOrder, timestamp: new Date().toISOString(),
                 rawTranscription: seg.rawTranscription, editedTranscription: seg.editedTranscription,
                 data: { sessions: [{ student_name: studentName, clinical_observations: [], exercises: [] }] }
               }));
-              setAccumulatedRecordings(recordingsData as AccumulatedRecording<unknown>[]);
+              setAccumulatedRecordings(recordingsData);
               handleSessionData({ sessions: [{ student_name: studentName, clinical_observations: allObservations, exercises: allExercises }] });
             }}
             onError={handleError}
