@@ -24,11 +24,13 @@ import {
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOfflineDetection } from "@/hooks/useOfflineDetection";
 import { useOuraTestSync } from "@/hooks/useOuraTestSync";
+import { SendOuraConnectDialog } from "@/components/SendOuraConnectDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface OuraConnectionCardProps {
   studentId: string;
+  studentName?: string;
 }
 
 export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
