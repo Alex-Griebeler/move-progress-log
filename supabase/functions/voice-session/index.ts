@@ -234,6 +234,8 @@ serve(async (req) => {
   let openAISocket: WebSocket | null = null;
   // Per-connection context — prevents race conditions between concurrent users
   let sessionContext: SessionContext | null = null;
+  // V-02: Create client per connection to prevent shared state
+  const supabaseClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
   socket.onopen = async () => {
   };

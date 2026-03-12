@@ -95,6 +95,13 @@ serve(async (req) => {
   }
 
   try {
+    // V-02: Initialize clients inside handler to prevent shared state
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY')!;
+    const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY);
+
     // Processing voice session
     
     // Validate authentication
