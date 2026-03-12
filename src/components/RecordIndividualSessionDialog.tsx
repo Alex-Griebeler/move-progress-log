@@ -301,8 +301,8 @@ export function RecordIndividualSessionDialog({
 
       if (accumulatedRecordings.length > 0) {
         const audioSegments = accumulatedRecordings
-          .filter((recording: any) => recording.rawTranscription)
-          .map((recording: any) => ({ session_id: sessionId, segment_order: recording.recordingNumber, raw_transcription: recording.rawTranscription || 'Sem transcrição disponível', edited_transcription: recording.editedTranscription || null }));
+          .filter((recording) => recording.rawTranscription)
+          .map((recording) => ({ session_id: sessionId, segment_order: recording.recordingNumber, raw_transcription: recording.rawTranscription || 'Sem transcrição disponível', edited_transcription: recording.editedTranscription || null }));
         if (audioSegments.length > 0) {
           const { error: segmentsError } = await supabase.from('session_audio_segments').insert(audioSegments);
           if (segmentsError) { logger.error('Error saving audio segments:', segmentsError); notify.warning("Aviso", { description: "Segmentos de áudio não foram salvos, mas a sessão foi criada com sucesso" }); }
@@ -317,9 +317,9 @@ export function RecordIndividualSessionDialog({
 
       notify.success(isReopening ? "Sessão atualizada com sucesso" : i18n.modules.workouts.sessionCreated, { description: isReopening ? "Novos dados adicionados à sessão" : `${accumulatedRecordings.length} ${i18n.modules.workouts.recording}` });
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error saving session:', error);
-      notify.error(i18n.feedback.genericError, { description: error.message });
+      notify.error(i18n.feedback.genericError, { description: error instanceof Error ? error.message : "Tente novamente" });
     }
   };
 
@@ -378,22 +378,33 @@ export function RecordIndividualSessionDialog({
             selectedStudents={[{ id: studentId, name: studentName, weight_kg: studentWeightKg }]}
             date={date} time={time}
             onComplete={(segments) => {
-              const allObservations: any[] = [];
-              const allExercises: any[] = [];
+              const allObservations: IndividualObservation[] = [];
+              const allExercises: SessionExercise[] = [];
               segments.forEach(segment => {
                 if (segment.extractedData?.sessions) {
                   segment.extractedData.sessions.forEach(session => {
-                    if (session.clinical_observations) allObservations.push(...session.clinical_observations);
-                    if (session.exercises) allExercises.push(...session.exercises);
+                    if (session.clinical_observations) {
+                      session.clinical_observations.forEach(obs => {
+                        allObservations.push({ observation_text: obs.observation, category: 'geral', severity: 'baixa' });
+                      });
+                    }
+                    if (session.exercises) {
+                      session.exercises.forEach(ex => {
+                        allExercises.push({
+                          executed_exercise_name: ex.name, reps: ex.reps ?? null, load_kg: ex.load_kg ?? null,
+                          load_breakdown: '', observations: ex.observations ?? null, is_best_set: false,
+                        });
+                      });
+                    }
                   });
                 }
               });
-              const recordingsData = segments.map((seg) => ({
+              const recordingsData: AccumulatedRecording<SessionData>[] = segments.map((seg) => ({
                 recordingNumber: seg.segmentOrder, timestamp: new Date().toISOString(),
                 rawTranscription: seg.rawTranscription, editedTranscription: seg.editedTranscription,
                 data: { sessions: [{ student_name: studentName, clinical_observations: [], exercises: [] }] }
               }));
-              setAccumulatedRecordings(recordingsData as any);
+              setAccumulatedRecordings(recordingsData);
               handleSessionData({ sessions: [{ student_name: studentName, clinical_observations: allObservations, exercises: allExercises }] });
             }}
             onError={handleError}
@@ -431,7 +442,7 @@ export function RecordIndividualSessionDialog({
               onObservationsChange={setEditableObservations}
               createEmpty={() => ({ observation_text: '', category: 'geral' as const, severity: 'baixa' as const })}
               renderCategorySelector={(obs, _idx, onChange) => (
-                <Select value={obs.category} onValueChange={(value) => onChange({ ...obs, category: value as any })}>
+                <Select value={obs.category} onValueChange={(value) => onChange({ ...obs, category: value as IndividualObservation["category"] })}>
                   <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="dor">Dor</SelectItem>

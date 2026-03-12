@@ -43,7 +43,7 @@ export const Verify2FADialog = ({ open, onOpenChange, factorId }: Verify2FADialo
       toast.success('Login realizado com sucesso!');
       onOpenChange(false);
       navigate(POST_LOGIN_ROUTE);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error verifying 2FA code:', error);
       toast.error('Código incorreto', {
         description: 'Verifique o código no app autenticador e tente novamente',
