@@ -20,7 +20,7 @@ import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import exercisesJSON from "@/data/exercicios_fabrik_categorizado.json";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { logger } from "@/utils/logger";
 
 const AdminDiagnosticsPage = () => {
@@ -74,19 +74,38 @@ const AdminDiagnosticsPage = () => {
     setImportProgress(null);
     try {
       const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const targetSheetName = workbook.SheetNames.find(
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(data);
+      const sheetNames = workbook.worksheets.map(ws => ws.name);
+      const targetSheetName = sheetNames.find(
         (n: string) => n.toLowerCase().includes("exercicio") || n.toLowerCase().includes("consolidado")
-      ) || workbook.SheetNames[0];
-      const sheet = workbook.Sheets[targetSheetName];
-      const rows = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
+      ) || sheetNames[0];
+      const sheet = workbook.getWorksheet(targetSheetName)!;
+      
+      // Convert ExcelJS worksheet to array of objects
+      const headers: string[] = [];
+      const rows: Record<string, unknown>[] = [];
+      sheet.eachRow((row, rowNumber) => {
+        if (rowNumber === 1) {
+          row.eachCell((cell, colNumber) => {
+            headers[colNumber] = String(cell.value ?? "");
+          });
+        } else {
+          const rowObj: Record<string, unknown> = {};
+          row.eachCell((cell, colNumber) => {
+            const key = headers[colNumber];
+            if (key) rowObj[key] = cell.value as unknown;
+          });
+          rows.push(rowObj);
+        }
+      });
       
       const firstRow = rows[0] || {};
       const rawKeys = Object.keys(firstRow);
       const debugInfo: Record<string, unknown> = {
         sheetName: targetSheetName,
-        totalSheets: workbook.SheetNames.length,
-        allSheetNames: workbook.SheetNames,
+        totalSheets: sheetNames.length,
+        allSheetNames: sheetNames,
         rowCount: rows.length,
         rawKeys,
         firstRowSample: Object.entries(firstRow).slice(0, 8).map(([k, v]) => `${k}=${v}`),
