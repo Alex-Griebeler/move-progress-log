@@ -72,6 +72,7 @@ const App = () => (
                   <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
                   <Route path={ROUTES.onboardingSuccess} element={<OnboardingSuccessPage />} />
                   <Route path={ROUTES.ouraError} element={<OuraErrorPage />} />
+                  <Route path="/oura-connect/:token" element={<OuraConnectPage />} />
                   
                   {/* Protected routes with sidebar */}
                   <Route path="/*" element={
