@@ -283,7 +283,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
                     onOpenChange={(open) => {
                       setExpandedExercises(prev => {
                         const next = new Set(prev);
-                        open ? next.add(idx) : next.delete(idx);
+                        if (open) { next.add(idx); } else { next.delete(idx); }
                         return next;
                       });
                     }}
