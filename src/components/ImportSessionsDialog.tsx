@@ -95,7 +95,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     return new Date().toISOString().split("T")[0];
   };
 
-  const parseTime = (timeValue: any): string => {
+  const parseTime = (timeValue: unknown): string => {
     if (typeof timeValue === "string") {
       return timeValue;
     }
