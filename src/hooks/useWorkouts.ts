@@ -40,27 +40,29 @@ export interface WorkoutWithDetails extends WorkoutSession {
 
 const PAGE_SIZE = 20;
 
-const mapWorkouts = (data: Array<Record<string, unknown>>, sessionsWithObservations: Set<string>): WorkoutWithDetails[] => {
-  return data.map((workout) => {
-    const students = workout.students as { name: string; avatar_url: string | null };
-    const exercises = workout.exercises as Array<{ load_kg: number | null }>;
-    return {
-      id: workout.id as string,
-      student_id: workout.student_id as string,
-      date: workout.date as string,
-      time: workout.time as string,
-      session_type: workout.session_type as string,
-      student_name: students.name?.trim() || 'Sem nome',
-      avatar_url: students.avatar_url,
-      total_exercises: exercises.length,
-      total_volume: exercises.reduce((sum: number, ex) => sum + (ex.load_kg || 0), 0),
-      has_important_observations: sessionsWithObservations.has(workout.id as string),
-      is_finalized: workout.is_finalized as boolean | undefined,
-      can_reopen: workout.can_reopen as boolean | undefined,
-      created_at: workout.created_at as string,
-      updated_at: workout.updated_at as string,
-    };
-  });
+const mapWorkouts = (data: Array<{
+  id: string; student_id: string; date: string; time: string;
+  session_type: string; created_at: string; updated_at: string;
+  is_finalized: boolean; can_reopen: boolean;
+  students: { name: string; avatar_url: string | null };
+  exercises: Array<{ load_kg: number | null }>;
+}>, sessionsWithObservations: Set<string>): WorkoutWithDetails[] => {
+  return data.map((workout) => ({
+    id: workout.id,
+    student_id: workout.student_id,
+    date: workout.date,
+    time: workout.time,
+    session_type: workout.session_type as 'individual' | 'group',
+    student_name: workout.students.name?.trim() || 'Sem nome',
+    avatar_url: workout.students.avatar_url,
+    total_exercises: workout.exercises.length,
+    total_volume: workout.exercises.reduce((sum, ex) => sum + (ex.load_kg || 0), 0),
+    has_important_observations: sessionsWithObservations.has(workout.id),
+    is_finalized: workout.is_finalized,
+    can_reopen: workout.can_reopen,
+    created_at: workout.created_at,
+    updated_at: workout.updated_at,
+  }));
 };
 
 // MEL-003: Cursor-based pagination

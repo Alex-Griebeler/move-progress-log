@@ -424,7 +424,7 @@ export const usePrescriptionAssignments = (prescriptionId: string | null) => {
       return data.map((a) => ({
         ...a,
         student_name: (a.students as { name: string } | null)?.name,
-      })) as PrescriptionAssignment[];
+      })) as unknown as PrescriptionAssignment[];
     },
   });
 };

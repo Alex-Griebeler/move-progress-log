@@ -74,7 +74,7 @@ const ExerciseReviewPage = () => {
     queryKey: ["exercises-review"],
     queryFn: async () => {
       // Fetch in batches to avoid the 1000 row limit
-      let allData: typeof batchData = [];
+      let allData: Awaited<ReturnType<typeof supabase.from<'exercises_library'>>>['data'] = [];
       let from = 0;
       const batchSize = 500;
       let hasMore = true;
