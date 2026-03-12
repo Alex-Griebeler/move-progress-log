@@ -59,6 +59,9 @@ const roundToDecimal = (value: number, decimals: number = DECIMAL_PLACES): numbe
   return Math.round(value * multiplier) / multiplier;
 };
 
+// V-04: Max audio size validation (20M chars ≈ 15MB audio)
+const MAX_AUDIO_SIZE_CHARS = 20_000_000;
+
 // Processar base64 em chunks para prevenir problemas de memória
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
   const chunks: Uint8Array[] = [];
