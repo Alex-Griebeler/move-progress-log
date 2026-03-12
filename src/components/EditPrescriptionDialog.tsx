@@ -261,7 +261,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
 
     updateExercise(exerciseIndex, "adaptations", [
       ...exercise.adaptations,
-      { type: adaptationType as any, exercise_library_id: "" },
+      { type: adaptationType as "regression_1" | "regression_2" | "regression_3", exercise_library_id: "" },
     ]);
   };
 
