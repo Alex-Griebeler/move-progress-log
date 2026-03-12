@@ -277,8 +277,8 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
 
       if (error) throw error;
 
-      const suggestions = data.regressions.map((r: any, i: number) => ({
-        type: i === 0 ? "regression_1" : i === 1 ? "regression_2" : "regression_3",
+      const suggestions = data.regressions.map((r: { exercise_id: string }, i: number) => ({
+        type: (i === 0 ? "regression_1" : i === 1 ? "regression_2" : "regression_3") as "regression_1" | "regression_2" | "regression_3",
         exercise_library_id: r.exercise_id,
       }));
 
