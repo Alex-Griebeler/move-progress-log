@@ -209,12 +209,13 @@ export const EditExerciseLibraryDialog = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-movement-pattern">Padrão de Movimento *</Label>
-                  <Select value={movementPattern} onValueChange={handleMovementPatternChange} required>
+                  <Label htmlFor="edit-movement-pattern">Padrão de Movimento</Label>
+                  <Select value={movementPattern} onValueChange={handleMovementPatternChange}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o padrão" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
                       {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
                         <SelectItem key={key} value={key}>
                           {label}
@@ -367,7 +368,7 @@ export const EditExerciseLibraryDialog = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="edit-plyometric-phase">Fase Pliométrica (1-19)</Label>
+                  <Label htmlFor="edit-plyometric-phase">Fase Pliométrica (1-5)</Label>
                   <Input
                     id="edit-plyometric-phase"
                     type="number"
