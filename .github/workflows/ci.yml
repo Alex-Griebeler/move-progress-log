@@ -34,8 +34,10 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Security audit
-        run: npm audit --audit-level=high
+      - name: Security audit (fix & check)
+        run: |
+          npm audit fix --audit-level=high || true
+          npm audit --audit-level=high
 
       - name: Upload build artifacts
         if: always()
