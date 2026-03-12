@@ -43,7 +43,7 @@ const SESSION_SELECT = `
   exercises!session_id ( load_kg )
 `;
 
-function applyFilters<T extends PostgrestFilterBuilder<never, never, never, unknown[], unknown, unknown, unknown>>(query: T, filters?: SessionFilters): T {
+function applyFilters<Q extends { in: (col: string, vals: string[]) => Q; gte: (col: string, val: string) => Q; lte: (col: string, val: string) => Q; eq: (col: string, val: string) => Q }>(query: Q, filters?: SessionFilters): Q {
   if (filters?.studentIds && filters.studentIds.length > 0) {
     query = query.in("student_id", filters.studentIds);
   }
