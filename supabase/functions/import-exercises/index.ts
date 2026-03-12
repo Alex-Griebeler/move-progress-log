@@ -509,8 +509,8 @@ Deno.serve(async (req: Request) => {
                                  const equipArr: string[] = [];
                                            const equipamento = getField(ex, "equipamento") as string | undefined;
                                            const implemento = getField(ex, "Implemento", "implemento") as string | undefined;
-                                           if (equipamento) equipArr.push(...equipamento.split(/[,;+\/]/).map((e: string) => e.trim()).filter(Boolean));
-                                           if (implemento) implemento.split(/[,;+\/]/).map((e: string) => e.trim()).filter(Boolean).forEach((e: string) => equipArr.push(e));
+                                            if (equipamento) equipArr.push(...equipamento.split(/[,;+/]/).map((e: string) => e.trim()).filter(Boolean));
+                                            if (implemento) implemento.split(/[,;+/]/).map((e: string) => e.trim()).filter(Boolean).forEach((e: string) => equipArr.push(e));
                                            if (equipArr.length > 0) record.equipment_required = [...new Set(equipArr)];
 
                                  // FIX PRINCIPAL: acumular em arrays em vez de fazer I/O individual
