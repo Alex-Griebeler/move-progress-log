@@ -2,7 +2,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { logger } from "@/utils/logger";
 
-interface PasswordSecurityResult {
+export interface PasswordSecurityResult {
   isSecure: boolean;
   strength: "weak" | "medium" | "strong";
   message: string;
@@ -33,7 +33,7 @@ export const usePasswordSecurity = () => {
       uppercase: /[A-Z]/.test(password),
       lowercase: /[a-z]/.test(password),
       number: /[0-9]/.test(password),
-      special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(password),
+      special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
     };
 
     const passedChecks = Object.values(checks).filter(Boolean).length;
@@ -182,6 +182,6 @@ export const passwordSchema = z
   .regex(/[a-z]/, "A senha deve conter pelo menos uma letra minúscula")
   .regex(/[0-9]/, "A senha deve conter pelo menos um número")
   .regex(
-    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/,
+    /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/,
     "A senha deve conter pelo menos um caractere especial"
   );

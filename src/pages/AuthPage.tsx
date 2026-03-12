@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePasswordSecurity } from "@/hooks/usePasswordSecurity";
+import { usePasswordSecurity, type PasswordSecurityResult } from "@/hooks/usePasswordSecurity";
 import { AlertCircle, Check, X, Loader2, Shield } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { checkRateLimit, recordFailedAttempt, type RateLimitAction } from "@/lib/rateLimiter";
@@ -24,7 +24,7 @@ export default function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [passwordSecurity, setPasswordSecurity] = useState<any>(null);
+  const [passwordSecurity, setPasswordSecurity] = useState<PasswordSecurityResult | null>(null);
   const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
   const [show2FASetup, setShow2FASetup] = useState(false);
   const [show2FAVerify, setShow2FAVerify] = useState(false);

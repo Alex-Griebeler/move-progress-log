@@ -37,7 +37,7 @@ export function VoiceSessionRecorder({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [accumulatedSegments, setAccumulatedSegments] = useState<any[]>([]);
+  const [accumulatedSegments, setAccumulatedSegments] = useState<unknown[]>([]);
   const [currentSegment, setCurrentSegment] = useState(1);
   const { toast } = useToast();
   
