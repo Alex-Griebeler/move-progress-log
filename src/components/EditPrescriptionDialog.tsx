@@ -156,7 +156,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     if (open && dataLoaded && draft && !draftRestoredRef.current) {
       setName(draft.name);
       setObjective(draft.objective);
-      setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" })));
+      setExercises(draft.exercises.map((ex: Partial<Exercise>) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" }) as Exercise));
       draftRestoredRef.current = true;
     }
   }, [open, dataLoaded, draft]);
