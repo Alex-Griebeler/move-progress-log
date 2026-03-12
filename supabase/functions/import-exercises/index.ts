@@ -641,7 +641,7 @@ Deno.serve(async (req: Request) => {
                                                : null;
 
                                  const equipmentArr = ex.equipamento
-                                             ? ex.equipamento.split(/[+\/]/).map((e: string) => e.trim()).filter(Boolean)
+                                             ? ex.equipamento.split(/[+/]/).map((e: string) => e.trim()).filter(Boolean)
                                                : [];
 
                                  let sets: number | null = null;

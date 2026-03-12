@@ -207,7 +207,7 @@ serve(async (req) => {
 
       if (triggered) {
         // Generate protocol recommendations based on the rule
-        let recommendedProtocols = getProtocolsForAction(rule.action_type, protocols as Protocol[]);
+        const recommendedProtocols = getProtocolsForAction(rule.action_type, protocols as Protocol[]);
 
         // MEL-IA-007: Sort by effectiveness (protocols with positive HRV/readiness delta first)
         recommendedProtocols.sort((a, b) => {
