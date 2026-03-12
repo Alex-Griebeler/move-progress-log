@@ -37,7 +37,7 @@ import {
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 // Flatten equipment for selection
 const ALL_EQUIPMENT = Object.values(EQUIPMENT_CATEGORIES).flat();
