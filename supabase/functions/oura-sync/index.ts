@@ -396,7 +396,7 @@ Deno.serve(async (req) => {
     if (workoutsData?.data && workoutsData.data.length > 0) {
       if (DEBUG) console.log(`Found ${workoutsData.data.length} workouts to save`);
       
-      const workouts = workoutsData.data.map((w: any) => ({
+      const workouts = workoutsData.data.map((w: Record<string, unknown>) => ({
         student_id,
         oura_workout_id: w.id,
         activity: w.activity,
