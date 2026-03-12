@@ -393,7 +393,7 @@ export function RecordIndividualSessionDialog({
                 rawTranscription: seg.rawTranscription, editedTranscription: seg.editedTranscription,
                 data: { sessions: [{ student_name: studentName, clinical_observations: [], exercises: [] }] }
               }));
-              setAccumulatedRecordings(recordingsData as any);
+              setAccumulatedRecordings(recordingsData as AccumulatedRecording<unknown>[]);
               handleSessionData({ sessions: [{ student_name: studentName, clinical_observations: allObservations, exercises: allExercises }] });
             }}
             onError={handleError}
