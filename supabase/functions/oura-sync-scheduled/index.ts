@@ -29,10 +29,11 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Chama a função oura-sync-all que já tem toda a lógica
+    // OA-03: Pass service role key as Authorization for oura-sync-all (which requires admin)
     console.log('📞 Calling oura-sync-all function...');
     const { data, error } = await supabase.functions.invoke('oura-sync-all', {
-      body: {}
+      body: {},
+      headers: { Authorization: `Bearer ${supabaseKey}` }
     });
 
     if (error) {

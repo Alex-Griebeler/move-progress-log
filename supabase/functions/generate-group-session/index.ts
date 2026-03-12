@@ -145,11 +145,12 @@ const SESSION_PATTERN_GROUPS: Record<string, string[]> = {
   carry: ["carregar"],
 };
 
-const VALENCE_CONFIG: Record<string, { sets: string; reps: string; interval: number; pse: string }> = {
+const VALENCE_CONFIG: Record<string, { sets: string; reps: string; interval: number; pse: string; restBetweenRounds?: number }> = {
   potencia: { sets: "3-4", reps: "3-5", interval: 120, pse: "7-8" },
   forca: { sets: "4-5", reps: "4-6", interval: 90, pse: "8-9" },
   hipertrofia: { sets: "3-4", reps: "8-12", interval: 60, pse: "7-8" },
-  condicionamento: { sets: "3", reps: "12-15", interval: 30, pse: "6-7" },
+  // G-08: interval 45s (was 30s — too low for metcon PSE 6-7), restBetweenRounds for EMOM/AMRAP
+  condicionamento: { sets: "3", reps: "12-15", interval: 45, pse: "6-7", restBetweenRounds: 90 },
 };
 
 // v14.5: Durations
@@ -257,24 +258,24 @@ const AUDIENCE_PRESETS: Record<string, {
   },
 };
 
-/** Phase 4: F4 — Teachable progression: prefer exercises with regressions available */
-function applyF4TeachableProgression(pool: Exercise[], allExercises: Exercise[]): Exercise[] {
-  // Exercises that share the same movement_pattern and have lower numeric_level are potential regressions
-  // Prefer exercises that have at least one regression available
-  if (pool.length <= 5) return pool; // Don't filter if pool is too small
+/** Phase 4: F4 — Teachable progression: prefer exercises with regressions available
+ * G-06: Uses filteredPool (not allExercises) to find regressions within the same filtered universe
+ */
+function applyF4TeachableProgression(pool: Exercise[], filteredPool: Exercise[]): Exercise[] {
+  if (pool.length <= 5) return pool;
   
   const withRegressions = pool.filter((ex) => {
     if (!ex.movement_pattern || ex.numeric_level == null) return true;
-    const regressions = allExercises.filter(
+    // G-06: Search regressions only within the already-filtered pool
+    const regressions = filteredPool.filter(
       (alt) => alt.movement_pattern === ex.movement_pattern &&
         alt.id !== ex.id &&
         alt.numeric_level != null &&
         alt.numeric_level < ex.numeric_level!
     );
-    return regressions.length >= 1; // Has at least 1 regression option
+    return regressions.length >= 1;
   });
 
-  // Only use filtered pool if it still has enough exercises
   return withRegressions.length >= Math.min(5, pool.length * 0.5) ? withRegressions : pool;
 }
 
@@ -335,10 +336,22 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-function weightedSelect(exercises: Exercise[], count: number): Exercise[] {
+/** G-07: Optional seed for reproducible selection (Mulberry32 PRNG).
+ * If no seed, falls back to Math.random() (current behavior). */
+function mulberry32(seed: number): () => number {
+  return () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function weightedSelect(exercises: Exercise[], count: number, seed?: number): Exercise[] {
   if (exercises.length <= count) return exercises;
+  const rng = seed != null ? mulberry32(seed) : Math.random;
   const scored = exercises.map((ex) => {
-    let score = Math.random();
+    let score = typeof rng === 'function' ? (seed != null ? (rng as () => number)() : Math.random()) : Math.random();
     if (ex.equipment_required && ex.equipment_required.length > 0) score += 0.1;
     if (ex.movement_plane && ex.movement_plane !== "sagital") score += 0.15;
     return { ex, score };
@@ -649,7 +662,6 @@ function buildCorePhase(
       coreExercises.push(picked);
       excludeIds.add(picked.id);
     } else {
-      // Fallback: any core not yet used
       const fallback = corePool.filter((ex) => !excludeIds.has(ex.id));
       if (fallback.length > 0) {
         const picked = fallback[Math.floor(Math.random() * fallback.length)];
@@ -665,8 +677,14 @@ function buildCorePhase(
       id: generateUUID(),
       name: `Core Biplanar (${targetPlanes.join(" + ")})`,
       method: "superset",
-      exercises: coreExercises.map((ex) =>
-        mapToGeneratedExercise(ex, { sets: "2", reps: "10-12", interval: 30 })
+      // G-09: Explicitly set subcategory from target plane so checkCoreTriplanar works correctly
+      exercises: coreExercises.map((ex, i) =>
+        mapToGeneratedExercise(ex, {
+          sets: "2",
+          reps: "10-12",
+          interval: 30,
+          ...(targetPlanes[i] ? { subcategory: targetPlanes[i] } : {}),
+        })
       ),
       restBetweenSets: 30,
       notes: `2 planos distintos: ${targetPlanes.join(", ")}. Cobertura triplanar na semana.`,
@@ -884,19 +902,28 @@ function buildMainBlocks(
  * Fase 8: Finalizador — Carry
  * v14.5 G8 — Posição A (superset) ou B (finalizador), nunca isolado, mín 2/semana
  */
+/** G-04: Returns null if no carry exercises available (caller should skip phase) */
 function buildFinalizerPhase(
   exercises: Exercise[],
   excludeIds: Set<string>,
   volumeMultiplier: number,
   valences: string[],
-  sessionSelectedExercises: Exercise[]
-): SessionPhase {
+  sessionSelectedExercises: Exercise[],
+  warnings: string[]
+): SessionPhase | null {
   let carryPool = exercises.filter(
     (ex) => ex.movement_pattern === "carregar" && !excludeIds.has(ex.id)
   );
   carryPool = applyLumbarFilter(carryPool, sessionSelectedExercises);
 
   const selected = weightedSelect(carryPool, 1);
+  
+  // G-04: If no carry exercises after filters, skip phase entirely
+  if (selected.length === 0) {
+    warnings.push('Fase Finalizador omitida: nenhum exercício de carry disponível após filtros. Considere adicionar exercícios de carry à biblioteca.');
+    return null;
+  }
+  
   selected.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); });
 
   const config = VALENCE_CONFIG[valences[0] as keyof typeof VALENCE_CONFIG] || VALENCE_CONFIG.forca;
@@ -906,7 +933,7 @@ function buildFinalizerPhase(
     name: SESSION_STRUCTURE.phases.finalizador.name,
     order: 9,
     duration: SESSION_STRUCTURE.phases.finalizador.duration,
-    blocks: selected.length > 0 ? [{
+    blocks: [{
       id: generateUUID(),
       name: "Finalizador — Carry",
       method: "tradicional",
@@ -920,7 +947,7 @@ function buildFinalizerPhase(
       ),
       restBetweenSets: 60,
       notes: "Carry como finalizador. Postura ereta, core ativado, respiração controlada.",
-    }] : [],
+    }],
   };
 }
 
@@ -980,10 +1007,11 @@ function checkCoreTriplanar(phases: SessionPhase[]) {
   };
 }
 
+// G-10: Nomes em pt-BR para consistência com o restante do sistema
 function generateWorkoutName(slot: string, valences: string[]): string {
-  const slotNames: Record<string, string> = { A: "Power", B: "Build", C: "Flow" };
+  const slotNames: Record<string, string> = { A: "Potência", B: "Força", C: "Fluxo" };
   const valenceNames: Record<string, string> = {
-    potencia: "Explosive", forca: "Strength", hipertrofia: "Hyper", condicionamento: "MetCon",
+    potencia: "Explosivo", forca: "Força", hipertrofia: "Hipertrofia", condicionamento: "MetCon",
   };
   const base = slotNames[slot] || slot;
   const suffix = valences.map((v) => valenceNames[v] || v).join(" + ");
@@ -1528,7 +1556,8 @@ serve(async (req) => {
     exercises = applyAudienceFilters(exercises, audiencePreset);
 
     // Phase 4: F4 — Teachable progression filter
-    exercises = applyF4TeachableProgression(exercises, allExercises || []);
+    // G-06: Pass filtered exercises (not allExercises) to find regressions in same universe
+    exercises = applyF4TeachableProgression(exercises, exercises);
 
     if (input.excludeExercises?.length) {
       exercises = exercises.filter((ex) => !input.excludeExercises!.includes(ex.id));
@@ -1579,7 +1608,7 @@ serve(async (req) => {
     for (const workoutConfig of input.workouts) {
       const workout = generateSingleWorkout(
         exercises, workoutConfig, input.groupLevel, volumeMultiplier,
-        breathingProtocols || [], globalExcludeIds
+        breathingProtocols || [], globalExcludeIds, warnings
       );
       workouts.push(workout);
 

@@ -15,13 +15,14 @@ serve(async (req) => {
     if (authError || !user) return json({ error: 'Não autorizado' }, 401);
 
     const svc = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
-    const yesterday = new Date(Date.now() - 86_400_000).toISOString().split('T')[0];
-    const today     = new Date().toISOString().split('T')[0];
+    // PR-02: Detect PRs from sessions up to 7 days ago (not just yesterday) to catch delayed registrations
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
 
     const { data: sessions } = await svc
       .from('workout_sessions')
       .select('id, student_id, date, exercises(exercise_name, load_kg, reps)')
-      .gte('date', yesterday).lt('date', today);
+      .gte('date', sevenDaysAgo).lt('date', today);
 
     const sessionList = sessions ?? [];
     const detected: unknown[] = [];
@@ -46,7 +47,8 @@ serve(async (req) => {
         .select('exercise_name, record_type, value')
         .eq('student_id', student_id)
         .in('exercise_name', exerciseNames)
-        .in('record_type', ['max_load', 'max_volume']);
+        // PR-03: Also detect max_reps and max_total_volume
+        .in('record_type', ['max_load', 'max_volume', 'max_reps', 'max_total_volume']);
 
       // Build in-memory lookup: "exercise_name:record_type" → best known value
       const recordMap = new Map<string, number>();
@@ -59,9 +61,13 @@ serve(async (req) => {
       // Detect PRs entirely in memory — no extra DB reads
       const newRecords: object[] = [];
       for (const { session, ex } of items) {
+        // PR-03: Detect max_load, max_volume, max_reps, max_total_volume
+        const sets = (ex as any).sets || 1;
         const checks: [string, number][] = [
           ['max_load', ex.load_kg],
           ['max_volume', ex.load_kg * ex.reps],
+          ['max_reps', ex.reps],
+          ['max_total_volume', ex.load_kg * ex.reps * sets],
         ];
         for (const [record_type, val] of checks) {
           const key = `${ex.exercise_name}:${record_type}`;

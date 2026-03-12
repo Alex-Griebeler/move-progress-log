@@ -81,7 +81,8 @@ function buildToolDefinition(direction: string) {
       required: ["exercise_id", "reasoning"],
       additionalProperties: false,
     },
-    minItems: 3,
+    // SR-03: Dynamic minItems based on available exercises count
+    minItems: 1,
     maxItems: 3,
   };
 
@@ -142,7 +143,20 @@ serve(async (req) => {
 
     const body = await req.json();
     const validated = requestSchema.parse(body);
-    const { exerciseName, movementPattern, movementPlane, laterality, functionalGroup, direction, studentLevel, availableExercises } = validated;
+    const { exerciseName, movementPattern, movementPlane, laterality, functionalGroup, direction, studentLevel } = validated;
+    
+    // SR-02: Pre-filter to same movement_pattern (+ adjacent for progressions) before sending to LLM
+    let filteredExercises = validated.availableExercises.filter(
+      (ex) => ex.movement_pattern === movementPattern
+    );
+    
+    // For progressions, include adjacent patterns
+    if (direction !== 'regression' && filteredExercises.length < 10) {
+      filteredExercises = validated.availableExercises;
+    }
+    
+    // SR-03: Cap at 50 candidates for LLM efficiency
+    const availableExercises = filteredExercises.slice(0, 50);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -210,10 +224,14 @@ Retorne APENAS os IDs dos exercícios sugeridos como alternativas.`;
 
     const suggestions = JSON.parse(toolCall.function.arguments);
 
-    // Normalizar resposta para sempre ter ambos os arrays
+    // SR-03: Validate that each returned ID exists in the available exercises
+    const availableIds = new Set(availableExercises.map(e => e.id));
+    const validateIds = (items: any[]) => items.filter((item: any) => availableIds.has(item.exercise_id));
+
     const result = {
-      regressions: suggestions.regressions || [],
-      progressions: suggestions.progressions || [],
+      regressions: validateIds(suggestions.regressions || []),
+      progressions: validateIds(suggestions.progressions || []),
+      availableCount: availableExercises.length,
     };
 
     return new Response(JSON.stringify(result), {

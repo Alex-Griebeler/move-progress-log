@@ -88,9 +88,17 @@ Deno.serve(async (req) => {
     }
 
     // Validate and sanitize history
+    // PC-02: Limit to 50 messages per conversation to control AI cost
+    const MAX_HISTORY_MESSAGES = 50;
     const chatHistory: ChatMessage[] = [];
     if (Array.isArray(history)) {
-      for (const msg of history.slice(-20)) { // Max 20 previous messages
+      if (history.length > MAX_HISTORY_MESSAGES) {
+        return new Response(
+          JSON.stringify({ error: `Conversa excede o limite de ${MAX_HISTORY_MESSAGES} mensagens. Inicie uma nova conversa.` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      for (const msg of history.slice(-20)) { // Send max 20 to LLM context
         if (
           msg &&
           typeof msg.role === "string" &&
