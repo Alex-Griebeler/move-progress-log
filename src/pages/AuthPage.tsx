@@ -420,8 +420,8 @@ export default function AuthPage() {
                     className={
                       passwordSecurity
                         ? passwordSecurity.isSecure
-                          ? "border-green-500 focus-visible:ring-green-500"
-                          : "border-red-500 focus-visible:ring-red-500"
+                          ? "border-success focus-visible:ring-success"
+                          : "border-destructive focus-visible:ring-destructive"
                         : ""
                     }
                   />
