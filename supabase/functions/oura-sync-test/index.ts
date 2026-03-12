@@ -423,7 +423,7 @@ Deno.serve(async (req) => {
 
     // Save workouts
     if (workoutsData?.data && workoutsData.data.length > 0) {
-      const workouts = workoutsData.data.map((w: any) => ({
+      const workouts = workoutsData.data.map((w: Record<string, unknown>) => ({
         student_id,
         oura_workout_id: w.id,
         activity: w.activity,
