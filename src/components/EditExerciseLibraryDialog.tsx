@@ -32,6 +32,7 @@ import {
   STABILITY_POSITION_OPTIONS,
   SURFACE_MODIFIER_OPTIONS,
   ExerciseLibrary,
+  CreateExerciseInput,
 } from "@/hooks/useExercisesLibrary";
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
@@ -161,7 +162,7 @@ export const EditExerciseLibraryDialog = ({
         equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
         surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",
         stability_position: stabilityPosition && stabilityPosition !== "none" ? stabilityPosition : null,
-      } as any);
+      } satisfies Partial<CreateExerciseInput> & { id: string });
 
       onOpenChange(false);
     } catch {

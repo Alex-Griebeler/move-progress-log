@@ -121,12 +121,12 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   useEffect(() => {
     if (prescriptionData && open && !dataLoaded) {
       setName(prescriptionData.name);
-      setPrescriptionType((prescriptionData as any).prescription_type || 'group');
+      setPrescriptionType((prescriptionData as unknown as Record<string, unknown>).prescription_type as 'group' | 'individual' || 'group');
       setObjective(prescriptionData.objective || "");
       
       if (prescriptionData.exercises && prescriptionData.exercises.length > 0) {
         setExercises(
-          prescriptionData.exercises.map((ex: any) => ({
+          prescriptionData.exercises.map((ex: { id?: string; exercise_library_id: string; sets: string; reps: string; interval_seconds?: number | null; pse?: string | null; load?: string | null; rir?: string | null; training_method?: string | null; observations?: string | null; group_with_previous?: boolean; should_track?: boolean; adaptations?: Array<{ adaptation_type: string; exercise_library_id: string }> }) => ({
             id: ex.id || crypto.randomUUID(),
             exercise_library_id: ex.exercise_library_id,
             sets: ex.sets,
@@ -139,8 +139,8 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             observations: ex.observations || "",
             group_with_previous: ex.group_with_previous || false,
             should_track: ex.should_track ?? true,
-            adaptations: (ex.adaptations || []).map((adapt: any) => ({
-              type: adapt.adaptation_type,
+            adaptations: (ex.adaptations || []).map((adapt: { adaptation_type: string; exercise_library_id: string }) => ({
+              type: adapt.adaptation_type as "regression_1" | "regression_2" | "regression_3",
               exercise_library_id: adapt.exercise_library_id,
             })),
             showAdaptations: (ex.adaptations || []).length > 0,
@@ -156,7 +156,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     if (open && dataLoaded && draft && !draftRestoredRef.current) {
       setName(draft.name);
       setObjective(draft.objective);
-      setExercises(draft.exercises.map((ex: any) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" })));
+      setExercises(draft.exercises.map((ex: Partial<Exercise>) => ({ ...ex, load: ex.load || "", rir: ex.rir || "" }) as Exercise));
       draftRestoredRef.current = true;
     }
   }, [open, dataLoaded, draft]);
@@ -238,7 +238,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
     setExercises(exercises.filter((_, i) => i !== index));
   };
 
-  const updateExercise = (index: number, field: keyof Exercise, value: any) => {
+  const updateExercise = (index: number, field: keyof Exercise, value: Exercise[keyof Exercise]) => {
     const updated = [...exercises];
     updated[index] = { ...updated[index], [field]: value };
     setExercises(updated);
@@ -261,7 +261,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
 
     updateExercise(exerciseIndex, "adaptations", [
       ...exercise.adaptations,
-      { type: adaptationType as any, exercise_library_id: "" },
+      { type: adaptationType as "regression_1" | "regression_2" | "regression_3", exercise_library_id: "" },
     ]);
   };
 
@@ -306,7 +306,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
           movementPattern: selectedExercise.movement_pattern,
           movementPlane: selectedExercise.movement_plane,
           laterality: selectedExercise.laterality,
-          functionalGroup: (selectedExercise as any).functional_group,
+          functionalGroup: (selectedExercise as unknown as Record<string, unknown>).functional_group,
           direction: 'regression',
           availableExercises: exercisesLibrary.map((ex) => ({
             id: ex.id,
@@ -314,15 +314,15 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             movement_pattern: ex.movement_pattern,
             movement_plane: ex.movement_plane,
             laterality: ex.laterality,
-            numeric_level: (ex as any).numeric_level,
+            numeric_level: (ex as unknown as Record<string, unknown>).numeric_level,
           })),
         },
       });
 
       if (error) throw error;
 
-      const suggestions = data.regressions.map((r: any, i: number) => ({
-        type: i === 0 ? "regression_1" : i === 1 ? "regression_2" : "regression_3",
+      const suggestions = data.regressions.map((r: { exercise_id: string }, i: number) => ({
+        type: (i === 0 ? "regression_1" : i === 1 ? "regression_2" : "regression_3") as "regression_1" | "regression_2" | "regression_3",
         exercise_library_id: r.exercise_id,
       }));
 
