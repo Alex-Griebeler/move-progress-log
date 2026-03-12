@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { usePasswordSecurity } from "@/hooks/usePasswordSecurity";
+import { usePasswordSecurity, type PasswordSecurityResult } from "@/hooks/usePasswordSecurity";
 import { AlertCircle, Check, X, Loader2, Shield } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { checkRateLimit, recordFailedAttempt, type RateLimitAction } from "@/lib/rateLimiter";

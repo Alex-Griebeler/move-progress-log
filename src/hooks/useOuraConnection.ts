@@ -66,9 +66,9 @@ const invokeWithTimeout = async (
   try {
     const { data, error } = await supabase.functions.invoke(functionName, {
       body,
-      // @ts-expect-error - Supabase types may not include signal yet
       signal: controller.signal,
-    });
+    } as Record<string, unknown>);
+
     clearTimeout(timeoutId);
 
     if (error) throw error;
