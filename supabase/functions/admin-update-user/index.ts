@@ -90,7 +90,7 @@ serve(async (req) => {
     console.log(`Updating user: ${userId}`);
 
     // Atualizar dados de autenticação
-    const authUpdates: any = {};
+    const authUpdates: Record<string, unknown> = {};
     if (email) authUpdates.email = email;
     if (newPassword) authUpdates.password = newPassword;
     if (fullName) {
@@ -179,15 +179,16 @@ serve(async (req) => {
         status: 200,
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Error in admin-update-user:", error);
     return new Response(
       JSON.stringify({
-        error: error.message || "Internal server error",
+        error: message,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: error.message.includes("Unauthorized") || error.message.includes("Only admins") ? 403 : 400,
+        status: message.includes("Unauthorized") || message.includes("Only admins") ? 403 : 400,
       }
     );
   }

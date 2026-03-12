@@ -30,7 +30,7 @@ serve(async (req) => {
     // Group valid exercises by student_id to minimise DB round-trips
     const byStudent = new Map<string, { session: (typeof sessionList)[0]; ex: { exercise_name: string; load_kg: number; reps: number } }[]>();
     for (const session of sessionList) {
-      for (const ex of (session as any).exercises ?? []) {
+      for (const ex of ((session as Record<string, unknown>).exercises as Array<{ exercise_name: string; load_kg: number; reps: number; sets?: number }>) ?? []) {
         if (!ex.load_kg || !ex.reps) continue;
         const list = byStudent.get(session.student_id) ?? [];
         list.push({ session, ex });
@@ -62,7 +62,7 @@ serve(async (req) => {
       const newRecords: object[] = [];
       for (const { session, ex } of items) {
         // PR-03: Detect max_load, max_volume, max_reps, max_total_volume
-        const sets = (ex as any).sets || 1;
+        const sets = ex.sets || 1;
         const checks: [string, number][] = [
           ['max_load', ex.load_kg],
           ['max_volume', ex.load_kg * ex.reps],

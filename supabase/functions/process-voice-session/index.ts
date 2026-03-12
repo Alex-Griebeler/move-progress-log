@@ -187,7 +187,7 @@ serve(async (req) => {
     const { data: studentRecords, error: studentsError } = await supabaseClient
       .from('students')
       .select('id, trainer_id')
-      .in('id', students.map((s: any) => s.id));
+      .in('id', students.map((s: { id: string }) => s.id));
 
     if (studentsError || !studentRecords) {
       
@@ -289,13 +289,13 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     }
 
     const studentsInfo = students
-      .map((s: any) => `  - ${s.name}${s.weight_kg ? ` (peso: ${s.weight_kg} kg)` : ' (peso não cadastrado)'}`)
+      .map((s: { name: string; weight_kg?: number }) => `  - ${s.name}${s.weight_kg ? ` (peso: ${s.weight_kg} kg)` : ' (peso não cadastrado)'}`)
       .join('\n');
     
     const exercisesInfo = prescriptionDetails 
       ? prescriptionDetails.prescription_exercises
-          .filter((ex: any) => ex.should_track !== false)
-          .map((ex: any) => `  ${ex.order_index + 1}. ${ex.exercises_library.name}: ${ex.sets} séries × ${ex.reps} reps`)
+          .filter((ex: Record<string, unknown>) => ex.should_track !== false)
+          .map((ex: Record<string, unknown>) => `  ${(ex.order_index as number) + 1}. ${(ex.exercises_library as Record<string, unknown>).name}: ${ex.sets} séries × ${ex.reps} reps`)
           .join('\n')
       : '  (Sessão livre - sem prescrição definida)';
 
@@ -649,9 +649,9 @@ FORMATO DE SAÍDA:
     
     // Preservar exercícios mencionados sem reps e marcá-los para input manual
     if (extractedData.sessions) {
-      extractedData.sessions.forEach((session: any) => {
+      extractedData.sessions.forEach((session: Record<string, unknown>) => {
         if (session.exercises) {
-          session.exercises = session.exercises.map((ex: any) => {
+          session.exercises = (session.exercises as Record<string, unknown>[]).map((ex: Record<string, unknown>) => {
             if (!ex.reps || ex.reps === 0) {
               // REGRA FABRIK: usar null para dados não informados, NUNCA 0
               return {
@@ -776,7 +776,7 @@ FORMATO DE SAÍDA:
     }
     
     // Sanitizar dados (converter 0 e "" para null)
-    function sanitizeExerciseData(exercise: any) {
+    function sanitizeExerciseData(exercise: Record<string, unknown>) {
       const fieldsToSanitize = ['load_kg', 'load_breakdown', 'reps', 'sets', 'observations'];
       for (const field of fieldsToSanitize) {
         if (exercise[field] === 0 || exercise[field] === '' || exercise[field] === 'não informado') {
@@ -786,7 +786,7 @@ FORMATO DE SAÍDA:
     }
 
     // Validar e recalcular load_kg se necessário
-    function validateAndRecalculateLoad(exercise: any, _sessionIdx: number, _exIdx: number) {
+    function validateAndRecalculateLoad(exercise: Record<string, unknown>, _sessionIdx: number, _exIdx: number) {
       sanitizeExerciseData(exercise);
       
       if (!exercise.load_breakdown) {
@@ -794,8 +794,8 @@ FORMATO DE SAÍDA:
         return;
       }
       
-      exercise.load_breakdown = normalizeBreakdown(exercise.load_breakdown);
-      const calculatedLoadKg = calculateLoadFromBreakdown(exercise.load_breakdown);
+      exercise.load_breakdown = normalizeBreakdown(exercise.load_breakdown as string);
+      const calculatedLoadKg = calculateLoadFromBreakdown(exercise.load_breakdown as string);
       
       if (exercise.load_kg === null || exercise.load_kg === undefined) {
         exercise.load_kg = calculatedLoadKg;
@@ -804,19 +804,19 @@ FORMATO DE SAÍDA:
       
       // Validar consistência (tolerância de 0.1 kg)
       if (calculatedLoadKg !== null) {
-        const diff = Math.abs(exercise.load_kg - calculatedLoadKg);
+        const diff = Math.abs((exercise.load_kg as number) - calculatedLoadKg);
         if (diff > 0.1) {
           // Usar valor calculado (mais confiável que o Gemini)
           exercise.load_kg = calculatedLoadKg;
         } else {
-          exercise.load_kg = Math.round(exercise.load_kg * 10) / 10;
+          exercise.load_kg = Math.round((exercise.load_kg as number) * 10) / 10;
         }
       }
     }
 
     // APLICAR VALIDAÇÃO COMPLETA
-    extractedData.sessions?.forEach((session: any, sessionIdx: number) => {
-      session.exercises?.forEach((ex: any, exIdx: number) => {
+    extractedData.sessions?.forEach((session: Record<string, unknown>, sessionIdx: number) => {
+      (session.exercises as Record<string, unknown>[] | undefined)?.forEach((ex: Record<string, unknown>, exIdx: number) => {
         validateAndRecalculateLoad(ex, sessionIdx, exIdx);
       });
     });
@@ -824,29 +824,29 @@ FORMATO DE SAÍDA:
     // ═══════════════════════════════════════════════════════════
     // MEL-IA-006: Validação de Desvio da Prescrição
     // ═══════════════════════════════════════════════════════════
-    let prescriptionDeviations: any[] = [];
+    let prescriptionDeviations: Record<string, unknown>[] = [];
     
     if (prescriptionDetails && prescriptionDetails.prescription_exercises) {
-      const prescribedExercises = prescriptionDetails.prescription_exercises.map((pe: any) => ({
-        name: pe.exercises_library.name,
-        sets: pe.sets,
-        reps: pe.reps,
+      const prescribedExercises = prescriptionDetails.prescription_exercises.map((pe: Record<string, unknown>) => ({
+        name: (pe.exercises_library as Record<string, unknown>).name as string,
+        sets: pe.sets as string,
+        reps: pe.reps as string,
       }));
       
-      extractedData.sessions?.forEach((session: any) => {
-        const sessionDeviations: any[] = [];
-        const executedNames = (session.exercises || []).map((ex: any) => 
-          (ex.executed_exercise_name || '').toLowerCase().trim()
+      extractedData.sessions?.forEach((session: Record<string, unknown>) => {
+        const sessionDeviations: Record<string, unknown>[] = [];
+        const executedNames = ((session.exercises as Record<string, unknown>[] | undefined) || []).map((ex: Record<string, unknown>) => 
+          ((ex.executed_exercise_name as string) || '').toLowerCase().trim()
         );
-        const prescribedNames = prescribedExercises.map((pe: any) => pe.name.toLowerCase().trim());
+        const prescribedNames = prescribedExercises.map((pe) => pe.name.toLowerCase().trim());
         
         // 1. Exercícios prescritos mas NÃO executados (omissões)
-        prescribedExercises.forEach((pe: any) => {
+        prescribedExercises.forEach((pe) => {
           const peName = pe.name.toLowerCase().trim();
           const wasExecuted = executedNames.some((en: string) => 
             en.includes(peName) || peName.includes(en) || 
-            (session.exercises || []).some((ex: any) => 
-              ex.prescribed_exercise_name?.toLowerCase().trim() === peName
+            ((session.exercises as Record<string, unknown>[] | undefined) || []).some((ex: Record<string, unknown>) => 
+              (ex.prescribed_exercise_name as string)?.toLowerCase().trim() === peName
             )
           );
           
@@ -860,12 +860,12 @@ FORMATO DE SAÍDA:
         });
         
         // 2. Exercícios executados mas NÃO prescritos (substituições/adições)
-        (session.exercises || []).forEach((ex: any) => {
-          const exName = (ex.executed_exercise_name || '').toLowerCase().trim();
+        ((session.exercises as Record<string, unknown>[] | undefined) || []).forEach((ex: Record<string, unknown>) => {
+          const exName = ((ex.executed_exercise_name as string) || '').toLowerCase().trim();
           const isFromPrescription = prescribedNames.some((pn: string) => 
             pn.includes(exName) || exName.includes(pn)
           ) || (ex.prescribed_exercise_name && prescribedNames.includes(
-            ex.prescribed_exercise_name.toLowerCase().trim()
+            (ex.prescribed_exercise_name as string).toLowerCase().trim()
           ));
           
           if (!isFromPrescription) {
@@ -878,10 +878,10 @@ FORMATO DE SAÍDA:
         });
         
         // 3. Desvios de volume (séries diferentes do prescrito)
-        (session.exercises || []).forEach((ex: any) => {
+        ((session.exercises as Record<string, unknown>[] | undefined) || []).forEach((ex: Record<string, unknown>) => {
           if (ex.prescribed_exercise_name && ex.sets) {
-            const prescribed = prescribedExercises.find((pe: any) => 
-              pe.name.toLowerCase().trim() === ex.prescribed_exercise_name.toLowerCase().trim()
+            const prescribed = prescribedExercises.find((pe) => 
+              pe.name.toLowerCase().trim() === (ex.prescribed_exercise_name as string).toLowerCase().trim()
             );
             if (prescribed) {
               const prescribedSets = parseInt(prescribed.sets);
@@ -904,8 +904,8 @@ FORMATO DE SAÍDA:
       });
       
       // Collect all deviations for the response
-      prescriptionDeviations = extractedData.sessions?.flatMap((s: any) => 
-        (s.prescription_deviations || []).map((d: any) => ({ ...d, student_name: s.student_name }))
+      prescriptionDeviations = extractedData.sessions?.flatMap((s: Record<string, unknown>) => 
+        ((s.prescription_deviations as Record<string, unknown>[]) || []).map((d: Record<string, unknown>) => ({ ...d, student_name: s.student_name }))
       ) || [];
     }
     // ═══════════════════════════════════════════════════════════

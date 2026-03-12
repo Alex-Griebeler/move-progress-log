@@ -44,14 +44,14 @@ serve(async (req) => {
     const [{ data: sessions }, { data: records }] = await Promise.all([
       svc.from('workout_sessions').select('id, date, exercises(exercise_name, load_kg, reps, sets)').eq('student_id', student_id).gte('date', period_start).lte('date', period_end).order('date'),
       svc.from('exercises').select('exercise_name, load_kg, reps, sets, created_at, session_id').in('session_id', 
-        (await svc.from('workout_sessions').select('id').eq('student_id', student_id).gte('date', period_start).lte('date', period_end)).data?.map((s: any) => s.id) || []
+        (await svc.from('workout_sessions').select('id').eq('student_id', student_id).gte('date', period_start).lte('date', period_end)).data?.map((s: { id: string }) => s.id) || []
       ),
     ]);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY não configurada');
 
-    const name = (student as any)?.name ?? 'Atleta';
+    const name = (student as Record<string, unknown>)?.name ?? 'Atleta';
     const prompt = `Gere um relatório ${report_type} profissional para ${name} (${period_start} a ${period_end}).
 Inclua: resumo executivo, análise de volume, recordes, progresso de metas, recomendações.
 Dados: ${JSON.stringify({ student, sessions, records })}

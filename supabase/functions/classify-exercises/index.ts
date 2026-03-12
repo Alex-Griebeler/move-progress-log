@@ -113,7 +113,7 @@ serve(async (req) => {
       );
     }
 
-    const userId = (claimsData.claims as any).sub;
+    const userId = (claimsData.claims as Record<string, unknown>).sub as string;
     const { data: roleData } = await userClient
       .from("user_roles")
       .select("role")

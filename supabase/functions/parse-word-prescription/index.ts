@@ -337,10 +337,10 @@ REGRAS:
           }
         );
 
-        exercise.matches = (matches || []).map((m: any) => ({
+        exercise.matches = (matches || []).map((m: Record<string, unknown>) => ({
           id: m.id,
           name: m.name,
-          similarity: Math.round(m.similarity * 100),
+          similarity: Math.round((m.similarity as number) * 100),
         }));
 
         // Auto-select best match if similarity > 40%

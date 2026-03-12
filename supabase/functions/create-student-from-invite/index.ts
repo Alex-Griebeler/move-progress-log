@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
     const studentToUpdate = existingStudent || orphanStudent;
 
     // Helper to convert objectives string to array if needed
-    const normalizeObjectives = (objectives: any): string[] | null => {
+    const normalizeObjectives = (objectives: unknown): string[] | null => {
       if (!objectives) return null;
       if (Array.isArray(objectives)) return objectives;
       if (typeof objectives === 'string') {
@@ -263,10 +263,11 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in create-student-from-invite:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }

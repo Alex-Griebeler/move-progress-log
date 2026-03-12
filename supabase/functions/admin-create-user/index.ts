@@ -151,15 +151,16 @@ serve(async (req) => {
         status: 200,
       }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Error in admin-create-user:", error);
     return new Response(
       JSON.stringify({
-        error: error.message || "Internal server error",
+        error: message,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: error.message === "Unauthorized" || error.message === "Only admins can create users" ? 403 : 400,
+        status: message === "Unauthorized" || message === "Only admins can create users" ? 403 : 400,
       }
     );
   }

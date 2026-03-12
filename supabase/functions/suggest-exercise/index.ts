@@ -59,7 +59,7 @@ serve(async (req) => {
         });
 
       if (!trigramError && trigramResults && trigramResults.length > 0) {
-        candidates = trigramResults.map((r: any) => ({ id: r.id, name: r.name }));
+        candidates = trigramResults.map((r: Record<string, unknown>) => ({ id: r.id as string, name: r.name as string }));
         usedTrigram = true;
         // pg_trgm returned candidates
       }
@@ -98,7 +98,7 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY não configurada');
     }
 
-    const exercisesList = candidates.map((ex: any) => ex.name).join('\n');
+    const exercisesList = candidates.map((ex) => ex.name).join('\n');
 
     const systemPrompt = `Você é um especialista em exercícios físicos e deve ajudar a padronizar nomes de exercícios.
 
@@ -164,7 +164,7 @@ Qual exercício da lista é mais similar? Retorne APENAS o nome exato ou "null".
 
     // Validate suggestion exists in candidates
     const suggestedExercise = candidates.find(
-      (ex: any) => normalize(ex.name) === normalize(suggestedName || '')
+      (ex) => normalize(ex.name) === normalize(suggestedName || '')
     );
 
     if (!suggestedExercise || suggestedName === 'null') {

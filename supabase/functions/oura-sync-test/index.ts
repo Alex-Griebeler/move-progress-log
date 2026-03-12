@@ -315,8 +315,8 @@ Deno.serve(async (req) => {
     // Process sleep periods - get longest period
     let sleepPeriod = null;
     if (sleepPeriodsData?.data && sleepPeriodsData.data.length > 0) {
-      sleepPeriod = sleepPeriodsData.data.reduce((longest: any, current: any) => {
-        return (current.total_sleep_duration || 0) > (longest.total_sleep_duration || 0) ? current : longest;
+      sleepPeriod = sleepPeriodsData.data.reduce((longest: Record<string, unknown>, current: Record<string, unknown>) => {
+        return ((current.total_sleep_duration as number) || 0) > ((longest.total_sleep_duration as number) || 0) ? current : longest;
       });
       console.log('✅ Selected sleep period:', {
         total: sleepPeriod.total_sleep_duration,
@@ -332,7 +332,7 @@ Deno.serve(async (req) => {
     let restingHeartRate = null;
     if (heartrateData?.data && heartrateData.data.length > 0) {
       const hrValues = heartrateData.data
-        .map((hr: any) => hr.bpm)
+        .map((hr: Record<string, unknown>) => hr.bpm as number)
         .filter((bpm: number) => bpm > 0 && bpm < 200);
       
       if (hrValues.length > 0) {
@@ -423,19 +423,22 @@ Deno.serve(async (req) => {
 
     // Save workouts
     if (workoutsData?.data && workoutsData.data.length > 0) {
-      const workouts = workoutsData.data.map((w: any) => ({
-        student_id,
-        oura_workout_id: w.id,
-        activity: w.activity,
-        start_datetime: w.start_datetime,
-        end_datetime: w.end_datetime,
-        calories: w.calories || null,
-        distance: w.distance || null,
-        intensity: w.intensity || null,
-        average_heart_rate: w.heart_rate?.average || null,
-        max_heart_rate: w.heart_rate?.max || null,
-        source: w.source || null,
-      }));
+      const workouts = workoutsData.data.map((w: Record<string, unknown>) => {
+        const heartRate = w.heart_rate as Record<string, unknown> | undefined;
+        return {
+          student_id,
+          oura_workout_id: w.id,
+          activity: w.activity,
+          start_datetime: w.start_datetime,
+          end_datetime: w.end_datetime,
+          calories: w.calories || null,
+          distance: w.distance || null,
+          intensity: w.intensity || null,
+          average_heart_rate: heartRate?.average || null,
+          max_heart_rate: heartRate?.max || null,
+          source: w.source || null,
+        };
+      });
 
       const { error: workoutsError } = await supabaseClient
         .from('oura_workouts')
@@ -467,10 +470,11 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('❌ Error in oura-sync-test:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: message }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }

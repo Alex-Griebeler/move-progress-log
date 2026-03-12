@@ -74,7 +74,7 @@ Analise: padrão de movimento, plano de movimento, lateralidade, e complexidade.
 - Lateralidade: ${laterality || "não especificado"}
 
 Exercícios disponíveis na biblioteca:
-${availableExercises.map((ex: any) => `- ID: ${ex.id}, Nome: ${ex.name}, Padrão: ${ex.movement_pattern}, Plano: ${ex.movement_plane || "N/A"}, Lateralidade: ${ex.laterality || "N/A"}`).join("\n")}
+${availableExercises.map((ex) => `- ID: ${ex.id}, Nome: ${ex.name}, Padrão: ${ex.movement_pattern}, Plano: ${ex.movement_plane || "N/A"}, Lateralidade: ${ex.laterality || "N/A"}`).join("\n")}
 
 Retorne APENAS os 3 IDs dos exercícios sugeridos como regressões, ordenados do menos ao mais fácil.`;
 
