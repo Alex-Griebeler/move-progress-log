@@ -453,50 +453,50 @@ export default function AuthPage() {
                             <p className="font-medium mb-2">Requisitos de segurança:</p>
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.length ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Mínimo 12 caracteres</span>
                             </div>
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.uppercase ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Letra maiúscula (A-Z)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.lowercase ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Letra minúscula (a-z)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.number ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Número (0-9)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.special ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Caractere especial (!@#$%...)</span>
                             </div>
                             {passwordSecurity.checks.leaked !== null && (
                               <div className="flex items-center gap-2">
                                 {passwordSecurity.checks.leaked ? (
-                                  <Check className="h-3 w-3 text-green-600" />
+                                  <Check className="h-3 w-3 text-success" />
                                 ) : (
-                                  <X className="h-3 w-3 text-red-500" />
+                                  <X className="h-3 w-3 text-destructive" />
                                 )}
                                 <span>Não está em vazamentos de dados</span>
                               </div>
