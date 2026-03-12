@@ -322,9 +322,9 @@ export default function AuthPage() {
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 {rateLimitWarning && (
-                  <Alert variant="default" className="border-yellow-500 bg-yellow-50">
-                    <Shield className="h-4 w-4 text-yellow-600" />
-                    <AlertDescription className="text-sm text-yellow-900">
+                  <Alert variant="warning">
+                    <Shield className="h-4 w-4" />
+                    <AlertDescription className="text-sm">
                       {rateLimitWarning}
                     </AlertDescription>
                   </Alert>
@@ -420,8 +420,8 @@ export default function AuthPage() {
                     className={
                       passwordSecurity
                         ? passwordSecurity.isSecure
-                          ? "border-green-500 focus-visible:ring-green-500"
-                          : "border-red-500 focus-visible:ring-red-500"
+                          ? "border-success focus-visible:ring-success"
+                          : "border-destructive focus-visible:ring-destructive"
                         : ""
                     }
                   />
@@ -437,16 +437,9 @@ export default function AuthPage() {
                       ) : passwordSecurity ? (
                         <>
                           {/* Mensagem principal */}
-                          <Alert 
-                            variant={passwordSecurity.isSecure ? "default" : "destructive"}
-                            className={
-                              passwordSecurity.isSecure
-                                ? "border-green-500 bg-green-50 text-green-900"
-                                : ""
-                            }
-                          >
+                          <Alert variant={passwordSecurity.isSecure ? "success" : "destructive"}>
                             {passwordSecurity.isSecure ? (
-                              <Check className="h-4 w-4 text-green-600" />
+                              <Check className="h-4 w-4 text-success" />
                             ) : (
                               <AlertCircle className="h-4 w-4" />
                             )}
@@ -460,50 +453,50 @@ export default function AuthPage() {
                             <p className="font-medium mb-2">Requisitos de segurança:</p>
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.length ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Mínimo 12 caracteres</span>
                             </div>
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.uppercase ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Letra maiúscula (A-Z)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.lowercase ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Letra minúscula (a-z)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.number ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Número (0-9)</span>
                             </div>
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.special ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Caractere especial (!@#$%...)</span>
                             </div>
                             {passwordSecurity.checks.leaked !== null && (
                               <div className="flex items-center gap-2">
                                 {passwordSecurity.checks.leaked ? (
-                                  <Check className="h-3 w-3 text-green-600" />
+                                  <Check className="h-3 w-3 text-success" />
                                 ) : (
-                                  <X className="h-3 w-3 text-red-500" />
+                                  <X className="h-3 w-3 text-destructive" />
                                 )}
                                 <span>Não está em vazamentos de dados</span>
                               </div>
@@ -527,14 +520,14 @@ export default function AuthPage() {
                     minLength={12}
                     className={
                       confirmPassword && password !== confirmPassword
-                        ? "border-red-500 focus-visible:ring-red-500"
+                        ? "border-destructive focus-visible:ring-destructive"
                         : confirmPassword && password === confirmPassword
-                        ? "border-green-500 focus-visible:ring-green-500"
+                        ? "border-success focus-visible:ring-success"
                         : ""
                     }
                   />
                   {confirmPassword && password !== confirmPassword && (
-                    <p className="text-xs text-red-500">As senhas não coincidem</p>
+                    <p className="text-xs text-destructive">As senhas não coincidem</p>
                   )}
                 </div>
 

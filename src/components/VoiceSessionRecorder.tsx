@@ -386,7 +386,7 @@ export function VoiceSessionRecorder({
                 </div>
               )}
               {isPaused && (
-                <div className="text-sm text-amber-600">
+                <div className="text-sm text-warning">
                   ⏸️ Gravação pausada - Segmento {currentSegment - 1} finalizado
                 </div>
               )}
