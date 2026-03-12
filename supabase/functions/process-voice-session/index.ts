@@ -187,7 +187,7 @@ serve(async (req) => {
     const { data: studentRecords, error: studentsError } = await supabaseClient
       .from('students')
       .select('id, trainer_id')
-      .in('id', students.map((s: any) => s.id));
+      .in('id', students.map((s: { id: string }) => s.id));
 
     if (studentsError || !studentRecords) {
       
