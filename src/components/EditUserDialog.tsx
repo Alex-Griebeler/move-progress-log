@@ -158,10 +158,10 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
       notify.success("Usuário atualizado com sucesso!");
       onOpenChange(false);
       onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Error updating user:", error);
       notify.error("Erro ao atualizar usuário", {
-        description: error.message || "Tente novamente mais tarde",
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde",
       });
     } finally {
       setIsSubmitting(false);
