@@ -71,7 +71,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     }
   };
 
-  const parseExcelDate = (excelDate: any): string => {
+  const parseExcelDate = (excelDate: unknown): string => {
     if (typeof excelDate === "string") {
       // Tenta parsear string no formato DD/MM/YYYY ou YYYY-MM-DD
       const parts = excelDate.includes("/") ? excelDate.split("/") : excelDate.split("-");
