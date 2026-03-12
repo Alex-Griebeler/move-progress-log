@@ -229,8 +229,8 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
 // Spreadsheet format (new XLSX import)
 // ============================================================================
 
-// deno-lint-ignore no-explicit-any
-type SpreadsheetExercise = Record<string, any>;
+
+type SpreadsheetExercise = Record<string, unknown>;
 
 // Helper to get a value from a spreadsheet row with normalized key fallback
 function getField(row: SpreadsheetExercise, ...keys: string[]): unknown {
