@@ -815,8 +815,8 @@ FORMATO DE SAÍDA:
     }
 
     // APLICAR VALIDAÇÃO COMPLETA
-    extractedData.sessions?.forEach((session: any, sessionIdx: number) => {
-      session.exercises?.forEach((ex: any, exIdx: number) => {
+    extractedData.sessions?.forEach((session: Record<string, unknown>, sessionIdx: number) => {
+      (session.exercises as Record<string, unknown>[] | undefined)?.forEach((ex: Record<string, unknown>, exIdx: number) => {
         validateAndRecalculateLoad(ex, sessionIdx, exIdx);
       });
     });
