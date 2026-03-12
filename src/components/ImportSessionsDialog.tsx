@@ -194,8 +194,9 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
           processed++;
           setStatus((prev) => ({ ...prev!, processed }));
-        } catch (error: any) {
-          errors.push(`Sessão ${key}: ${error.message}`);
+        } catch (error: unknown) {
+          const message = error instanceof Error ? error.message : String(error);
+          errors.push(`Sessão ${key}: ${message}`);
         }
       }
 
