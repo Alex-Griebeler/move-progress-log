@@ -85,7 +85,7 @@ export const useReportTrackedExercises = (reportId: string | null) => {
       if (!reportId) return [];
 
       const { data, error } = await supabase
-        .from("report_tracked_exercises" as any)
+        .from("report_tracked_exercises")
         .select("*")
         .eq("report_id", reportId)
         .order("load_variation_percentage", { ascending: false });
