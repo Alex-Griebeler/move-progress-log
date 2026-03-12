@@ -121,7 +121,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   useEffect(() => {
     if (prescriptionData && open && !dataLoaded) {
       setName(prescriptionData.name);
-      setPrescriptionType((prescriptionData as any).prescription_type || 'group');
+      setPrescriptionType((prescriptionData as unknown as Record<string, unknown>).prescription_type as 'group' | 'individual' || 'group');
       setObjective(prescriptionData.objective || "");
       
       if (prescriptionData.exercises && prescriptionData.exercises.length > 0) {
