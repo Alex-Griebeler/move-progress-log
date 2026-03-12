@@ -36,7 +36,7 @@ export interface PrescriptionExercise {
 export interface ExerciseAdaptation {
   id: string;
   prescription_exercise_id: string;
-  adaptation_type: "regression_1" | "regression_2" | "regression_3";
+  adaptation_type: string;
   exercise_library_id: string;
   sets: string | null;
   reps: string | null;
