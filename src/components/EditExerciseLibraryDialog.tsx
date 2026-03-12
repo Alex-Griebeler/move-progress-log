@@ -37,7 +37,7 @@ import {
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 
 // Flatten equipment for selection
 const ALL_EQUIPMENT = Object.values(EQUIPMENT_CATEGORIES).flat();
@@ -177,7 +177,7 @@ export const EditExerciseLibraryDialog = ({
           <DialogTitle>Editar Exercício</DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto pr-4">
           <form onSubmit={handleSubmit} className="space-y-4" id="edit-exercise-form">
             {/* Basic Info Section */}
             <div className="space-y-4">
@@ -514,17 +514,18 @@ export const EditExerciseLibraryDialog = ({
                 </p>
               )}
             </div>
-            <div className="pt-4 border-t border-border">
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={updateExercise.isPending}
-              >
-                {updateExercise.isPending ? "Salvando..." : "Salvar Alterações"}
-              </Button>
-            </div>
           </form>
-        </ScrollArea>
+        </div>
+        <div className="pt-4 border-t border-border shrink-0">
+          <Button 
+            type="submit" 
+            form="edit-exercise-form"
+            className="w-full" 
+            disabled={updateExercise.isPending}
+          >
+            {updateExercise.isPending ? "Salvando..." : "Salvar Alterações"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
