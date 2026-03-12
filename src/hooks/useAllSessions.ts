@@ -43,7 +43,11 @@ const SESSION_SELECT = `
   exercises!session_id ( load_kg )
 `;
 
-function applyFilters<Q extends { in: (col: string, vals: string[]) => Q; gte: (col: string, val: string) => Q; lte: (col: string, val: string) => Q; eq: (col: string, val: string) => Q }>(query: Q, filters?: SessionFilters): Q {
+function buildSessionQuery(filters?: SessionFilters) {
+  let query = supabase
+    .from("workout_sessions")
+    .select(SESSION_SELECT);
+
   if (filters?.studentIds && filters.studentIds.length > 0) {
     query = query.in("student_id", filters.studentIds);
   }
@@ -87,14 +91,10 @@ export function useAllSessions(filters?: SessionFilters) {
   return useQuery({
     queryKey: buildStableQueryKey("all-sessions", filters),
     queryFn: async () => {
-      let query = supabase
-        .from("workout_sessions")
-        .select(SESSION_SELECT)
+      const query = buildSessionQuery(filters)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
         .limit(2000);
-
-      query = applyFilters(query, filters);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -113,14 +113,10 @@ export function useAllSessionsPaginated(filters?: SessionFilters) {
       const from = pageParam * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      let query = supabase
-        .from("workout_sessions")
-        .select(SESSION_SELECT)
+      const query = buildSessionQuery(filters)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
         .range(from, to);
-
-      query = applyFilters(query, filters);
 
       const { data, error } = await query;
       if (error) throw error;
