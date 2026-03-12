@@ -33,12 +33,18 @@ serve(async (req) => {
     if (!student_id) return json({ error: 'student_id obrigatório' }, 400);
     if (!UUID_RE.test(student_id)) return json({ error: 'student_id inválido' }, 400);
 
+    // AI-02: Validate trainer ownership
     const svc = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
     const since = new Date(Date.now() - period_days * 86_400_000).toISOString().split('T')[0];
 
-    const [{ data: trends }, { data: records }] = await Promise.all([
-      svc.from('athlete_metric_trends').select('*').eq('student_id', student_id).gte('date', since).order('date'),
-      svc.from('athlete_records').select('*').eq('student_id', student_id).gte('achieved_at', since),
+    const { data: student, error: studentError } = await svc.from('students').select('id, trainer_id, name').eq('id', student_id).single();
+    if (studentError || !student) return json({ error: 'Atleta não encontrado' }, 404);
+    if (student.trainer_id !== user.id) return json({ error: 'Acesso negado — aluno não pertence a este treinador' }, 403);
+
+    // AI-02: Use existing tables instead of non-existent athlete_metric_trends
+    const [{ data: sessions }, { data: ouraMetrics }] = await Promise.all([
+      svc.from('workout_sessions').select('id, date, exercises(exercise_name, load_kg, reps, sets)').eq('student_id', student_id).gte('date', since).order('date'),
+      svc.from('oura_metrics').select('date, readiness_score, sleep_score, average_sleep_hrv, resting_heart_rate').eq('student_id', student_id).gte('date', since).order('date'),
     ]);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
