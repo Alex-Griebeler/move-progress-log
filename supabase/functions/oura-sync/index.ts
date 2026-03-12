@@ -162,6 +162,12 @@ Deno.serve(async (req) => {
         p_token_expires_at: newExpiresAt.toISOString(),
       });
 
+      // O-04: Update token_expires_at in oura_connections to prevent unnecessary re-refresh
+      await supabaseClient
+        .from('oura_connections')
+        .update({ token_expires_at: newExpiresAt.toISOString() })
+        .eq('student_id', student_id);
+
       console.log('Token refreshed successfully');
     }
 
