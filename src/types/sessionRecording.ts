@@ -28,7 +28,7 @@ export interface SessionExercise {
   needs_manual_input?: boolean;
 }
 
-export interface AccumulatedRecording<T = any> {
+export interface AccumulatedRecording<T = unknown> {
   recordingNumber: number;
   timestamp: string;
   data: T;

@@ -8,6 +8,18 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Plus, Save } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+
+interface RawObservation {
+  observation: string;
+}
+
+interface RawExercise {
+  name: string;
+  reps?: number;
+  load_kg?: number;
+  observations?: string;
+}
+
 interface AudioSegment {
   segmentOrder: number;
   rawTranscription: string;
@@ -16,8 +28,8 @@ interface AudioSegment {
   extractedData?: {
     sessions: Array<{
       student_name: string;
-      clinical_observations: any[];
-      exercises: any[];
+      clinical_observations: RawObservation[];
+      exercises: RawExercise[];
     }>;
   };
 }
