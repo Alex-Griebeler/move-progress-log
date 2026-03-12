@@ -1556,7 +1556,8 @@ serve(async (req) => {
     exercises = applyAudienceFilters(exercises, audiencePreset);
 
     // Phase 4: F4 — Teachable progression filter
-    exercises = applyF4TeachableProgression(exercises, allExercises || []);
+    // G-06: Pass filtered exercises (not allExercises) to find regressions in same universe
+    exercises = applyF4TeachableProgression(exercises, exercises);
 
     if (input.excludeExercises?.length) {
       exercises = exercises.filter((ex) => !input.excludeExercises!.includes(ex.id));
