@@ -340,6 +340,13 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <SendOuraConnectDialog
+        open={showOuraConnectDialog}
+        onOpenChange={setShowOuraConnectDialog}
+        studentId={studentId}
+        studentName={studentName}
+      />
     </>
   );
 };
