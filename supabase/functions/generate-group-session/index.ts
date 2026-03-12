@@ -1007,10 +1007,11 @@ function checkCoreTriplanar(phases: SessionPhase[]) {
   };
 }
 
+// G-10: Nomes em pt-BR para consistência com o restante do sistema
 function generateWorkoutName(slot: string, valences: string[]): string {
-  const slotNames: Record<string, string> = { A: "Power", B: "Build", C: "Flow" };
+  const slotNames: Record<string, string> = { A: "Potência", B: "Força", C: "Fluxo" };
   const valenceNames: Record<string, string> = {
-    potencia: "Explosive", forca: "Strength", hipertrofia: "Hyper", condicionamento: "MetCon",
+    potencia: "Explosivo", forca: "Força", hipertrofia: "Hipertrofia", condicionamento: "MetCon",
   };
   const base = slotNames[slot] || slot;
   const suffix = valences.map((v) => valenceNames[v] || v).join(" + ");
