@@ -317,9 +317,9 @@ export function RecordIndividualSessionDialog({
 
       notify.success(isReopening ? "Sessão atualizada com sucesso" : i18n.modules.workouts.sessionCreated, { description: isReopening ? "Novos dados adicionados à sessão" : `${accumulatedRecordings.length} ${i18n.modules.workouts.recording}` });
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('Error saving session:', error);
-      notify.error(i18n.feedback.genericError, { description: error.message });
+      notify.error(i18n.feedback.genericError, { description: error instanceof Error ? error.message : "Tente novamente" });
     }
   };
 
