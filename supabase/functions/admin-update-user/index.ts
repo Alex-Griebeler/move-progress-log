@@ -90,7 +90,7 @@ serve(async (req) => {
     console.log(`Updating user: ${userId}`);
 
     // Atualizar dados de autenticação
-    const authUpdates: any = {};
+    const authUpdates: Record<string, unknown> = {};
     if (email) authUpdates.email = email;
     if (newPassword) authUpdates.password = newPassword;
     if (fullName) {
