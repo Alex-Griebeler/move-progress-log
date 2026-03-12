@@ -41,7 +41,7 @@ export const useStats = () => {
       if (exercises && exercises.length > 0) {
         const sessionLoads = new Map<string, number>();
         
-        exercises.forEach((ex: any) => {
+        exercises.forEach((ex) => {
           if (ex.load_kg) {
             const current = sessionLoads.get(ex.session_id) || 0;
             sessionLoads.set(ex.session_id, current + ex.load_kg);

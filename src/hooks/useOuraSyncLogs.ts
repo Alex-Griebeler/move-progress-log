@@ -9,7 +9,7 @@ export interface OuraSyncLog {
   status: 'success' | 'failed' | 'retrying';
   attempt_number: number;
   error_message?: string;
-  metrics_synced?: any;
+  metrics_synced?: Record<string, unknown>;
   created_at: string;
 }
 

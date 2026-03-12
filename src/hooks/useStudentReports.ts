@@ -157,7 +157,7 @@ export const useUpdateTrainerNotes = () => {
       nextCyclePlan?: string;
     }) => {
       const { data, error } = await supabase
-        .from("student_reports" as any)
+        .from("student_reports")
         .update({
           trainer_highlights: highlights,
           attention_points: attentionPoints,

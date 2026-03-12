@@ -67,7 +67,7 @@ export const useOuraTrends = (studentId: string) => {
       if (!data || data.length === 0) return null;
 
       // Deduplicate by date (keep most recent for each day)
-      const deduplicatedData = data.reduce((acc: any[], current: any) => {
+      const deduplicatedData = data.reduce((acc: typeof data, current) => {
         const existingIndex = acc.findIndex(item => item.date === current.date);
         if (existingIndex === -1) {
           acc.push(current);

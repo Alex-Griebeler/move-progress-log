@@ -6,13 +6,13 @@
 const isProduction = import.meta.env.PROD;
 
 export const logger = {
-  log: (...args: any[]) => {
+  log: (...args: unknown[]) => {
     if (!isProduction) {
       console.log(...args);
     }
   },
   
-  error: (...args: any[]) => {
+  error: (...args: unknown[]) => {
     // Erros sempre são logados, mas sanitizados em produção
     if (isProduction) {
       console.error('[Error]', ...args.map(sanitize));
@@ -21,19 +21,19 @@ export const logger = {
     }
   },
   
-  warn: (...args: any[]) => {
+  warn: (...args: unknown[]) => {
     if (!isProduction) {
       console.warn(...args);
     }
   },
   
-  info: (...args: any[]) => {
+  info: (...args: unknown[]) => {
     if (!isProduction) {
       console.info(...args);
     }
   },
   
-  debug: (...args: any[]) => {
+  debug: (...args: unknown[]) => {
     if (!isProduction) {
       console.debug(...args);
     }
@@ -43,7 +43,7 @@ export const logger = {
 /**
  * Sanitiza dados sensíveis para logs de produção
  */
-function sanitize(data: any): any {
+function sanitize(data: unknown): unknown {
   if (typeof data === 'string') {
     // Oculta tokens, senhas, emails parcialmente
     return data
@@ -54,12 +54,13 @@ function sanitize(data: any): any {
   }
   
   if (typeof data === 'object' && data !== null) {
-    const sanitized: any = Array.isArray(data) ? [] : {};
-    for (const key in data) {
+    const record = data as Record<string, unknown>;
+    const sanitized: Record<string, unknown> = Array.isArray(data) ? [] : {};
+    for (const key in record) {
       if (/(token|password|secret|key)/i.test(key)) {
         sanitized[key] = '***';
       } else {
-        sanitized[key] = sanitize(data[key]);
+        sanitized[key] = sanitize(record[key]);
       }
     }
     return sanitized;

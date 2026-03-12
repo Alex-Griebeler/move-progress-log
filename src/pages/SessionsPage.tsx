@@ -359,7 +359,7 @@ export default function SessionsPage() {
                 {/* Session Type Filter */}
                 <div className="space-y-2">
                   <Label>Tipo de Sessão</Label>
-                  <RadioGroup value={sessionType} onValueChange={(v) => setSessionType(v as any)}>
+                  <RadioGroup value={sessionType} onValueChange={(v) => setSessionType(v as "all" | "individual" | "group")}>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="all" id="type-all" />
                       <Label htmlFor="type-all" className="cursor-pointer">Todas</Label>

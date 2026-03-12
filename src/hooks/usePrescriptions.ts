@@ -421,9 +421,9 @@ export const usePrescriptionAssignments = (prescriptionId: string | null) => {
 
       if (error) throw error;
 
-      return data.map((a: any) => ({
+      return data.map((a) => ({
         ...a,
-        student_name: a.students?.name,
+        student_name: (a.students as { name: string } | null)?.name,
       })) as PrescriptionAssignment[];
     },
   });
