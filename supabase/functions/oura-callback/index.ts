@@ -125,12 +125,8 @@ Deno.serve(async (req) => {
     const expiresAt = new Date();
     expiresAt.setSeconds(expiresAt.getSeconds() + tokenData.expires_in);
 
-    // Save tokens to database
-    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
-    const supabaseClient = createClient(
-      supabaseUrl ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Reuse validation client for token storage
+    const supabaseClient = supabaseValidationClient;
 
     // Store tokens securely in Vault using database function
     const { error: insertError } = await supabaseClient.rpc('store_oura_tokens', {
