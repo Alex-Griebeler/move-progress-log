@@ -200,11 +200,12 @@ export default function AdminUsersPage() {
         case 'role':
           comparison = a.role.localeCompare(b.role);
           break;
-        case 'last_sign_in':
+        case 'last_sign_in': {
           const dateA = a.last_sign_in_at ? new Date(a.last_sign_in_at).getTime() : 0;
           const dateB = b.last_sign_in_at ? new Date(b.last_sign_in_at).getTime() : 0;
           comparison = dateA - dateB;
           break;
+        }
       }
       
       return sortDirection === 'asc' ? comparison : -comparison;
