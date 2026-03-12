@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Trophy, Target, Calendar } from 'lucide-react';
+import { logger } from '@/utils/logger';
 
 interface MetricTrend {
   date: string;
@@ -28,7 +29,7 @@ interface AthleteRecord {
 interface AthleteGoal {
   id: string;
   title: string;
-  target: string;
+  target?: string;
   progress: number;
   status: string;
   description?: string;
@@ -36,6 +37,36 @@ interface AthleteGoal {
   target_unit?: string;
   target_date?: string;
 }
+
+interface WorkoutSessionRow {
+  id: string;
+  date: string;
+}
+
+interface ExerciseRow {
+  session_id: string;
+  exercise_name: string;
+  load_kg: number | null;
+  reps: number | null;
+  sets: number | null;
+}
+
+interface ReportGoalRow {
+  id: string;
+  period_start: string;
+  period_end: string;
+  status: string;
+  adherence_percentage: number | null;
+  sessions_proposed: number | null;
+  attention_points: string | null;
+}
+
+const formatDateInput = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function AthleteInsightsDashboard() {
   const [studentId, setStudentId] = useState('');
@@ -54,12 +85,50 @@ export default function AthleteInsightsDashboard() {
     queryKey: ['athlete-trends', studentId, days],
     enabled: !!studentId,
     queryFn: async () => {
-      const since = new Date(Date.now() - days * 86_400_000).toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('oura_metrics').select('date, total_calories, steps, activity_score')
-        .eq('student_id', studentId).gte('date', since).order('date');
-      if (error) throw error;
-      return (data ?? []) as unknown as MetricTrend[];
+      const since = formatDateInput(new Date(Date.now() - days * 86_400_000));
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('workout_sessions')
+        .select('id, date')
+        .eq('student_id', studentId)
+        .gte('date', since)
+        .order('date', { ascending: false });
+      if (sessionsError) throw sessionsError;
+      if (!sessions || sessions.length === 0) return [];
+
+      const typedSessions = sessions as WorkoutSessionRow[];
+      const sessionIds = typedSessions.map((session) => session.id);
+      const sessionDateById = new Map(typedSessions.map((session) => [session.id, session.date]));
+
+      const { data: exercises, error: exercisesError } = await supabase
+        .from('exercises')
+        .select('session_id, exercise_name, load_kg, reps, sets')
+        .in('session_id', sessionIds);
+      if (exercisesError) throw exercisesError;
+
+      const byDate = new Map<string, { totalVolume: number; exerciseCount: number; totalLoad: number; loadCount: number }>();
+      for (const exercise of (exercises || []) as ExerciseRow[]) {
+        const date = sessionDateById.get(exercise.session_id);
+        if (!date) continue;
+        const current = byDate.get(date) || { totalVolume: 0, exerciseCount: 0, totalLoad: 0, loadCount: 0 };
+        current.exerciseCount += 1;
+        if (exercise.load_kg !== null) {
+          const reps = exercise.reps ?? 1;
+          const sets = exercise.sets ?? 1;
+          current.totalVolume += exercise.load_kg * reps * sets;
+          current.totalLoad += exercise.load_kg;
+          current.loadCount += 1;
+        }
+        byDate.set(date, current);
+      }
+
+      return Array.from(byDate.entries())
+        .map(([date, values]) => ({
+          date,
+          total_volume_kg: Math.round(values.totalVolume * 10) / 10,
+          exercise_count: values.exerciseCount,
+          avg_load_kg: values.loadCount > 0 ? Math.round((values.totalLoad / values.loadCount) * 10) / 10 : 0,
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date));
     },
   });
 
@@ -67,8 +136,79 @@ export default function AthleteInsightsDashboard() {
     queryKey: ['athlete-records', studentId],
     enabled: !!studentId,
     queryFn: async () => {
-      // athlete_records table may not exist yet — return empty
-      return [];
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('workout_sessions')
+        .select('id, date')
+        .eq('student_id', studentId)
+        .order('date', { ascending: false });
+      if (sessionsError) throw sessionsError;
+      if (!sessions || sessions.length === 0) return [];
+
+      const typedSessions = sessions as WorkoutSessionRow[];
+      const sessionIds = typedSessions.map((session) => session.id);
+      const sessionDateById = new Map(typedSessions.map((session) => [session.id, session.date]));
+
+      const { data: exercises, error: exercisesError } = await supabase
+        .from('exercises')
+        .select('session_id, exercise_name, load_kg, reps, sets')
+        .in('session_id', sessionIds);
+      if (exercisesError) throw exercisesError;
+
+      const byExercise = new Map<
+        string,
+        { maxLoad: number; maxLoadDate: string; maxVolume: number; maxVolumeDate: string }
+      >();
+
+      for (const exercise of (exercises || []) as ExerciseRow[]) {
+        if (exercise.load_kg === null) continue;
+        const exerciseName = exercise.exercise_name;
+        const sessionDate = sessionDateById.get(exercise.session_id) || '';
+        const reps = exercise.reps ?? 1;
+        const sets = exercise.sets ?? 1;
+        const volume = exercise.load_kg * reps * sets;
+        const current = byExercise.get(exerciseName) || {
+          maxLoad: -1,
+          maxLoadDate: '',
+          maxVolume: -1,
+          maxVolumeDate: '',
+        };
+
+        if (exercise.load_kg > current.maxLoad) {
+          current.maxLoad = exercise.load_kg;
+          current.maxLoadDate = sessionDate;
+        }
+        if (volume > current.maxVolume) {
+          current.maxVolume = volume;
+          current.maxVolumeDate = sessionDate;
+        }
+        byExercise.set(exerciseName, current);
+      }
+
+      const result: AthleteRecord[] = [];
+      for (const [exerciseName, values] of byExercise.entries()) {
+        if (values.maxLoad >= 0) {
+          result.push({
+            id: `${exerciseName}-max_load`,
+            exercise_name: exerciseName,
+            metric: 'max_load',
+            record_type: 'max_load',
+            value: Math.round(values.maxLoad * 10) / 10,
+            achieved_at: values.maxLoadDate,
+          });
+        }
+        if (values.maxVolume >= 0) {
+          result.push({
+            id: `${exerciseName}-max_volume`,
+            exercise_name: exerciseName,
+            metric: 'max_volume',
+            record_type: 'max_volume',
+            value: Math.round(values.maxVolume * 10) / 10,
+            achieved_at: values.maxVolumeDate,
+          });
+        }
+      }
+
+      return result.sort((a, b) => b.value - a.value).slice(0, 15);
     },
   });
 
@@ -76,8 +216,30 @@ export default function AthleteInsightsDashboard() {
     queryKey: ['athlete-goals', studentId],
     enabled: !!studentId,
     queryFn: async () => {
-      // athlete_goals table may not exist yet — return empty
-      return [];
+      const { data, error } = await supabase
+        .from('student_reports')
+        .select('id, period_start, period_end, status, adherence_percentage, sessions_proposed, attention_points')
+        .eq('student_id', studentId)
+        .eq('status', 'active')
+        .order('period_end', { ascending: false })
+        .limit(5);
+
+      if (error) {
+        logger.warn('AthleteInsights goals fallback failed', error);
+        return [];
+      }
+
+      return ((data || []) as ReportGoalRow[]).map((report) => ({
+        id: report.id,
+        title: `Plano ${report.period_start} - ${report.period_end}`,
+        target: 'Adesão ao plano semanal',
+        progress: report.adherence_percentage || 0,
+        status: report.status,
+        description: report.attention_points || undefined,
+        target_value: report.sessions_proposed || undefined,
+        target_unit: report.sessions_proposed ? 'sessões' : undefined,
+        target_date: report.period_end,
+      }));
     },
   });
 

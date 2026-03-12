@@ -194,6 +194,7 @@ export const useCreatePrescription = () => {
         .insert({
           name: data.name,
           objective: data.objective || null,
+          prescription_type: data.prescription_type || "group",
           trainer_id: user.id,
         })
         .select()
@@ -352,7 +353,7 @@ export const useUpdatePrescription = () => {
       if (data.prescription_type) {
         await supabase
           .from("workout_prescriptions")
-          .update({ objective: data.prescription_type })
+          .update({ prescription_type: data.prescription_type })
           .eq("id", data.id);
       }
 

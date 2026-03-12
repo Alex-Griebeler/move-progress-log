@@ -11,6 +11,38 @@ import { toast } from "sonner";
 
 type SpreadsheetRow = Record<string, unknown>;
 
+const extractCellValue = (value: unknown): unknown => {
+  if (value instanceof Date) return value;
+  if (typeof value !== "object" || value === null) return value;
+
+  const record = value as Record<string, unknown>;
+
+  if ("result" in record && record.result !== undefined && record.result !== null) {
+    return record.result;
+  }
+
+  if ("text" in record && typeof record.text === "string") {
+    return record.text;
+  }
+
+  if ("richText" in record && Array.isArray(record.richText)) {
+    const text = (record.richText as Array<{ text?: string }>)
+      .map((item) => item.text || "")
+      .join("")
+      .trim();
+    if (text) return text;
+  }
+
+  return value;
+};
+
+const formatDate = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const getStringValue = (row: SpreadsheetRow, keys: string[]): string => {
   for (const key of keys) {
     const value = row[key];
@@ -72,6 +104,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
   };
 
   const parseExcelDate = (excelDate: unknown): string => {
+    if (excelDate instanceof Date) {
+      return formatDate(excelDate);
+    }
+
     if (typeof excelDate === "string") {
       // Tenta parsear string no formato DD/MM/YYYY ou YYYY-MM-DD
       const parts = excelDate.includes("/") ? excelDate.split("/") : excelDate.split("-");
@@ -96,8 +132,18 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
   };
 
   const parseTime = (timeValue: unknown): string => {
+    if (timeValue instanceof Date) {
+      const hours = String(timeValue.getHours()).padStart(2, "0");
+      const minutes = String(timeValue.getMinutes()).padStart(2, "0");
+      return `${hours}:${minutes}`;
+    }
+
     if (typeof timeValue === "string") {
-      return timeValue;
+      const normalized = timeValue.trim();
+      if (/^\d{2}:\d{2}(:\d{2})?$/.test(normalized)) {
+        return normalized.slice(0, 5);
+      }
+      return normalized;
     }
     if (typeof timeValue === "number") {
       // Excel armazena tempo como fração do dia
@@ -140,7 +186,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
           const rowObj: SpreadsheetRow = {};
           row.eachCell((cell, colNumber) => {
             const key = headers[colNumber];
-            if (key) rowObj[key] = cell.value as unknown;
+            if (key) rowObj[key] = extractCellValue(cell.value);
           });
           jsonData.push(rowObj);
         }
