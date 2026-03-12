@@ -111,9 +111,10 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
       setPrescriptions(data.prescriptions);
       setSelectedIndex(0);
       setStep("review");
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido ao processar arquivo.";
       logger.error("Import error:", err);
-      notify.error("Erro ao processar arquivo", { description: err.message });
+      notify.error("Erro ao processar arquivo", { description: message });
       setStep("upload");
     }
   };
