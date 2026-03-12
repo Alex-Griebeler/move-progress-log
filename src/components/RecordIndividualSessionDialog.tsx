@@ -431,7 +431,7 @@ export function RecordIndividualSessionDialog({
               onObservationsChange={setEditableObservations}
               createEmpty={() => ({ observation_text: '', category: 'geral' as const, severity: 'baixa' as const })}
               renderCategorySelector={(obs, _idx, onChange) => (
-                <Select value={obs.category} onValueChange={(value) => onChange({ ...obs, category: value as any })}>
+                <Select value={obs.category} onValueChange={(value) => onChange({ ...obs, category: value as IndividualObservation["category"] })}>
                   <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="dor">Dor</SelectItem>
