@@ -332,7 +332,7 @@ Deno.serve(async (req) => {
     let restingHeartRate = null;
     if (heartrateData?.data && heartrateData.data.length > 0) {
       const hrValues = heartrateData.data
-        .map((hr: any) => hr.bpm)
+        .map((hr: Record<string, unknown>) => hr.bpm as number)
         .filter((bpm: number) => bpm > 0 && bpm < 200);
       
       if (hrValues.length > 0) {
