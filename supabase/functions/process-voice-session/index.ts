@@ -824,29 +824,29 @@ FORMATO DE SAÍDA:
     // ═══════════════════════════════════════════════════════════
     // MEL-IA-006: Validação de Desvio da Prescrição
     // ═══════════════════════════════════════════════════════════
-    let prescriptionDeviations: any[] = [];
+    let prescriptionDeviations: Record<string, unknown>[] = [];
     
     if (prescriptionDetails && prescriptionDetails.prescription_exercises) {
-      const prescribedExercises = prescriptionDetails.prescription_exercises.map((pe: any) => ({
-        name: pe.exercises_library.name,
-        sets: pe.sets,
-        reps: pe.reps,
+      const prescribedExercises = prescriptionDetails.prescription_exercises.map((pe: Record<string, unknown>) => ({
+        name: (pe.exercises_library as Record<string, unknown>).name as string,
+        sets: pe.sets as string,
+        reps: pe.reps as string,
       }));
       
-      extractedData.sessions?.forEach((session: any) => {
-        const sessionDeviations: any[] = [];
-        const executedNames = (session.exercises || []).map((ex: any) => 
-          (ex.executed_exercise_name || '').toLowerCase().trim()
+      extractedData.sessions?.forEach((session: Record<string, unknown>) => {
+        const sessionDeviations: Record<string, unknown>[] = [];
+        const executedNames = ((session.exercises as Record<string, unknown>[] | undefined) || []).map((ex: Record<string, unknown>) => 
+          ((ex.executed_exercise_name as string) || '').toLowerCase().trim()
         );
-        const prescribedNames = prescribedExercises.map((pe: any) => pe.name.toLowerCase().trim());
+        const prescribedNames = prescribedExercises.map((pe) => pe.name.toLowerCase().trim());
         
         // 1. Exercícios prescritos mas NÃO executados (omissões)
-        prescribedExercises.forEach((pe: any) => {
+        prescribedExercises.forEach((pe) => {
           const peName = pe.name.toLowerCase().trim();
           const wasExecuted = executedNames.some((en: string) => 
             en.includes(peName) || peName.includes(en) || 
-            (session.exercises || []).some((ex: any) => 
-              ex.prescribed_exercise_name?.toLowerCase().trim() === peName
+            ((session.exercises as Record<string, unknown>[] | undefined) || []).some((ex: Record<string, unknown>) => 
+              (ex.prescribed_exercise_name as string)?.toLowerCase().trim() === peName
             )
           );
           
