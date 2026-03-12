@@ -77,7 +77,7 @@ export const useStudentsCardData = (studentIds: string[]) => {
 
       // Query 4: Buscar logs de falha das últimas 24h para alunos conectados
       const connectedStudentIds = allConnections?.map((c) => c.student_id) || [];
-      let failedLogsByStudent: Record<string, number> = {};
+      const failedLogsByStudent: Record<string, number> = {};
 
       if (connectedStudentIds.length > 0) {
         const { data: failedLogs } = await supabase
