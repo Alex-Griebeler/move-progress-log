@@ -83,7 +83,7 @@ export const usePrescriptions = () => {
 
       if (error) throw error;
       
-      return data.map((p: any) => ({
+      return data.map((p) => ({
         ...p,
         assigned_students_count: p.prescription_assignments?.length || 0,
       }));
