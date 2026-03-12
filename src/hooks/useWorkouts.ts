@@ -60,6 +60,7 @@ const mapWorkouts = (data: Array<Record<string, unknown>>, sessionsWithObservati
       created_at: workout.created_at as string,
       updated_at: workout.updated_at as string,
     };
+  });
 };
 
 // MEL-003: Cursor-based pagination
