@@ -9,6 +9,29 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 
+type SpreadsheetRow = Record<string, unknown>;
+
+const getStringValue = (row: SpreadsheetRow, keys: string[]): string => {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "string" && value.trim() !== "") return value.trim();
+    if (typeof value === "number") return String(value);
+  }
+  return "";
+};
+
+const getNumberValue = (row: SpreadsheetRow, keys: string[]): number | undefined => {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "number") return value;
+    if (typeof value === "string") {
+      const parsed = Number(value.replace(",", "."));
+      if (!Number.isNaN(parsed)) return parsed;
+    }
+  }
+  return undefined;
+};
+
 interface ImportSessionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
