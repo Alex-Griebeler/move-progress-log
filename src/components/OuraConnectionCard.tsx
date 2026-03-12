@@ -33,8 +33,9 @@ interface OuraConnectionCardProps {
   studentName?: string;
 }
 
-export const OuraConnectionCard = ({ studentId }: OuraConnectionCardProps) => {
+export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraConnectionCardProps) => {
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
+  const [showOuraConnectDialog, setShowOuraConnectDialog] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStatus, setSyncStatus] = useState<string>("");
   const [syncError, setSyncError] = useState<string | null>(null);
