@@ -3,15 +3,44 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+/** Decode JWT payload without verification */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload));
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    // --- Authentication: require service_role ---
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Missing or invalid authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const jwtPayload = decodeJwtPayload(token);
+
+    if (!jwtPayload || jwtPayload.role !== 'service_role') {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: service_role required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
+
     const supabaseAdmin = await (await import('https://esm.sh/@supabase/supabase-js@2')).createClient(
       supabaseUrl,
       supabaseServiceKey,
@@ -24,7 +53,7 @@ Deno.serve(async (req) => {
     );
 
     const { adminKey } = await req.json();
-    
+
     // Validar chave de segurança para criar admin
     const expectedKey = Deno.env.get('ADMIN_CREATION_KEY');
     if (!expectedKey || adminKey !== expectedKey) {
@@ -37,7 +66,7 @@ Deno.serve(async (req) => {
     // Criar usuário para auditoria da IA Adapta
     const email = 'auditoria@adapta.ai';
     const password = crypto.randomUUID(); // Senha aleatória segura
-    
+
     const { data: user, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -94,7 +123,7 @@ Deno.serve(async (req) => {
     console.log('✅ Audit admin created successfully:', email);
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         credentials: {
           email,

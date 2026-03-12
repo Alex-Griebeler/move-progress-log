@@ -14,6 +14,16 @@ interface SyncResult {
   metrics_synced?: any;
 }
 
+/** Decode JWT payload without verification (verification done by getClaims) */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split('.')[1];
+    return JSON.parse(atob(payload));
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -24,73 +34,78 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
-    // Extract and validate JWT token
+    // --- Authentication ---
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ error: 'Missing or invalid authorization header' }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
 
     const token = authHeader.replace('Bearer ', '');
-    
-    // Create client with user's token to verify authentication
-    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } }
-    });
+    const jwtPayload = decodeJwtPayload(token);
 
-    // Verify the user is authenticated
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token);
-    
-    if (authError || !user) {
-      console.error('Authentication failed:', authError?.message);
+    if (!jwtPayload) {
       return new Response(
-        JSON.stringify({ error: 'Invalid or expired token' }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 401
-        }
+        JSON.stringify({ error: 'Invalid token' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
 
-    // Create service role client for privileged operations
+    const isServiceRole = jwtPayload.role === 'service_role';
+
+    if (!isServiceRole) {
+      // Validate user JWT via getClaims
+      const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+
+      const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) {
+        console.error('Auth failed:', claimsError?.message);
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired token' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+        );
+      }
+
+      const userId = claimsData.claims.sub as string;
+
+      // Create service role client for privileged operations
+      const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
+
+      // Check admin role
+      const { data: roleData, error: roleError } = await supabaseAdmin
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (roleError) {
+        console.error('Error checking role:', roleError.message);
+        return new Response(
+          JSON.stringify({ error: 'Failed to verify permissions' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+
+      if (!roleData) {
+        console.warn(`Unauthorized sync attempt by user: ${userId}`);
+        return new Response(
+          JSON.stringify({ error: 'Admin privileges required for this operation' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+
+      console.log(`Admin ${userId} initiated Oura sync for all students`);
+    } else {
+      console.log('Service role initiated Oura sync for all students');
+    }
+
+    // --- Sync Logic ---
     const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Check if user has admin role
-    const { data: roleData, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle();
-
-    if (roleError) {
-      console.error('Error checking role:', roleError.message);
-      return new Response(
-        JSON.stringify({ error: 'Failed to verify permissions' }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 500
-        }
-      );
-    }
-
-    if (!roleData) {
-      console.warn(`Unauthorized sync attempt by user: ${user.id}`);
-      return new Response(
-        JSON.stringify({ error: 'Admin privileges required for this operation' }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 403
-        }
-      );
-    }
-
-    console.log(`Admin ${user.id} initiated Oura sync for all students`);
 
     // Get all students with active Oura connections
     const { data: connections, error: connectionsError } = await supabase
@@ -112,14 +127,8 @@ Deno.serve(async (req) => {
 
     if (!connections || connections.length === 0) {
       return new Response(
-        JSON.stringify({ 
-          message: 'No active Oura connections found',
-          results: []
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200
-        }
+        JSON.stringify({ message: 'No active Oura connections found', results: [] }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
 
@@ -130,7 +139,7 @@ Deno.serve(async (req) => {
 
     const results: SyncResult[] = [];
 
-    // OA-02: Process in parallel with concurrency limit of 5 (was sequential)
+    // OA-02: Process in parallel with concurrency limit of 5
     const BATCH_SIZE = 5;
     for (let i = 0; i < connections.length; i += BATCH_SIZE) {
       const batch = connections.slice(i, i + BATCH_SIZE);
@@ -190,30 +199,22 @@ Deno.serve(async (req) => {
     const failedCount = results.filter(r => r.status === 'failed').length;
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         message: `Sync completed: ${successCount} success, ${failedCount} failed`,
         total: results.length,
         success: successCount,
         failed: failedCount,
         results
       }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
 
   } catch (error) {
     console.error('Error in oura-sync-all:', error);
     const err = error as Error;
     return new Response(
-      JSON.stringify({ 
-        error: err.message || 'Unknown error occurred'
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500
-      }
+      JSON.stringify({ error: err.message || 'Unknown error occurred' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
