@@ -514,17 +514,18 @@ export const EditExerciseLibraryDialog = ({
                 </p>
               )}
             </div>
-            <div className="pt-4 border-t border-border">
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={updateExercise.isPending}
-              >
-                {updateExercise.isPending ? "Salvando..." : "Salvar Alterações"}
-              </Button>
-            </div>
           </form>
-        </ScrollArea>
+        </div>
+        <div className="pt-4 border-t border-border shrink-0">
+          <Button 
+            type="submit" 
+            form="edit-exercise-form"
+            className="w-full" 
+            disabled={updateExercise.isPending}
+          >
+            {updateExercise.isPending ? "Salvando..." : "Salvar Alterações"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
