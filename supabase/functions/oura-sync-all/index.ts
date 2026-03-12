@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
       const batchResults = await Promise.allSettled(
         batch.map(async (connection) => {
           const studentId = connection.student_id;
-          const studentName = (connection.students as any)?.name || 'Unknown';
+          const studentName = ((connection as Record<string, unknown>).students as Record<string, unknown>)?.name as string || 'Unknown';
           let lastError = '';
 
           for (let attempt = 1; attempt <= 3; attempt++) {

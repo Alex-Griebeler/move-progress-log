@@ -51,7 +51,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY não configurada');
 
-    const name = (student as any)?.name ?? 'Atleta';
+    const name = (student as Record<string, unknown>)?.name ?? 'Atleta';
     const prompt = `Gere um relatório ${report_type} profissional para ${name} (${period_start} a ${period_end}).
 Inclua: resumo executivo, análise de volume, recordes, progresso de metas, recomendações.
 Dados: ${JSON.stringify({ student, sessions, records })}

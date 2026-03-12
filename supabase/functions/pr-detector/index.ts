@@ -62,7 +62,7 @@ serve(async (req) => {
       const newRecords: object[] = [];
       for (const { session, ex } of items) {
         // PR-03: Detect max_load, max_volume, max_reps, max_total_volume
-        const sets = (ex as any).sets || 1;
+        const sets = ex.sets || 1;
         const checks: [string, number][] = [
           ['max_load', ex.load_kg],
           ['max_volume', ex.load_kg * ex.reps],

@@ -865,7 +865,7 @@ FORMATO DE SAÍDA:
           const isFromPrescription = prescribedNames.some((pn: string) => 
             pn.includes(exName) || exName.includes(pn)
           ) || (ex.prescribed_exercise_name && prescribedNames.includes(
-            ex.prescribed_exercise_name.toLowerCase().trim()
+            (ex.prescribed_exercise_name as string).toLowerCase().trim()
           ));
           
           if (!isFromPrescription) {

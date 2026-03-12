@@ -101,7 +101,7 @@ serve(async (req) => {
       }
 
       if (prescriptionRes.data && prescriptionRes.data.length > 0) {
-        const p = prescriptionRes.data[0] as any;
+        const p = prescriptionRes.data[0] as Record<string, unknown>;
         contextBlock += `\n\n💪 PRESCRIÇÃO ATUAL:
 - Nome: ${p.workout_prescriptions?.name || "—"}
 - Objetivo: ${p.workout_prescriptions?.objective || "—"}
