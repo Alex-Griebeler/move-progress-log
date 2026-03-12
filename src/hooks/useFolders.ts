@@ -190,7 +190,7 @@ export const useReorderFolders = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescription-folders"] });
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       notify.error("Erro ao reordenar pastas", {
         description: error.message
       });
