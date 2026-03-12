@@ -13,6 +13,7 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const token = url.searchParams.get('token');
+    const type = url.searchParams.get('type');
 
     if (!token) {
       return new Response(
