@@ -13,6 +13,7 @@ Deno.serve(async (req) => {
   try {
     // --- Bootstrap guard ---
     const bootstrapEnabled = Deno.env.get('ENABLE_AUDIT_ADMIN_BOOTSTRAP');
+    console.log('[create-audit-admin] ENABLE_AUDIT_ADMIN_BOOTSTRAP value:', JSON.stringify(bootstrapEnabled));
     if (bootstrapEnabled !== 'true') {
       return new Response(
         JSON.stringify({ error: 'Bootstrap disabled. Set ENABLE_AUDIT_ADMIN_BOOTSTRAP=true to enable.' }),
