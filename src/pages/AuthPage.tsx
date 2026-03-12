@@ -48,8 +48,8 @@ export default function AuthPage() {
     return () => clearTimeout(timeoutId);
   }, [password, checkPasswordSecurity]);
 
-  const getErrorMessage = (error: any): string => {
-    const message = error.message.toLowerCase();
+  const getErrorMessage = (error: unknown): string => {
+    const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
     
     if (message.includes('email') && message.includes('already')) {
       return i18n.errors.emailAlreadyRegistered;
@@ -70,7 +70,7 @@ export default function AuthPage() {
       return i18n.errors.tooManyRequests;
     }
     
-    return error.message;
+    return error instanceof Error ? error.message : String(error);
   };
 
   const handleGoogleSignIn = async () => {
@@ -125,7 +125,7 @@ export default function AuthPage() {
 
       logger.log('Redirecting to Google OAuth...');
       
-    } catch (err: any) {
+    } catch (err: unknown) {
       logger.error('Unexpected Google OAuth error:', err);
       setLoading(false);
       toast({

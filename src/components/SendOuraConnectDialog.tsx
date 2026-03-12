@@ -40,9 +40,9 @@ export const SendOuraConnectDialog = ({
       if (error) throw error;
       setInviteUrl(data.invite_url);
       toast.success("Link gerado com sucesso");
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast.error("Erro ao gerar link", {
-        description: error.message || "Tente novamente",
+        description: error instanceof Error ? error.message : "Tente novamente",
       });
     } finally {
       setIsGenerating(false);
