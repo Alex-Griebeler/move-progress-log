@@ -37,7 +37,7 @@ export interface TrackedExercise {
   initial_total_work: number | null;
   final_total_work: number | null;
   work_variation_percentage: number | null;
-  weekly_progression: any;
+  weekly_progression: Record<string, unknown> | null;
   created_at: string;
 }
 
