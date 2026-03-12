@@ -270,16 +270,10 @@ Deno.serve(async (req) => {
     // Process sleep periods - get longest period or aggregate
     let sleepPeriod = null;
     if (sleepPeriodsData?.data && sleepPeriodsData.data.length > 0) {
-      // Find the longest sleep period (usually the main sleep)
       sleepPeriod = sleepPeriodsData.data.reduce((longest: any, current: any) => {
         return (current.total_sleep_duration || 0) > (longest.total_sleep_duration || 0) ? current : longest;
       });
-      console.log('Selected sleep period:', {
-        duration: sleepPeriod.total_sleep_duration,
-        deep: sleepPeriod.deep_sleep_duration,
-        rem: sleepPeriod.rem_sleep_duration,
-        light: sleepPeriod.light_sleep_duration
-      });
+      if (DEBUG) console.log('Selected sleep period:', { duration: sleepPeriod.total_sleep_duration, deep: sleepPeriod.deep_sleep_duration });
     }
 
     let restingHeartRate = null;
