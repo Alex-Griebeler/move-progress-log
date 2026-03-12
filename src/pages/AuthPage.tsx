@@ -322,9 +322,9 @@ export default function AuthPage() {
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 {rateLimitWarning && (
-                  <Alert variant="default" className="border-yellow-500 bg-yellow-50">
-                    <Shield className="h-4 w-4 text-yellow-600" />
-                    <AlertDescription className="text-sm text-yellow-900">
+                  <Alert variant="warning">
+                    <Shield className="h-4 w-4" />
+                    <AlertDescription className="text-sm">
                       {rateLimitWarning}
                     </AlertDescription>
                   </Alert>
