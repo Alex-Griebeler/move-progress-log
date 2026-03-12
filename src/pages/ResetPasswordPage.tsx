@@ -98,12 +98,12 @@ export default function ResetPasswordPage() {
         title: "✅ Email enviado!",
         description: "Verifique sua caixa de entrada e clique no link para resetar sua senha.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error("Erro ao solicitar reset:", error);
       await recordFailedAttempt('reset_password');
       toast({
         title: "Erro ao enviar email",
-        description: error.message || "Tente novamente mais tarde.",
+        description: error instanceof Error ? error.message : "Tente novamente mais tarde.",
         variant: "destructive",
       });
     } finally {
