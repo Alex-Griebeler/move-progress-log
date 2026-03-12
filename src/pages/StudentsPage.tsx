@@ -302,6 +302,8 @@ const StudentsPage = () => {
   const [recordingStudentName, setRecordingStudentName] = useState<string>("");
   const [isGroupSessionDialogOpen, setIsGroupSessionDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [ouraConnectStudentId, setOuraConnectStudentId] = useState<string | null>(null);
+  const [ouraConnectStudentName, setOuraConnectStudentName] = useState<string>("");
 
   // Batch hook - busca dados de todos os alunos em 3 queries em vez de N*3
   const studentIds = useMemo(() => students?.map(s => s.id) ?? [], [students]);
