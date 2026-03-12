@@ -59,7 +59,7 @@ serve(async (req) => {
         });
 
       if (!trigramError && trigramResults && trigramResults.length > 0) {
-        candidates = trigramResults.map((r: any) => ({ id: r.id, name: r.name }));
+        candidates = trigramResults.map((r: Record<string, unknown>) => ({ id: r.id as string, name: r.name as string }));
         usedTrigram = true;
         // pg_trgm returned candidates
       }
