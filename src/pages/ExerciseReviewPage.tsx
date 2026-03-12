@@ -74,7 +74,8 @@ const ExerciseReviewPage = () => {
     queryKey: ["exercises-review"],
     queryFn: async () => {
       // Fetch in batches to avoid the 1000 row limit
-      let allData: typeof data = [];
+      type ExerciseRow = { id: string; name: string; category: string | null; movement_pattern: string | null; subcategory: string | null; movement_plane: string | null; level: string | null; laterality: string | null; contraction_type: string | null; emphasis: string | null; stability_position: string | null; surface_modifier: string | null };
+      let allData: ExerciseRow[] = [];
       let from = 0;
       const batchSize = 500;
       let hasMore = true;

@@ -83,10 +83,10 @@ export const usePrescriptions = () => {
 
       if (error) throw error;
       
-      return (data as unknown as WorkoutPrescription[]).map((p) => ({
+      return data.map((p) => ({
         ...p,
-        assigned_students_count: (p as WorkoutPrescription & { prescription_assignments?: unknown[] }).prescription_assignments?.length || 0,
-      }));
+        assigned_students_count: p.prescription_assignments?.length || 0,
+      })) as unknown as WorkoutPrescription[];
     },
   });
 };
