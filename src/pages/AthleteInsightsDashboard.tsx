@@ -151,7 +151,7 @@ export default function AthleteInsightsDashboard() {
               <CardContent>
                 {goals?.length ? (
                   <div className='space-y-2'>
-                    {goals.map((g: any) => (
+                    {goals.map((g) => (
                       <div key={g.id} className='flex items-center justify-between p-3 border rounded-lg'>
                         <div>
                           <span className='font-medium'>{g.title}</span>
