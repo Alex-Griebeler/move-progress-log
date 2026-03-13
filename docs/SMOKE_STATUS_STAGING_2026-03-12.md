@@ -7,7 +7,7 @@
 
 | # | Cenário | Status atual | Evidência | Próxima ação |
 |---|---------|--------------|-----------|--------------|
-| 1 | ImportSessionsDialog - XLSX upload | Reproduzido bug e corrigido | Fixes `386fbb1` + `2c51370`; parser local: 265 linhas válidas / 69 sessões | Rerodar manual em staging e confirmar sessões > 0 |
+| 1 | ImportSessionsDialog - XLSX upload | ✅ PASS | Toast: "Importação concluída com sucesso! 69 sessão(ões) importada(s)." Screenshot 2026-03-13 | Confirmar sessões visíveis na listagem |
 | 2 | AdminDiagnosticsPage - XLSX batch import | Pendente | Runbook preparado | Executar manual + capturar prints/rede |
 | 3 | StudentReportsPage - lazy load | Pendente | Runbook preparado | Executar manual + validar sem crash |
 | 4 | Export PDF - download | Pendente | Runbook preparado | Executar manual + validar download |
