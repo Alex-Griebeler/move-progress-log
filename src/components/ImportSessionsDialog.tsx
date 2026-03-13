@@ -10,6 +10,56 @@ import { toast } from "sonner";
 
 type SpreadsheetRow = Record<string, unknown>;
 
+const normalizeHeader = (value: string): string => {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9 ]/g, "");
+};
+
+const resolveCanonicalHeader = (header: string): string => {
+  const normalized = normalizeHeader(header);
+
+  if (["aluno", "nome aluno", "nome do aluno", "student", "atleta", "athlete"].includes(normalized)) {
+    return "student";
+  }
+  if (["data", "date", "dia", "data treino", "data do treino"].includes(normalized)) {
+    return "date";
+  }
+  if (["hora", "horario", "horario treino", "hora treino", "time"].includes(normalized)) {
+    return "time";
+  }
+  if (
+    [
+      "exercicio",
+      "exercise",
+      "nome exercicio",
+      "nome do exercicio",
+      "exercicio nome",
+      "movimento",
+    ].includes(normalized)
+  ) {
+    return "exercise";
+  }
+  if (["series", "serie", "sets", "set"].includes(normalized)) {
+    return "sets";
+  }
+  if (["reps", "repeticoes", "repeticao", "rep"].includes(normalized)) {
+    return "reps";
+  }
+  if (["carga", "carga kg", "peso", "load", "kg"].includes(normalized)) {
+    return "load";
+  }
+  if (["observacoes", "observacao", "obs", "notes", "note"].includes(normalized)) {
+    return "notes";
+  }
+
+  return normalized;
+};
+
 const extractCellValue = (value: unknown): unknown => {
   if (value instanceof Date) return value;
   if (typeof value !== "object" || value === null) return value;
@@ -44,7 +94,7 @@ const formatDate = (date: Date): string => {
 
 const getStringValue = (row: SpreadsheetRow, keys: string[]): string => {
   for (const key of keys) {
-    const value = row[key];
+    const value = row[key] ?? row[normalizeHeader(key)];
     if (typeof value === "string" && value.trim() !== "") return value.trim();
     if (typeof value === "number") return String(value);
   }
@@ -53,7 +103,7 @@ const getStringValue = (row: SpreadsheetRow, keys: string[]): string => {
 
 const getNumberValue = (row: SpreadsheetRow, keys: string[]): number | undefined => {
   for (const key of keys) {
-    const value = row[key];
+    const value = row[key] ?? row[normalizeHeader(key)];
     if (typeof value === "number") return value;
     if (typeof value === "string") {
       const parsed = Number(value.replace(",", "."));
@@ -186,6 +236,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(data);
       const worksheet = workbook.worksheets[0];
+      const detectedHeaders: string[] = [];
       
       // Convert ExcelJS worksheet to array of objects
       const jsonData: SpreadsheetRow[] = [];
@@ -193,7 +244,9 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       worksheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) {
           row.eachCell((cell, colNumber) => {
-            headers[colNumber] = String(cell.value ?? "");
+            const rawHeader = String(cell.value ?? "").trim();
+            detectedHeaders.push(rawHeader);
+            headers[colNumber] = resolveCanonicalHeader(rawHeader);
           });
         } else {
           const rowObj: SpreadsheetRow = {};
@@ -207,17 +260,19 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
       // Agrupa por aluno + data + hora
       const sessionsMap = new Map<string, SessionRow[]>();
+      let validRows = 0;
 
       jsonData.forEach((row) => {
-        const alunoRaw = getStringValue(row, ["Aluno", "aluno"]);
-        const dataRaw = row["Data"] ?? row["data"];
-        const horaRaw = row["Hora"] ?? row["hora"];
+        const alunoRaw = getStringValue(row, ["student", "aluno", "nome do aluno"]);
+        const dataRaw = row["date"] ?? row["data"];
+        const horaRaw = row["time"] ?? row["hora"];
         const parsedDate = parseExcelDate(dataRaw);
         const parsedTime = parseTime(horaRaw);
-        const exerciseName = getStringValue(row, ["Exercicio", "exercicio", "Exercício"]);
+        const exerciseName = getStringValue(row, ["exercise", "exercicio", "nome exercicio"]);
 
         // Skip blank lines or incomplete rows from spreadsheet exports.
         if (!alunoRaw || !exerciseName) return;
+        validRows++;
 
         const sessionKey = `${alunoRaw.toLowerCase()}_${parsedDate}_${parsedTime}`;
         const sessionRow: SessionRow = {
@@ -225,10 +280,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
           data: parsedDate,
           hora: parsedTime,
           exercicio: exerciseName,
-          series: getNumberValue(row, ["Series", "series", "Séries"]),
-          reps: getNumberValue(row, ["Reps", "reps", "Repetições"]),
-          carga: getNumberValue(row, ["Carga", "carga", "Carga (kg)"]),
-          observacoes: getStringValue(row, ["Observacoes", "observacoes", "Observações"]) || undefined,
+          series: getNumberValue(row, ["sets", "series", "séries"]),
+          reps: getNumberValue(row, ["reps", "repeticoes", "repetições"]),
+          carga: getNumberValue(row, ["load", "carga", "carga kg"]),
+          observacoes: getStringValue(row, ["notes", "observacoes", "observações"]) || undefined,
         };
 
         if (!sessionsMap.has(sessionKey)) {
@@ -238,6 +293,13 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       });
 
       const totalSessions = sessionsMap.size;
+      if (totalSessions === 0) {
+        throw new Error(
+          `Nenhuma linha válida encontrada para importação. Verifique cabeçalhos (detected: ${detectedHeaders
+            .filter(Boolean)
+            .join(", ")}) e se as colunas de aluno + exercício estão preenchidas.`
+        );
+      }
       setStatus((prev) => ({ ...prev!, total: totalSessions }));
       
       // Atualiza toast com total encontrado
@@ -289,7 +351,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       
       if (errors.length === 0) {
         toast.success("Importação concluída com sucesso!", {
-          description: `${processed} sessão(ões) importada(s) com todos os exercícios.`,
+          description: `${processed} sessão(ões) importada(s) com ${validRows} linha(s) válida(s).`,
           duration: 5000,
         });
       } else {
