@@ -11,8 +11,9 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 const describeIntegration = SUPABASE_URL ? describe : describe.skip;
+const NETWORK_TEST_TIMEOUT_MS = 20000;
 
-describeIntegration('Oura Edge Functions — Auth Smoke Tests', () => {
+describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWORK_TEST_TIMEOUT_MS }, () => {
   async function callFunction(name: string, authHeader?: string) {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (authHeader) headers['Authorization'] = authHeader;

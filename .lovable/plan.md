@@ -1,5 +1,15 @@
 ## Staging Approval — Commit d152289 (perf-bundle-baseline)
 
+### Execution Update (2026-03-12)
+
+- `verify:essential` executed and PASS (`lint`, `test`, `build`, `audit --level=high`)
+- Scenario 1 executed manually and reproduced issue ("import success with 0 sessions")
+- Scenario 1 hotfixes delivered:
+  - `386fbb1` - robust XLSX header mapping + fail-fast on zero valid rows
+  - `2c51370` - support for `Nome` and `Nº Reps` headers
+- Scenario 1 requires retest after latest deploy/sync
+- Scenarios 2, 3 and 4 remain pending manual staging validation
+
 ### Decision Record
 
 **Status: GO for Staging (conditional)**
@@ -17,7 +27,7 @@ Production promotion remains blocked until all 4 interactive smoke tests pass ma
 
 | # | Scenario | Validation Method | Status |
 |---|----------|-------------------|--------|
-| 1 | ImportSessionsDialog - XLSX upload | Manual test in staging | Pending |
+| 1 | ImportSessionsDialog - XLSX upload | Manual test in staging | Retest required (fix deployed) |
 | 2 | AdminDiagnosticsPage - XLSX batch import | Manual test in staging | Pending |
 | 3 | StudentReportsPage - lazy load | Manual test in staging | Pending |
 | 4 | Export PDF - download | Manual test in staging | Pending |

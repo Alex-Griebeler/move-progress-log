@@ -9,6 +9,15 @@ Close the production gate for commit `d152289` by validating the 4 mandatory int
 - Test fixture file for XLSX import
 - Browser DevTools open (Console + Network tabs)
 
+### Accepted XLSX header aliases (Scenario 1)
+- Student: `Aluno`, `Nome`, `Nome do aluno`
+- Date: `Data`
+- Time: `Hora`, `Horário`
+- Exercise: `Exercicio`, `Exercício`, `Nome exercício`
+- Reps: `Reps`, `Nº Reps`, `Repetições`
+- Load: `Carga (kg)`, `Carga`, `Peso`
+- Notes: `Observações`, `Observacoes`, `Obs`
+
 ## Pass Criteria (Global)
 - All 4 scenarios marked as `PASS`
 - No blocking error in Console/Network
