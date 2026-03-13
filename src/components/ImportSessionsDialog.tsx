@@ -23,7 +23,7 @@ const normalizeHeader = (value: string): string => {
 const resolveCanonicalHeader = (header: string): string => {
   const normalized = normalizeHeader(header);
 
-  if (["aluno", "nome aluno", "nome do aluno", "student", "atleta", "athlete"].includes(normalized)) {
+  if (["aluno", "nome", "nome aluno", "nome do aluno", "student", "atleta", "athlete"].includes(normalized)) {
     return "student";
   }
   if (["data", "date", "dia", "data treino", "data do treino"].includes(normalized)) {
@@ -263,7 +263,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       let validRows = 0;
 
       jsonData.forEach((row) => {
-        const alunoRaw = getStringValue(row, ["student", "aluno", "nome do aluno"]);
+        const alunoRaw = getStringValue(row, ["student", "aluno", "nome", "nome do aluno"]);
         const dataRaw = row["date"] ?? row["data"];
         const horaRaw = row["time"] ?? row["hora"];
         const parsedDate = parseExcelDate(dataRaw);
@@ -281,7 +281,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
           hora: parsedTime,
           exercicio: exerciseName,
           series: getNumberValue(row, ["sets", "series", "séries"]),
-          reps: getNumberValue(row, ["reps", "repeticoes", "repetições"]),
+          reps: getNumberValue(row, ["reps", "n reps", "repeticoes", "repetições"]),
           carga: getNumberValue(row, ["load", "carga", "carga kg"]),
           observacoes: getStringValue(row, ["notes", "observacoes", "observações"]) || undefined,
         };
