@@ -449,7 +449,7 @@ export const AddExerciseDialog = ({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="plyometric-phase">Fase Pliométrica (1-5)</Label>
+                  <Label htmlFor="plyometric-phase">Fase Pliométrica (1-19)</Label>
                   <Input
                     id="plyometric-phase"
                     type="number"
