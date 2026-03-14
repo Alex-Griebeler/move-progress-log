@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GenerateReportDialogProps {
   open: boolean;
@@ -40,14 +41,84 @@ export function GenerateReportDialog({
   const [highlights, setHighlights] = useState("");
   const [attentionPoints, setAttentionPoints] = useState("");
   const [nextCyclePlan, setNextCyclePlan] = useState("");
+  const [periodExerciseIds, setPeriodExerciseIds] = useState<string[]>([]);
+  const [isLoadingPeriodExercises, setIsLoadingPeriodExercises] = useState(false);
 
   const generateReport = useGenerateReport();
   const { data: exercisesLibrary } = useExercisesLibrary();
-  const eligibleExercises =
-    exercisesLibrary?.filter((exercise) => {
-      const category = exercise.category?.toLowerCase() || "";
-      return (category.includes("forca") || category.includes("hipertrofia")) && !category.includes("potencia");
-    }) || [];
+  const eligibleExercises = useMemo(
+    () =>
+      exercisesLibrary?.filter((exercise) => {
+        const category = exercise.category?.toLowerCase() || "";
+        return (category.includes("forca") || category.includes("hipertrofia")) && !category.includes("potencia");
+      }) || [],
+    [exercisesLibrary]
+  );
+
+  const resolvePeriodRange = useCallback((): { periodStart: string; periodEnd: string } | null => {
+    if (periodType === "custom") {
+      if (!customStart || !customEnd) return null;
+      return { periodStart: customStart, periodEnd: customEnd };
+    }
+    const days = parseInt(periodType);
+    if (Number.isNaN(days) || days <= 0) return null;
+    const periodEnd = format(new Date(), "yyyy-MM-dd");
+    const periodStart = format(subDays(new Date(), days), "yyyy-MM-dd");
+    return { periodStart, periodEnd };
+  }, [periodType, customStart, customEnd]);
+
+  useEffect(() => {
+    const loadExercisesExecutedInPeriod = async () => {
+      if (!open || !studentId || eligibleExercises.length === 0) {
+        setPeriodExerciseIds([]);
+        return;
+      }
+
+      const range = resolvePeriodRange();
+      if (!range) {
+        setPeriodExerciseIds([]);
+        return;
+      }
+
+      setIsLoadingPeriodExercises(true);
+      try {
+        const { data, error } = await supabase
+          .from("workout_sessions")
+          .select("exercises(exercise_name)")
+          .eq("student_id", studentId)
+          .gte("date", range.periodStart)
+          .lte("date", range.periodEnd);
+
+        if (error) throw error;
+
+        const executedNames = new Set(
+          ((data || []) as Array<{ exercises: Array<{ exercise_name: string }> | null }>)
+            .flatMap((session) => session.exercises || [])
+            .map((exercise) => exercise.exercise_name.trim().toLowerCase())
+            .filter(Boolean)
+        );
+
+        const idsInPeriod = eligibleExercises
+          .filter((exercise) => executedNames.has(exercise.name.trim().toLowerCase()))
+          .map((exercise) => exercise.id);
+
+        setPeriodExerciseIds(idsInPeriod);
+        setSelectedExercises((prev) => prev.filter((exerciseId) => idsInPeriod.includes(exerciseId)));
+      } catch {
+        // Fallback safe: keep list empty and let backend validation decide.
+        setPeriodExerciseIds([]);
+      } finally {
+        setIsLoadingPeriodExercises(false);
+      }
+    };
+
+    void loadExercisesExecutedInPeriod();
+  }, [open, studentId, eligibleExercises, resolvePeriodRange]);
+
+  const selectableExercises = useMemo(
+    () => eligibleExercises.filter((exercise) => periodExerciseIds.includes(exercise.id)),
+    [eligibleExercises, periodExerciseIds]
+  );
 
   const handleGenerate = async () => {
     let periodStart: string;
@@ -87,32 +158,35 @@ export function GenerateReportDialog({
     }
 
     const invalidSelected = selectedExercises.filter(
-      (exerciseId) => !eligibleExercises.some((exercise) => exercise.id === exerciseId)
+      (exerciseId) => !selectableExercises.some((exercise) => exercise.id === exerciseId)
     );
     if (invalidSelected.length > 0) {
-      toast.error("Selecione apenas exercícios de força/hipertrofia para o relatório");
+      toast.error("Selecione apenas exercícios de força/hipertrofia executados no período");
       return;
     }
+    try {
+      await generateReport.mutateAsync({
+        studentId,
+        periodStart,
+        periodEnd,
+        trackedExercises: selectedExercises,
+        trainerNotes: {
+          highlights: highlights || undefined,
+          attentionPoints: attentionPoints || undefined,
+          nextCyclePlan: nextCyclePlan || undefined,
+        },
+      });
 
-    await generateReport.mutateAsync({
-      studentId,
-      periodStart,
-      periodEnd,
-      trackedExercises: selectedExercises,
-      trainerNotes: {
-        highlights: highlights || undefined,
-        attentionPoints: attentionPoints || undefined,
-        nextCyclePlan: nextCyclePlan || undefined,
-      },
-    });
-
-    onOpenChange(false);
-    // Reset form
-    setPeriodType("30");
-    setSelectedExercises([]);
-    setHighlights("");
-    setAttentionPoints("");
-    setNextCyclePlan("");
+      onOpenChange(false);
+      // Reset form
+      setPeriodType("30");
+      setSelectedExercises([]);
+      setHighlights("");
+      setAttentionPoints("");
+      setNextCyclePlan("");
+    } catch {
+      // Error feedback is handled in mutation onError.
+    }
   };
 
   const toggleExercise = (exerciseId: string) => {
@@ -185,7 +259,7 @@ export function GenerateReportDialog({
             </p>
             <ScrollArea className="h-[200px] border rounded-md p-4">
               <div className="space-y-2">
-                {eligibleExercises.map((exercise) => (
+                {selectableExercises.map((exercise) => (
                   <div key={exercise.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={exercise.id}
@@ -202,10 +276,13 @@ export function GenerateReportDialog({
                 ))}
               </div>
             </ScrollArea>
-            {eligibleExercises.length === 0 && (
+            {!isLoadingPeriodExercises && selectableExercises.length === 0 && (
               <p className="text-xs text-amber-600">
-                Nenhum exercício elegível encontrado na biblioteca (força/hipertrofia).
+                Nenhum exercício de força/hipertrofia executado no período selecionado.
               </p>
+            )}
+            {isLoadingPeriodExercises && (
+              <p className="text-xs text-muted-foreground">Carregando exercícios executados no período...</p>
             )}
             <p className="text-xs text-muted-foreground">
               {selectedExercises.length} exercício(s) selecionado(s)
