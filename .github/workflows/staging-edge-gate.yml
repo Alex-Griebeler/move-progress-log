@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-and-smoke:
+  smoke-only:
     if: >
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
@@ -32,8 +32,6 @@ jobs:
     permissions:
       contents: read
     env:
-      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
@@ -55,7 +53,7 @@ jobs:
       - name: Validate required secrets
         run: |
           missing=0
-          for v in SUPABASE_PROJECT_REF SUPABASE_ACCESS_TOKEN SUPABASE_URL SUPABASE_ANON_KEY; do
+          for v in SUPABASE_URL SUPABASE_ANON_KEY; do
             if [ -z "${!v}" ]; then
               echo "::error::Missing required secret: ${v}"
               missing=1
@@ -66,14 +64,6 @@ jobs:
             missing=1
           fi
           exit "${missing}"
-
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
-      - name: Deploy essential edge functions
-        run: bash ./scripts/deploy-edge-essential.sh
 
       - name: Run edge auth smoke tests
         run: bash ./scripts/ci-smoke-edge-auth.sh
