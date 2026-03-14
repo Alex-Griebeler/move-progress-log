@@ -37,6 +37,12 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
   const { data: report, isLoading: reportLoading } = useReportById(reportId);
   const { data: trackedExercises, isLoading: exercisesLoading } = useReportTrackedExercises(reportId);
   const [isExporting, setIsExporting] = useState(false);
+  const formatMetric = (value: number | null | undefined, digits = 0, suffix = "") => {
+    if (value === null || value === undefined) {
+      return "--";
+    }
+    return `${value.toFixed(digits)}${suffix}`;
+  };
 
   const handleExportPDF = async () => {
     if (!report) return;
@@ -101,6 +107,8 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
     return <div className="text-center py-8">Relatório não encontrado</div>;
   }
 
+  const hasVo2Data = report.oura_data?.avgVo2Max !== null && report.oura_data?.avgVo2Max !== undefined;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -163,9 +171,9 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
           </Card>
           <Card className="p-4 bg-muted/50">
             <div className="text-sm text-muted-foreground mb-1">Média Semanal</div>
-            <div className="text-3xl font-bold">{report.weekly_average.toFixed(1)}</div>
+            <div className="text-3xl font-bold">{formatMetric(report.weekly_average, 1)}</div>
           </Card>
-          {report.adherence_percentage && (
+          {report.adherence_percentage !== null && report.adherence_percentage !== undefined && (
             <Card className="p-4 bg-muted/50">
               <div className="text-sm text-muted-foreground mb-1">Adesão</div>
               <div className="text-3xl font-bold">{report.adherence_percentage.toFixed(0)}%</div>
@@ -244,13 +252,13 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
             Dados de Wearable
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-1 ${hasVo2Data ? "md:grid-cols-5" : "md:grid-cols-4"} gap-4`}>
             <Card className="p-4 bg-muted/50">
               <div className="flex items-center gap-2 mb-2">
                 <Zap className="w-4 h-4 text-primary" />
                 <div className="text-sm text-muted-foreground">Readiness Médio</div>
               </div>
-              <div className="text-2xl font-bold">{report.oura_data.avgReadiness?.toFixed(0)}</div>
+              <div className="text-2xl font-bold">{formatMetric(report.oura_data.avgReadiness)}</div>
             </Card>
 
             <Card className="p-4 bg-muted/50">
@@ -258,7 +266,7 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
                 <Moon className="w-4 h-4 text-primary" />
                 <div className="text-sm text-muted-foreground">Sleep Score Médio</div>
               </div>
-              <div className="text-2xl font-bold">{report.oura_data.avgSleep?.toFixed(0)}</div>
+              <div className="text-2xl font-bold">{formatMetric(report.oura_data.avgSleep)}</div>
             </Card>
 
             <Card className="p-4 bg-muted/50">
@@ -266,7 +274,7 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
                 <Heart className="w-4 h-4 text-primary" />
                 <div className="text-sm text-muted-foreground">HRV Médio</div>
               </div>
-              <div className="text-2xl font-bold">{report.oura_data.avgHrv?.toFixed(0)} ms</div>
+              <div className="text-2xl font-bold">{formatMetric(report.oura_data.avgHrv, 0, " ms")}</div>
             </Card>
 
             <Card className="p-4 bg-muted/50">
@@ -274,8 +282,24 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
                 <Activity className="w-4 h-4 text-primary" />
                 <div className="text-sm text-muted-foreground">RHR Médio</div>
               </div>
-              <div className="text-2xl font-bold">{report.oura_data.avgRhr?.toFixed(0)} bpm</div>
+              <div className="text-2xl font-bold">{formatMetric(report.oura_data.avgRhr, 0, " bpm")}</div>
             </Card>
+
+            {hasVo2Data && (
+              <Card className="p-4 bg-muted/50">
+                <div className="flex items-center gap-2 mb-2">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  <div className="text-sm text-muted-foreground">VO2 Max Médio</div>
+                </div>
+                <div className="text-2xl font-bold">{formatMetric(report.oura_data.avgVo2Max, 1)}</div>
+                {report.oura_data.vo2VariationPercentage !== null && report.oura_data.vo2VariationPercentage !== undefined && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {report.oura_data.vo2VariationPercentage > 0 ? "+" : ""}
+                    {report.oura_data.vo2VariationPercentage.toFixed(1)}% no período
+                  </div>
+                )}
+              </Card>
+            )}
           </div>
 
           <p className="text-xs text-muted-foreground mt-4">

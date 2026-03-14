@@ -214,6 +214,7 @@ export const ReportPDFDocument = ({
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
   };
+  const hasVo2Data = report.oura_data?.avgVo2Max !== null && report.oura_data?.avgVo2Max !== undefined;
 
   return (
     <Document>
@@ -253,7 +254,7 @@ export const ReportPDFDocument = ({
               <Text style={styles.metricValue}>{report.weekly_average.toFixed(1)}</Text>
             </View>
             
-            {report.adherence_percentage && (
+            {report.adherence_percentage !== null && report.adherence_percentage !== undefined && (
               <View style={styles.metricCard}>
                 <Text style={styles.metricLabel}>Adesão</Text>
                 <Text style={styles.metricValue}>{report.adherence_percentage.toFixed(0)}%</Text>
@@ -336,33 +337,42 @@ export const ReportPDFDocument = ({
             <Text style={styles.sectionTitle}>Dados de Wearable</Text>
             
             <View style={styles.ouraMetrics}>
-              <View style={styles.ouraCard}>
+              <View style={[styles.ouraCard, { width: hasVo2Data ? "18%" : "23%" }]}>
                 <Text style={styles.ouraLabel}>Readiness Médio</Text>
                 <Text style={styles.ouraValue}>
                   {report.oura_data.avgReadiness?.toFixed(0)}
                 </Text>
               </View>
               
-              <View style={styles.ouraCard}>
+              <View style={[styles.ouraCard, { width: hasVo2Data ? "18%" : "23%" }]}>
                 <Text style={styles.ouraLabel}>Sleep Score Médio</Text>
                 <Text style={styles.ouraValue}>
                   {report.oura_data.avgSleep?.toFixed(0)}
                 </Text>
               </View>
               
-              <View style={styles.ouraCard}>
+              <View style={[styles.ouraCard, { width: hasVo2Data ? "18%" : "23%" }]}>
                 <Text style={styles.ouraLabel}>HRV Médio</Text>
                 <Text style={styles.ouraValue}>
                   {report.oura_data.avgHrv?.toFixed(0)} ms
                 </Text>
               </View>
               
-              <View style={styles.ouraCard}>
+              <View style={[styles.ouraCard, { width: hasVo2Data ? "18%" : "23%" }]}>
                 <Text style={styles.ouraLabel}>RHR Médio</Text>
                 <Text style={styles.ouraValue}>
                   {report.oura_data.avgRhr?.toFixed(0)} bpm
                 </Text>
               </View>
+
+              {hasVo2Data && (
+                <View style={[styles.ouraCard, { width: "18%" }]}>
+                  <Text style={styles.ouraLabel}>VO2 Max Médio</Text>
+                  <Text style={styles.ouraValue}>
+                    {report.oura_data.avgVo2Max?.toFixed(1)}
+                  </Text>
+                </View>
+              )}
             </View>
             
             <Text style={[styles.subtitle, { marginTop: 8 }]}>

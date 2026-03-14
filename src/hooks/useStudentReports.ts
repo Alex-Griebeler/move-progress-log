@@ -4,11 +4,23 @@ import { toast } from "sonner";
 import { logger } from "@/utils/logger";
 
 export interface OuraReportData {
+  source?: string[];
   avgReadiness?: number;
   avgSleep?: number;
   avgHrv?: number;
   avgRhr?: number;
+  avgVo2Max?: number;
+  vo2Initial?: number;
+  vo2Final?: number;
+  vo2VariationPercentage?: number;
   dataPoints?: number;
+  vo2DataPoints?: number;
+}
+
+export interface WeeklyProgressionPoint {
+  week: number;
+  avgLoad: number;
+  totalWork: number;
 }
 
 export interface StudentReport {
@@ -45,7 +57,7 @@ export interface TrackedExercise {
   initial_total_work: number | null;
   final_total_work: number | null;
   work_variation_percentage: number | null;
-  weekly_progression: Record<string, number> | null;
+  weekly_progression: WeeklyProgressionPoint[] | null;
   created_at: string;
 }
 

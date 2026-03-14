@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
 
 interface GenerateReportDialogProps {
   open: boolean;
@@ -42,6 +43,11 @@ export function GenerateReportDialog({
 
   const generateReport = useGenerateReport();
   const { data: exercisesLibrary } = useExercisesLibrary();
+  const eligibleExercises =
+    exercisesLibrary?.filter((exercise) => {
+      const category = exercise.category?.toLowerCase() || "";
+      return (category.includes("forca") || category.includes("hipertrofia")) && !category.includes("potencia");
+    }) || [];
 
   const handleGenerate = async () => {
     let periodStart: string;
@@ -57,10 +63,34 @@ export function GenerateReportDialog({
     }
 
     if (!periodStart || !periodEnd) {
+      toast.error("Selecione um período válido");
       return;
     }
 
+    if (periodType === "custom") {
+      if (periodStart > periodEnd) {
+        toast.error("A data inicial deve ser anterior à data final");
+        return;
+      }
+      const start = new Date(`${periodStart}T00:00:00`);
+      const end = new Date(`${periodEnd}T00:00:00`);
+      const days = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (days < 7) {
+        toast.error("O período mínimo para relatório é de 7 dias");
+        return;
+      }
+    }
+
     if (selectedExercises.length === 0) {
+      toast.error("Selecione pelo menos 1 exercício");
+      return;
+    }
+
+    const invalidSelected = selectedExercises.filter(
+      (exerciseId) => !eligibleExercises.some((exercise) => exercise.id === exerciseId)
+    );
+    if (invalidSelected.length > 0) {
+      toast.error("Selecione apenas exercícios de força/hipertrofia para o relatório");
       return;
     }
 
@@ -155,7 +185,7 @@ export function GenerateReportDialog({
             </p>
             <ScrollArea className="h-[200px] border rounded-md p-4">
               <div className="space-y-2">
-                {exercisesLibrary?.map((exercise) => (
+                {eligibleExercises.map((exercise) => (
                   <div key={exercise.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={exercise.id}
@@ -172,6 +202,11 @@ export function GenerateReportDialog({
                 ))}
               </div>
             </ScrollArea>
+            {eligibleExercises.length === 0 && (
+              <p className="text-xs text-amber-600">
+                Nenhum exercício elegível encontrado na biblioteca (força/hipertrofia).
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               {selectedExercises.length} exercício(s) selecionado(s)
             </p>
