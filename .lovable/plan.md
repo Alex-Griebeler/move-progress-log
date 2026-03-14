@@ -24,6 +24,29 @@
 - Documento de pendências por ausência criado em:
   - `docs/PENDENCIAS_AUSENCIA_2026-03-13.md`
 
+### Execution Update (2026-03-14)
+
+- `main` confirmado no GitHub com merge do hotfix de relatórios:
+  - `bc7e1ce` - Merge pull request `#5` from `codex/report-audit-fixes-20260314`
+- Hardening adicional implementado em branch dedicada:
+  - `codex/invite-hardening-20260314`
+  - `96d1d2c` - `feat(invites): harden onboarding invite flow`
+  - `3cbe5ab` - `fix(auth): reduce service-role auth surface`
+- Fluxo de onboarding por convite endurecido:
+  - `generate-student-invite` -> origem do link restrita a `SITE_URL`/origens confiáveis, `expires_in_days` com clamp e respostas `no-store`
+  - `validate-student-invite` -> validação de formato do token + respostas `no-store`
+  - `create-student-from-invite` -> sanitização server-side do payload público, validação de avatar, claim/rollback do convite e limpeza defensiva
+  - `generate-oura-connect-link` -> mesma política de origem confiável
+  - `StudentOnboardingPage` / `useStudentInvites` -> avatar limitado a tipos suportados e 5 MB, fetch sem cache e mensagens de erro mais fiéis
+- Superfície de auth/service-role reduzida:
+  - `check-rate-limit` -> agora exige JWT válido quando `user_id` é informado, bloqueando pre-block malicioso por terceiros
+  - `process-voice-session` -> autenticação do usuário movida de client com `service_role` para client com `anon`
+  - `admin-create-user`, `admin-update-user`, `import-exercises` -> autenticação do chamador movida para client com `anon`, mantendo `service_role` apenas para operações privilegiadas
+- Estado atual da auditoria:
+  - relatórios: lote principal já mergeado em `main`
+  - convites/onboarding: pronto em branch para PR
+  - auth surface: reduzida nos pontos mais sensíveis e com próximos alvos remanescentes principalmente em padronização
+
 ### Decision Record
 
 **Status: GO for Staging (conditional)**
