@@ -1,7 +1,7 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface WeeklyProgressRow {
-  week: string;
+  week: number | string;
   avgLoad: number;
 }
 
