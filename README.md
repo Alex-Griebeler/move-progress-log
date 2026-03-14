@@ -71,3 +71,30 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## CI-First Staging Gate (GitHub Actions)
+
+This repo now includes a CI-first staging flow that does not depend on manual Lovable execution:
+
+- `CI` workflow: lint + typecheck + tests + build + security audit
+- `Staging Edge Gate` workflow:
+  - triggers automatically after a successful `CI` run on `main`
+  - deploys essential edge functions
+  - runs edge auth smoke tests
+  - uploads `edge-smoke-report` artifact
+
+### Required GitHub secrets
+
+Configure these in `Settings -> Secrets and variables -> Actions`:
+
+- `SUPABASE_PROJECT_REF`
+- `SUPABASE_ACCESS_TOKEN`
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (required only for optional service_role smoke tests)
+
+### Manual run (optional)
+
+You can manually trigger `Staging Edge Gate` via `workflow_dispatch` and enable:
+
+- `run_service_role_tests = true` to execute A3/B4/C4 service_role checks.

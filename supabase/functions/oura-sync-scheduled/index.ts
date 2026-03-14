@@ -48,15 +48,15 @@ Deno.serve(async (req) => {
         global: { headers: { Authorization: authHeader } }
       });
 
-      const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
+      const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
+      if (userError || !userData?.user) {
         return new Response(
           JSON.stringify({ error: 'Invalid or expired token' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         );
       }
 
-      const userId = claimsData.claims.sub as string;
+      const userId = userData.user.id;
       const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
       const { data: roleData } = await supabaseAdmin

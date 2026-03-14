@@ -28,7 +28,8 @@ export const useStudents = () => {
       const { data, error } = await supabase
         .from("students")
         .select("*")
-        .order("name");
+        .order("name")
+        .limit(2000);
       
       if (error) throw error;
       return data as Student[];

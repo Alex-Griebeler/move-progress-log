@@ -1,7 +1,7 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 interface WeeklyProgressRow {
-  week: string;
+  week: number | string;
   avgLoad: number;
 }
 
@@ -17,6 +17,9 @@ export function ReportLoadChart({ data }: ReportLoadChartProps) {
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             dataKey="week"
+            tickFormatter={(value) =>
+              typeof value === "number" ? `Sem ${value}` : String(value)
+            }
             label={{ value: "Semana", position: "insideBottom", offset: -5 }}
           />
           <YAxis

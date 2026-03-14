@@ -45,21 +45,21 @@ Deno.serve(async (req) => {
     const isServiceRole = token === supabaseKey;
 
     if (!isServiceRole) {
-      // Validate user JWT via getClaims
+      // Validate user JWT via auth.getUser()
       const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } }
       });
 
-      const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
-        console.error('Auth failed:', claimsError?.message);
+      const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
+      if (userError || !userData?.user) {
+        console.error('Auth failed:', userError?.message);
         return new Response(
           JSON.stringify({ error: 'Invalid or expired token' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
         );
       }
 
-      const userId = claimsData.claims.sub as string;
+      const userId = userData.user.id;
 
       // Create service role client for privileged operations
       const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
