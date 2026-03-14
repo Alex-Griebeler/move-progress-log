@@ -10,6 +10,20 @@
 - Scenario 1 requires retest after latest deploy/sync
 - Scenarios 2, 3 and 4 remain pending manual staging validation
 
+### Execution Update (2026-03-13)
+
+- Auditoria essencial avançada com correções de alto impacto:
+  - `src/components/ReportLoadChart.tsx` -> `week` tipado como `number | string` + `tickFormatter` para eixo semanal.
+  - `src/hooks/useOuraTrends.ts` -> médias 7d agora ignoram nulos (sem distorcer para zero) + correções de checks nulos.
+  - `supabase/functions/oura-sync-all/index.ts` -> validação JWT trocada de `getClaims()` para `auth.getUser()`.
+  - `supabase/functions/oura-sync-scheduled/index.ts` -> validação JWT trocada de `getClaims()` para `auth.getUser()`.
+  - `supabase/functions/oura-sync-test/index.ts` -> validação JWT trocada de `getClaims()` para `auth.getUser()`.
+  - `supabase/functions/classify-exercises/index.ts` -> validação JWT trocada de `getClaims()` para `auth.getUser()`.
+  - `supabase/functions/generate-group-session/index.ts` -> validação JWT trocada de `getClaims()` para `auth.getUser()`.
+  - `src/hooks/useStudents.ts` -> adicionado `.limit(2000)` para reduzir risco de truncamento em 1000 linhas.
+- Documento de pendências por ausência criado em:
+  - `docs/PENDENCIAS_AUSENCIA_2026-03-13.md`
+
 ### Decision Record
 
 **Status: GO for Staging (conditional)**

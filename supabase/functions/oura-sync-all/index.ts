@@ -45,12 +45,12 @@ Deno.serve(async (req) => {
     const isServiceRole = token === supabaseKey;
 
     if (!isServiceRole) {
-      // Validate user JWT via getUser
+      // Validate user JWT via auth.getUser()
       const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } }
       });
 
-      const { data: userData, error: userError } = await supabaseAuth.auth.getUser(token);
+      const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
       if (userError || !userData?.user) {
         console.error('Auth failed:', userError?.message);
         return new Response(
