@@ -45,16 +45,18 @@ export const useValidateInvite = (token: string) => {
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/validate-student-invite?token=${token}`,
+        `${supabaseUrl}/functions/v1/validate-student-invite?token=${encodeURIComponent(token)}`,
         {
           headers: {
             apikey: supabaseKey,
           },
+          cache: "no-store",
         }
       );
 
       if (!response.ok) {
-        throw new Error("Falha ao validar convite");
+        const errorPayload = await response.json().catch(() => null);
+        throw new Error(errorPayload?.error || "Falha ao validar convite");
       }
 
       const result = await response.json();

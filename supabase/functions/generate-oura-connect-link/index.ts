@@ -5,6 +5,53 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const jsonHeaders = {
+  ...corsHeaders,
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store',
+};
+
+const DEFAULT_FRONTEND_URL = 'http://localhost:5173';
+const LOVABLE_PREVIEW_SUFFIX = '.lovable.app';
+
+function jsonResponse(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), { headers: jsonHeaders, status });
+}
+
+function toOrigin(rawUrl: string | null) {
+  if (!rawUrl) return null;
+
+  try {
+    return new URL(rawUrl).origin;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function resolveFrontendUrl(req: Request) {
+  const siteUrlOrigin = toOrigin(Deno.env.get('SITE_URL') ?? null);
+  const requestOrigins = [
+    toOrigin(req.headers.get('origin')),
+    toOrigin(req.headers.get('referer')),
+  ].filter((origin): origin is string => Boolean(origin));
+
+  const isTrustedOrigin = (origin: string) => {
+    if (siteUrlOrigin && origin === siteUrlOrigin) return true;
+
+    return (
+      origin.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('https://localhost:')
+    );
+  };
+
+  for (const origin of requestOrigins) {
+    if (isTrustedOrigin(origin)) return origin;
+  }
+
+  return siteUrlOrigin ?? DEFAULT_FRONTEND_URL;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -16,7 +63,7 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: req.headers.get('Authorization') ?? '' },
         },
       }
     );
@@ -27,19 +74,13 @@ Deno.serve(async (req) => {
     } = await supabaseClient.auth.getUser();
 
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
+      return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
     const { student_id } = await req.json();
 
     if (!student_id) {
-      return new Response(
-        JSON.stringify({ error: 'student_id é obrigatório' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      return jsonResponse({ error: 'student_id é obrigatório' }, 400);
     }
 
     // Verify trainer owns this student
@@ -50,10 +91,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (studentError || !student) {
-      return new Response(
-        JSON.stringify({ error: 'Aluno não encontrado' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      );
+      return jsonResponse({ error: 'Aluno não encontrado' }, 404);
     }
 
     // Check if already connected
@@ -64,10 +102,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (existingConnection?.is_active) {
-      return new Response(
-        JSON.stringify({ error: 'Aluno já possui Oura Ring conectado' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      return jsonResponse({ error: 'Aluno já possui Oura Ring conectado' }, 400);
     }
 
     // Generate token and create invite entry (reusing student_invites with oura_connect marker)
@@ -89,33 +124,23 @@ Deno.serve(async (req) => {
 
     if (insertError) {
       console.error('Insert error:', insertError);
-      return new Response(
-        JSON.stringify({ error: insertError.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      return jsonResponse({ error: insertError.message }, 400);
     }
 
-    // Build invite URL
-    const origin = req.headers.get('origin') || req.headers.get('referer');
-    const baseUrl = origin ? new URL(origin).origin : 'http://localhost:5173';
+    // Use a trusted frontend origin instead of reflecting arbitrary request headers.
+    const baseUrl = resolveFrontendUrl(req);
     const invite_url = `${baseUrl}/oura-connect/${invite_token}`;
 
     console.log('Oura connect link generated for student');
 
-    return new Response(
-      JSON.stringify({
-        invite_url,
-        expires_at: invite.expires_at,
-        student_name: student.name,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse({
+      invite_url,
+      expires_at: invite.expires_at,
+      student_name: student.name,
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in generate-oura-connect-link:', error);
-    return new Response(
-      JSON.stringify({ error: message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    );
+    return jsonResponse({ error: message }, 500);
   }
 });
