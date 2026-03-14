@@ -14,16 +14,6 @@ interface SyncResult {
   metrics_synced?: Record<string, unknown>;
 }
 
-/** Decode JWT payload without verification (verification done by getClaims) */
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const payload = token.split('.')[1];
-    return JSON.parse(atob(payload));
-  } catch {
-    return null;
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -43,17 +33,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const jwtPayload = decodeJwtPayload(token);
-
-    if (!jwtPayload) {
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) {
       return new Response(
-        JSON.stringify({ error: 'Invalid token' }),
+        JSON.stringify({ error: 'Missing or invalid authorization header' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
 
-    const isServiceRole = jwtPayload.role === 'service_role';
+    // SECURITY: only accept real service role key, never JWT payload role spoofing.
+    const isServiceRole = token === supabaseKey;
 
     if (!isServiceRole) {
       // Validate user JWT via getClaims

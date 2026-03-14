@@ -214,6 +214,14 @@ export const ReportPDFDocument = ({
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
   };
+  const formatKg = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return "--";
+    return `${value.toFixed(1)} kg`;
+  };
+  const formatPercentage = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return "N/A";
+    return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
+  };
   const hasVo2Data = report.oura_data?.avgVo2Max !== null && report.oura_data?.avgVo2Max !== undefined;
 
   return (
@@ -284,16 +292,12 @@ export const ReportPDFDocument = ({
                 <View style={styles.exerciseMetrics}>
                   <View style={styles.exerciseMetricItem}>
                     <Text style={styles.exerciseMetricLabel}>Carga Inicial</Text>
-                    <Text style={styles.exerciseMetricValue}>
-                      {exercise.initial_load?.toFixed(1)} kg
-                    </Text>
+                    <Text style={styles.exerciseMetricValue}>{formatKg(exercise.initial_load)}</Text>
                   </View>
                   
                   <View style={styles.exerciseMetricItem}>
                     <Text style={styles.exerciseMetricLabel}>Carga Final</Text>
-                    <Text style={styles.exerciseMetricValue}>
-                      {exercise.final_load?.toFixed(1)} kg
-                    </Text>
+                    <Text style={styles.exerciseMetricValue}>{formatKg(exercise.final_load)}</Text>
                   </View>
                   
                   <View style={styles.exerciseMetricItem}>
@@ -302,9 +306,7 @@ export const ReportPDFDocument = ({
                       styles.exerciseMetricValue,
                       (exercise.load_variation_percentage || 0) > 0 && styles.positiveChange
                     ]}>
-                      {exercise.load_variation_percentage 
-                        ? `${exercise.load_variation_percentage > 0 ? '+' : ''}${exercise.load_variation_percentage.toFixed(1)}%` 
-                        : 'N/A'}
+                      {formatPercentage(exercise.load_variation_percentage)}
                     </Text>
                   </View>
                   
@@ -314,9 +316,7 @@ export const ReportPDFDocument = ({
                       styles.exerciseMetricValue,
                       (exercise.work_variation_percentage || 0) > 0 && styles.positiveChange
                     ]}>
-                      {exercise.work_variation_percentage 
-                        ? `${exercise.work_variation_percentage > 0 ? '+' : ''}${exercise.work_variation_percentage.toFixed(1)}%` 
-                        : 'N/A'}
+                      {formatPercentage(exercise.work_variation_percentage)}
                     </Text>
                   </View>
                 </View>

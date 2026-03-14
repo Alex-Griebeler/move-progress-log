@@ -5,16 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-/** Decode JWT payload without verification */
-function decodeJwtPayload(token: string): Record<string, unknown> | null {
-  try {
-    const payload = token.split('.')[1];
-    return JSON.parse(atob(payload));
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Edge Function para sincronização automática do Oura Ring
  * Chamada via pg_cron 2x ao dia:
@@ -40,17 +30,16 @@ Deno.serve(async (req) => {
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const jwtPayload = decodeJwtPayload(token);
-
-    if (!jwtPayload) {
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) {
       return new Response(
-        JSON.stringify({ error: 'Invalid token' }),
+        JSON.stringify({ error: 'Missing or invalid authorization header' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
       );
     }
 
-    const isServiceRole = jwtPayload.role === 'service_role';
+    // SECURITY: only accept real service role key, never JWT payload role spoofing.
+    const isServiceRole = token === supabaseKey;
 
     if (!isServiceRole) {
       // Validate user JWT

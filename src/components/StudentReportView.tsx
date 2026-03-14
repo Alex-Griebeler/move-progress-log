@@ -43,6 +43,14 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
     }
     return `${value.toFixed(digits)}${suffix}`;
   };
+  const formatKg = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return "--";
+    return `${value.toFixed(1)} kg`;
+  };
+  const formatPercentage = (value: number | null | undefined): string => {
+    if (value === null || value === undefined) return "N/A";
+    return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
+  };
 
   const handleExportPDF = async () => {
     if (!report) return;
@@ -207,22 +215,22 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                   <div>
                     <div className="text-xs text-muted-foreground">Carga Inicial</div>
-                    <div className="text-xl font-bold">{exercise.initial_load?.toFixed(1)} kg</div>
+                    <div className="text-xl font-bold">{formatKg(exercise.initial_load)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Carga Final</div>
-                    <div className="text-xl font-bold">{exercise.final_load?.toFixed(1)} kg</div>
+                    <div className="text-xl font-bold">{formatKg(exercise.final_load)}</div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Variação de Carga</div>
                     <div className={`text-xl font-bold ${(exercise.load_variation_percentage || 0) > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {exercise.load_variation_percentage ? `${exercise.load_variation_percentage > 0 ? '+' : ''}${exercise.load_variation_percentage.toFixed(1)}%` : 'N/A'}
+                      {formatPercentage(exercise.load_variation_percentage)}
                     </div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Variação de Volume</div>
                     <div className={`text-xl font-bold ${(exercise.work_variation_percentage || 0) > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
-                      {exercise.work_variation_percentage ? `${exercise.work_variation_percentage > 0 ? '+' : ''}${exercise.work_variation_percentage.toFixed(1)}%` : 'N/A'}
+                      {formatPercentage(exercise.work_variation_percentage)}
                     </div>
                   </div>
                 </div>

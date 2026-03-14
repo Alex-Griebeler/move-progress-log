@@ -299,6 +299,45 @@ serve(async (req) => {
       basis: "program" | "timeline" | "insufficient";
     }> = [];
 
+    const insertTrackedExerciseRow = async ({
+      exerciseLibraryId,
+      exerciseName,
+      initialLoad,
+      finalLoad,
+      loadVariation,
+      initialTotalWork,
+      finalTotalWork,
+      workVariation,
+      weeklyProgression,
+    }: {
+      exerciseLibraryId: string;
+      exerciseName: string;
+      initialLoad: number | null;
+      finalLoad: number | null;
+      loadVariation: number | null;
+      initialTotalWork: number | null;
+      finalTotalWork: number | null;
+      workVariation: number | null;
+      weeklyProgression: Array<{ week: number; avgLoad: number; totalWork: number }>;
+    }) => {
+      const { error: trackedInsertError } = await supabase.from("report_tracked_exercises").insert({
+        report_id: reportId,
+        exercise_library_id: exerciseLibraryId,
+        exercise_name: exerciseName,
+        initial_load: initialLoad,
+        final_load: finalLoad,
+        load_variation_percentage: loadVariation,
+        initial_total_work: initialTotalWork,
+        final_total_work: finalTotalWork,
+        work_variation_percentage: workVariation,
+        weekly_progression: weeklyProgression,
+      });
+
+      if (trackedInsertError) {
+        throw new Error(`Failed to insert tracked exercise: ${exerciseName}`);
+      }
+    };
+
     for (const trackedExercise of eligibleTrackedExercises) {
       const exerciseName = trackedExercise.name;
       const exerciseExecutions = allExecutions
@@ -306,6 +345,22 @@ serve(async (req) => {
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
       if (exerciseExecutions.length === 0) {
+        await insertTrackedExerciseRow({
+          exerciseLibraryId: trackedExercise.id,
+          exerciseName,
+          initialLoad: null,
+          finalLoad: null,
+          loadVariation: null,
+          initialTotalWork: null,
+          finalTotalWork: null,
+          workVariation: null,
+          weeklyProgression: [],
+        });
+        trackedExercisesData.push({
+          exerciseName,
+          loadVariation: null,
+          basis: "insufficient",
+        });
         continue;
       }
 
@@ -318,6 +373,17 @@ serve(async (req) => {
 
       const preferredBucket = [...repsBuckets.entries()].sort((a, b) => b[1].length - a[1].length)[0];
       if (!preferredBucket || preferredBucket[1].length < 2) {
+        await insertTrackedExerciseRow({
+          exerciseLibraryId: trackedExercise.id,
+          exerciseName,
+          initialLoad: null,
+          finalLoad: null,
+          loadVariation: null,
+          initialTotalWork: null,
+          finalTotalWork: null,
+          workVariation: null,
+          weeklyProgression: [],
+        });
         trackedExercisesData.push({
           exerciseName,
           loadVariation: null,
@@ -398,22 +464,17 @@ serve(async (req) => {
           totalWork: data.totalWork,
         }));
 
-      const { error: trackedInsertError } = await supabase.from("report_tracked_exercises").insert({
-        report_id: reportId,
-        exercise_library_id: trackedExercise.id,
-        exercise_name: exerciseName,
-        initial_load: initialLoad,
-        final_load: finalLoad,
-        load_variation_percentage: loadVariation,
-        initial_total_work: initialTotalWork,
-        final_total_work: finalTotalWork,
-        work_variation_percentage: workVariation,
-        weekly_progression: weeklyProgression,
+      await insertTrackedExerciseRow({
+        exerciseLibraryId: trackedExercise.id,
+        exerciseName,
+        initialLoad,
+        finalLoad,
+        loadVariation,
+        initialTotalWork,
+        finalTotalWork,
+        workVariation,
+        weeklyProgression,
       });
-
-      if (trackedInsertError) {
-        throw new Error(`Failed to insert tracked exercise: ${exerciseName}`);
-      }
 
       trackedExercisesData.push({
         exerciseName,

@@ -332,31 +332,45 @@ Deno.serve(async (req: Request) => {
                    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
                    const supabase = createClient(supabaseUrl, serviceKey);
 
-      // Auth check
+      // Auth check (required): service_role OR authenticated admin/trainer
       const authHeader = req.headers.get("Authorization");
-                   if (authHeader) {
-                           const token = authHeader.replace("Bearer ", "");
-                           if (token !== serviceKey) {
-                                     const { data: userData, error: authErr } = await supabase.auth.getUser(token);
-                                     if (authErr || !userData?.user) {
-                                                 return new Response(JSON.stringify({ error: "Unauthorized" }), {
-                                                               status: 401,
-                                                               headers: { ...corsHeaders, "Content-Type": "application/json" },
-                                                 });
-                                     }
-                                     const { data: roleData } = await supabase
-                                       .from("user_roles")
-                                       .select("role")
-                                       .eq("user_id", userData.user.id)
-                                       .single();
-                                     if (!roleData || !["admin", "trainer"].includes(roleData.role)) {
-                                                 return new Response(
-                                                               JSON.stringify({ error: "Forbidden: admin or trainer required" }),
-                                                   { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-                                                             );
-                                     }
-                           }
-                   }
+      if (!authHeader?.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Missing or invalid authorization header" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const token = authHeader.replace("Bearer ", "").trim();
+      if (!token) {
+        return new Response(JSON.stringify({ error: "Missing or invalid authorization header" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (token !== serviceKey) {
+        const { data: userData, error: authErr } = await supabase.auth.getUser(token);
+        if (authErr || !userData?.user) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userData.user.id)
+          .single();
+
+        if (!roleData || !["admin", "trainer"].includes(roleData.role)) {
+          return new Response(
+            JSON.stringify({ error: "Forbidden: admin or trainer required" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
 
       const body = await req.json();
       const skipOrphans = body.skip_orphans === true;

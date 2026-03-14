@@ -30,6 +30,11 @@ export default function StudentReportsPage() {
   const student = students?.find((s) => s.id === studentId);
   const { data: reports, isLoading } = useStudentReports(studentId || "");
 
+  const formatMetric = (value: number | null | undefined, digits = 1): string => {
+    if (value === null || value === undefined) return "--";
+    return value.toFixed(digits);
+  };
+
   if (!studentId) {
     return <div>Aluno não encontrado</div>;
   }
@@ -133,10 +138,10 @@ export default function StudentReportsPage() {
 
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4" />
-                  <span>{report.weekly_average.toFixed(1)} treinos/semana</span>
+                  <span>{formatMetric(report.weekly_average, 1)} treinos/semana</span>
                 </div>
 
-                {report.adherence_percentage && (
+                {report.adherence_percentage !== null && report.adherence_percentage !== undefined && (
                   <div className="mt-2 pt-2 border-t">
                     <span className="font-semibold">Adesão: {report.adherence_percentage.toFixed(0)}%</span>
                   </div>
