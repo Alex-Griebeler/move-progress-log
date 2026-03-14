@@ -103,13 +103,20 @@ const averageIgnoringNulls = (values: Array<number | null | undefined>): number 
   return valid.reduce((sum, value) => sum + value, 0) / valid.length;
 };
 
-const normalizeName = (value: string): string => value.trim().toLowerCase();
+const normalizeComparableText = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
 
 const isEligibleStrengthCategory = (category: string | null): boolean => {
   if (!category) {
     return false;
   }
-  const normalized = category.toLowerCase();
+  const normalized = normalizeComparableText(category);
   if (normalized.includes("potencia")) {
     return false;
   }
@@ -341,7 +348,10 @@ serve(async (req) => {
     for (const trackedExercise of eligibleTrackedExercises) {
       const exerciseName = trackedExercise.name;
       const exerciseExecutions = allExecutions
-        .filter((execution) => normalizeName(execution.exercise_name) === normalizeName(exerciseName))
+        .filter(
+          (execution) =>
+            normalizeComparableText(execution.exercise_name) === normalizeComparableText(exerciseName)
+        )
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
       if (exerciseExecutions.length === 0) {
