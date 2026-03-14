@@ -98,7 +98,7 @@ export function TranscriptionEditor({
             {!isSaving && lastSaved && (
               <Badge variant="default" className="gap-1">
                 <CheckCircle className="h-3 w-3" />
-                Salvo {lastSaved.toLocaleTimeString()}
+                Salvo {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
               </Badge>
             )}
             {!isSaving && hasUnsavedChanges && !autoSave && (
