@@ -13,6 +13,7 @@ const jsonHeaders = {
 
 const DEFAULT_FRONTEND_URL = 'http://localhost:5173';
 const LOVABLE_PREVIEW_SUFFIX = '.lovable.app';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { headers: jsonHeaders, status });
@@ -77,10 +78,19 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Unauthorized' }, 401);
     }
 
-    const { student_id } = await req.json();
+    const body: unknown = await req.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return jsonResponse({ error: 'Payload inválido' }, 400);
+    }
+
+    const payload = body as Record<string, unknown>;
+    const student_id = typeof payload.student_id === 'string' ? payload.student_id.trim() : '';
 
     if (!student_id) {
       return jsonResponse({ error: 'student_id é obrigatório' }, 400);
+    }
+    if (!UUID_RE.test(student_id)) {
+      return jsonResponse({ error: 'student_id inválido' }, 400);
     }
 
     // Verify trainer owns this student

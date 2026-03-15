@@ -6,6 +6,8 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" };
+const MAX_LLM_CANDIDATES = 50;
 
 const requestSchema = z.object({
   exerciseId: z.string().uuid('ID de exercício inválido'),
@@ -31,7 +33,7 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Autenticação obrigatória' }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: jsonHeaders }
       );
     }
 
@@ -46,7 +48,7 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Token inválido' }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: jsonHeaders }
       );
     }
 
@@ -54,6 +56,12 @@ serve(async (req) => {
     const body = await req.json();
     const validated = requestSchema.parse(body);
     const { exerciseId, exerciseName, movementPattern, movementPlane, laterality, availableExercises } = validated;
+    const filteredExercises = availableExercises
+      .filter((exercise) => exercise.id !== exerciseId && exercise.movement_pattern === movementPattern)
+      .slice(0, MAX_LLM_CANDIDATES);
+    const candidateExercises = filteredExercises.length > 0
+      ? filteredExercises
+      : availableExercises.filter((exercise) => exercise.id !== exerciseId).slice(0, MAX_LLM_CANDIDATES);
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -74,7 +82,7 @@ Analise: padrão de movimento, plano de movimento, lateralidade, e complexidade.
 - Lateralidade: ${laterality || "não especificado"}
 
 Exercícios disponíveis na biblioteca:
-${availableExercises.map((ex) => `- ID: ${ex.id}, Nome: ${ex.name}, Padrão: ${ex.movement_pattern}, Plano: ${ex.movement_plane || "N/A"}, Lateralidade: ${ex.laterality || "N/A"}`).join("\n")}
+${candidateExercises.map((ex) => `- ID: ${ex.id}, Nome: ${ex.name}, Padrão: ${ex.movement_pattern}, Plano: ${ex.movement_plane || "N/A"}, Lateralidade: ${ex.laterality || "N/A"}`).join("\n")}
 
 Retorne APENAS os 3 IDs dos exercícios sugeridos como regressões, ordenados do menos ao mais fácil.`;
 
@@ -128,13 +136,13 @@ Retorne APENAS os 3 IDs dos exercícios sugeridos como regressões, ordenados do
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em alguns instantes." }), {
           status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: jsonHeaders,
         });
       }
       if (response.status === 402) {
         return new Response(JSON.stringify({ error: "Créditos insuficientes. Adicione créditos ao workspace." }), {
           status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: jsonHeaders,
         });
       }
       const errorText = await response.text();
@@ -150,9 +158,13 @@ Retorne APENAS os 3 IDs dos exercícios sugeridos como regressões, ordenados do
     }
 
     const suggestions = JSON.parse(toolCall.function.arguments);
+    const candidateIds = new Set(candidateExercises.map((exercise) => exercise.id));
+    const regressions = Array.isArray(suggestions.regressions)
+      ? suggestions.regressions.filter((item: { exercise_id?: string }) => typeof item.exercise_id === "string" && candidateIds.has(item.exercise_id))
+      : [];
 
-    return new Response(JSON.stringify(suggestions), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ regressions }), {
+      headers: jsonHeaders,
     });
   } catch (e) {
     console.error("suggest-regressions error:", e);
@@ -161,13 +173,13 @@ Retorne APENAS os 3 IDs dos exercícios sugeridos como regressões, ordenados do
     if (e instanceof z.ZodError) {
       return new Response(
         JSON.stringify({ error: 'Dados inválidos', details: e.errors }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: jsonHeaders }
       );
     }
     
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: jsonHeaders,
     });
   }
 });

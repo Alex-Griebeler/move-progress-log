@@ -72,6 +72,13 @@
   - redução do risco de leitura indevida de prescrição/alunos via websocket
   - redução do risco de abuso do gerador de mesociclo por perfis não autorizados
 
+### Execution Update (2026-03-14, quick wins finais)
+
+- Endpoints auxiliares endurecidos para consistência de borda:
+  - `generate-oura-connect-link` -> payload validado e `student_id` agora exige UUID válido
+  - `oura-disconnect` -> payload validado, respostas `no-store` e `student_id` validado
+  - `suggest-regressions` -> lista enviada ao LLM limitada a 50 candidatos, IDs retornados validados contra o conjunto permitido e respostas sem cache
+
 ### Decision Record
 
 **Status: GO for Staging (conditional)**
