@@ -1448,8 +1448,9 @@ function generateSingleWorkout(
   );
 
   // Phase 8: Finalizer (Carry)
-  const finalizerPhase = buildFinalizerPhase(exercises, excludeIds, volumeMultiplier, config.valences, sessionSelectedExercises);
-  if (finalizerPhase.blocks.length > 0) {
+  const warnings: string[] = [];
+  const finalizerPhase = buildFinalizerPhase(exercises, excludeIds, volumeMultiplier, config.valences, sessionSelectedExercises, warnings);
+  if (finalizerPhase && finalizerPhase.blocks.length > 0) {
     coveredPatterns.push("carregar");
   }
 
