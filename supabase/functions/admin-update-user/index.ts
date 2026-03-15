@@ -6,13 +6,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-interface UpdateUserRequest {
-  userId: string;
-  fullName?: string;
-  email?: string;
-  role?: 'admin' | 'moderator' | 'user';
-  newPassword?: string;
-}
+const jsonHeaders = {
+  ...corsHeaders,
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store",
+};
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const VALID_ROLES = new Set(["admin", "moderator", "user"]);
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
+const MAX_FULL_NAME_LENGTH = 120;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const jsonResponse = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: jsonHeaders,
+  });
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -37,18 +51,17 @@ serve(async (req) => {
 
     // Verificar se o usuário que está fazendo a requisição é admin
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Authorization header missing");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return jsonResponse(401, { error: "Authorization header missing" });
     }
 
-    const token = authHeader.replace("Bearer ", "");
     const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
+      global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: requestingUser }, error: authError } = await authClient.auth.getUser();
 
     if (authError || !requestingUser) {
-      throw new Error("Unauthorized");
+      return jsonResponse(401, { error: "Unauthorized" });
     }
 
     // Verificar se o usuário é admin
@@ -56,21 +69,64 @@ serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", requestingUser.id)
-      .single();
+      .maybeSingle();
 
     if (roleError || roleData?.role !== 'admin') {
-      throw new Error("Only admins can update users");
+      return jsonResponse(403, { error: "Only admins can update users" });
     }
 
-    const { userId, fullName, email, role, newPassword }: UpdateUserRequest = await req.json();
+    const rawPayload = await req.json().catch(() => null);
+    if (!isPlainObject(rawPayload)) {
+      return jsonResponse(400, { error: "Invalid request body" });
+    }
+
+    const userId =
+      typeof rawPayload.userId === "string" ? rawPayload.userId.trim() : "";
+    const fullName =
+      typeof rawPayload.fullName === "string" ? rawPayload.fullName.trim() : undefined;
+    const email =
+      typeof rawPayload.email === "string"
+        ? rawPayload.email.trim().toLowerCase()
+        : undefined;
+    const role = typeof rawPayload.role === "string" ? rawPayload.role : undefined;
+    const newPassword =
+      typeof rawPayload.newPassword === "string" ? rawPayload.newPassword : undefined;
 
     if (!userId) {
-      throw new Error("User ID is required");
+      return jsonResponse(400, { error: "User ID is required" });
+    }
+    if (!UUID_RE.test(userId)) {
+      return jsonResponse(400, { error: "Invalid user ID" });
+    }
+    if (
+      fullName === undefined &&
+      email === undefined &&
+      role === undefined &&
+      newPassword === undefined
+    ) {
+      return jsonResponse(400, { error: "No updates provided" });
+    }
+    if (fullName !== undefined && (fullName.length < 2 || fullName.length > MAX_FULL_NAME_LENGTH)) {
+      return jsonResponse(400, { error: "Full name must be between 2 and 120 characters" });
+    }
+    if (email !== undefined && !EMAIL_RE.test(email)) {
+      return jsonResponse(400, { error: "Invalid email" });
+    }
+    if (role !== undefined && !VALID_ROLES.has(role)) {
+      return jsonResponse(400, { error: "Invalid role" });
+    }
+    if (
+      newPassword !== undefined &&
+      (newPassword.length < MIN_PASSWORD_LENGTH || newPassword.length > MAX_PASSWORD_LENGTH)
+    ) {
+      return jsonResponse(400, {
+        error: `Password must be between ${MIN_PASSWORD_LENGTH} and ${MAX_PASSWORD_LENGTH} characters`,
+      });
     }
 
     // Prevenir que admin remova seu próprio role de admin
     if (userId === requestingUser.id && role && role !== 'admin') {
-      throw new Error("Cannot remove your own admin role");
+      return jsonResponse(400, { error: "Cannot remove your own admin role" });
     }
 
     // Verificar se está tentando alterar role de admin
@@ -89,7 +145,7 @@ serve(async (req) => {
           .eq("role", "admin");
 
         if (count && count <= 1) {
-          throw new Error("Cannot remove the last admin user");
+          return jsonResponse(400, { error: "Cannot remove the last admin user" });
         }
       }
     }
@@ -176,27 +232,13 @@ serve(async (req) => {
       console.log(`User role updated to: ${role} for ${userId}`);
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "User updated successfully",
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
+    return jsonResponse(200, {
+      success: true,
+      message: "User updated successfully",
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Error in admin-update-user:", error);
-    return new Response(
-      JSON.stringify({
-        error: message,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: message.includes("Unauthorized") || message.includes("Only admins") ? 403 : 400,
-      }
-    );
+    return jsonResponse(500, { error: message });
   }
 });

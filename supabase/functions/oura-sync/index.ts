@@ -4,6 +4,20 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+const jsonHeaders = {
+  ...corsHeaders,
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store',
+};
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const jsonResponse = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,13 +25,23 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { student_id, date } = await req.json();
+    const rawPayload = await req.json().catch(() => null);
+    if (!isPlainObject(rawPayload)) {
+      return jsonResponse(400, { error: 'Corpo inválido' });
+    }
+
+    const student_id =
+      typeof rawPayload.student_id === 'string' ? rawPayload.student_id.trim() : '';
+    const date = typeof rawPayload.date === 'string' ? rawPayload.date.trim() : undefined;
 
     if (!student_id) {
-      return new Response(
-        JSON.stringify({ error: 'student_id é obrigatório' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      return jsonResponse(400, { error: 'student_id é obrigatório' });
+    }
+    if (!UUID_RE.test(student_id)) {
+      return jsonResponse(400, { error: 'student_id inválido' });
+    }
+    if (date && !DATE_RE.test(date)) {
+      return jsonResponse(400, { error: 'date deve estar no formato YYYY-MM-DD' });
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
@@ -27,10 +51,7 @@ Deno.serve(async (req) => {
     // Authentication: Allow service role (internal calls) OR authenticated trainer
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
+      return jsonResponse(401, { error: 'Unauthorized' });
     }
 
     const token = authHeader.replace('Bearer ', '');
@@ -45,10 +66,7 @@ Deno.serve(async (req) => {
       });
       const { data: { user }, error: claimsError } = await supabaseAuth.auth.getUser();
       if (claimsError || !user) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired token' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-        );
+        return jsonResponse(401, { error: 'Invalid or expired token' });
       }
 
       const userId = user.id;
@@ -62,10 +80,7 @@ Deno.serve(async (req) => {
         .single();
 
       if (studentError || !student || student.trainer_id !== userId) {
-        return new Response(
-          JSON.stringify({ error: 'Access denied: you are not this student\'s trainer' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
-        );
+        return jsonResponse(403, { error: 'Access denied: you are not this student\'s trainer' });
       }
     }
 
@@ -83,10 +98,7 @@ Deno.serve(async (req) => {
 
     if (connError || !connection) {
       console.error('Oura connection not found:', connError);
-      return new Response(
-        JSON.stringify({ error: 'Conexão Oura não encontrada' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
-      );
+      return jsonResponse(404, { error: 'Conexão Oura não encontrada' });
     }
 
     // Retrieve decrypted access token from Vault
@@ -95,10 +107,7 @@ Deno.serve(async (req) => {
     
     if (tokenError || !accessToken) {
       console.error('Failed to retrieve access token:', tokenError);
-      return new Response(
-        JSON.stringify({ error: 'Falha ao recuperar token de acesso' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
+      return jsonResponse(500, { error: 'Falha ao recuperar token de acesso' });
     }
 
     let currentAccessToken = accessToken;
@@ -115,10 +124,7 @@ Deno.serve(async (req) => {
       
       if (refreshTokenError || !refreshToken) {
         console.error('Failed to retrieve refresh token:', refreshTokenError);
-        return new Response(
-          JSON.stringify({ error: 'Falha ao recuperar refresh token' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
+        return jsonResponse(500, { error: 'Falha ao recuperar refresh token' });
       }
 
       const refreshResponse = await fetch('https://api.ouraring.com/oauth/token', {
@@ -138,13 +144,13 @@ Deno.serve(async (req) => {
           status: refreshResponse.status,
           error: errorText,
         });
-        return new Response(
-          JSON.stringify({ 
-            error: 'Falha ao renovar token do Oura Ring',
-            details: `Status ${refreshResponse.status}`,
-            suggestion: 'Tente reconectar seu Oura Ring'
+      return new Response(
+          JSON.stringify({
+          error: 'Falha ao renovar token do Oura Ring',
+          details: `Status ${refreshResponse.status}`,
+          suggestion: 'Tente reconectar seu Oura Ring'
           }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+          { headers: jsonHeaders, status: 401 }
         );
       }
 
@@ -198,7 +204,7 @@ Deno.serve(async (req) => {
       if (lastSyncTime > twoHoursAgo) {
         return new Response(
           JSON.stringify({ success: true, cached: true, message: 'Dados já sincronizados nas últimas 2 horas', date: syncDate }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { headers: jsonHeaders }
         );
       }
     }
@@ -375,7 +381,7 @@ Deno.serve(async (req) => {
           synced_metrics: null,
           date: syncDate,
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: jsonHeaders }
       );
     }
 
@@ -386,10 +392,7 @@ Deno.serve(async (req) => {
 
     if (upsertError) {
       console.error('Failed to save metrics:', upsertError);
-      return new Response(
-        JSON.stringify({ error: upsertError.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
+      return jsonResponse(500, { error: upsertError.message });
     }
 
     // Save workouts
@@ -430,19 +433,13 @@ Deno.serve(async (req) => {
 
     if (DEBUG) console.log('Oura sync completed for', syncDate);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        synced_metrics: metrics,
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse(200, {
+      success: true,
+      synced_metrics: metrics,
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in oura-sync:', error);
-    return new Response(
-      JSON.stringify({ error: message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    );
+    return jsonResponse(500, { error: message });
   }
 });
