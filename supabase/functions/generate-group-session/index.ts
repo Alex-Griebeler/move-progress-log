@@ -1457,12 +1457,12 @@ function generateSingleWorkout(
   // Phase 9: Closing by valence
   const closingPhase = buildClosingPhase(config.valences, breathingProtocols);
 
-  const allPhases = [
+  const allPhases: SessionPhase[] = [
     openingPhase,
     mobilityPhase,
     corePhase,
     ...mainPhases,
-    finalizerPhase,
+    ...(finalizerPhase ? [finalizerPhase] : []),
     closingPhase,
   ];
 
@@ -1481,9 +1481,11 @@ function generateSingleWorkout(
     )
   );
   // Also propagate carry
-  finalizerPhase.blocks.forEach((b) =>
-    b.exercises.forEach((ex) => globalExcludeIds.add(ex.exerciseLibraryId))
-  );
+  if (finalizerPhase) {
+    finalizerPhase.blocks.forEach((b) =>
+      b.exercises.forEach((ex) => globalExcludeIds.add(ex.exerciseLibraryId))
+    );
+  }
 
   return {
     id: generateUUID(),
