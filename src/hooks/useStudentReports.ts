@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { logger } from "@/utils/logger";
 
@@ -61,6 +62,77 @@ export interface TrackedExercise {
   created_at: string;
 }
 
+type StudentReportRow = Database["public"]["Tables"]["student_reports"]["Row"];
+type TrackedExerciseRow = Database["public"]["Tables"]["report_tracked_exercises"]["Row"];
+
+const isRecord = (value: Json | Record<string, unknown> | null): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const toNullableNumber = (value: unknown): number | null =>
+  typeof value === "number" && Number.isFinite(value) ? value : null;
+
+const mapOuraReportData = (value: Json | null): OuraReportData | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const source = Array.isArray(value.source)
+    ? value.source.filter((item): item is string => typeof item === "string")
+    : undefined;
+
+  return {
+    source,
+    avgReadiness: toNullableNumber(value.avgReadiness),
+    avgSleep: toNullableNumber(value.avgSleep),
+    avgHrv: toNullableNumber(value.avgHrv),
+    avgRhr: toNullableNumber(value.avgRhr),
+    avgVo2Max: toNullableNumber(value.avgVo2Max),
+    vo2Initial: toNullableNumber(value.vo2Initial),
+    vo2Final: toNullableNumber(value.vo2Final),
+    vo2VariationPercentage: toNullableNumber(value.vo2VariationPercentage),
+    dataPoints: toNullableNumber(value.dataPoints),
+    vo2DataPoints: toNullableNumber(value.vo2DataPoints),
+  };
+};
+
+const mapWeeklyProgression = (value: Json | null): WeeklyProgressionPoint[] | null => {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const points = value
+    .filter(isRecord)
+    .map((point) => {
+      const week = toNullableNumber(point.week);
+      const avgLoad = toNullableNumber(point.avgLoad);
+      const totalWork = toNullableNumber(point.totalWork);
+
+      if (week === null || avgLoad === null || totalWork === null) {
+        return null;
+      }
+
+      return { week, avgLoad, totalWork };
+    })
+    .filter((point): point is WeeklyProgressionPoint => point !== null);
+
+  return points;
+};
+
+const mapStudentReport = (row: StudentReportRow): StudentReport => ({
+  ...row,
+  status:
+    row.status === "generating" || row.status === "completed" || row.status === "failed"
+      ? row.status
+      : "failed",
+  weekly_average: row.weekly_average ?? 0,
+  oura_data: mapOuraReportData(row.oura_data),
+});
+
+const mapTrackedExercise = (row: TrackedExerciseRow): TrackedExercise => ({
+  ...row,
+  weekly_progression: mapWeeklyProgression(row.weekly_progression),
+});
+
 export const useStudentReports = (studentId: string) => {
   return useQuery({
     queryKey: ["student-reports", studentId],
@@ -73,7 +145,7 @@ export const useStudentReports = (studentId: string) => {
         .order("period_end", { ascending: false });
 
       if (error) throw error;
-      return data as unknown as StudentReport[];
+      return (data || []).map(mapStudentReport);
     },
   });
 };
@@ -92,7 +164,7 @@ export const useReportById = (reportId: string | null) => {
         .single();
 
       if (error) throw error;
-      return data as unknown as StudentReport;
+      return mapStudentReport(data);
     },
   });
 };
@@ -111,7 +183,7 @@ export const useReportTrackedExercises = (reportId: string | null) => {
         .order("load_variation_percentage", { ascending: false });
 
       if (error) throw error;
-      return data as unknown as TrackedExercise[];
+      return (data || []).map(mapTrackedExercise);
     },
   });
 };
@@ -188,7 +260,7 @@ export const useUpdateTrainerNotes = () => {
         .single();
 
       if (error) throw error;
-      return data as unknown as StudentReport;
+      return mapStudentReport(data);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["student-report", data.id] });

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { Exercise } from "./useWorkoutSessions";
 
 export interface ExerciseHistoryEntry extends Exercise {
@@ -7,6 +8,39 @@ export interface ExerciseHistoryEntry extends Exercise {
   session_time: string;
   total_volume?: number;
 }
+
+type WorkoutSessionRow = Pick<
+  Database["public"]["Tables"]["workout_sessions"]["Row"],
+  "id" | "date" | "time"
+>;
+
+type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
+
+const mapExerciseHistoryEntry = (
+  exercise: ExerciseRow,
+  session: WorkoutSessionRow | undefined
+): ExerciseHistoryEntry => {
+  const totalVolume =
+    exercise.sets && exercise.reps && exercise.load_kg
+      ? exercise.sets * exercise.reps * exercise.load_kg
+      : undefined;
+
+  return {
+    id: exercise.id,
+    session_id: exercise.session_id,
+    exercise_name: exercise.exercise_name,
+    sets: exercise.sets ?? undefined,
+    reps: exercise.reps ?? undefined,
+    load_kg: exercise.load_kg ?? undefined,
+    load_description: exercise.load_description ?? undefined,
+    load_breakdown: exercise.load_breakdown ?? undefined,
+    observations: exercise.observations ?? undefined,
+    created_at: exercise.created_at,
+    session_date: session?.date || "",
+    session_time: session?.time || "",
+    total_volume: totalVolume,
+  };
+};
 
 export const useExerciseHistory = (studentId: string, exerciseName: string) => {
   return useQuery({
@@ -36,20 +70,9 @@ export const useExerciseHistory = (studentId: string, exerciseName: string) => {
 
       if (exercisesError) throw exercisesError;
 
-      const history: ExerciseHistoryEntry[] = exercises.map((ex) => {
+      const history: ExerciseHistoryEntry[] = (exercises || []).map((ex) => {
         const session = sessions.find((s) => s.id === ex.session_id);
-        const exercise = ex as unknown as Exercise;
-        const totalVolume =
-          exercise.sets && exercise.reps && exercise.load_kg
-            ? exercise.sets * exercise.reps * exercise.load_kg
-            : undefined;
-
-        return {
-          ...exercise,
-          session_date: session?.date || "",
-          session_time: session?.time || "",
-          total_volume: totalVolume,
-        };
+        return mapExerciseHistoryEntry(ex, session);
       });
 
       return history;

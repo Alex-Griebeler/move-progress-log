@@ -300,3 +300,30 @@ Production promotion remains blocked until all 4 interactive smoke tests pass ma
 - smoke final dos fluxos críticos
 - última rodada de padronização residual nas edge functions auxiliares
 - início do endurecimento gradual de TypeScript
+
+---
+
+## Execution Update (2026-03-15, TypeScript hotspots v1)
+
+### Entregue nesta rodada
+- `useStudentReports`
+  - mapeamento explícito de `student_reports` e `report_tracked_exercises`
+  - parsing defensivo de `oura_data` e `weekly_progression`
+  - remoção de casts `as unknown as` nesses fluxos
+- `usePrescriptions`
+  - mapeamento explícito de listas, exercícios, adaptações e assignments
+  - parsing defensivo de `custom_adaptations`
+  - remoção de casts frágeis da listagem e dos assignments
+- `useExerciseHistory`
+  - mapeamento explícito de sessões/exercícios antes de compor histórico
+- `useWorkoutSessions`
+  - mapeamento explícito de `workout_sessions` e `exercises`
+
+### Validação executada
+- `git diff --check` passou
+- busca por `any` / `as unknown as` nos hooks alterados ficou limpa
+- `vitest` e `tsc` foram iniciados, mas o executor voltou a pendurar sem devolver sinal útil; processos foram encerrados para preservar o ambiente
+
+### Leitura
+- pacote seguro, de baixo risco e com ganho real de contrato de dados
+- próxima rodada de TypeScript pode mirar hooks remanescentes de relatórios/prescrições ou utilitários de sessão
