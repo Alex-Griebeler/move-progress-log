@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
 
       return jsonResponse({
         valid: true,
-        trainer_name: invite.trainer_profiles?.full_name || 'Seu treinador',
+        trainer_name: extractTrainerName(invite.trainer_profiles),
         student_name: studentName,
         student_id: invite.created_student_id,
         invite_id: invite.id,
