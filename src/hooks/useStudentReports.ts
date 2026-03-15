@@ -100,9 +100,8 @@ const mapWeeklyProgression = (value: Json | null): WeeklyProgressionPoint[] | nu
     return null;
   }
 
-  const points = value
-    .filter(isRecord)
-    .map((point: Record<string, unknown>) => {
+  const points = (value.filter(isRecord) as Record<string, unknown>[])
+    .map((point) => {
       const week = toNullableNumber(point.week);
       const avgLoad = toNullableNumber(point.avgLoad);
       const totalWork = toNullableNumber(point.totalWork);
