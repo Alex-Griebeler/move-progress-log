@@ -2,10 +2,12 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version' };
-const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json' } });
+const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const AI_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const MIN_PERIOD_DAYS = 7;
+const MAX_PERIOD_DAYS = 180;
 
 async function callAI(payload: object, apiKey: string, retries = 1): Promise<Response> {
   const res = await fetch(AI_URL, {
@@ -29,9 +31,24 @@ serve(async (req) => {
     const { data: { user }, error } = await client.auth.getUser();
     if (error || !user) return json({ error: 'Não autorizado' }, 401);
 
-    const { student_id, period_days = 30 } = await req.json();
+    const body: unknown = await req.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return json({ error: 'Payload inválido' }, 400);
+    }
+
+    const payload = body as Record<string, unknown>;
+    const student_id = typeof payload.student_id === 'string' ? payload.student_id.trim() : '';
+    const rawPeriodDays = typeof payload.period_days === 'number'
+      ? payload.period_days
+      : Number(payload.period_days ?? 30);
+    const period_days = Math.trunc(rawPeriodDays);
+
     if (!student_id) return json({ error: 'student_id obrigatório' }, 400);
     if (!UUID_RE.test(student_id)) return json({ error: 'student_id inválido' }, 400);
+    if (!Number.isFinite(rawPeriodDays)) return json({ error: 'period_days inválido' }, 400);
+    if (period_days < MIN_PERIOD_DAYS || period_days > MAX_PERIOD_DAYS) {
+      return json({ error: `period_days deve estar entre ${MIN_PERIOD_DAYS} e ${MAX_PERIOD_DAYS}` }, 400);
+    }
 
     // AI-02: Validate trainer ownership
     const svc = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');

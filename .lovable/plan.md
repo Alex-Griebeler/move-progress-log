@@ -47,6 +47,22 @@
   - convites/onboarding: pronto em branch para PR
   - auth surface: reduzida nos pontos mais sensíveis e com próximos alvos remanescentes principalmente em padronização
 
+### Execution Update (2026-03-14, continuação)
+
+- Hardening adicional aplicado em endpoints de IA e entrada de arquivos nesta branch:
+  - `chat-helper` -> validação estrutural de `messages`, limite de quantidade/tamanho, `studentId` validado e respostas sem cache
+  - `ai-training-analyst` -> `period_days` agora validado em faixa segura (`7..180`) e payload inválido retorna `400`
+  - `ai-report-generator` -> validação rigorosa de datas, bloqueio para janelas > `180` dias, `report_type` sanitizado e payload do aluno reduzido ao mínimo necessário
+  - `classify-exercises` -> `batchSize`/`offset` normalizados, payload validado e respostas sem cache
+  - `ai-coach` -> `question` limitada a `2000` caracteres, payload validado e dados do aluno minimizados antes do envio para IA
+  - `generate-protocol-recommendations` -> autenticação do chamador migrada de client com `service_role` para client com `anon`, payload validado e respostas sem cache
+  - `suggest-exercise` -> payload validado, limites de tamanho aplicados e fallback do banco limitado para evitar prompts gigantes
+  - `parse-word-prescription` -> limite de tamanho do `.docx` em base64 e do texto extraído antes de seguir para IA
+- Leitura atual da auditoria:
+  - superfície de IA/custo: bastante reduzida nos endpoints mais expostos
+  - superfície de auth privilegiada: mais consistente, com menos validações de usuário feitas via client privilegiado
+  - próximos riscos remanescentes: smoke coverage ponta a ponta, padronização final de alguns endpoints secundários e endurecimento gradual do TypeScript
+
 ### Decision Record
 
 **Status: GO for Staging (conditional)**
