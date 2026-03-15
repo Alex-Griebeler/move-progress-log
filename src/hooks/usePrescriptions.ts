@@ -144,6 +144,7 @@ const mapPrescriptionExercise = (
   training_method: row.training_method,
   observations: row.observations,
   group_with_previous: row.group_with_previous,
+  should_track: row.should_track,
   load: row.load,
   rir: row.rir,
   exercise_name: row.exercises_library?.name,

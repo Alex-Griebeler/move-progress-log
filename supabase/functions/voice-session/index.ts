@@ -371,6 +371,11 @@ serve(async (req) => {
           socket.close(1008, 'API key not configured');
           return;
         }
+        if (!sessionContext) {
+          socket.send(JSON.stringify({ type: 'error', error: 'Contexto de sessão não inicializado' }));
+          socket.close(1008, 'Session context missing');
+          return;
+        }
 
         const instructions = buildInstructions(sessionContext);
         const tools = buildTools(sessionContext);

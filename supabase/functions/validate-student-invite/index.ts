@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({
       valid: true,
-      trainer_name: invite.trainer_profiles?.full_name || 'Seu treinador',
+      trainer_name: extractTrainerName(invite.trainer_profiles),
       expires_at: invite.expires_at,
     });
   } catch (error: unknown) {

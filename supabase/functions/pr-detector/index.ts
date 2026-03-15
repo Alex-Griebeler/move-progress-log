@@ -28,7 +28,7 @@ serve(async (req) => {
     const detected: unknown[] = [];
 
     // Group valid exercises by student_id to minimise DB round-trips
-    const byStudent = new Map<string, { session: (typeof sessionList)[0]; ex: { exercise_name: string; load_kg: number; reps: number } }[]>();
+    const byStudent = new Map<string, { session: (typeof sessionList)[0]; ex: { exercise_name: string; load_kg: number; reps: number; sets?: number | null } }[]>();
     for (const session of sessionList) {
       for (const ex of ((session as Record<string, unknown>).exercises as Array<{ exercise_name: string; load_kg: number; reps: number; sets?: number }>) ?? []) {
         if (!ex.load_kg || !ex.reps) continue;

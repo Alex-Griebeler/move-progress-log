@@ -286,7 +286,7 @@ async function claimInvite(
     return { invite: claimedInvite, error: null };
   }
 
-  const { data: existingInvite, error: existingInviteError } = await supabaseClient
+  const { data: rawExisting, error: existingInviteError } = await supabaseClient
     .from('student_invites')
     .select('id, expires_at, is_used')
     .eq('invite_token', inviteToken)
@@ -296,9 +296,11 @@ async function claimInvite(
     throw existingInviteError;
   }
 
-  if (!existingInvite) {
+  if (!rawExisting) {
     return { invite: null, error: 'Convite não encontrado' };
   }
+
+  const existingInvite = rawExisting as unknown as InviteRow;
 
   if (existingInvite.is_used) {
     return { invite: null, error: 'Convite já foi utilizado' };

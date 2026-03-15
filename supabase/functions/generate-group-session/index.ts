@@ -1654,7 +1654,7 @@ serve(async (req) => {
     for (const workoutConfig of input.workouts) {
       const workout = generateSingleWorkout(
         exercises, workoutConfig, input.groupLevel, volumeMultiplier,
-        breathingProtocols || [], globalExcludeIds, warnings
+        breathingProtocols || [], globalExcludeIds
       );
       workouts.push(workout);
 
