@@ -28,6 +28,7 @@ export interface PrescriptionExercise {
   training_method: string | null;
   observations: string | null;
   group_with_previous: boolean;
+  should_track: boolean;
   load: string | null;
   rir: string | null;
   exercise_name?: string;
