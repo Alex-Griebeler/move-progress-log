@@ -330,6 +330,7 @@ Deno.serve(async (req: Request) => {
              try {
                    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
                    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+                   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
                    const supabase = createClient(supabaseUrl, serviceKey);
 
       // Auth check (required): service_role OR authenticated admin/trainer
@@ -350,7 +351,10 @@ Deno.serve(async (req: Request) => {
       }
 
       if (token !== serviceKey) {
-        const { data: userData, error: authErr } = await supabase.auth.getUser(token);
+        const authClient = createClient(supabaseUrl, anonKey, {
+          global: { headers: { Authorization: `Bearer ${token}` } },
+        });
+        const { data: userData, error: authErr } = await authClient.auth.getUser();
         if (authErr || !userData?.user) {
           return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,

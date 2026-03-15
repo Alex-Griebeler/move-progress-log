@@ -5,6 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Input validation schema
 interface RequestBody {
@@ -51,15 +53,16 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: jsonHeaders }
       );
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     
     // Create client with user's auth token for getUser
-    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
@@ -68,26 +71,34 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: jsonHeaders }
       );
     }
 
     // Parse and validate request body
-    const { student_id } = await req.json() as RequestBody;
+    const body: unknown = await req.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid payload' }),
+        { status: 400, headers: jsonHeaders }
+      );
+    }
+
+    const payload = body as Partial<RequestBody>;
+    const student_id = typeof payload.student_id === 'string' ? payload.student_id.trim() : '';
 
     if (!student_id) {
       return new Response(
         JSON.stringify({ error: 'student_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: jsonHeaders }
       );
     }
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(student_id)) {
+    if (!UUID_RE.test(student_id)) {
       return new Response(
         JSON.stringify({ error: 'Invalid student_id format' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: jsonHeaders }
       );
     }
 
@@ -104,14 +115,14 @@ serve(async (req) => {
     if (studentError || !student) {
       return new Response(
         JSON.stringify({ error: 'Student not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 404, headers: jsonHeaders }
       );
     }
 
     if (student.trainer_id !== user.id) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized access to student data' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 403, headers: jsonHeaders }
       );
     }
 
@@ -127,7 +138,7 @@ serve(async (req) => {
     if (metricsError || !latestMetrics) {
       return new Response(
         JSON.stringify({ message: 'No Oura metrics available for this student' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: jsonHeaders }
       );
     }
 
@@ -264,7 +275,7 @@ serve(async (req) => {
           hrv_balance: metrics.hrv_balance,
         }
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: jsonHeaders }
     );
 
   } catch (error) {
@@ -273,7 +284,7 @@ serve(async (req) => {
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: jsonHeaders
       }
     );
   }

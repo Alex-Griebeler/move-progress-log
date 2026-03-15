@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, upgrade, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME_RE = /^\d{2}:\d{2}$/;
+const MAX_SESSION_STUDENTS = 10;
 
 // V-02: Client initialized inside handler to prevent shared state between requests
 
@@ -68,6 +73,59 @@ interface SessionContext {
   }>;
   date: string;
   time: string;
+}
+
+interface IncomingSessionContext {
+  prescriptionId: string;
+  students: Array<{ id: string }>;
+  date: string;
+  time: string;
+}
+
+function normalizeIncomingSessionContext(input: unknown): IncomingSessionContext | null {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return null;
+  }
+
+  const payload = input as Record<string, unknown>;
+  const prescriptionId = typeof payload.prescriptionId === 'string' ? payload.prescriptionId.trim() : '';
+  const date = typeof payload.date === 'string' ? payload.date.trim() : '';
+  const time = typeof payload.time === 'string' ? payload.time.trim() : '';
+
+  if (!UUID_RE.test(prescriptionId) || !DATE_RE.test(date) || !TIME_RE.test(time)) {
+    return null;
+  }
+
+  if (!Array.isArray(payload.students) || payload.students.length === 0 || payload.students.length > MAX_SESSION_STUDENTS) {
+    return null;
+  }
+
+  const uniqueIds = new Set<string>();
+  const students = payload.students.map((student) => {
+    if (!student || typeof student !== 'object' || Array.isArray(student)) {
+      return null;
+    }
+
+    const studentRecord = student as Record<string, unknown>;
+    const id = typeof studentRecord.id === 'string' ? studentRecord.id.trim() : '';
+    if (!UUID_RE.test(id) || uniqueIds.has(id)) {
+      return null;
+    }
+
+    uniqueIds.add(id);
+    return { id };
+  });
+
+  if (students.some((student) => student === null)) {
+    return null;
+  }
+
+  return {
+    prescriptionId,
+    students: students as Array<{ id: string }>,
+    date,
+    time,
+  };
 }
 
 // Session context is now scoped per-connection (inside serve handler)
@@ -204,7 +262,7 @@ serve(async (req) => {
   if (!authHeader?.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Autenticação obrigatória' }), { 
       status: 401, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: jsonHeaders
     });
   }
 
@@ -219,7 +277,7 @@ serve(async (req) => {
   if (userError || !user) {
     return new Response(JSON.stringify({ error: 'Token inválido' }), { 
       status: 401, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: jsonHeaders
     });
   }
 
@@ -245,21 +303,57 @@ serve(async (req) => {
       const message = JSON.parse(event.data);
       
       if (message.type === 'session.context') {
+        const incomingContext = normalizeIncomingSessionContext(message.context);
+        if (!incomingContext) {
+          socket.send(JSON.stringify({ type: 'error', error: 'Contexto de sessão inválido' }));
+          return;
+        }
         
         const { data: prescription, error } = await supabaseClient
           .from('workout_prescriptions')
-          .select(`*, prescription_exercises (id, sets, reps, order_index, exercises_library (name))`)
-          .eq('id', message.context.prescriptionId)
+          .select('id, trainer_id, prescription_exercises (id, sets, reps, order_index, exercises_library (name))')
+          .eq('id', incomingContext.prescriptionId)
           .single();
         
         if (error) {
           socket.send(JSON.stringify({ type: 'error', error: 'Erro ao buscar prescrição' }));
           return;
         }
+
+        if (!prescription || prescription.trainer_id !== user.id) {
+          socket.send(JSON.stringify({ type: 'error', error: 'Acesso não autorizado à prescrição' }));
+          return;
+        }
+
+        const studentIds = incomingContext.students.map((student) => student.id);
+        const { data: studentRecords, error: studentError } = await supabaseClient
+          .from('students')
+          .select('id, name, weight_kg, trainer_id')
+          .in('id', studentIds);
+
+        if (studentError || !studentRecords || studentRecords.length !== studentIds.length) {
+          socket.send(JSON.stringify({ type: 'error', error: 'Erro ao validar alunos da sessão' }));
+          return;
+        }
+
+        if (studentRecords.some((student) => student.trainer_id !== user.id)) {
+          socket.send(JSON.stringify({ type: 'error', error: 'Acesso não autorizado a um ou mais alunos' }));
+          return;
+        }
+
+        const studentsById = new Map(studentRecords.map((student) => [student.id, student]));
+        const trustedStudents = studentIds.map((studentId) => {
+          const student = studentsById.get(studentId);
+          return {
+            id: studentId,
+            name: student?.name ?? 'Aluno',
+            weight_kg: student?.weight_kg ?? undefined,
+          };
+        });
         
         sessionContext = {
-          prescriptionId: message.context.prescriptionId,
-          students: message.context.students,
+          prescriptionId: incomingContext.prescriptionId,
+          students: trustedStudents,
           prescriptionExercises: prescription.prescription_exercises.map((ex: Record<string, unknown>) => ({
             id: ex.id,
             exercise_name: (ex.exercises_library as Record<string, unknown>).name,
@@ -267,8 +361,8 @@ serve(async (req) => {
             reps: ex.reps,
             order_index: ex.order_index
           })),
-          date: message.context.date,
-          time: message.context.time
+          date: incomingContext.date,
+          time: incomingContext.time
         };
 
         // NOW initialize OpenAI with full configuration

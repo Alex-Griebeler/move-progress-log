@@ -5,6 +5,60 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" };
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_MESSAGES = 20;
+const MAX_MESSAGE_CHARS = 4000;
+const MAX_TOTAL_MESSAGE_CHARS = 20000;
+
+type ChatMessageRole = "user" | "assistant";
+type ChatMessage = { role: ChatMessageRole; content: string };
+
+function normalizeMessages(input: unknown): ChatMessage[] {
+  if (!Array.isArray(input) || input.length === 0) {
+    throw new Error("messages deve ser um array não vazio");
+  }
+
+  if (input.length > MAX_MESSAGES) {
+    throw new Error(`messages excede o limite de ${MAX_MESSAGES} itens`);
+  }
+
+  let totalChars = 0;
+
+  return input.map((item, index) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throw new Error(`messages[${index}] inválido`);
+    }
+
+    const entry = item as Record<string, unknown>;
+    const role = entry.role;
+    const content = entry.content;
+
+    if (role !== "user" && role !== "assistant") {
+      throw new Error(`messages[${index}].role inválido`);
+    }
+
+    if (typeof content !== "string") {
+      throw new Error(`messages[${index}].content inválido`);
+    }
+
+    const normalizedContent = content.trim();
+    if (!normalizedContent) {
+      throw new Error(`messages[${index}].content vazio`);
+    }
+
+    if (normalizedContent.length > MAX_MESSAGE_CHARS) {
+      throw new Error(`messages[${index}].content excede ${MAX_MESSAGE_CHARS} caracteres`);
+    }
+
+    totalChars += normalizedContent.length;
+    if (totalChars > MAX_TOTAL_MESSAGE_CHARS) {
+      throw new Error(`messages excede o limite total de ${MAX_TOTAL_MESSAGE_CHARS} caracteres`);
+    }
+
+    return { role, content: normalizedContent };
+  });
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,7 +71,7 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "Autenticação obrigatória" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: jsonHeaders }
       );
     }
 
@@ -32,11 +86,28 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: "Token inválido" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: jsonHeaders }
       );
     }
 
-    const { messages, studentId } = await req.json();
+    const body: unknown = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return new Response(
+        JSON.stringify({ error: "Payload inválido" }),
+        { status: 400, headers: jsonHeaders }
+      );
+    }
+
+    const payload = body as Record<string, unknown>;
+    const messages = normalizeMessages(payload.messages);
+    const studentId = typeof payload.studentId === "string" ? payload.studentId.trim() : "";
+    if (studentId && !UUID_RE.test(studentId)) {
+      return new Response(
+        JSON.stringify({ error: "studentId inválido" }),
+        { status: 400, headers: jsonHeaders }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -59,7 +130,7 @@ serve(async (req) => {
       if (!studentOwner || studentOwner.trainer_id !== user.id) {
         return new Response(
           JSON.stringify({ error: "Acesso não autorizado a este aluno" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 403, headers: jsonHeaders }
         );
       }
 
@@ -164,31 +235,31 @@ REGRAS:
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Limite de requisições excedido. Tente novamente em instantes." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 429, headers: jsonHeaders }
         );
       }
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ error: "Créditos insuficientes no Lovable AI." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 402, headers: jsonHeaders }
         );
       }
       const errorText = await response.text();
       console.error("Erro AI gateway:", response.status, errorText);
       return new Response(
         JSON.stringify({ error: "Erro ao conectar com IA" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 500, headers: jsonHeaders }
       );
     }
 
     return new Response(response.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-store" },
     });
   } catch (error) {
     console.error("Erro no chat-helper:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: jsonHeaders }
     );
   }
 });

@@ -24,6 +24,61 @@
 - Documento de pendências por ausência criado em:
   - `docs/PENDENCIAS_AUSENCIA_2026-03-13.md`
 
+### Execution Update (2026-03-14)
+
+- `main` confirmado no GitHub com merge do hotfix de relatórios:
+  - `bc7e1ce` - Merge pull request `#5` from `codex/report-audit-fixes-20260314`
+- Hardening adicional implementado em branch dedicada:
+  - `codex/invite-hardening-20260314`
+  - `96d1d2c` - `feat(invites): harden onboarding invite flow`
+  - `3cbe5ab` - `fix(auth): reduce service-role auth surface`
+- Fluxo de onboarding por convite endurecido:
+  - `generate-student-invite` -> origem do link restrita a `SITE_URL`/origens confiáveis, `expires_in_days` com clamp e respostas `no-store`
+  - `validate-student-invite` -> validação de formato do token + respostas `no-store`
+  - `create-student-from-invite` -> sanitização server-side do payload público, validação de avatar, claim/rollback do convite e limpeza defensiva
+  - `generate-oura-connect-link` -> mesma política de origem confiável
+  - `StudentOnboardingPage` / `useStudentInvites` -> avatar limitado a tipos suportados e 5 MB, fetch sem cache e mensagens de erro mais fiéis
+- Superfície de auth/service-role reduzida:
+  - `check-rate-limit` -> agora exige JWT válido quando `user_id` é informado, bloqueando pre-block malicioso por terceiros
+  - `process-voice-session` -> autenticação do usuário movida de client com `service_role` para client com `anon`
+  - `admin-create-user`, `admin-update-user`, `import-exercises` -> autenticação do chamador movida para client com `anon`, mantendo `service_role` apenas para operações privilegiadas
+- Estado atual da auditoria:
+  - relatórios: lote principal já mergeado em `main`
+  - convites/onboarding: pronto em branch para PR
+  - auth surface: reduzida nos pontos mais sensíveis e com próximos alvos remanescentes principalmente em padronização
+
+### Execution Update (2026-03-14, continuação)
+
+- Hardening adicional aplicado em endpoints de IA e entrada de arquivos nesta branch:
+  - `chat-helper` -> validação estrutural de `messages`, limite de quantidade/tamanho, `studentId` validado e respostas sem cache
+  - `ai-training-analyst` -> `period_days` agora validado em faixa segura (`7..180`) e payload inválido retorna `400`
+  - `ai-report-generator` -> validação rigorosa de datas, bloqueio para janelas > `180` dias, `report_type` sanitizado e payload do aluno reduzido ao mínimo necessário
+  - `classify-exercises` -> `batchSize`/`offset` normalizados, payload validado e respostas sem cache
+  - `ai-coach` -> `question` limitada a `2000` caracteres, payload validado e dados do aluno minimizados antes do envio para IA
+  - `generate-protocol-recommendations` -> autenticação do chamador migrada de client com `service_role` para client com `anon`, payload validado e respostas sem cache
+  - `suggest-exercise` -> payload validado, limites de tamanho aplicados e fallback do banco limitado para evitar prompts gigantes
+  - `parse-word-prescription` -> limite de tamanho do `.docx` em base64 e do texto extraído antes de seguir para IA
+- Leitura atual da auditoria:
+  - superfície de IA/custo: bastante reduzida nos endpoints mais expostos
+  - superfície de auth privilegiada: mais consistente, com menos validações de usuário feitas via client privilegiado
+  - próximos riscos remanescentes: smoke coverage ponta a ponta, padronização final de alguns endpoints secundários e endurecimento gradual do TypeScript
+
+### Execution Update (2026-03-14, sessão/voz)
+
+- Hardening adicional aplicado em endpoints críticos de sessão:
+  - `voice-session` -> contexto websocket agora validado no servidor (`prescriptionId`, `date`, `time`, alunos únicos até 10), ownership de prescrição/alunos verificado antes de abrir a sessão e nomes/pesos passam a vir do banco em vez do payload do cliente
+  - `generate-group-session` -> acesso restrito a `admin`/`trainer` no backend e validação mínima de payload para impedir geração por usuário autenticado fora do perfil esperado
+- Impacto esperado:
+  - redução do risco de leitura indevida de prescrição/alunos via websocket
+  - redução do risco de abuso do gerador de mesociclo por perfis não autorizados
+
+### Execution Update (2026-03-14, quick wins finais)
+
+- Endpoints auxiliares endurecidos para consistência de borda:
+  - `generate-oura-connect-link` -> payload validado e `student_id` agora exige UUID válido
+  - `oura-disconnect` -> payload validado, respostas `no-store` e `student_id` validado
+  - `suggest-regressions` -> lista enviada ao LLM limitada a 50 candidatos, IDs retornados validados contra o conjunto permitido e respostas sem cache
+
 ### Decision Record
 
 **Status: GO for Staging (conditional)**

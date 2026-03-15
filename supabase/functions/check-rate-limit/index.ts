@@ -25,9 +25,13 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      supabaseUrl,
+      supabaseServiceRoleKey
     );
 
     // Extract real IP server-side from proxy headers
@@ -51,20 +55,31 @@ const handler = async (req: Request): Promise<Response> => {
     // RL-01: For increment=true with user_id, validate JWT to prevent malicious pre-blocking
     if (increment && user_id) {
       const authHeader = req.headers.get('Authorization');
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.replace('Bearer ', '');
-        const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-        const supabaseAuth = createClient(Deno.env.get("SUPABASE_URL") ?? '', anonKey, {
-          global: { headers: { Authorization: `Bearer ${token}` } }
-        });
-        const { data: { user } } = await supabaseAuth.auth.getUser();
-        // If authenticated, user_id must match the JWT user
-        if (user && user.id !== user_id) {
-          return new Response(
-            JSON.stringify({ error: 'user_id does not match authenticated user' }),
-            { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
-          );
-        }
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(
+          JSON.stringify({ error: 'Authorization required when user_id is provided' }),
+          { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } }
+      });
+      const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired token' }),
+          { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      if (user.id !== user_id) {
+        return new Response(
+          JSON.stringify({ error: 'user_id does not match authenticated user' }),
+          { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
       }
     }
 

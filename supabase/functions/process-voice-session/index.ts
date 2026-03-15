@@ -101,6 +101,7 @@ serve(async (req) => {
     // V-02: Initialize clients inside handler to prevent shared state
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
     const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY')!;
     const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY);
@@ -116,8 +117,8 @@ serve(async (req) => {
       );
     }
 
-    // Create Supabase client with user's auth token
-    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
+    // Validate the caller with the anon key; keep service_role only for privileged reads/writes.
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
