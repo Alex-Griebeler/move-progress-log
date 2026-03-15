@@ -261,7 +261,8 @@ function sanitizeAvatarPayload(rawValue: unknown): AvatarUploadPayload | null {
 }
 
 async function claimInvite(
-  supabaseClient: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabaseClient: ReturnType<typeof createClient<any>>,
   inviteToken: string,
   claimTimestamp: string
 ): Promise<{ invite: ClaimedInvite | null; error: string | null }> {
