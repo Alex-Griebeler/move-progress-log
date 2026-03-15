@@ -50,14 +50,14 @@ import { PrescriptionSidebar } from "@/components/session/PrescriptionSidebar";
 
 interface PrescriptionExerciseDetail {
   id: string;
-  exercise_name: string;
+  exercise_name?: string;
   sets: string;
   reps: string;
   interval_seconds: number | null;
   pse: string | null;
   training_method: string | null;
   observations: string | null;
-  should_track: boolean;
+  should_track?: boolean;
   category?: string | null;
   exercises_library?: { name: string; category: string | null } | null;
 }
