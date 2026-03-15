@@ -17,6 +17,15 @@ function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { headers: jsonHeaders, status });
 }
 
+function extractTrainerName(trainerProfiles: unknown): string {
+  if (!trainerProfiles) return 'Seu treinador';
+  if (Array.isArray(trainerProfiles)) {
+    const first = trainerProfiles[0] as Record<string, unknown> | undefined;
+    return (first?.full_name as string) || 'Seu treinador';
+  }
+  return ((trainerProfiles as Record<string, unknown>).full_name as string) || 'Seu treinador';
+}
+
 function isValidInviteToken(value: string | null): value is string {
   return Boolean(value && inviteTokenPattern.test(value));
 }
@@ -86,7 +95,7 @@ Deno.serve(async (req) => {
 
       return jsonResponse({
         valid: true,
-        trainer_name: invite.trainer_profiles?.full_name || 'Seu treinador',
+        trainer_name: extractTrainerName(invite.trainer_profiles),
         student_name: studentName,
         student_id: invite.created_student_id,
         invite_id: invite.id,
@@ -97,7 +106,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({
       valid: true,
-      trainer_name: invite.trainer_profiles?.full_name || 'Seu treinador',
+      trainer_name: extractTrainerName(invite.trainer_profiles),
       expires_at: invite.expires_at,
     });
   } catch (error: unknown) {

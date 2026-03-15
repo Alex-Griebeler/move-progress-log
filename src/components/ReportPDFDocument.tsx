@@ -263,7 +263,7 @@ export const ReportPDFDocument = ({
             
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Média Semanal</Text>
-              <Text style={styles.metricValue}>{report.weekly_average.toFixed(1)}</Text>
+              <Text style={styles.metricValue}>{report.weekly_average != null ? report.weekly_average.toFixed(1) : '--'}</Text>
             </View>
             
             {report.adherence_percentage !== null && report.adherence_percentage !== undefined && (

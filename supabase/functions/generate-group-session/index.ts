@@ -1448,20 +1448,21 @@ function generateSingleWorkout(
   );
 
   // Phase 8: Finalizer (Carry)
-  const finalizerPhase = buildFinalizerPhase(exercises, excludeIds, volumeMultiplier, config.valences, sessionSelectedExercises);
-  if (finalizerPhase.blocks.length > 0) {
+  const warnings: string[] = [];
+  const finalizerPhase = buildFinalizerPhase(exercises, excludeIds, volumeMultiplier, config.valences, sessionSelectedExercises, warnings);
+  if (finalizerPhase && finalizerPhase.blocks.length > 0) {
     coveredPatterns.push("carregar");
   }
 
   // Phase 9: Closing by valence
   const closingPhase = buildClosingPhase(config.valences, breathingProtocols);
 
-  const allPhases = [
+  const allPhases: SessionPhase[] = [
     openingPhase,
     mobilityPhase,
     corePhase,
     ...mainPhases,
-    finalizerPhase,
+    ...(finalizerPhase ? [finalizerPhase] : []),
     closingPhase,
   ];
 
@@ -1480,9 +1481,11 @@ function generateSingleWorkout(
     )
   );
   // Also propagate carry
-  finalizerPhase.blocks.forEach((b) =>
-    b.exercises.forEach((ex) => globalExcludeIds.add(ex.exerciseLibraryId))
-  );
+  if (finalizerPhase) {
+    finalizerPhase.blocks.forEach((b) =>
+      b.exercises.forEach((ex) => globalExcludeIds.add(ex.exerciseLibraryId))
+    );
+  }
 
   return {
     id: generateUUID(),
@@ -1651,7 +1654,7 @@ serve(async (req) => {
     for (const workoutConfig of input.workouts) {
       const workout = generateSingleWorkout(
         exercises, workoutConfig, input.groupLevel, volumeMultiplier,
-        breathingProtocols || [], globalExcludeIds, warnings
+        breathingProtocols || [], globalExcludeIds
       );
       workouts.push(workout);
 

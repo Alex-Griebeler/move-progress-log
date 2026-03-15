@@ -21,14 +21,14 @@ serve(async (req) => {
 
     const { data: sessions } = await svc
       .from('workout_sessions')
-      .select('id, student_id, date, exercises(exercise_name, load_kg, reps)')
+      .select('id, student_id, date, exercises(exercise_name, load_kg, reps, sets)')
       .gte('date', sevenDaysAgo).lt('date', today);
 
     const sessionList = sessions ?? [];
     const detected: unknown[] = [];
 
     // Group valid exercises by student_id to minimise DB round-trips
-    const byStudent = new Map<string, { session: (typeof sessionList)[0]; ex: { exercise_name: string; load_kg: number; reps: number } }[]>();
+    const byStudent = new Map<string, { session: (typeof sessionList)[0]; ex: { exercise_name: string; load_kg: number; reps: number; sets?: number | null } }[]>();
     for (const session of sessionList) {
       for (const ex of ((session as Record<string, unknown>).exercises as Array<{ exercise_name: string; load_kg: number; reps: number; sets?: number }>) ?? []) {
         if (!ex.load_kg || !ex.reps) continue;

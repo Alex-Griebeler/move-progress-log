@@ -828,7 +828,7 @@ FORMATO DE SAÍDA:
     let prescriptionDeviations: Record<string, unknown>[] = [];
     
     if (prescriptionDetails && prescriptionDetails.prescription_exercises) {
-      const prescribedExercises = prescriptionDetails.prescription_exercises.map((pe: Record<string, unknown>) => ({
+      const prescribedExercises: Array<{ name: string; sets: string; reps: string }> = prescriptionDetails.prescription_exercises.map((pe: Record<string, unknown>) => ({
         name: (pe.exercises_library as Record<string, unknown>).name as string,
         sets: pe.sets as string,
         reps: pe.reps as string,

@@ -55,6 +55,13 @@ interface ClaimedInvite {
   trainer_id: string;
 }
 
+interface InviteRow {
+  id: string;
+  is_used: boolean;
+  expires_at: string;
+  trainer_id: string;
+}
+
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { headers: jsonHeaders, status });
 }
@@ -254,7 +261,8 @@ function sanitizeAvatarPayload(rawValue: unknown): AvatarUploadPayload | null {
 }
 
 async function claimInvite(
-  supabaseClient: ReturnType<typeof createClient>,
+  // deno-lint-ignore no-explicit-any
+  supabaseClient: ReturnType<typeof createClient<any>>,
   inviteToken: string,
   claimTimestamp: string
 ): Promise<{ invite: ClaimedInvite | null; error: string | null }> {
@@ -278,7 +286,7 @@ async function claimInvite(
     return { invite: claimedInvite, error: null };
   }
 
-  const { data: existingInvite, error: existingInviteError } = await supabaseClient
+  const { data: rawExisting, error: existingInviteError } = await supabaseClient
     .from('student_invites')
     .select('id, expires_at, is_used')
     .eq('invite_token', inviteToken)
@@ -288,9 +296,11 @@ async function claimInvite(
     throw existingInviteError;
   }
 
-  if (!existingInvite) {
+  if (!rawExisting) {
     return { invite: null, error: 'Convite não encontrado' };
   }
+
+  const existingInvite = rawExisting as unknown as InviteRow;
 
   if (existingInvite.is_used) {
     return { invite: null, error: 'Convite já foi utilizado' };
