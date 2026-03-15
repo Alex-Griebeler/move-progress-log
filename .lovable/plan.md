@@ -263,3 +263,40 @@ Production promotion remains blocked until all 4 interactive smoke tests pass ma
 4. Fase 4 → Páginas (UX)
 5. Fase 5 → Utilitários
 6. Fase 6 → Design System
+
+---
+
+## Execution Update (2026-03-14, hardening secundário)
+
+### Entregue nesta rodada
+- `generate-student-report`
+  - validação explícita de `studentId`, datas, lista de exercícios monitorados e `trainerNotes`
+  - limite de até 12 exercícios monitorados
+  - bloqueio de IDs inválidos, duplicados ou não encontrados
+  - respostas JSON com `Cache-Control: no-store`
+- `ai-builder-chat`
+  - validação de corpo e de `Authorization`
+  - limites de mensagem/histórico
+  - bloqueio de histórico malformado
+  - saneamento defensivo do resultado retornado pela IA antes de usar/criar issue
+  - respostas JSON com `Cache-Control: no-store`
+- `admin-create-user`
+  - validação forte de email, nome, role e senha
+  - diferenciação melhor entre erro de validação, auth e conflito
+  - respostas JSON com `Cache-Control: no-store`
+- `admin-update-user`
+  - validação de `userId`, email, nome, role, senha e payload vazio
+  - respostas JSON com `Cache-Control: no-store`
+- `oura-sync` / `oura-sync-test`
+  - validação forte de `student_id` e `date`
+  - respostas JSON com `Cache-Control: no-store`
+
+### Validação executada
+- `git diff --check` passou
+- revisão manual dos diffs concluída
+- `eslint` local focado nos arquivos alterados ficou pendurado no executor; não houve sinal útil do ambiente para esse passo
+
+### Próximo alvo
+- smoke final dos fluxos críticos
+- última rodada de padronização residual nas edge functions auxiliares
+- início do endurecimento gradual de TypeScript
