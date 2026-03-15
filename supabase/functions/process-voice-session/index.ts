@@ -929,7 +929,7 @@ FORMATO DE SAÍDA:
     );
 
   } catch (error) {
-    console.error("Error processing voice session:", String(error));
+    console.error('[process-voice-session] error:', error instanceof Error ? error.stack : String(error));
     return new Response(
       JSON.stringify({ 
         success: false,
