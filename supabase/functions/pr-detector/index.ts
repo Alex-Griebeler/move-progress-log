@@ -21,7 +21,7 @@ serve(async (req) => {
 
     const { data: sessions } = await svc
       .from('workout_sessions')
-      .select('id, student_id, date, exercises(exercise_name, load_kg, reps)')
+      .select('id, student_id, date, exercises(exercise_name, load_kg, reps, sets)')
       .gte('date', sevenDaysAgo).lt('date', today);
 
     const sessionList = sessions ?? [];
