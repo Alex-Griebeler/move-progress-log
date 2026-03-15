@@ -28,6 +28,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" };
 
 // ============================================================================
 // TIPOS
@@ -48,6 +49,25 @@ interface MesocycleInput {
   audiencePreset?: "adulto" | "senior_70" | "adolescente";
   rotationMode?: "A" | "B"; // A=full rotation, B=selective
   retainExerciseIds?: string[]; // Mode B: exercises to keep
+}
+
+const VALID_GROUP_LEVELS = new Set(["iniciante", "intermediario", "avancado"]);
+const VALID_SLOTS = new Set(["A", "B", "C"]);
+
+function isValidMesocycleInput(input: unknown): input is MesocycleInput {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return false;
+  const payload = input as Record<string, unknown>;
+  if (typeof payload.groupLevel !== "string" || !VALID_GROUP_LEVELS.has(payload.groupLevel)) return false;
+  if (!Array.isArray(payload.workouts) || payload.workouts.length !== 3) return false;
+
+  return payload.workouts.every((workout) => {
+    if (!workout || typeof workout !== "object" || Array.isArray(workout)) return false;
+    const item = workout as Record<string, unknown>;
+    return typeof item.slot === "string"
+      && VALID_SLOTS.has(item.slot)
+      && Array.isArray(item.valences)
+      && item.valences.length > 0;
+  });
 }
 
 interface Exercise {
@@ -1490,12 +1510,13 @@ serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
         JSON.stringify({ success: false, error: "Autenticação obrigatória" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+        { headers: jsonHeaders, status: 401 }
       );
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -1505,16 +1526,39 @@ serve(async (req) => {
     if (userError || !userData?.user) {
       return new Response(
         JSON.stringify({ success: false, error: "Token inválido" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+        { headers: jsonHeaders, status: 401 }
       );
     }
 
-    const input: MesocycleInput = await req.json();
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const { data: roleData } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id)
+      .in("role", ["admin", "trainer"])
+      .limit(1);
+
+    if (!roleData || roleData.length === 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Acesso restrito a treinadores e admins" }),
+        { headers: jsonHeaders, status: 403 }
+      );
+    }
+
+    const body: unknown = await req.json();
+    if (!isValidMesocycleInput(body)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Input inválido. Necessário: groupLevel válido e 3 workouts (A/B/C) com valências." }),
+        { headers: jsonHeaders, status: 400 }
+      );
+    }
+
+    const input: MesocycleInput = body;
 
     if (!input.groupLevel || !input.workouts || input.workouts.length !== 3) {
       return new Response(
         JSON.stringify({ success: false, error: "Input inválido. Necessário: groupLevel e 3 workouts (A/B/C)" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        { headers: jsonHeaders, status: 400 }
       );
     }
 
@@ -1580,7 +1624,7 @@ serve(async (req) => {
     if (exercises.length < 20) {
       return new Response(
         JSON.stringify({ success: false, error: "Biblioteca de exercícios insuficiente. Necessário pelo menos 20 exercícios." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+        { headers: jsonHeaders, status: 400 }
       );
     }
 

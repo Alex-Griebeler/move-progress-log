@@ -63,6 +63,15 @@
   - superfície de auth privilegiada: mais consistente, com menos validações de usuário feitas via client privilegiado
   - próximos riscos remanescentes: smoke coverage ponta a ponta, padronização final de alguns endpoints secundários e endurecimento gradual do TypeScript
 
+### Execution Update (2026-03-14, sessão/voz)
+
+- Hardening adicional aplicado em endpoints críticos de sessão:
+  - `voice-session` -> contexto websocket agora validado no servidor (`prescriptionId`, `date`, `time`, alunos únicos até 10), ownership de prescrição/alunos verificado antes de abrir a sessão e nomes/pesos passam a vir do banco em vez do payload do cliente
+  - `generate-group-session` -> acesso restrito a `admin`/`trainer` no backend e validação mínima de payload para impedir geração por usuário autenticado fora do perfil esperado
+- Impacto esperado:
+  - redução do risco de leitura indevida de prescrição/alunos via websocket
+  - redução do risco de abuso do gerador de mesociclo por perfis não autorizados
+
 ### Decision Record
 
 **Status: GO for Staging (conditional)**
