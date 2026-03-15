@@ -355,11 +355,11 @@ serve(async (req) => {
           prescriptionId: incomingContext.prescriptionId,
           students: trustedStudents,
           prescriptionExercises: prescription.prescription_exercises.map((ex: Record<string, unknown>) => ({
-            id: ex.id,
-            exercise_name: (ex.exercises_library as Record<string, unknown>).name,
-            sets: ex.sets,
-            reps: ex.reps,
-            order_index: ex.order_index
+            id: ex.id as string,
+            exercise_name: (ex.exercises_library as Record<string, unknown>).name as string,
+            sets: ex.sets as string,
+            reps: ex.reps as string,
+            order_index: ex.order_index as number
           })),
           date: incomingContext.date,
           time: incomingContext.time

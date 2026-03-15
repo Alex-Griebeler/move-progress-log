@@ -17,6 +17,15 @@ function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { headers: jsonHeaders, status });
 }
 
+function extractTrainerName(trainerProfiles: unknown): string {
+  if (!trainerProfiles) return 'Seu treinador';
+  if (Array.isArray(trainerProfiles)) {
+    const first = trainerProfiles[0] as Record<string, unknown> | undefined;
+    return (first?.full_name as string) || 'Seu treinador';
+  }
+  return ((trainerProfiles as Record<string, unknown>).full_name as string) || 'Seu treinador';
+}
+
 function isValidInviteToken(value: string | null): value is string {
   return Boolean(value && inviteTokenPattern.test(value));
 }

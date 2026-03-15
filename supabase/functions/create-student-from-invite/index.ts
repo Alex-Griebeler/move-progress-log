@@ -55,6 +55,13 @@ interface ClaimedInvite {
   trainer_id: string;
 }
 
+interface InviteRow {
+  id: string;
+  is_used: boolean;
+  expires_at: string;
+  trainer_id: string;
+}
+
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { headers: jsonHeaders, status });
 }
