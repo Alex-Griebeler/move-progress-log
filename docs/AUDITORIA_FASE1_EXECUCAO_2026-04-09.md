@@ -70,13 +70,30 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
   - `SUPABASE_ANON_KEY` ausente não quebra tudo: cenários anon viram `SKIP`.
   - `service_role` ausente com teste opcional ligado vira `SKIP` (não `FAIL` global).
 
+### 7) Higiene de query (round 2, sem regressão funcional)
+- Wildcards removidos de hooks e fluxos críticos de sessão/relatórios:
+  - `src/hooks/useStudentReports.ts`
+  - `src/hooks/useSessionDetail.ts`
+  - `src/components/RecordIndividualSessionDialog.tsx`
+  - `src/hooks/useStudents.ts`
+  - `src/hooks/useExercisesLibrary.ts`
+  - `src/hooks/usePrescriptions.ts`
+- Resultado:
+  - Menor acoplamento com schema.
+  - Menor transferência de payload.
+  - Base mais previsível para refactor incremental.
+
 ## Pendências Prioritárias (próximo lote)
-1. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
+1. Remover `select("*")` restante em módulos ainda críticos/recorrentes:
+   - `EditSessionDialog.tsx`, `EditGroupSessionDialog.tsx`
+   - `RecordGroupSessionDialog.tsx`
+   - `useSessionDetail` secundários e hooks de Oura
+2. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
    - `RecordGroupSessionDialog.tsx`
    - `generate-group-session/index.ts`
    - `process-voice-session/index.ts`
-2. Consolidar contratos de payload (schema runtime) entre frontend e edge functions.
-3. Criar smoke E2E curto para 4 fluxos críticos no preview autenticado.
+3. Consolidar contratos de payload (schema runtime) entre frontend e edge functions.
+4. Criar smoke E2E curto para 4 fluxos críticos no preview autenticado.
 
 ## Risco Residual Atual
 - Fluxos de rede externos continuam dependentes de credenciais e disponibilidade de ambiente.

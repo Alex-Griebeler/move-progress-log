@@ -112,6 +112,23 @@ interface CustomAdaptationsShape {
   time?: string;
 }
 
+const GROUP_SESSION_EXERCISE_COLUMNS = `
+  id,
+  exercise_name,
+  sets,
+  reps,
+  load_kg,
+  load_breakdown,
+  observations,
+  is_best_set
+`;
+
+const GROUP_STUDENT_LOOKUP_COLUMNS = `
+  id,
+  name,
+  weight_kg
+`;
+
 // ─── Component Types ────────────────────────────────────────
 
 interface RecordGroupSessionDialogProps {
@@ -290,7 +307,10 @@ export function RecordGroupSessionDialog({
         setSelectedStudents(existingStudents);
         const allExercises = await Promise.all(
           typedSessions.map(async (session) => {
-            const { data: exercises } = await supabase.from('exercises').select('*').eq('session_id', session.id);
+            const { data: exercises } = await supabase
+              .from('exercises')
+              .select(GROUP_SESSION_EXERCISE_COLUMNS)
+              .eq('session_id', session.id);
             return { student_name: session.students.name, exercises: (exercises || []) as ExerciseRow[] };
           })
         );
@@ -436,7 +456,11 @@ export function RecordGroupSessionDialog({
         const session = data.sessions[i];
         const existingStudent = selectedStudents.find(s => s.name.toLowerCase() === session.student_name.toLowerCase());
         if (!existingStudent) {
-          const { data: studentData, error } = await supabase.from('students').select('*').ilike('name', session.student_name).single();
+          const { data: studentData, error } = await supabase
+            .from('students')
+            .select(GROUP_STUDENT_LOOKUP_COLUMNS)
+            .ilike('name', session.student_name)
+            .single();
           if (error) { logger.warn(`Aluno "${session.student_name}" não encontrado:`, error); continue; }
           if (studentData) {
             newStudents.push({ id: studentData.id, name: studentData.name, weight_kg: studentData.weight_kg ?? undefined, has_active_prescription: false });
