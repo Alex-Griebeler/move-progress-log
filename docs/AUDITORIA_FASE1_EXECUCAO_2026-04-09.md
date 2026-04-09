@@ -95,6 +95,18 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Verificação final:
   - `rg "select(\"*\")|select('*')" src supabase/functions` → **0 ocorrências**
 
+### 9) Baseline dos módulos críticos (próximo foco)
+- Tamanho atual dos módulos com maior risco de regressão:
+  - `src/components/RecordGroupSessionDialog.tsx` → **1052 linhas**
+  - `supabase/functions/generate-group-session/index.ts` → **1745 linhas**
+  - `supabase/functions/process-voice-session/index.ts` → **944 linhas**
+  - `src/components/RecordIndividualSessionDialog.tsx` → **579 linhas**
+- Sinais de acoplamento:
+  - `RecordGroupSessionDialog`: 17 `useState`, 15 handlers, 8 hooks reativos.
+  - Fluxos misturam UI + validação + persistência no mesmo arquivo.
+- Critério de saída para esta etapa:
+  - separar estado/efeitos/IO em módulos menores sem alterar payload/contrato.
+
 ## Pendências Prioritárias (próximo lote)
 1. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
    - `RecordGroupSessionDialog.tsx`
