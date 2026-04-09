@@ -12,6 +12,8 @@
   - `codex/phase1-hardening-core`
 - Refactor aplicado sem mudança de contrato no fluxo de sessão em grupo:
   - `RecordGroupSessionDialog` delegando merge/validação/mapeamento para `src/components/session/groupSessionDataUtils.ts`
+- Guard de regressão adicionado:
+  - `npm run audit:guards` bloqueia reintrodução de `select("*")` e `@ts-ignore`.
 
 ## Itens bloqueados por ausência/interação manual
 1. Smoke test interativo autenticado no staging (cenários de UI protegidos):

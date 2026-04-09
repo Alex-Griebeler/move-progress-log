@@ -119,6 +119,15 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
   - redução de acoplamento entre UI e regra de negócio no diálogo principal.
   - base pronta para continuar quebra por fatias sem alterar comportamento.
 
+### 11) Guard rails de regressão da auditoria
+- Script novo:
+  - `scripts/check-audit-guards.sh`
+- Coberturas de proteção:
+  - falha se houver novo `select("*")` em `src` ou `supabase/functions`
+  - falha se houver novo `@ts-ignore` em `src` ou `supabase/functions`
+- Script exposto em `package.json`:
+  - `npm run audit:guards`
+
 ## Pendências Prioritárias (próximo lote)
 1. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
    - `RecordGroupSessionDialog.tsx`
