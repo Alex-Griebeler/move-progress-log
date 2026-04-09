@@ -46,6 +46,13 @@ interface UserWithRole {
   last_sign_in_at: string | null;
 }
 
+const TRAINER_PROFILE_COLUMNS = `
+  id,
+  full_name,
+  created_at,
+  updated_at
+`;
+
 const roleLabels: Record<string, string> = {
   admin: 'Administrador',
   moderator: 'Treinador',
@@ -117,7 +124,7 @@ export default function AdminUsersPage() {
       // Buscar todos os perfis de treinadores
       const { data: profiles, error: profilesError } = await supabase
         .from("trainer_profiles")
-        .select("*");
+        .select(TRAINER_PROFILE_COLUMNS);
 
       if (profilesError) throw profilesError;
 

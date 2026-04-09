@@ -18,13 +18,30 @@ export interface PersistedMessage {
   created_at: string;
 }
 
+const AI_BUILDER_CONVERSATION_COLUMNS = `
+  id,
+  title,
+  created_at,
+  updated_at
+`;
+
+const AI_BUILDER_MESSAGE_COLUMNS = `
+  id,
+  conversation_id,
+  role,
+  content,
+  message_type,
+  issue_url,
+  created_at
+`;
+
 export function useAIBuilderConversations() {
   return useQuery({
     queryKey: ["ai-builder-conversations"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ai_builder_conversations")
-        .select("*")
+        .select(AI_BUILDER_CONVERSATION_COLUMNS)
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -40,7 +57,7 @@ export function useAIBuilderMessages(conversationId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ai_builder_messages")
-        .select("*")
+        .select(AI_BUILDER_MESSAGE_COLUMNS)
         .eq("conversation_id", conversationId!)
         .order("created_at", { ascending: true });
 

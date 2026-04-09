@@ -8,6 +8,31 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const AI_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
 const MAX_QUESTION_CHARS = 2000;
 
+const ATHLETE_GOAL_COLUMNS = `
+  id,
+  student_id,
+  title,
+  description,
+  goal_type,
+  target_value,
+  target_unit,
+  target_date,
+  status,
+  created_at,
+  updated_at
+`;
+
+const ATHLETE_RECORD_COLUMNS = `
+  id,
+  student_id,
+  exercise_name,
+  record_type,
+  value,
+  achieved_at,
+  session_id,
+  created_at
+`;
+
 async function callAI(payload: object, apiKey: string, retries = 1): Promise<Response> {
   const res = await fetch(AI_URL, {
     method: 'POST',
@@ -59,8 +84,8 @@ serve(async (req) => {
 
     const [{ data: sessions }, { data: goals }, { data: records }] = await Promise.all([
       svc.from('workout_sessions').select('date, exercises(exercise_name,load_kg,reps)').eq('student_id', student_id).order('date', { ascending: false }).limit(10),
-      svc.from('athlete_goals').select('*').eq('student_id', student_id).eq('status', 'active'),
-      svc.from('athlete_records').select('*').eq('student_id', student_id).order('achieved_at', { ascending: false }).limit(10),
+      svc.from('athlete_goals').select(ATHLETE_GOAL_COLUMNS).eq('student_id', student_id).eq('status', 'active'),
+      svc.from('athlete_records').select(ATHLETE_RECORD_COLUMNS).eq('student_id', student_id).order('achieved_at', { ascending: false }).limit(10),
     ]);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
