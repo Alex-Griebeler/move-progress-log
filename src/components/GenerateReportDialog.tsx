@@ -272,6 +272,16 @@ export function GenerateReportDialog({
             </p>
             <ScrollArea className="h-[200px] border rounded-md p-4">
               <div className="space-y-2">
+                {isLoadingPeriodExercises && (
+                  <p className="text-sm text-muted-foreground">
+                    Carregando exercícios executados no período...
+                  </p>
+                )}
+                {!isLoadingPeriodExercises && selectableExercises.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum exercício elegível (força/hipertrofia) foi encontrado no período selecionado.
+                  </p>
+                )}
                 {selectableExercises.map((exercise) => (
                   <div key={exercise.id} className="flex items-center space-x-2">
                     <Checkbox
