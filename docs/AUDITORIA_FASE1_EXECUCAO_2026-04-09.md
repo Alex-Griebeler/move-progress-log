@@ -83,17 +83,25 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
   - Menor transferência de payload.
   - Base mais previsível para refactor incremental.
 
+### 8) Higiene de query (round 3, fechamento do ciclo `select("*")`)
+- Wildcards removidos dos últimos pontos em frontend e edge functions:
+  - `src/hooks/*` (oura, protocolos, observações, histórico)
+  - `src/features/ai-builder/useAIBuilderChat.ts`
+  - `src/pages/AdminUsersPage.tsx`
+  - `src/components/StudentObservationsCard.tsx`
+  - `supabase/functions/check-rate-limit/index.ts`
+  - `supabase/functions/generate-protocol-recommendations/index.ts`
+  - `supabase/functions/ai-coach/index.ts`
+- Verificação final:
+  - `rg "select(\"*\")|select('*')" src supabase/functions` → **0 ocorrências**
+
 ## Pendências Prioritárias (próximo lote)
-1. Remover `select("*")` restante em módulos ainda críticos/recorrentes:
-   - `EditSessionDialog.tsx`, `EditGroupSessionDialog.tsx`
-   - `RecordGroupSessionDialog.tsx`
-   - `useSessionDetail` secundários e hooks de Oura
-2. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
+1. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
    - `RecordGroupSessionDialog.tsx`
    - `generate-group-session/index.ts`
    - `process-voice-session/index.ts`
-3. Consolidar contratos de payload (schema runtime) entre frontend e edge functions.
-4. Criar smoke E2E curto para 4 fluxos críticos no preview autenticado.
+2. Consolidar contratos de payload (schema runtime) entre frontend e edge functions.
+3. Criar smoke E2E curto para 4 fluxos críticos no preview autenticado.
 
 ## Risco Residual Atual
 - Fluxos de rede externos continuam dependentes de credenciais e disponibilidade de ambiente.
