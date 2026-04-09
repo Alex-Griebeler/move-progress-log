@@ -21,26 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import exercisesJSON from "@/data/exercicios_fabrik_categorizado.json";
 import { logger } from "@/utils/logger";
-
-const extractExcelCellValue = (value: unknown): unknown => {
-  if (value instanceof Date) return value;
-  if (typeof value !== "object" || value === null) return value;
-
-  const record = value as Record<string, unknown>;
-  if ("result" in record && record.result !== undefined && record.result !== null) {
-    return record.result;
-  }
-  if ("text" in record && typeof record.text === "string") {
-    return record.text;
-  }
-  if ("richText" in record && Array.isArray(record.richText)) {
-    return (record.richText as Array<{ text?: string }>)
-      .map((item) => item.text || "")
-      .join("")
-      .trim();
-  }
-  return value;
-};
+import { extractCellValue } from "@/utils/importSessionsParsing";
 
 const toNumber = (value: unknown): number | undefined => {
   if (typeof value === "number") return value;
@@ -124,7 +105,7 @@ const AdminDiagnosticsPage = () => {
           const rowObj: Record<string, unknown> = {};
           row.eachCell((cell, colNumber) => {
             const key = headers[colNumber];
-            if (key) rowObj[key] = extractExcelCellValue(cell.value);
+            if (key) rowObj[key] = extractCellValue(cell.value);
           });
           rows.push(rowObj);
         }
