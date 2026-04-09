@@ -2,6 +2,10 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
+import {
+  applyLoadValidationToSessions,
+  markExercisesMissingRepsForManualInput,
+} from "./parserCore.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,10 +17,6 @@ const corsHeaders = {
 // ═══════════════════════════════════════════════════════════════
 // SHARED: manter sincronizado com voice-session/index.ts
 // ═══════════════════════════════════════════════════════════════
-
-/** Constantes de conversão de unidades */
-const POUND_TO_KG_CONVERSION = 0.4536;
-const DECIMAL_PLACES = 1;
 
 /** Correções terminológicas padrão para transcrição PT-BR */
 const TERMINOLOGY_CORRECTIONS: Record<string, string> = {
@@ -53,11 +53,6 @@ const EQUIPMENT_LOAD_RULES = {
 // ═══════════════════════════════════════════════════════════════
 // FIM SHARED
 // ═══════════════════════════════════════════════════════════════
-
-const roundToDecimal = (value: number, decimals: number = DECIMAL_PLACES): number => {
-  const multiplier = Math.pow(10, decimals);
-  return Math.round(value * multiplier) / multiplier;
-};
 
 // V-04: Max audio size validation (20M chars ≈ 15MB audio)
 const MAX_AUDIO_SIZE_CHARS = 20_000_000;
@@ -648,179 +643,15 @@ FORMATO DE SAÍDA:
 
     const extractedData = JSON.parse(extractionResult.response.text());
     
-    // Preservar exercícios mencionados sem reps e marcá-los para input manual
-    if (extractedData.sessions) {
-      extractedData.sessions.forEach((session: Record<string, unknown>) => {
-        if (session.exercises) {
-          session.exercises = (session.exercises as Record<string, unknown>[]).map((ex: Record<string, unknown>) => {
-            if (!ex.reps || ex.reps === 0) {
-              // REGRA FABRIK: usar null para dados não informados, NUNCA 0
-              return {
-                ...ex,
-                reps: null,
-                sets: ex.sets || null,
-                load_kg: ex.load_kg || null,
-                observations: ex.observations 
-                  ? `🔴 EXERCÍCIO MENCIONADO SEM REPETIÇÕES - PREENCHER MANUALMENTE\n\n${ex.observations}`
-                  : '🔴 EXERCÍCIO MENCIONADO SEM REPETIÇÕES - PREENCHER MANUALMENTE',
-                needs_manual_input: true
-              };
-            }
-            return ex;
-          });
-        }
-      });
-    }
-    
-    // Função para normalizar load_breakdown com erros de formato
-    function normalizeBreakdown(breakdown: string): string {
-      const hasEachSide = /de cada lado/i.test(breakdown);
-      if (!hasEachSide) return breakdown;
-      
-      const match = breakdown.match(/\((.*?)\)\s*de cada lado(.*?)(?:barra|\+\s*barra|$)/i);
-      if (!match) return breakdown;
-      
-      const insideParens = match[1];
-      const afterEachSide = match[2].trim();
-      const barraMatch = breakdown.match(/(barra\s+\d+(?:\.\d+)?\s*kg)/i);
-      const barra = barraMatch ? barraMatch[1] : '';
-      
-      const looseWeights: string[] = [];
-      const weightRegex = /(\d+(?:\.\d+)?)\s*(kg|lb)/gi;
-      let weightMatch;
-      
-      while ((weightMatch = weightRegex.exec(afterEachSide)) !== null) {
-        looseWeights.push(`${weightMatch[1]} ${weightMatch[2]}`);
-      }
-      
-      if (looseWeights.length === 0) return breakdown;
-      
-      const newInsideParens = [insideParens, ...looseWeights].join(' + ');
-      return `(${newInsideParens}) de cada lado${barra ? ' + ' + barra : ''}`;
-    }
+    // Preservar exercícios mencionados sem reps para input manual
+    markExercisesMissingRepsForManualInput(
+      extractedData.sessions as Record<string, unknown>[] | undefined,
+    );
 
-    // Função auxiliar para calcular carga (ROBUSTA)
-    function calculateLoadFromBreakdown(breakdown: string | null): number | null {
-      if (!breakdown) return null;
-      
-      try {
-        // 1. DETECTAR PESO CORPORAL COM VALOR
-        const bodyCorporalWithValue = breakdown.match(/Peso corporal\s*=\s*(\d+(?:\.\d+)?)\s*kg/i);
-        if (bodyCorporalWithValue) {
-          return roundToDecimal(parseFloat(bodyCorporalWithValue[1]));
-        }
-        
-        // 2. DETECTAR PESO CORPORAL SEM VALOR
-        if (/Peso corporal/i.test(breakdown) && !/\d/.test(breakdown)) {
-          return null;
-        }
-        
-        // 3. DETECTAR ELÁSTICOS/BANDAS
-        const hasOnlyElastic = /^(elástico|banda|elastic)/i.test(breakdown.trim()) && !/\d+\s*(kg|lb)/i.test(breakdown);
-        if (hasOnlyElastic) return null;
-        
-        let total = 0;
-        let processedEachSide = false;
-        
-        // 4. DETECTAR "DE CADA LADO" (multiplicar por 2)
-        const eachSideMatch = breakdown.match(/\((.*?)\)\s*de cada lado/i);
-        if (eachSideMatch) {
-          const content = eachSideMatch[1];
-          processedEachSide = true;
-          
-          const kgMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
-          for (const m of kgMatches) {
-            total += parseFloat(m[1].replace(',', '.')) * 2;
-          }
-          
-          const lbMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
-          for (const m of lbMatches) {
-            total += parseFloat(m[1].replace(',', '.')) * POUND_TO_KG_CONVERSION * 2;
-          }
-        }
-        
-        // 5. DETECTAR KETTLEBELLS/HALTERES DUPLOS (multiplicar por 2)
-        const multiKbMatch = breakdown.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:[.,]\d+)?)\s*(kg|lb)/i);
-        if (multiKbMatch && !processedEachSide) {
-          const value = parseFloat(multiKbMatch[2].replace(',', '.'));
-          const unit = multiKbMatch[3].toLowerCase();
-          const kg = unit === 'lb' ? value * POUND_TO_KG_CONVERSION : value;
-          total += kg * 2;
-        }
-        
-        // 6. EXTRAIR PESO DA BARRA
-        const barraMatch = breakdown.match(/barra\s*(\d+(?:[.,]\d+)?)\s*kg/i);
-        if (barraMatch) {
-          total += parseFloat(barraMatch[1].replace(',', '.'));
-        }
-        
-        // 7. PESOS SIMPLES (sem "de cada lado" nem "duplo")
-        if (!processedEachSide && !multiKbMatch) {
-          const kgMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
-          for (const m of kgMatches) {
-            const matchText = breakdown.substring(Math.max(0, (m.index || 0) - 6), (m.index || 0) + m[0].length);
-            if (!/barra/i.test(matchText)) {
-              total += parseFloat(m[1].replace(',', '.'));
-            }
-          }
-          
-          const lbMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
-          for (const m of lbMatches) {
-            total += parseFloat(m[1].replace(',', '.')) * POUND_TO_KG_CONVERSION;
-          }
-        }
-        
-        return total > 0 ? roundToDecimal(total) : null;
-      } catch {
-        return null;
-      }
-    }
-    
-    // Sanitizar dados (converter 0 e "" para null)
-    function sanitizeExerciseData(exercise: Record<string, unknown>) {
-      const fieldsToSanitize = ['load_kg', 'load_breakdown', 'reps', 'sets', 'observations'];
-      for (const field of fieldsToSanitize) {
-        if (exercise[field] === 0 || exercise[field] === '' || exercise[field] === 'não informado') {
-          exercise[field] = null;
-        }
-      }
-    }
-
-    // Validar e recalcular load_kg se necessário
-    function validateAndRecalculateLoad(exercise: Record<string, unknown>, _sessionIdx: number, _exIdx: number) {
-      sanitizeExerciseData(exercise);
-      
-      if (!exercise.load_breakdown) {
-        if (exercise.load_kg !== null) exercise.load_kg = null;
-        return;
-      }
-      
-      exercise.load_breakdown = normalizeBreakdown(exercise.load_breakdown as string);
-      const calculatedLoadKg = calculateLoadFromBreakdown(exercise.load_breakdown as string);
-      
-      if (exercise.load_kg === null || exercise.load_kg === undefined) {
-        exercise.load_kg = calculatedLoadKg;
-        return;
-      }
-      
-      // Validar consistência (tolerância de 0.1 kg)
-      if (calculatedLoadKg !== null) {
-        const diff = Math.abs((exercise.load_kg as number) - calculatedLoadKg);
-        if (diff > 0.1) {
-          // Usar valor calculado (mais confiável que o Gemini)
-          exercise.load_kg = calculatedLoadKg;
-        } else {
-          exercise.load_kg = Math.round((exercise.load_kg as number) * 10) / 10;
-        }
-      }
-    }
-
-    // APLICAR VALIDAÇÃO COMPLETA
-    extractedData.sessions?.forEach((session: Record<string, unknown>, sessionIdx: number) => {
-      (session.exercises as Record<string, unknown>[] | undefined)?.forEach((ex: Record<string, unknown>, exIdx: number) => {
-        validateAndRecalculateLoad(ex, sessionIdx, exIdx);
-      });
-    });
+    // Aplicar validação e recálculo de carga
+    applyLoadValidationToSessions(
+      extractedData.sessions as Record<string, unknown>[] | undefined,
+    );
     
     // ═══════════════════════════════════════════════════════════
     // MEL-IA-006: Validação de Desvio da Prescrição

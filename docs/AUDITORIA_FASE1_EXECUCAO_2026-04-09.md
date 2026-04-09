@@ -128,6 +128,19 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Script exposto em `package.json`:
   - `npm run audit:guards`
 
+### 12) Lote 2 — Hardening do parser de voz (sem mudança de contrato)
+- Extração do núcleo de parsing para módulo dedicado:
+  - `supabase/functions/process-voice-session/parserCore.ts`
+- `process-voice-session/index.ts` passou a delegar:
+  - marcação de exercícios sem reps para input manual
+  - validação/normalização de `load_breakdown`
+  - recálculo consistente de `load_kg`
+- Testes de caracterização adicionados:
+  - `src/utils/__tests__/voiceParserCore.test.ts` (7 casos)
+  - cobertura de peso corporal, barra bilateral, mistura lb/kg, duplo implemento, saneamento e marcação de reps ausentes.
+- Resultado:
+  - redução de complexidade no handler principal sem alterar payload de resposta.
+
 ## Pendências Prioritárias (próximo lote)
 1. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
    - `RecordGroupSessionDialog.tsx`

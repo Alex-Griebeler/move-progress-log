@@ -14,6 +14,9 @@
   - `RecordGroupSessionDialog` delegando merge/validação/mapeamento para `src/components/session/groupSessionDataUtils.ts`
 - Guard de regressão adicionado:
   - `npm run audit:guards` bloqueia reintrodução de `select("*")` e `@ts-ignore`.
+- Parser de voz hardenizado com teste de caracterização:
+  - núcleo extraído para `supabase/functions/process-voice-session/parserCore.ts`
+  - testes em `src/utils/__tests__/voiceParserCore.test.ts`
 
 ## Itens bloqueados por ausência/interação manual
 1. Smoke test interativo autenticado no staging (cenários de UI protegidos):
