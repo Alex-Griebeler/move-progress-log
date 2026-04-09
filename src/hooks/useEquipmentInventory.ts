@@ -2,13 +2,25 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { EquipmentInventoryItem } from "@/types/aiSession";
 
+const EQUIPMENT_INVENTORY_COLUMNS = `
+  id,
+  name,
+  category,
+  quantity,
+  weight_kg,
+  weight_range,
+  location,
+  is_available,
+  notes
+`;
+
 export const useEquipmentInventory = (onlyAvailable = true) => {
   return useQuery({
     queryKey: ["equipment-inventory", onlyAvailable],
     queryFn: async () => {
       let query = supabase
         .from("equipment_inventory")
-        .select("*")
+        .select(EQUIPMENT_INVENTORY_COLUMNS)
         .order("category")
         .order("name");
 

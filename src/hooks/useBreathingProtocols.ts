@@ -5,13 +5,27 @@ import type { BreathingProtocol } from "@/types/aiSession";
 type BreathingCategory = "respiracao" | "mindfulness" | "meditacao";
 type UsageContext = "pre_workout" | "intra_workout" | "post_workout" | "recovery";
 
+const BREATHING_PROTOCOL_COLUMNS = `
+  id,
+  name,
+  category,
+  technique,
+  rhythm,
+  duration_seconds,
+  instructions,
+  benefits,
+  when_to_use,
+  audio_cues,
+  is_active
+`;
+
 export const useBreathingProtocols = (category?: BreathingCategory) => {
   return useQuery({
     queryKey: ["breathing-protocols", category],
     queryFn: async () => {
       let query = supabase
         .from("breathing_protocols")
-        .select("*")
+        .select(BREATHING_PROTOCOL_COLUMNS)
         .eq("is_active", true)
         .order("name");
 

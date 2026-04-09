@@ -13,13 +13,25 @@ export interface OuraSyncLog {
   created_at: string;
 }
 
+const OURA_SYNC_LOG_COLUMNS = `
+  id,
+  student_id,
+  sync_date,
+  sync_time,
+  status,
+  attempt_number,
+  error_message,
+  metrics_synced,
+  created_at
+`;
+
 export const useOuraSyncLogs = (studentId?: string, limit: number = 10) => {
   return useQuery({
     queryKey: ["oura-sync-logs", studentId, limit],
     queryFn: async () => {
       let query = supabase
         .from("oura_sync_logs")
-        .select("*")
+        .select(OURA_SYNC_LOG_COLUMNS)
         .order("created_at", { ascending: false })
         .limit(limit);
 

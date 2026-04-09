@@ -59,6 +59,47 @@ export interface OuraMetrics {
   created_at: string;
 }
 
+const OURA_METRICS_COLUMNS = `
+  id,
+  student_id,
+  date,
+  readiness_score,
+  sleep_score,
+  hrv_balance,
+  resting_heart_rate,
+  temperature_deviation,
+  activity_balance,
+  activity_score,
+  steps,
+  active_calories,
+  total_calories,
+  met_minutes,
+  high_activity_time,
+  medium_activity_time,
+  low_activity_time,
+  sedentary_time,
+  training_volume,
+  training_frequency,
+  total_sleep_duration,
+  deep_sleep_duration,
+  rem_sleep_duration,
+  light_sleep_duration,
+  awake_time,
+  sleep_efficiency,
+  sleep_latency,
+  lowest_heart_rate,
+  average_sleep_hrv,
+  average_breath,
+  stress_high_time,
+  recovery_high_time,
+  day_summary,
+  spo2_average,
+  breathing_disturbance_index,
+  vo2_max,
+  resilience_level,
+  created_at
+`;
+
 // AUD-F03: Histórico com paginação e deduplicação
 export const useOuraMetrics = (studentId: string, limit?: number) => {
   return useQuery({
@@ -69,7 +110,7 @@ export const useOuraMetrics = (studentId: string, limit?: number) => {
     queryFn: async () => {
       let query = supabase
         .from("oura_metrics")
-        .select("*")
+        .select(OURA_METRICS_COLUMNS)
         .eq("student_id", studentId)
         .order("date", { ascending: false });
 
@@ -109,7 +150,7 @@ export const useLatestOuraMetrics = (studentId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("oura_metrics")
-        .select("*")
+        .select(OURA_METRICS_COLUMNS)
         .eq("student_id", studentId)
         .order("date", { ascending: false })
         .limit(1)
