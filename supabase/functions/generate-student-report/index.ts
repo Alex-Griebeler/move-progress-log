@@ -317,6 +317,16 @@ serve(async (req) => {
         error: "Selecione pelo menos um exercício elegível (força/hipertrofia)",
       });
     }
+    if (eligibleTrackedExercises.length !== trackedLibrary.length) {
+      const invalidNames = trackedLibrary
+        .filter((exercise) => !isEligibleStrengthCategory(exercise.category))
+        .map((exercise) => exercise.name)
+        .slice(0, 5)
+        .join(", ");
+      return jsonResponse(400, {
+        error: `A seleção contém exercícios não elegíveis para análise de força/hipertrofia: ${invalidNames}`,
+      });
+    }
 
     const { data: report, error: reportError } = await supabase
       .from("student_reports")
@@ -380,6 +390,25 @@ serve(async (req) => {
           prescription_id: session.prescription_id,
         }))
     );
+
+    const executedExerciseNames = new Set(
+      typedSessions
+        .flatMap((session) => session.exercises || [])
+        .map((exercise) => normalizeComparableText(exercise.exercise_name))
+        .filter(Boolean)
+    );
+    const notExecutedInWindow = eligibleTrackedExercises.filter(
+      (exercise) => !executedExerciseNames.has(normalizeComparableText(exercise.name))
+    );
+    if (notExecutedInWindow.length > 0) {
+      const notExecutedNames = notExecutedInWindow
+        .map((exercise) => exercise.name)
+        .slice(0, 5)
+        .join(", ");
+      return jsonResponse(400, {
+        error: `Selecione apenas exercícios executados no período informado. Não encontrados: ${notExecutedNames}`,
+      });
+    }
 
     const trackedExercisesData: Array<{
       exerciseName: string;

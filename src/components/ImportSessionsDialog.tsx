@@ -348,8 +348,17 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
       // Toast final
       toast.dismiss(toastId);
-      
-      if (errors.length === 0) {
+
+      const hasSuccessfulImports = processed > 0;
+      if (!hasSuccessfulImports) {
+        toast.error("Importação não persistiu sessões", {
+          description:
+            errors.length > 0
+              ? `Nenhuma sessão foi salva. ${errors.length} erro(s) encontrado(s).`
+              : "Nenhuma sessão foi salva. Verifique os dados da planilha e tente novamente.",
+          duration: 7000,
+        });
+      } else if (errors.length === 0) {
         toast.success("Importação concluída com sucesso!", {
           description: `${processed} sessão(ões) importada(s) com ${validRows} linha(s) válida(s).`,
           duration: 5000,
@@ -365,7 +374,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         total: totalSessions,
         processed,
         errors,
-        success: errors.length === 0,
+        success: errors.length === 0 && hasSuccessfulImports,
       });
     } catch (error: unknown) {
       if (toastId) toast.dismiss(toastId);

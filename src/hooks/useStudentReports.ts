@@ -132,6 +132,22 @@ const mapTrackedExercise = (row: TrackedExerciseRow): TrackedExercise => ({
   weekly_progression: mapWeeklyProgression(row.weekly_progression),
 });
 
+const extractInvokeErrorMessage = async (error: unknown): Promise<string> => {
+  if (error && typeof error === "object") {
+    const maybeError = error as { message?: unknown; context?: unknown };
+    if (maybeError.context instanceof Response) {
+      const payload = await maybeError.context.json().catch(() => null);
+      if (isRecord(payload) && typeof payload.error === "string" && payload.error.trim() !== "") {
+        return payload.error;
+      }
+    }
+    if (typeof maybeError.message === "string" && maybeError.message.trim() !== "") {
+      return maybeError.message;
+    }
+  }
+  return "Falha ao gerar relatório";
+};
+
 export const useStudentReports = (studentId: string) => {
   return useQuery({
     queryKey: ["student-reports", studentId],
@@ -218,7 +234,10 @@ export const useGenerateReport = () => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const message = await extractInvokeErrorMessage(error);
+        throw new Error(message);
+      }
       return data;
     },
     onSuccess: (data, variables) => {
