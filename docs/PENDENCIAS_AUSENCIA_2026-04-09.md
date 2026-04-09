@@ -17,6 +17,9 @@
 - Parser de voz hardenizado com teste de caracterização:
   - núcleo extraído para `supabase/functions/process-voice-session/parserCore.ts`
   - testes em `src/utils/__tests__/voiceParserCore.test.ts`
+- Gerador de sessão em grupo hardenizado com teste de caracterização:
+  - validações extraídas para `supabase/functions/generate-group-session/validationCore.ts`
+  - testes em `src/utils/__tests__/groupSessionValidationCore.test.ts`
 
 ## Itens bloqueados por ausência/interação manual
 1. Smoke test interativo autenticado no staging (cenários de UI protegidos):

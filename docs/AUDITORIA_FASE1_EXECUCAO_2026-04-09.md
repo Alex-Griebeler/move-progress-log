@@ -141,6 +141,20 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Resultado:
   - redução de complexidade no handler principal sem alterar payload de resposta.
 
+### 13) Lote 3 — Hardening do gerador de sessão em grupo (sem mudança de contrato)
+- Extração das validações e métricas cross-session para módulo dedicado:
+  - `supabase/functions/generate-group-session/validationCore.ts`
+- `generate-group-session/index.ts` passou a delegar:
+  - nome de treino (`generateWorkoutName`)
+  - contagem de sets efetivos (`countEffectiveSets`)
+  - balanço de padrões (`calcPatternsBalance`)
+  - estatísticas cross-session (`collectCrossSessionStats`)
+  - validações de dominância, sobreposição e controle neural/articular
+- Testes de caracterização adicionados:
+  - `src/utils/__tests__/groupSessionValidationCore.test.ts` (4 casos)
+- Resultado:
+  - redução de acoplamento no arquivo principal de 1745 linhas com extração do núcleo de validação.
+
 ## Pendências Prioritárias (próximo lote)
 1. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
    - `RecordGroupSessionDialog.tsx`
