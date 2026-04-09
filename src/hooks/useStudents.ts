@@ -21,13 +21,31 @@ export interface Student {
   updated_at: string;
 }
 
+const STUDENT_COLUMNS = `
+  id,
+  name,
+  weekly_sessions_proposed,
+  birth_date,
+  objectives,
+  limitations,
+  preferences,
+  max_heart_rate,
+  injury_history,
+  fitness_level,
+  avatar_url,
+  weight_kg,
+  height_cm,
+  created_at,
+  updated_at
+`;
+
 export const useStudents = () => {
   return useQuery({
     queryKey: ["students"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("students")
-        .select("*")
+        .select(STUDENT_COLUMNS)
         .order("name")
         .limit(2000);
       
@@ -79,7 +97,7 @@ export const useGetOrCreateStudent = () => {
       // Buscar aluno existente do trainer atual
       const { data: existing } = await supabase
         .from("students")
-        .select("*")
+        .select(STUDENT_COLUMNS)
         .ilike("name", name)
         .eq("trainer_id", user.id)
         .maybeSingle();

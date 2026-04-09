@@ -74,6 +74,18 @@ type PrescriptionAssignmentRow = Database["public"]["Tables"]["prescription_assi
 type PrescriptionExerciseRow = Database["public"]["Tables"]["prescription_exercises"]["Row"];
 type ExerciseAdaptationRow = Database["public"]["Tables"]["exercise_adaptations"]["Row"];
 
+const WORKOUT_PRESCRIPTION_COLUMNS = `
+  id,
+  name,
+  objective,
+  created_at,
+  updated_at,
+  folder_id,
+  order_index,
+  prescription_type,
+  trainer_id
+`;
+
 type PrescriptionListRow = WorkoutPrescriptionRow & {
   prescription_assignments: Array<{ student_id: string }> | null;
 };
@@ -204,7 +216,7 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
 
       const { data: prescription, error: prescError } = await supabase
         .from("workout_prescriptions")
-        .select("*")
+        .select(WORKOUT_PRESCRIPTION_COLUMNS)
         .eq("id", prescriptionId)
         .single();
 
