@@ -163,9 +163,9 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     }
   };
 
-  const parseExcelDate = (excelDate: unknown): string => {
+  const parseExcelDate = (excelDate: unknown): string | null => {
     if (excelDate instanceof Date) {
-      return formatDate(excelDate);
+      return Number.isNaN(excelDate.getTime()) ? null : formatDate(excelDate);
     }
 
     if (typeof excelDate === "string") {
@@ -185,10 +185,11 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     if (typeof excelDate === "number") {
       // Excel armazena datas como números (dias desde 1900)
       const date = new Date((excelDate - 25569) * 86400 * 1000);
+      if (Number.isNaN(date.getTime())) return null;
       return date.toISOString().split("T")[0];
     }
     
-    return new Date().toISOString().split("T")[0];
+    return null;
   };
 
   const parseTime = (timeValue: unknown): string => {
@@ -261,6 +262,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       // Agrupa por aluno + data + hora
       const sessionsMap = new Map<string, SessionRow[]>();
       let validRows = 0;
+      let invalidDateRows = 0;
 
       jsonData.forEach((row) => {
         const alunoRaw = getStringValue(row, ["student", "aluno", "nome", "nome do aluno"]);
@@ -272,6 +274,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
         // Skip blank lines or incomplete rows from spreadsheet exports.
         if (!alunoRaw || !exerciseName) return;
+        if (!parsedDate) {
+          invalidDateRows++;
+          return;
+        }
         validRows++;
 
         const sessionKey = `${alunoRaw.toLowerCase()}_${parsedDate}_${parsedTime}`;
@@ -297,7 +303,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         throw new Error(
           `Nenhuma linha válida encontrada para importação. Verifique cabeçalhos (detected: ${detectedHeaders
             .filter(Boolean)
-            .join(", ")}) e se as colunas de aluno + exercício estão preenchidas.`
+            .join(", ")}) e se as colunas de aluno + exercício estão preenchidas.${invalidDateRows > 0 ? ` Linhas com data inválida: ${invalidDateRows}.` : ""}`
         );
       }
       setStatus((prev) => ({ ...prev!, total: totalSessions }));
