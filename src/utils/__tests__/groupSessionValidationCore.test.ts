@@ -44,6 +44,81 @@ const buildWorkout = (
 });
 
 describe("generate-group-session validation core", () => {
+  it("applies minimum weekly sets by number of sessions (2->8, 3->12)", () => {
+    const warningsForTwoSessions: string[] = [];
+    validateDominanceBalance(
+      {
+        patternSets: {
+          empurrar: 8,
+          puxar: 10,
+          dominancia_joelho: 8,
+          lunge: 0,
+          cadeia_posterior: 8,
+        },
+        hingeHeavyCount: 0,
+        lomHighPerSession: { A: 0, B: 0 },
+        neuralProfile: { A: "moderado", B: "moderado" },
+        jointStress: { joelho: 0, ombro: 0, lombar: 0 },
+        primeMoversPerSession: { A: new Set(["empurrar"]), B: new Set(["puxar"]) },
+      },
+      warningsForTwoSessions,
+    );
+    expect(warningsForTwoSessions).toEqual([]);
+
+    const warningsForThreeSessions: string[] = [];
+    validateDominanceBalance(
+      {
+        patternSets: {
+          empurrar: 11,
+          puxar: 13,
+          dominancia_joelho: 11,
+          lunge: 0,
+          cadeia_posterior: 11,
+        },
+        hingeHeavyCount: 0,
+        lomHighPerSession: { A: 0, B: 0, C: 0 },
+        neuralProfile: { A: "moderado", B: "moderado", C: "moderado" },
+        jointStress: { joelho: 0, ombro: 0, lombar: 0 },
+        primeMoversPerSession: {
+          A: new Set(["empurrar"]),
+          B: new Set(["puxar"]),
+          C: new Set(["cadeia_posterior"]),
+        },
+      },
+      warningsForThreeSessions,
+    );
+    expect(
+      warningsForThreeSessions.some((warning) => warning.includes("mín. 12")),
+    ).toBe(true);
+  });
+
+  it("enforces pull at least 25% above push", () => {
+    const warnings: string[] = [];
+    validateDominanceBalance(
+      {
+        patternSets: {
+          empurrar: 12,
+          puxar: 14, // 1.17x -> should warn
+          dominancia_joelho: 12,
+          lunge: 0,
+          cadeia_posterior: 12,
+        },
+        hingeHeavyCount: 0,
+        lomHighPerSession: { A: 0, B: 0, C: 0 },
+        neuralProfile: { A: "moderado", B: "moderado", C: "moderado" },
+        jointStress: { joelho: 0, ombro: 0, lombar: 0 },
+        primeMoversPerSession: {
+          A: new Set(["empurrar"]),
+          B: new Set(["puxar"]),
+          C: new Set(["cadeia_posterior"]),
+        },
+      },
+      warnings,
+    );
+
+    expect(warnings.some((warning) => warning.includes("25%"))).toBe(true);
+  });
+
   it("computes triplanar core coverage", () => {
     const result = checkCoreTriplanar([
       {
@@ -180,4 +255,3 @@ describe("generate-group-session validation core", () => {
     expect(warnings.some((warning) => warning.includes("Hinge pesado"))).toBe(true);
   });
 });
-

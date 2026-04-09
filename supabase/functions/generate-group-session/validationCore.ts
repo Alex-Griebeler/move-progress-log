@@ -195,6 +195,8 @@ export function validateDominanceBalance(
   stats: CrossSessionStats,
   warnings: string[],
 ): void {
+  const sessionCount = Object.keys(stats.primeMoversPerSession).length;
+  const minSetsPerPattern = sessionCount <= 2 ? 8 : 12;
   const push = stats.patternSets["empurrar"] || 0;
   const pull = stats.patternSets["puxar"] || 0;
   const knee =
@@ -202,21 +204,35 @@ export function validateDominanceBalance(
     (stats.patternSets["lunge"] || 0);
   const hip = stats.patternSets["cadeia_posterior"] || 0;
 
-  if (push < 6) warnings.push(`Volume semanal Push insuficiente: ${push} sets (mín. 6).`);
-  if (pull < 6) warnings.push(`Volume semanal Pull insuficiente: ${pull} sets (mín. 6).`);
-  if (knee < 6) warnings.push(`Volume semanal Knee insuficiente: ${knee} sets (mín. 6).`);
-  if (hip < 4) warnings.push(`Volume semanal Hip insuficiente: ${hip} sets (mín. 4).`);
+  if (push < minSetsPerPattern) {
+    warnings.push(
+      `Volume semanal Push insuficiente: ${push} sets (mín. ${minSetsPerPattern}).`,
+    );
+  }
+  if (pull < minSetsPerPattern) {
+    warnings.push(
+      `Volume semanal Pull insuficiente: ${pull} sets (mín. ${minSetsPerPattern}).`,
+    );
+  }
+  if (knee < minSetsPerPattern) {
+    warnings.push(
+      `Volume semanal Knee insuficiente: ${knee} sets (mín. ${minSetsPerPattern}).`,
+    );
+  }
+  if (hip < minSetsPerPattern) {
+    warnings.push(
+      `Volume semanal Hip insuficiente: ${hip} sets (mín. ${minSetsPerPattern}).`,
+    );
+  }
 
   if (push > 0) {
     const ratio = pull / push;
-    if (ratio < 1.2) {
+    if (ratio < 1.25) {
       warnings.push(
         `Pull/Push ratio: ${ratio.toFixed(
           2,
-        )}x (recomendado 1.2-1.4x). Pull deve ser 20-40% superior ao Push.`,
+        )}x (mín. 1.25x). Pull deve ser pelo menos 25% superior ao Push.`,
       );
-    } else if (ratio > 1.5) {
-      warnings.push(`Pull/Push ratio elevado: ${ratio.toFixed(2)}x. Considere balancear.`);
     }
   }
 }
@@ -295,4 +311,3 @@ export function validateNeuralAndJointControl(
     );
   }
 }
-

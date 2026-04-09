@@ -155,6 +155,16 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Resultado:
   - redução de acoplamento no arquivo principal de 1745 linhas com extração do núcleo de validação.
 
+### 14) Ajuste de regra de volume semanal por padrão de movimento
+- Regra aplicada no motor:
+  - Em 2 treinos/semana: mínimo `8` sets por padrão (push/pull/knee/hip)
+  - Em 3 treinos/semana: mínimo `12` sets por padrão (push/pull/knee/hip)
+  - Pull obrigatório em pelo menos `25%` acima de Push (`ratio >= 1.25`)
+- Arquivo alterado:
+  - `supabase/functions/generate-group-session/validationCore.ts`
+- Testes de caracterização atualizados:
+  - `src/utils/__tests__/groupSessionValidationCore.test.ts`
+
 ## Pendências Prioritárias (próximo lote)
 1. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
    - `RecordGroupSessionDialog.tsx`
