@@ -65,6 +65,44 @@ export interface TrackedExercise {
 type StudentReportRow = Database["public"]["Tables"]["student_reports"]["Row"];
 type TrackedExerciseRow = Database["public"]["Tables"]["report_tracked_exercises"]["Row"];
 
+const STUDENT_REPORT_COLUMNS = `
+  id,
+  student_id,
+  trainer_id,
+  period_start,
+  period_end,
+  report_type,
+  status,
+  total_sessions,
+  weekly_average,
+  adherence_percentage,
+  sessions_proposed,
+  trainer_highlights,
+  attention_points,
+  next_cycle_plan,
+  oura_data,
+  consistency_analysis,
+  strength_analysis,
+  generated_at,
+  created_at,
+  updated_at
+`;
+
+const TRACKED_EXERCISE_COLUMNS = `
+  id,
+  report_id,
+  exercise_library_id,
+  exercise_name,
+  initial_load,
+  final_load,
+  load_variation_percentage,
+  initial_total_work,
+  final_total_work,
+  work_variation_percentage,
+  weekly_progression,
+  created_at
+`;
+
 const isRecord = (value: Json | Record<string, unknown> | null): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -155,7 +193,7 @@ export const useStudentReports = (studentId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("student_reports")
-        .select("*")
+        .select(STUDENT_REPORT_COLUMNS)
         .eq("student_id", studentId)
         .order("period_end", { ascending: false });
 
@@ -174,7 +212,7 @@ export const useReportById = (reportId: string | null) => {
 
       const { data, error } = await supabase
         .from("student_reports")
-        .select("*")
+        .select(STUDENT_REPORT_COLUMNS)
         .eq("id", reportId)
         .single();
 
@@ -193,7 +231,7 @@ export const useReportTrackedExercises = (reportId: string | null) => {
 
       const { data, error } = await supabase
         .from("report_tracked_exercises")
-        .select("*")
+        .select(TRACKED_EXERCISE_COLUMNS)
         .eq("report_id", reportId)
         .order("load_variation_percentage", { ascending: false });
 
