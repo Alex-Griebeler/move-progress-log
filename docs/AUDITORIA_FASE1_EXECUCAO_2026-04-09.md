@@ -107,6 +107,18 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Critério de saída para esta etapa:
   - separar estado/efeitos/IO em módulos menores sem alterar payload/contrato.
 
+### 10) Refactor seguro do fluxo de sessão em grupo (primeira fatia)
+- Nova extração de regras puras para utilitário dedicado:
+  - `src/components/session/groupSessionDataUtils.ts`
+- `RecordGroupSessionDialog` agora delega para funções puras:
+  - merge de gravações (`mergeAllRecordings`)
+  - validação de dados mesclados (`validateMergedData`)
+  - inclusão de prescritos não mencionados (`addUnmentionedPrescribedExercises`)
+  - mapeamento de segmentos de áudio (`mapAudioSegmentsToSessionData`)
+- Resultado prático:
+  - redução de acoplamento entre UI e regra de negócio no diálogo principal.
+  - base pronta para continuar quebra por fatias sem alterar comportamento.
+
 ## Pendências Prioritárias (próximo lote)
 1. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
    - `RecordGroupSessionDialog.tsx`
