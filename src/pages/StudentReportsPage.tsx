@@ -126,8 +126,8 @@ export default function StudentReportsPage() {
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
                   <span>
-                    {format(new Date(report.period_start), "dd/MM/yy", { locale: ptBR })} até{" "}
-                    {format(new Date(report.period_end), "dd/MM/yy", { locale: ptBR })}
+                    {format(new Date(report.period_start), "dd/MM/yyyy", { locale: ptBR })} até{" "}
+                    {format(new Date(report.period_end), "dd/MM/yyyy", { locale: ptBR })}
                   </span>
                 </div>
 

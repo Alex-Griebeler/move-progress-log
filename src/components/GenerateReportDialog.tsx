@@ -30,6 +30,37 @@ const normalizeComparableText = (value: string): string =>
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/\s+/g, " ");
 
+const maskDateBr = (input: string): string => {
+  const digits = input.replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+};
+
+const parseBrDateToIso = (dateBr: string): string | null => {
+  const match = dateBr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  if (day < 1 || day > 31 || month < 1 || month > 12) return null;
+
+  const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const testDate = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(testDate.getTime())) return null;
+
+  if (
+    testDate.getFullYear() !== year ||
+    testDate.getMonth() + 1 !== month ||
+    testDate.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return iso;
+};
+
 interface GenerateReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -67,7 +98,10 @@ export function GenerateReportDialog({
   const resolvePeriodRange = useCallback((): { periodStart: string; periodEnd: string } | null => {
     if (periodType === "custom") {
       if (!customStart || !customEnd) return null;
-      return { periodStart: customStart, periodEnd: customEnd };
+      const periodStart = parseBrDateToIso(customStart);
+      const periodEnd = parseBrDateToIso(customEnd);
+      if (!periodStart || !periodEnd) return null;
+      return { periodStart, periodEnd };
     }
     const days = parseInt(periodType);
     if (Number.isNaN(days) || days <= 0) return null;
@@ -134,8 +168,14 @@ export function GenerateReportDialog({
     let periodEnd: string;
 
     if (periodType === "custom") {
-      periodStart = customStart;
-      periodEnd = customEnd;
+      const startIso = parseBrDateToIso(customStart);
+      const endIso = parseBrDateToIso(customEnd);
+      if (!startIso || !endIso) {
+        toast.error("Use o formato DD/MM/AAAA nas datas do período personalizado");
+        return;
+      }
+      periodStart = startIso;
+      periodEnd = endIso;
     } else {
       const days = parseInt(periodType);
       periodEnd = format(new Date(), "yyyy-MM-dd");
@@ -189,6 +229,8 @@ export function GenerateReportDialog({
       onOpenChange(false);
       // Reset form
       setPeriodType("30");
+      setCustomStart("");
+      setCustomEnd("");
       setSelectedExercises([]);
       setHighlights("");
       setAttentionPoints("");
@@ -240,17 +282,23 @@ export function GenerateReportDialog({
                 <div>
                   <Label>Data Início</Label>
                   <Input
-                    type="date"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="DD/MM/AAAA"
+                    maxLength={10}
                     value={customStart}
-                    onChange={(e) => setCustomStart(e.target.value)}
+                    onChange={(e) => setCustomStart(maskDateBr(e.target.value))}
                   />
                 </div>
                 <div>
                   <Label>Data Fim</Label>
                   <Input
-                    type="date"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="DD/MM/AAAA"
+                    maxLength={10}
                     value={customEnd}
-                    onChange={(e) => setCustomEnd(e.target.value)}
+                    onChange={(e) => setCustomEnd(maskDateBr(e.target.value))}
                   />
                 </div>
               </div>
