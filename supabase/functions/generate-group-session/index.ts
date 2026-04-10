@@ -22,6 +22,17 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
+import { z } from "https://esm.sh/zod@3.25.76";
+import {
+  calcPatternsBalance,
+  checkCoreTriplanar,
+  collectCrossSessionStats,
+  countEffectiveSets,
+  generateWorkoutName,
+  validateDominanceBalance,
+  validateNeuralAndJointControl,
+  validatePrimeMoverOverlap,
+} from "./validationCore.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,45 +41,158 @@ const corsHeaders = {
 };
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" };
 
+function errorResponse(status: number, error: string, details?: string): Response {
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error,
+      details: details || undefined,
+    }),
+    { headers: jsonHeaders, status }
+  );
+}
+
+interface AuthorizedContext {
+  userId: string;
+  supabase: ReturnType<typeof createClient>;
+  supabaseAdmin: ReturnType<typeof createClient>;
+}
+
+async function resolveAuthorizedContext(authHeader: string | null): Promise<
+  { ok: true; value: AuthorizedContext } | { ok: false; response: Response }
+> {
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { ok: false, response: errorResponse(401, "Autenticação obrigatória") };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData?.user) {
+    return { ok: false, response: errorResponse(401, "Token inválido") };
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+  const { data: roleData } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userData.user.id)
+    .in("role", ["admin", "trainer"])
+    .limit(1);
+
+  if (!roleData || roleData.length === 0) {
+    return { ok: false, response: errorResponse(403, "Acesso restrito a treinadores e admins") };
+  }
+
+  return {
+    ok: true,
+    value: {
+      userId: userData.user.id,
+      supabase,
+      supabaseAdmin,
+    },
+  };
+}
+
+async function fetchGenerationResources(supabase: ReturnType<typeof createClient>) {
+  const { data: allExercises, error: exercisesError } = await supabase
+    .from("exercises_library")
+    .select("id, name, movement_pattern, risk_level, level, category, subcategory, movement_plane, equipment_required, default_sets, default_reps, numeric_level, axial_load, lumbar_demand, technical_complexity, metabolic_potential, knee_dominance, hip_dominance");
+
+  if (exercisesError) throw new Error(`Erro ao buscar exercícios: ${exercisesError.message}`);
+
+  const { data: breathingProtocols } = await supabase
+    .from("breathing_protocols")
+    .select("id, name, technique, rhythm, duration_seconds, instructions, category, when_to_use")
+    .eq("is_active", true);
+
+  const { data: equipmentData } = await supabase
+    .from("equipment_inventory")
+    .select("name")
+    .eq("is_available", true);
+
+  const availableEquipment = new Set<string>(
+    (equipmentData || []).map((e: { name: string }) => e.name.toLowerCase())
+  );
+
+  return {
+    allExercises: allExercises || [],
+    breathingProtocols: breathingProtocols || [],
+    availableEquipment,
+  };
+}
+
+function buildExercisePool(params: {
+  allExercises: Exercise[];
+  groupLevel: string;
+  availableEquipment: Set<string>;
+  audiencePreset: "adulto" | "senior_70" | "adolescente";
+  excludeExercises?: string[];
+  rotationMode?: "A" | "B";
+  retainExerciseIds?: string[];
+}): Exercise[] {
+  const {
+    allExercises,
+    groupLevel,
+    availableEquipment,
+    audiencePreset,
+    excludeExercises,
+    rotationMode,
+    retainExerciseIds,
+  } = params;
+
+  let exercises = filterByLevel(allExercises, groupLevel);
+  exercises = filterByRisk(exercises, groupLevel);
+  exercises = filterByAvailableEquipment(exercises, availableEquipment);
+  exercises = applyAudienceFilters(exercises, audiencePreset);
+  exercises = applyF4TeachableProgression(exercises, exercises);
+
+  if (excludeExercises?.length) {
+    exercises = exercises.filter((ex) => !excludeExercises.includes(ex.id));
+  }
+
+  if (rotationMode === "B" && retainExerciseIds?.length) {
+    const retainSet = new Set(retainExerciseIds);
+    const retained = allExercises.filter((ex) => retainSet.has(ex.id));
+    const existingIds = new Set(exercises.map((ex) => ex.id));
+    for (const ex of retained) {
+      if (!existingIds.has(ex.id)) {
+        exercises.push(ex);
+      }
+    }
+  }
+
+  return exercises;
+}
+
 // ============================================================================
 // TIPOS
 // ============================================================================
 
-interface WorkoutSlotConfig {
-  slot: "A" | "B" | "C";
-  valences: string[];
-}
+const workoutSlotSchema = z.object({
+  slot: z.enum(["A", "B", "C"]),
+  valences: z.array(z.string()).min(1),
+});
 
-interface MesocycleInput {
-  groupLevel: "iniciante" | "intermediario" | "avancado";
-  workouts: WorkoutSlotConfig[];
-  excludeExercises?: string[];
-  groupReadiness?: number;
-  // Phase 4
-  weekCount?: number; // 3-8, default 4
-  audiencePreset?: "adulto" | "senior_70" | "adolescente";
-  rotationMode?: "A" | "B"; // A=full rotation, B=selective
-  retainExerciseIds?: string[]; // Mode B: exercises to keep
-}
+const mesocycleInputSchema = z.object({
+  groupLevel: z.enum(["iniciante", "intermediario", "avancado"]),
+  workouts: z.array(workoutSlotSchema).length(3),
+  excludeExercises: z.array(z.string()).optional(),
+  groupReadiness: z.number().optional(),
+  weekCount: z.number().optional(),
+  audiencePreset: z.enum(["adulto", "senior_70", "adolescente"]).optional(),
+  rotationMode: z.enum(["A", "B"]).optional(),
+  retainExerciseIds: z.array(z.string()).optional(),
+});
 
-const VALID_GROUP_LEVELS = new Set(["iniciante", "intermediario", "avancado"]);
-const VALID_SLOTS = new Set(["A", "B", "C"]);
-
-function isValidMesocycleInput(input: unknown): input is MesocycleInput {
-  if (!input || typeof input !== "object" || Array.isArray(input)) return false;
-  const payload = input as Record<string, unknown>;
-  if (typeof payload.groupLevel !== "string" || !VALID_GROUP_LEVELS.has(payload.groupLevel)) return false;
-  if (!Array.isArray(payload.workouts) || payload.workouts.length !== 3) return false;
-
-  return payload.workouts.every((workout) => {
-    if (!workout || typeof workout !== "object" || Array.isArray(workout)) return false;
-    const item = workout as Record<string, unknown>;
-    return typeof item.slot === "string"
-      && VALID_SLOTS.has(item.slot)
-      && Array.isArray(item.valences)
-      && item.valences.length > 0;
-  });
-}
+type WorkoutSlotConfig = z.infer<typeof workoutSlotSchema>;
+type MesocycleInput = z.infer<typeof mesocycleInputSchema>;
 
 interface Exercise {
   id: string;
@@ -1012,272 +1136,6 @@ function buildClosingPhase(
 // ============================================================================
 // VERIFICAÇÕES
 // ============================================================================
-
-function checkCoreTriplanar(phases: SessionPhase[]) {
-  const coreExercises = phases
-    .flatMap((p) => p.blocks)
-    .filter((b) => b.name.startsWith("Core"))
-    .flatMap((b) => b.exercises);
-
-  const subcategories = new Set(coreExercises.map((ex) => ex.subcategory).filter(Boolean));
-  return {
-    anti_extensao: subcategories.has("anti_extensao"),
-    anti_flexao_lateral: subcategories.has("anti_flexao_lateral"),
-    anti_rotacao: subcategories.has("anti_rotacao"),
-  };
-}
-
-// G-10: Nomes em pt-BR para consistência com o restante do sistema
-function generateWorkoutName(slot: string, valences: string[]): string {
-  const slotNames: Record<string, string> = { A: "Potência", B: "Força", C: "Fluxo" };
-  const valenceNames: Record<string, string> = {
-    potencia: "Explosivo", forca: "Força", hipertrofia: "Hipertrofia", condicionamento: "MetCon",
-  };
-  const base = slotNames[slot] || slot;
-  const suffix = valences.map((v) => valenceNames[v] || v).join(" + ");
-  return `${base} ${suffix}`;
-}
-
-function calcPatternsBalance(workouts: GeneratedWorkout[]): Record<string, number> {
-  const balance: Record<string, number> = {};
-  for (const w of workouts) {
-    for (const p of w.coveredPatterns) {
-      balance[p] = (balance[p] || 0) + 1;
-    }
-  }
-  return balance;
-}
-
-/** v14.5 G4: Count effective sets per session */
-function countEffectiveSets(workout: GeneratedWorkout): number {
-  let total = 0;
-  for (const phase of workout.phases) {
-    for (const block of phase.blocks) {
-      if (block.method === "respiracao" || block.method === "autoliberacao") continue;
-      for (const ex of block.exercises) {
-        const parts = ex.sets.split("-").map(Number);
-        if (parts.some(isNaN)) continue;
-        total += parts[parts.length - 1]; // use upper bound
-      }
-    }
-  }
-  return total;
-}
-
-// ============================================================================
-// VALIDAÇÃO CROSS-SESSION (Fase 3 v14.5)
-// ============================================================================
-
-interface CrossSessionStats {
-  patternSets: Record<string, number>; // sets por padrão de movimento na semana
-  hingeHeavyCount: number; // hinge pesados na semana
-  lomHighPerSession: Record<string, number>; // exercícios LOM>=4 por sessão
-  neuralProfile: Record<string, string>; // perfil neural por slot (alto/moderado/metcon)
-  jointStress: Record<string, number>; // stress articular acumulado (joelho, ombro, lombar)
-  primeMoversPerSession: Record<string, Set<string>>; // prime movers usados por sessão
-}
-
-/**
- * Coleta estatísticas cross-session para validação
- */
-function collectCrossSessionStats(
-  workouts: GeneratedWorkout[],
-  allExercises: Exercise[]
-): CrossSessionStats {
-  const exerciseMap = new Map<string, Exercise>();
-  for (const ex of allExercises) exerciseMap.set(ex.id, ex);
-
-  const stats: CrossSessionStats = {
-    patternSets: {},
-    hingeHeavyCount: 0,
-    lomHighPerSession: {},
-    neuralProfile: {},
-    jointStress: { joelho: 0, ombro: 0, lombar: 0 },
-    primeMoversPerSession: {},
-  };
-
-  for (const workout of workouts) {
-    const slot = workout.slot;
-    stats.primeMoversPerSession[slot] = new Set<string>();
-    let sessionLomHigh = 0;
-
-    // Determine neural profile from valences
-    if (workout.valences.includes("potencia")) {
-      stats.neuralProfile[slot] = "alto";
-    } else if (workout.valences.includes("forca")) {
-      stats.neuralProfile[slot] = "moderado";
-    } else if (workout.valences.includes("condicionamento")) {
-      stats.neuralProfile[slot] = "metcon";
-    } else {
-      stats.neuralProfile[slot] = "moderado";
-    }
-
-    for (const phase of workout.phases) {
-      for (const block of phase.blocks) {
-        if (block.method === "respiracao" || block.method === "autoliberacao") continue;
-
-        for (const genEx of block.exercises) {
-          const libEx = exerciseMap.get(genEx.exerciseLibraryId);
-          if (!libEx) continue;
-
-          // Count sets per pattern
-          const pattern = libEx.movement_pattern || "unknown";
-          const setParts = genEx.sets.split("-").map(Number);
-          const setCount = setParts.some(isNaN) ? 3 : setParts[setParts.length - 1];
-          stats.patternSets[pattern] = (stats.patternSets[pattern] || 0) + setCount;
-
-          // Track prime movers (via movement_pattern as proxy)
-          stats.primeMoversPerSession[slot].add(pattern);
-
-          // F1 extended: count hinge heavy (LOM>=4 + cadeia_posterior)
-          if (pattern === "cadeia_posterior" && (libEx.lumbar_demand || 0) >= 4) {
-            stats.hingeHeavyCount++;
-          }
-
-          // LOM high count per session
-          if ((libEx.lumbar_demand || 0) >= 4) {
-            sessionLomHigh++;
-          }
-
-          // Joint stress accumulation
-          if ((libEx.knee_dominance || 0) >= 4) {
-            stats.jointStress.joelho += setCount;
-          }
-          if (["empurrar", "puxar"].includes(pattern) && (libEx.axial_load || 0) >= 3) {
-            stats.jointStress.ombro += setCount;
-          }
-          if ((libEx.lumbar_demand || 0) >= 3) {
-            stats.jointStress.lombar += setCount;
-          }
-        }
-      }
-    }
-
-    stats.lomHighPerSession[slot] = sessionLomHigh;
-  }
-
-  return stats;
-}
-
-/**
- * F2: Validação de dominância acumulada — verifica equilíbrio semanal
- * Regras:
- *   - Push/Pull/Knee/Hip devem ter mínimos semanais
- *   - Pull 20-40% > Push
- */
-function validateDominanceBalance(
-  stats: CrossSessionStats,
-  warnings: string[]
-): void {
-  const push = stats.patternSets["empurrar"] || 0;
-  const pull = stats.patternSets["puxar"] || 0;
-  const knee = (stats.patternSets["dominancia_joelho"] || 0) + (stats.patternSets["lunge"] || 0);
-  const hip = stats.patternSets["cadeia_posterior"] || 0;
-
-  // Minimum weekly sets per pattern group
-  if (push < 6) warnings.push(`Volume semanal Push insuficiente: ${push} sets (mín. 6).`);
-  if (pull < 6) warnings.push(`Volume semanal Pull insuficiente: ${pull} sets (mín. 6).`);
-  if (knee < 6) warnings.push(`Volume semanal Knee insuficiente: ${knee} sets (mín. 6).`);
-  if (hip < 4) warnings.push(`Volume semanal Hip insuficiente: ${hip} sets (mín. 4).`);
-
-  // Pull should be 20-40% > Push
-  if (push > 0) {
-    const ratio = pull / push;
-    if (ratio < 1.2) {
-      warnings.push(`Pull/Push ratio: ${ratio.toFixed(2)}x (recomendado 1.2-1.4x). Pull deve ser 20-40% superior ao Push.`);
-    } else if (ratio > 1.5) {
-      warnings.push(`Pull/Push ratio elevado: ${ratio.toFixed(2)}x. Considere balancear.`);
-    }
-  }
-}
-
-/**
- * F5: Sobreposição de prime movers — mesmos grupos não devem ser sobrecarregados
- */
-function validatePrimeMoverOverlap(
-  stats: CrossSessionStats,
-  warnings: string[]
-): void {
-  // Check if same heavy patterns appear in all 3 sessions
-  const slots = Object.keys(stats.primeMoversPerSession);
-  if (slots.length < 3) return;
-
-  const allPatterns = new Set<string>();
-  for (const slot of slots) {
-    for (const p of stats.primeMoversPerSession[slot]) {
-      allPatterns.add(p);
-    }
-  }
-
-  for (const pattern of allPatterns) {
-    const sessionsWithPattern = slots.filter(
-      (s) => stats.primeMoversPerSession[s].has(pattern)
-    ).length;
-
-    // Same pattern in all 3 sessions with high total volume is a concern
-    if (sessionsWithPattern === 3) {
-      const totalSets = stats.patternSets[pattern] || 0;
-      if (totalSets > 15) {
-        warnings.push(
-          `Padrão "${pattern}" presente em todos os 3 treinos com ${totalSets} sets totais. Risco de sobreposição de prime movers.`
-        );
-      }
-    }
-  }
-}
-
-/**
- * G12: Controle neural e articular semanal
- * Regras:
- *   - Max 2 blocos pesados (alto neural) por semana
- *   - Max 1 hinge pesado por sessão (já garantido por F1)
- *   - Composição ideal: 1 Alto + 1 Moderado + 1 MetCon (ou similar)
- *   - Stress articular: joelho, ombro, lombar não devem exceder limites
- */
-function validateNeuralAndJointControl(
-  stats: CrossSessionStats,
-  warnings: string[]
-): void {
-  // Neural: max 2 "alto" sessions per week
-  const altoCount = Object.values(stats.neuralProfile).filter((p) => p === "alto").length;
-  if (altoCount > 2) {
-    warnings.push(
-      `Controle neural: ${altoCount} sessões de alta demanda neural/semana (max recomendado: 2).`
-    );
-  }
-
-  // Hinge heavy: max 2 per week across all sessions
-  if (stats.hingeHeavyCount > 2) {
-    warnings.push(
-      `Hinge pesado: ${stats.hingeHeavyCount}x/semana (max recomendado: 2). Risco lombar acumulado.`
-    );
-  }
-
-  // Joint stress thresholds (in weekly sets)
-  const JOINT_LIMITS = { joelho: 25, ombro: 20, lombar: 15 };
-  for (const [joint, limit] of Object.entries(JOINT_LIMITS)) {
-    const stress = stats.jointStress[joint] || 0;
-    if (stress > limit) {
-      warnings.push(
-        `Stress articular ${joint}: ${stress} sets com carga significativa/semana (limite: ${limit}).`
-      );
-    }
-  }
-
-  // Ideal weekly composition check
-  const profiles = Object.values(stats.neuralProfile);
-  const hasAlto = profiles.includes("alto");
-  const hasModerado = profiles.includes("moderado");
-  const hasMetcon = profiles.includes("metcon");
-
-  if (!hasAlto && !hasModerado) {
-    warnings.push("Composição semanal sem sessão de alta ou moderada intensidade neural.");
-  }
-  if (profiles.every((p) => p === "alto")) {
-    warnings.push("Todas as sessões são de alta demanda neural. Risco de overreaching.");
-  }
-}
-
 // ============================================================================
 // LLM ENRICHMENT
 // ============================================================================
@@ -1509,125 +1367,49 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Autenticação obrigatória" }),
-        { headers: jsonHeaders, status: 401 }
-      );
+    const authResult = await resolveAuthorizedContext(req.headers.get("Authorization"));
+    if (!authResult.ok) {
+      return authResult.response;
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData?.user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Token inválido" }),
-        { headers: jsonHeaders, status: 401 }
-      );
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: roleData } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .in("role", ["admin", "trainer"])
-      .limit(1);
-
-    if (!roleData || roleData.length === 0) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Acesso restrito a treinadores e admins" }),
-        { headers: jsonHeaders, status: 403 }
-      );
-    }
+    const { supabase } = authResult.value;
 
     const body: unknown = await req.json();
-    if (!isValidMesocycleInput(body)) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Input inválido. Necessário: groupLevel válido e 3 workouts (A/B/C) com valências." }),
-        { headers: jsonHeaders, status: 400 }
+    const parsedInput = mesocycleInputSchema.safeParse(body);
+    if (!parsedInput.success) {
+      const issues = parsedInput.error.issues
+        .slice(0, 3)
+        .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
+        .join("; ");
+      return errorResponse(
+        400,
+        "Input inválido. Necessário: groupLevel válido e 3 workouts (A/B/C) com valências.",
+        issues
       );
     }
 
-    const input: MesocycleInput = body;
-
-    if (!input.groupLevel || !input.workouts || input.workouts.length !== 3) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Input inválido. Necessário: groupLevel e 3 workouts (A/B/C)" }),
-        { headers: jsonHeaders, status: 400 }
-      );
-    }
+    const input: MesocycleInput = parsedInput.data;
 
     // Phase 4: Validate week count
     const weekCount = Math.min(8, Math.max(3, input.weekCount || 4));
     const audiencePreset = input.audiencePreset || "adulto";
     const audienceConfig = AUDIENCE_PRESETS[audiencePreset] || AUDIENCE_PRESETS.adulto;
 
-    // Fetch exercises WITH v14.5 dimensions
-    const { data: allExercises, error: exercisesError } = await supabase
-      .from("exercises_library")
-      .select("id, name, movement_pattern, risk_level, level, category, subcategory, movement_plane, equipment_required, default_sets, default_reps, numeric_level, axial_load, lumbar_demand, technical_complexity, metabolic_potential, knee_dominance, hip_dominance");
+    const { allExercises, breathingProtocols, availableEquipment } = await fetchGenerationResources(supabase);
 
-    if (exercisesError) throw new Error(`Erro ao buscar exercícios: ${exercisesError.message}`);
-
-    // Fetch breathing protocols (with category for closing selection)
-    const { data: breathingProtocols } = await supabase
-      .from("breathing_protocols")
-      .select("id, name, technique, rhythm, duration_seconds, instructions, category, when_to_use")
-      .eq("is_active", true);
-
-    // Fetch available equipment
-    const { data: equipmentData } = await supabase
-      .from("equipment_inventory")
-      .select("name")
-      .eq("is_available", true);
-
-    const availableEquipment = new Set<string>(
-      (equipmentData || []).map((e: { name: string }) => e.name.toLowerCase())
-    );
-
-    // Apply filters
-    let exercises = filterByLevel(allExercises || [], input.groupLevel);
-    exercises = filterByRisk(exercises, input.groupLevel);
-    exercises = filterByAvailableEquipment(exercises, availableEquipment);
-
-    // Phase 4: Apply audience preset filters
-    exercises = applyAudienceFilters(exercises, audiencePreset);
-
-    // Phase 4: F4 — Teachable progression filter
-    // G-06: Pass filtered exercises (not allExercises) to find regressions in same universe
-    exercises = applyF4TeachableProgression(exercises, exercises);
-
-    if (input.excludeExercises?.length) {
-      exercises = exercises.filter((ex) => !input.excludeExercises!.includes(ex.id));
-    }
-
-    // Phase 4: Mode B — retain specific exercises from previous mesocycle
-    // In Mode B, retainExerciseIds stay in the pool but are NOT excluded
-    // In Mode A, all exercises from previous cycle are excluded (via excludeExercises)
-    if (input.rotationMode === "B" && input.retainExerciseIds?.length) {
-      // Ensure retained exercises are in the pool (re-add if filtered out by excludeExercises)
-      const retainSet = new Set(input.retainExerciseIds);
-      const retained = (allExercises || []).filter((ex) => retainSet.has(ex.id));
-      const existingIds = new Set(exercises.map((ex) => ex.id));
-      for (const ex of retained) {
-        if (!existingIds.has(ex.id)) {
-          exercises.push(ex);
-        }
-      }
-    }
+    const exercises = buildExercisePool({
+      allExercises,
+      groupLevel: input.groupLevel,
+      availableEquipment,
+      audiencePreset,
+      excludeExercises: input.excludeExercises,
+      rotationMode: input.rotationMode,
+      retainExerciseIds: input.retainExerciseIds,
+    });
 
     if (exercises.length < 20) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Biblioteca de exercícios insuficiente. Necessário pelo menos 20 exercícios." }),
-        { headers: jsonHeaders, status: 400 }
+      return errorResponse(
+        400,
+        "Biblioteca de exercícios insuficiente. Necessário pelo menos 20 exercícios."
       );
     }
 
@@ -1654,7 +1436,7 @@ serve(async (req) => {
     for (const workoutConfig of input.workouts) {
       const workout = generateSingleWorkout(
         exercises, workoutConfig, input.groupLevel, volumeMultiplier,
-        breathingProtocols || [], globalExcludeIds
+        breathingProtocols, globalExcludeIds
       );
       workouts.push(workout);
 
@@ -1673,7 +1455,7 @@ serve(async (req) => {
 
     // v14.5: Cross-session validation (F2, F5, G12)
     const patternsBalance = calcPatternsBalance(workouts);
-    const crossStats = collectCrossSessionStats(workouts, allExercises || []);
+    const crossStats = collectCrossSessionStats(workouts, allExercises);
 
     validateDominanceBalance(crossStats, warnings);
     validatePrimeMoverOverlap(crossStats, warnings);
@@ -1737,9 +1519,6 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     console.error("Error generating mesocycle:", errorMessage);
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
+    return errorResponse(500, errorMessage);
   }
 });

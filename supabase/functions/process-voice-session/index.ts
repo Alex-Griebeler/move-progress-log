@@ -2,6 +2,11 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
+import { z } from "https://esm.sh/zod@3.25.76";
+import {
+  applyLoadValidationToSessions,
+  markExercisesMissingRepsForManualInput,
+} from "./parserCore.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,10 +18,6 @@ const corsHeaders = {
 // ═══════════════════════════════════════════════════════════════
 // SHARED: manter sincronizado com voice-session/index.ts
 // ═══════════════════════════════════════════════════════════════
-
-/** Constantes de conversão de unidades */
-const POUND_TO_KG_CONVERSION = 0.4536;
-const DECIMAL_PLACES = 1;
 
 /** Correções terminológicas padrão para transcrição PT-BR */
 const TERMINOLOGY_CORRECTIONS: Record<string, string> = {
@@ -54,13 +55,97 @@ const EQUIPMENT_LOAD_RULES = {
 // FIM SHARED
 // ═══════════════════════════════════════════════════════════════
 
-const roundToDecimal = (value: number, decimals: number = DECIMAL_PLACES): number => {
-  const multiplier = Math.pow(10, decimals);
-  return Math.round(value * multiplier) / multiplier;
-};
-
 // V-04: Max audio size validation (20M chars ≈ 15MB audio)
 const MAX_AUDIO_SIZE_CHARS = 20_000_000;
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const timeRegex = /^\d{2}:\d{2}$/;
+
+const studentSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  weight_kg: z.number().finite().positive().optional(),
+}).passthrough();
+
+const processVoicePayloadSchema = z.object({
+  audio: z.string().min(1),
+  prescriptionId: z.string().uuid().optional().nullable(),
+  students: z.array(studentSchema).min(1),
+  date: z.string().regex(dateRegex),
+  time: z.string().regex(timeRegex),
+}).passthrough();
+
+type ProcessVoicePayload = z.infer<typeof processVoicePayloadSchema>;
+type ProcessVoiceStudent = z.infer<typeof studentSchema>;
+
+function jsonErrorResponse(status: number, error: string, details?: string): Response {
+  return new Response(
+    JSON.stringify({
+      error,
+      details: details || undefined,
+    }),
+    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+function parseProcessVoicePayload(rawPayload: unknown): { ok: true; value: ProcessVoicePayload } | { ok: false; response: Response } {
+  const parsedPayload = processVoicePayloadSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    const details = parsedPayload.error.issues
+      .slice(0, 3)
+      .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
+      .join("; ");
+    return {
+      ok: false,
+      response: jsonErrorResponse(400, "Payload inválido", details),
+    };
+  }
+  return { ok: true, value: parsedPayload.data };
+}
+
+async function verifyPrescriptionOwnership(
+  supabaseClient: ReturnType<typeof createClient>,
+  prescriptionId: string,
+  trainerId: string
+): Promise<Response | null> {
+  const { data: prescription, error: prescriptionError } = await supabaseClient
+    .from('workout_prescriptions')
+    .select('trainer_id')
+    .eq('id', prescriptionId)
+    .single();
+
+  if (prescriptionError || !prescription) {
+    return jsonErrorResponse(404, 'Prescription not found');
+  }
+
+  if (prescription.trainer_id !== trainerId) {
+    return jsonErrorResponse(403, 'Unauthorized access to prescription data');
+  }
+
+  return null;
+}
+
+async function verifyStudentsOwnership(
+  supabaseClient: ReturnType<typeof createClient>,
+  students: ProcessVoiceStudent[],
+  trainerId: string
+): Promise<Response | null> {
+  const { data: studentRecords, error: studentsError } = await supabaseClient
+    .from('students')
+    .select('id, trainer_id')
+    .in('id', students.map((student) => student.id));
+
+  if (studentsError || !studentRecords) {
+    return jsonErrorResponse(400, 'Error validating students');
+  }
+
+  const unauthorizedStudents = studentRecords.filter((student) => student.trainer_id !== trainerId);
+  if (unauthorizedStudents.length > 0) {
+    return jsonErrorResponse(403, 'Unauthorized access to one or more students');
+  }
+
+  return null;
+}
 
 // Processar base64 em chunks para prevenir problemas de memória
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
@@ -111,10 +196,7 @@ serve(async (req) => {
     // Validate authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonErrorResponse(401, 'Unauthorized');
     }
 
     // Validate the caller with the anon key; keep service_role only for privileged reads/writes.
@@ -126,85 +208,35 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
       // Authentication failed
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonErrorResponse(401, 'Unauthorized');
     }
 
-    const { audio, prescriptionId, students, date, time } = await req.json();
+    const rawPayload = await req.json().catch(() => null);
+    const parsedPayload = parseProcessVoicePayload(rawPayload);
+    if (!parsedPayload.ok) {
+      return parsedPayload.response;
+    }
+    const { audio, prescriptionId, students, date, time } = parsedPayload.value;
     
-    // Validate required fields
-    if (!audio || !students || !Array.isArray(students) || students.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: audio or students' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     // V-04: Validate audio payload size before processing
-    if (typeof audio === 'string' && audio.length > MAX_AUDIO_SIZE_CHARS) {
-      return new Response(
-        JSON.stringify({ error: `Áudio excede o tamanho máximo permitido (~15MB). Tente gravar segmentos menores.` }),
-        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!date || !time) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: date or time' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (audio.length > MAX_AUDIO_SIZE_CHARS) {
+      return jsonErrorResponse(413, 'Áudio excede o tamanho máximo permitido (~15MB). Tente gravar segmentos menores.');
     }
 
     
 
     // Verify trainer owns the prescription (only if prescriptionId is provided)
     if (prescriptionId) {
-      const { data: prescription, error: prescriptionError } = await supabaseClient
-        .from('workout_prescriptions')
-        .select('trainer_id')
-        .eq('id', prescriptionId)
-        .single();
-
-      if (prescriptionError || !prescription) {
-        
-        return new Response(
-          JSON.stringify({ error: 'Prescription not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      if (prescription.trainer_id !== user.id) {
-        
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized access to prescription data' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      const prescriptionErrorResponse = await verifyPrescriptionOwnership(supabaseClient, prescriptionId, user.id);
+      if (prescriptionErrorResponse) {
+        return prescriptionErrorResponse;
       }
     }
 
     // Verify trainer owns all students
-    const { data: studentRecords, error: studentsError } = await supabaseClient
-      .from('students')
-      .select('id, trainer_id')
-      .in('id', students.map((s: { id: string }) => s.id));
-
-    if (studentsError || !studentRecords) {
-      
-      return new Response(
-        JSON.stringify({ error: 'Error validating students' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const unauthorizedStudents = studentRecords.filter(s => s.trainer_id !== user.id);
-    if (unauthorizedStudents.length > 0) {
-      
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized access to one or more students' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const studentsErrorResponse = await verifyStudentsOwnership(supabaseClient, students, user.id);
+    if (studentsErrorResponse) {
+      return studentsErrorResponse;
     }
 
     
@@ -648,179 +680,15 @@ FORMATO DE SAÍDA:
 
     const extractedData = JSON.parse(extractionResult.response.text());
     
-    // Preservar exercícios mencionados sem reps e marcá-los para input manual
-    if (extractedData.sessions) {
-      extractedData.sessions.forEach((session: Record<string, unknown>) => {
-        if (session.exercises) {
-          session.exercises = (session.exercises as Record<string, unknown>[]).map((ex: Record<string, unknown>) => {
-            if (!ex.reps || ex.reps === 0) {
-              // REGRA FABRIK: usar null para dados não informados, NUNCA 0
-              return {
-                ...ex,
-                reps: null,
-                sets: ex.sets || null,
-                load_kg: ex.load_kg || null,
-                observations: ex.observations 
-                  ? `🔴 EXERCÍCIO MENCIONADO SEM REPETIÇÕES - PREENCHER MANUALMENTE\n\n${ex.observations}`
-                  : '🔴 EXERCÍCIO MENCIONADO SEM REPETIÇÕES - PREENCHER MANUALMENTE',
-                needs_manual_input: true
-              };
-            }
-            return ex;
-          });
-        }
-      });
-    }
-    
-    // Função para normalizar load_breakdown com erros de formato
-    function normalizeBreakdown(breakdown: string): string {
-      const hasEachSide = /de cada lado/i.test(breakdown);
-      if (!hasEachSide) return breakdown;
-      
-      const match = breakdown.match(/\((.*?)\)\s*de cada lado(.*?)(?:barra|\+\s*barra|$)/i);
-      if (!match) return breakdown;
-      
-      const insideParens = match[1];
-      const afterEachSide = match[2].trim();
-      const barraMatch = breakdown.match(/(barra\s+\d+(?:\.\d+)?\s*kg)/i);
-      const barra = barraMatch ? barraMatch[1] : '';
-      
-      const looseWeights: string[] = [];
-      const weightRegex = /(\d+(?:\.\d+)?)\s*(kg|lb)/gi;
-      let weightMatch;
-      
-      while ((weightMatch = weightRegex.exec(afterEachSide)) !== null) {
-        looseWeights.push(`${weightMatch[1]} ${weightMatch[2]}`);
-      }
-      
-      if (looseWeights.length === 0) return breakdown;
-      
-      const newInsideParens = [insideParens, ...looseWeights].join(' + ');
-      return `(${newInsideParens}) de cada lado${barra ? ' + ' + barra : ''}`;
-    }
+    // Preservar exercícios mencionados sem reps para input manual
+    markExercisesMissingRepsForManualInput(
+      extractedData.sessions as Record<string, unknown>[] | undefined,
+    );
 
-    // Função auxiliar para calcular carga (ROBUSTA)
-    function calculateLoadFromBreakdown(breakdown: string | null): number | null {
-      if (!breakdown) return null;
-      
-      try {
-        // 1. DETECTAR PESO CORPORAL COM VALOR
-        const bodyCorporalWithValue = breakdown.match(/Peso corporal\s*=\s*(\d+(?:\.\d+)?)\s*kg/i);
-        if (bodyCorporalWithValue) {
-          return roundToDecimal(parseFloat(bodyCorporalWithValue[1]));
-        }
-        
-        // 2. DETECTAR PESO CORPORAL SEM VALOR
-        if (/Peso corporal/i.test(breakdown) && !/\d/.test(breakdown)) {
-          return null;
-        }
-        
-        // 3. DETECTAR ELÁSTICOS/BANDAS
-        const hasOnlyElastic = /^(elástico|banda|elastic)/i.test(breakdown.trim()) && !/\d+\s*(kg|lb)/i.test(breakdown);
-        if (hasOnlyElastic) return null;
-        
-        let total = 0;
-        let processedEachSide = false;
-        
-        // 4. DETECTAR "DE CADA LADO" (multiplicar por 2)
-        const eachSideMatch = breakdown.match(/\((.*?)\)\s*de cada lado/i);
-        if (eachSideMatch) {
-          const content = eachSideMatch[1];
-          processedEachSide = true;
-          
-          const kgMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
-          for (const m of kgMatches) {
-            total += parseFloat(m[1].replace(',', '.')) * 2;
-          }
-          
-          const lbMatches = Array.from(content.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
-          for (const m of lbMatches) {
-            total += parseFloat(m[1].replace(',', '.')) * POUND_TO_KG_CONVERSION * 2;
-          }
-        }
-        
-        // 5. DETECTAR KETTLEBELLS/HALTERES DUPLOS (multiplicar por 2)
-        const multiKbMatch = breakdown.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:[.,]\d+)?)\s*(kg|lb)/i);
-        if (multiKbMatch && !processedEachSide) {
-          const value = parseFloat(multiKbMatch[2].replace(',', '.'));
-          const unit = multiKbMatch[3].toLowerCase();
-          const kg = unit === 'lb' ? value * POUND_TO_KG_CONVERSION : value;
-          total += kg * 2;
-        }
-        
-        // 6. EXTRAIR PESO DA BARRA
-        const barraMatch = breakdown.match(/barra\s*(\d+(?:[.,]\d+)?)\s*kg/i);
-        if (barraMatch) {
-          total += parseFloat(barraMatch[1].replace(',', '.'));
-        }
-        
-        // 7. PESOS SIMPLES (sem "de cada lado" nem "duplo")
-        if (!processedEachSide && !multiKbMatch) {
-          const kgMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*kg/gi));
-          for (const m of kgMatches) {
-            const matchText = breakdown.substring(Math.max(0, (m.index || 0) - 6), (m.index || 0) + m[0].length);
-            if (!/barra/i.test(matchText)) {
-              total += parseFloat(m[1].replace(',', '.'));
-            }
-          }
-          
-          const lbMatches = Array.from(breakdown.matchAll(/(\d+(?:[.,]\d+)?)\s*lb/gi));
-          for (const m of lbMatches) {
-            total += parseFloat(m[1].replace(',', '.')) * POUND_TO_KG_CONVERSION;
-          }
-        }
-        
-        return total > 0 ? roundToDecimal(total) : null;
-      } catch {
-        return null;
-      }
-    }
-    
-    // Sanitizar dados (converter 0 e "" para null)
-    function sanitizeExerciseData(exercise: Record<string, unknown>) {
-      const fieldsToSanitize = ['load_kg', 'load_breakdown', 'reps', 'sets', 'observations'];
-      for (const field of fieldsToSanitize) {
-        if (exercise[field] === 0 || exercise[field] === '' || exercise[field] === 'não informado') {
-          exercise[field] = null;
-        }
-      }
-    }
-
-    // Validar e recalcular load_kg se necessário
-    function validateAndRecalculateLoad(exercise: Record<string, unknown>, _sessionIdx: number, _exIdx: number) {
-      sanitizeExerciseData(exercise);
-      
-      if (!exercise.load_breakdown) {
-        if (exercise.load_kg !== null) exercise.load_kg = null;
-        return;
-      }
-      
-      exercise.load_breakdown = normalizeBreakdown(exercise.load_breakdown as string);
-      const calculatedLoadKg = calculateLoadFromBreakdown(exercise.load_breakdown as string);
-      
-      if (exercise.load_kg === null || exercise.load_kg === undefined) {
-        exercise.load_kg = calculatedLoadKg;
-        return;
-      }
-      
-      // Validar consistência (tolerância de 0.1 kg)
-      if (calculatedLoadKg !== null) {
-        const diff = Math.abs((exercise.load_kg as number) - calculatedLoadKg);
-        if (diff > 0.1) {
-          // Usar valor calculado (mais confiável que o Gemini)
-          exercise.load_kg = calculatedLoadKg;
-        } else {
-          exercise.load_kg = Math.round((exercise.load_kg as number) * 10) / 10;
-        }
-      }
-    }
-
-    // APLICAR VALIDAÇÃO COMPLETA
-    extractedData.sessions?.forEach((session: Record<string, unknown>, sessionIdx: number) => {
-      (session.exercises as Record<string, unknown>[] | undefined)?.forEach((ex: Record<string, unknown>, exIdx: number) => {
-        validateAndRecalculateLoad(ex, sessionIdx, exIdx);
-      });
-    });
+    // Aplicar validação e recálculo de carga
+    applyLoadValidationToSessions(
+      extractedData.sessions as Record<string, unknown>[] | undefined,
+    );
     
     // ═══════════════════════════════════════════════════════════
     // MEL-IA-006: Validação de Desvio da Prescrição

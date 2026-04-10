@@ -44,6 +44,17 @@ interface SessionData {
   exercises: Exercise[];
 }
 
+const GROUP_SESSION_EXERCISE_COLUMNS = `
+  id,
+  exercise_name,
+  sets,
+  reps,
+  load_kg,
+  load_breakdown,
+  observations,
+  is_best_set
+`;
+
 export function EditGroupSessionDialog({
   open,
   onOpenChange,
@@ -87,7 +98,7 @@ export function EditGroupSessionDialog({
         sessions.map(async (session: { id: string; student_id: string; students: { name: string } }) => {
           const { data: exercises, error: exercisesError } = await supabase
             .from('exercises')
-            .select('*')
+            .select(GROUP_SESSION_EXERCISE_COLUMNS)
             .eq('session_id', session.id)
             .order('created_at', { ascending: true });
 

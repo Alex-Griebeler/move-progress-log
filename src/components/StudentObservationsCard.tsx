@@ -10,6 +10,14 @@ interface StudentObservationsCardProps {
   studentId: string;
 }
 
+const STUDENT_OBSERVATION_COLUMNS = `
+  id,
+  observation_text,
+  categories,
+  severity,
+  created_at
+`;
+
 export function StudentObservationsCard({ studentId }: StudentObservationsCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -20,7 +28,7 @@ export function StudentObservationsCard({ studentId }: StudentObservationsCardPr
     queryFn: async () => {
       const { data, error } = await supabase
         .from('student_observations')
-        .select('*')
+        .select(STUDENT_OBSERVATION_COLUMNS)
         .eq('student_id', studentId)
         .eq('is_resolved', false)
         .order('created_at', { ascending: false });

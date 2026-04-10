@@ -42,6 +42,28 @@ interface Protocol {
   subcategory: string | null;
 }
 
+const OURA_METRIC_COLUMNS = `
+  id,
+  student_id,
+  date,
+  readiness_score,
+  sleep_score,
+  hrv_balance,
+  resting_heart_rate,
+  temperature_deviation,
+  activity_balance
+`;
+
+const ADAPTATION_RULE_COLUMNS = `
+  id,
+  metric_name,
+  condition,
+  threshold_value,
+  action_type,
+  severity,
+  description
+`;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -129,7 +151,7 @@ serve(async (req) => {
     // Get latest Oura metrics for the student
     const { data: latestMetrics, error: metricsError } = await supabase
       .from('oura_metrics')
-      .select('*')
+      .select(OURA_METRIC_COLUMNS)
       .eq('student_id', student_id)
       .order('date', { ascending: false })
       .limit(1)
@@ -145,7 +167,7 @@ serve(async (req) => {
     // Get all adaptation rules
     const { data: rules, error: rulesError } = await supabase
       .from('adaptation_rules')
-      .select('*');
+      .select(ADAPTATION_RULE_COLUMNS);
 
     if (rulesError) throw rulesError;
 

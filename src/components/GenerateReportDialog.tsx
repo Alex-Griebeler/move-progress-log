@@ -137,7 +137,11 @@ export function GenerateReportDialog({
       periodStart = customStart;
       periodEnd = customEnd;
     } else {
-      const days = parseInt(periodType);
+      const days = parseInt(periodType, 10);
+      if (Number.isNaN(days) || days <= 0) {
+        toast.error("Selecione um período válido");
+        return;
+      }
       periodEnd = format(new Date(), "yyyy-MM-dd");
       periodStart = format(subDays(new Date(), days - 1), "yyyy-MM-dd");
     }
@@ -344,7 +348,7 @@ export function GenerateReportDialog({
           </Button>
           <Button
             onClick={handleGenerate}
-            disabled={generateReport.isPending || selectedExercises.length === 0}
+            disabled={generateReport.isPending || isLoadingPeriodExercises || selectedExercises.length === 0}
           >
             {generateReport.isPending ? (
               <>

@@ -11,6 +11,14 @@ interface OuraConnection {
   is_active: boolean;
 }
 
+const OURA_CONNECTION_COLUMNS = `
+  id,
+  student_id,
+  connected_at,
+  last_sync_at,
+  is_active
+`;
+
 // Configuração de timeout por tipo de operação
 const SYNC_TIMEOUT_CONFIG = {
   singleDay: 30000,    // 30s para sync de 1 dia
@@ -40,7 +48,7 @@ export const useOuraConnection = (studentId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("oura_connections")
-        .select("*")
+        .select(OURA_CONNECTION_COLUMNS)
         .eq("student_id", studentId)
         .eq("is_active", true)
         .maybeSingle();

@@ -102,13 +102,46 @@ export interface ExerciseFilters {
   stability_position?: string;
 }
 
+const EXERCISES_LIBRARY_COLUMNS = `
+  id,
+  name,
+  movement_pattern,
+  laterality,
+  movement_plane,
+  description,
+  contraction_type,
+  level,
+  created_at,
+  updated_at,
+  video_url,
+  equipment_required,
+  prerequisites,
+  risk_level,
+  category,
+  subcategory,
+  plyometric_phase,
+  default_sets,
+  default_reps,
+  boyle_score,
+  axial_load,
+  lumbar_demand,
+  technical_complexity,
+  metabolic_potential,
+  knee_dominance,
+  hip_dominance,
+  primary_muscles,
+  emphasis,
+  stability_position,
+  surface_modifier
+`;
+
 export const useExercisesLibrary = (filters?: ExerciseFilters) => {
   return useQuery({
     queryKey: ["exercises-library", filters],
     queryFn: async () => {
       let query = supabase
         .from("exercises_library")
-        .select("*")
+        .select(EXERCISES_LIBRARY_COLUMNS)
         .order("name")
         .limit(2000);
 

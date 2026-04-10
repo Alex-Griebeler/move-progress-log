@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.1";
+import { z } from "https://esm.sh/zod@3.25.76";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -91,8 +92,21 @@ const jsonResponse = (status: number, body: Record<string, unknown>) =>
     },
   });
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+const trainerNotesInputSchema = z.object({
+  highlights: z.unknown().optional(),
+  attentionPoints: z.unknown().optional(),
+  nextCyclePlan: z.unknown().optional(),
+});
+
+const generateStudentReportPayloadSchema = z
+  .object({
+    studentId: z.string().trim().min(1),
+    periodStart: z.string().trim().min(1),
+    periodEnd: z.string().trim().min(1),
+    trackedExercises: z.array(z.string().trim().min(1)).min(1),
+    trainerNotes: trainerNotesInputSchema.optional().nullable(),
+  })
+  .passthrough();
 
 const parseDateOnly = (value: string): Date | null => {
   const parsed = new Date(`${value}T00:00:00.000Z`);
@@ -174,17 +188,25 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const rawPayload = await req.json().catch(() => null);
-    if (!isPlainObject(rawPayload)) {
-      return jsonResponse(400, { error: "Invalid request body" });
+    const parsedPayload = generateStudentReportPayloadSchema.safeParse(rawPayload);
+    if (!parsedPayload.success) {
+      const details = parsedPayload.error.issues
+        .slice(0, 3)
+        .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
+        .join("; ");
+      return jsonResponse(400, {
+        error: "Invalid request body",
+        details: details || undefined,
+      });
     }
 
-    const studentId =
-      typeof rawPayload.studentId === "string" ? rawPayload.studentId.trim() : "";
-    const periodStart =
-      typeof rawPayload.periodStart === "string" ? rawPayload.periodStart.trim() : "";
-    const periodEnd =
-      typeof rawPayload.periodEnd === "string" ? rawPayload.periodEnd.trim() : "";
-    const trackedExercisesInput = rawPayload.trackedExercises;
+    const {
+      studentId,
+      periodStart,
+      periodEnd,
+      trackedExercises: trackedExercisesInput,
+      trainerNotes: trainerNotesInput,
+    } = parsedPayload.data;
 
     if (!studentId || !periodStart || !periodEnd) {
       return jsonResponse(400, { error: "Missing required fields" });
@@ -196,9 +218,6 @@ serve(async (req) => {
       return jsonResponse(400, { error: "Invalid date format" });
     }
 
-    if (!Array.isArray(trackedExercisesInput) || trackedExercisesInput.length === 0) {
-      return jsonResponse(400, { error: "Select at least one exercise" });
-    }
     if (trackedExercisesInput.length > MAX_TRACKED_EXERCISES) {
       return jsonResponse(400, {
         error: `Selecione no máximo ${MAX_TRACKED_EXERCISES} exercícios`,
@@ -218,14 +237,10 @@ serve(async (req) => {
     }
 
     let trainerNotes: TrainerNotes | undefined;
-    if (rawPayload.trainerNotes !== undefined && rawPayload.trainerNotes !== null) {
-      if (!isPlainObject(rawPayload.trainerNotes)) {
-        return jsonResponse(400, { error: "Invalid trainer notes payload" });
-      }
-
-      const highlights = sanitizeOptionalNote(rawPayload.trainerNotes.highlights);
-      const attentionPoints = sanitizeOptionalNote(rawPayload.trainerNotes.attentionPoints);
-      const nextCyclePlan = sanitizeOptionalNote(rawPayload.trainerNotes.nextCyclePlan);
+    if (trainerNotesInput !== undefined && trainerNotesInput !== null) {
+      const highlights = sanitizeOptionalNote(trainerNotesInput.highlights);
+      const attentionPoints = sanitizeOptionalNote(trainerNotesInput.attentionPoints);
+      const nextCyclePlan = sanitizeOptionalNote(trainerNotesInput.nextCyclePlan);
       if (
         highlights === null ||
         attentionPoints === null ||
@@ -317,6 +332,16 @@ serve(async (req) => {
         error: "Selecione pelo menos um exercício elegível (força/hipertrofia)",
       });
     }
+    if (eligibleTrackedExercises.length !== trackedLibrary.length) {
+      const invalidNames = trackedLibrary
+        .filter((exercise) => !isEligibleStrengthCategory(exercise.category))
+        .map((exercise) => exercise.name)
+        .slice(0, 5)
+        .join(", ");
+      return jsonResponse(400, {
+        error: `A seleção contém exercícios não elegíveis para análise de força/hipertrofia: ${invalidNames}`,
+      });
+    }
 
     const { data: report, error: reportError } = await supabase
       .from("student_reports")
@@ -380,6 +405,25 @@ serve(async (req) => {
           prescription_id: session.prescription_id,
         }))
     );
+
+    const executedExerciseNames = new Set(
+      typedSessions
+        .flatMap((session) => session.exercises || [])
+        .map((exercise) => normalizeComparableText(exercise.exercise_name))
+        .filter(Boolean)
+    );
+    const notExecutedInWindow = eligibleTrackedExercises.filter(
+      (exercise) => !executedExerciseNames.has(normalizeComparableText(exercise.name))
+    );
+    if (notExecutedInWindow.length > 0) {
+      const notExecutedNames = notExecutedInWindow
+        .map((exercise) => exercise.name)
+        .slice(0, 5)
+        .join(", ");
+      return jsonResponse(400, {
+        error: `Selecione apenas exercícios executados no período informado. Não encontrados: ${notExecutedNames}`,
+      });
+    }
 
     const trackedExercisesData: Array<{
       exerciseName: string;

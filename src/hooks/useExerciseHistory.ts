@@ -16,6 +16,19 @@ type WorkoutSessionRow = Pick<
 
 type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
 
+const EXERCISE_HISTORY_COLUMNS = `
+  id,
+  session_id,
+  exercise_name,
+  sets,
+  reps,
+  load_kg,
+  load_description,
+  load_breakdown,
+  observations,
+  created_at
+`;
+
 const mapExerciseHistoryEntry = (
   exercise: ExerciseRow,
   session: WorkoutSessionRow | undefined
@@ -63,7 +76,7 @@ export const useExerciseHistory = (studentId: string, exerciseName: string) => {
 
       const { data: exercises, error: exercisesError } = await supabase
         .from("exercises")
-        .select("*")
+        .select(EXERCISE_HISTORY_COLUMNS)
         .in("session_id", sessionIds)
         .ilike("exercise_name", `%${exerciseName}%`)
         .order("created_at", { ascending: false });

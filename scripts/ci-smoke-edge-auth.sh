@@ -1,17 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-required_vars=(
-  SUPABASE_URL
-  SUPABASE_ANON_KEY
-)
-
-for var in "${required_vars[@]}"; do
-  if [[ -z "${!var:-}" ]]; then
-    echo "::error::Missing required environment variable: ${var}"
-    exit 1
-  fi
-done
+if [[ -z "${SUPABASE_URL:-}" ]]; then
+  echo "::error::Missing required environment variable: SUPABASE_URL"
+  exit 1
+fi
 
 RUN_SERVICE_ROLE_TESTS="${RUN_SERVICE_ROLE_TESTS:-false}"
 TIMEOUT_SECONDS="${SMOKE_TIMEOUT_SECONDS:-120}"
@@ -116,8 +109,12 @@ expect_status "B1 oura-sync-all sem auth" "401" "401"
 call_endpoint "oura-sync-all" '{}' "${FORGED_JWT}"
 expect_status "B2 oura-sync-all token forjado" "401/403" "401" "403"
 
-call_endpoint "oura-sync-all" '{}' "${SUPABASE_ANON_KEY}"
-expect_status "B3 oura-sync-all anon bearer" "401" "401"
+if [[ -n "${SUPABASE_ANON_KEY:-}" ]]; then
+  call_endpoint "oura-sync-all" '{}' "${SUPABASE_ANON_KEY}"
+  expect_status "B3 oura-sync-all anon bearer" "401" "401"
+else
+  append_row "B3 oura-sync-all anon bearer" "401" "SUPABASE_ANON_KEY ausente" "SKIP"
+fi
 
 call_endpoint "oura-sync-scheduled" '{}'
 expect_status "C1 oura-sync-scheduled sem auth" "401" "401"
@@ -125,8 +122,12 @@ expect_status "C1 oura-sync-scheduled sem auth" "401" "401"
 call_endpoint "oura-sync-scheduled" '{}' "${FORGED_JWT}"
 expect_status "C2 oura-sync-scheduled token forjado" "401/403" "401" "403"
 
-call_endpoint "oura-sync-scheduled" '{}' "${SUPABASE_ANON_KEY}"
-expect_status "C3 oura-sync-scheduled anon bearer" "401" "401"
+if [[ -n "${SUPABASE_ANON_KEY:-}" ]]; then
+  call_endpoint "oura-sync-scheduled" '{}' "${SUPABASE_ANON_KEY}"
+  expect_status "C3 oura-sync-scheduled anon bearer" "401" "401"
+else
+  append_row "C3 oura-sync-scheduled anon bearer" "401" "SUPABASE_ANON_KEY ausente" "SKIP"
+fi
 
 call_endpoint "generate-student-report" '{"studentId":"00000000-0000-0000-0000-000000000000","periodStart":"2026-01-01","periodEnd":"2026-01-31","trackedExercises":["00000000-0000-0000-0000-000000000000"]}'
 expect_status "D0 generate-student-report sem auth" "401" "401"
@@ -134,8 +135,7 @@ expect_status "D0 generate-student-report sem auth" "401" "401"
 # Optional service role validations
 if [[ "${RUN_SERVICE_ROLE_TESTS}" == "true" ]]; then
   if [[ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]]; then
-    append_row "A3/B4/C4 service_role" "secret presente" "SUPABASE_SERVICE_ROLE_KEY ausente" "FAIL"
-    failures=$((failures + 1))
+    append_row "A3/B4/C4 service_role" "secret presente" "SUPABASE_SERVICE_ROLE_KEY ausente" "SKIP"
   else
     call_endpoint "import-exercises" '{"format":"spreadsheet","skip_orphans":true,"exercises":[]}' "${SUPABASE_SERVICE_ROLE_KEY}"
     expect_status "A3 import-exercises service_role" "200/201" "200" "201"

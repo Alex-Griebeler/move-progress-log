@@ -1,7 +1,7 @@
 # Staging Smoke Runbook (4 Critical Scenarios)
 
 ## Objective
-Close the production gate for commit `d152289` by validating the 4 mandatory interactive scenarios in staging.
+Close the production gate for the **current release candidate** by validating the 4 mandatory interactive scenarios in staging.
 
 ## Preconditions
 - Staging deployed with latest `main`

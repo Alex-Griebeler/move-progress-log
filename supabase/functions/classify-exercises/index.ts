@@ -11,6 +11,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
+import { z } from "https://esm.sh/zod@3.25.76";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +21,13 @@ const corsHeaders = {
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" };
 const DEFAULT_BATCH_SIZE = 20;
 const MAX_BATCH_SIZE = 50;
+const classifyPayloadSchema = z
+  .object({
+    batchSize: z.union([z.number(), z.string()]).optional(),
+    offset: z.union([z.number(), z.string()]).optional(),
+    onlyUnclassified: z.union([z.boolean(), z.literal("true"), z.literal("false")]).optional(),
+  })
+  .passthrough();
 
 function normalizeBatchSize(value: unknown): number {
   const parsed = typeof value === "number" ? value : Number(value);
@@ -151,15 +159,20 @@ serve(async (req) => {
       );
     }
 
-    const body: unknown = await req.json();
-    if (!body || typeof body !== "object" || Array.isArray(body)) {
+    const rawBody: unknown = await req.json().catch(() => ({}));
+    const parsedBody = classifyPayloadSchema.safeParse(rawBody);
+    if (!parsedBody.success) {
+      const details = parsedBody.error.issues
+        .slice(0, 3)
+        .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
+        .join("; ");
       return new Response(
-        JSON.stringify({ success: false, error: "Payload inválido" }),
+        JSON.stringify({ success: false, error: "Payload inválido", details: details || undefined }),
         { headers: jsonHeaders, status: 400 }
       );
     }
 
-    const payload = body as Record<string, unknown>;
+    const payload = parsedBody.data;
     const batchSize = normalizeBatchSize(payload.batchSize);
     const offset = normalizeOffset(payload.offset);
     const onlyUnclassified = normalizeBoolean(payload.onlyUnclassified, true);

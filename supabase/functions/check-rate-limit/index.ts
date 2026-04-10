@@ -19,6 +19,16 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
   verify_email: { maxAttempts: 10, windowMinutes: 60, blockDurationMinutes: 15 },
 };
 
+const RATE_LIMIT_ATTEMPT_COLUMNS = `
+  id,
+  ip_address,
+  action,
+  attempt_count,
+  blocked_until,
+  first_attempt_at,
+  last_attempt_at
+`;
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -90,7 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get or create rate limit record
     const { data: existingAttempt, error: fetchError } = await supabase
       .from("rate_limit_attempts")
-      .select("*")
+      .select(RATE_LIMIT_ATTEMPT_COLUMNS)
       .eq("ip_address", identifier)
       .eq("action", action)
       .maybeSingle();

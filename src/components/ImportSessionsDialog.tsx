@@ -7,90 +7,15 @@ import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import {
+  extractCellValue,
+  normalizeHeader,
+  parseExcelDate,
+  parseTime,
+  resolveCanonicalHeader,
+} from "@/utils/importSessionsParsing";
 
 type SpreadsheetRow = Record<string, unknown>;
-
-const normalizeHeader = (value: string): string => {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, " ")
-    .replace(/[^a-z0-9 ]/g, "");
-};
-
-const resolveCanonicalHeader = (header: string): string => {
-  const normalized = normalizeHeader(header);
-
-  if (["aluno", "nome", "nome aluno", "nome do aluno", "student", "atleta", "athlete"].includes(normalized)) {
-    return "student";
-  }
-  if (["data", "date", "dia", "data treino", "data do treino"].includes(normalized)) {
-    return "date";
-  }
-  if (["hora", "horario", "horario treino", "hora treino", "time"].includes(normalized)) {
-    return "time";
-  }
-  if (
-    [
-      "exercicio",
-      "exercise",
-      "nome exercicio",
-      "nome do exercicio",
-      "exercicio nome",
-      "movimento",
-    ].includes(normalized)
-  ) {
-    return "exercise";
-  }
-  if (["series", "serie", "sets", "set"].includes(normalized)) {
-    return "sets";
-  }
-  if (["reps", "repeticoes", "repeticao", "rep"].includes(normalized)) {
-    return "reps";
-  }
-  if (["carga", "carga kg", "peso", "load", "kg"].includes(normalized)) {
-    return "load";
-  }
-  if (["observacoes", "observacao", "obs", "notes", "note"].includes(normalized)) {
-    return "notes";
-  }
-
-  return normalized;
-};
-
-const extractCellValue = (value: unknown): unknown => {
-  if (value instanceof Date) return value;
-  if (typeof value !== "object" || value === null) return value;
-
-  const record = value as Record<string, unknown>;
-
-  if ("result" in record && record.result !== undefined && record.result !== null) {
-    return record.result;
-  }
-
-  if ("text" in record && typeof record.text === "string") {
-    return record.text;
-  }
-
-  if ("richText" in record && Array.isArray(record.richText)) {
-    const text = (record.richText as Array<{ text?: string }>)
-      .map((item) => item.text || "")
-      .join("")
-      .trim();
-    if (text) return text;
-  }
-
-  return value;
-};
-
-const formatDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
 
 const getStringValue = (row: SpreadsheetRow, keys: string[]): string => {
   for (const key of keys) {
@@ -111,17 +36,6 @@ const getNumberValue = (row: SpreadsheetRow, keys: string[]): number | undefined
     }
   }
   return undefined;
-};
-
-const parseAmPmTime = (input: string): string | null => {
-  const match = input.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return null;
-  let hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  const period = match[3].toUpperCase();
-  if (period === "PM" && hours < 12) hours += 12;
-  if (period === "AM" && hours === 12) hours = 0;
-  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 };
 
 interface ImportSessionsDialogProps {
@@ -161,60 +75,6 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       setFile(selectedFile);
       setStatus(null);
     }
-  };
-
-  const parseExcelDate = (excelDate: unknown): string => {
-    if (excelDate instanceof Date) {
-      return formatDate(excelDate);
-    }
-
-    if (typeof excelDate === "string") {
-      // Tenta parsear string no formato DD/MM/YYYY ou YYYY-MM-DD
-      const parts = excelDate.includes("/") ? excelDate.split("/") : excelDate.split("-");
-      if (parts.length === 3) {
-        if (parts[0].length === 4) {
-          // YYYY-MM-DD ou YYYY-MM-DDTHH:mm:ss
-          return excelDate.slice(0, 10);
-        } else {
-          // DD/MM/YYYY
-          return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-        }
-      }
-    }
-    
-    if (typeof excelDate === "number") {
-      // Excel armazena datas como números (dias desde 1900)
-      const date = new Date((excelDate - 25569) * 86400 * 1000);
-      return date.toISOString().split("T")[0];
-    }
-    
-    return new Date().toISOString().split("T")[0];
-  };
-
-  const parseTime = (timeValue: unknown): string => {
-    if (timeValue instanceof Date) {
-      const hours = String(timeValue.getHours()).padStart(2, "0");
-      const minutes = String(timeValue.getMinutes()).padStart(2, "0");
-      return `${hours}:${minutes}`;
-    }
-
-    if (typeof timeValue === "string") {
-      const normalized = timeValue.trim();
-      if (/^\d{2}:\d{2}(:\d{2})?$/.test(normalized)) {
-        return normalized.slice(0, 5);
-      }
-      const amPmParsed = parseAmPmTime(normalized);
-      if (amPmParsed) return amPmParsed;
-      return normalized;
-    }
-    if (typeof timeValue === "number") {
-      // Excel armazena tempo como fração do dia
-      const totalMinutes = Math.round(timeValue * 24 * 60);
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-      return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-    }
-    return "12:00";
   };
 
   const processFile = async () => {
@@ -261,6 +121,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       // Agrupa por aluno + data + hora
       const sessionsMap = new Map<string, SessionRow[]>();
       let validRows = 0;
+      let invalidDateRows = 0;
 
       jsonData.forEach((row) => {
         const alunoRaw = getStringValue(row, ["student", "aluno", "nome", "nome do aluno"]);
@@ -272,6 +133,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
         // Skip blank lines or incomplete rows from spreadsheet exports.
         if (!alunoRaw || !exerciseName) return;
+        if (!parsedDate) {
+          invalidDateRows++;
+          return;
+        }
         validRows++;
 
         const sessionKey = `${alunoRaw.toLowerCase()}_${parsedDate}_${parsedTime}`;
@@ -297,7 +162,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         throw new Error(
           `Nenhuma linha válida encontrada para importação. Verifique cabeçalhos (detected: ${detectedHeaders
             .filter(Boolean)
-            .join(", ")}) e se as colunas de aluno + exercício estão preenchidas.`
+            .join(", ")}) e se as colunas de aluno + exercício estão preenchidas.${invalidDateRows > 0 ? ` Linhas com data inválida: ${invalidDateRows}.` : ""}`
         );
       }
       setStatus((prev) => ({ ...prev!, total: totalSessions }));
@@ -348,8 +213,17 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
       // Toast final
       toast.dismiss(toastId);
-      
-      if (errors.length === 0) {
+
+      const hasSuccessfulImports = processed > 0;
+      if (!hasSuccessfulImports) {
+        toast.error("Importação não persistiu sessões", {
+          description:
+            errors.length > 0
+              ? `Nenhuma sessão foi salva. ${errors.length} erro(s) encontrado(s).`
+              : "Nenhuma sessão foi salva. Verifique os dados da planilha e tente novamente.",
+          duration: 7000,
+        });
+      } else if (errors.length === 0) {
         toast.success("Importação concluída com sucesso!", {
           description: `${processed} sessão(ões) importada(s) com ${validRows} linha(s) válida(s).`,
           duration: 5000,
@@ -365,7 +239,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         total: totalSessions,
         processed,
         errors,
-        success: errors.length === 0,
+        success: errors.length === 0 && hasSuccessfulImports,
       });
     } catch (error: unknown) {
       if (toastId) toast.dismiss(toastId);

@@ -58,6 +58,35 @@ interface MergedData {
   exercises: SessionExercise[];
 }
 
+const EXISTING_SESSION_COLUMNS = `
+  id,
+  date,
+  time,
+  trainer_name,
+  prescription_id
+`;
+
+const EXISTING_EXERCISE_COLUMNS = `
+  id,
+  session_id,
+  exercise_name,
+  sets,
+  reps,
+  load_kg,
+  load_breakdown,
+  observations,
+  is_best_set
+`;
+
+const EXISTING_AUDIO_SEGMENT_COLUMNS = `
+  id,
+  session_id,
+  segment_order,
+  raw_transcription,
+  edited_transcription,
+  audio_duration_seconds
+`;
+
 export function RecordIndividualSessionDialog({
   open,
   onOpenChange,
@@ -110,11 +139,22 @@ export function RecordIndividualSessionDialog({
     queryKey: ['existing-session', existingSessionId],
     queryFn: async () => {
       if (!existingSessionId) return null;
-      const { data: session, error: sessionError } = await supabase.from('workout_sessions').select('*').eq('id', existingSessionId).single();
+      const { data: session, error: sessionError } = await supabase
+        .from('workout_sessions')
+        .select(EXISTING_SESSION_COLUMNS)
+        .eq('id', existingSessionId)
+        .single();
       if (sessionError) throw sessionError;
-      const { data: exercises, error: exercisesError } = await supabase.from('exercises').select('*').eq('session_id', existingSessionId);
+      const { data: exercises, error: exercisesError } = await supabase
+        .from('exercises')
+        .select(EXISTING_EXERCISE_COLUMNS)
+        .eq('session_id', existingSessionId);
       if (exercisesError) throw exercisesError;
-      const { data: segments, error: segmentsError } = await supabase.from('session_audio_segments').select('*').eq('session_id', existingSessionId).order('segment_order');
+      const { data: segments, error: segmentsError } = await supabase
+        .from('session_audio_segments')
+        .select(EXISTING_AUDIO_SEGMENT_COLUMNS)
+        .eq('session_id', existingSessionId)
+        .order('segment_order');
       if (segmentsError) throw segmentsError;
       return { session, exercises, segments };
     },

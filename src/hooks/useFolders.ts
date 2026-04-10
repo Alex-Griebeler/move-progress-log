@@ -16,6 +16,18 @@ export interface PrescriptionFolder {
   children?: PrescriptionFolder[];
 }
 
+const PRESCRIPTION_FOLDER_COLUMNS = `
+  id,
+  name,
+  trainer_id,
+  order_index,
+  parent_id,
+  depth_level,
+  full_path,
+  created_at,
+  updated_at
+`;
+
 // Build hierarchical structure from flat list
 const buildFolderTree = (folders: PrescriptionFolder[]): PrescriptionFolder[] => {
   const folderMap = new Map<string, PrescriptionFolder>();
@@ -53,7 +65,7 @@ export const useFolders = () => {
 
       const { data, error } = await supabase
         .from("prescription_folders")
-        .select("*")
+        .select(PRESCRIPTION_FOLDER_COLUMNS)
         .eq("trainer_id", user.id)
         .order("depth_level", { ascending: true })
         .order("order_index", { ascending: true });

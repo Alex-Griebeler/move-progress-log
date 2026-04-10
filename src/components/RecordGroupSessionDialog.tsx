@@ -31,9 +31,6 @@ import { logger } from "@/utils/logger";
 // Shared types, utilities & components
 import {
   MAX_RECORDINGS,
-  areSimilarObservations,
-  getSeverityVariant,
-  getCategoryIcon,
   type GroupObservation,
   type SessionExercise,
   type AccumulatedRecording,
@@ -45,6 +42,14 @@ import { ExercisePreviewCard } from "@/components/session/ExercisePreviewCard";
 import { ObservationPreview } from "@/components/session/ObservationPreview";
 import { ValidationAlerts } from "@/components/session/ValidationAlerts";
 import { PrescriptionSidebar } from "@/components/session/PrescriptionSidebar";
+import {
+  addUnmentionedPrescribedExercises,
+  mapAudioSegmentsToSessionData,
+  mergeAllRecordings,
+  validateMergedData,
+  type MergedStudent,
+  type SessionData,
+} from "@/components/session/groupSessionDataUtils";
 
 // ─── Local Types ────────────────────────────────────────
 
@@ -112,6 +117,23 @@ interface CustomAdaptationsShape {
   time?: string;
 }
 
+const GROUP_SESSION_EXERCISE_COLUMNS = `
+  id,
+  exercise_name,
+  sets,
+  reps,
+  load_kg,
+  load_breakdown,
+  observations,
+  is_best_set
+`;
+
+const GROUP_STUDENT_LOOKUP_COLUMNS = `
+  id,
+  name,
+  weight_kg
+`;
+
 // ─── Component Types ────────────────────────────────────────
 
 interface RecordGroupSessionDialogProps {
@@ -129,22 +151,6 @@ interface Student {
   name: string;
   weight_kg?: number;
   has_active_prescription: boolean;
-}
-
-interface SessionData {
-  sessions: Array<{
-    student_name: string;
-    auto_added?: boolean;
-    clinical_observations?: Array<GroupObservation>;
-    exercises: Array<SessionExercise>;
-  }>;
-}
-
-interface MergedStudent {
-  student_name: string;
-  recording_numbers: number[];
-  clinical_observations: GroupObservation[];
-  exercises: SessionExercise[];
 }
 
 // Toggle sub-component for manual entry mode
@@ -290,7 +296,10 @@ export function RecordGroupSessionDialog({
         setSelectedStudents(existingStudents);
         const allExercises = await Promise.all(
           typedSessions.map(async (session) => {
-            const { data: exercises } = await supabase.from('exercises').select('*').eq('session_id', session.id);
+            const { data: exercises } = await supabase
+              .from('exercises')
+              .select(GROUP_SESSION_EXERCISE_COLUMNS)
+              .eq('session_id', session.id);
             return { student_name: session.students.name, exercises: (exercises || []) as ExerciseRow[] };
           })
         );
@@ -335,97 +344,17 @@ export function RecordGroupSessionDialog({
 
   // ─── Merge & Validation Logic ────────────────────────────────────────
 
-  const mergeAllRecordings = (recordings: AccumulatedRecording<SessionData>[], existingData?: MergedStudent[]): MergedStudent[] => {
-    logger.debug('[Group] mergeAllRecordings chamado', { recordings: recordings.length, existing: existingData?.length || 0 });
-    const studentMap = new Map<string, MergedStudent>();
-
-    if (existingData) {
-      existingData.forEach((existing) => {
-        studentMap.set(existing.student_name.toLowerCase(), { ...existing, recording_numbers: [0] });
-      });
-    }
-
-    recordings.forEach((recording) => {
-      recording.data.sessions.forEach((session) => {
-        const key = session.student_name.toLowerCase();
-        if (!studentMap.has(key)) {
-          studentMap.set(key, { student_name: session.student_name, recording_numbers: [], clinical_observations: [], exercises: [] });
-        }
-        const merged = studentMap.get(key)!;
-        if (!merged.recording_numbers.includes(recording.recordingNumber)) merged.recording_numbers.push(recording.recordingNumber);
-        
-        if (session.clinical_observations) {
-          session.clinical_observations.forEach(newObs => {
-            if (!merged.clinical_observations.some(e => areSimilarObservations(e.observation_text, newObs.observation_text))) {
-              merged.clinical_observations.push(newObs);
-            }
-          });
-        }
-        
-        session.exercises.forEach((newEx) => {
-          // Preserve exercises with null reps (needs_manual_input) for manual correction
-          if (!merged.exercises.some(ex => ex.executed_exercise_name === newEx.executed_exercise_name && ex.reps === newEx.reps && ex.load_kg === newEx.load_kg)) {
-            merged.exercises.push(newEx);
-          }
-        });
-      });
+  const runMergedDataValidation = useCallback((merged: MergedStudent[]) => {
+    return validateMergedData({
+      mergedStudents: merged,
+      selectedStudents: selectedStudents.map((student) => ({
+        name: student.name,
+        weight_kg: student.weight_kg,
+      })),
+      prescribedExercises: (prescriptionDetails?.exercises || []) as PrescriptionExerciseDetail[],
+      accumulatedRecordingsCount: accumulatedRecordings.length,
     });
-
-    const result = Array.from(studentMap.values()).sort((a, b) => a.student_name.localeCompare(b.student_name));
-    logger.debug('[Group] Merge completo:', result.map(s => `${s.student_name}: ${s.exercises.length} exercícios`));
-    return result;
-  };
-
-  const validateMergedData = (merged: MergedStudent[]) => {
-    const warnings: string[] = [];
-    const errors: string[] = [];
-    const prescribedExercises = prescriptionDetails?.exercises?.filter((ex: PrescriptionExerciseDetail) => ex.should_track !== false) || [];
-    
-    merged.forEach(student => {
-      const matchingStudent = selectedStudents.find(s => s.name.toLowerCase() === student.student_name.toLowerCase());
-      const studentWeight = matchingStudent?.weight_kg;
-      
-      if (student.exercises.length === 0) errors.push(`❌ ${student.student_name} foi mencionado mas não tem exercícios registrados`);
-      
-      if (prescribedExercises.length > 0) {
-        prescribedExercises.forEach((prescribed: PrescriptionExerciseDetail) => {
-          const prescribedName = (prescribed.exercise_name || prescribed.exercises_library?.name || '').toLowerCase().trim();
-          if (!prescribedName) return;
-          const wasExecuted = student.exercises.some(ex => {
-            const executedName = ex.executed_exercise_name.toLowerCase().trim();
-            return executedName.includes(prescribedName) || prescribedName.includes(executedName) || executedName === prescribedName;
-          });
-          if (!wasExecuted) warnings.push(`⚠️ ${student.student_name}: "${prescribed.exercise_name || prescribed.exercises_library?.name}" prescrito mas NÃO mencionado no áudio`);
-        });
-      }
-      
-      student.exercises.forEach((ex, idx) => {
-        const exName = ex.executed_exercise_name || `Exercício ${idx + 1}`;
-        if (!ex.reps || ex.reps <= 0) errors.push(`❌ ${student.student_name} - ${exName}: faltam repetições`);
-        if (!ex.load_breakdown || ex.load_breakdown.trim() === '') warnings.push(`⚠️ ${student.student_name} - ${exName}: sem descrição de carga`);
-        if (ex.load_kg === null || ex.load_kg === 0) warnings.push(`⚠️ ${student.student_name} - ${exName}: sem carga calculada`);
-        const isPesoCorporal = ex.load_breakdown?.toLowerCase().includes('peso corporal');
-        if (isPesoCorporal && ex.load_kg === null && studentWeight) errors.push(`❌ ${student.student_name} - ${exName}: peso corporal não foi calculado automaticamente (aluno tem ${studentWeight} kg cadastrado)`);
-      });
-      
-      student.clinical_observations.forEach((obs, idx) => {
-        if (!obs.severity) errors.push(`❌ ${student.student_name}: Observação clínica ${idx+1} sem severidade`);
-        if (!obs.observation_text || obs.observation_text.trim() === '') errors.push(`❌ ${student.student_name}: Observação clínica ${idx+1} sem texto`);
-      });
-      
-      if (student.recording_numbers.length === 1 && accumulatedRecordings.length > 1) {
-        warnings.push(`⚠️ ${student.student_name} só aparece na gravação ${student.recording_numbers[0]}`);
-      }
-    });
-    
-    selectedStudents.forEach(student => {
-      if (!merged.find(m => m.student_name.toLowerCase() === student.name.toLowerCase())) {
-        warnings.push(`⚠️ ${student.name} não foi mencionado em nenhuma gravação`);
-      }
-    });
-    
-    return { errors, warnings };
-  };
+  }, [accumulatedRecordings.length, prescriptionDetails?.exercises, selectedStudents]);
 
   // ─── Auto-Add Students ────────────────────────────────────────
 
@@ -436,7 +365,11 @@ export function RecordGroupSessionDialog({
         const session = data.sessions[i];
         const existingStudent = selectedStudents.find(s => s.name.toLowerCase() === session.student_name.toLowerCase());
         if (!existingStudent) {
-          const { data: studentData, error } = await supabase.from('students').select('*').ilike('name', session.student_name).single();
+          const { data: studentData, error } = await supabase
+            .from('students')
+            .select(GROUP_STUDENT_LOOKUP_COLUMNS)
+            .ilike('name', session.student_name)
+            .single();
           if (error) { logger.warn(`Aluno "${session.student_name}" não encontrado:`, error); continue; }
           if (studentData) {
             newStudents.push({ id: studentData.id, name: studentData.name, weight_kg: studentData.weight_kg ?? undefined, has_active_prescription: false });
@@ -461,9 +394,11 @@ export function RecordGroupSessionDialog({
       const updatedRecordings = [...accumulatedRecordings, newRecording];
       setAccumulatedRecordings(updatedRecordings);
       const existingData = isReopening && mergedStudents.length > 0 ? mergedStudents : undefined;
+      logger.debug('[Group] mergeAllRecordings chamado', { recordings: updatedRecordings.length, existing: existingData?.length || 0 });
       const merged = mergeAllRecordings(updatedRecordings, existingData);
+      logger.debug('[Group] Merge completo:', merged.map(s => `${s.student_name}: ${s.exercises.length} exercícios`));
       setMergedStudents(merged);
-      setValidationIssues(validateMergedData(merged));
+      setValidationIssues(runMergedDataValidation(merged));
       setTimeout(() => { setDialogState('preview'); }, 100);
     } catch (error) {
       logger.error("Erro em handleSessionData:", error);
@@ -506,7 +441,7 @@ export function RecordGroupSessionDialog({
     const updatedMerged = [...mergedStudents];
     updatedMerged[editingStudentIndex] = { ...updatedMerged[editingStudentIndex], clinical_observations: editableObservations, exercises: editableExercises };
     setMergedStudents(updatedMerged);
-    setValidationIssues(validateMergedData(updatedMerged));
+    setValidationIssues(runMergedDataValidation(updatedMerged));
     setDialogState('preview');
   };
 
@@ -733,25 +668,12 @@ export function RecordGroupSessionDialog({
   // ─── Add Unmentioned Exercises ────────────────────────────────────────
 
   const handleAddUnmentionedExercises = () => {
-    const prescribedExercises = prescriptionDetails?.exercises?.filter((ex: PrescriptionExerciseDetail) => ex.should_track !== false) || [];
-    const updatedMergedStudents = mergedStudents.map(student => {
-      const unmentionedExercises = prescribedExercises.filter((prescribed: PrescriptionExerciseDetail) => {
-        const prescribedName = (prescribed.exercise_name || prescribed.exercises_library?.name || '').toLowerCase().trim();
-        return !student.exercises.some(ex => {
-          const executedName = ex.executed_exercise_name.toLowerCase().trim();
-          return executedName.includes(prescribedName) || prescribedName.includes(executedName) || executedName === prescribedName;
-        }) && prescribedName;
-      });
-      const newExercises: SessionExercise[] = unmentionedExercises.map((prescribed: PrescriptionExerciseDetail) => ({
-        prescribed_exercise_name: prescribed.exercise_name || prescribed.exercises_library?.name,
-        executed_exercise_name: prescribed.exercise_name || prescribed.exercises_library?.name || '',
-        sets: parseInt(prescribed.sets) || null, reps: null, load_kg: null, load_breakdown: '',
-        observations: '⚠️ Exercício prescrito mas não mencionado - preencher manualmente', is_best_set: false,
-      }));
-      return { ...student, exercises: [...student.exercises, ...newExercises] };
+    const updatedMergedStudents = addUnmentionedPrescribedExercises({
+      mergedStudents,
+      prescribedExercises: (prescriptionDetails?.exercises || []) as PrescriptionExerciseDetail[],
     });
     setMergedStudents(updatedMergedStudents);
-    setValidationIssues(validateMergedData(updatedMergedStudents));
+    setValidationIssues(runMergedDataValidation(updatedMergedStudents));
     notify.success('Exercícios não mencionados adicionados para edição manual');
   };
 
@@ -841,46 +763,7 @@ export function RecordGroupSessionDialog({
                   selectedStudents={selectedStudents.map(s => ({ id: s.id, name: s.name, weight_kg: s.weight_kg }))}
                   date={date} time={time}
                   onComplete={(segments) => {
-                    // Map raw audio data to typed SessionExercise/GroupObservation
-                    const mapRawExercise = (raw: { name: string; reps?: number; load_kg?: number; observations?: string }): SessionExercise => ({
-                      executed_exercise_name: raw.name,
-                      reps: raw.reps ?? null,
-                      load_kg: raw.load_kg ?? null,
-                      load_breakdown: '',
-                      observations: raw.observations ?? null,
-                      is_best_set: false,
-                    });
-                    const mapRawObs = (raw: { observation: string }): GroupObservation => ({
-                      observation_text: raw.observation,
-                      categories: ['geral'],
-                      severity: 'média',
-                    });
-
-                    const sessionsByStudent = segments.reduce((acc, segment) => {
-                      if (!segment.extractedData?.sessions) return acc;
-                      segment.extractedData.sessions.forEach(session => {
-                        const mappedExercises = session.exercises.map(mapRawExercise);
-                        const mappedObs = session.clinical_observations.map(mapRawObs);
-                        const existing = acc.find(s => s.student_name.toLowerCase() === session.student_name.toLowerCase());
-                        if (existing) {
-                          mappedExercises.forEach(newEx => {
-                            const newExName = newEx.executed_exercise_name.toLowerCase().trim();
-                            const duplicateIndex = existing.exercises.findIndex(existingEx => {
-                              const existingExName = existingEx.executed_exercise_name.toLowerCase().trim();
-                              return existingExName === newExName || existingExName.includes(newExName) || newExName.includes(existingExName);
-                            });
-                            if (duplicateIndex >= 0) {
-                              if ((newEx.load_kg || 0) >= (existing.exercises[duplicateIndex].load_kg || 0)) existing.exercises[duplicateIndex] = newEx;
-                            } else { existing.exercises.push(newEx); }
-                          });
-                          existing.clinical_observations = [...existing.clinical_observations, ...mappedObs];
-                        } else {
-                          acc.push({ student_name: session.student_name, exercises: [...mappedExercises], clinical_observations: [...mappedObs] });
-                        }
-                      });
-                      return acc;
-                    }, [] as Array<{ student_name: string; exercises: SessionExercise[]; clinical_observations: GroupObservation[] }>);
-                    handleSessionData({ sessions: sessionsByStudent });
+                    handleSessionData(mapAudioSegmentsToSessionData(segments));
                   }}
                   onError={handleError}
                 />

@@ -39,6 +39,35 @@ export interface Exercise {
 type WorkoutSessionRow = Database["public"]["Tables"]["workout_sessions"]["Row"];
 type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
 
+const WORKOUT_SESSION_COLUMNS = [
+  "id",
+  "student_id",
+  "date",
+  "time",
+  "session_type",
+  "workout_name",
+  "room_name",
+  "trainer_name",
+  "is_finalized",
+  "can_reopen",
+  "prescription_id",
+  "created_at",
+  "updated_at",
+].join(", ");
+
+const EXERCISE_COLUMNS = [
+  "id",
+  "session_id",
+  "exercise_name",
+  "sets",
+  "reps",
+  "load_kg",
+  "load_description",
+  "load_breakdown",
+  "observations",
+  "created_at",
+].join(", ");
+
 const mapWorkoutSession = (row: WorkoutSessionRow): WorkoutSession => ({
   id: row.id,
   student_id: row.student_id,
@@ -74,7 +103,7 @@ export const useWorkoutSessions = (studentId?: string) => {
     queryFn: async () => {
       let query = supabase
         .from("workout_sessions")
-        .select("*")
+        .select(WORKOUT_SESSION_COLUMNS)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
         .limit(500);
@@ -100,7 +129,7 @@ export const useSessionExercises = (sessionId: string | null) => {
 
       const { data, error } = await supabase
         .from("exercises")
-        .select("*")
+        .select(EXERCISE_COLUMNS)
         .eq("session_id", sessionId)
         .order("created_at");
 
@@ -136,7 +165,7 @@ export const useCreateWorkoutSession = () => {
           time: data.time,
           session_type: 'individual',
         })
-        .select()
+        .select("id")
         .single();
 
       if (sessionError) throw sessionError;
@@ -215,7 +244,7 @@ export const useCreateGroupWorkoutSessions = () => {
               time: data.time,
               session_type: 'group',
             })
-            .select()
+            .select("id")
             .single();
 
           if (sessionError) {

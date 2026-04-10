@@ -61,6 +61,17 @@ interface SessionData {
   } | null;
 }
 
+const SESSION_EXERCISE_COLUMNS = `
+  id,
+  exercise_name,
+  sets,
+  reps,
+  load_kg,
+  load_breakdown,
+  observations,
+  is_best_set
+`;
+
 export function EditSessionDialog({
   open,
   onOpenChange,
@@ -96,7 +107,7 @@ export function EditSessionDialog({
 
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('exercises')
-        .select('*')
+        .select(SESSION_EXERCISE_COLUMNS)
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 

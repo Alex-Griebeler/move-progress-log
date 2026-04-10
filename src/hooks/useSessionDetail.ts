@@ -37,6 +37,33 @@ interface SessionDetail {
   exercises: SessionExercise[];
 }
 
+const SESSION_COLUMNS = `
+  id,
+  student_id,
+  date,
+  time,
+  session_type,
+  workout_name,
+  trainer_name,
+  room_name,
+  is_finalized,
+  can_reopen,
+  prescription_id
+`;
+
+const EXERCISE_COLUMNS = `
+  id,
+  exercise_name,
+  sets,
+  reps,
+  load_kg,
+  load_description,
+  load_breakdown,
+  observations,
+  is_best_set,
+  created_at
+`;
+
 export const useSessionDetail = (sessionId: string | null) => {
   return useQuery({
     queryKey: ["session-detail", sessionId],
@@ -47,7 +74,7 @@ export const useSessionDetail = (sessionId: string | null) => {
       try {
         const { data: sessionData, error: sessionError } = await supabase
           .from("workout_sessions")
-          .select("*")
+          .select(SESSION_COLUMNS)
           .eq("id", sessionId)
           .single();
 
@@ -77,7 +104,7 @@ export const useSessionDetail = (sessionId: string | null) => {
 
         const { data: exercisesData, error: exercisesError } = await supabase
           .from("exercises")
-          .select("*")
+          .select(EXERCISE_COLUMNS)
           .eq("session_id", sessionId)
           .order("created_at", { ascending: true });
 
