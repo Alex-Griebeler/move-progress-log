@@ -174,11 +174,21 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
   - `workouts` (3 itens A/B/C com ao menos 1 valência)
   - opcionais (`excludeExercises`, `groupReadiness`, `weekCount`, `audiencePreset`, `rotationMode`, `retainExerciseIds`)
 
+### 16) Contrato runtime expandido para voz e relatórios
+- `process-voice-session`:
+  - payload validado com `zod` (`audio`, `prescriptionId`, `students`, `date`, `time`)
+  - retorno `400` com `details` em caso de contrato inválido
+- `generate-student-report`:
+  - payload validado com `zod` (`studentId`, `periodStart`, `periodEnd`, `trackedExercises`, `trainerNotes`)
+  - mantidas as validações de regra de negócio existentes (UUID, datas, janela mínima, limite de exercícios, duplicidade)
+- Resultado:
+  - contrato de entrada padronizado entre endpoints críticos sem alteração do contrato de sucesso.
+
 ## Pendências Prioritárias (próximo lote)
 1. Continuar redução dos monolíticos remanescentes (fatia 2):
    - `supabase/functions/generate-group-session/index.ts`
    - `supabase/functions/process-voice-session/index.ts`
-2. Expandir validação runtime para os outros endpoints críticos (relatório/importação/voz).
+2. Expandir validação runtime para os outros endpoints críticos restantes (ex.: `import-exercises`, `classify-exercises`).
 3. Criar smoke E2E curto para 4 fluxos críticos no preview autenticado.
 
 ## Risco Residual Atual

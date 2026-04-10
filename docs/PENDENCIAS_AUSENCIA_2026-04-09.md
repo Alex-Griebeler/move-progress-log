@@ -22,6 +22,9 @@
   - testes em `src/utils/__tests__/groupSessionValidationCore.test.ts`
 - Contrato runtime aplicado em geração de sessão:
   - validação com `zod` em `supabase/functions/generate-group-session/index.ts`
+- Contrato runtime expandido para endpoints críticos adicionais:
+  - `supabase/functions/process-voice-session/index.ts`
+  - `supabase/functions/generate-student-report/index.ts`
 - Regra de volume semanal atualizada no motor:
   - 2 treinos: mínimo 8 sets por padrão
   - 3 treinos: mínimo 12 sets por padrão
@@ -42,7 +45,7 @@
 - `supabase/functions/generate-group-session/index.ts` (1489 linhas)
 - `supabase/functions/process-voice-session/index.ts` (775 linhas)
 
-2. Contratos de payload com validação runtime (schema) entre front e edge functions.
+2. Contratos de payload com validação runtime (schema) para funções remanescentes de ingestão/classificação.
 
 3. Smoke E2E curto e repetível para os 4 fluxos críticos com evidência automatizada.
 

@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai@0.21.0";
+import { z } from "https://esm.sh/zod@3.25.76";
 import {
   applyLoadValidationToSessions,
   markExercisesMissingRepsForManualInput,
@@ -56,6 +57,23 @@ const EQUIPMENT_LOAD_RULES = {
 
 // V-04: Max audio size validation (20M chars ≈ 15MB audio)
 const MAX_AUDIO_SIZE_CHARS = 20_000_000;
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+const timeRegex = /^\d{2}:\d{2}$/;
+
+const studentSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  weight_kg: z.number().finite().positive().optional(),
+}).passthrough();
+
+const processVoicePayloadSchema = z.object({
+  audio: z.string().min(1),
+  prescriptionId: z.string().uuid().optional().nullable(),
+  students: z.array(studentSchema).min(1),
+  date: z.string().regex(dateRegex),
+  time: z.string().regex(timeRegex),
+}).passthrough();
 
 // Processar base64 em chunks para prevenir problemas de memória
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
@@ -127,28 +145,28 @@ serve(async (req) => {
       );
     }
 
-    const { audio, prescriptionId, students, date, time } = await req.json();
-    
-    // Validate required fields
-    if (!audio || !students || !Array.isArray(students) || students.length === 0) {
+    const rawPayload = await req.json().catch(() => null);
+    const parsedPayload = processVoicePayloadSchema.safeParse(rawPayload);
+    if (!parsedPayload.success) {
+      const details = parsedPayload.error.issues
+        .slice(0, 3)
+        .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
+        .join("; ");
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: audio or students' }),
+        JSON.stringify({
+          error: "Payload inválido",
+          details: details || undefined,
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
+    const { audio, prescriptionId, students, date, time } = parsedPayload.data;
+    
     // V-04: Validate audio payload size before processing
-    if (typeof audio === 'string' && audio.length > MAX_AUDIO_SIZE_CHARS) {
+    if (audio.length > MAX_AUDIO_SIZE_CHARS) {
       return new Response(
         JSON.stringify({ error: `Áudio excede o tamanho máximo permitido (~15MB). Tente gravar segmentos menores.` }),
         { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!date || !time) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required fields: date or time' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
