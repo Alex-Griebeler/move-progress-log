@@ -30,6 +30,7 @@
   - `supabase/functions/classify-exercises/index.ts`
 - Refactor incremental sem regressão:
   - `generate-group-session`: auth/resource loading extraídos para helpers
+  - `generate-group-session`: montagem do pool de exercícios isolada em helper puro
   - `process-voice-session`: payload/ownership validations extraídos para helpers
 - Regra de volume semanal atualizada no motor:
   - 2 treinos: mínimo 8 sets por padrão
