@@ -8,6 +8,7 @@
   - `npm run lint` -> PASS
   - `VITE_SUPABASE_URL= VITE_SUPABASE_PUBLISHABLE_KEY= npm run test -- --run` -> PASS (`72 passed`, `9 skipped`)
   - `npm run build` -> PASS
+  - `bash ./scripts/ci-smoke-edge-auth.sh` (sem service role) -> PASS (`8 PASS`, `1 SKIP`)
 - Branch de trabalho atualizada:
   - `codex/phase1-hardening-core`
 - Refactor aplicado sem mudança de contrato no fluxo de sessão em grupo:
@@ -42,6 +43,7 @@
 - `/admin/diagnostico-oura` (importação batch XLSX)
 - `/alunos/:id/relatorios` (lazy-load + fluxo completo)
 - Exportação de PDF em sessão real de usuário
+ - Happy-path `service_role` (`A3/B4/C4`) ainda pendente por ausência da chave no ambiente local
 
 2. Gate operacional de GitHub Actions com secrets:
 - Confirmação/re-run manual de workflow dependente de secrets externos.

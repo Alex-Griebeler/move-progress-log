@@ -222,6 +222,15 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Resultado:
   - handler principal mais linear e fácil de revisar; comportamento preservado.
 
+### 22) Smoke técnico de autenticação das edge functions
+- Script executado localmente:
+  - `scripts/ci-smoke-edge-auth.sh`
+- Resultado:
+  - PASS: `A1`, `B1`, `B2`, `B3`, `C1`, `C2`, `C3`, `D0`
+  - SKIP: `A3/B4/C4` (service_role não disponível no ambiente local)
+- Evidência:
+  - `artifacts/edge-smoke-report.md`
+
 ## Pendências Prioritárias (próximo lote)
 1. Continuar redução dos monolíticos remanescentes (fatia 2):
    - `supabase/functions/generate-group-session/index.ts`
