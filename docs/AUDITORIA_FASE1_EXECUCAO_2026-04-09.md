@@ -208,6 +208,14 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Resultado:
   - handler principal mais curto e legível, mantendo o mesmo fluxo de validação e mesmas regras de geração.
 
+### 20) Extração de validações de autorização no processamento de voz
+- `process-voice-session/index.ts`:
+  - parsing runtime isolado em `parseProcessVoicePayload`
+  - validação de propriedade da prescrição isolada em `verifyPrescriptionOwnership`
+  - validação de propriedade dos alunos isolada em `verifyStudentsOwnership`
+- Resultado:
+  - menor acoplamento no handler principal de voz, com manutenção dos mesmos códigos HTTP e mensagens.
+
 ## Pendências Prioritárias (próximo lote)
 1. Continuar redução dos monolíticos remanescentes (fatia 2):
    - `supabase/functions/generate-group-session/index.ts`

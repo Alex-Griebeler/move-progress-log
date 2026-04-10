@@ -75,6 +75,78 @@ const processVoicePayloadSchema = z.object({
   time: z.string().regex(timeRegex),
 }).passthrough();
 
+type ProcessVoicePayload = z.infer<typeof processVoicePayloadSchema>;
+type ProcessVoiceStudent = z.infer<typeof studentSchema>;
+
+function jsonErrorResponse(status: number, error: string, details?: string): Response {
+  return new Response(
+    JSON.stringify({
+      error,
+      details: details || undefined,
+    }),
+    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+function parseProcessVoicePayload(rawPayload: unknown): { ok: true; value: ProcessVoicePayload } | { ok: false; response: Response } {
+  const parsedPayload = processVoicePayloadSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    const details = parsedPayload.error.issues
+      .slice(0, 3)
+      .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
+      .join("; ");
+    return {
+      ok: false,
+      response: jsonErrorResponse(400, "Payload inválido", details),
+    };
+  }
+  return { ok: true, value: parsedPayload.data };
+}
+
+async function verifyPrescriptionOwnership(
+  supabaseClient: ReturnType<typeof createClient>,
+  prescriptionId: string,
+  trainerId: string
+): Promise<Response | null> {
+  const { data: prescription, error: prescriptionError } = await supabaseClient
+    .from('workout_prescriptions')
+    .select('trainer_id')
+    .eq('id', prescriptionId)
+    .single();
+
+  if (prescriptionError || !prescription) {
+    return jsonErrorResponse(404, 'Prescription not found');
+  }
+
+  if (prescription.trainer_id !== trainerId) {
+    return jsonErrorResponse(403, 'Unauthorized access to prescription data');
+  }
+
+  return null;
+}
+
+async function verifyStudentsOwnership(
+  supabaseClient: ReturnType<typeof createClient>,
+  students: ProcessVoiceStudent[],
+  trainerId: string
+): Promise<Response | null> {
+  const { data: studentRecords, error: studentsError } = await supabaseClient
+    .from('students')
+    .select('id, trainer_id')
+    .in('id', students.map((student) => student.id));
+
+  if (studentsError || !studentRecords) {
+    return jsonErrorResponse(400, 'Error validating students');
+  }
+
+  const unauthorizedStudents = studentRecords.filter((student) => student.trainer_id !== trainerId);
+  if (unauthorizedStudents.length > 0) {
+    return jsonErrorResponse(403, 'Unauthorized access to one or more students');
+  }
+
+  return null;
+}
+
 // Processar base64 em chunks para prevenir problemas de memória
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
   const chunks: Uint8Array[] = [];
@@ -124,10 +196,7 @@ serve(async (req) => {
     // Validate authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonErrorResponse(401, 'Unauthorized');
     }
 
     // Validate the caller with the anon key; keep service_role only for privileged reads/writes.
@@ -139,85 +208,35 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
       // Authentication failed
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonErrorResponse(401, 'Unauthorized');
     }
 
     const rawPayload = await req.json().catch(() => null);
-    const parsedPayload = processVoicePayloadSchema.safeParse(rawPayload);
-    if (!parsedPayload.success) {
-      const details = parsedPayload.error.issues
-        .slice(0, 3)
-        .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
-        .join("; ");
-      return new Response(
-        JSON.stringify({
-          error: "Payload inválido",
-          details: details || undefined,
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const parsedPayload = parseProcessVoicePayload(rawPayload);
+    if (!parsedPayload.ok) {
+      return parsedPayload.response;
     }
-    const { audio, prescriptionId, students, date, time } = parsedPayload.data;
+    const { audio, prescriptionId, students, date, time } = parsedPayload.value;
     
     // V-04: Validate audio payload size before processing
     if (audio.length > MAX_AUDIO_SIZE_CHARS) {
-      return new Response(
-        JSON.stringify({ error: `Áudio excede o tamanho máximo permitido (~15MB). Tente gravar segmentos menores.` }),
-        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return jsonErrorResponse(413, 'Áudio excede o tamanho máximo permitido (~15MB). Tente gravar segmentos menores.');
     }
 
     
 
     // Verify trainer owns the prescription (only if prescriptionId is provided)
     if (prescriptionId) {
-      const { data: prescription, error: prescriptionError } = await supabaseClient
-        .from('workout_prescriptions')
-        .select('trainer_id')
-        .eq('id', prescriptionId)
-        .single();
-
-      if (prescriptionError || !prescription) {
-        
-        return new Response(
-          JSON.stringify({ error: 'Prescription not found' }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      if (prescription.trainer_id !== user.id) {
-        
-        return new Response(
-          JSON.stringify({ error: 'Unauthorized access to prescription data' }),
-          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      const prescriptionErrorResponse = await verifyPrescriptionOwnership(supabaseClient, prescriptionId, user.id);
+      if (prescriptionErrorResponse) {
+        return prescriptionErrorResponse;
       }
     }
 
     // Verify trainer owns all students
-    const { data: studentRecords, error: studentsError } = await supabaseClient
-      .from('students')
-      .select('id, trainer_id')
-      .in('id', students.map((s: { id: string }) => s.id));
-
-    if (studentsError || !studentRecords) {
-      
-      return new Response(
-        JSON.stringify({ error: 'Error validating students' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const unauthorizedStudents = studentRecords.filter(s => s.trainer_id !== user.id);
-    if (unauthorizedStudents.length > 0) {
-      
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized access to one or more students' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const studentsErrorResponse = await verifyStudentsOwnership(supabaseClient, students, user.id);
+    if (studentsErrorResponse) {
+      return studentsErrorResponse;
     }
 
     
