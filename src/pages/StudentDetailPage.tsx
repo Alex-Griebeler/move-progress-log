@@ -324,7 +324,6 @@ const StudentDetailPage = () => {
             assignments={assignments || []}
             latestOuraMetrics={latestOuraMetrics}
             ouraConnection={ouraConnection}
-            onEditStudent={() => setEditStudentOpen(true)}
             onNavigateToOura={() => {
               const ouraTab = document.querySelector('[value="oura"]') as HTMLElement;
               if (ouraTab) ouraTab.click();
@@ -632,7 +631,7 @@ const StudentDetailPage = () => {
           ) : ouraMetrics && ouraMetrics.length > 0 ? (
             <Tabs defaultValue="overview" className="w-full">
               <TabsList className="grid w-full grid-cols-6">
-                <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+                <TabsTrigger value="overview">Resumo Oura</TabsTrigger>
                 <TabsTrigger value="activity">Atividade</TabsTrigger>
                 <TabsTrigger value="sleep">Sono</TabsTrigger>
                 <TabsTrigger value="stress">Estresse</TabsTrigger>
