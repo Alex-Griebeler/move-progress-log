@@ -6,7 +6,7 @@
   - Verificação final: `rg "select(\"*\")|select('*')" src supabase/functions` -> **0 ocorrências**.
 - Validação local após cada lote:
   - `npm run lint` -> PASS
-  - `VITE_SUPABASE_URL= VITE_SUPABASE_PUBLISHABLE_KEY= npm run test -- --run` -> PASS (`59 passed`, `9 skipped`)
+  - `VITE_SUPABASE_URL= VITE_SUPABASE_PUBLISHABLE_KEY= npm run test -- --run` -> PASS (`72 passed`, `9 skipped`)
   - `npm run build` -> PASS
 - Branch de trabalho atualizada:
   - `codex/phase1-hardening-core`
@@ -20,6 +20,12 @@
 - Gerador de sessão em grupo hardenizado com teste de caracterização:
   - validações extraídas para `supabase/functions/generate-group-session/validationCore.ts`
   - testes em `src/utils/__tests__/groupSessionValidationCore.test.ts`
+- Contrato runtime aplicado em geração de sessão:
+  - validação com `zod` em `supabase/functions/generate-group-session/index.ts`
+- Regra de volume semanal atualizada no motor:
+  - 2 treinos: mínimo 8 sets por padrão
+  - 3 treinos: mínimo 12 sets por padrão
+  - pull >= 25% acima de push
 
 ## Itens bloqueados por ausência/interação manual
 1. Smoke test interativo autenticado no staging (cenários de UI protegidos):
@@ -33,9 +39,8 @@
 
 ## Itens técnicos pendentes (não bloqueados, próximos lotes)
 1. Refactor estrutural dos módulos monolíticos:
-- `src/components/RecordGroupSessionDialog.tsx` (1052 linhas)
-- `supabase/functions/generate-group-session/index.ts` (1745 linhas)
-- `supabase/functions/process-voice-session/index.ts` (944 linhas)
+- `supabase/functions/generate-group-session/index.ts` (1489 linhas)
+- `supabase/functions/process-voice-session/index.ts` (775 linhas)
 
 2. Contratos de payload com validação runtime (schema) entre front e edge functions.
 
@@ -44,4 +49,4 @@
 ## Próxima ação recomendada ao retornar
 1. Rodar smoke manual autenticado dos 4 cenários críticos no preview.
 2. Fechar/merge do PR da branch `codex/phase1-hardening-core`.
-3. Iniciar refactor por fatias do fluxo de sessão em grupo (separando estado, validação e persistência).
+3. Expandir validação runtime para edge functions críticas remanescentes.

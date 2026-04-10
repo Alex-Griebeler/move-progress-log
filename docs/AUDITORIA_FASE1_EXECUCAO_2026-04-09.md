@@ -5,7 +5,7 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 
 ## Status Geral
 - `lint`: PASS
-- `test` (local, sem rede): PASS (`59 passed`, `9 skipped` de integração externa)
+- `test` (local, sem rede): PASS (`72 passed`, `9 skipped` de integração externa)
 - `build`: PASS
 
 ## Entregas Concluídas
@@ -97,9 +97,9 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 
 ### 9) Baseline dos módulos críticos (próximo foco)
 - Tamanho atual dos módulos com maior risco de regressão:
-  - `src/components/RecordGroupSessionDialog.tsx` → **1052 linhas**
-  - `supabase/functions/generate-group-session/index.ts` → **1745 linhas**
-  - `supabase/functions/process-voice-session/index.ts` → **944 linhas**
+  - `src/components/RecordGroupSessionDialog.tsx` → **911 linhas**
+  - `supabase/functions/generate-group-session/index.ts` → **1489 linhas**
+  - `supabase/functions/process-voice-session/index.ts` → **775 linhas**
   - `src/components/RecordIndividualSessionDialog.tsx` → **579 linhas**
 - Sinais de acoplamento:
   - `RecordGroupSessionDialog`: 17 `useState`, 15 handlers, 8 hooks reativos.
@@ -153,7 +153,7 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Testes de caracterização adicionados:
   - `src/utils/__tests__/groupSessionValidationCore.test.ts` (4 casos)
 - Resultado:
-  - redução de acoplamento no arquivo principal de 1745 linhas com extração do núcleo de validação.
+  - redução de acoplamento no arquivo principal de geração com extração do núcleo de validação.
 
 ### 14) Ajuste de regra de volume semanal por padrão de movimento
 - Regra aplicada no motor:
@@ -165,12 +165,20 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Testes de caracterização atualizados:
   - `src/utils/__tests__/groupSessionValidationCore.test.ts`
 
+### 15) Contrato runtime no gerador de sessão em grupo
+- Validação de payload com schema runtime (`zod`) no handler:
+  - `supabase/functions/generate-group-session/index.ts`
+- Entrada inválida agora retorna `details` com até 3 violações de contrato para facilitar debug.
+- Contrato coberto:
+  - `groupLevel`
+  - `workouts` (3 itens A/B/C com ao menos 1 valência)
+  - opcionais (`excludeExercises`, `groupReadiness`, `weekCount`, `audiencePreset`, `rotationMode`, `retainExerciseIds`)
+
 ## Pendências Prioritárias (próximo lote)
-1. Refatorar módulos monolíticos de sessão/voz para reduzir risco de regressão:
-   - `RecordGroupSessionDialog.tsx`
-   - `generate-group-session/index.ts`
-   - `process-voice-session/index.ts`
-2. Consolidar contratos de payload (schema runtime) entre frontend e edge functions.
+1. Continuar redução dos monolíticos remanescentes (fatia 2):
+   - `supabase/functions/generate-group-session/index.ts`
+   - `supabase/functions/process-voice-session/index.ts`
+2. Expandir validação runtime para os outros endpoints críticos (relatório/importação/voz).
 3. Criar smoke E2E curto para 4 fluxos críticos no preview autenticado.
 
 ## Risco Residual Atual

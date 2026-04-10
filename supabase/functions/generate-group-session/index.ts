@@ -22,6 +22,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
+import { z } from "https://esm.sh/zod@3.25.76";
 import {
   calcPatternsBalance,
   checkCoreTriplanar,
@@ -44,41 +45,24 @@ const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json", "Cache
 // TIPOS
 // ============================================================================
 
-interface WorkoutSlotConfig {
-  slot: "A" | "B" | "C";
-  valences: string[];
-}
+const workoutSlotSchema = z.object({
+  slot: z.enum(["A", "B", "C"]),
+  valences: z.array(z.string()).min(1),
+});
 
-interface MesocycleInput {
-  groupLevel: "iniciante" | "intermediario" | "avancado";
-  workouts: WorkoutSlotConfig[];
-  excludeExercises?: string[];
-  groupReadiness?: number;
-  // Phase 4
-  weekCount?: number; // 3-8, default 4
-  audiencePreset?: "adulto" | "senior_70" | "adolescente";
-  rotationMode?: "A" | "B"; // A=full rotation, B=selective
-  retainExerciseIds?: string[]; // Mode B: exercises to keep
-}
+const mesocycleInputSchema = z.object({
+  groupLevel: z.enum(["iniciante", "intermediario", "avancado"]),
+  workouts: z.array(workoutSlotSchema).length(3),
+  excludeExercises: z.array(z.string()).optional(),
+  groupReadiness: z.number().optional(),
+  weekCount: z.number().optional(),
+  audiencePreset: z.enum(["adulto", "senior_70", "adolescente"]).optional(),
+  rotationMode: z.enum(["A", "B"]).optional(),
+  retainExerciseIds: z.array(z.string()).optional(),
+});
 
-const VALID_GROUP_LEVELS = new Set(["iniciante", "intermediario", "avancado"]);
-const VALID_SLOTS = new Set(["A", "B", "C"]);
-
-function isValidMesocycleInput(input: unknown): input is MesocycleInput {
-  if (!input || typeof input !== "object" || Array.isArray(input)) return false;
-  const payload = input as Record<string, unknown>;
-  if (typeof payload.groupLevel !== "string" || !VALID_GROUP_LEVELS.has(payload.groupLevel)) return false;
-  if (!Array.isArray(payload.workouts) || payload.workouts.length !== 3) return false;
-
-  return payload.workouts.every((workout) => {
-    if (!workout || typeof workout !== "object" || Array.isArray(workout)) return false;
-    const item = workout as Record<string, unknown>;
-    return typeof item.slot === "string"
-      && VALID_SLOTS.has(item.slot)
-      && Array.isArray(item.valences)
-      && item.valences.length > 0;
-  });
-}
+type WorkoutSlotConfig = z.infer<typeof workoutSlotSchema>;
+type MesocycleInput = z.infer<typeof mesocycleInputSchema>;
 
 interface Exercise {
   id: string;
@@ -1293,21 +1277,24 @@ serve(async (req) => {
     }
 
     const body: unknown = await req.json();
-    if (!isValidMesocycleInput(body)) {
+    const parsedInput = mesocycleInputSchema.safeParse(body);
+    if (!parsedInput.success) {
+      const issues = parsedInput.error.issues
+        .slice(0, 3)
+        .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
+        .join("; ");
       return new Response(
-        JSON.stringify({ success: false, error: "Input inválido. Necessário: groupLevel válido e 3 workouts (A/B/C) com valências." }),
+        JSON.stringify({
+          success: false,
+          error:
+            "Input inválido. Necessário: groupLevel válido e 3 workouts (A/B/C) com valências.",
+          details: issues || undefined,
+        }),
         { headers: jsonHeaders, status: 400 }
       );
     }
 
-    const input: MesocycleInput = body;
-
-    if (!input.groupLevel || !input.workouts || input.workouts.length !== 3) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Input inválido. Necessário: groupLevel e 3 workouts (A/B/C)" }),
-        { headers: jsonHeaders, status: 400 }
-      );
-    }
+    const input: MesocycleInput = parsedInput.data;
 
     // Phase 4: Validate week count
     const weekCount = Math.min(8, Math.max(3, input.weekCount || 4));
