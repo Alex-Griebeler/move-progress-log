@@ -369,15 +369,15 @@ Deno.serve(async (req) => {
     const dayHrSamples = Array.isArray(heartrateData?.data)
       ? heartrateData.data
           .filter(isPlainObject)
-          .map((hr) => {
+          .map((hr: Record<string, unknown>) => {
             const bpm = typeof hr.bpm === 'number' ? hr.bpm : Number(hr.bpm);
             const timestamp = typeof hr.timestamp === 'string' ? hr.timestamp : null;
             const source = typeof hr.source === 'string' ? hr.source : null;
             return { bpm, timestamp, source };
           })
-          .filter((sample) => Number.isFinite(sample.bpm))
+          .filter((sample: { bpm: number }) => Number.isFinite(sample.bpm))
       : [];
-    const dayHrValues = dayHrSamples.map((sample) => sample.bpm);
+    const dayHrValues = dayHrSamples.map((sample: { bpm: number }) => sample.bpm);
 
     const hrvStats = computeStats(sleepHrvValues);
     const hrNightStats = computeStats(sleepHrValues);
