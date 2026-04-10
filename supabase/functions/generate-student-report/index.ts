@@ -56,6 +56,7 @@ interface ExerciseLibraryRow {
   id: string;
   name: string;
   category: string | null;
+  movement_pattern?: string | null;
 }
 
 interface OuraMetricsRow {
@@ -73,6 +74,8 @@ interface ProgramAggregate {
   avgWork: number;
   firstAt: string;
 }
+
+type MovementBucket = "push" | "pull" | "knee" | "hip";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 const UUID_RE =
@@ -142,6 +145,28 @@ const isEligibleStrengthCategory = (category: string | null): boolean => {
     return false;
   }
   return normalized.includes("forca") || normalized.includes("hipertrofia");
+};
+
+const mapMovementBucket = (movementPattern: string | null | undefined): MovementBucket | null => {
+  if (!movementPattern) return null;
+  const normalized = normalizeComparableText(movementPattern);
+  if (normalized === "empurrar" || normalized.includes("push")) return "push";
+  if (normalized === "puxar" || normalized.includes("pull")) return "pull";
+  if (
+    normalized === "dominancia joelho" ||
+    normalized === "lunge" ||
+    normalized.includes("knee")
+  ) {
+    return "knee";
+  }
+  if (
+    normalized === "cadeia posterior" ||
+    normalized.includes("hip") ||
+    normalized.includes("posterior")
+  ) {
+    return "hip";
+  }
+  return null;
 };
 
 serve(async (req) => {
@@ -574,6 +599,92 @@ serve(async (req) => {
       });
     }
 
+    const { data: libraryPatternRows } = await supabase
+      .from("exercises_library")
+      .select("name, movement_pattern");
+
+    const patternByExerciseName = new Map<string, string>();
+    for (const row of (libraryPatternRows || []) as Array<{ name: string; movement_pattern: string | null }>) {
+      if (!row?.name) continue;
+      const normalizedName = normalizeComparableText(row.name);
+      if (!patternByExerciseName.has(normalizedName) && row.movement_pattern) {
+        patternByExerciseName.set(normalizedName, row.movement_pattern);
+      }
+    }
+
+    const weeklyBuckets = new Map<number, Record<MovementBucket, number>>();
+    let unknownPatternExecutions = 0;
+    for (const session of typedSessions) {
+      const sessionDate = parseDateOnly(session.date);
+      if (!sessionDate) continue;
+      const weekNumber =
+        Math.floor((sessionDate.getTime() - parsedStart.getTime()) / (MS_PER_DAY * 7)) + 1;
+
+      const current = weeklyBuckets.get(weekNumber) || { push: 0, pull: 0, knee: 0, hip: 0 };
+      for (const exercise of session.exercises || []) {
+        const normalizedName = normalizeComparableText(exercise.exercise_name || "");
+        const movementPattern = patternByExerciseName.get(normalizedName) || null;
+        const bucket = mapMovementBucket(movementPattern);
+        if (!bucket) {
+          unknownPatternExecutions += 1;
+          continue;
+        }
+        const setsCount = typeof exercise.sets === "number" && exercise.sets > 0 ? exercise.sets : 1;
+        current[bucket] += setsCount;
+      }
+
+      weeklyBuckets.set(weekNumber, current);
+    }
+
+    const targetSessions =
+      typedStudent.weekly_sessions_proposed && typedStudent.weekly_sessions_proposed > 0
+        ? typedStudent.weekly_sessions_proposed
+        : weeklyAverage >= 2.5
+          ? 3
+          : 2;
+    const minSetsPerPattern = targetSessions >= 3 ? 12 : 8;
+    const requiredRatio = 1.25;
+
+    let compliantWeeks = 0;
+    let ratioCompliantWeeks = 0;
+    const totalWeeks = weeklyBuckets.size;
+    for (const data of weeklyBuckets.values()) {
+      const pushOk = data.push >= minSetsPerPattern;
+      const pullOk = data.pull >= minSetsPerPattern;
+      const kneeOk = data.knee >= minSetsPerPattern;
+      const hipOk = data.hip >= minSetsPerPattern;
+      if (pushOk && pullOk && kneeOk && hipOk) compliantWeeks += 1;
+
+      if (data.push > 0 && data.pull / data.push >= requiredRatio) {
+        ratioCompliantWeeks += 1;
+      }
+    }
+
+    const weeklyPushAvg =
+      totalWeeks > 0
+        ? [...weeklyBuckets.values()].reduce((sum, week) => sum + week.push, 0) / totalWeeks
+        : 0;
+    const weeklyPullAvg =
+      totalWeeks > 0
+        ? [...weeklyBuckets.values()].reduce((sum, week) => sum + week.pull, 0) / totalWeeks
+        : 0;
+    const weeklyKneeAvg =
+      totalWeeks > 0
+        ? [...weeklyBuckets.values()].reduce((sum, week) => sum + week.knee, 0) / totalWeeks
+        : 0;
+    const weeklyHipAvg =
+      totalWeeks > 0
+        ? [...weeklyBuckets.values()].reduce((sum, week) => sum + week.hip, 0) / totalWeeks
+        : 0;
+
+    const weeklyRatioAvg = weeklyPushAvg > 0 ? weeklyPullAvg / weeklyPushAvg : null;
+    const mechanicalSummary =
+      totalWeeks > 0
+        ? `Regra mecânica semanal: ${compliantWeeks}/${totalWeeks} semana(s) cumpriram mínimo ${minSetsPerPattern} sets em Push/Pull/Knee/Hip. ` +
+          `Razão Pull/Push em média: ${weeklyRatioAvg !== null ? `${weeklyRatioAvg.toFixed(2)}x` : "N/A"} (alvo ${requiredRatio.toFixed(2)}x). ` +
+          `Semanas com razão conforme: ${ratioCompliantWeeks}/${totalWeeks}.`
+        : "Regra mecânica semanal: período sem semanas completas para validação.";
+
     const { data: ouraMetricsRaw } = await supabase
       .from("oura_metrics")
       .select("date, readiness_score, sleep_score, average_sleep_hrv, resting_heart_rate, vo2_max")
@@ -624,6 +735,10 @@ serve(async (req) => {
       consistencyAnalysis = `${typedStudent.name} manteve frequência adequada com ${weeklyAverage.toFixed(1)} treinos por semana em média.`;
     } else {
       consistencyAnalysis = `${typedStudent.name} teve frequência de ${weeklyAverage.toFixed(1)} treinos por semana. Há espaço para elevar consistência.`;
+    }
+    consistencyAnalysis += ` ${mechanicalSummary}`;
+    if (unknownPatternExecutions > 0) {
+      consistencyAnalysis += ` ${unknownPatternExecutions} execução(ões) não puderam ser classificadas por padrão de movimento.`;
     }
 
     const numericVariations = trackedExercisesData

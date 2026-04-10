@@ -8,6 +8,7 @@ import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
 import { useOuraBaseline } from "@/hooks/useOuraBaseline";
 import { useLatestOuraAcuteMetrics } from "@/hooks/useOuraAcuteMetrics";
+import { useWeeklyMovementBalance } from "@/hooks/useWeeklyMovementBalance";
 import { useTrainingContext } from "@/contexts/TrainingContext";
 import { Alert, AlertDescription } from "./ui/alert";
 import { format, parseISO } from "date-fns";
@@ -39,6 +40,7 @@ const PersonalizedTrainingDashboard = ({
 }: PersonalizedTrainingDashboardProps) => {
   const { baseline } = useOuraBaseline(studentId);
   const { data: latestAcuteMetrics } = useLatestOuraAcuteMetrics(studentId);
+  const { data: weeklyMovementBalance } = useWeeklyMovementBalance(studentId);
   const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics, baseline, undefined, latestAcuteMetrics);
   const [showAlternatives, setShowAlternatives] = useState(false);
   const { selectedAlternative, setSelectedAlternative } = useTrainingContext();
@@ -356,6 +358,81 @@ const PersonalizedTrainingDashboard = ({
             </Alert>
           ))}
         </div>
+      )}
+
+      {weeklyMovementBalance && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold">Balanço Mecânico Semanal</h3>
+            <Badge variant={weeklyMovementBalance.warnings.length === 0 ? "default" : "outline"}>
+              {weeklyMovementBalance.warnings.length === 0 ? "Conforme" : "Ajustar"}
+            </Badge>
+          </div>
+
+          <p className="text-sm text-muted-foreground mb-4">
+            Semana {format(parseISO(weeklyMovementBalance.periodStart), "dd/MM", { locale: ptBR })}{" "}
+            a {format(parseISO(weeklyMovementBalance.periodEnd), "dd/MM", { locale: ptBR })} •{" "}
+            {weeklyMovementBalance.completedSessions}/{weeklyMovementBalance.targetSessions} treinos
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
+            <Card className="p-3 bg-muted/40">
+              <div className="text-muted-foreground">Push</div>
+              <div className="text-lg font-bold">
+                {weeklyMovementBalance.sets.push} / {weeklyMovementBalance.minSetsPerPattern}
+              </div>
+            </Card>
+            <Card className="p-3 bg-muted/40">
+              <div className="text-muted-foreground">Pull</div>
+              <div className="text-lg font-bold">
+                {weeklyMovementBalance.sets.pull} / {weeklyMovementBalance.minSetsPerPattern}
+              </div>
+            </Card>
+            <Card className="p-3 bg-muted/40">
+              <div className="text-muted-foreground">Knee</div>
+              <div className="text-lg font-bold">
+                {weeklyMovementBalance.sets.knee} / {weeklyMovementBalance.minSetsPerPattern}
+              </div>
+            </Card>
+            <Card className="p-3 bg-muted/40">
+              <div className="text-muted-foreground">Hip</div>
+              <div className="text-lg font-bold">
+                {weeklyMovementBalance.sets.hip} / {weeklyMovementBalance.minSetsPerPattern}
+              </div>
+            </Card>
+            <Card className="p-3 bg-muted/40">
+              <div className="text-muted-foreground">Pull/Push</div>
+              <div className="text-lg font-bold">
+                {weeklyMovementBalance.pullPushRatio !== null
+                  ? `${weeklyMovementBalance.pullPushRatio.toFixed(2)}x`
+                  : "--"}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                alvo {weeklyMovementBalance.ratioTarget.toFixed(2)}x
+              </div>
+            </Card>
+          </div>
+
+          {weeklyMovementBalance.warnings.length > 0 ? (
+            <div className="mt-4 space-y-1">
+              {weeklyMovementBalance.warnings.map((warning) => (
+                <p key={warning} className="text-sm text-amber-600">
+                  • {warning}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-green-600">
+              Volume semanal alinhado à regra mecânica (8/12 séries + Pull 1.25x).
+            </p>
+          )}
+
+          {weeklyMovementBalance.unknownExercises > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {weeklyMovementBalance.unknownExercises} exercício(s) sem classificação de padrão não entraram no cálculo.
+            </p>
+          )}
+        </Card>
       )}
 
       {/* Detalhes de Recuperação */}
