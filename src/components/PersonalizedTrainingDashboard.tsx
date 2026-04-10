@@ -349,7 +349,11 @@ const PersonalizedTrainingDashboard = ({
       )}
 
       {/* Detalhes de Recuperação */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div
+        className={`grid grid-cols-1 md:grid-cols-2 ${
+          hasAcuteData ? "xl:grid-cols-4" : "xl:grid-cols-3"
+        } gap-4`}
+      >
         <Card className="p-4">
           <h4 className="font-semibold mb-3 flex items-center">
             <Moon className="w-4 h-4 mr-2" />
@@ -425,55 +429,52 @@ const PersonalizedTrainingDashboard = ({
           </div>
         </Card>
 
-        <Card className="p-4">
-          <h4 className="font-semibold mb-3 flex items-center">
-            <Heart className="w-4 h-4 mr-2" />
-            Sinais Agudos (HRV/FC)
-          </h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Data</span>
-              <span className="font-semibold">
-                {latestAcuteMetrics?.date || "--"}
-              </span>
+        {hasAcuteData && (
+          <Card className="p-4">
+            <h4 className="font-semibold mb-3 flex items-center">
+              <Heart className="w-4 h-4 mr-2" />
+              Sinais Agudos (HRV/FC)
+            </h4>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Data</span>
+                <span className="font-semibold">
+                  {latestAcuteMetrics?.date || "--"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">HRV Último Bloco</span>
+                <span className="font-semibold">
+                  {formatValue(latestAcuteMetrics?.hrv_night_last, "ms", 1)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">HRV Mínimo Noite</span>
+                <span className="font-semibold">
+                  {formatValue(latestAcuteMetrics?.hrv_night_min, "ms", 1)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">FC Média Dia</span>
+                <span className="font-semibold">
+                  {formatValue(latestAcuteMetrics?.hr_day_avg, "bpm", 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amostras HRV</span>
+                <span className="font-semibold">
+                  {latestAcuteMetrics?.samples_count_hrv ?? "--"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amostras FC Dia</span>
+                <span className="font-semibold">
+                  {latestAcuteMetrics?.samples_count_hr_day ?? "--"}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">HRV Último Bloco</span>
-              <span className="font-semibold">
-                {formatValue(latestAcuteMetrics?.hrv_night_last, "ms", 1)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">HRV Mínimo Noite</span>
-              <span className="font-semibold">
-                {formatValue(latestAcuteMetrics?.hrv_night_min, "ms", 1)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">FC Média Dia</span>
-              <span className="font-semibold">
-                {formatValue(latestAcuteMetrics?.hr_day_avg, "bpm", 0)}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Amostras HRV</span>
-              <span className="font-semibold">
-                {latestAcuteMetrics?.samples_count_hrv ?? "--"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Amostras FC Dia</span>
-              <span className="font-semibold">
-                {latestAcuteMetrics?.samples_count_hr_day ?? "--"}
-              </span>
-            </div>
-            {!hasAcuteData && (
-              <p className="text-xs text-muted-foreground pt-2 border-t">
-                Sem dados agudos ainda. Faça uma sincronização Oura para carregar.
-              </p>
-            )}
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
 
       {/* Dialog de Alternativas de Treino */}
