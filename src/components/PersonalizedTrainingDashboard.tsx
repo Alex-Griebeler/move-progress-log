@@ -7,6 +7,7 @@ import { AlertCircle, Activity, Heart, Moon, TrendingUp, Target, Zap } from "luc
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
 import { useOuraBaseline } from "@/hooks/useOuraBaseline";
+import { useLatestOuraAcuteMetrics } from "@/hooks/useOuraAcuteMetrics";
 import { useTrainingContext } from "@/contexts/TrainingContext";
 import { Alert, AlertDescription } from "./ui/alert";
 import { 
@@ -35,7 +36,8 @@ const PersonalizedTrainingDashboard = ({
   onStartTraining
 }: PersonalizedTrainingDashboardProps) => {
   const { baseline } = useOuraBaseline(studentId);
-  const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics, baseline);
+  const { data: latestAcuteMetrics } = useLatestOuraAcuteMetrics(studentId);
+  const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics, baseline, undefined, latestAcuteMetrics);
   const [showAlternatives, setShowAlternatives] = useState(false);
   const { selectedAlternative, setSelectedAlternative } = useTrainingContext();
 
