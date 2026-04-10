@@ -85,6 +85,7 @@ export const useCreateWorkoutSession = () => {
       student_id: string;
       date: string;
       time: string;
+      silent?: boolean;
       exercises: Array<{
         exercise_name: string;
         sets?: number;
@@ -129,16 +130,21 @@ export const useCreateWorkoutSession = () => {
 
       return session;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
-      notify.success(workoutKeys.sessionCreated, {
-        description: workoutKeys.sessionSaved,
-      });
+
+      if (!variables.silent) {
+        notify.success(workoutKeys.sessionCreated, {
+          description: workoutKeys.sessionSaved,
+        });
+      }
     },
-    onError: (error) => {
-      notify.error(workoutKeys.errorSession, {
-        description: error.message,
-      });
+    onError: (error: unknown, variables) => {
+      if (!variables?.silent) {
+        notify.error(workoutKeys.errorSession, {
+          description: error instanceof Error ? error.message : i18n.errors.unknown,
+        });
+      }
     },
   });
 };
