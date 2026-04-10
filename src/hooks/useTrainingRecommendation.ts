@@ -32,6 +32,8 @@ interface UserGoals {
   moderateFatigueThreshold: number;
 }
 
+type RecommendationZone = 0 | 1 | 2 | 3 | 4;
+
 const DEFAULT_GOALS: UserGoals = {
   minSleepDurationThreshold: 23400,
   minSleepEfficiency: 85,
@@ -98,25 +100,60 @@ export function useTrainingRecommendation(
     let reason = '';
     let emoji = '🟢';
 
-    if (recoveryScore >= 85 && fatigueLevel === 'low') {
+    let zone: RecommendationZone = 0;
+    if (recoveryScore >= 85 && fatigueLevel === 'low') zone = 4;
+    else if (recoveryScore >= 65 && fatigueLevel !== 'high') zone = 3;
+    else if (recoveryScore >= 45) zone = 2;
+    else if (recoveryScore >= 25) zone = 1;
+
+    const sleepInsufficient =
+      typeof metrics.total_sleep_duration === "number" &&
+      metrics.total_sleep_duration < goals.minSleepDurationThreshold;
+    const stressHigh =
+      typeof metrics.stress_high_time === "number" && metrics.stress_high_time > 7200;
+    const rhrSignificantlyElevated =
+      hasMinimumHistory &&
+      typeof metrics.resting_heart_rate === "number" &&
+      metrics.resting_heart_rate > effectiveBaseline.avgRHR + 8;
+    const acuteHrvVeryLow =
+      hasMinimumHistory &&
+      !!acuteMetrics &&
+      acuteMetrics.samples_count_hrv > 0 &&
+      typeof acuteMetrics.hrv_night_last === "number" &&
+      acuteMetrics.hrv_night_last < effectiveBaseline.avgHRV * 0.7;
+
+    const shouldDowngradeOneZone =
+      zone > 0 &&
+      (acuteHrvVeryLow || rhrSignificantlyElevated || (sleepInsufficient && stressHigh));
+
+    if (shouldDowngradeOneZone) {
+      zone = (zone - 1) as RecommendationZone;
+      alerts.push({
+        level: "WARNING",
+        message:
+          "🟡 Override agudo aplicado: a recomendação foi reduzida em 1 zona para proteger recuperação e reduzir risco de sobrecarga.",
+      });
+    }
+
+    if (zone === 4) {
       trainingType = 'Máxima Performance / Desafio';
       intensity = 'ALTA (80-95% FCMáx)';
       duration = '45-60 minutos';
       reason = 'Excelente! Você está no auge. Oportunidade perfeita para desafios ou recordes pessoais (PRs).';
       emoji = '💚';
-    } else if (recoveryScore >= 65 && fatigueLevel !== 'high') {
+    } else if (zone === 3) {
       trainingType = 'Treino Normal Completo';
       intensity = 'MODERADA-ALTA (70-85% FCMáx)';
       duration = '45-55 minutos';
       reason = 'Bom dia para treinar! Você está bem preparado para realizar o treino programado com confiança.';
       emoji = '🟢';
-    } else if (recoveryScore >= 45) {
+    } else if (zone === 2) {
       trainingType = 'Treino Reduzido 20%';
       intensity = 'MODERADA (60-75% FCMáx)';
       duration = '35-45 minutos';
       reason = 'Dia moderado. Mantenha o treino programado, mas reduza volume e/ou intensidade em 20%.';
       emoji = '🟡';
-    } else if (recoveryScore >= 25) {
+    } else if (zone === 1) {
       trainingType = 'Recuperação Ativa / Muito Leve';
       intensity = 'BAIXA (30-50% FCMáx)';
       duration = '20-30 minutos';
@@ -132,7 +169,7 @@ export function useTrainingRecommendation(
 
     // 3.1 PROTOCOLOS PRIORITÁRIOS PARA RS CRÍTICO
     let priorityProtocols: TrainingRecommendation['priorityProtocols'] = undefined;
-    if (recoveryScore < 25) {
+    if (zone === 0) {
       priorityProtocols = [
         { order: 1, name: 'Contraste Térmico', duration: '15 minutos', timing: 'Pós-treino ou manhã', description: 'Alternância água quente/fria. Reduz inflamação e acelera recuperação muscular (efeitos mensuráveis em 24-48h).' },
         { order: 2, name: 'Crioterapia', duration: '10 minutos', timing: 'Após atividade física', description: 'Imersão em água fria. Reduz marcadores inflamatórios e acelera recuperação (efeitos em 24-72h).' },
