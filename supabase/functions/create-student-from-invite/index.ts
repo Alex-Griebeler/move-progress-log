@@ -260,8 +260,10 @@ function sanitizeAvatarPayload(rawValue: unknown): AvatarUploadPayload | null {
   };
 }
 
+type SupabaseClient = ReturnType<typeof createClient>;
+
 async function claimInvite(
-  supabaseClient: ReturnType<typeof createClient>,
+  supabaseClient: SupabaseClient,
   inviteToken: string,
   claimTimestamp: string
 ): Promise<{ invite: ClaimedInvite | null; error: string | null }> {
