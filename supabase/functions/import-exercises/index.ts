@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
+import { z } from "https://esm.sh/zod@3.25.76";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -232,6 +233,15 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
 
 type SpreadsheetExercise = Record<string, unknown>;
 
+const importExercisesPayloadSchema = z
+  .object({
+    format: z.string().optional(),
+    exercises: z.array(z.record(z.unknown())).optional(),
+    padroes_de_movimento: z.unknown().optional(),
+    skip_orphans: z.boolean().optional(),
+  })
+  .passthrough();
+
 // Helper to get a value from a spreadsheet row with normalized key fallback
 function getField(row: SpreadsheetExercise, ...keys: string[]): unknown {
     for (const key of keys) {
@@ -376,7 +386,20 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      const body = await req.json();
+      const rawBody: unknown = await req.json().catch(() => null);
+      const parsedBody = importExercisesPayloadSchema.safeParse(rawBody);
+      if (!parsedBody.success) {
+        const details = parsedBody.error.issues
+          .slice(0, 3)
+          .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
+          .join("; ");
+        return new Response(
+          JSON.stringify({ error: "Payload inválido", details: details || undefined }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const body = parsedBody.data;
       const skipOrphans = body.skip_orphans === true;
 
       // Detect format
@@ -386,11 +409,11 @@ Deno.serve(async (req: Request) => {
 
       if (body.format === "spreadsheet" && Array.isArray(body.exercises)) {
               isSpreadsheetFormat = true;
-              spreadsheetExercises = body.exercises;
+              spreadsheetExercises = body.exercises as SpreadsheetExercise[];
       } else if (body.exercises && Array.isArray(body.exercises)) {
-              exercises = body.exercises;
+              exercises = body.exercises as unknown as FlatExercise[];
       } else if (body.padroes_de_movimento) {
-              exercises = flattenJSON(body);
+              exercises = flattenJSON(body as Record<string, unknown>);
       } else {
               return new Response(
                         JSON.stringify({ error: "Invalid format: need exercises array or padroes_de_movimento" }),

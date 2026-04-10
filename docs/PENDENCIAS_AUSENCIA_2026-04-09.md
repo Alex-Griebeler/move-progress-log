@@ -25,6 +25,9 @@
 - Contrato runtime expandido para endpoints críticos adicionais:
   - `supabase/functions/process-voice-session/index.ts`
   - `supabase/functions/generate-student-report/index.ts`
+- Contrato runtime aplicado também em ingestão/classificação:
+  - `supabase/functions/import-exercises/index.ts`
+  - `supabase/functions/classify-exercises/index.ts`
 - Regra de volume semanal atualizada no motor:
   - 2 treinos: mínimo 8 sets por padrão
   - 3 treinos: mínimo 12 sets por padrão
@@ -45,11 +48,11 @@
 - `supabase/functions/generate-group-session/index.ts` (1489 linhas)
 - `supabase/functions/process-voice-session/index.ts` (775 linhas)
 
-2. Contratos de payload com validação runtime (schema) para funções remanescentes de ingestão/classificação.
+2. Smoke E2E curto e repetível para os 4 fluxos críticos com evidência automatizada.
 
-3. Smoke E2E curto e repetível para os 4 fluxos críticos com evidência automatizada.
+3. Refactor incremental do `generate-group-session/index.ts` (persistência e resposta) para reduzir risco de regressão futura.
 
 ## Próxima ação recomendada ao retornar
 1. Rodar smoke manual autenticado dos 4 cenários críticos no preview.
 2. Fechar/merge do PR da branch `codex/phase1-hardening-core`.
-3. Expandir validação runtime para edge functions críticas remanescentes.
+3. Iniciar fatia de refactor do `generate-group-session/index.ts` mantendo caracterização.

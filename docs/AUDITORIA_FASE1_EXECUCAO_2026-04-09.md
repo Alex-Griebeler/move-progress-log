@@ -184,12 +184,22 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Resultado:
   - contrato de entrada padronizado entre endpoints críticos sem alteração do contrato de sucesso.
 
+### 17) Contrato runtime para ingestão e classificação
+- `import-exercises`:
+  - payload validado com `zod` antes da detecção de formato
+  - erro `400` com `details` para payload inválido
+- `classify-exercises`:
+  - payload validado com `zod` para paginação/flags (`batchSize`, `offset`, `onlyUnclassified`)
+  - suporte a body vazio com defaults seguros (sem quebrar chamada)
+- Resultado:
+  - endpoints de ingestão/classificação com validação de entrada explícita e consistente.
+
 ## Pendências Prioritárias (próximo lote)
 1. Continuar redução dos monolíticos remanescentes (fatia 2):
    - `supabase/functions/generate-group-session/index.ts`
    - `supabase/functions/process-voice-session/index.ts`
-2. Expandir validação runtime para os outros endpoints críticos restantes (ex.: `import-exercises`, `classify-exercises`).
-3. Criar smoke E2E curto para 4 fluxos críticos no preview autenticado.
+2. Criar smoke E2E curto para 4 fluxos críticos no preview autenticado.
+3. Refactor por fatias no `generate-group-session/index.ts` (extração de blocos de persistência e montagem de resposta).
 
 ## Risco Residual Atual
 - Fluxos de rede externos continuam dependentes de credenciais e disponibilidade de ambiente.
