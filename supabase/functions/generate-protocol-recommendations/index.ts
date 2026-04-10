@@ -25,6 +25,13 @@ interface OuraMetrics {
   activity_balance: number | null;
 }
 
+interface OuraBaseline {
+  avg_hrv: number | null;
+  avg_rhr: number | null;
+  avg_sleep_score: number | null;
+  data_points: number;
+}
+
 interface AdaptationRule {
   id: string;
   metric_name: string;
@@ -33,6 +40,19 @@ interface AdaptationRule {
   action_type: string;
   severity: string;
   description: string;
+}
+
+function resolveBaselineValue(
+  ruleMetricName: string,
+  baseline: OuraBaseline | null
+): number | null {
+  if (!baseline) return null;
+
+  if (ruleMetricName === "resting_heart_rate") return baseline.avg_rhr;
+  if (ruleMetricName === "average_sleep_hrv") return baseline.avg_hrv;
+  if (ruleMetricName === "sleep_score") return baseline.avg_sleep_score;
+
+  return null;
 }
 
 interface Protocol {
@@ -142,6 +162,15 @@ serve(async (req) => {
       );
     }
 
+    const { data: baselineRows } = await supabase.rpc("calc_oura_baseline", {
+      p_student_id: student_id,
+      p_days: 14,
+    });
+    const baseline =
+      Array.isArray(baselineRows) && baselineRows.length > 0
+        ? (baselineRows[0] as OuraBaseline)
+        : null;
+
     // Get all adaptation rules
     const { data: rules, error: rulesError } = await supabase
       .from('adaptation_rules')
@@ -208,12 +237,28 @@ serve(async (req) => {
       if (metricValue === null || metricValue === undefined) continue;
 
       let triggered = false;
+      const baselineValue = resolveBaselineValue(rule.metric_name, baseline);
+      let compareValue: number | null = rule.threshold_value;
 
       // Check condition
       if (rule.condition === 'below' && metricValue < rule.threshold_value) {
         triggered = true;
       } else if (rule.condition === 'above' && metricValue > rule.threshold_value) {
         triggered = true;
+      } else if (
+        rule.condition === "above_baseline" &&
+        baselineValue !== null &&
+        metricValue > baselineValue + rule.threshold_value
+      ) {
+        triggered = true;
+        compareValue = baselineValue + rule.threshold_value;
+      } else if (
+        rule.condition === "below_baseline" &&
+        baselineValue !== null &&
+        metricValue < baselineValue - rule.threshold_value
+      ) {
+        triggered = true;
+        compareValue = baselineValue - rule.threshold_value;
       }
 
       if (triggered) {
@@ -242,7 +287,9 @@ serve(async (req) => {
             student_id: student_id,
             protocol_id: protocol.id,
             recommended_date: today,
-            reason: `${rule.description}. ${rule.metric_name}: ${metricValue}${effNote}`,
+            reason: `${rule.description}. ${rule.metric_name}: ${metricValue}${
+              compareValue !== null ? ` (limiar: ${compareValue.toFixed(1)})` : ""
+            }${effNote}`,
             priority: rule.severity,
           });
         }
