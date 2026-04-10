@@ -95,6 +95,10 @@
   "overrides": {
     "loader-utils": ">=2.0.4",
     "tough-cookie": ">=5.0.0",
-    "semver": ">=7.5.2"
+    "semver": ">=7.5.2",
+    "yaml": ">=2.8.1",
+    "picomatch": ">=4.0.3",
+    "micromatch": ">=4.0.8",
+    "braces": ">=3.0.3"
   }
 }

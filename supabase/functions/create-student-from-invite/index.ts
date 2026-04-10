@@ -260,8 +260,7 @@ function sanitizeAvatarPayload(rawValue: unknown): AvatarUploadPayload | null {
   };
 }
 
-// deno-lint-ignore no-explicit-any
-type SupabaseClient = ReturnType<typeof createClient<any>>;
+type SupabaseClient = ReturnType<typeof createClient>;
 
 async function claimInvite(
   supabaseClient: SupabaseClient,

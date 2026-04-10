@@ -142,10 +142,48 @@ interface SessionRow {
 
 interface ProcessingStatus {
   total: number;
+  attempted: number;
   processed: number;
+  skippedDuplicates: number;
   errors: string[];
   success: boolean;
 }
+
+type ParsedErrorInfo = {
+  message: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+};
+
+const getErrorInfo = (error: unknown): ParsedErrorInfo => {
+  if (error instanceof Error) {
+    return { message: error.message };
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const obj = error as Record<string, unknown>;
+    return {
+      message: typeof obj.message === "string" ? obj.message : "Erro desconhecido",
+      details: typeof obj.details === "string" ? obj.details : undefined,
+      hint: typeof obj.hint === "string" ? obj.hint : undefined,
+      code: typeof obj.code === "string" ? obj.code : undefined,
+    };
+  }
+
+  return { message: String(error) };
+};
+
+const isDuplicateSessionError = (errorInfo: ParsedErrorInfo): boolean => {
+  const raw = `${errorInfo.message} ${errorInfo.details ?? ""} ${errorInfo.hint ?? ""}`.toLowerCase();
+  return (
+    errorInfo.code === "23505" ||
+    raw.includes("duplicate key") ||
+    raw.includes("already exists") ||
+    raw.includes("idx_unique_student_session") ||
+    raw.includes("workout_sessions_student_id_date_time")
+  );
+};
 
 export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialogProps) => {
   const [file, setFile] = useState<File | null>(null);
@@ -221,7 +259,14 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     if (!file) return;
 
     setProcessing(true);
-    setStatus({ total: 0, processed: 0, errors: [], success: false });
+    setStatus({
+      total: 0,
+      attempted: 0,
+      processed: 0,
+      skippedDuplicates: 0,
+      errors: [],
+      success: false,
+    });
     
     let toastId: string | number | undefined;
 
@@ -308,15 +353,26 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         description: "Importando dados para o sistema"
       });
 
+      let attempted = 0;
       let processed = 0;
+      let skippedDuplicates = 0;
       const errors: string[] = [];
 
       for (const [key, exercises] of sessionsMap) {
+        const firstRow = exercises[0];
+        attempted++;
+        setStatus((prev) =>
+          prev
+            ? {
+                ...prev,
+                attempted,
+              }
+            : prev
+        );
+
         try {
-          const firstRow = exercises[0];
-          
           // Atualiza toast com progresso atual
-          toast.loading(`Processando sessão ${processed + 1} de ${totalSessions}`, {
+          toast.loading(`Processando sessão ${attempted} de ${totalSessions}`, {
             id: toastId,
             description: `Aluno: ${firstRow.aluno} - ${exercises.length} exercício(s)`
           });
@@ -336,41 +392,79 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
               load_kg: ex.carga,
               observations: ex.observacoes,
             })),
+            silent: true,
           });
 
           processed++;
-          setStatus((prev) => ({ ...prev!, processed }));
+          setStatus((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  attempted,
+                  processed,
+                  skippedDuplicates,
+                }
+              : prev
+          );
         } catch (error: unknown) {
-          const message = error instanceof Error ? error.message : String(error);
-          errors.push(`Sessão ${key}: ${message}`);
+          const errorInfo = getErrorInfo(error);
+
+          if (isDuplicateSessionError(errorInfo)) {
+            skippedDuplicates++;
+          } else {
+            const description = [errorInfo.message, errorInfo.details, errorInfo.hint]
+              .filter(Boolean)
+              .join(" | ");
+            errors.push(`Sessão ${key}: ${description}`);
+          }
+
+          setStatus((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  attempted,
+                  processed,
+                  skippedDuplicates,
+                  errors,
+                }
+              : prev
+          );
         }
       }
 
       // Toast final
       toast.dismiss(toastId);
       
-      if (errors.length === 0) {
+      if (errors.length === 0 && skippedDuplicates === 0) {
         toast.success("Importação concluída com sucesso!", {
           description: `${processed} sessão(ões) importada(s) com ${validRows} linha(s) válida(s).`,
           duration: 5000,
         });
+      } else if (errors.length === 0 && processed === 0 && skippedDuplicates > 0) {
+        toast.warning("Importação concluída sem novas sessões", {
+          description: `${skippedDuplicates} sessão(ões) já existiam e foram ignoradas.`,
+          duration: 6000,
+        });
       } else {
         toast.warning("Importação concluída com avisos", {
-          description: `${processed} de ${totalSessions} sessão(ões) importada(s). ${errors.length} erro(s) encontrado(s).`,
+          description: `${processed} importada(s), ${skippedDuplicates} duplicada(s) ignorada(s), ${errors.length} erro(s).`,
           duration: 7000,
         });
       }
 
       setStatus({
         total: totalSessions,
+        attempted,
         processed,
+        skippedDuplicates,
         errors,
-        success: errors.length === 0,
+        success: errors.length === 0 && skippedDuplicates === 0,
       });
     } catch (error: unknown) {
       if (toastId) toast.dismiss(toastId);
       
-      const message = error instanceof Error ? error.message : "Erro desconhecido";
+      const info = getErrorInfo(error);
+      const message = [info.message, info.details, info.hint].filter(Boolean).join(" | ");
       
       toast.error("Erro ao processar arquivo", {
         description: message || "Verifique o formato do arquivo Excel e tente novamente.",
@@ -378,7 +472,9 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       
       setStatus({
         total: 0,
+        attempted: 0,
         processed: 0,
+        skippedDuplicates: 0,
         errors: [message],
         success: false,
       });
@@ -438,10 +534,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
               <div className="flex items-center justify-between text-sm">
                 <span>Processando sessões...</span>
                 <span className="font-medium">
-                  {status.processed} / {status.total}
+                  {status.attempted} / {status.total}
                 </span>
               </div>
-              <Progress value={(status.processed / status.total) * 100} />
+              <Progress value={(status.attempted / status.total) * 100} />
             </div>
           )}
 
@@ -457,13 +553,22 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                     {status.processed} sessão(ões) importada(s).
                   </AlertDescription>
                 </Alert>
+              ) : status.errors.length === 0 && status.skippedDuplicates > 0 ? (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Importação concluída sem novas sessões</strong>
+                    <br />
+                    {status.skippedDuplicates} sessão(ões) já existiam e foram ignoradas.
+                  </AlertDescription>
+                </Alert>
               ) : (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
                     <strong>Importação concluída com erros</strong>
                     <br />
-                    {status.processed} de {status.total} sessão(ões) importada(s).
+                    {status.processed} importada(s), {status.skippedDuplicates} duplicada(s) ignorada(s), {status.errors.length} erro(s).
                     <div className="mt-2 max-h-32 overflow-y-auto text-xs">
                       {status.errors.map((error, i) => (
                         <div key={i} className="mt-1">
