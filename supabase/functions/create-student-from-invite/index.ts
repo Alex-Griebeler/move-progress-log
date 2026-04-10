@@ -262,6 +262,7 @@ function sanitizeAvatarPayload(rawValue: unknown): AvatarUploadPayload | null {
 
 async function claimInvite(
   // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabaseClient: ReturnType<typeof createClient<any>>,
   inviteToken: string,
   claimTimestamp: string
