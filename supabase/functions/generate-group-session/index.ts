@@ -41,6 +41,17 @@ const corsHeaders = {
 };
 const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" };
 
+function errorResponse(status: number, error: string, details?: string): Response {
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error,
+      details: details || undefined,
+    }),
+    { headers: jsonHeaders, status }
+  );
+}
+
 // ============================================================================
 // TIPOS
 // ============================================================================
@@ -1239,10 +1250,7 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Autenticação obrigatória" }),
-        { headers: jsonHeaders, status: 401 }
-      );
+      return errorResponse(401, "Autenticação obrigatória");
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -1255,10 +1263,7 @@ serve(async (req) => {
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData?.user) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Token inválido" }),
-        { headers: jsonHeaders, status: 401 }
-      );
+      return errorResponse(401, "Token inválido");
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -1270,10 +1275,7 @@ serve(async (req) => {
       .limit(1);
 
     if (!roleData || roleData.length === 0) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Acesso restrito a treinadores e admins" }),
-        { headers: jsonHeaders, status: 403 }
-      );
+      return errorResponse(403, "Acesso restrito a treinadores e admins");
     }
 
     const body: unknown = await req.json();
@@ -1283,14 +1285,10 @@ serve(async (req) => {
         .slice(0, 3)
         .map((issue) => `${issue.path.join(".") || "payload"}: ${issue.message}`)
         .join("; ");
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error:
-            "Input inválido. Necessário: groupLevel válido e 3 workouts (A/B/C) com valências.",
-          details: issues || undefined,
-        }),
-        { headers: jsonHeaders, status: 400 }
+      return errorResponse(
+        400,
+        "Input inválido. Necessário: groupLevel válido e 3 workouts (A/B/C) com valências.",
+        issues
       );
     }
 
@@ -1356,9 +1354,9 @@ serve(async (req) => {
     }
 
     if (exercises.length < 20) {
-      return new Response(
-        JSON.stringify({ success: false, error: "Biblioteca de exercícios insuficiente. Necessário pelo menos 20 exercícios." }),
-        { headers: jsonHeaders, status: 400 }
+      return errorResponse(
+        400,
+        "Biblioteca de exercícios insuficiente. Necessário pelo menos 20 exercícios."
       );
     }
 
@@ -1468,9 +1466,6 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     console.error("Error generating mesocycle:", errorMessage);
-    return new Response(
-      JSON.stringify({ success: false, error: errorMessage }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
+    return errorResponse(500, errorMessage);
   }
 });

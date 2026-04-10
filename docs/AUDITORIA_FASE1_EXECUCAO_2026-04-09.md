@@ -194,6 +194,13 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Resultado:
   - endpoints de ingestão/classificação com validação de entrada explícita e consistente.
 
+### 18) Limpeza incremental do handler de geração em grupo
+- `generate-group-session/index.ts`:
+  - respostas de erro do handler centralizadas em helper (`errorResponse`)
+  - removida repetição de blocos de `new Response(...)` sem alterar mensagens/regras
+- Resultado:
+  - menor duplicação no caminho crítico de erro e menor risco de divergência de resposta.
+
 ## Pendências Prioritárias (próximo lote)
 1. Continuar redução dos monolíticos remanescentes (fatia 2):
    - `supabase/functions/generate-group-session/index.ts`
