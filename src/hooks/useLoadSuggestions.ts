@@ -24,6 +24,7 @@ interface ExerciseExecution {
   reps: number;
   date: string;
   prescriptionId: string | null;
+  observations: string | null;
 }
 
 const normalizeComparableText = (value: string): string =>
@@ -57,6 +58,28 @@ const roundToIncrement = (value: number, increment: number): number => {
   return Math.round(value / increment) * increment;
 };
 
+const hasPainSignal = (value: string | null | undefined): boolean => {
+  if (!value) return false;
+  const normalized = normalizeComparableText(value);
+  return (
+    normalized.includes("dor") ||
+    normalized.includes("pain") ||
+    normalized.includes("desconforto") ||
+    normalized.includes("lesao")
+  );
+};
+
+const hasTechniqueSignal = (value: string | null | undefined): boolean => {
+  if (!value) return false;
+  const normalized = normalizeComparableText(value);
+  return (
+    normalized.includes("tecnica") ||
+    normalized.includes("compensacao") ||
+    normalized.includes("instavel") ||
+    normalized.includes("instabilidade")
+  );
+};
+
 export const useLoadSuggestions = (
   studentId: string,
   recommendation: TrainingRecommendation | null
@@ -68,13 +91,12 @@ export const useLoadSuggestions = (
       if (!recommendation) return [];
 
       const periodStart = subDays(new Date(), 90).toISOString().slice(0, 10);
-      const bestRecentStart = subDays(new Date(), 60).toISOString().slice(0, 10);
 
       const [{ data: sessions, error: sessionsError }, { data: libraryRows, error: libraryError }] =
         await Promise.all([
           supabase
             .from("workout_sessions")
-            .select("id, date, prescription_id, exercises(exercise_name, load_kg, reps)")
+            .select("id, date, prescription_id, exercises(exercise_name, load_kg, reps, observations)")
             .eq("student_id", studentId)
             .gte("date", periodStart)
             .order("date", { ascending: false }),
@@ -121,6 +143,7 @@ export const useLoadSuggestions = (
             reps,
             date: session.date,
             prescriptionId: session.prescription_id,
+            observations: typeof row.observations === "string" ? row.observations : null,
           });
           byExercise.set(key, list);
         }
@@ -139,24 +162,8 @@ export const useLoadSuggestions = (
           const eligibleByCategory = isEligibleStrengthCategory(libMeta?.category);
           if (!eligibleByCategory && list.length < 2) return null;
 
-          const referenceReps = first.reps;
-          const bestEquivalent = list
-            .filter((item) => item.date >= bestRecentStart && Math.abs(item.reps - referenceReps) <= 1)
-            .sort((a, b) => b.loadKg - a.loadKg)[0];
-
-          const sameBlock = first.prescriptionId
-            ? list.find((item, index) => index > 0 && item.prescriptionId === first.prescriptionId)
-            : null;
-
           const reference = first;
-          const source: LoadSuggestionItem["source"] =
-            first
-              ? "last_valid"
-              : bestEquivalent
-                ? "best_recent_equivalent"
-                : sameBlock
-                  ? "same_block"
-                  : "insufficient";
+          const source: LoadSuggestionItem["source"] = "last_valid";
 
           if (!reference || !Number.isFinite(reference.loadKg)) {
             return {
@@ -174,11 +181,26 @@ export const useLoadSuggestions = (
           }
 
           const incrementKg = inferIncrement(libMeta?.equipmentRequired);
+          const recentObservations = list.slice(0, 3).map((item) => item.observations);
+          const hasPainOrJointWarning = recentObservations.some((obs) => hasPainSignal(obs));
+          const hasTechniqueWarning = recentObservations.some((obs) => hasTechniqueSignal(obs));
+
           let suggestedLoadKg: number | null = reference.loadKg;
           let ruleApplied = "Manter carga";
           let adjustmentPercent: number | null = 0;
 
-          if (recommendation.loadDecision === "increase" && !criticalFlags) {
+          if (hasPainOrJointWarning) {
+            adjustmentPercent = -20;
+            suggestedLoadKg = roundToIncrement(
+              reference.loadKg * (1 + adjustmentPercent / 100),
+              incrementKg
+            );
+            ruleApplied = "Dor/Desconforto recente: redução de segurança (-20%)";
+          } else if (recommendation.loadDecision === "increase" && hasTechniqueWarning) {
+            suggestedLoadKg = roundToIncrement(reference.loadKg, incrementKg);
+            adjustmentPercent = 0;
+            ruleApplied = "Técnica inconsistente recente: progressão bloqueada";
+          } else if (recommendation.loadDecision === "increase" && !criticalFlags) {
             adjustmentPercent = recommendation.loadAdjustmentPercent ?? 5;
             suggestedLoadKg = roundToIncrement(
               reference.loadKg * (1 + adjustmentPercent / 100),
@@ -202,7 +224,9 @@ export const useLoadSuggestions = (
           }
 
           const status: SuggestionStatus =
-            recommendation.loadDecision === "maintain" ? "automatic" : "assisted";
+            recommendation.loadDecision === "maintain" && !hasPainOrJointWarning && !hasTechniqueWarning
+              ? "automatic"
+              : "assisted";
 
           return {
             exerciseName: first.exerciseName,
