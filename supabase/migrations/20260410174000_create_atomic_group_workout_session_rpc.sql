@@ -44,6 +44,17 @@ BEGIN
     RAISE EXCEPTION 'Prescription not found or unauthorized' USING ERRCODE = '42501';
   END IF;
 
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.prescription_assignments pa
+    WHERE pa.prescription_id = p_prescription_id
+      AND pa.student_id = p_student_id
+      AND pa.start_date <= p_date
+      AND (pa.end_date IS NULL OR pa.end_date >= p_date)
+  ) THEN
+    RAISE EXCEPTION 'Prescription is not assigned to this student for the given date' USING ERRCODE = '42501';
+  END IF;
+
   INSERT INTO public.workout_sessions (
     student_id,
     prescription_id,
