@@ -1162,11 +1162,14 @@ function collectCrossSessionStats(
 /**
  * F2: Validação de dominância acumulada — verifica equilíbrio semanal
  * Regras:
- *   - Push/Pull/Knee/Hip devem ter mínimos semanais
- *   - Pull 20-40% > Push
+ *   - Push/Pull/Knee/Hip devem ter mínimos semanais por frequência:
+ *     - 2 treinos: mínimo 8 sets por padrão
+ *     - 3 treinos: mínimo 12 sets por padrão
+ *   - Pull deve ser no mínimo 25% > Push
  */
 function validateDominanceBalance(
   stats: CrossSessionStats,
+  weeklySessions: number,
   warnings: string[]
 ): void {
   const push = stats.patternSets["empurrar"] || 0;
@@ -1174,19 +1177,32 @@ function validateDominanceBalance(
   const knee = (stats.patternSets["dominancia_joelho"] || 0) + (stats.patternSets["lunge"] || 0);
   const hip = stats.patternSets["cadeia_posterior"] || 0;
 
-  // Minimum weekly sets per pattern group
-  if (push < 6) warnings.push(`Volume semanal Push insuficiente: ${push} sets (mín. 6).`);
-  if (pull < 6) warnings.push(`Volume semanal Pull insuficiente: ${pull} sets (mín. 6).`);
-  if (knee < 6) warnings.push(`Volume semanal Knee insuficiente: ${knee} sets (mín. 6).`);
-  if (hip < 4) warnings.push(`Volume semanal Hip insuficiente: ${hip} sets (mín. 4).`);
+  // Minimum weekly sets per movement pattern
+  const minSetsPerPattern =
+    weeklySessions >= 3
+      ? 12
+      : weeklySessions === 2
+        ? 8
+        : Math.max(4, weeklySessions * 4);
 
-  // Pull should be 20-40% > Push
+  if (push < minSetsPerPattern) {
+    warnings.push(`Volume semanal Push insuficiente: ${push} sets (mín. ${minSetsPerPattern}).`);
+  }
+  if (pull < minSetsPerPattern) {
+    warnings.push(`Volume semanal Pull insuficiente: ${pull} sets (mín. ${minSetsPerPattern}).`);
+  }
+  if (knee < minSetsPerPattern) {
+    warnings.push(`Volume semanal Knee insuficiente: ${knee} sets (mín. ${minSetsPerPattern}).`);
+  }
+  if (hip < minSetsPerPattern) {
+    warnings.push(`Volume semanal Hip insuficiente: ${hip} sets (mín. ${minSetsPerPattern}).`);
+  }
+
+  // Pull must be at least 25% > Push
   if (push > 0) {
     const ratio = pull / push;
-    if (ratio < 1.2) {
-      warnings.push(`Pull/Push ratio: ${ratio.toFixed(2)}x (recomendado 1.2-1.4x). Pull deve ser 20-40% superior ao Push.`);
-    } else if (ratio > 1.5) {
-      warnings.push(`Pull/Push ratio elevado: ${ratio.toFixed(2)}x. Considere balancear.`);
+    if (ratio < 1.25) {
+      warnings.push(`Pull/Push ratio: ${ratio.toFixed(2)}x (mín. 1.25x). Pull deve ser pelo menos 25% superior ao Push.`);
     }
   }
 }
@@ -1675,7 +1691,7 @@ serve(async (req) => {
     const patternsBalance = calcPatternsBalance(workouts);
     const crossStats = collectCrossSessionStats(workouts, allExercises || []);
 
-    validateDominanceBalance(crossStats, warnings);
+    validateDominanceBalance(crossStats, input.workouts.length, warnings);
     validatePrimeMoverOverlap(crossStats, warnings);
     validateNeuralAndJointControl(crossStats, warnings);
 
