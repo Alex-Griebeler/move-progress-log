@@ -4,6 +4,19 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+const jsonHeaders = {
+  ...corsHeaders,
+  'Content-Type': 'application/json',
+  'Cache-Control': 'no-store',
+};
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const jsonResponse = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 
 // Mock data baseado na documentação oficial do Oura API v2
 const MOCK_OURA_DATA = {
@@ -223,13 +236,19 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { student_id } = await req.json();
+    const rawPayload = await req.json().catch(() => null);
+    if (!isPlainObject(rawPayload)) {
+      return jsonResponse(400, { error: 'Corpo inválido' });
+    }
+
+    const student_id =
+      typeof rawPayload.student_id === 'string' ? rawPayload.student_id.trim() : '';
 
     if (!student_id) {
-      return new Response(
-        JSON.stringify({ error: 'student_id é obrigatório' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-      );
+      return jsonResponse(400, { error: 'student_id é obrigatório' });
+    }
+    if (!UUID_RE.test(student_id)) {
+      return jsonResponse(400, { error: 'student_id inválido' });
     }
 
     // Authenticate the caller
@@ -239,10 +258,7 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
+      return jsonResponse(401, { error: 'Unauthorized' });
     }
 
     const token = authHeader.replace('Bearer ', '');
@@ -251,10 +267,7 @@ Deno.serve(async (req) => {
     });
     const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
     if (userError || !userData?.user) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired token' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
+      return jsonResponse(401, { error: 'Invalid or expired token' });
     }
 
     const userId = userData.user.id;
@@ -268,10 +281,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (studentError || !student || student.trainer_id !== userId) {
-      return new Response(
-        JSON.stringify({ error: 'Access denied: you are not this student\'s trainer' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
-      );
+      return jsonResponse(403, { error: 'Access denied: you are not this student\'s trainer' });
     }
 
     console.log(`🧪 TEST MODE: Processing mock Oura data for student ${student_id}`);
@@ -315,8 +325,8 @@ Deno.serve(async (req) => {
     // Process sleep periods - get longest period
     let sleepPeriod = null;
     if (sleepPeriodsData?.data && sleepPeriodsData.data.length > 0) {
-      sleepPeriod = sleepPeriodsData.data.reduce((longest: Record<string, unknown>, current: Record<string, unknown>) => {
-        return ((current.total_sleep_duration as number) || 0) > ((longest.total_sleep_duration as number) || 0) ? current : longest;
+      sleepPeriod = sleepPeriodsData.data.reduce((longest, current) => {
+        return ((current as Record<string, unknown>).total_sleep_duration as number || 0) > ((longest as Record<string, unknown>).total_sleep_duration as number || 0) ? current : longest;
       });
       console.log('✅ Selected sleep period:', {
         total: sleepPeriod.total_sleep_duration,
@@ -413,10 +423,7 @@ Deno.serve(async (req) => {
 
     if (upsertError) {
       console.error('❌ Failed to save metrics:', upsertError);
-      return new Response(
-        JSON.stringify({ error: upsertError.message }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
+      return jsonResponse(500, { error: upsertError.message });
     }
 
     console.log('✅ Metrics saved successfully');
@@ -451,31 +458,25 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        test_mode: true,
-        synced_metrics: upsertedData,
-        mock_data_used: {
-          readiness_score: metrics.readiness_score,
-          sleep_score: metrics.sleep_score,
-          total_sleep_duration: metrics.total_sleep_duration,
-          deep_sleep_duration: metrics.deep_sleep_duration,
-          rem_sleep_duration: metrics.rem_sleep_duration,
-          light_sleep_duration: metrics.light_sleep_duration,
-          sleep_efficiency: metrics.sleep_efficiency,
-          resting_heart_rate: metrics.resting_heart_rate,
-          hrv_balance: metrics.hrv_balance
-        }
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return jsonResponse(200, {
+      success: true,
+      test_mode: true,
+      synced_metrics: upsertedData,
+      mock_data_used: {
+        readiness_score: metrics.readiness_score,
+        sleep_score: metrics.sleep_score,
+        total_sleep_duration: metrics.total_sleep_duration,
+        deep_sleep_duration: metrics.deep_sleep_duration,
+        rem_sleep_duration: metrics.rem_sleep_duration,
+        light_sleep_duration: metrics.light_sleep_duration,
+        sleep_efficiency: metrics.sleep_efficiency,
+        resting_heart_rate: metrics.resting_heart_rate,
+        hrv_balance: metrics.hrv_balance
+      }
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('❌ Error in oura-sync-test:', error);
-    return new Response(
-      JSON.stringify({ error: message }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-    );
+    return jsonResponse(500, { error: message });
   }
 });

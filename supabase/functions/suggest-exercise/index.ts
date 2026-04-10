@@ -5,6 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+const jsonHeaders = { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
+const MAX_EXERCISE_NAME_CHARS = 200;
+const MAX_MOVEMENT_PATTERN_CHARS = 100;
+const MAX_CANDIDATES = 50;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,7 +21,7 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Não autorizado', success: false }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: jsonHeaders }
       );
     }
 
@@ -29,16 +33,38 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(
         JSON.stringify({ error: 'Não autorizado', success: false }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 401, headers: jsonHeaders }
       );
     }
 
-    const { exerciseName, movementPattern, allExercises } = await req.json();
+    const body: unknown = await req.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return new Response(
+        JSON.stringify({ error: 'Payload inválido', success: false }),
+        { status: 400, headers: jsonHeaders }
+      );
+    }
+
+    const payload = body as Record<string, unknown>;
+    const exerciseName = typeof payload.exerciseName === 'string' ? payload.exerciseName.trim() : '';
+    const movementPattern = typeof payload.movementPattern === 'string' ? payload.movementPattern.trim() : '';
 
     if (!exerciseName) {
       return new Response(
         JSON.stringify({ error: 'Nome do exercício é obrigatório' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: jsonHeaders }
+      );
+    }
+    if (exerciseName.length > MAX_EXERCISE_NAME_CHARS) {
+      return new Response(
+        JSON.stringify({ error: `Nome do exercício excede ${MAX_EXERCISE_NAME_CHARS} caracteres` }),
+        { status: 400, headers: jsonHeaders }
+      );
+    }
+    if (movementPattern.length > MAX_MOVEMENT_PATTERN_CHARS) {
+      return new Response(
+        JSON.stringify({ error: `movementPattern excede ${MAX_MOVEMENT_PATTERN_CHARS} caracteres` }),
+        { status: 400, headers: jsonHeaders }
       );
     }
 
@@ -69,18 +95,32 @@ serve(async (req) => {
 
     // SE-03: Always use DB data — ignore allExercises from client payload to prevent manipulation
     if (!usedTrigram || candidates.length === 0) {
-      // Fallback: query all exercises from DB
-      const query = supabase.from('exercises_library').select('id, name');
+      // Fallback: keep candidate list bounded to avoid oversized prompts
+      const partialMatch = `%${exerciseName.slice(0, MAX_EXERCISE_NAME_CHARS)}%`;
+      let query = supabase.from('exercises_library').select('id, name').ilike('name', partialMatch);
       if (movementPattern) {
-        const { data: filteredFromDb } = await query.eq('movement_pattern', movementPattern).order('name');
-        candidates = filteredFromDb || [];
-        // If filtered list empty, query all
-        if (candidates.length === 0) {
-          const { data: allFromDb } = await supabase.from('exercises_library').select('id, name').order('name');
-          candidates = allFromDb || [];
-        }
-      } else {
-        const { data: allFromDb } = await query.order('name');
+        query = query.eq('movement_pattern', movementPattern);
+      }
+
+      const { data: filteredFromDb } = await query.order('name').limit(MAX_CANDIDATES);
+      candidates = filteredFromDb || [];
+
+      if (candidates.length === 0 && movementPattern) {
+        const { data: movementOnlyResults } = await supabase
+          .from('exercises_library')
+          .select('id, name')
+          .eq('movement_pattern', movementPattern)
+          .order('name')
+          .limit(MAX_CANDIDATES);
+        candidates = movementOnlyResults || [];
+      }
+
+      if (candidates.length === 0) {
+        const { data: allFromDb } = await supabase
+          .from('exercises_library')
+          .select('id, name')
+          .order('name')
+          .limit(MAX_CANDIDATES);
         candidates = allFromDb || [];
       }
     }
@@ -89,7 +129,7 @@ serve(async (req) => {
       return new Response(
         // SE-02: Include reason for null suggestion
         JSON.stringify({ success: true, suggested: null, reason: 'no_candidates', message: 'Nenhum exercício encontrado na base' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: jsonHeaders }
       );
     }
 
@@ -142,13 +182,13 @@ Qual exercício da lista é mais similar? Retorne APENAS o nome exato ou "null".
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Rate limit excedido, tente novamente em instantes', success: false }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 429, headers: jsonHeaders }
         );
       }
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ error: 'Créditos de IA esgotados', success: false }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 402, headers: jsonHeaders }
         );
       }
       const errorText = await response.text();
@@ -172,7 +212,7 @@ Qual exercício da lista é mais similar? Retorne APENAS o nome exato ou "null".
       const reason = !suggestedName || suggestedName === 'null' ? 'no_match' : 'low_confidence';
       return new Response(
         JSON.stringify({ success: true, suggested: null, reason, message: reason === 'no_match' ? 'Nenhum exercício similar encontrado' : 'Confiança insuficiente no mapeamento' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: jsonHeaders }
       );
     }
 
@@ -182,14 +222,14 @@ Qual exercício da lista é mais similar? Retorne APENAS o nome exato ou "null".
         suggested: { id: suggestedExercise.id, name: suggestedExercise.name },
         searchMethod: usedTrigram ? 'pg_trgm' : 'fallback',
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: jsonHeaders }
     );
 
   } catch (error) {
     // Error in suggest-exercise
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Erro desconhecido', success: false }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: jsonHeaders }
     );
   }
 });

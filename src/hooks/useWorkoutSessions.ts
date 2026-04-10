@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 
@@ -35,6 +36,38 @@ export interface Exercise {
   created_at: string;
 }
 
+type WorkoutSessionRow = Database["public"]["Tables"]["workout_sessions"]["Row"];
+type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
+
+const mapWorkoutSession = (row: WorkoutSessionRow): WorkoutSession => ({
+  id: row.id,
+  student_id: row.student_id,
+  date: row.date,
+  time: row.time,
+  session_type: row.session_type === "group" ? "group" : "individual",
+  workout_name: row.workout_name ?? undefined,
+  room_name: row.room_name ?? undefined,
+  trainer_name: row.trainer_name ?? undefined,
+  is_finalized: row.is_finalized ?? undefined,
+  can_reopen: row.can_reopen ?? undefined,
+  prescription_id: row.prescription_id ?? undefined,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+});
+
+const mapExercise = (row: ExerciseRow): Exercise => ({
+  id: row.id,
+  session_id: row.session_id,
+  exercise_name: row.exercise_name,
+  sets: row.sets ?? undefined,
+  reps: row.reps ?? undefined,
+  load_kg: row.load_kg ?? undefined,
+  load_description: row.load_description ?? undefined,
+  load_breakdown: row.load_breakdown ?? undefined,
+  observations: row.observations ?? undefined,
+  created_at: row.created_at,
+});
+
 export const useWorkoutSessions = (studentId?: string) => {
   return useQuery({
     queryKey: ["workout-sessions", studentId],
@@ -53,7 +86,7 @@ export const useWorkoutSessions = (studentId?: string) => {
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as WorkoutSession[];
+      return (data || []).map(mapWorkoutSession);
     },
   });
 };
@@ -72,7 +105,7 @@ export const useSessionExercises = (sessionId: string | null) => {
         .order("created_at");
 
       if (error) throw error;
-      return data as Exercise[];
+      return (data || []).map(mapExercise);
     },
   });
 };

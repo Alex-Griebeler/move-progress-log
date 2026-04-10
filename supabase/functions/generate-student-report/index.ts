@@ -13,14 +13,6 @@ interface TrainerNotes {
   nextCyclePlan?: string;
 }
 
-interface GenerateReportRequest {
-  studentId: string;
-  periodStart: string;
-  periodEnd: string;
-  trackedExercises: string[];
-  trainerNotes?: TrainerNotes;
-}
-
 interface StudentRow {
   id: string;
   name: string;
@@ -83,16 +75,45 @@ interface ProgramAggregate {
 }
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_TRACKED_EXERCISES = 12;
+const MAX_TRAINER_NOTE_LENGTH = 2000;
 
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    },
   });
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const parseDateOnly = (value: string): Date | null => {
   const parsed = new Date(`${value}T00:00:00.000Z`);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const sanitizeOptionalNote = (value: unknown): string | undefined | null => {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  return trimmed.slice(0, MAX_TRAINER_NOTE_LENGTH);
 };
 
 const averageIgnoringNulls = (values: Array<number | null | undefined>): number | null => {
@@ -103,13 +124,20 @@ const averageIgnoringNulls = (values: Array<number | null | undefined>): number 
   return valid.reduce((sum, value) => sum + value, 0) / valid.length;
 };
 
-const normalizeName = (value: string): string => value.trim().toLowerCase();
+const normalizeComparableText = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
 
 const isEligibleStrengthCategory = (category: string | null): boolean => {
   if (!category) {
     return false;
   }
-  const normalized = category.toLowerCase();
+  const normalized = normalizeComparableText(category);
   if (normalized.includes("potencia")) {
     return false;
   }
@@ -145,14 +173,68 @@ serve(async (req) => {
     const trainerId = authData.user.id;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const payload = (await req.json()) as GenerateReportRequest;
-    const { studentId, periodStart, periodEnd, trackedExercises, trainerNotes } = payload;
+    const rawPayload = await req.json().catch(() => null);
+    if (!isPlainObject(rawPayload)) {
+      return jsonResponse(400, { error: "Invalid request body" });
+    }
+
+    const studentId =
+      typeof rawPayload.studentId === "string" ? rawPayload.studentId.trim() : "";
+    const periodStart =
+      typeof rawPayload.periodStart === "string" ? rawPayload.periodStart.trim() : "";
+    const periodEnd =
+      typeof rawPayload.periodEnd === "string" ? rawPayload.periodEnd.trim() : "";
+    const trackedExercisesInput = rawPayload.trackedExercises;
 
     if (!studentId || !periodStart || !periodEnd) {
       return jsonResponse(400, { error: "Missing required fields" });
     }
-    if (!Array.isArray(trackedExercises) || trackedExercises.length === 0) {
+    if (!UUID_RE.test(studentId)) {
+      return jsonResponse(400, { error: "Invalid student ID" });
+    }
+    if (!DATE_RE.test(periodStart) || !DATE_RE.test(periodEnd)) {
+      return jsonResponse(400, { error: "Invalid date format" });
+    }
+
+    if (!Array.isArray(trackedExercisesInput) || trackedExercisesInput.length === 0) {
       return jsonResponse(400, { error: "Select at least one exercise" });
+    }
+    if (trackedExercisesInput.length > MAX_TRACKED_EXERCISES) {
+      return jsonResponse(400, {
+        error: `Selecione no máximo ${MAX_TRACKED_EXERCISES} exercícios`,
+      });
+    }
+    if (
+      !trackedExercisesInput.every(
+        (exerciseId) => typeof exerciseId === "string" && UUID_RE.test(exerciseId.trim())
+      )
+    ) {
+      return jsonResponse(400, { error: "Invalid tracked exercises selection" });
+    }
+
+    const trackedExercises = trackedExercisesInput.map((exerciseId) => exerciseId.trim());
+    if (new Set(trackedExercises).size !== trackedExercises.length) {
+      return jsonResponse(400, { error: "Duplicate tracked exercises are not allowed" });
+    }
+
+    let trainerNotes: TrainerNotes | undefined;
+    if (rawPayload.trainerNotes !== undefined && rawPayload.trainerNotes !== null) {
+      if (!isPlainObject(rawPayload.trainerNotes)) {
+        return jsonResponse(400, { error: "Invalid trainer notes payload" });
+      }
+
+      const highlights = sanitizeOptionalNote(rawPayload.trainerNotes.highlights);
+      const attentionPoints = sanitizeOptionalNote(rawPayload.trainerNotes.attentionPoints);
+      const nextCyclePlan = sanitizeOptionalNote(rawPayload.trainerNotes.nextCyclePlan);
+      if (
+        highlights === null ||
+        attentionPoints === null ||
+        nextCyclePlan === null
+      ) {
+        return jsonResponse(400, { error: "Invalid trainer notes payload" });
+      }
+
+      trainerNotes = { highlights, attentionPoints, nextCyclePlan };
     }
 
     const parsedStart = parseDateOnly(periodStart);
@@ -220,6 +302,12 @@ serve(async (req) => {
     }
 
     const trackedLibrary = (trackedExerciseRows || []) as unknown as ExerciseLibraryRow[];
+    if (trackedLibrary.length !== trackedExercises.length) {
+      return jsonResponse(400, {
+        error: "One or more selected exercises were not found",
+      });
+    }
+
     const eligibleTrackedExercises = trackedLibrary.filter((exercise) =>
       isEligibleStrengthCategory(exercise.category)
     );
@@ -341,7 +429,10 @@ serve(async (req) => {
     for (const trackedExercise of eligibleTrackedExercises) {
       const exerciseName = trackedExercise.name;
       const exerciseExecutions = allExecutions
-        .filter((execution) => normalizeName(execution.exercise_name) === normalizeName(exerciseName))
+        .filter(
+          (execution) =>
+            normalizeComparableText(execution.exercise_name) === normalizeComparableText(exerciseName)
+        )
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
       if (exerciseExecutions.length === 0) {

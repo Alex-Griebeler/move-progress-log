@@ -4,7 +4,7 @@ import { ROUTES } from "@/constants/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,10 +47,12 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
+const ACCEPTED_AVATAR_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
 export default function StudentOnboardingPage() {
   const { token } = useParams();
   const navigate = useNavigate();
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   logger.log('StudentOnboardingPage loaded');
@@ -83,7 +85,24 @@ export default function StudentOnboardingPage() {
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setAvatarFile(file);
+      if (!ACCEPTED_AVATAR_TYPES.has(file.type)) {
+        toast.error("Formato de imagem não suportado", {
+          description: "Use JPG, PNG ou WEBP.",
+        });
+        e.target.value = "";
+        setAvatarPreview(null);
+        return;
+      }
+
+      if (file.size > MAX_AVATAR_SIZE_BYTES) {
+        toast.error("Imagem muito grande", {
+          description: "A foto de perfil deve ter no máximo 5 MB.",
+        });
+        e.target.value = "";
+        setAvatarPreview(null);
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string);

@@ -21,6 +21,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
+const normalizeComparableText = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+
 interface GenerateReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,7 +58,7 @@ export function GenerateReportDialog({
   const eligibleExercises = useMemo(
     () =>
       exercisesLibrary?.filter((exercise) => {
-        const category = exercise.category?.toLowerCase() || "";
+        const category = normalizeComparableText(exercise.category || "");
         return (category.includes("forca") || category.includes("hipertrofia")) && !category.includes("potencia");
       }) || [],
     [exercisesLibrary]
@@ -63,7 +72,7 @@ export function GenerateReportDialog({
     const days = parseInt(periodType);
     if (Number.isNaN(days) || days <= 0) return null;
     const periodEnd = format(new Date(), "yyyy-MM-dd");
-    const periodStart = format(subDays(new Date(), days), "yyyy-MM-dd");
+    const periodStart = format(subDays(new Date(), days - 1), "yyyy-MM-dd");
     return { periodStart, periodEnd };
   }, [periodType, customStart, customEnd]);
 
@@ -94,12 +103,12 @@ export function GenerateReportDialog({
         const executedNames = new Set(
           ((data || []) as Array<{ exercises: Array<{ exercise_name: string }> | null }>)
             .flatMap((session) => session.exercises || [])
-            .map((exercise) => exercise.exercise_name.trim().toLowerCase())
+            .map((exercise) => normalizeComparableText(exercise.exercise_name))
             .filter(Boolean)
         );
 
         const idsInPeriod = eligibleExercises
-          .filter((exercise) => executedNames.has(exercise.name.trim().toLowerCase()))
+          .filter((exercise) => executedNames.has(normalizeComparableText(exercise.name)))
           .map((exercise) => exercise.id);
 
         setPeriodExerciseIds(idsInPeriod);
@@ -130,7 +139,7 @@ export function GenerateReportDialog({
     } else {
       const days = parseInt(periodType);
       periodEnd = format(new Date(), "yyyy-MM-dd");
-      periodStart = format(subDays(new Date(), days), "yyyy-MM-dd");
+      periodStart = format(subDays(new Date(), days - 1), "yyyy-MM-dd");
     }
 
     if (!periodStart || !periodEnd) {

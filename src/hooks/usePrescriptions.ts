@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 
@@ -27,6 +28,7 @@ export interface PrescriptionExercise {
   training_method: string | null;
   observations: string | null;
   group_with_previous: boolean;
+  should_track: boolean;
   load: string | null;
   rir: string | null;
   exercise_name?: string;
@@ -67,6 +69,111 @@ export interface PrescriptionAssignment {
   student_name?: string;
 }
 
+type WorkoutPrescriptionRow = Database["public"]["Tables"]["workout_prescriptions"]["Row"];
+type PrescriptionAssignmentRow = Database["public"]["Tables"]["prescription_assignments"]["Row"];
+type PrescriptionExerciseRow = Database["public"]["Tables"]["prescription_exercises"]["Row"];
+type ExerciseAdaptationRow = Database["public"]["Tables"]["exercise_adaptations"]["Row"];
+
+type PrescriptionListRow = WorkoutPrescriptionRow & {
+  prescription_assignments: Array<{ student_id: string }> | null;
+};
+
+type PrescriptionExerciseWithLibraryRow = PrescriptionExerciseRow & {
+  exercises_library: { name: string; category: string | null } | null;
+};
+
+type ExerciseAdaptationWithLibraryRow = ExerciseAdaptationRow & {
+  exercises_library: { name: string } | null;
+};
+
+type AssignmentWithStudentRow = PrescriptionAssignmentRow & {
+  students: { name: string } | null;
+};
+
+const mapCustomAdaptations = (value: Json | null): CustomAdaptation[] | null => {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  const adaptations = value
+    .filter(
+      (item): item is Record<string, Json | undefined> =>
+        typeof item === "object" && item !== null && !Array.isArray(item)
+    )
+    .map((item) => ({
+      exercise_library_id:
+        typeof item.exercise_library_id === "string" ? item.exercise_library_id : "",
+      adaptation_type:
+        typeof item.adaptation_type === "string" ? item.adaptation_type : "",
+      sets: typeof item.sets === "string" ? item.sets : null,
+      reps: typeof item.reps === "string" ? item.reps : null,
+      interval_seconds:
+        typeof item.interval_seconds === "number" ? item.interval_seconds : null,
+      pse: typeof item.pse === "string" ? item.pse : null,
+      observations: typeof item.observations === "string" ? item.observations : null,
+    }))
+    .filter((item) => item.exercise_library_id && item.adaptation_type);
+
+  return adaptations;
+};
+
+const mapPrescriptionListItem = (row: PrescriptionListRow): WorkoutPrescription => ({
+  id: row.id,
+  name: row.name,
+  objective: row.objective,
+  created_at: row.created_at,
+  updated_at: row.updated_at,
+  folder_id: row.folder_id,
+  order_index: row.order_index,
+  prescription_type: row.prescription_type === "individual" ? "individual" : "group",
+  assigned_students_count: row.prescription_assignments?.length || 0,
+});
+
+const mapPrescriptionExercise = (
+  row: PrescriptionExerciseWithLibraryRow,
+  adaptations: ExerciseAdaptationWithLibraryRow[]
+): PrescriptionExercise => ({
+  id: row.id,
+  prescription_id: row.prescription_id,
+  exercise_library_id: row.exercise_library_id,
+  order_index: row.order_index,
+  sets: row.sets,
+  reps: row.reps,
+  interval_seconds: row.interval_seconds,
+  pse: row.pse,
+  training_method: row.training_method,
+  observations: row.observations,
+  group_with_previous: row.group_with_previous,
+  should_track: row.should_track,
+  load: row.load,
+  rir: row.rir,
+  exercise_name: row.exercises_library?.name,
+  adaptations: adaptations
+    .filter((adaptation) => adaptation.prescription_exercise_id === row.id)
+    .map((adaptation) => ({
+      id: adaptation.id,
+      prescription_exercise_id: adaptation.prescription_exercise_id,
+      adaptation_type: adaptation.adaptation_type,
+      exercise_library_id: adaptation.exercise_library_id,
+      sets: adaptation.sets,
+      reps: adaptation.reps,
+      interval_seconds: adaptation.interval_seconds,
+      pse: adaptation.pse,
+      observations: adaptation.observations,
+      exercise_name: adaptation.exercises_library?.name,
+    })),
+});
+
+const mapPrescriptionAssignment = (row: AssignmentWithStudentRow): PrescriptionAssignment => ({
+  id: row.id,
+  prescription_id: row.prescription_id,
+  student_id: row.student_id,
+  start_date: row.start_date,
+  end_date: row.end_date,
+  custom_adaptations: mapCustomAdaptations(row.custom_adaptations),
+  student_name: row.students?.name,
+});
+
 export const usePrescriptions = () => {
   return useQuery({
     queryKey: ["prescriptions"],
@@ -82,11 +189,8 @@ export const usePrescriptions = () => {
         .limit(500);
 
       if (error) throw error;
-      
-      return data.map((p) => ({
-        ...p,
-        assigned_students_count: p.prescription_assignments?.length || 0,
-      })) as unknown as WorkoutPrescription[];
+
+      return ((data || []) as PrescriptionListRow[]).map(mapPrescriptionListItem);
     },
   });
 };
@@ -117,7 +221,8 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
 
       if (exError) throw exError;
 
-      const exerciseIds = exercises.map((ex) => ex.id);
+      const typedExercises = (exercises || []) as PrescriptionExerciseWithLibraryRow[];
+      const exerciseIds = typedExercises.map((ex) => ex.id);
 
       // BUG-006 fix: guard against empty array in .in()
       if (exerciseIds.length === 0) {
@@ -134,16 +239,10 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
 
       if (adaptError) throw adaptError;
 
-      const exercisesWithAdaptations = exercises.map((ex) => ({
-        ...ex,
-        exercise_name: ex.exercises_library?.name,
-        category: ex.exercises_library?.category,
-        adaptations: adaptations
-          .filter((a) => a.prescription_exercise_id === ex.id)
-          .map((a) => ({
-            ...a,
-            exercise_name: a.exercises_library?.name,
-          })),
+      const typedAdaptations = (adaptations || []) as ExerciseAdaptationWithLibraryRow[];
+      const exercisesWithAdaptations = typedExercises.map((exercise) => ({
+        ...mapPrescriptionExercise(exercise, typedAdaptations),
+        category: exercise.exercises_library?.category,
       }));
 
       return {
@@ -422,10 +521,7 @@ export const usePrescriptionAssignments = (prescriptionId: string | null) => {
 
       if (error) throw error;
 
-      return data.map((a) => ({
-        ...a,
-        student_name: (a.students as { name: string } | null)?.name,
-      })) as unknown as PrescriptionAssignment[];
+      return ((data || []) as AssignmentWithStudentRow[]).map(mapPrescriptionAssignment);
     },
   });
 };

@@ -17,6 +17,30 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" };
+const DEFAULT_BATCH_SIZE = 20;
+const MAX_BATCH_SIZE = 50;
+
+function normalizeBatchSize(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return DEFAULT_BATCH_SIZE;
+  return Math.max(1, Math.min(MAX_BATCH_SIZE, Math.trunc(parsed)));
+}
+
+function normalizeOffset(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.trunc(parsed));
+}
+
+function normalizeBoolean(value: unknown, fallback: boolean): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (value === "true") return true;
+    if (value === "false") return false;
+  }
+  return fallback;
+}
 
 // Exercícios de referência do documento v14.5 — few-shot examples
 const REFERENCE_EXERCISES = [
@@ -83,7 +107,7 @@ serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
         JSON.stringify({ success: false, error: "Autenticação obrigatória" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+        { headers: jsonHeaders, status: 401 }
       );
     }
 
@@ -95,7 +119,7 @@ serve(async (req) => {
     if (!lovableApiKey) {
       return new Response(
         JSON.stringify({ success: false, error: "LOVABLE_API_KEY não configurada" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+        { headers: jsonHeaders, status: 500 }
       );
     }
 
@@ -108,7 +132,7 @@ serve(async (req) => {
     if (userError || !userData?.user) {
       return new Response(
         JSON.stringify({ success: false, error: "Token inválido" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+        { headers: jsonHeaders, status: 401 }
       );
     }
 
@@ -123,11 +147,22 @@ serve(async (req) => {
     if (!roleData || roleData.length === 0) {
       return new Response(
         JSON.stringify({ success: false, error: "Acesso restrito a treinadores e admins" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 403 }
+        { headers: jsonHeaders, status: 403 }
       );
     }
 
-    const { batchSize = 20, offset = 0, onlyUnclassified = true } = await req.json();
+    const body: unknown = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Payload inválido" }),
+        { headers: jsonHeaders, status: 400 }
+      );
+    }
+
+    const payload = body as Record<string, unknown>;
+    const batchSize = normalizeBatchSize(payload.batchSize);
+    const offset = normalizeOffset(payload.offset);
+    const onlyUnclassified = normalizeBoolean(payload.onlyUnclassified, true);
 
     // Use service role to update exercises
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
@@ -149,7 +184,7 @@ serve(async (req) => {
     if (!exercises || exercises.length === 0) {
       return new Response(
         JSON.stringify({ success: true, classified: 0, message: "Nenhum exercício pendente de classificação", hasMore: false }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { headers: jsonHeaders }
       );
     }
 
@@ -225,13 +260,13 @@ serve(async (req) => {
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ success: false, error: "Rate limit excedido. Tente novamente em alguns segundos." }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 429 }
+          { headers: jsonHeaders, status: 429 }
         );
       }
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ success: false, error: "Créditos insuficientes. Adicione créditos ao workspace." }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 402 }
+          { headers: jsonHeaders, status: 402 }
         );
       }
       throw new Error(`AI Gateway error: ${response.status}`);
@@ -297,14 +332,14 @@ serve(async (req) => {
         hasMore: (count || 0) > 0,
         errors: errors.length > 0 ? errors : undefined,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { headers: jsonHeaders }
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
     console.error("Error classifying exercises:", errorMessage);
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      { headers: jsonHeaders, status: 500 }
     );
   }
 });

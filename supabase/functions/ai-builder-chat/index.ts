@@ -3,11 +3,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+const jsonHeaders = {
+  ...corsHeaders,
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store",
+};
+const MAX_HISTORY_MESSAGES = 50;
+const MAX_HISTORY_CONTEXT = 20;
+const MAX_MESSAGE_LENGTH = 2000;
+const MAX_HISTORY_ITEM_LENGTH = 4000;
+const MAX_HISTORY_TOTAL_CHARS = 20000;
+const MAX_ISSUE_TITLE_CHARS = 60;
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const jsonResponse = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: jsonHeaders,
+  });
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -17,11 +37,8 @@ Deno.serve(async (req) => {
   try {
     // 1. Validate JWT and get user
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (!authHeader?.startsWith("Bearer ")) {
+      return jsonResponse(401, { error: "Não autorizado" });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -41,10 +58,7 @@ Deno.serve(async (req) => {
     } = await supabaseAuth.auth.getUser();
 
     if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Não autorizado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse(401, { error: "Não autorizado" });
     }
 
     // 2. Verify admin role using SERVICE ROLE to bypass RLS
@@ -58,56 +72,63 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!roleData) {
-      return new Response(JSON.stringify({ error: "Acesso negado" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse(403, { error: "Acesso negado" });
     }
 
     // 3. Validate input
-    const { message, history } = await req.json();
-
-    if (!message || typeof message !== "string" || message.trim().length === 0) {
-      return new Response(
-        JSON.stringify({ error: "Mensagem não pode estar vazia" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    const rawPayload = await req.json().catch(() => null);
+    if (!isPlainObject(rawPayload)) {
+      return jsonResponse(400, { error: "Corpo inválido" });
     }
 
-    if (message.length > 2000) {
-      return new Response(
-        JSON.stringify({ error: "Mensagem excede o limite de 2000 caracteres" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    const message =
+      typeof rawPayload.message === "string" ? rawPayload.message.trim() : "";
+    const history = rawPayload.history;
+
+    if (!message) {
+      return jsonResponse(400, { error: "Mensagem não pode estar vazia" });
+    }
+
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return jsonResponse(400, {
+        error: `Mensagem excede o limite de ${MAX_MESSAGE_LENGTH} caracteres`,
+      });
     }
 
     // Validate and sanitize history
-    // PC-02: Limit to 50 messages per conversation to control AI cost
-    const MAX_HISTORY_MESSAGES = 50;
     const chatHistory: ChatMessage[] = [];
+    let historyChars = 0;
+    if (history !== undefined && !Array.isArray(history)) {
+      return jsonResponse(400, { error: "Histórico inválido" });
+    }
     if (Array.isArray(history)) {
       if (history.length > MAX_HISTORY_MESSAGES) {
-        return new Response(
-          JSON.stringify({ error: `Conversa excede o limite de ${MAX_HISTORY_MESSAGES} mensagens. Inicie uma nova conversa.` }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return jsonResponse(400, {
+          error: `Conversa excede o limite de ${MAX_HISTORY_MESSAGES} mensagens. Inicie uma nova conversa.`,
+        });
       }
-      for (const msg of history.slice(-20)) { // Send max 20 to LLM context
+      for (const msg of history.slice(-MAX_HISTORY_CONTEXT)) {
         if (
-          msg &&
-          typeof msg.role === "string" &&
-          typeof msg.content === "string" &&
-          (msg.role === "user" || msg.role === "assistant") &&
-          msg.content.length <= 4000
+          !isPlainObject(msg) ||
+          (msg.role !== "user" && msg.role !== "assistant") ||
+          typeof msg.content !== "string"
         ) {
-          chatHistory.push({ role: msg.role, content: msg.content });
+          return jsonResponse(400, { error: "Histórico inválido" });
         }
+
+        const content = msg.content.trim();
+        if (!content || content.length > MAX_HISTORY_ITEM_LENGTH) {
+          return jsonResponse(400, { error: "Histórico inválido" });
+        }
+
+        historyChars += content.length;
+        if (historyChars > MAX_HISTORY_TOTAL_CHARS) {
+          return jsonResponse(400, {
+            error: "Histórico excede o limite de contexto permitido",
+          });
+        }
+
+        chatHistory.push({ role: msg.role, content });
       }
     }
 
@@ -202,26 +223,14 @@ Always respond in Portuguese (Brazilian).`;
       const errorText = await aiResponse.text();
 
       if (status === 429) {
-        return new Response(
-          JSON.stringify({
-            error: "Limite de requisições excedido. Tente novamente em alguns instantes.",
-          }),
-          {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return jsonResponse(429, {
+          error: "Limite de requisições excedido. Tente novamente em alguns instantes.",
+        });
       }
       if (status === 402) {
-        return new Response(
-          JSON.stringify({
-            error: "Créditos de IA esgotados. Adicione créditos ao workspace.",
-          }),
-          {
-            status: 402,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
+        return jsonResponse(402, {
+          error: "Créditos de IA esgotados. Adicione créditos ao workspace.",
+        });
       }
       console.error("AI Gateway error:", status, errorText);
       throw new Error(`AI Gateway error: ${status}`);
@@ -243,13 +252,31 @@ Always respond in Portuguese (Brazilian).`;
       };
     }
 
+    if (
+      !isPlainObject(result) ||
+      (result.type !== "conversation" &&
+        result.type !== "planning" &&
+        result.type !== "build") ||
+      typeof result.message !== "string"
+    ) {
+      result = {
+        type: "conversation",
+        message: "Desculpe, não consegui processar sua solicitação com segurança.",
+      };
+    }
+
+    if (typeof result.title === "string") {
+      result.title = result.title.trim().slice(0, MAX_ISSUE_TITLE_CHARS);
+    }
+
     // 6. If build intent, create GitHub issue
     if (result.type === "build") {
       const GITHUB_TOKEN = Deno.env.get("GITHUB_TOKEN");
       if (GITHUB_TOKEN) {
         try {
           // Use AI-generated title or fallback to first 60 chars of user message
-          const issueTitle = result.title || message.slice(0, 60).trim() || "AI Builder Task";
+          const issueTitle =
+            result.title || message.slice(0, MAX_ISSUE_TITLE_CHARS).trim() || "AI Builder Task";
           // Sanitize body content - escape potential injection
           const sanitizedMessage = message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
           const sanitizedPlan = result.message.replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -291,19 +318,11 @@ Always respond in Portuguese (Brazilian).`;
       }
     }
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse(200, result);
   } catch (e) {
     console.error("ai-builder-chat error:", e);
-    return new Response(
-      JSON.stringify({
-        error: e instanceof Error ? e.message : "Erro interno",
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return jsonResponse(500, {
+      error: e instanceof Error ? e.message : "Erro interno",
+    });
   }
 });

@@ -211,6 +211,10 @@ export const ReportPDFDocument = ({
   studentName,
   trainerName,
 }: ReportPDFDocumentProps) => {
+  const formatMetric = (value: number | null | undefined, digits = 0, suffix = ""): string => {
+    if (value === null || value === undefined) return "--";
+    return `${value.toFixed(digits)}${suffix}`;
+  };
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
   };
@@ -259,7 +263,7 @@ export const ReportPDFDocument = ({
             
             <View style={styles.metricCard}>
               <Text style={styles.metricLabel}>Média Semanal</Text>
-              <Text style={styles.metricValue}>{report.weekly_average.toFixed(1)}</Text>
+              <Text style={styles.metricValue}>{report.weekly_average != null ? report.weekly_average.toFixed(1) : '--'}</Text>
             </View>
             
             {report.adherence_percentage !== null && report.adherence_percentage !== undefined && (
@@ -340,28 +344,28 @@ export const ReportPDFDocument = ({
               <View style={[styles.ouraCard, { width: hasVo2Data ? "18%" : "23%" }]}>
                 <Text style={styles.ouraLabel}>Readiness Médio</Text>
                 <Text style={styles.ouraValue}>
-                  {report.oura_data.avgReadiness?.toFixed(0)}
+                  {formatMetric(report.oura_data.avgReadiness)}
                 </Text>
               </View>
               
               <View style={[styles.ouraCard, { width: hasVo2Data ? "18%" : "23%" }]}>
                 <Text style={styles.ouraLabel}>Sleep Score Médio</Text>
                 <Text style={styles.ouraValue}>
-                  {report.oura_data.avgSleep?.toFixed(0)}
+                  {formatMetric(report.oura_data.avgSleep)}
                 </Text>
               </View>
               
               <View style={[styles.ouraCard, { width: hasVo2Data ? "18%" : "23%" }]}>
                 <Text style={styles.ouraLabel}>HRV Médio</Text>
                 <Text style={styles.ouraValue}>
-                  {report.oura_data.avgHrv?.toFixed(0)} ms
+                  {formatMetric(report.oura_data.avgHrv, 0, " ms")}
                 </Text>
               </View>
               
               <View style={[styles.ouraCard, { width: hasVo2Data ? "18%" : "23%" }]}>
                 <Text style={styles.ouraLabel}>RHR Médio</Text>
                 <Text style={styles.ouraValue}>
-                  {report.oura_data.avgRhr?.toFixed(0)} bpm
+                  {formatMetric(report.oura_data.avgRhr, 0, " bpm")}
                 </Text>
               </View>
 
@@ -369,7 +373,7 @@ export const ReportPDFDocument = ({
                 <View style={[styles.ouraCard, { width: "18%" }]}>
                   <Text style={styles.ouraLabel}>VO2 Max Médio</Text>
                   <Text style={styles.ouraValue}>
-                    {report.oura_data.avgVo2Max?.toFixed(1)}
+                    {formatMetric(report.oura_data.avgVo2Max, 1)}
                   </Text>
                 </View>
               )}

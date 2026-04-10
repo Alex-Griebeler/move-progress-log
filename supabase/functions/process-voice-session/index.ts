@@ -101,6 +101,7 @@ serve(async (req) => {
     // V-02: Initialize clients inside handler to prevent shared state
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
     const GOOGLE_AI_API_KEY = Deno.env.get('GOOGLE_AI_API_KEY')!;
     const genAI = new GoogleGenerativeAI(GOOGLE_AI_API_KEY);
@@ -116,8 +117,8 @@ serve(async (req) => {
       );
     }
 
-    // Create Supabase client with user's auth token
-    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
+    // Validate the caller with the anon key; keep service_role only for privileged reads/writes.
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
@@ -221,7 +222,7 @@ serve(async (req) => {
     audioBase64 = btoa(audioBase64);
 
     const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp" 
+      model: "gemini-2.0-flash" 
     });
 
     const terminologyCorrectionsPrompt = Object.entries(TERMINOLOGY_CORRECTIONS)
@@ -634,7 +635,7 @@ FORMATO DE SAÍDA:
 }`;
 
     const extractionModel = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp",
+      model: "gemini-2.0-flash",
       generationConfig: {
         responseMimeType: "application/json"
       }
@@ -827,7 +828,7 @@ FORMATO DE SAÍDA:
     let prescriptionDeviations: Record<string, unknown>[] = [];
     
     if (prescriptionDetails && prescriptionDetails.prescription_exercises) {
-      const prescribedExercises = prescriptionDetails.prescription_exercises.map((pe: Record<string, unknown>) => ({
+      const prescribedExercises: Array<{ name: string; sets: string; reps: string }> = prescriptionDetails.prescription_exercises.map((pe: Record<string, unknown>) => ({
         name: (pe.exercises_library as Record<string, unknown>).name as string,
         sets: pe.sets as string,
         reps: pe.reps as string,
@@ -928,7 +929,7 @@ FORMATO DE SAÍDA:
     );
 
   } catch (error) {
-    // Error processing voice session
+    console.error('[process-voice-session] error:', error instanceof Error ? error.stack : String(error));
     return new Response(
       JSON.stringify({ 
         success: false,

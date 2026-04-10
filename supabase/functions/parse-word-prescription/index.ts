@@ -6,6 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" };
+const MAX_DOCX_BASE64_CHARS = 10_000_000;
+const MAX_EXTRACTED_TEXT_CHARS = 120_000;
 
 // Extract text from .docx by parsing the XML inside the ZIP
 async function extractTextFromDocx(base64Data: string): Promise<string> {
@@ -149,7 +152,7 @@ serve(async (req) => {
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Missing authorization" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: jsonHeaders,
       });
     }
 
@@ -163,15 +166,31 @@ serve(async (req) => {
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: jsonHeaders,
       });
     }
 
-    const { fileBase64 } = await req.json();
+    const body: unknown = await req.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return new Response(JSON.stringify({ error: "Invalid payload" }), {
+        status: 400,
+        headers: jsonHeaders,
+      });
+    }
+
+    const payload = body as Record<string, unknown>;
+    const fileBase64 = typeof payload.fileBase64 === "string" ? payload.fileBase64.trim() : "";
     if (!fileBase64) {
       return new Response(JSON.stringify({ error: "Missing fileBase64" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: jsonHeaders,
+      });
+    }
+
+    if (fileBase64.length > MAX_DOCX_BASE64_CHARS) {
+      return new Response(JSON.stringify({ error: "Arquivo Word excede o tamanho máximo permitido" }), {
+        status: 413,
+        headers: jsonHeaders,
       });
     }
 
@@ -179,6 +198,12 @@ serve(async (req) => {
     console.log("Extracting text from .docx...");
     const extractedText = await extractTextFromDocx(fileBase64);
     console.log("Extracted text length:", extractedText.length);
+    if (extractedText.length > MAX_EXTRACTED_TEXT_CHARS) {
+      return new Response(JSON.stringify({ error: "Conteúdo do documento excede o limite suportado" }), {
+        status: 413,
+        headers: jsonHeaders,
+      });
+    }
 
     // 2. Send to AI for structured extraction
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

@@ -6,12 +6,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-interface CreateUserRequest {
-  email: string;
-  password: string;
-  fullName: string;
-  role: 'admin' | 'moderator' | 'user';
-}
+const jsonHeaders = {
+  ...corsHeaders,
+  "Content-Type": "application/json",
+  "Cache-Control": "no-store",
+};
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+const VALID_ROLES = new Set(["admin", "moderator", "user"]);
+const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 128;
+const MAX_FULL_NAME_LENGTH = 120;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const jsonResponse = (status: number, body: Record<string, unknown>) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: jsonHeaders,
+  });
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -19,9 +32,13 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseServiceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
     const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      supabaseUrl,
+      supabaseServiceRoleKey,
       {
         auth: {
           autoRefreshToken: false,
@@ -32,15 +49,17 @@ serve(async (req) => {
 
     // Verificar se o usuário que está fazendo a requisição é admin
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      throw new Error("Authorization header missing");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return jsonResponse(401, { error: "Authorization header missing" });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user: requestingUser }, error: authError } = await supabaseClient.auth.getUser(token);
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: requestingUser }, error: authError } = await authClient.auth.getUser();
 
     if (authError || !requestingUser) {
-      throw new Error("Unauthorized");
+      return jsonResponse(401, { error: "Unauthorized" });
     }
 
     // Verificar se o usuário é admin
@@ -48,25 +67,44 @@ serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", requestingUser.id)
-      .single();
+      .maybeSingle();
 
     if (roleError || roleData?.role !== 'admin') {
-      throw new Error("Only admins can create users");
+      return jsonResponse(403, { error: "Only admins can create users" });
     }
 
-    const { email, password, fullName, role }: CreateUserRequest = await req.json();
+    const rawPayload = await req.json().catch(() => null);
+    if (!isPlainObject(rawPayload)) {
+      return jsonResponse(400, { error: "Invalid request body" });
+    }
 
-    // Validações
+    const email =
+      typeof rawPayload.email === "string" ? rawPayload.email.trim().toLowerCase() : "";
+    const password = typeof rawPayload.password === "string" ? rawPayload.password : "";
+    const fullName =
+      typeof rawPayload.fullName === "string" ? rawPayload.fullName.trim() : "";
+    const role = typeof rawPayload.role === "string" ? rawPayload.role : "";
+
     if (!email || !password || !fullName || !role) {
-      throw new Error("Missing required fields");
+      return jsonResponse(400, { error: "Missing required fields" });
     }
 
-    if (!['admin', 'moderator', 'user'].includes(role)) {
-      throw new Error("Invalid role");
+    if (!EMAIL_RE.test(email)) {
+      return jsonResponse(400, { error: "Invalid email" });
     }
 
-    if (password.length < 8) {
-      throw new Error("Password must be at least 8 characters");
+    if (fullName.length < 2 || fullName.length > MAX_FULL_NAME_LENGTH) {
+      return jsonResponse(400, { error: "Full name must be between 2 and 120 characters" });
+    }
+
+    if (!VALID_ROLES.has(role)) {
+      return jsonResponse(400, { error: "Invalid role" });
+    }
+
+    if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+      return jsonResponse(400, {
+        error: `Password must be between ${MIN_PASSWORD_LENGTH} and ${MAX_PASSWORD_LENGTH} characters`,
+      });
     }
 
     console.log(`Creating user: ${email} with role: ${role}`);
@@ -136,32 +174,22 @@ serve(async (req) => {
 
     console.log(`User role assigned: ${role} for ${newUser.user.id}`);
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        user: {
-          id: newUser.user.id,
-          email: newUser.user.email,
-          full_name: fullName,
-          role: role,
-        },
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      }
-    );
+    return jsonResponse(200, {
+      success: true,
+      user: {
+        id: newUser.user.id,
+        email: newUser.user.email,
+        full_name: fullName,
+        role: role,
+      },
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Internal server error";
     console.error("Error in admin-create-user:", error);
-    return new Response(
-      JSON.stringify({
-        error: message,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: message === "Unauthorized" || message === "Only admins can create users" ? 403 : 400,
-      }
-    );
+    const status =
+      message.includes("already been registered") || message.includes("already exists")
+        ? 409
+        : 500;
+    return jsonResponse(status, { error: message });
   }
 });
