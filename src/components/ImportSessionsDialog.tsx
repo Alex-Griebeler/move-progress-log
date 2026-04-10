@@ -201,7 +201,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     }
   };
 
-  const parseExcelDate = (excelDate: unknown): string => {
+  const parseExcelDate = (excelDate: unknown): string | null => {
     if (excelDate instanceof Date) {
       return formatDate(excelDate);
     }
@@ -226,7 +226,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       return date.toISOString().split("T")[0];
     }
     
-    return new Date().toISOString().split("T")[0];
+    return null;
   };
 
   const parseTime = (timeValue: unknown): string => {
@@ -305,9 +305,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
       // Agrupa por aluno + data + hora
       const sessionsMap = new Map<string, SessionRow[]>();
+      const validationErrors: string[] = [];
       let validRows = 0;
 
-      jsonData.forEach((row) => {
+      jsonData.forEach((row, index) => {
         const alunoRaw = getStringValue(row, ["student", "aluno", "nome", "nome do aluno"]);
         const dataRaw = row["date"] ?? row["data"];
         const horaRaw = row["time"] ?? row["hora"];
@@ -317,6 +318,12 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
         // Skip blank lines or incomplete rows from spreadsheet exports.
         if (!alunoRaw || !exerciseName) return;
+
+        if (!parsedDate) {
+          validationErrors.push(`Linha ${index + 2}: data inválida (${String(dataRaw ?? "vazio")})`);
+          return;
+        }
+
         validRows++;
 
         const sessionKey = `${alunoRaw.toLowerCase()}_${parsedDate}_${parsedTime}`;
@@ -339,10 +346,13 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
       const totalSessions = sessionsMap.size;
       if (totalSessions === 0) {
+        const validationPreview = validationErrors.slice(0, 5).join(" | ");
         throw new Error(
           `Nenhuma linha válida encontrada para importação. Verifique cabeçalhos (detected: ${detectedHeaders
             .filter(Boolean)
-            .join(", ")}) e se as colunas de aluno + exercício estão preenchidas.`
+            .join(", ")}) e se as colunas de aluno + exercício estão preenchidas.${
+            validationPreview ? ` Erros de validação: ${validationPreview}` : ""
+          }`
         );
       }
       setStatus((prev) => ({ ...prev!, total: totalSessions }));
@@ -356,7 +366,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       let attempted = 0;
       let processed = 0;
       let skippedDuplicates = 0;
-      const errors: string[] = [];
+      const errors: string[] = [...validationErrors];
 
       for (const [key, exercises] of sessionsMap) {
         const firstRow = exercises[0];

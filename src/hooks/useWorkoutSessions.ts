@@ -158,7 +158,11 @@ export const useCreateWorkoutSession = () => {
           .from("exercises")
           .insert(exercisesToInsert);
 
-        if (exercisesError) throw exercisesError;
+        if (exercisesError) {
+          // Best-effort compensation to avoid orphan session rows when exercises insert fails.
+          await supabase.from("workout_sessions").delete().eq("id", session.id);
+          throw exercisesError;
+        }
       }
 
       return session;
