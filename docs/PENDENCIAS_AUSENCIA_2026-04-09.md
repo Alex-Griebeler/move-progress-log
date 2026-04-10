@@ -28,6 +28,9 @@
 - Contrato runtime aplicado também em ingestão/classificação:
   - `supabase/functions/import-exercises/index.ts`
   - `supabase/functions/classify-exercises/index.ts`
+- Refactor incremental sem regressão:
+  - `generate-group-session`: auth/resource loading extraídos para helpers
+  - `process-voice-session`: payload/ownership validations extraídos para helpers
 - Regra de volume semanal atualizada no motor:
   - 2 treinos: mínimo 8 sets por padrão
   - 3 treinos: mínimo 12 sets por padrão
@@ -50,9 +53,9 @@
 
 2. Smoke E2E curto e repetível para os 4 fluxos críticos com evidência automatizada.
 
-3. Refactor incremental do `generate-group-session/index.ts` (persistência e resposta) para reduzir risco de regressão futura.
+3. Refactor incremental final do `generate-group-session/index.ts` (persistência e montagem de resposta) para reduzir risco de regressão futura.
 
 ## Próxima ação recomendada ao retornar
 1. Rodar smoke manual autenticado dos 4 cenários críticos no preview.
 2. Fechar/merge do PR da branch `codex/phase1-hardening-core`.
-3. Iniciar fatia de refactor do `generate-group-session/index.ts` mantendo caracterização.
+3. Opcional: executar última fatia de refactor interno do `generate-group-session` (persistência/resposta) mantendo caracterização.
