@@ -8,7 +8,11 @@ export interface TrainingRecommendation {
   intensity: string;
   duration: string;
   recoveryScore: number;
+  zone: "green_high" | "green" | "yellow" | "orange" | "red";
   fatigueLevel: 'low' | 'moderate' | 'high';
+  loadDecision: 'increase' | 'maintain' | 'reduce' | 'block';
+  loadAdjustmentPercent: number | null;
+  overrideApplied: boolean;
   reason: string;
   alerts: Array<{
     level: 'INFO' | 'WARNING' | 'CRITICAL';
@@ -126,6 +130,7 @@ export function useTrainingRecommendation(
       zone > 0 &&
       (acuteHrvVeryLow || rhrSignificantlyElevated || (sleepInsufficient && stressHigh));
 
+    const overrideApplied = shouldDowngradeOneZone;
     if (shouldDowngradeOneZone) {
       zone = (zone - 1) as RecommendationZone;
       alerts.push({
@@ -255,9 +260,30 @@ export function useTrainingRecommendation(
 
     const confidence = metrics.readiness_score !== null ? metrics.readiness_score : 50;
 
+    const zoneLabel: TrainingRecommendation["zone"] =
+      zone === 4 ? "green_high" : zone === 3 ? "green" : zone === 2 ? "yellow" : zone === 1 ? "orange" : "red";
+
+    const loadDecision: TrainingRecommendation["loadDecision"] =
+      zone === 4 ? "increase" : zone === 3 ? "maintain" : zone === 2 ? "reduce" : "block";
+
+    const loadAdjustmentPercent =
+      zone === 4 ? 5 : zone === 2 ? -20 : 0;
+
     return {
-      trainingType, intensity, duration, recoveryScore, fatigueLevel,
-      reason, alerts, confidence, emoji, priorityProtocols,
+      trainingType,
+      intensity,
+      duration,
+      recoveryScore,
+      zone: zoneLabel,
+      fatigueLevel,
+      loadDecision,
+      loadAdjustmentPercent,
+      overrideApplied,
+      reason,
+      alerts,
+      confidence,
+      emoji,
+      priorityProtocols,
     };
   }, [metrics, recentMetrics, baseline, userGoals, acuteMetrics]);
 }

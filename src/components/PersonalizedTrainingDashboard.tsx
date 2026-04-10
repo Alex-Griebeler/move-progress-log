@@ -9,6 +9,7 @@ import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
 import { useOuraBaseline } from "@/hooks/useOuraBaseline";
 import { useLatestOuraAcuteMetrics } from "@/hooks/useOuraAcuteMetrics";
 import { useWeeklyMovementBalance } from "@/hooks/useWeeklyMovementBalance";
+import { useLoadSuggestions } from "@/hooks/useLoadSuggestions";
 import { useTrainingContext } from "@/contexts/TrainingContext";
 import { Alert, AlertDescription } from "./ui/alert";
 import { format, parseISO } from "date-fns";
@@ -40,8 +41,9 @@ const PersonalizedTrainingDashboard = ({
 }: PersonalizedTrainingDashboardProps) => {
   const { baseline } = useOuraBaseline(studentId);
   const { data: latestAcuteMetrics } = useLatestOuraAcuteMetrics(studentId);
-  const { data: weeklyMovementBalance } = useWeeklyMovementBalance(studentId);
   const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics, baseline, undefined, latestAcuteMetrics);
+  const { data: weeklyMovementBalance } = useWeeklyMovementBalance(studentId);
+  const { data: loadSuggestions } = useLoadSuggestions(studentId, recommendation);
   const [showAlternatives, setShowAlternatives] = useState(false);
   const { selectedAlternative, setSelectedAlternative } = useTrainingContext();
 
@@ -192,6 +194,19 @@ const PersonalizedTrainingDashboard = ({
         }
       ];
     }
+  };
+
+  const zoneLabelMap: Record<string, string> = {
+    green_high: "Verde Alta",
+    green: "Verde",
+    yellow: "Amarela",
+    orange: "Laranja",
+    red: "Vermelha",
+  };
+
+  const formatLoad = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return "--";
+    return `${value.toFixed(1)} kg`;
   };
 
   return (
@@ -432,6 +447,70 @@ const PersonalizedTrainingDashboard = ({
               {weeklyMovementBalance.unknownExercises} exercício(s) sem classificação de padrão não entraram no cálculo.
             </p>
           )}
+        </Card>
+      )}
+
+      {loadSuggestions && loadSuggestions.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold">Sugestão Assistida de Carga</h3>
+            <Badge variant="outline">
+              Zona {zoneLabelMap[recommendation.zone] ?? recommendation.zone}
+            </Badge>
+          </div>
+
+          <p className="text-sm text-muted-foreground mb-4">
+            Referência por histórico real do aluno. A sugestão deve ser validada pelo coach antes da execução.
+          </p>
+
+          <div className="space-y-3">
+            {loadSuggestions.map((item) => (
+              <div key={item.exerciseName} className="rounded-lg border p-4 bg-muted/20">
+                <div className="flex items-start justify-between gap-4 mb-2">
+                  <div>
+                    <h4 className="font-semibold">{item.exerciseName}</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Referência: {formatLoad(item.referenceLoadKg)} @ {item.referenceReps ?? "--"} reps
+                    </p>
+                  </div>
+                  <Badge variant={item.status === "insufficient" ? "destructive" : "secondary"}>
+                    {item.status === "automatic"
+                      ? "Sugestão automática"
+                      : item.status === "assisted"
+                        ? "Sugestão assistida"
+                        : "Dados insuficientes"}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-2 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Última carga válida</p>
+                    <p className="font-semibold">{formatLoad(item.lastLoadKg)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Regra aplicada</p>
+                    <p className="font-semibold">{item.ruleApplied}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Ajuste</p>
+                    <p className="font-semibold">
+                      {item.adjustmentPercent === null
+                        ? "--"
+                        : `${item.adjustmentPercent > 0 ? "+" : ""}${item.adjustmentPercent}%`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Carga sugerida</p>
+                    <p className="font-semibold">{formatLoad(item.suggestedLoadKg)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Incremento</p>
+                    <p className="font-semibold">{item.incrementKg} kg</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
 
