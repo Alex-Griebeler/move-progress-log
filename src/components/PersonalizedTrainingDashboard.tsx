@@ -83,10 +83,11 @@ const PersonalizedTrainingDashboard = ({
     return `${value.toFixed(decimals)}${unit ? ` ${unit}` : ""}`;
   };
 
-  const hasAcuteData =
-    !!latestAcuteMetrics &&
-    (latestAcuteMetrics.samples_count_hrv > 0 ||
-      latestAcuteMetrics.samples_count_hr_day > 0);
+  const hasAcuteHrvData =
+    !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hrv > 0;
+  const hasAcuteHeartRateData =
+    !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hr_day > 0;
+  const hasAcuteData = hasAcuteHrvData || hasAcuteHeartRateData;
 
   const getTrainingAlternatives = (rs: number) => {
     if (rs >= 85) {
@@ -442,28 +443,38 @@ const PersonalizedTrainingDashboard = ({
                   {latestAcuteMetrics?.date || "--"}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">HRV Último Bloco</span>
-                <span className="font-semibold">
-                  {formatValue(latestAcuteMetrics?.hrv_night_last, "ms", 1)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">HRV Mínimo Noite</span>
-                <span className="font-semibold">
-                  {formatValue(latestAcuteMetrics?.hrv_night_min, "ms", 1)}
-                </span>
-              </div>
+
+              {hasAcuteHrvData ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">HRV Último Bloco</span>
+                    <span className="font-semibold">
+                      {formatValue(latestAcuteMetrics?.hrv_night_last, "ms", 1)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">HRV Mínimo Noite</span>
+                    <span className="font-semibold">
+                      {formatValue(latestAcuteMetrics?.hrv_night_min, "ms", 1)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amostras HRV</span>
+                    <span className="font-semibold">
+                      {latestAcuteMetrics?.samples_count_hrv ?? "--"}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  HRV aguda indisponível nesta conta Oura.
+                </p>
+              )}
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">FC Média Dia</span>
                 <span className="font-semibold">
                   {formatValue(latestAcuteMetrics?.hr_day_avg, "bpm", 0)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Amostras HRV</span>
-                <span className="font-semibold">
-                  {latestAcuteMetrics?.samples_count_hrv ?? "--"}
                 </span>
               </div>
               <div className="flex justify-between">
