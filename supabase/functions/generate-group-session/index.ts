@@ -128,6 +128,49 @@ async function fetchGenerationResources(supabase: ReturnType<typeof createClient
   };
 }
 
+function buildExercisePool(params: {
+  allExercises: Exercise[];
+  groupLevel: string;
+  availableEquipment: Set<string>;
+  audiencePreset: "adulto" | "senior_70" | "adolescente";
+  excludeExercises?: string[];
+  rotationMode?: "A" | "B";
+  retainExerciseIds?: string[];
+}): Exercise[] {
+  const {
+    allExercises,
+    groupLevel,
+    availableEquipment,
+    audiencePreset,
+    excludeExercises,
+    rotationMode,
+    retainExerciseIds,
+  } = params;
+
+  let exercises = filterByLevel(allExercises, groupLevel);
+  exercises = filterByRisk(exercises, groupLevel);
+  exercises = filterByAvailableEquipment(exercises, availableEquipment);
+  exercises = applyAudienceFilters(exercises, audiencePreset);
+  exercises = applyF4TeachableProgression(exercises, exercises);
+
+  if (excludeExercises?.length) {
+    exercises = exercises.filter((ex) => !excludeExercises.includes(ex.id));
+  }
+
+  if (rotationMode === "B" && retainExerciseIds?.length) {
+    const retainSet = new Set(retainExerciseIds);
+    const retained = allExercises.filter((ex) => retainSet.has(ex.id));
+    const existingIds = new Set(exercises.map((ex) => ex.id));
+    for (const ex of retained) {
+      if (!existingIds.has(ex.id)) {
+        exercises.push(ex);
+      }
+    }
+  }
+
+  return exercises;
+}
+
 // ============================================================================
 // TIPOS
 // ============================================================================
@@ -1353,36 +1396,15 @@ serve(async (req) => {
 
     const { allExercises, breathingProtocols, availableEquipment } = await fetchGenerationResources(supabase);
 
-    // Apply filters
-    let exercises = filterByLevel(allExercises, input.groupLevel);
-    exercises = filterByRisk(exercises, input.groupLevel);
-    exercises = filterByAvailableEquipment(exercises, availableEquipment);
-
-    // Phase 4: Apply audience preset filters
-    exercises = applyAudienceFilters(exercises, audiencePreset);
-
-    // Phase 4: F4 — Teachable progression filter
-    // G-06: Pass filtered exercises (not allExercises) to find regressions in same universe
-    exercises = applyF4TeachableProgression(exercises, exercises);
-
-    if (input.excludeExercises?.length) {
-      exercises = exercises.filter((ex) => !input.excludeExercises!.includes(ex.id));
-    }
-
-    // Phase 4: Mode B — retain specific exercises from previous mesocycle
-    // In Mode B, retainExerciseIds stay in the pool but are NOT excluded
-    // In Mode A, all exercises from previous cycle are excluded (via excludeExercises)
-    if (input.rotationMode === "B" && input.retainExerciseIds?.length) {
-      // Ensure retained exercises are in the pool (re-add if filtered out by excludeExercises)
-      const retainSet = new Set(input.retainExerciseIds);
-      const retained = allExercises.filter((ex) => retainSet.has(ex.id));
-      const existingIds = new Set(exercises.map((ex) => ex.id));
-      for (const ex of retained) {
-        if (!existingIds.has(ex.id)) {
-          exercises.push(ex);
-        }
-      }
-    }
+    const exercises = buildExercisePool({
+      allExercises,
+      groupLevel: input.groupLevel,
+      availableEquipment,
+      audiencePreset,
+      excludeExercises: input.excludeExercises,
+      rotationMode: input.rotationMode,
+      retainExerciseIds: input.retainExerciseIds,
+    });
 
     if (exercises.length < 20) {
       return errorResponse(

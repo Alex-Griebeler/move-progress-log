@@ -216,6 +216,12 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Resultado:
   - menor acoplamento no handler principal de voz, com manutenção dos mesmos códigos HTTP e mensagens.
 
+### 21) Extração da montagem do pool de exercícios (geração em grupo)
+- `generate-group-session/index.ts`:
+  - filtros de pool (nível, risco, equipamento, preset, exclusões, retenções modo B) consolidados em `buildExercisePool`
+- Resultado:
+  - handler principal mais linear e fácil de revisar; comportamento preservado.
+
 ## Pendências Prioritárias (próximo lote)
 1. Continuar redução dos monolíticos remanescentes (fatia 2):
    - `supabase/functions/generate-group-session/index.ts`
