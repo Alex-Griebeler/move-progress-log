@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { subDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 import { TrainingRecommendation } from "./useTrainingRecommendation";
 
 type SuggestionStatus = "automatic" | "assisted" | "insufficient";
@@ -16,6 +17,7 @@ export interface LoadSuggestionItem {
   source: "last_valid" | "best_recent_equivalent" | "same_block" | "fallback_keep" | "insufficient";
   status: SuggestionStatus;
   incrementKg: number;
+  guardrails: string[];
 }
 
 interface ExerciseExecution {
@@ -91,6 +93,7 @@ export const useLoadSuggestions = (
       if (!recommendation) return [];
 
       const periodStart = subDays(new Date(), 90).toISOString().slice(0, 10);
+      const bestRecentStart = subDays(new Date(), 60).toISOString().slice(0, 10);
 
       const [{ data: sessions, error: sessionsError }, { data: libraryRows, error: libraryError }] =
         await Promise.all([
@@ -162,8 +165,27 @@ export const useLoadSuggestions = (
           const eligibleByCategory = isEligibleStrengthCategory(libMeta?.category);
           if (!eligibleByCategory && list.length < 2) return null;
 
-          const reference = first;
-          const source: LoadSuggestionItem["source"] = "last_valid";
+          const referenceReps = first.reps;
+          const bestEquivalent = list
+            .filter((item) => item.date >= bestRecentStart && Math.abs(item.reps - referenceReps) <= 1)
+            .sort((a, b) => {
+              if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+              return b.loadKg - a.loadKg;
+            })[0];
+
+          const sameBlock = first.prescriptionId
+            ? list.find((item, index) => index > 0 && item.prescriptionId === first.prescriptionId)
+            : null;
+
+          const reference = first || bestEquivalent || sameBlock || null;
+          const source: LoadSuggestionItem["source"] =
+            first
+              ? "last_valid"
+              : bestEquivalent
+                ? "best_recent_equivalent"
+                : sameBlock
+                  ? "same_block"
+                  : "insufficient";
 
           if (!reference || !Number.isFinite(reference.loadKg)) {
             return {
@@ -177,6 +199,7 @@ export const useLoadSuggestions = (
               source: "insufficient",
               status: "insufficient" as const,
               incrementKg: 0.5,
+              guardrails: [],
             };
           }
 
@@ -184,12 +207,14 @@ export const useLoadSuggestions = (
           const recentObservations = list.slice(0, 3).map((item) => item.observations);
           const hasPainOrJointWarning = recentObservations.some((obs) => hasPainSignal(obs));
           const hasTechniqueWarning = recentObservations.some((obs) => hasTechniqueSignal(obs));
+          const guardrails: string[] = [];
 
           let suggestedLoadKg: number | null = reference.loadKg;
           let ruleApplied = "Manter carga";
           let adjustmentPercent: number | null = 0;
 
           if (hasPainOrJointWarning) {
+            guardrails.push("pain_recent");
             adjustmentPercent = -20;
             suggestedLoadKg = roundToIncrement(
               reference.loadKg * (1 + adjustmentPercent / 100),
@@ -197,6 +222,7 @@ export const useLoadSuggestions = (
             );
             ruleApplied = "Dor/Desconforto recente: redução de segurança (-20%)";
           } else if (recommendation.loadDecision === "increase" && hasTechniqueWarning) {
+            guardrails.push("technique_inconsistent");
             suggestedLoadKg = roundToIncrement(reference.loadKg, incrementKg);
             adjustmentPercent = 0;
             ruleApplied = "Técnica inconsistente recente: progressão bloqueada";
@@ -239,6 +265,7 @@ export const useLoadSuggestions = (
             source,
             status,
             incrementKg,
+            guardrails,
           };
         })
         .filter((item): item is LoadSuggestionItem => !!item)
@@ -249,6 +276,16 @@ export const useLoadSuggestions = (
           return (b.referenceLoadKg || 0) - (a.referenceLoadKg || 0);
         })
         .slice(0, maxExercises);
+
+      logger.info("[load-suggestions] generated", {
+        studentId,
+        zone: recommendation.zone,
+        decision: recommendation.loadDecision,
+        suggestions: suggestions.length,
+        assisted: suggestions.filter((item) => item.status === "assisted").length,
+        insufficient: suggestions.filter((item) => item.status === "insufficient").length,
+        guardrailsTriggered: suggestions.filter((item) => item.guardrails.length > 0).length,
+      });
 
       return suggestions;
     },

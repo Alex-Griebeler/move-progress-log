@@ -204,6 +204,14 @@ const PersonalizedTrainingDashboard = ({
     red: "Vermelha",
   };
 
+  const sourceLabelMap: Record<string, string> = {
+    last_valid: "Última carga válida",
+    best_recent_equivalent: "Melhor recente equivalente",
+    same_block: "Última do bloco atual",
+    fallback_keep: "Fallback manter carga",
+    insufficient: "Dados insuficientes",
+  };
+
   const formatLoad = (value: number | null | undefined) => {
     if (value === null || value === undefined) return "--";
     return `${value.toFixed(1)} kg`;
@@ -224,6 +232,14 @@ const PersonalizedTrainingDashboard = ({
             Recuperação: {recommendation.recoveryScore}/100
           </Badge>
         </div>
+        {recommendation.overrideApplied && (
+          <Alert className="mt-2 border-amber-500/40 bg-amber-500/10">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Override agudo ativo: a zona de treino foi reduzida em 1 nível para proteção.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Scores Principais */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
@@ -508,9 +524,26 @@ const PersonalizedTrainingDashboard = ({
                     <p className="font-semibold">{item.incrementKg} kg</p>
                   </div>
                 </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span>Fonte: {sourceLabelMap[item.source] ?? item.source}</span>
+                  {item.guardrails.includes("pain_recent") && (
+                    <Badge variant="destructive">Guardrail: dor recente</Badge>
+                  )}
+                  {item.guardrails.includes("technique_inconsistent") && (
+                    <Badge variant="outline">Guardrail: técnica inconsistente</Badge>
+                  )}
+                </div>
               </div>
             ))}
           </div>
+        </Card>
+      )}
+      {loadSuggestions && loadSuggestions.length === 0 && (
+        <Card className="p-6">
+          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <p className="text-sm text-muted-foreground">
+            Dados insuficientes de histórico para sugerir carga numérica neste momento.
+          </p>
         </Card>
       )}
 
