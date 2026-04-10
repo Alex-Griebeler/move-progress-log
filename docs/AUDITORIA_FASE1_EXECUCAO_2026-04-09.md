@@ -201,6 +201,13 @@ Objetivo: melhorar segurança, confiabilidade e qualidade sem regressão funcion
 - Resultado:
   - menor duplicação no caminho crítico de erro e menor risco de divergência de resposta.
 
+### 19) Extração de autenticação e carregamento de recursos (geração em grupo)
+- `generate-group-session/index.ts`:
+  - autenticação/autorização extraída para `resolveAuthorizedContext`
+  - carregamento de insumos (`exercises`, `breathing_protocols`, `equipment_inventory`) extraído para `fetchGenerationResources`
+- Resultado:
+  - handler principal mais curto e legível, mantendo o mesmo fluxo de validação e mesmas regras de geração.
+
 ## Pendências Prioritárias (próximo lote)
 1. Continuar redução dos monolíticos remanescentes (fatia 2):
    - `supabase/functions/generate-group-session/index.ts`

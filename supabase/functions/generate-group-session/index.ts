@@ -52,6 +52,82 @@ function errorResponse(status: number, error: string, details?: string): Respons
   );
 }
 
+interface AuthorizedContext {
+  userId: string;
+  supabase: ReturnType<typeof createClient>;
+  supabaseAdmin: ReturnType<typeof createClient>;
+}
+
+async function resolveAuthorizedContext(authHeader: string | null): Promise<
+  { ok: true; value: AuthorizedContext } | { ok: false; response: Response }
+> {
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { ok: false, response: errorResponse(401, "Autenticação obrigatória") };
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError || !userData?.user) {
+    return { ok: false, response: errorResponse(401, "Token inválido") };
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+  const { data: roleData } = await supabaseAdmin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userData.user.id)
+    .in("role", ["admin", "trainer"])
+    .limit(1);
+
+  if (!roleData || roleData.length === 0) {
+    return { ok: false, response: errorResponse(403, "Acesso restrito a treinadores e admins") };
+  }
+
+  return {
+    ok: true,
+    value: {
+      userId: userData.user.id,
+      supabase,
+      supabaseAdmin,
+    },
+  };
+}
+
+async function fetchGenerationResources(supabase: ReturnType<typeof createClient>) {
+  const { data: allExercises, error: exercisesError } = await supabase
+    .from("exercises_library")
+    .select("id, name, movement_pattern, risk_level, level, category, subcategory, movement_plane, equipment_required, default_sets, default_reps, numeric_level, axial_load, lumbar_demand, technical_complexity, metabolic_potential, knee_dominance, hip_dominance");
+
+  if (exercisesError) throw new Error(`Erro ao buscar exercícios: ${exercisesError.message}`);
+
+  const { data: breathingProtocols } = await supabase
+    .from("breathing_protocols")
+    .select("id, name, technique, rhythm, duration_seconds, instructions, category, when_to_use")
+    .eq("is_active", true);
+
+  const { data: equipmentData } = await supabase
+    .from("equipment_inventory")
+    .select("name")
+    .eq("is_available", true);
+
+  const availableEquipment = new Set<string>(
+    (equipmentData || []).map((e: { name: string }) => e.name.toLowerCase())
+  );
+
+  return {
+    allExercises: allExercises || [],
+    breathingProtocols: breathingProtocols || [],
+    availableEquipment,
+  };
+}
+
 // ============================================================================
 // TIPOS
 // ============================================================================
@@ -1248,35 +1324,11 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return errorResponse(401, "Autenticação obrigatória");
+    const authResult = await resolveAuthorizedContext(req.headers.get("Authorization"));
+    if (!authResult.ok) {
+      return authResult.response;
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData?.user) {
-      return errorResponse(401, "Token inválido");
-    }
-
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: roleData } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userData.user.id)
-      .in("role", ["admin", "trainer"])
-      .limit(1);
-
-    if (!roleData || roleData.length === 0) {
-      return errorResponse(403, "Acesso restrito a treinadores e admins");
-    }
+    const { supabase } = authResult.value;
 
     const body: unknown = await req.json();
     const parsedInput = mesocycleInputSchema.safeParse(body);
@@ -1299,31 +1351,10 @@ serve(async (req) => {
     const audiencePreset = input.audiencePreset || "adulto";
     const audienceConfig = AUDIENCE_PRESETS[audiencePreset] || AUDIENCE_PRESETS.adulto;
 
-    // Fetch exercises WITH v14.5 dimensions
-    const { data: allExercises, error: exercisesError } = await supabase
-      .from("exercises_library")
-      .select("id, name, movement_pattern, risk_level, level, category, subcategory, movement_plane, equipment_required, default_sets, default_reps, numeric_level, axial_load, lumbar_demand, technical_complexity, metabolic_potential, knee_dominance, hip_dominance");
-
-    if (exercisesError) throw new Error(`Erro ao buscar exercícios: ${exercisesError.message}`);
-
-    // Fetch breathing protocols (with category for closing selection)
-    const { data: breathingProtocols } = await supabase
-      .from("breathing_protocols")
-      .select("id, name, technique, rhythm, duration_seconds, instructions, category, when_to_use")
-      .eq("is_active", true);
-
-    // Fetch available equipment
-    const { data: equipmentData } = await supabase
-      .from("equipment_inventory")
-      .select("name")
-      .eq("is_available", true);
-
-    const availableEquipment = new Set<string>(
-      (equipmentData || []).map((e: { name: string }) => e.name.toLowerCase())
-    );
+    const { allExercises, breathingProtocols, availableEquipment } = await fetchGenerationResources(supabase);
 
     // Apply filters
-    let exercises = filterByLevel(allExercises || [], input.groupLevel);
+    let exercises = filterByLevel(allExercises, input.groupLevel);
     exercises = filterByRisk(exercises, input.groupLevel);
     exercises = filterByAvailableEquipment(exercises, availableEquipment);
 
@@ -1344,7 +1375,7 @@ serve(async (req) => {
     if (input.rotationMode === "B" && input.retainExerciseIds?.length) {
       // Ensure retained exercises are in the pool (re-add if filtered out by excludeExercises)
       const retainSet = new Set(input.retainExerciseIds);
-      const retained = (allExercises || []).filter((ex) => retainSet.has(ex.id));
+      const retained = allExercises.filter((ex) => retainSet.has(ex.id));
       const existingIds = new Set(exercises.map((ex) => ex.id));
       for (const ex of retained) {
         if (!existingIds.has(ex.id)) {
@@ -1383,7 +1414,7 @@ serve(async (req) => {
     for (const workoutConfig of input.workouts) {
       const workout = generateSingleWorkout(
         exercises, workoutConfig, input.groupLevel, volumeMultiplier,
-        breathingProtocols || [], globalExcludeIds
+        breathingProtocols, globalExcludeIds
       );
       workouts.push(workout);
 
@@ -1402,7 +1433,7 @@ serve(async (req) => {
 
     // v14.5: Cross-session validation (F2, F5, G12)
     const patternsBalance = calcPatternsBalance(workouts);
-    const crossStats = collectCrossSessionStats(workouts, allExercises || []);
+    const crossStats = collectCrossSessionStats(workouts, allExercises);
 
     validateDominanceBalance(crossStats, warnings);
     validatePrimeMoverOverlap(crossStats, warnings);
