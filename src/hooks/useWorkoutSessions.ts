@@ -129,39 +129,37 @@ export const useCreateWorkoutSession = () => {
         observations?: string;
       }>;
     }) => {
-      const { data: session, error: sessionError } = await supabase
-        .from("workout_sessions")
-        .insert({
-          student_id: data.student_id,
-          date: data.date,
-          time: data.time,
-          session_type: 'individual',
-        })
-        .select()
-        .single();
+      const exercisesPayload = data.exercises.map((ex) => ({
+        exercise_name: ex.exercise_name,
+        sets: ex.sets ?? null,
+        reps: ex.reps ?? null,
+        load_kg: ex.load_kg ?? null,
+        load_description: ex.load_description ?? null,
+        load_breakdown: ex.load_breakdown ?? null,
+        observations: ex.observations ?? null,
+      }));
 
-      if (sessionError) throw sessionError;
+      const { data: createdSession, error } = await supabase.rpc(
+        "create_workout_session_with_exercises",
+        {
+          p_student_id: data.student_id,
+          p_date: data.date,
+          p_time: data.time,
+          p_session_type: "individual",
+          p_exercises: exercisesPayload,
+        }
+      );
 
-      if (data.exercises.length > 0) {
-        const exercisesToInsert = data.exercises.map((ex) => ({
-          session_id: session.id,
-          exercise_name: ex.exercise_name,
-          sets: ex.sets || null,
-          reps: ex.reps || null,
-          load_kg: ex.load_kg || null,
-          load_description: ex.load_description || null,
-          load_breakdown: ex.load_breakdown || null,
-          observations: ex.observations || null,
-        }));
+      if (error) throw error;
 
-        const { error: exercisesError } = await supabase
-          .from("exercises")
-          .insert(exercisesToInsert);
-
-        if (exercisesError) throw exercisesError;
+      const sessionRow = Array.isArray(createdSession)
+        ? createdSession[0]
+        : createdSession;
+      if (!sessionRow) {
+        throw new Error("Falha ao criar sessão");
       }
 
-      return session;
+      return mapWorkoutSession(sessionRow as WorkoutSessionRow);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });

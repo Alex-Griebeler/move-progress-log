@@ -17,9 +17,11 @@ export const AuthDebugPanel = () => {
   const { toast } = useToast();
 
   const isProd = import.meta.env.PROD;
+  const debugFlagEnabled = import.meta.env.VITE_ENABLE_AUTH_DEBUG === "true";
+  const shouldHidePanel = isProd || !debugFlagEnabled;
 
   useEffect(() => {
-    if (isProd) return;
+    if (shouldHidePanel) return;
     // Get initial session
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
@@ -36,11 +38,11 @@ export const AuthDebugPanel = () => {
     setClientIP("server-side");
 
     return () => subscription.unsubscribe();
-  }, [isProd]);
+  }, [shouldHidePanel]);
 
   // Calculate time until expiry and refresh
   useEffect(() => {
-    if (isProd || !session) return;
+    if (shouldHidePanel || !session) return;
 
     const interval = setInterval(() => {
       const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
@@ -55,9 +57,9 @@ export const AuthDebugPanel = () => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isProd, session]);
+  }, [shouldHidePanel, session]);
 
-  if (isProd) return null;
+  if (shouldHidePanel) return null;
 
   const handleForceRefresh = async () => {
     try {

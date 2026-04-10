@@ -106,6 +106,9 @@ type SyncResult = { status: "fulfilled"; value: unknown } | { status: "rejected"
 export const useSyncOura = () => {
   const queryClient = useQueryClient();
 
+  const formatDateInSaoPaulo = (date: Date): string =>
+    new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(date);
+
   return useMutation({
     mutationFn: async ({
       student_id,
@@ -133,12 +136,7 @@ export const useSyncOura = () => {
         let completed = 0;
 
         for (let i = 0; i < days; i++) {
-          // Calculate date in Brazil timezone (UTC-3)
-          const nowUTC = new Date();
-          const brazilOffsetMinutes = 3 * 60;
-          const syncDateBrazil = new Date(nowUTC.getTime() - brazilOffsetMinutes * 60 * 1000);
-          syncDateBrazil.setDate(syncDateBrazil.getDate() - i);
-          const dateStr = syncDateBrazil.toISOString().split("T")[0];
+          const dateStr = formatDateInSaoPaulo(new Date(Date.now() - i * 24 * 60 * 60 * 1000));
 
           try {
             const data = await invokeWithTimeout(
@@ -188,6 +186,9 @@ export const useSyncOura = () => {
       });
       queryClient.invalidateQueries({
         queryKey: ["oura-workouts", variables.student_id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["oura-acute-metrics-latest", variables.student_id],
       });
 
       const result = data as MultiDaySyncResult | undefined;
