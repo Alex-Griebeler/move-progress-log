@@ -68,6 +68,10 @@ Deno.serve(async (req) => {
     const student_id =
       typeof rawPayload.student_id === 'string' ? rawPayload.student_id.trim() : '';
     const date = typeof rawPayload.date === 'string' ? rawPayload.date.trim() : undefined;
+    const forceSyncRaw = rawPayload.force_sync;
+    const force_sync =
+      forceSyncRaw === true ||
+      (typeof forceSyncRaw === 'string' && forceSyncRaw.toLowerCase() === 'true');
 
     if (!student_id) {
       return jsonResponse(400, { error: 'student_id é obrigatório' });
@@ -119,7 +123,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`Syncing Oura data for student ${student_id}, date: ${date || 'today'}`);
+    console.log(
+      `Syncing Oura data for student ${student_id}, date: ${date || 'today'}, force_sync: ${force_sync}`
+    );
 
     const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
 
@@ -225,22 +231,29 @@ Deno.serve(async (req) => {
       if (DEBUG) console.log('Calculated Brazil date:', syncDate);
     }
 
-    // O-05: Idempotency check — skip if already synced recently
-    const { data: existingMetric } = await supabaseClient
-      .from('oura_metrics')
-      .select('created_at')
-      .eq('student_id', student_id)
-      .eq('date', syncDate)
-      .maybeSingle();
+    // O-05: Idempotency check — skip if already synced recently (unless force_sync=true)
+    if (!force_sync) {
+      const { data: existingMetric } = await supabaseClient
+        .from('oura_metrics')
+        .select('created_at')
+        .eq('student_id', student_id)
+        .eq('date', syncDate)
+        .maybeSingle();
 
-    if (existingMetric) {
-      const lastSyncTime = new Date(existingMetric.created_at || 0).getTime();
-      const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
-      if (lastSyncTime > twoHoursAgo) {
-        return new Response(
-          JSON.stringify({ success: true, cached: true, message: 'Dados já sincronizados nas últimas 2 horas', date: syncDate }),
-          { headers: jsonHeaders }
-        );
+      if (existingMetric) {
+        const lastSyncTime = new Date(existingMetric.created_at || 0).getTime();
+        const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+        if (lastSyncTime > twoHoursAgo) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              cached: true,
+              message: 'Dados já sincronizados nas últimas 2 horas',
+              date: syncDate,
+            }),
+            { headers: jsonHeaders }
+          );
+        }
       }
     }
 
@@ -578,6 +591,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse(200, {
       success: true,
+      force_sync,
       synced_metrics: metrics,
       has_acute_data: hasAcuteData,
       synced_acute: hasAcuteData
