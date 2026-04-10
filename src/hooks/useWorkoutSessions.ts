@@ -38,6 +38,12 @@ export interface Exercise {
 
 type WorkoutSessionRow = Database["public"]["Tables"]["workout_sessions"]["Row"];
 type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
+type GroupSessionCreationResult = {
+  student: string;
+  success: boolean;
+  session_id?: string;
+  error?: string;
+};
 
 const mapWorkoutSession = (row: WorkoutSessionRow): WorkoutSession => ({
   id: row.id,
@@ -204,31 +210,11 @@ export const useCreateGroupWorkoutSessions = () => {
         }>;
       }>;
     }) => {
-      // INC-002: removed console.log
-      
-      const results = [];
+      const results: GroupSessionCreationResult[] = [];
       
       for (const session of data.sessions) {
         try {
-          const { data: workoutSession, error: sessionError } = await supabase
-            .from("workout_sessions")
-            .insert({
-              student_id: session.student_id,
-              prescription_id: data.prescriptionId,
-              date: data.date,
-              time: data.time,
-              session_type: 'group',
-            })
-            .select()
-            .single();
-
-          if (sessionError) {
-            throw sessionError;
-          }
-
-          
-
-          const exercisesToInsert = session.exercises.map((ex) => {
+          const exercisesPayload = session.exercises.map((ex) => {
             const finalSets = ex.sets !== null && ex.sets !== undefined 
               ? ex.sets 
               : ex.prescribed_sets;
@@ -244,7 +230,6 @@ export const useCreateGroupWorkoutSessions = () => {
             }
             
             return {
-              session_id: workoutSession.id,
               exercise_name: ex.executed_exercise_name,
               sets: finalSets,
               reps: ex.reps,
@@ -254,20 +239,33 @@ export const useCreateGroupWorkoutSessions = () => {
             };
           });
 
-          
+          const { data: createdSession, error: creationError } = await supabase.rpc(
+            "create_group_workout_session_with_exercises",
+            {
+              p_student_id: session.student_id,
+              p_prescription_id: data.prescriptionId,
+              p_date: data.date,
+              p_time: data.time,
+              p_exercises: exercisesPayload,
+            }
+          );
 
-          const { error: exercisesError } = await supabase
-            .from("exercises")
-            .insert(exercisesToInsert);
+          if (creationError) {
+            throw creationError;
+          }
 
-          if (exercisesError) {
-            throw exercisesError;
+          const sessionRow = Array.isArray(createdSession)
+            ? createdSession[0]
+            : createdSession;
+
+          if (!sessionRow) {
+            throw new Error("Falha ao criar sessão de grupo");
           }
           
           results.push({ 
             student: session.student_name, 
             success: true,
-            session_id: workoutSession.id 
+            session_id: sessionRow.id,
           });
           
         } catch (error) {
