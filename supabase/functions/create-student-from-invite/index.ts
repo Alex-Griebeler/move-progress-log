@@ -260,10 +260,11 @@ function sanitizeAvatarPayload(rawValue: unknown): AvatarUploadPayload | null {
   };
 }
 
+// deno-lint-ignore no-explicit-any
+type SupabaseClient = ReturnType<typeof createClient<any>>;
+
 async function claimInvite(
-  // deno-lint-ignore no-explicit-any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabaseClient: ReturnType<typeof createClient<any>>,
+  supabaseClient: SupabaseClient,
   inviteToken: string,
   claimTimestamp: string
 ): Promise<{ invite: ClaimedInvite | null; error: string | null }> {
