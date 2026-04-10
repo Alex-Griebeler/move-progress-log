@@ -7,6 +7,7 @@ import { AlertCircle, Activity, Heart, Moon, TrendingUp, Target, Zap } from "luc
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
 import { useOuraBaseline } from "@/hooks/useOuraBaseline";
+import { useLatestOuraAcuteMetrics } from "@/hooks/useOuraAcuteMetrics";
 import { useTrainingContext } from "@/contexts/TrainingContext";
 import { Alert, AlertDescription } from "./ui/alert";
 import { 
@@ -35,7 +36,8 @@ const PersonalizedTrainingDashboard = ({
   onStartTraining
 }: PersonalizedTrainingDashboardProps) => {
   const { baseline } = useOuraBaseline(studentId);
-  const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics, baseline);
+  const { data: latestAcuteMetrics } = useLatestOuraAcuteMetrics(studentId);
+  const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics, baseline, undefined, latestAcuteMetrics);
   const [showAlternatives, setShowAlternatives] = useState(false);
   const { selectedAlternative, setSelectedAlternative } = useTrainingContext();
 
@@ -71,6 +73,20 @@ const PersonalizedTrainingDashboard = ({
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}min`;
   };
+
+  const formatValue = (
+    value: number | null | undefined,
+    unit?: string,
+    decimals = 1
+  ) => {
+    if (value === null || value === undefined) return "--";
+    return `${value.toFixed(decimals)}${unit ? ` ${unit}` : ""}`;
+  };
+
+  const hasAcuteData =
+    !!latestAcuteMetrics &&
+    (latestAcuteMetrics.samples_count_hrv > 0 ||
+      latestAcuteMetrics.samples_count_hr_day > 0);
 
   const getTrainingAlternatives = (rs: number) => {
     if (rs >= 85) {
@@ -333,7 +349,7 @@ const PersonalizedTrainingDashboard = ({
       )}
 
       {/* Detalhes de Recuperação */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <Card className="p-4">
           <h4 className="font-semibold mb-3 flex items-center">
             <Moon className="w-4 h-4 mr-2" />
@@ -406,6 +422,56 @@ const PersonalizedTrainingDashboard = ({
               <span className="text-muted-foreground">MET Minutos</span>
               <span className="font-semibold">{latestMetrics.met_minutes || '--'}</span>
             </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <h4 className="font-semibold mb-3 flex items-center">
+            <Heart className="w-4 h-4 mr-2" />
+            Sinais Agudos (HRV/FC)
+          </h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Data</span>
+              <span className="font-semibold">
+                {latestAcuteMetrics?.date || "--"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">HRV Último Bloco</span>
+              <span className="font-semibold">
+                {formatValue(latestAcuteMetrics?.hrv_night_last, "ms", 1)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">HRV Mínimo Noite</span>
+              <span className="font-semibold">
+                {formatValue(latestAcuteMetrics?.hrv_night_min, "ms", 1)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">FC Média Dia</span>
+              <span className="font-semibold">
+                {formatValue(latestAcuteMetrics?.hr_day_avg, "bpm", 0)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amostras HRV</span>
+              <span className="font-semibold">
+                {latestAcuteMetrics?.samples_count_hrv ?? "--"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amostras FC Dia</span>
+              <span className="font-semibold">
+                {latestAcuteMetrics?.samples_count_hr_day ?? "--"}
+              </span>
+            </div>
+            {!hasAcuteData && (
+              <p className="text-xs text-muted-foreground pt-2 border-t">
+                Sem dados agudos ainda. Faça uma sincronização Oura para carregar.
+              </p>
+            )}
           </div>
         </Card>
       </div>

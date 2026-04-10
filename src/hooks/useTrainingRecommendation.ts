@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { OuraMetrics } from "./useOuraMetrics";
 import { OuraBaseline } from "./useOuraBaseline";
+import { OuraAcuteMetrics } from "./useOuraAcuteMetrics";
 
 export interface TrainingRecommendation {
   trainingType: string;
@@ -46,7 +47,8 @@ export function useTrainingRecommendation(
   metrics: OuraMetrics | null,
   recentMetrics: OuraMetrics[] = [],
   baseline?: OuraBaseline,
-  userGoals?: Partial<UserGoals>
+  userGoals?: Partial<UserGoals>,
+  acuteMetrics?: OuraAcuteMetrics | null
 ): TrainingRecommendation | null {
   return useMemo(() => {
     if (!metrics) return null;
@@ -168,11 +170,57 @@ export function useTrainingRecommendation(
       alerts.push({ level: 'WARNING', message: '🟡 Alto nível de estresse detectado: Mais de 2 horas em estado de estresse alto. Considere técnicas de relaxamento e recuperação.' });
     }
 
+    // 5. ALERTAS AGUDOS (intra-noite / intra-dia)
+    if (hasMinimumHistory && acuteMetrics?.samples_count_hrv > 0) {
+      const baselineHrv = effectiveBaseline.avgHRV;
+      const hrvLast = acuteMetrics.hrv_night_last;
+      const hrvMin = acuteMetrics.hrv_night_min;
+
+      if (typeof hrvLast === "number" && hrvLast < baselineHrv * 0.7) {
+        alerts.push({
+          level: 'CRITICAL',
+          message: `🔴 HRV aguda noturna muito baixa (último bloco: ${hrvLast.toFixed(1)} ms). Forte indicação de baixa recuperação hoje.`,
+        });
+      } else if (typeof hrvLast === "number" && hrvLast < baselineHrv * 0.85) {
+        alerts.push({
+          level: 'WARNING',
+          message: `🟡 HRV aguda abaixo do basal (último bloco: ${hrvLast.toFixed(1)} ms). Considere reduzir carga e monitorar resposta.`,
+        });
+      }
+
+      if (typeof hrvMin === "number" && hrvMin < baselineHrv * 0.55) {
+        alerts.push({
+          level: 'WARNING',
+          message: `🟡 Queda acentuada de HRV durante a noite (mínimo: ${hrvMin.toFixed(1)} ms). Evite sessão de alta intensidade hoje.`,
+        });
+      }
+    }
+
+    if (hasMinimumHistory && acuteMetrics?.samples_count_hr_day > 0) {
+      const hrDayMax = acuteMetrics.hr_day_max;
+      const hrDayAvg = acuteMetrics.hr_day_avg;
+      const restingHr = metrics.resting_heart_rate;
+
+      if (typeof hrDayMax === "number" && typeof restingHr === "number" && hrDayMax > restingHr + 55) {
+        alerts.push({
+          level: 'INFO',
+          message: `ℹ️ Pico de FC do dia elevado (${hrDayMax} bpm). Contextualize com estresse/sono e ajuste o aquecimento.`,
+        });
+      }
+
+      if (typeof hrDayAvg === "number" && typeof restingHr === "number" && hrDayAvg > restingHr + 18) {
+        alerts.push({
+          level: 'WARNING',
+          message: `🟡 FC média diária acima do esperado (${hrDayAvg.toFixed(0)} bpm). Priorize controle de intensidade na sessão.`,
+        });
+      }
+    }
+
     const confidence = metrics.readiness_score !== null ? metrics.readiness_score : 50;
 
     return {
       trainingType, intensity, duration, recoveryScore, fatigueLevel,
       reason, alerts, confidence, emoji, priorityProtocols,
     };
-  }, [metrics, recentMetrics, baseline, userGoals]);
+  }, [metrics, recentMetrics, baseline, userGoals, acuteMetrics]);
 }

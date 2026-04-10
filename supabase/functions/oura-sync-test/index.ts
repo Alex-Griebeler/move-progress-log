@@ -15,6 +15,32 @@ const UUID_RE =
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const toNumberArray = (value: unknown): number[] => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === 'number' ? item : Number(item)))
+    .filter((num) => Number.isFinite(num));
+};
+
+const computeStats = (values: number[]) => {
+  if (values.length === 0) {
+    return {
+      min: null as number | null,
+      max: null as number | null,
+      last: null as number | null,
+      avg: null as number | null,
+      stddev: null as number | null,
+      count: 0,
+    };
+  }
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const last = values[values.length - 1];
+  const avg = values.reduce((sum, current) => sum + current, 0) / values.length;
+  const variance = values.reduce((sum, current) => sum + Math.pow(current - avg, 2), 0) / values.length;
+  return { min, max, last, avg, stddev: Math.sqrt(variance), count: values.length };
+};
+
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 
@@ -357,6 +383,67 @@ Deno.serve(async (req) => {
       restingHeartRate = sleepPeriod.lowest_heart_rate;
     }
 
+    const sleepPeriodObj = isPlainObject(sleepPeriod) ? sleepPeriod : null;
+    const sleepHrvObj =
+      sleepPeriodObj && isPlainObject(sleepPeriodObj.hrv) ? sleepPeriodObj.hrv : null;
+    const sleepHrObj =
+      sleepPeriodObj && isPlainObject(sleepPeriodObj.heart_rate) ? sleepPeriodObj.heart_rate : null;
+
+    const sleepHrvValues = toNumberArray(sleepHrvObj?.items);
+    const sleepHrValues = toNumberArray(sleepHrObj?.items);
+    const dayHrSamples = Array.isArray(heartrateData?.data)
+      ? heartrateData.data
+          .filter(isPlainObject)
+          .map((hr) => {
+            const bpm = typeof hr.bpm === 'number' ? hr.bpm : Number(hr.bpm);
+            const timestamp = typeof hr.timestamp === 'string' ? hr.timestamp : null;
+            const source = typeof hr.source === 'string' ? hr.source : null;
+            return { bpm, timestamp, source };
+          })
+          .filter((sample) => Number.isFinite(sample.bpm))
+      : [];
+    const dayHrValues = dayHrSamples.map((sample) => sample.bpm);
+
+    const hrvStats = computeStats(sleepHrvValues);
+    const hrNightStats = computeStats(sleepHrValues);
+    const hrDayStats = computeStats(dayHrValues);
+
+    const sleepHrvSeries =
+      sleepHrvObj && sleepHrvValues.length > 0
+        ? {
+            interval_seconds:
+              typeof sleepHrvObj.interval === 'number' ? sleepHrvObj.interval : null,
+            start_timestamp:
+              typeof sleepHrvObj.timestamp === 'string' ? sleepHrvObj.timestamp : null,
+            values: sleepHrvValues,
+          }
+        : null;
+
+    const sleepHrSeries =
+      sleepHrObj && sleepHrValues.length > 0
+        ? {
+            interval_seconds:
+              typeof sleepHrObj.interval === 'number' ? sleepHrObj.interval : null,
+            start_timestamp:
+              typeof sleepHrObj.timestamp === 'string' ? sleepHrObj.timestamp : null,
+            values: sleepHrValues,
+          }
+        : null;
+
+    const dayHrSeries = dayHrSamples.length > 0 ? { samples: dayHrSamples } : null;
+    const stressSamples =
+      Array.isArray(stress?.stress_samples) && stress.stress_samples.length > 0
+        ? stress.stress_samples
+        : null;
+    const sleepPhase5min =
+      sleepPeriodObj && typeof sleepPeriodObj.sleep_phase_5_min === 'string'
+        ? sleepPeriodObj.sleep_phase_5_min
+        : null;
+    const movement30Sec =
+      sleepPeriodObj && typeof sleepPeriodObj.movement_30_sec === 'string'
+        ? sleepPeriodObj.movement_30_sec
+        : null;
+
     const metrics = {
       student_id,
       date: syncDate,
@@ -412,6 +499,29 @@ Deno.serve(async (req) => {
       resilience_level: resilience?.level || null,
     };
 
+    const acuteMetrics = {
+      student_id,
+      date: syncDate,
+      sleep_hrv_series: sleepHrvSeries,
+      sleep_hr_series: sleepHrSeries,
+      day_hr_series: dayHrSeries,
+      sleep_phase_5min: sleepPhase5min,
+      movement_30_sec: movement30Sec,
+      stress_samples: stressSamples,
+      hrv_night_min: hrvStats.min,
+      hrv_night_max: hrvStats.max,
+      hrv_night_last: hrvStats.last,
+      hrv_night_stddev: hrvStats.stddev,
+      hr_night_min: hrNightStats.min !== null ? Math.round(hrNightStats.min) : null,
+      hr_night_max: hrNightStats.max !== null ? Math.round(hrNightStats.max) : null,
+      hr_night_last: hrNightStats.last !== null ? Math.round(hrNightStats.last) : null,
+      hr_day_min: hrDayStats.min !== null ? Math.round(hrDayStats.min) : null,
+      hr_day_max: hrDayStats.max !== null ? Math.round(hrDayStats.max) : null,
+      hr_day_avg: hrDayStats.avg,
+      samples_count_hrv: hrvStats.count,
+      samples_count_hr_day: hrDayStats.count,
+    };
+
     console.log('📦 Extracted metrics:', JSON.stringify(metrics, null, 2));
 
     // Upsert metrics
@@ -427,6 +537,16 @@ Deno.serve(async (req) => {
     }
 
     console.log('✅ Metrics saved successfully');
+
+    const { error: acuteUpsertError } = await supabaseClient
+      .from('oura_acute_metrics')
+      .upsert(acuteMetrics, { onConflict: 'student_id,date' });
+
+    if (acuteUpsertError) {
+      console.error('⚠️ Failed to save acute metrics (non-blocking):', acuteUpsertError);
+    } else {
+      console.log('✅ Acute metrics saved successfully');
+    }
 
     // Save workouts
     if (workoutsData?.data && workoutsData.data.length > 0) {
@@ -462,6 +582,13 @@ Deno.serve(async (req) => {
       success: true,
       test_mode: true,
       synced_metrics: upsertedData,
+      synced_acute: {
+        samples_count_hrv: acuteMetrics.samples_count_hrv,
+        samples_count_hr_day: acuteMetrics.samples_count_hr_day,
+        hrv_night_min: acuteMetrics.hrv_night_min,
+        hrv_night_last: acuteMetrics.hrv_night_last,
+        hr_day_avg: acuteMetrics.hr_day_avg,
+      },
       mock_data_used: {
         readiness_score: metrics.readiness_score,
         sleep_score: metrics.sleep_score,
