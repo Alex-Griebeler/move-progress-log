@@ -52,16 +52,20 @@ const queryClient = new QueryClient({
   },
 });
 
-const App = () => (
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        <TooltipProvider>
-          <TrainingProvider>
-            <SkipToContent />
-            <Toaster />
-            <Sonner />
-            <AuthDebugPanel />
+const App = () => {
+  const showAuthDebug =
+    import.meta.env.DEV && new URLSearchParams(window.location.search).get("authDebug") === "1";
+
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <TooltipProvider>
+            <TrainingProvider>
+              <SkipToContent />
+              <Toaster />
+              <Sonner />
+              {showAuthDebug && <AuthDebugPanel />}
             <BrowserRouter>
               <GlobalSearch />
               <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>
@@ -115,11 +119,12 @@ const App = () => (
                 </Routes>
               </Suspense>
             </BrowserRouter>
-          </TrainingProvider>
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
-);
+            </TrainingProvider>
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+};
 
 export default App;

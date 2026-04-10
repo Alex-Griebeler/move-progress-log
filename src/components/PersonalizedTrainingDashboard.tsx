@@ -10,6 +10,8 @@ import { useOuraBaseline } from "@/hooks/useOuraBaseline";
 import { useLatestOuraAcuteMetrics } from "@/hooks/useOuraAcuteMetrics";
 import { useTrainingContext } from "@/contexts/TrainingContext";
 import { Alert, AlertDescription } from "./ui/alert";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -81,6 +83,13 @@ const PersonalizedTrainingDashboard = ({
   ) => {
     if (value === null || value === undefined) return "--";
     return `${value.toFixed(decimals)}${unit ? ` ${unit}` : ""}`;
+  };
+
+  const formatAcuteDate = (value: string | null | undefined) => {
+    if (!value) return "--";
+    const parsed = parseISO(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return format(parsed, "dd/MM/yyyy", { locale: ptBR });
   };
 
   const hasAcuteHrvData =
@@ -440,7 +449,7 @@ const PersonalizedTrainingDashboard = ({
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Data</span>
                 <span className="font-semibold">
-                  {latestAcuteMetrics?.date || "--"}
+                  {formatAcuteDate(latestAcuteMetrics?.date)}
                 </span>
               </div>
 
