@@ -89,7 +89,7 @@ export function useTrainingRecommendation(
     }
 
     // 1. AVALIAÇÃO DE RECUPERAÇÃO
-    const recoveryScore = metrics.readiness_score || 50;
+    const recoveryScore = metrics.readiness_score ?? 50;
 
     // 2. FADIGA ACUMULADA
     const weeklyBurn = recentMetrics.reduce((sum, m) => sum + (m.active_calories || 0), 0);

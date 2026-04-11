@@ -9,6 +9,7 @@
   - `npm audit --audit-level=high` (sem vulnerabilidades high/critical; 2 moderadas de toolchain Vite/esbuild)
   - `npx tsc --noEmit`
   - `scripts/ci-smoke-edge-auth.sh` (cenários de rejeição A1/B1/B2/B3/C1/C2/C3/D0)
+  - Revalidação completa executada novamente em 2026-04-11 (gates e smoke de auth sem regressão)
 
 ## O que ainda depende de validação manual
 
@@ -48,3 +49,5 @@
 - `c18ba57` fix(oura): preserve zero metrics and harden diagnostics consistency
 - `529ab61` fix(import): validate time values and prevent silent 12:00 fallback
 - `2ac31da` fix(reports): surface edge function error details in generate flow
+- `7e56aff` fix(oura): keep partial metric sync and show conditional diagnostics warning
+- (esta rodada) fix(training): use nullish fallback for recovery score (`readiness_score ?? 50`) to avoid false zone inflation
