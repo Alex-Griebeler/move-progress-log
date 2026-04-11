@@ -54,7 +54,9 @@ const queryClient = new QueryClient({
 
 const App = () => {
   const showAuthDebug =
-    import.meta.env.DEV && new URLSearchParams(window.location.search).get("authDebug") === "1";
+    import.meta.env.DEV &&
+    window.location.hostname === "localhost" &&
+    new URLSearchParams(window.location.search).get("authDebug") === "1";
 
   return (
     <ErrorBoundary>
