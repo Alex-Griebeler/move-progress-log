@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Local fallback for Vite-style env names (keeps CI behavior unchanged).
+if [[ -z "${SUPABASE_URL:-}" && -n "${VITE_SUPABASE_URL:-}" ]]; then
+  SUPABASE_URL="${VITE_SUPABASE_URL}"
+fi
+
+if [[ -z "${SUPABASE_ANON_KEY:-}" ]]; then
+  if [[ -n "${VITE_SUPABASE_PUBLISHABLE_KEY:-}" ]]; then
+    SUPABASE_ANON_KEY="${VITE_SUPABASE_PUBLISHABLE_KEY}"
+  elif [[ -n "${VITE_SUPABASE_ANON_KEY:-}" ]]; then
+    SUPABASE_ANON_KEY="${VITE_SUPABASE_ANON_KEY}"
+  fi
+fi
+
 required_vars=(
   SUPABASE_URL
   SUPABASE_ANON_KEY
