@@ -33,7 +33,7 @@
 - (Opcional recomendado) Happy-path service_role validado no CI.
 
 ## Branch de trabalho
-- `codex/stability-hardening-20260411`
+- `main` (todas as correções abaixo já integradas)
 
 ## Commits desta rodada de hardening
 - `d592171` fix(stability): remove invalid DOM nesting and harden edge auth integration test
@@ -44,3 +44,7 @@
 - `f9a1902` fix(import): harden excel serial date/time parsing and progress guard
 - `2d9e2fc` fix(debug): restrict auth debug panel to localhost dev
 - `28c33ba` fix(oura-diagnostics): avoid false empty status on zero values
+- `21dd7b9` fix(oura): prevent sparse sync overwrite and recover latest readiness/sleep
+- `c18ba57` fix(oura): preserve zero metrics and harden diagnostics consistency
+- `529ab61` fix(import): validate time values and prevent silent 12:00 fallback
+- `2ac31da` fix(reports): surface edge function error details in generate flow
