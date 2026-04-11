@@ -132,6 +132,41 @@ const mapTrackedExercise = (row: TrackedExerciseRow): TrackedExercise => ({
   weekly_progression: mapWeeklyProgression(row.weekly_progression),
 });
 
+const extractEdgeFunctionErrorMessage = async (error: unknown): Promise<string> => {
+  if (!(error instanceof Error)) return "Erro inesperado ao gerar relatório";
+
+  const maybeResponse = (
+    error as Error & {
+      context?: Response;
+      response?: Response;
+    }
+  ).context ?? (
+    error as Error & {
+      context?: Response;
+      response?: Response;
+    }
+  ).response;
+
+  if (!(maybeResponse instanceof Response)) return error.message;
+
+  try {
+    const payload = await maybeResponse.clone().json();
+    if (isRecord(payload)) {
+      const message =
+        typeof payload.error === "string"
+          ? payload.error
+          : typeof payload.message === "string"
+            ? payload.message
+            : null;
+      if (message) return message;
+    }
+  } catch {
+    // ignore JSON parsing failures and use fallback message below
+  }
+
+  return error.message;
+};
+
 export const useStudentReports = (studentId: string) => {
   return useQuery({
     queryKey: ["student-reports", studentId],
@@ -218,7 +253,10 @@ export const useGenerateReport = () => {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const message = await extractEdgeFunctionErrorMessage(error);
+        throw new Error(message);
+      }
       return data;
     },
     onSuccess: (data, variables) => {
