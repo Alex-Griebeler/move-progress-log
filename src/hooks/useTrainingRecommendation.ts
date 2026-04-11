@@ -184,7 +184,11 @@ export function useTrainingRecommendation(
     }
 
     // 4. ALERTAS — usando baseline dinâmico do aluno (MEL-IA-001)
-    if (hasMinimumHistory && metrics.average_sleep_hrv && metrics.average_sleep_hrv < effectiveBaseline.avgHRV * 0.85) {
+    if (
+      hasMinimumHistory &&
+      typeof metrics.average_sleep_hrv === "number" &&
+      metrics.average_sleep_hrv < effectiveBaseline.avgHRV * 0.85
+    ) {
       if (metrics.average_sleep_hrv < effectiveBaseline.avgHRV * 0.70) {
         alerts.push({ level: 'CRITICAL', message: '🔴 HRV criticamente baixa: Sinal forte de fadiga extrema ou possível doença. Seu corpo precisa de descanso. Se persistir, procure orientação médica.' });
       } else {
@@ -192,7 +196,11 @@ export function useTrainingRecommendation(
       }
     }
 
-    if (hasMinimumHistory && metrics.resting_heart_rate && metrics.resting_heart_rate > effectiveBaseline.avgRHR + 5) {
+    if (
+      hasMinimumHistory &&
+      typeof metrics.resting_heart_rate === "number" &&
+      metrics.resting_heart_rate > effectiveBaseline.avgRHR + 5
+    ) {
       if (metrics.resting_heart_rate > effectiveBaseline.avgRHR + 10) {
         alerts.push({ level: 'CRITICAL', message: '🔴 Frequência cardíaca em repouso muito elevada: Pode indicar inflamação, doença ou exaustão. Priorize o repouso e observe se há outros sintomas.' });
       } else {
@@ -200,15 +208,24 @@ export function useTrainingRecommendation(
       }
     }
 
-    if (metrics.total_sleep_duration && metrics.total_sleep_duration < goals.minSleepDurationThreshold) {
+    if (
+      typeof metrics.total_sleep_duration === "number" &&
+      metrics.total_sleep_duration < goals.minSleepDurationThreshold
+    ) {
       alerts.push({ level: 'CRITICAL', message: '🔴 Sono insuficiente detectado: Sua capacidade de recuperação está comprometida. Evite treinos de alta intensidade e priorize descanso extra.' });
     }
 
-    if (metrics.sleep_efficiency && metrics.sleep_efficiency < goals.minSleepEfficiency) {
+    if (
+      typeof metrics.sleep_efficiency === "number" &&
+      metrics.sleep_efficiency < goals.minSleepEfficiency
+    ) {
       alerts.push({ level: 'INFO', message: 'ℹ️ Eficiência do sono abaixo do ideal: Seu sono foi interrompido ou superficial. Tente melhorar seu ambiente e rotina de sono.' });
     }
 
-    if (metrics.stress_high_time && metrics.stress_high_time > 7200) {
+    if (
+      typeof metrics.stress_high_time === "number" &&
+      metrics.stress_high_time > 7200
+    ) {
       alerts.push({ level: 'WARNING', message: '🟡 Alto nível de estresse detectado: Mais de 2 horas em estado de estresse alto. Considere técnicas de relaxamento e recuperação.' });
     }
 
