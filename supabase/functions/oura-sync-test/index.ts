@@ -449,54 +449,54 @@ Deno.serve(async (req) => {
       date: syncDate,
       
       // Readiness metrics
-      readiness_score: readiness?.score || null,
-      hrv_balance: readiness?.contributors?.hrv_balance || null,
+      readiness_score: readiness?.score ?? null,
+      hrv_balance: readiness?.contributors?.hrv_balance ?? null,
       resting_heart_rate: restingHeartRate,
-      temperature_deviation: readiness?.temperature_deviation || null,
-      activity_balance: readiness?.contributors?.activity_balance || null,
+      temperature_deviation: readiness?.contributors?.temperature_deviation ?? null,
+      activity_balance: readiness?.contributors?.activity_balance ?? null,
       
       // Sleep score
-      sleep_score: dailySleep?.score || null,
+      sleep_score: dailySleep?.score ?? null,
       
       // Activity metrics
-      activity_score: activity?.score || null,
-      steps: activity?.steps || null,
-      active_calories: activity?.active_calories || null,
-      total_calories: activity?.total_calories || null,
-      met_minutes: activity?.equivalent_walking_distance || null,
-      high_activity_time: activity?.high_activity_time || null,
-      medium_activity_time: activity?.medium_activity_time || null,
-      low_activity_time: activity?.low_activity_time || null,
-      sedentary_time: activity?.sedentary_time || null,
-      training_volume: activity?.training_volume || null,
-      training_frequency: activity?.training_frequency || null,
+      activity_score: activity?.score ?? null,
+      steps: activity?.steps ?? null,
+      active_calories: activity?.active_calories ?? null,
+      total_calories: activity?.total_calories ?? null,
+      met_minutes: activity?.equivalent_walking_distance ?? null,
+      high_activity_time: activity?.high_activity_time ?? null,
+      medium_activity_time: activity?.medium_activity_time ?? null,
+      low_activity_time: activity?.low_activity_time ?? null,
+      sedentary_time: activity?.sedentary_time ?? null,
+      training_volume: activity?.training_volume ?? null,
+      training_frequency: activity?.training_frequency ?? null,
       
       // Sleep detailed metrics from sleep periods
-      total_sleep_duration: sleepPeriod?.total_sleep_duration || null,
-      deep_sleep_duration: sleepPeriod?.deep_sleep_duration || null,
-      rem_sleep_duration: sleepPeriod?.rem_sleep_duration || null,
-      light_sleep_duration: sleepPeriod?.light_sleep_duration || null,
-      awake_time: sleepPeriod?.awake_time || null,
-      sleep_efficiency: sleepPeriod?.efficiency || null,
-      sleep_latency: sleepPeriod?.latency || null,
-      lowest_heart_rate: sleepPeriod?.lowest_heart_rate || null,
-      average_sleep_hrv: sleepPeriod?.average_hrv || null,
-      average_breath: sleepPeriod?.average_breath || null,
+      total_sleep_duration: sleepPeriod?.total_sleep_duration ?? null,
+      deep_sleep_duration: sleepPeriod?.deep_sleep_duration ?? null,
+      rem_sleep_duration: sleepPeriod?.rem_sleep_duration ?? null,
+      light_sleep_duration: sleepPeriod?.light_sleep_duration ?? null,
+      awake_time: sleepPeriod?.awake_time ?? null,
+      sleep_efficiency: sleepPeriod?.efficiency ?? null,
+      sleep_latency: sleepPeriod?.latency ?? null,
+      lowest_heart_rate: sleepPeriod?.lowest_heart_rate ?? null,
+      average_sleep_hrv: sleepPeriod?.average_hrv ?? null,
+      average_breath: sleepPeriod?.average_breath ?? null,
       
       // Stress metrics
-      stress_high_time: stress?.stress_high || null,
-      recovery_high_time: stress?.recovery_high || null,
-      day_summary: stress?.day_summary || null,
+      stress_high_time: stress?.stress_high ?? null,
+      recovery_high_time: stress?.recovery_high ?? null,
+      day_summary: stress?.day_summary ?? null,
       
       // SpO2 metrics
-      spo2_average: spo2?.spo2_percentage?.average || null,
-      breathing_disturbance_index: spo2?.breathing_disturbance_index || null,
+      spo2_average: spo2?.spo2_percentage?.average ?? null,
+      breathing_disturbance_index: spo2?.breathing_disturbance_index ?? null,
       
       // VO2 Max
-      vo2_max: vo2?.vo2_max || null,
+      vo2_max: vo2?.vo2_max ?? null,
       
       // Resilience
-      resilience_level: resilience?.level || null,
+      resilience_level: resilience?.level ?? null,
     };
 
     const acuteMetrics = {
@@ -558,12 +558,12 @@ Deno.serve(async (req) => {
           activity: w.activity,
           start_datetime: w.start_datetime,
           end_datetime: w.end_datetime,
-          calories: w.calories || null,
-          distance: w.distance || null,
-          intensity: w.intensity || null,
-          average_heart_rate: heartRate?.average || null,
-          max_heart_rate: heartRate?.max || null,
-          source: w.source || null,
+          calories: w.calories ?? null,
+          distance: w.distance ?? null,
+          intensity: w.intensity ?? null,
+          average_heart_rate: heartRate?.average ?? null,
+          max_heart_rate: heartRate?.max ?? null,
+          source: w.source ?? null,
         };
       });
 

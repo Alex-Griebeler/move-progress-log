@@ -36,7 +36,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
         name: "Daily Readiness",
         description: "/v2/usercollection/daily_readiness",
         status: metrics.readiness_score !== null ? "success" : "empty",
-        details: metrics.readiness_score 
+        details: metrics.readiness_score !== null
           ? `Score: ${metrics.readiness_score}, HRV: ${metrics.hrv_balance ?? 'N/A'}`
           : "API retorna 200 mas sem dados",
       },
@@ -44,7 +44,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
         name: "Daily Sleep",
         description: "/v2/usercollection/daily_sleep",
         status: metrics.sleep_score !== null ? "success" : "empty",
-        details: metrics.sleep_score
+        details: metrics.sleep_score !== null
           ? `Score: ${metrics.sleep_score}`
           : "API retorna 200 mas sem dados",
       },
@@ -107,8 +107,8 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
       {
         name: "Resilience",
         description: "/v2/usercollection/daily_resilience",
-        status: metrics.resilience_level ? "success" : "empty",
-        details: metrics.resilience_level
+        status: metrics.resilience_level !== null ? "success" : "empty",
+        details: metrics.resilience_level !== null
           ? `Level: ${metrics.resilience_level}`
           : "API retorna 200 mas sem dados",
       },
@@ -194,7 +194,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
         </CardTitle>
         <CardDescription>
           Status de cada endpoint da API Oura • Última sincronização:{" "}
-          {metrics.date ? new Date(metrics.date).toLocaleDateString('pt-BR') : 'N/A'}
+          {metrics.date ? format(new Date(`${metrics.date}T00:00:00`), "dd/MM/yyyy", { locale: ptBR }) : 'N/A'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
