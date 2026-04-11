@@ -118,6 +118,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
   const statuses = getEndpointStatuses();
   const successCount = statuses.filter(s => s.status === "success").length;
   const emptyCount = statuses.filter(s => s.status === "empty").length;
+  const sleepPeriodsStatus = statuses.find((s) => s.name === "Sleep Periods (Detalhes)");
 
   const getStatusIcon = (status: EndpointStatus["status"]) => {
     switch (status) {
@@ -225,24 +226,25 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
               ))}
             </div>
 
-            <div className="p-md rounded-radius-lg bg-muted">
-              <p className="text-xs text-muted-foreground">
-                <strong>📌 Problema principal identificado:</strong> O endpoint{" "}
-                <code className="bg-background px-1 py-0.5 rounded">
-                  /v2/usercollection/sleep
-                </code>{" "}
-                retorna status 200 mas com <code className="bg-background px-1 py-0.5 rounded">count: 0</code>,
-                indicando que a API do Oura não está retornando os períodos de sono detalhados.
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                <strong>Possíveis causas:</strong>
-              </p>
-              <ul className="text-xs text-muted-foreground mt-1 ml-4 space-y-1">
-                <li>• Oura Ring não sincronizou com o app oficial</li>
-                <li>• Dados ainda sendo processados pelo Oura (pode demorar horas)</li>
-                <li>• Configurações da conta Oura ou permissões OAuth</li>
-              </ul>
-            </div>
+            {sleepPeriodsStatus?.status === "empty" && (
+              <div className="p-md rounded-radius-lg bg-muted">
+                <p className="text-xs text-muted-foreground">
+                  <strong>📌 Problema principal identificado:</strong> O endpoint{" "}
+                  <code className="bg-background px-1 py-0.5 rounded">
+                    /v2/usercollection/sleep
+                  </code>{" "}
+                  retorna status 200 mas sem períodos detalhados de sono.
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  <strong>Possíveis causas:</strong>
+                </p>
+                <ul className="text-xs text-muted-foreground mt-1 ml-4 space-y-1">
+                  <li>• Oura Ring não sincronizou com o app oficial</li>
+                  <li>• Dados ainda sendo processados pelo Oura (pode demorar horas)</li>
+                  <li>• Configurações da conta Oura ou permissões OAuth</li>
+                </ul>
+              </div>
+            )}
 
             {/* Histórico de Sincronizações */}
             {syncLogs && syncLogs.length > 0 && (

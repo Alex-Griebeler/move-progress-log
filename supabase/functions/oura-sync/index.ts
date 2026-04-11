@@ -64,6 +64,12 @@ const mergePreservingExisting = (
   return merged;
 };
 
+const hasAnyMetricValue = (metrics: Record<string, unknown>): boolean =>
+  Object.entries(metrics).some(([key, value]) => {
+    if (key === "student_id" || key === "date") return false;
+    return value !== null && value !== undefined;
+  });
+
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 
@@ -518,10 +524,7 @@ Deno.serve(async (req) => {
     if (DEBUG) console.log('Extracted metrics:', metrics);
 
     // Check if all values are null (no data available)
-    const hasData = metrics.readiness_score !== null || 
-                    metrics.sleep_score !== null || 
-                    metrics.hrv_balance !== null || 
-                    metrics.resting_heart_rate !== null;
+    const hasData = hasAnyMetricValue(metrics as Record<string, unknown>);
     const hasAcuteData =
       acuteMetrics.samples_count_hrv > 0 ||
       acuteMetrics.samples_count_hr_day > 0 ||
