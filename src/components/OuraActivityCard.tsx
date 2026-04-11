@@ -11,21 +11,21 @@ interface OuraActivityCardProps {
 }
 
 const getScoreColor = (score: number | null) => {
-  if (!score) return "text-muted-foreground";
+  if (score === null) return "text-muted-foreground";
   if (score >= 85) return "text-primary";
   if (score >= 70) return "text-secondary-foreground";
   return "text-destructive";
 };
 
 const getScoreLabel = (score: number | null) => {
-  if (!score) return "Sem dados";
+  if (score === null) return "Sem dados";
   if (score >= 85) return "Excelente";
   if (score >= 70) return "Bom";
   return "Baixo";
 };
 
 const formatTime = (seconds: number | null) => {
-  if (!seconds) return "—";
+  if (seconds === null) return "—";
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   if (hours > 0) return `${hours}h ${minutes}m`;
@@ -33,8 +33,10 @@ const formatTime = (seconds: number | null) => {
 };
 
 export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
-  // Check if we have any activity data
-  const hasActivityData = metrics.steps || metrics.active_calories || metrics.activity_score;
+  const hasActivityData =
+    metrics.steps !== null ||
+    metrics.active_calories !== null ||
+    metrics.activity_score !== null;
   
   if (!hasActivityData) {
     return (
@@ -82,7 +84,7 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
               <span className="text-sm text-muted-foreground">{formatLocalDate(metrics.date)}</span>
             </div>
           )}
-          {metrics.activity_score && (
+          {metrics.activity_score !== null && (
             <Badge className={getScoreColor(metrics.activity_score)}>
               {metrics.activity_score} - {getScoreLabel(metrics.activity_score)}
             </Badge>
@@ -103,14 +105,18 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
             <Footprints className="h-8 w-8 text-primary" />
             <div>
               <p className="text-sm text-muted-foreground">Passos</p>
-              <p className="text-2xl font-bold">{metrics.steps?.toLocaleString() || "—"}</p>
+              <p className="text-2xl font-bold">
+                {metrics.steps !== null ? metrics.steps.toLocaleString() : "—"}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-md p-md rounded-radius-lg bg-card border">
             <Flame className="h-8 w-8 text-destructive" />
             <div>
               <p className="text-sm text-muted-foreground">Calorias Ativas</p>
-              <p className="text-2xl font-bold">{metrics.active_calories ? `${metrics.active_calories} kcal` : "—"}</p>
+              <p className="text-2xl font-bold">
+                {metrics.active_calories !== null ? `${metrics.active_calories} kcal` : "—"}
+              </p>
             </div>
           </div>
         </div>
@@ -119,29 +125,33 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Calorias Totais</p>
-            <p className="text-xl font-semibold">{metrics.total_calories || "—"} kcal</p>
+            <p className="text-xl font-semibold">
+              {metrics.total_calories !== null ? `${metrics.total_calories} kcal` : "—"}
+            </p>
           </div>
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Equivalente Caminhada</p>
-            <p className="text-xl font-semibold">{metrics.met_minutes ? `${(metrics.met_minutes / 1000).toFixed(1)} km` : "—"}</p>
+            <p className="text-xl font-semibold">
+              {metrics.met_minutes !== null ? `${(metrics.met_minutes / 1000).toFixed(1)} km` : "—"}
+            </p>
           </div>
         </div>
 
         {/* Training Metrics */}
-        {(metrics.training_volume || metrics.training_frequency) && (
+        {(metrics.training_volume !== null || metrics.training_frequency !== null) && (
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Volume de Treino</p>
-                <Badge variant="outline">{metrics.training_volume || "—"}</Badge>
+                <Badge variant="outline">{metrics.training_volume ?? "—"}</Badge>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-primary" />
               <div className="space-y-1">
                 <p className="text-sm text-muted-foreground">Frequência</p>
-                <Badge variant="outline">{metrics.training_frequency || "—"}</Badge>
+                <Badge variant="outline">{metrics.training_frequency ?? "—"}</Badge>
               </div>
             </div>
           </div>
@@ -187,7 +197,7 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
         )}
 
         {/* Sedentary Warning */}
-        {metrics.sedentary_time && metrics.sedentary_time > 28800 && (
+        {metrics.sedentary_time !== null && metrics.sedentary_time > 28800 && (
           <div className="p-md rounded-radius-lg bg-secondary border">
             <p className="text-sm text-secondary-foreground">
               ⚠️ Tempo sedentário elevado: {formatTime(metrics.sedentary_time)}. Considere pausas ativas a cada hora.

@@ -12,43 +12,43 @@ interface OuraSleepDetailCardProps {
 }
 
 const getScoreColor = (score: number | null) => {
-  if (!score) return "text-muted-foreground";
+  if (score === null) return "text-muted-foreground";
   if (score >= 85) return "text-primary";
   if (score >= 70) return "text-secondary-foreground";
   return "text-destructive";
 };
 
 const getEfficiencyColor = (efficiency: number | null) => {
-  if (!efficiency) return "secondary";
+  if (efficiency === null) return "secondary";
   if (efficiency >= 85) return "default";
   if (efficiency >= 75) return "outline";
   return "destructive";
 };
 
 const formatDuration = (seconds: number | null) => {
-  if (!seconds) return "—";
+  if (seconds === null) return "—";
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
 };
 
 const formatLatency = (seconds: number | null) => {
-  if (!seconds) return "—";
+  if (seconds === null) return "—";
   const minutes = Math.floor(seconds / 60);
   return `${minutes} min`;
 };
 
 const hasAnySleepData = (metrics: OuraMetrics) => {
-  return !!(
-    metrics.sleep_score ||
-    metrics.total_sleep_duration ||
-    metrics.deep_sleep_duration ||
-    metrics.rem_sleep_duration ||
-    metrics.light_sleep_duration ||
-    metrics.awake_time ||
-    metrics.sleep_efficiency ||
-    metrics.sleep_latency ||
-    metrics.lowest_heart_rate
+  return (
+    metrics.sleep_score !== null ||
+    metrics.total_sleep_duration !== null ||
+    metrics.deep_sleep_duration !== null ||
+    metrics.rem_sleep_duration !== null ||
+    metrics.light_sleep_duration !== null ||
+    metrics.awake_time !== null ||
+    metrics.sleep_efficiency !== null ||
+    metrics.sleep_latency !== null ||
+    metrics.lowest_heart_rate !== null
   );
 };
 
@@ -70,7 +70,7 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
               <span className="text-sm text-muted-foreground">{formatLocalDate(metrics.date)}</span>
             </div>
           )}
-          {metrics.sleep_score && (
+          {metrics.sleep_score !== null && (
             <Badge className={getScoreColor(metrics.sleep_score)}>
               Score: {metrics.sleep_score}
             </Badge>
@@ -91,7 +91,7 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
             <p className="text-sm text-muted-foreground">Duração Total do Sono</p>
             <p className="text-3xl font-bold">{formatDuration(metrics.total_sleep_duration)}</p>
           </div>
-          {metrics.sleep_efficiency && (
+          {metrics.sleep_efficiency !== null && (
             <Badge variant={getEfficiencyColor(metrics.sleep_efficiency)} className="text-base">
               Eficiência: {metrics.sleep_efficiency.toFixed(0)}%
             </Badge>
@@ -154,17 +154,17 @@ export const OuraSleepDetailCard = ({ metrics }: OuraSleepDetailCardProps) => {
           <div className="space-y-2">
             <p className="text-sm font-medium">Indicadores de Qualidade</p>
             <div className="flex flex-wrap gap-2">
-              {metrics.sleep_efficiency && (
+              {metrics.sleep_efficiency !== null && (
                 <Badge variant={metrics.sleep_efficiency >= 85 ? "default" : "secondary"}>
                   Eficiência: {metrics.sleep_efficiency.toFixed(0)}%
                 </Badge>
               )}
-              {metrics.deep_sleep_duration && (
+              {metrics.deep_sleep_duration !== null && (
                 <Badge variant={metrics.deep_sleep_duration >= 3600 ? "default" : "secondary"}>
                   Sono Profundo: {formatDuration(metrics.deep_sleep_duration)}
                 </Badge>
               )}
-              {metrics.rem_sleep_duration && (
+              {metrics.rem_sleep_duration !== null && (
                 <Badge variant={metrics.rem_sleep_duration >= 5400 ? "default" : "secondary"}>
                   Sono REM: {formatDuration(metrics.rem_sleep_duration)}
                 </Badge>

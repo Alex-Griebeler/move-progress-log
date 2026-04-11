@@ -10,14 +10,14 @@ interface OuraMetricsCardProps {
 
 const OuraMetricsCard = ({ metrics }: OuraMetricsCardProps) => {
   const getScoreColor = (score: number | null) => {
-    if (!score) return "bg-muted text-muted-foreground";
+    if (score === null) return "bg-muted text-muted-foreground";
     if (score >= 85) return "bg-primary/10 text-primary";
     if (score >= 70) return "bg-secondary/50 text-secondary-foreground";
     return "bg-destructive/10 text-destructive";
   };
 
   const getScoreLabel = (score: number | null) => {
-    if (!score) return "N/A";
+    if (score === null) return "N/A";
     if (score >= 85) return "Ótimo";
     if (score >= 70) return "Bom";
     return "Atenção";
@@ -46,7 +46,7 @@ const OuraMetricsCard = ({ metrics }: OuraMetricsCardProps) => {
               <span className="text-base font-medium">Prontidão</span>
             </div>
             <Badge className={getScoreColor(metrics.readiness_score)}>
-              {metrics.readiness_score || "N/A"}
+              {metrics.readiness_score ?? "N/A"}
             </Badge>
           </div>
           <div className="text-sm text-muted-foreground">
@@ -62,7 +62,7 @@ const OuraMetricsCard = ({ metrics }: OuraMetricsCardProps) => {
               <span className="text-base font-medium">Sono</span>
             </div>
             <Badge className={getScoreColor(metrics.sleep_score)}>
-              {metrics.sleep_score || "N/A"}
+              {metrics.sleep_score ?? "N/A"}
             </Badge>
           </div>
           <div className="text-sm text-muted-foreground">

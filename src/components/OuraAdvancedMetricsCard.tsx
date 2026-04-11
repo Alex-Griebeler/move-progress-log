@@ -10,7 +10,7 @@ interface OuraAdvancedMetricsCardProps {
 }
 
 const getVo2MaxLevel = (vo2: number | null) => {
-  if (!vo2) return { label: "Sem dados", variant: "secondary" as const };
+  if (vo2 === null) return { label: "Sem dados", variant: "secondary" as const };
   if (vo2 >= 50) return { label: "Excelente", variant: "default" as const };
   if (vo2 >= 42) return { label: "Bom", variant: "outline" as const };
   if (vo2 >= 35) return { label: "Moderado", variant: "secondary" as const };
@@ -30,7 +30,7 @@ const getResilienceLabel = (level: string | null) => {
 };
 
 const getSpo2Status = (spo2: number | null) => {
-  if (!spo2) return { label: "Sem dados", variant: "secondary" as const };
+  if (spo2 === null) return { label: "Sem dados", variant: "secondary" as const };
   if (spo2 >= 95) return { label: "Normal", variant: "default" as const };
   if (spo2 >= 90) return { label: "Atenção", variant: "outline" as const };
   return { label: "Baixo", variant: "destructive" as const };
@@ -40,7 +40,11 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
   const vo2Level = getVo2MaxLevel(metrics.vo2_max);
   const spo2Status = getSpo2Status(metrics.spo2_average);
 
-  const hasData = metrics.vo2_max || metrics.spo2_average || metrics.breathing_disturbance_index || metrics.resilience_level;
+  const hasData =
+    metrics.vo2_max !== null ||
+    metrics.spo2_average !== null ||
+    metrics.breathing_disturbance_index !== null ||
+    Boolean(metrics.resilience_level);
 
   if (!hasData) {
     return (
@@ -86,7 +90,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
       </CardHeader>
       <CardContent className="space-y-6">
         {/* VO2 Max */}
-        {metrics.vo2_max ? (
+        {metrics.vo2_max !== null ? (
           <div className="flex items-center gap-md p-lg rounded-radius-lg border bg-card">
             <div className="p-3 rounded-full bg-primary/10">
               <TrendingUp className="h-6 w-6 text-primary" />
@@ -117,7 +121,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
         )}
 
         {/* SpO2 Average */}
-        {metrics.spo2_average && (
+        {metrics.spo2_average !== null && (
           <div className="flex items-center gap-md p-lg rounded-radius-lg border bg-card">
             <div className="p-3 rounded-full bg-primary/10">
               <Wind className="h-6 w-6 text-primary" />
@@ -182,7 +186,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
         )}
 
         {/* Recommendations */}
-        {metrics.vo2_max && metrics.vo2_max < 35 && (
+        {metrics.vo2_max !== null && metrics.vo2_max < 35 && (
           <div className="p-md bg-secondary border rounded-radius-lg">
             <p className="text-sm text-secondary-foreground font-medium mb-1">
               💡 Dica: VO2 Max abaixo do ideal
@@ -193,7 +197,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
           </div>
         )}
 
-        {metrics.breathing_disturbance_index && metrics.breathing_disturbance_index >= 15 && (
+        {metrics.breathing_disturbance_index !== null && metrics.breathing_disturbance_index >= 15 && (
           <div className="p-md bg-destructive/10 border border-destructive/20 rounded-radius-lg">
             <p className="text-sm text-destructive font-medium mb-1">
               ⚠️ Alerta: Distúrbio respiratório elevado

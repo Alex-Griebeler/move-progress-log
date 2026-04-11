@@ -65,14 +65,14 @@ const PersonalizedTrainingDashboard = ({
   }
 
   const getScoreColor = (score: number | null) => {
-    if (!score) return "secondary";
+    if (score === null) return "secondary";
     if (score >= 80) return "default";
     if (score >= 65) return "outline";
     return "destructive";
   };
 
   const formatDuration = (seconds: number | null) => {
-    if (!seconds) return "--";
+    if (seconds === null) return "--";
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     return `${hours}h ${minutes}min`;
@@ -242,24 +242,32 @@ const PersonalizedTrainingDashboard = ({
         {/* Scores Principais */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           <div className="flex items-center space-x-3 p-4 rounded-lg bg-background border">
-            <Zap className={`w-8 h-8 ${latestMetrics.readiness_score && latestMetrics.readiness_score >= 70 ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Zap className={`w-8 h-8 ${latestMetrics.readiness_score !== null && latestMetrics.readiness_score >= 70 ? 'text-primary' : 'text-muted-foreground'}`} />
             <div>
               <p className="text-sm text-muted-foreground">Prontidão</p>
-              <p className="text-2xl font-bold">{latestMetrics.readiness_score || '--'}</p>
+              <p className="text-2xl font-bold">{latestMetrics.readiness_score ?? '--'}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3 p-4 rounded-lg bg-background border">
-            <Moon className={`w-8 h-8 ${latestMetrics.sleep_score && latestMetrics.sleep_score >= 70 ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Moon className={`w-8 h-8 ${latestMetrics.sleep_score !== null && latestMetrics.sleep_score >= 70 ? 'text-primary' : 'text-muted-foreground'}`} />
             <div>
               <p className="text-sm text-muted-foreground">Sono</p>
-              <p className="text-2xl font-bold">{latestMetrics.sleep_score || '--'}</p>
+              <p className="text-2xl font-bold">{latestMetrics.sleep_score ?? '--'}</p>
             </div>
           </div>
           <div className="flex items-center space-x-3 p-4 rounded-lg bg-background border">
-            <Heart className={`w-8 h-8 ${latestMetrics.resting_heart_rate ? 'text-primary' : 'text-muted-foreground'}`} />
+            <Heart className={`w-8 h-8 ${latestMetrics.resting_heart_rate !== null ? 'text-primary' : 'text-muted-foreground'}`} />
             <div>
               <p className="text-sm text-muted-foreground">FCR</p>
-              <p className="text-2xl font-bold">{latestMetrics.resting_heart_rate || '--'} <span className="text-sm">bpm</span></p>
+              <p className="text-2xl font-bold">
+                {latestMetrics.resting_heart_rate !== null ? (
+                  <>
+                    {latestMetrics.resting_heart_rate} <span className="text-sm">bpm</span>
+                  </>
+                ) : (
+                  "--"
+                )}
+              </p>
             </div>
           </div>
         </div>
@@ -509,15 +517,23 @@ const PersonalizedTrainingDashboard = ({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">HRV</span>
-              <span className="font-semibold">{latestMetrics.average_sleep_hrv ? `${latestMetrics.average_sleep_hrv.toFixed(1)} ms` : '--'}</span>
+              <span className="font-semibold">
+                {latestMetrics.average_sleep_hrv !== null ? `${latestMetrics.average_sleep_hrv.toFixed(1)} ms` : '--'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">FC Repouso</span>
-              <span className="font-semibold">{latestMetrics.resting_heart_rate ? `${latestMetrics.resting_heart_rate} bpm` : '--'}</span>
+              <span className="font-semibold">
+                {latestMetrics.resting_heart_rate !== null ? `${latestMetrics.resting_heart_rate} bpm` : '--'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Temperatura</span>
-              <span className="font-semibold">{latestMetrics.temperature_deviation ? `${latestMetrics.temperature_deviation > 0 ? '+' : ''}${latestMetrics.temperature_deviation.toFixed(1)}°C` : '--'}</span>
+              <span className="font-semibold">
+                {latestMetrics.temperature_deviation !== null
+                  ? `${latestMetrics.temperature_deviation > 0 ? '+' : ''}${latestMetrics.temperature_deviation.toFixed(1)}°C`
+                  : '--'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Nível de Fadiga</span>
@@ -534,19 +550,23 @@ const PersonalizedTrainingDashboard = ({
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Calorias Ativas</span>
-              <span className="font-semibold">{latestMetrics.active_calories ? `${latestMetrics.active_calories} kcal` : '--'}</span>
+              <span className="font-semibold">
+                {latestMetrics.active_calories !== null ? `${latestMetrics.active_calories} kcal` : '--'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Passos</span>
-              <span className="font-semibold">{latestMetrics.steps ? latestMetrics.steps.toLocaleString() : '--'}</span>
+              <span className="font-semibold">
+                {latestMetrics.steps !== null ? latestMetrics.steps.toLocaleString() : '--'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Score Atividade</span>
-              <span className="font-semibold">{latestMetrics.activity_score || '--'}</span>
+              <span className="font-semibold">{latestMetrics.activity_score ?? '--'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">MET Minutos</span>
-              <span className="font-semibold">{latestMetrics.met_minutes || '--'}</span>
+              <span className="font-semibold">{latestMetrics.met_minutes ?? '--'}</span>
             </div>
           </div>
         </Card>

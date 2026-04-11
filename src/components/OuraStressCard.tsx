@@ -24,7 +24,7 @@ const getDaySummaryLabel = (summary: string | null) => {
 };
 
 const formatTime = (seconds: number | null) => {
-  if (!seconds) return "0h 0m";
+  if (seconds === null) return "0h 0m";
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours}h ${minutes}m`;
@@ -157,7 +157,7 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
         </div>
 
         {/* Recommendations */}
-        {metrics.stress_high_time && metrics.stress_high_time > 7200 && (
+        {metrics.stress_high_time !== null && metrics.stress_high_time > 7200 && (
           <div className="p-md bg-secondary border rounded-radius-lg">
             <p className="text-sm text-secondary-foreground font-medium mb-1">
               ⚠️ Nível de estresse elevado detectado
@@ -168,7 +168,7 @@ export const OuraStressCard = ({ metrics }: OuraStressCardProps) => {
           </div>
         )}
 
-        {metrics.recovery_high_time && metrics.recovery_high_time > 14400 && (
+        {metrics.recovery_high_time !== null && metrics.recovery_high_time > 14400 && (
           <div className="p-md bg-primary/10 border border-primary/20 rounded-radius-lg">
             <p className="text-sm text-primary font-medium">
               ✓ Excelente recuperação detectada - momento ideal para treinos intensos!
