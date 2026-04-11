@@ -241,7 +241,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     return null;
   };
 
-  const parseTime = (timeValue: unknown): string => {
+  const parseTime = (timeValue: unknown): string | null => {
     if (timeValue instanceof Date) {
       const hours = String(timeValue.getHours()).padStart(2, "0");
       const minutes = String(timeValue.getMinutes()).padStart(2, "0");
@@ -250,12 +250,27 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
     if (typeof timeValue === "string") {
       const normalized = timeValue.trim();
-      if (/^\d{2}:\d{2}(:\d{2})?$/.test(normalized)) {
-        return normalized.slice(0, 5);
+      if (!normalized) return null;
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(normalized)) {
+        const [rawHour, rawMinute] = normalized.split(":");
+        const hour = Number(rawHour);
+        const minute = Number(rawMinute);
+        if (hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59) {
+          return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+        }
+        return null;
       }
       const amPmParsed = parseAmPmTime(normalized);
       if (amPmParsed) return amPmParsed;
-      return normalized;
+      const numeric = Number(normalized.replace(",", "."));
+      if (Number.isFinite(numeric)) {
+        const totalMinutes = Math.round(numeric * 24 * 60);
+        const normalizedTotalMinutes = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+        const hours = Math.floor(normalizedTotalMinutes / 60);
+        const minutes = normalizedTotalMinutes % 60;
+        return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+      }
+      return null;
     }
     if (typeof timeValue === "number") {
       // Excel armazena tempo como fração do dia
@@ -265,7 +280,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       const minutes = normalizedTotalMinutes % 60;
       return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
     }
-    return "12:00";
+    return null;
   };
 
   const processFile = async () => {
@@ -334,6 +349,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
         if (!parsedDate) {
           validationErrors.push(`Linha ${index + 2}: data inválida (${String(dataRaw ?? "vazio")})`);
+          return;
+        }
+        if (!parsedTime) {
+          validationErrors.push(`Linha ${index + 2}: hora inválida (${String(horaRaw ?? "vazio")})`);
           return;
         }
 
