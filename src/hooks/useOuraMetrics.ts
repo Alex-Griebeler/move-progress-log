@@ -107,13 +107,14 @@ export const useLatestOuraMetrics = (studentId: string) => {
     queryKey: ["oura-metrics-latest", studentId],
     enabled: !!studentId,
     queryFn: async () => {
+      // Search a wider window to avoid showing "--" when recent days are sparse.
       const { data, error } = await supabase
         .from("oura_metrics")
         .select("*")
         .eq("student_id", studentId)
         .order("date", { ascending: false })
         .order("created_at", { ascending: false })
-        .limit(14);
+        .limit(90);
 
       if (error) throw error;
       const rows = (data || []) as OuraMetrics[];

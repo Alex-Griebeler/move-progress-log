@@ -51,6 +51,19 @@ const computeStats = (values: number[]) => {
   };
 };
 
+const mergePreservingExisting = (
+  incoming: Record<string, unknown>,
+  existing: Record<string, unknown> | null
+): Record<string, unknown> => {
+  if (!existing) return incoming;
+
+  const merged: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(incoming)) {
+    merged[key] = value ?? existing[key] ?? null;
+  }
+  return merged;
+};
+
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 
@@ -530,10 +543,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // O-11: Preserve previous non-null values when Oura returns sparse payloads.
+    const { data: existingMetricRow } = await supabaseClient
+      .from('oura_metrics')
+      .select('*')
+      .eq('student_id', student_id)
+      .eq('date', syncDate)
+      .maybeSingle();
+
+    const mergedMetrics = mergePreservingExisting(
+      metrics as Record<string, unknown>,
+      isPlainObject(existingMetricRow) ? existingMetricRow : null
+    );
+
     // Upsert metrics
     const { error: upsertError } = await supabaseClient
       .from('oura_metrics')
-      .upsert(metrics, { onConflict: 'student_id,date' });
+      .upsert(mergedMetrics, { onConflict: 'student_id,date' });
 
     if (upsertError) {
       console.error('Failed to save metrics:', upsertError);
@@ -541,9 +567,21 @@ Deno.serve(async (req) => {
     }
 
     if (hasAcuteData) {
+      const { data: existingAcuteRow } = await supabaseClient
+        .from('oura_acute_metrics')
+        .select('*')
+        .eq('student_id', student_id)
+        .eq('date', syncDate)
+        .maybeSingle();
+
+      const mergedAcuteMetrics = mergePreservingExisting(
+        acuteMetrics as Record<string, unknown>,
+        isPlainObject(existingAcuteRow) ? existingAcuteRow : null
+      );
+
       const { error: acuteUpsertError } = await supabaseClient
         .from('oura_acute_metrics')
-        .upsert(acuteMetrics, { onConflict: 'student_id,date' });
+        .upsert(mergedAcuteMetrics, { onConflict: 'student_id,date' });
 
       if (acuteUpsertError) {
         // Non-blocking: main daily metrics are already persisted.
