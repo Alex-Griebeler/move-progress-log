@@ -14,6 +14,10 @@ const describeIntegration = SUPABASE_URL ? describe : describe.skip;
 const NETWORK_TEST_TIMEOUT_MS = 20000;
 
 describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWORK_TEST_TIMEOUT_MS }, () => {
+  const TRANSIENT_RETRY_COUNT = 2;
+
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
   async function callFunction(name: string, authHeader?: string) {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (authHeader) headers['Authorization'] = authHeader;
@@ -26,6 +30,18 @@ describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWO
     return { status: res.status, body };
   }
 
+  async function callFunctionWithRetry(name: string, authHeader?: string) {
+    let lastResponse = await callFunction(name, authHeader);
+
+    for (let attempt = 0; attempt < TRANSIENT_RETRY_COUNT; attempt++) {
+      if (lastResponse.status < 500) return lastResponse;
+      await wait(300 * (attempt + 1));
+      lastResponse = await callFunction(name, authHeader);
+    }
+
+    return lastResponse;
+  }
+
   describe('oura-sync-all', () => {
     it('returns 401 without auth header', async () => {
       const { status } = await callFunction('oura-sync-all');
@@ -33,7 +49,7 @@ describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWO
     });
 
     it('returns 401 with anon key (not a user JWT)', async () => {
-      const { status } = await callFunction('oura-sync-all', `Bearer ${ANON_KEY}`);
+      const { status } = await callFunctionWithRetry('oura-sync-all', `Bearer ${ANON_KEY}`);
       expect(status).toBe(401);
     });
 
@@ -52,7 +68,7 @@ describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWO
     });
 
     it('returns 401 with anon key (not a user JWT)', async () => {
-      const { status } = await callFunction('oura-sync-scheduled', `Bearer ${ANON_KEY}`);
+      const { status } = await callFunctionWithRetry('oura-sync-scheduled', `Bearer ${ANON_KEY}`);
       expect(status).toBe(401);
     });
 

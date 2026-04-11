@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -24,7 +24,7 @@ export const StudentCardSkeleton = () => {
           <Skeleton className="h-6 w-6 rounded-full shrink-0" />
         </CardTitle>
         
-        <CardDescription className="space-y-sm">
+        <div className="space-y-sm">
           {/* Métricas Oura */}
           <div className="flex items-center justify-between py-sm border-b border-border/50">
             <div className="space-y-xs">
@@ -36,7 +36,7 @@ export const StudentCardSkeleton = () => {
           
           {/* Observações importantes */}
           <Skeleton className="h-12 w-full rounded-radius-md" />
-        </CardDescription>
+        </div>
       </CardHeader>
       
       <CardContent className="pt-sm pb-md">
