@@ -50,4 +50,4 @@
 - `529ab61` fix(import): validate time values and prevent silent 12:00 fallback
 - `2ac31da` fix(reports): surface edge function error details in generate flow
 - `7e56aff` fix(oura): keep partial metric sync and show conditional diagnostics warning
-- (esta rodada) fix(training): use nullish fallback for recovery score (`readiness_score ?? 50`) to avoid false zone inflation
+- `ee0b361` fix(training): use nullish fallback for recovery score (`readiness_score ?? 50`) to avoid false zone inflation
