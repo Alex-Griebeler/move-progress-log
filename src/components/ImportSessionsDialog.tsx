@@ -118,6 +118,7 @@ const parseAmPmTime = (input: string): string | null => {
   if (!match) return null;
   let hours = Number(match[1]);
   const minutes = Number(match[2]);
+  if (hours > 12 || minutes > 59) return null;
   const period = match[3].toUpperCase();
   if (period === "PM" && hours < 12) hours += 12;
   if (period === "AM" && hours === 12) hours = 0;
@@ -174,6 +175,18 @@ const getErrorInfo = (error: unknown): ParsedErrorInfo => {
   return { message: String(error) };
 };
 
+const formatExcelSerialDate = (serial: number): string | null => {
+  if (!Number.isFinite(serial)) return null;
+  const wholeDays = Math.floor(serial);
+  if (wholeDays <= 0) return null;
+  const excelEpochUtc = Date.UTC(1899, 11, 30);
+  const dateUtc = new Date(excelEpochUtc + wholeDays * 86400 * 1000);
+  const year = dateUtc.getUTCFullYear();
+  const month = String(dateUtc.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(dateUtc.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
 const isDuplicateSessionError = (errorInfo: ParsedErrorInfo): boolean => {
   const raw = `${errorInfo.message} ${errorInfo.details ?? ""} ${errorInfo.hint ?? ""}`.toLowerCase();
   return (
@@ -221,9 +234,8 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     }
     
     if (typeof excelDate === "number") {
-      // Excel armazena datas como números (dias desde 1900)
-      const date = new Date((excelDate - 25569) * 86400 * 1000);
-      return date.toISOString().split("T")[0];
+      // Excel armazena datas como números seriais (dias desde 1899-12-30).
+      return formatExcelSerialDate(excelDate);
     }
     
     return null;
@@ -248,8 +260,9 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     if (typeof timeValue === "number") {
       // Excel armazena tempo como fração do dia
       const totalMinutes = Math.round(timeValue * 24 * 60);
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
+      const normalizedTotalMinutes = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
+      const hours = Math.floor(normalizedTotalMinutes / 60);
+      const minutes = normalizedTotalMinutes % 60;
       return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
     }
     return "12:00";
@@ -547,7 +560,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                   {status.attempted} / {status.total}
                 </span>
               </div>
-              <Progress value={(status.attempted / status.total) * 100} />
+              <Progress value={status.total > 0 ? (status.attempted / status.total) * 100 : 0} />
             </div>
           )}
 
