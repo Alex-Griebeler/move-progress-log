@@ -112,11 +112,19 @@ export const useLatestOuraMetrics = (studentId: string) => {
         .select("*")
         .eq("student_id", studentId)
         .order("date", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order("created_at", { ascending: false })
+        .limit(14);
 
       if (error) throw error;
-      return data as OuraMetrics | null;
+      const rows = (data || []) as OuraMetrics[];
+      if (rows.length === 0) return null;
+
+      // Prefer the latest row that already has recovery core signals.
+      const withRecoveryCore = rows.find(
+        (row) => row.readiness_score !== null || row.sleep_score !== null
+      );
+
+      return withRecoveryCore ?? rows[0];
     },
   });
 };
