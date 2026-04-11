@@ -1,7 +1,7 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
 import { AlertCircle, RefreshCw } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -113,12 +113,12 @@ export default function OuraErrorPage() {
           <CardTitle className="text-2xl">
             {error.title}
           </CardTitle>
-          <CardDescription className="space-y-2">
+          <div className="space-y-2 text-sm text-muted-foreground">
             <p>{error.description}</p>
             <p className="text-sm font-medium text-foreground mt-2">
               💡 {error.suggestion}
             </p>
-          </CardDescription>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">

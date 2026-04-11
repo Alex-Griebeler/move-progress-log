@@ -1,6 +1,6 @@
 import { useState, memo, useMemo } from "react";
 import { useStudents, useDeleteStudent } from "@/hooks/useStudents";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import i18n from "@/i18n/pt-BR.json";
@@ -165,7 +165,7 @@ const StudentCard = memo(({
             )}
           </CardTitle>
           
-          <CardDescription className="space-y-sm">
+          <div className="space-y-sm">
             {readinessScore ? (
               <div className="flex items-center justify-between py-sm border-b border-border/50">
                 <div className="flex flex-col gap-xs">
@@ -205,7 +205,7 @@ const StudentCard = memo(({
                 </span>
               </Button>
             )}
-          </CardDescription>
+          </div>
         </CardHeader>
         
         <CardContent className="pt-sm pb-md">
