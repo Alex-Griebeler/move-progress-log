@@ -35,15 +35,15 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
       {
         name: "Daily Readiness",
         description: "/v2/usercollection/daily_readiness",
-        status: metrics.readiness_score ? "success" : "empty",
+        status: metrics.readiness_score !== null ? "success" : "empty",
         details: metrics.readiness_score 
-          ? `Score: ${metrics.readiness_score}, HRV: ${metrics.hrv_balance || 'N/A'}`
+          ? `Score: ${metrics.readiness_score}, HRV: ${metrics.hrv_balance ?? 'N/A'}`
           : "API retorna 200 mas sem dados",
       },
       {
         name: "Daily Sleep",
         description: "/v2/usercollection/daily_sleep",
-        status: metrics.sleep_score ? "success" : "empty",
+        status: metrics.sleep_score !== null ? "success" : "empty",
         details: metrics.sleep_score
           ? `Score: ${metrics.sleep_score}`
           : "API retorna 200 mas sem dados",
@@ -51,24 +51,24 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
       {
         name: "Sleep Periods (Detalhes)",
         description: "/v2/usercollection/sleep",
-        status: metrics.total_sleep_duration ? "success" : "empty",
-        details: metrics.total_sleep_duration
-          ? `Total: ${Math.round(metrics.total_sleep_duration / 3600)}h, Deep: ${Math.round((metrics.deep_sleep_duration || 0) / 3600)}h, REM: ${Math.round((metrics.rem_sleep_duration || 0) / 3600)}h`
+        status: metrics.total_sleep_duration !== null ? "success" : "empty",
+        details: metrics.total_sleep_duration !== null
+          ? `Total: ${Math.round(metrics.total_sleep_duration / 3600)}h, Deep: ${Math.round((metrics.deep_sleep_duration ?? 0) / 3600)}h, REM: ${Math.round((metrics.rem_sleep_duration ?? 0) / 3600)}h`
           : "⚠️ API retorna 200 mas count: 0 (SEM PERÍODOS DE SONO)",
       },
       {
         name: "Daily Activity",
         description: "/v2/usercollection/daily_activity",
-        status: metrics.activity_score || metrics.steps ? "success" : "empty",
-        details: metrics.steps
-          ? `Steps: ${metrics.steps}, Score: ${metrics.activity_score || 'N/A'}`
+        status: metrics.activity_score !== null || metrics.steps !== null ? "success" : "empty",
+        details: metrics.steps !== null
+          ? `Steps: ${metrics.steps}, Score: ${metrics.activity_score ?? 'N/A'}`
           : "API retorna 200 mas sem dados",
       },
       {
         name: "Heartrate",
         description: "/v2/usercollection/heartrate",
-        status: metrics.resting_heart_rate ? "success" : "empty",
-        details: metrics.resting_heart_rate
+        status: metrics.resting_heart_rate !== null ? "success" : "empty",
+        details: metrics.resting_heart_rate !== null
           ? `Resting HR: ${metrics.resting_heart_rate} bpm`
           : "API retorna 200 mas sem samples",
       },
@@ -85,22 +85,22 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
         description: "/v2/usercollection/daily_stress",
         status: metrics.stress_high_time !== null || metrics.day_summary ? "success" : "empty",
         details: metrics.day_summary
-          ? `Summary: ${metrics.day_summary}, High: ${metrics.stress_high_time || 0}s`
+          ? `Summary: ${metrics.day_summary}, High: ${metrics.stress_high_time ?? 0}s`
           : "API retorna 200 mas sem dados",
       },
       {
         name: "SpO2",
         description: "/v2/usercollection/daily_spo2",
-        status: metrics.spo2_average ? "success" : "empty",
-        details: metrics.spo2_average
-          ? `Avg: ${metrics.spo2_average.toFixed(1)}%, BDI: ${metrics.breathing_disturbance_index || 'N/A'}`
+        status: metrics.spo2_average !== null ? "success" : "empty",
+        details: metrics.spo2_average !== null
+          ? `Avg: ${metrics.spo2_average.toFixed(1)}%, BDI: ${metrics.breathing_disturbance_index ?? 'N/A'}`
           : "API retorna 200 mas sem dados",
       },
       {
         name: "VO2 Max",
         description: "/v2/usercollection/vo2_max",
-        status: metrics.vo2_max ? "success" : "empty",
-        details: metrics.vo2_max
+        status: metrics.vo2_max !== null ? "success" : "empty",
+        details: metrics.vo2_max !== null
           ? `VO2 Max: ${metrics.vo2_max}`
           : "API retorna 200 mas sem dados",
       },
