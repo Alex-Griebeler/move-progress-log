@@ -291,6 +291,25 @@ Referência de pendências manuais (UI autenticada):
 - Reduz risco de regressão silenciosa nas regras centrais do dia.
 - Estabelece base para ampliar testes de negócio sem refatoração estrutural adicional.
 
+### Contrato de relatório (backend -> UI/PDF)
+- `src/hooks/reportMappers.ts`
+- `src/hooks/useStudentReports.ts`
+- `src/hooks/__tests__/useStudentReports.contract.test.ts`
+
+**Ajuste aplicado**
+- Mapeadores de `student_reports`/`report_tracked_exercises` foram extraídos para módulo puro (`reportMappers`) para facilitar teste unitário sem dependência de cliente Supabase/browser.
+- Parse numérico endurecido em payloads JSON (`toNullableNumber`) para aceitar número e string numérica com fallback seguro.
+- `weekly_progression` agora é sanitizado e ordenado por semana antes de alimentar UI/Chart.
+- Incluídos testes de contrato cobrindo:
+  - mapeamento defensivo de `oura_data`,
+  - sanitização/ordenação de `weekly_progression`,
+  - fallback de status inválido para `failed`,
+  - coerência do mapeamento em `TrackedExercise`.
+
+**Impacto**
+- Reduz risco de quebra silenciosa em relatório quando payload vier parcial ou com tipo inesperado.
+- Aumenta previsibilidade entre edge function, tela e exportação PDF.
+
 ---
 
 ## Backlog recomendado (prioridade)
