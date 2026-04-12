@@ -385,21 +385,35 @@ Deno.serve(async (req) => {
 
       const maxHeartRate = calculateMaxHeartRate(studentData.birth_date);
 
-      const { data: existingStudent } = await supabaseClient
+      const { data: existingStudents, error: existingStudentError } = await supabaseClient
         .from('students')
         .select('id, avatar_url')
         .eq('trainer_id', invite.trainer_id)
         .ilike('name', studentData.name)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (existingStudentError) {
+        throw existingStudentError;
+      }
+
+      const existingStudent = Array.isArray(existingStudents) ? existingStudents[0] ?? null : null;
 
       let orphanStudent = null;
       if (!existingStudent) {
-        const { data: orphan } = await supabaseClient
+        const { data: orphanRows, error: orphanError } = await supabaseClient
           .from('students')
           .select('id, avatar_url')
           .is('trainer_id', null)
           .ilike('name', studentData.name)
-          .maybeSingle();
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (orphanError) {
+          throw orphanError;
+        }
+
+        const orphan = Array.isArray(orphanRows) ? orphanRows[0] ?? null : null;
 
         if (orphan) {
           console.log(`Found orphaned student to adopt: ${orphan.id}`);

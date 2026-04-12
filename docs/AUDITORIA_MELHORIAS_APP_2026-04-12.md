@@ -773,6 +773,23 @@ Referência de pendências manuais (UI autenticada):
 - Evita mascarar falha de infraestrutura/RLS como “acesso negado”.
 - Mantém comportamento funcional existente para usuários válidos.
 
+### Hardening de consultas opcionais em convites/onboarding Oura
+- `supabase/functions/generate-oura-connect-link/index.ts`
+- `supabase/functions/create-student-from-invite/index.ts`
+
+**Ajuste aplicado**
+- `generate-oura-connect-link`:
+  - validação de conexão ativa passou a checar erro explícito de consulta (`existingConnectionError`);
+  - query ficou mais robusta com filtro direto em `is_active=true` e `limit(1)`.
+- `create-student-from-invite`:
+  - lookup de aluno existente e lookup de órfão deixaram de usar `maybeSingle()` em nome (`ilike`) para evitar ambiguidade por múltiplos homônimos;
+  - consulta passou para lista ordenada por `created_at desc` com `limit(1)` e validação explícita de erro de consulta.
+
+**Impacto**
+- Reduz falha silenciosa em fluxo de convite/conexão Oura quando há erro de banco ou múltiplas linhas possíveis.
+- Evita comportamento não determinístico no onboarding por nome duplicado.
+- Mantém regra funcional atual (adotar órfão ou atualizar aluno existente) com seleção estável.
+
 ---
 
 ## Backlog recomendado (prioridade)

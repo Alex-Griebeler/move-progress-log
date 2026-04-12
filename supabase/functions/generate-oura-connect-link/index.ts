@@ -105,11 +105,18 @@ Deno.serve(async (req) => {
     }
 
     // Check if already connected
-    const { data: existingConnection } = await supabaseClient
+    const { data: existingConnection, error: existingConnectionError } = await supabaseClient
       .from('oura_connections')
       .select('id, is_active')
       .eq('student_id', student_id)
+      .eq('is_active', true)
+      .limit(1)
       .maybeSingle();
+
+    if (existingConnectionError) {
+      console.error('Failed to verify existing Oura connection:', existingConnectionError);
+      return jsonResponse({ error: 'Falha ao verificar conexão Oura atual' }, 500);
+    }
 
     if (existingConnection?.is_active) {
       return jsonResponse({ error: 'Aluno já possui Oura Ring conectado' }, 400);
