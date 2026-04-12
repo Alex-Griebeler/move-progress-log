@@ -52,3 +52,4 @@
 - `7e56aff` fix(oura): keep partial metric sync and show conditional diagnostics warning
 - `ee0b361` fix(training): use nullish fallback for recovery score (`readiness_score ?? 50`) to avoid false zone inflation
 - `73cb66a` chore(smoke): accept `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` fallback no script de edge auth smoke
+- `6fe3f1e` fix(oura): baseline parsing robusta sem mascarar valores numéricos zero
