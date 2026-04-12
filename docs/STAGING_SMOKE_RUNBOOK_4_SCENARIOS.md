@@ -29,14 +29,20 @@ Close the production gate for commit `d152289` by validating the 4 mandatory int
 2. Upload a valid XLSX fixture with 2+ students and multiple exercises.
 3. Confirm parser/import finishes with success feedback.
 4. Validate sessions were created and appear in list/detail views.
+5. Re-upload the same file to validate duplicate handling.
+6. Upload a file with an intentionally invalid time value (ex.: `25:90` or `9999`) to validate rejection.
 
 Expected:
 - No parser crash
-- Success toast/state shown
+- Success toast/state shown for new rows
+- Duplicate sessions are ignored with warning toast (`já existiam e foram ignoradas`)
+- Invalid time rows are rejected with explicit validation error (no silent fallback time)
 - Imported sessions visible and consistent
 
 Evidence to collect:
 - Screenshot of import success
+- Screenshot of duplicate warning result
+- Screenshot of invalid-time validation message
 - Screenshot/list showing created sessions
 - Network request status (2xx) for import action
 
