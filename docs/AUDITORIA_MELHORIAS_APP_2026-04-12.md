@@ -433,10 +433,12 @@ Referência de pendências manuais (UI autenticada):
 
 ### Hardening de feedback no diálogo de relatório
 - `src/components/GenerateReportDialog.tsx`
+- `src/hooks/useStudentReports.ts`
 
 **Ajuste aplicado**
 - Falha ao buscar exercícios executados no período deixou de ser silenciosa.
 - Em caso de erro de consulta, o diálogo agora exibe toast com mensagem detalhada via parser central (`buildErrorDescription`), mantendo fallback seguro da lista vazia.
+- Mutations de geração de relatório e atualização de notas também passaram a exibir descrição padronizada de erro (sem concatenação direta frágil de `error.message`).
 
 **Impacto**
 - Evita falso diagnóstico de “nenhum exercício executado” quando o problema é infra/consulta.

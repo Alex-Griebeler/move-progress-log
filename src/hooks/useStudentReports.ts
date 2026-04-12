@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import {
   isRecord,
   mapStudentReport,
@@ -148,7 +149,9 @@ export const useGenerateReport = () => {
     },
     onError: (error: Error) => {
       logger.error("Error generating report:", error);
-      toast.error("Erro ao gerar relatório: " + error.message);
+      toast.error("Erro ao gerar relatório", {
+        description: buildErrorDescription(error, "Tente novamente em instantes."),
+      });
     },
   });
 };
@@ -188,7 +191,9 @@ export const useUpdateTrainerNotes = () => {
     },
     onError: (error: Error) => {
       logger.error("Error updating trainer notes:", error);
-      toast.error("Erro ao atualizar notas: " + error.message);
+      toast.error("Erro ao atualizar notas", {
+        description: buildErrorDescription(error, "Tente novamente em instantes."),
+      });
     },
   });
 };
