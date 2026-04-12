@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 interface OuraConnectionStatus {
   isConnected: boolean;
@@ -13,12 +14,14 @@ export const useOuraConnectionStatus = (studentId: string) => {
     queryKey: ["oura-connection-status", studentId],
     queryFn: async (): Promise<OuraConnectionStatus> => {
       // Verificar se tem conexão ativa
-      const { data: connection } = await supabase
+      const { data: connection, error: connectionError } = await supabase
         .from("oura_connections")
         .select("last_sync_at, is_active")
         .eq("student_id", studentId)
         .eq("is_active", true)
         .maybeSingle();
+
+      if (connectionError) throw connectionError;
 
       if (!connection) {
         return {
@@ -30,12 +33,16 @@ export const useOuraConnectionStatus = (studentId: string) => {
       }
 
       // Verificar logs de falha recentes (últimas 24h)
-      const { data: failedLogs } = await supabase
+      const { data: failedLogs, error: failedLogsError } = await supabase
         .from("oura_sync_logs")
         .select("status")
         .eq("student_id", studentId)
         .eq("status", "failed")
         .gte("sync_time", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+      if (failedLogsError) {
+        logger.warn("[useOuraConnectionStatus] failed to load recent sync failures", failedLogsError);
+      }
 
       const recentFailed = failedLogs?.length || 0;
 
