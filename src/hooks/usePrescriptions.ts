@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import {
   mapCustomAdaptations,
   sanitizeAssignmentCustomAdaptations,
@@ -338,7 +339,7 @@ export const useCreatePrescription = () => {
     },
     onError: (error) => {
       notify.error(i18n.modules.prescriptions.errorCreate, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -376,11 +377,12 @@ export const useAssignPrescription = () => {
       notify.success(i18n.modules.prescriptions.assigned);
     },
     onError: (error: Error & { code?: string }) => {
-      const isAlreadyAssigned = error.code === "23505" || error.message?.includes("duplicate key");
+      const message = buildErrorDescription(error, i18n.errors.unknown);
+      const isAlreadyAssigned = error.code === "23505" || message.includes("duplicate key");
       notify.error(i18n.modules.prescriptions.errorAssign, {
         description: isAlreadyAssigned 
           ? "Este aluno já tem esta prescrição atribuída com a mesma data de início."
-          : error.message
+          : message
       });
     },
   });
@@ -470,7 +472,7 @@ export const useUpdatePrescription = () => {
     },
     onError: (error) => {
       notify.error(i18n.modules.prescriptions.errorUpdate, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -520,7 +522,7 @@ export const useDeletePrescriptionAssignment = () => {
     },
     onError: (error) => {
       notify.error(i18n.modules.prescriptions.errorDelete, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -544,7 +546,7 @@ export const useDeletePrescription = () => {
     },
     onError: (error) => {
       notify.error(i18n.modules.prescriptions.errorDelete, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
