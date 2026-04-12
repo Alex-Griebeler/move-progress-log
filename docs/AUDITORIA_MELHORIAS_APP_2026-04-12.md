@@ -444,6 +444,18 @@ Referência de pendências manuais (UI autenticada):
 - Evita falso diagnóstico de “nenhum exercício executado” quando o problema é infra/consulta.
 - Melhora rastreabilidade operacional no fluxo de geração de relatórios.
 
+### Hardening de invalidação de cache Oura (sync de teste)
+- `src/hooks/useOuraTestSync.ts`
+
+**Ajuste aplicado**
+- Corrigida query key inválida (`latest-oura-metrics` -> `oura-metrics-latest`).
+- Expandida invalidação pós-sync para `oura-acute-metrics-latest`, `oura-connection`, `oura-connection-status` e `oura-trends`.
+- Tratamento de erro padronizado com `buildErrorDescription`.
+
+**Impacto**
+- Reduz inconsistência visual após sincronização de teste Oura.
+- Diminui necessidade de refresh manual para visualizar dados atualizados.
+
 ### Hardening de duplicidade no catálogo de exercícios
 - `src/hooks/duplicateExerciseUtils.ts`
 - `src/hooks/useDuplicateExerciseCheck.ts`
