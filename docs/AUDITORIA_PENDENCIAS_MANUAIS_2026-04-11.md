@@ -54,4 +54,4 @@
 - `73cb66a` chore(smoke): accept `VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY` fallback no script de edge auth smoke
 - `6fe3f1e` fix(oura): baseline parsing robusta sem mascarar valores numéricos zero
 - `65ac384` fix(reports): evita exibição de `undefined` em “dias de dados” no relatório (UI + PDF)
-- (esta rodada) fix(import): parser de hora endurecido (HH:MM, AM/PM, HHMM e fração Excel 0..1), sem normalização silenciosa de valores inválidos
+- `d93359b` fix(import): parser de hora endurecido (HH:MM, AM/PM, HHMM e fração Excel 0..1), sem normalização silenciosa de valores inválidos
