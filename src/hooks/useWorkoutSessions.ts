@@ -46,6 +46,9 @@ type GroupSessionCreationResult = {
   error?: string;
 };
 
+const STUDENT_WORKOUT_PAGE_SIZE = 200;
+const STUDENT_WORKOUT_MAX_PAGES = 30;
+
 const mapWorkoutSession = (row: WorkoutSessionRow): WorkoutSession => ({
   id: row.id,
   student_id: row.student_id,
@@ -79,18 +82,38 @@ export const useWorkoutSessions = (studentId?: string) => {
   return useQuery({
     queryKey: ["workout-sessions", studentId],
     queryFn: async () => {
-      let query = supabase
+      if (studentId) {
+        const allStudentSessions: WorkoutSessionRow[] = [];
+
+        for (let pageIndex = 0; pageIndex < STUDENT_WORKOUT_MAX_PAGES; pageIndex += 1) {
+          const from = pageIndex * STUDENT_WORKOUT_PAGE_SIZE;
+          const to = from + STUDENT_WORKOUT_PAGE_SIZE - 1;
+
+          const { data, error } = await supabase
+            .from("workout_sessions")
+            .select("*")
+            .eq("student_id", studentId)
+            .order("date", { ascending: false })
+            .order("time", { ascending: false })
+            .order("id", { ascending: false })
+            .range(from, to);
+
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+
+          allStudentSessions.push(...(data as WorkoutSessionRow[]));
+          if (data.length < STUDENT_WORKOUT_PAGE_SIZE) break;
+        }
+
+        return allStudentSessions.map(mapWorkoutSession);
+      }
+
+      const { data, error } = await supabase
         .from("workout_sessions")
         .select("*")
         .order("date", { ascending: false })
         .order("time", { ascending: false })
         .limit(500);
-
-      if (studentId) {
-        query = query.eq("student_id", studentId);
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
       return (data || []).map(mapWorkoutSession);

@@ -709,10 +709,12 @@ Referência de pendências manuais (UI autenticada):
 - `src/hooks/useStudents.ts`
 - `src/hooks/usePrescriptions.ts`
 - `src/hooks/useAllSessions.ts` (hook legado)
+- `src/hooks/useWorkoutSessions.ts` (fluxo por aluno)
 
 **Ajuste aplicado**
 - Removidos cortes fixos de listagem (`students.limit(2000)` e `workout_prescriptions.limit(500)`).
 - Removido também corte fixo do hook legado de sessões (`workout_sessions.limit(2000)`).
+- No histórico por aluno, removido teto fixo de 500 sessões com paginação incremental; para visão global sem filtro, mantido cap de 500 por segurança de performance.
 - Implementada paginação incremental com `range` e ordenação estável.
 
 **Impacto**
