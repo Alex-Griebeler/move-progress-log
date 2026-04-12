@@ -555,6 +555,17 @@ Referência de pendências manuais (UI autenticada):
 - Erros do motor de protocolo ficam mais claros para operação clínica.
 - Menor chance de mascaramento de falha de persistência/edge function.
 
+### Hardening de feedback de erro na desconexão Oura
+- `src/hooks/useOuraConnection.ts`
+
+**Ajuste aplicado**
+- Fluxo `useDisconnectOura` passou a usar `buildErrorDescription` no toast de erro.
+- Mantida lógica de invalidação e de mensagens especializadas do fluxo de sincronização.
+
+**Impacto**
+- Erro de desconexão deixa de depender apenas de `error.message`.
+- Melhor consistência com o padrão de feedback adotado no restante do app.
+
 ---
 
 ## Backlog recomendado (prioridade)

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { invalidateOuraQueries } from "./ouraQueryInvalidation";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface OuraConnection {
   id: string;
@@ -261,7 +262,7 @@ export const useDisconnectOura = () => {
     },
     onError: (error: Error) => {
       notify.error(i18n.modules.oura.errorDisconnect, {
-        description: error.message || "Tente novamente em alguns instantes"
+        description: buildErrorDescription(error, "Tente novamente em alguns instantes"),
       });
     },
   });
