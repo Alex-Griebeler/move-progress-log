@@ -441,6 +441,21 @@ Referência de pendências manuais (UI autenticada):
 - Evita falso diagnóstico de “nenhum exercício executado” quando o problema é infra/consulta.
 - Melhora rastreabilidade operacional no fluxo de geração de relatórios.
 
+### Hardening de duplicidade no catálogo de exercícios
+- `src/hooks/duplicateExerciseUtils.ts`
+- `src/hooks/useDuplicateExerciseCheck.ts`
+- `src/hooks/__tests__/useDuplicateExerciseCheck.utils.test.ts`
+
+**Ajuste aplicado**
+- Checagem de duplicidade passou a usar normalização robusta (acentos/pontuação/espaçamento).
+- Filtro de duplicidade agora é determinístico no cliente por nome normalizado, em vez de depender apenas de `ilike` parcial.
+- Mantido comportamento de excluir `excludeId` no modo edição.
+- Incluídos testes unitários para equivalência com acento e exclusão do item corrente.
+
+**Impacto**
+- Reduz risco de cadastrar exercícios duplicados por variação ortográfica.
+- Melhora qualidade de catalogação sem alterar o fluxo de cadastro/edição.
+
 ---
 
 ## Backlog recomendado (prioridade)

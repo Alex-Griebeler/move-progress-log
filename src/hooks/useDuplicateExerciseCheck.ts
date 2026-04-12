@@ -1,18 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useDebounce } from "./useDebounce";
-
-function normalize(str: string): string {
-  return str
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-}
+import {
+  type DuplicateCandidate,
+  findDuplicateCandidates,
+  normalizeExerciseName,
+} from "./duplicateExerciseUtils";
 
 export function useDuplicateExerciseCheck(name: string, excludeId?: string) {
   const debouncedName = useDebounce(name, 300);
-  const normalizedName = normalize(debouncedName);
+  const normalizedName = normalizeExerciseName(debouncedName);
 
   return useQuery({
     queryKey: ["exercise-duplicate-check", normalizedName, excludeId],
@@ -22,17 +19,17 @@ export function useDuplicateExerciseCheck(name: string, excludeId?: string) {
       const { data, error } = await supabase
         .from("exercises_library")
         .select("id, name")
-        .ilike("name", `%${debouncedName.trim()}%`)
-        .limit(5);
+        .order("name", { ascending: true })
+        .limit(2000);
 
       if (error) throw error;
 
-      // Filter out the current exercise if editing
-      const filtered = excludeId
-        ? data.filter((e) => e.id !== excludeId)
-        : data;
+      const rows = (data || []).filter(
+        (row): row is DuplicateCandidate =>
+          typeof row?.id === "string" && typeof row?.name === "string"
+      );
 
-      return filtered;
+      return findDuplicateCandidates(rows, normalizedName, excludeId);
     },
     enabled: normalizedName.length >= 3,
   });
