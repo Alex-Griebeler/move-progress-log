@@ -55,3 +55,4 @@
 - `6fe3f1e` fix(oura): baseline parsing robusta sem mascarar valores numéricos zero
 - `65ac384` fix(reports): evita exibição de `undefined` em “dias de dados” no relatório (UI + PDF)
 - `d93359b` fix(import): parser de hora endurecido (HH:MM, AM/PM, HHMM e fração Excel 0..1), sem normalização silenciosa de valores inválidos
+- `f3bfc2e` chore(ci): atualização de actions do workflow `ai-engineer` para majors suportadas
