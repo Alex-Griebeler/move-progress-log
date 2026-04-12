@@ -98,50 +98,69 @@ export interface CreateExerciseInput {
 
 export type { ExerciseFilters } from "./exerciseFilters";
 
+const EXERCISES_PAGE_SIZE = 1000;
+const EXERCISES_MAX_PAGES = 50;
+
 export const useExercisesLibrary = (filters?: ExerciseFilters) => {
   const normalizedFilters = sanitizeExerciseFilters(filters);
 
   return useQuery({
     queryKey: ["exercises-library", buildExercisesLibraryQueryKey(normalizedFilters)],
     queryFn: async () => {
-      let query = supabase
-        .from("exercises_library")
-        .select("*")
-        .order("name")
-        .limit(2000);
+      const allExercises: ExerciseLibrary[] = [];
 
-      if (normalizedFilters.movement_pattern) {
-        query = query.eq("movement_pattern", normalizedFilters.movement_pattern);
-      }
-      if (normalizedFilters.laterality) {
-        query = query.eq("laterality", normalizedFilters.laterality);
-      }
-      if (normalizedFilters.movement_plane) {
-        query = query.eq("movement_plane", normalizedFilters.movement_plane);
-      }
-      if (normalizedFilters.contraction_type) {
-        query = query.eq("contraction_type", normalizedFilters.contraction_type);
-      }
-      if (normalizedFilters.level) {
-        query = query.eq("level", normalizedFilters.level);
-      }
-      if (normalizedFilters.category) {
-        query = query.eq("category", normalizedFilters.category);
-      }
-      if (normalizedFilters.subcategory) {
-        query = query.eq("subcategory", normalizedFilters.subcategory);
-      }
-      if (normalizedFilters.risk_level) {
-        query = query.eq("risk_level", normalizedFilters.risk_level);
-      }
-      if (normalizedFilters.stability_position) {
-        query = query.eq("stability_position", normalizedFilters.stability_position);
+      const buildPageQuery = (pageIndex: number) => {
+        const from = pageIndex * EXERCISES_PAGE_SIZE;
+        const to = from + EXERCISES_PAGE_SIZE - 1;
+
+        let query = supabase
+          .from("exercises_library")
+          .select("*")
+          .order("name")
+          .order("id")
+          .range(from, to);
+
+        if (normalizedFilters.movement_pattern) {
+          query = query.eq("movement_pattern", normalizedFilters.movement_pattern);
+        }
+        if (normalizedFilters.laterality) {
+          query = query.eq("laterality", normalizedFilters.laterality);
+        }
+        if (normalizedFilters.movement_plane) {
+          query = query.eq("movement_plane", normalizedFilters.movement_plane);
+        }
+        if (normalizedFilters.contraction_type) {
+          query = query.eq("contraction_type", normalizedFilters.contraction_type);
+        }
+        if (normalizedFilters.level) {
+          query = query.eq("level", normalizedFilters.level);
+        }
+        if (normalizedFilters.category) {
+          query = query.eq("category", normalizedFilters.category);
+        }
+        if (normalizedFilters.subcategory) {
+          query = query.eq("subcategory", normalizedFilters.subcategory);
+        }
+        if (normalizedFilters.risk_level) {
+          query = query.eq("risk_level", normalizedFilters.risk_level);
+        }
+        if (normalizedFilters.stability_position) {
+          query = query.eq("stability_position", normalizedFilters.stability_position);
+        }
+
+        return query;
+      };
+
+      for (let pageIndex = 0; pageIndex < EXERCISES_MAX_PAGES; pageIndex += 1) {
+        const { data, error } = await buildPageQuery(pageIndex);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allExercises.push(...(data as ExerciseLibrary[]));
+        if (data.length < EXERCISES_PAGE_SIZE) break;
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return data as ExerciseLibrary[];
+      return allExercises;
     },
   });
 };

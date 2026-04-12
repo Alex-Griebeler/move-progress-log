@@ -691,6 +691,17 @@ Referência de pendências manuais (UI autenticada):
 **Impacto**
 - Remove warning de `validateDOMNesting` e reduz risco de comportamento inconsistente de clique/foco no item da conversa.
 
+### Robustez de carregamento do catálogo de exercícios
+- `src/hooks/useExercisesLibrary.ts`
+
+**Ajuste aplicado**
+- Removido corte fixo de `.limit(2000)`.
+- Implementada paginação incremental (`range`) com ordenação estável por `name` + `id`.
+
+**Impacto**
+- Evita truncamento silencioso da biblioteca em crescimento.
+- Mantém mesma API do hook para a UI existente, sem mudança de escopo funcional.
+
 ---
 
 ## Backlog recomendado (prioridade)
