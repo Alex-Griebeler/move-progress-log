@@ -375,6 +375,7 @@ Referência de pendências manuais (UI autenticada):
 - `src/utils/__tests__/errorParsing.test.ts`
 - `src/components/ImportSessionsDialog.tsx`
 - `src/hooks/useWorkoutSessions.ts`
+- `src/components/RecordGroupSessionDialog.tsx`
 
 **Ajuste aplicado**
 - Parser único de erro (`parseErrorInfo`/`buildErrorDescription`) para erros `Error`, objetos Supabase (`message/details/hint/code`) e payloads não padronizados.

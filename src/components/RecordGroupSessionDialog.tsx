@@ -27,6 +27,7 @@ import { useSessionDraft } from "@/hooks/useSessionDraft";
 import { AddStudentDialog } from "./AddStudentDialog";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 // Shared types, utilities & components
 import {
@@ -467,13 +468,15 @@ export function RecordGroupSessionDialog({
       setTimeout(() => { setDialogState('preview'); }, 100);
     } catch (error) {
       logger.error("Erro em handleSessionData:", error);
-      handleError(error instanceof Error ? error.message : "Erro ao processar dados");
+      handleError(error);
     }
   };
 
-  const handleError = (error: string) => {
+  const handleError = (error: unknown) => {
     logger.error("handleError chamado:", error);
-    notify.error(i18n.modules.workouts.recordingError, { description: error });
+    notify.error(i18n.modules.workouts.recordingError, {
+      description: buildErrorDescription(error, "Erro ao processar dados"),
+    });
     setDialogState('recording');
   };
 
