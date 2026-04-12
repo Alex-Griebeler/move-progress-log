@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { sortProtocolRecommendations } from "./protocolRecommendationUtils";
 
 export interface ProtocolRecommendation {
   id: string;
@@ -39,10 +40,10 @@ export const useProtocolRecommendations = (studentId: string) => {
         `)
         .eq("student_id", studentId)
         .order("recommended_date", { ascending: false })
-        .order("priority", { ascending: true }); // high priority first (alphabetically)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as ProtocolRecommendation[];
+      return sortProtocolRecommendations((data || []) as ProtocolRecommendation[]) as ProtocolRecommendation[];
     },
   });
 };
@@ -66,10 +67,15 @@ export const useGenerateRecommendations = () => {
       queryClient.invalidateQueries({ 
         queryKey: ["protocol-recommendations", studentId] 
       });
-      
-      if (data.recommendations_count > 0) {
+
+      const count =
+        data && typeof data === "object" && "recommendations_count" in data
+          ? Number((data as { recommendations_count?: unknown }).recommendations_count) || 0
+          : 0;
+
+      if (count > 0) {
         notify.success(
-          `${data.recommendations_count} ${i18n.modules.recommendations.generated}`
+          `${count} ${i18n.modules.recommendations.generated}`
         );
       } else {
         notify.info(i18n.modules.recommendations.noRecommendations);
@@ -126,6 +132,11 @@ export const useUpdateRecommendation = () => {
               .order("date", { ascending: false })
               .limit(1)
               .single();
+
+            await supabase
+              .from("protocol_adherence")
+              .delete()
+              .eq("recommendation_id", id);
 
             await supabase
               .from("protocol_adherence")

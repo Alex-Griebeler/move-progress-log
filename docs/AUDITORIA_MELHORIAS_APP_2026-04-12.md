@@ -339,6 +339,24 @@ Referência de pendências manuais (UI autenticada):
 - Reduz inconsistência de cache e resultados quando filtros equivalentes chegam em formatos diferentes.
 - Evita consultas desnecessariamente restritivas por filtros vazios.
 
+### Hardening de recomendações de protocolo (ordenação + aderência)
+- `src/hooks/protocolRecommendationUtils.ts`
+- `src/hooks/useProtocolRecommendations.ts`
+- `src/hooks/__tests__/protocolRecommendationUtils.test.ts`
+
+**Ajuste aplicado**
+- Ordenação de recomendações passou a ser determinística por regra de negócio:
+  - `recommended_date` desc,
+  - prioridade `high > medium > low`,
+  - `created_at` desc como desempate.
+- Correção remove dependência da ordenação alfabética de `priority` no banco, que podia inverter `medium/low`.
+- Em toggle de aderência (`applied=true`), o hook agora remove previamente registros antigos por `recommendation_id` antes de inserir novo snapshot, evitando duplicidade por reenvio/retry.
+- Incluído teste unitário da regra de ordenação.
+
+**Impacto**
+- Lista de protocolos fica estável e coerente com prioridade clínica esperada.
+- Reduz ruído e duplicidade no histórico de aderência.
+
 ---
 
 ## Backlog recomendado (prioridade)
