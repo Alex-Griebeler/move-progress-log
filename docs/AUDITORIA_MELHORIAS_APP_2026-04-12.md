@@ -246,6 +246,7 @@ Referência de pendências manuais (UI autenticada):
 - Agora usa cópia defensiva: `[...] .sort().join(",")`.
 - Em `useExerciseLastSession`, ordenação de sessão reforçada para desempate (`date` -> `time` -> `created_at`) e normalização textual com remoção de acentos para matching mais confiável de exercício.
 - Em `useStudentsCardData`, erros críticos de consulta (`oura_metrics`, `student_observations`, `oura_connections`) agora falham explicitamente em vez de mascarar ausência de dados.
+- Em `useLoadSuggestions`, `queryKey` ficou sensível ao contexto completo da recomendação (zona, decisão, ajuste, override e severidade de alertas), reduzindo risco de sugestão de carga stale por cache.
 
 **Impacto**
 - Evita side effects sutis de ordenação em estado externo.

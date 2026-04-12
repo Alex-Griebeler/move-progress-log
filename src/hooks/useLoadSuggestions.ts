@@ -86,8 +86,18 @@ export const useLoadSuggestions = (
   studentId: string,
   recommendation: TrainingRecommendation | null
 ) => {
+  const recommendationKey = recommendation
+    ? [
+        recommendation.zone,
+        recommendation.loadDecision,
+        recommendation.loadAdjustmentPercent ?? "na",
+        recommendation.overrideApplied ? "override" : "normal",
+        recommendation.alerts.map((alert) => alert.level).join(","),
+      ].join("|")
+    : "none";
+
   return useQuery({
-    queryKey: ["load-suggestions", studentId, recommendation?.zone, recommendation?.loadDecision],
+    queryKey: ["load-suggestions", studentId, recommendationKey],
     enabled: !!studentId && !!recommendation,
     queryFn: async (): Promise<LoadSuggestionItem[]> => {
       if (!recommendation) return [];
