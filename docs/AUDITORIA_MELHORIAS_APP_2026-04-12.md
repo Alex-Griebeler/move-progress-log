@@ -790,6 +790,20 @@ Referência de pendências manuais (UI autenticada):
 - Evita comportamento não determinístico no onboarding por nome duplicado.
 - Mantém regra funcional atual (adotar órfão ou atualizar aluno existente) com seleção estável.
 
+### Hardening de observabilidade em consultas opcionais do sync Oura
+- `supabase/functions/oura-sync/index.ts`
+
+**Ajuste aplicado**
+- Consultas opcionais com `maybeSingle()` passaram a capturar erro explicitamente e registrar `console.warn` com contexto:
+  - check de idempotência (`oura_metrics` por `student_id + date`);
+  - leitura de métrica diária existente para merge;
+  - leitura de métrica aguda existente para merge.
+- Em caso de erro nessas leituras opcionais, a função mantém o fallback seguro (segue o fluxo), mas sem mascarar o problema.
+
+**Impacto**
+- Reduz risco de falha silenciosa em produção no pipeline Oura.
+- Mantém comportamento funcional do sync e melhora diagnóstico operacional para incidentes.
+
 ---
 
 ## Backlog recomendado (prioridade)

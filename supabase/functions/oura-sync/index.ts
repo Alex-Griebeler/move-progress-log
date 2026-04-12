@@ -252,14 +252,18 @@ Deno.serve(async (req) => {
 
     // O-05: Idempotency check — skip if already synced recently (unless force_sync=true)
     if (!force_sync) {
-      const { data: existingMetric } = await supabaseClient
+      const { data: existingMetric, error: existingMetricError } = await supabaseClient
         .from('oura_metrics')
         .select('created_at')
         .eq('student_id', student_id)
         .eq('date', syncDate)
         .maybeSingle();
 
-      if (existingMetric) {
+      if (existingMetricError) {
+        console.warn('Idempotency check failed (continuing sync):', existingMetricError.message);
+      }
+
+      if (!existingMetricError && existingMetric) {
         const lastSyncTime = new Date(existingMetric.created_at || 0).getTime();
         const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
         if (lastSyncTime > twoHoursAgo) {
@@ -547,16 +551,20 @@ Deno.serve(async (req) => {
     }
 
     // O-11: Preserve previous non-null values when Oura returns sparse payloads.
-    const { data: existingMetricRow } = await supabaseClient
+    const { data: existingMetricRow, error: existingMetricRowError } = await supabaseClient
       .from('oura_metrics')
       .select('*')
       .eq('student_id', student_id)
       .eq('date', syncDate)
       .maybeSingle();
 
+    if (existingMetricRowError) {
+      console.warn('Failed to fetch existing daily metric for merge:', existingMetricRowError.message);
+    }
+
     const mergedMetrics = mergePreservingExisting(
       metrics as Record<string, unknown>,
-      isPlainObject(existingMetricRow) ? existingMetricRow : null
+      !existingMetricRowError && isPlainObject(existingMetricRow) ? existingMetricRow : null
     );
 
     // Upsert metrics
@@ -570,16 +578,20 @@ Deno.serve(async (req) => {
     }
 
     if (hasAcuteData) {
-      const { data: existingAcuteRow } = await supabaseClient
+      const { data: existingAcuteRow, error: existingAcuteRowError } = await supabaseClient
         .from('oura_acute_metrics')
         .select('*')
         .eq('student_id', student_id)
         .eq('date', syncDate)
         .maybeSingle();
 
+      if (existingAcuteRowError) {
+        console.warn('Failed to fetch existing acute metric for merge:', existingAcuteRowError.message);
+      }
+
       const mergedAcuteMetrics = mergePreservingExisting(
         acuteMetrics as Record<string, unknown>,
-        isPlainObject(existingAcuteRow) ? existingAcuteRow : null
+        !existingAcuteRowError && isPlainObject(existingAcuteRow) ? existingAcuteRow : null
       );
 
       const { error: acuteUpsertError } = await supabaseClient
