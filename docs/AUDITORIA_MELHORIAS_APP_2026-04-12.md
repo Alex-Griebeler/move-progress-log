@@ -310,6 +310,21 @@ Referência de pendências manuais (UI autenticada):
 - Reduz risco de quebra silenciosa em relatório quando payload vier parcial ou com tipo inesperado.
 - Aumenta previsibilidade entre edge function, tela e exportação PDF.
 
+### Hardening de prescrição (assign/update)
+- `src/hooks/prescriptionMappers.ts`
+- `src/hooks/usePrescriptions.ts`
+- `src/hooks/__tests__/prescriptionMappers.test.ts`
+
+**Ajuste aplicado**
+- Extraída sanitização de `custom_adaptations` para módulo puro (`prescriptionMappers`) com validação de estrutura mínima e parsing numérico defensivo.
+- `useAssignPrescription` agora envia `custom_adaptations` sanitizado, evitando payload inválido/ruidoso no banco.
+- Corrigido bug silencioso em `useUpdatePrescription`: falha ao atualizar `prescription_type` agora interrompe fluxo com erro explícito (antes podia seguir para RPC e mascarar falha parcial).
+- Incluídos testes unitários para mapeamento e sanitização de adaptações customizadas.
+
+**Impacto**
+- Reduz risco de inconsistência entre atribuição e leitura de adaptações de prescrição.
+- Evita estado parcial em atualização de prescrição quando `prescription_type` falha.
+
 ---
 
 ## Backlog recomendado (prioridade)

@@ -1,8 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database, Json } from "@/integrations/supabase/types";
+import type { Database } from "@/integrations/supabase/types";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import {
+  mapCustomAdaptations,
+  sanitizeAssignmentCustomAdaptations,
+} from "./prescriptionMappers";
+import type { CustomAdaptation } from "./prescriptionMappers";
 
 export interface WorkoutPrescription {
   id: string;
@@ -48,16 +53,7 @@ export interface ExerciseAdaptation {
   exercise_name?: string;
 }
 
-// INC-008: Tipagem formal para custom_adaptations
-export interface CustomAdaptation {
-  exercise_library_id: string;
-  adaptation_type: string;
-  sets?: string | null;
-  reps?: string | null;
-  interval_seconds?: number | null;
-  pse?: string | null;
-  observations?: string | null;
-}
+export type { CustomAdaptation } from "./prescriptionMappers";
 
 export interface PrescriptionAssignment {
   id: string;
@@ -88,33 +84,6 @@ type ExerciseAdaptationWithLibraryRow = ExerciseAdaptationRow & {
 
 type AssignmentWithStudentRow = PrescriptionAssignmentRow & {
   students: { name: string } | null;
-};
-
-const mapCustomAdaptations = (value: Json | null): CustomAdaptation[] | null => {
-  if (!Array.isArray(value)) {
-    return null;
-  }
-
-  const adaptations = value
-    .filter(
-      (item): item is Record<string, Json | undefined> =>
-        typeof item === "object" && item !== null && !Array.isArray(item)
-    )
-    .map((item) => ({
-      exercise_library_id:
-        typeof item.exercise_library_id === "string" ? item.exercise_library_id : "",
-      adaptation_type:
-        typeof item.adaptation_type === "string" ? item.adaptation_type : "",
-      sets: typeof item.sets === "string" ? item.sets : null,
-      reps: typeof item.reps === "string" ? item.reps : null,
-      interval_seconds:
-        typeof item.interval_seconds === "number" ? item.interval_seconds : null,
-      pse: typeof item.pse === "string" ? item.pse : null,
-      observations: typeof item.observations === "string" ? item.observations : null,
-    }))
-    .filter((item) => item.exercise_library_id && item.adaptation_type);
-
-  return adaptations;
 };
 
 const mapPrescriptionListItem = (row: PrescriptionListRow): WorkoutPrescription => ({
@@ -384,14 +353,16 @@ export const useAssignPrescription = () => {
       student_ids: string[];
       start_date: string;
       end_date?: string;
-      custom_adaptations?: Record<string, string | number | boolean | null | string[]> | null;
+      custom_adaptations?: CustomAdaptation[] | null;
     }) => {
+      const customAdaptations = sanitizeAssignmentCustomAdaptations(data.custom_adaptations);
+
       const assignments = data.student_ids.map((student_id) => ({
         prescription_id: data.prescription_id,
         student_id,
         start_date: data.start_date,
         end_date: data.end_date || null,
-        custom_adaptations: data.custom_adaptations || null,
+        custom_adaptations: customAdaptations,
       }));
 
       const { error } = await supabase
@@ -450,10 +421,12 @@ export const useUpdatePrescription = () => {
       // BUG-001 fix: Use atomic stored procedure instead of delete-then-reinsert
       // Update prescription_type if provided
       if (data.prescription_type) {
-        await supabase
+        const { error: prescriptionTypeError } = await supabase
           .from("workout_prescriptions")
           .update({ prescription_type: data.prescription_type })
           .eq("id", data.id);
+
+        if (prescriptionTypeError) throw prescriptionTypeError;
       }
 
       const exercisesPayload = data.exercises.map((ex) => ({
