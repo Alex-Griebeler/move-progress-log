@@ -566,6 +566,17 @@ Referência de pendências manuais (UI autenticada):
 - Erro de desconexão deixa de depender apenas de `error.message`.
 - Melhor consistência com o padrão de feedback adotado no restante do app.
 
+### Hardening de feedback de erro na inserção manual de métricas Oura
+- `src/hooks/useOuraMetrics.ts`
+
+**Ajuste aplicado**
+- Mutação `useAddOuraMetrics` passou a usar `buildErrorDescription` no toast de erro.
+- Sem mudança de regra de invalidação/cache.
+
+**Impacto**
+- Falhas de inserção manual de métricas ficam mais claras para diagnóstico.
+- Fechado o lote de padronização de erro em hooks críticos.
+
 ---
 
 ## Backlog recomendado (prioridade)

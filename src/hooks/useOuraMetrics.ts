@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 export interface OuraMetrics {
   id: string;
@@ -155,7 +156,7 @@ export const useAddOuraMetrics = () => {
     },
     onError: (error: Error) => {
       notify.error(i18n.modules.oura.errorAddMetrics, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
