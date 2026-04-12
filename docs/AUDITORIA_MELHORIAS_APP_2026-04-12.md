@@ -445,11 +445,15 @@ Referência de pendências manuais (UI autenticada):
 - Melhora rastreabilidade operacional no fluxo de geração de relatórios.
 
 ### Hardening de invalidação de cache Oura (sync de teste)
+- `src/hooks/ouraQueryInvalidation.ts`
+- `src/hooks/useOuraConnection.ts`
 - `src/hooks/useOuraTestSync.ts`
+- `src/hooks/useOuraSyncAll.ts`
 
 **Ajuste aplicado**
 - Corrigida query key inválida (`latest-oura-metrics` -> `oura-metrics-latest`).
-- Expandida invalidação pós-sync para `oura-acute-metrics-latest`, `oura-connection`, `oura-connection-status` e `oura-trends`.
+- Invalidação pós-sync consolidada em util único (`invalidateOuraQueries`) e aplicada em `useSyncOura`, `useOuraTestSync` e `useOuraSyncAll`.
+- Escopo padrão de invalidação inclui conexão, status de conexão, métricas diárias, métricas recentes, métricas agudas, workouts e tendências.
 - Tratamento de erro padronizado com `buildErrorDescription`.
 
 **Impacto**

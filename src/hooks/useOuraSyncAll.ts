@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
+import { invalidateOuraQueries } from "./ouraQueryInvalidation";
 
 interface SyncAllResult {
   message: string;
@@ -30,11 +32,8 @@ export const useOuraSyncAll = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      // Invalidate all Oura-related queries
-      queryClient.invalidateQueries({ queryKey: ["oura-metrics"] });
-      queryClient.invalidateQueries({ queryKey: ["oura-workouts"] });
-      queryClient.invalidateQueries({ queryKey: ["oura-connection"] });
+    onSuccess: async (data) => {
+      await invalidateOuraQueries(queryClient);
 
       if (data.failed > 0) {
         notify.warning(
@@ -57,7 +56,7 @@ export const useOuraSyncAll = () => {
     onError: (error: Error) => {
       logger.error("Error in sync all:", error);
       notify.error(i18n.modules.oura.errorSyncAll, {
-        description: error.message || i18n.errors.unknown
+        description: buildErrorDescription(error, i18n.errors.unknown)
       });
     },
   });

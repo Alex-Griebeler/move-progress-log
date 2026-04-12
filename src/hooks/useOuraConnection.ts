@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { invalidateOuraQueries } from "./ouraQueryInvalidation";
 
 interface OuraConnection {
   id: string;
@@ -174,22 +175,8 @@ export const useSyncOura = () => {
         };
       }
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: ["oura-connection", variables.student_id],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["oura-metrics", variables.student_id],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["oura-metrics-latest", variables.student_id],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["oura-workouts", variables.student_id],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["oura-acute-metrics-latest", variables.student_id],
-      });
+    onSuccess: async (data, variables) => {
+      await invalidateOuraQueries(queryClient, variables.student_id);
 
       const result = data as MultiDaySyncResult | undefined;
       
