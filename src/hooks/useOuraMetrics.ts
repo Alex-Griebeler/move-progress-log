@@ -148,6 +148,9 @@ export const useAddOuraMetrics = () => {
       queryClient.invalidateQueries({ 
         queryKey: ["oura-metrics-latest", variables.student_id] 
       });
+      queryClient.invalidateQueries({
+        queryKey: ["oura-trends", variables.student_id],
+      });
       notify.success(i18n.modules.oura.metricsAdded);
     },
     onError: (error: Error) => {

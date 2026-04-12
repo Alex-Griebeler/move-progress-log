@@ -449,11 +449,13 @@ Referência de pendências manuais (UI autenticada):
 - `src/hooks/useOuraConnection.ts`
 - `src/hooks/useOuraTestSync.ts`
 - `src/hooks/useOuraSyncAll.ts`
+- `src/hooks/useOuraMetrics.ts`
 
 **Ajuste aplicado**
 - Corrigida query key inválida (`latest-oura-metrics` -> `oura-metrics-latest`).
 - Invalidação pós-sync consolidada em util único (`invalidateOuraQueries`) e aplicada em `useSyncOura`, `useOuraTestSync` e `useOuraSyncAll`.
 - Escopo padrão de invalidação inclui conexão, status de conexão, métricas diárias, métricas recentes, métricas agudas, workouts e tendências.
+- Mutação `useAddOuraMetrics` passou a invalidar `oura-trends` para manter cards/gráficos coerentes após inserção de métricas.
 - Tratamento de erro padronizado com `buildErrorDescription`.
 
 **Impacto**
