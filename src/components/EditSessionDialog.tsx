@@ -25,6 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface EditSessionDialogProps {
   open: boolean;
@@ -105,9 +106,8 @@ export function EditSessionDialog({
       setSessionData(session);
       setExercises(exercisesData || []);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       notify.error("Erro ao carregar sessão", {
-        description: errorMessage,
+        description: buildErrorDescription(error) || "Erro desconhecido",
       });
     } finally {
       setLoading(false);
@@ -213,9 +213,8 @@ export function EditSessionDialog({
       onSuccess?.();
       onOpenChange(false);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       notify.error("Erro ao salvar alterações", {
-        description: errorMessage,
+        description: buildErrorDescription(error) || "Erro desconhecido",
       });
     } finally {
       setLoading(false);

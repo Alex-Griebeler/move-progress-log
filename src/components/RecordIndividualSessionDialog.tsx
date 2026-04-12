@@ -20,6 +20,7 @@ import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { NAV_LABELS } from "@/constants/navigation";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 // Shared types, utilities & components
 import {
@@ -319,7 +320,7 @@ export function RecordIndividualSessionDialog({
       onOpenChange(false);
     } catch (error: unknown) {
       logger.error('Error saving session:', error);
-      notify.error(i18n.feedback.genericError, { description: error instanceof Error ? error.message : "Tente novamente" });
+      notify.error(i18n.feedback.genericError, { description: buildErrorDescription(error) || "Tente novamente" });
     }
   };
 

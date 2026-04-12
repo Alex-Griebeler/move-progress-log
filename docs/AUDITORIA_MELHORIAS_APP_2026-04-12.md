@@ -594,6 +594,19 @@ Referência de pendências manuais (UI autenticada):
 - Menos mensagens genéricas no uso diário do app.
 - Melhora consistência de UX de erro entre módulos de sessões, observações, Oura e revisão do banco de exercícios.
 
+### Hardening de feedback de erro nos diálogos de sessão
+- `src/components/RecordIndividualSessionDialog.tsx`
+- `src/components/EditSessionDialog.tsx`
+- `src/components/EditGroupSessionDialog.tsx`
+
+**Ajuste aplicado**
+- Padronizado uso de `buildErrorDescription` nos blocos `catch` desses três fluxos.
+- Mantida toda a lógica funcional de criação/edição/finalização de sessão (apenas melhoria de descrição operacional de erro).
+
+**Impacto**
+- Melhor diagnóstico em falhas de gravação/edição de sessão individual e grupo.
+- Redução de mensagens truncadas/ambíguas em operações críticas de rotina.
+
 ---
 
 ## Backlog recomendado (prioridade)

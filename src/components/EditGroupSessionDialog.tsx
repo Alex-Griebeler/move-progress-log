@@ -10,6 +10,7 @@ import { notify } from "@/lib/notify";
 import { Trash, Loader2, Mic, ChevronLeft, ChevronRight } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface EditGroupSessionDialogProps {
   open: boolean;
@@ -104,9 +105,9 @@ export function EditGroupSessionDialog({
 
       setSessionsData(sessionsWithExercises);
       setCurrentStudentIndex(0);
-    } catch (error) {
+    } catch (error: unknown) {
       notify.error("Erro ao carregar sessões", {
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        description: buildErrorDescription(error) || "Erro desconhecido",
       });
     } finally {
       setLoading(false);
@@ -217,9 +218,9 @@ export function EditGroupSessionDialog({
         // Avançar para o próximo aluno
         setCurrentStudentIndex(prev => prev + 1);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       notify.error("Erro ao salvar alterações", {
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        description: buildErrorDescription(error) || "Erro desconhecido",
       });
     } finally {
       setLoading(false);
