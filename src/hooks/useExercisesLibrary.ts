@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import {
   buildExercisesLibraryQueryKey,
   sanitizeExerciseFilters,
@@ -165,7 +166,7 @@ export const useCreateExercise = () => {
     },
     onError: (error) => {
       notify.error(i18n.modules.exercises.errorCreate, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -192,7 +193,7 @@ export const useUpdateExercise = () => {
     },
     onError: (error) => {
       notify.error(i18n.modules.exercises.errorUpdate, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -242,7 +243,7 @@ export const useDeleteExercise = () => {
     },
     onError: (error) => {
       notify.error(i18n.modules.exercises.errorDelete, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });

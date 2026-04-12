@@ -478,6 +478,17 @@ Referência de pendências manuais (UI autenticada):
 - Reduz risco de cadastrar exercícios duplicados por variação ortográfica.
 - Melhora qualidade de catalogação sem alterar o fluxo de cadastro/edição.
 
+### Hardening de feedback de erro no catálogo de exercícios
+- `src/hooks/useExercisesLibrary.ts`
+
+**Ajuste aplicado**
+- Fluxos de criação, edição e exclusão de exercício passaram a usar `buildErrorDescription` no toast de erro.
+- Removido uso direto de `error.message`, evitando mensagens pobres/inconsistentes para erros do Supabase com `details`/`hint`.
+
+**Impacto**
+- Feedback mais claro para o coach no cadastro e manutenção do banco de exercícios.
+- Menor chance de erro operacional mascarado por descrição genérica.
+
 ---
 
 ## Backlog recomendado (prioridade)
