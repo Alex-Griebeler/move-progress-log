@@ -533,6 +533,17 @@ Referência de pendências manuais (UI autenticada):
 - Mensagens de falha mais claras no registro rápido de sessão.
 - Menor risco de perda de contexto de erro em ambiente real.
 
+### Hardening de feedback de erro na geração de sessão em grupo
+- `src/hooks/useGenerateGroupSession.ts`
+
+**Ajuste aplicado**
+- `onError` da mutação passou a usar `buildErrorDescription` no toast.
+- Mantidos os warnings de negócio e a resposta de sucesso sem mudança funcional.
+
+**Impacto**
+- Falhas de geração de sessão em grupo ficam mais diagnósticas para operação.
+- Menor ambiguidade em erro de edge function.
+
 ---
 
 ## Backlog recomendado (prioridade)

@@ -7,6 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import type { 
   MesocycleGenerationInput, 
   MesocycleGenerationResponse,
@@ -46,7 +47,7 @@ export const useGenerateGroupSession = () => {
     },
     onError: (error) => {
       notify.error(i18n.modules.workouts.errorCreate, {
-        description: error.message,
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
