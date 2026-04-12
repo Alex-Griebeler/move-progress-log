@@ -804,6 +804,22 @@ Referência de pendências manuais (UI autenticada):
 - Reduz risco de falha silenciosa em produção no pipeline Oura.
 - Mantém comportamento funcional do sync e melhora diagnóstico operacional para incidentes.
 
+### Estabilidade de CI (ações GitHub atualizadas)
+- `.github/workflows/ci.yml`
+- `.github/workflows/staging-edge-gate.yml`
+- `.github/workflows/ai-engineer.yml`
+
+**Ajuste aplicado**
+- Atualizadas actions para versões atuais:
+  - `actions/checkout@v6`
+  - `actions/setup-node@v6`
+  - `actions/setup-python@v6`
+  - `actions/upload-artifact@v6`
+
+**Impacto**
+- Reduz risco de falha futura por depreciação de runtime das actions.
+- Mantém o gate de qualidade e smoke tests mais estáveis para os próximos lotes da auditoria.
+
 ---
 
 ## Backlog recomendado (prioridade)
