@@ -80,28 +80,34 @@ export default function AIBuilderPage() {
           ) : (
             <div className="py-1">
               {conversations.map((conv) => (
-                <button
+                <div
                   key={conv.id}
-                  onClick={() => setActiveConversationId(conv.id)}
-                  className={`w-full text-left px-3 py-2.5 text-sm group flex items-start gap-2 hover:bg-muted transition-colors ${
+                  className={`w-full px-3 py-2.5 text-sm group flex items-start gap-2 hover:bg-muted transition-colors ${
                     activeConversationId === conv.id ? "bg-muted" : ""
                   }`}
                 >
-                  <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate font-medium text-foreground">{conv.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(conv.updated_at), "dd MMM, HH:mm", { locale: ptBR })}
-                    </p>
-                  </div>
                   <button
+                    type="button"
+                    onClick={() => setActiveConversationId(conv.id)}
+                    className="flex items-start gap-2 flex-1 min-w-0 text-left"
+                  >
+                    <MessageSquare className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
+                    <div className="flex-1 min-w-0">
+                      <p className="truncate font-medium text-foreground">{conv.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(conv.updated_at), "dd MMM, HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
                     onClick={(e) => handleDeleteConversation(conv.id, e)}
                     className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-all"
                     aria-label="Excluir conversa"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
-                </button>
+                </div>
               ))}
             </div>
           )}

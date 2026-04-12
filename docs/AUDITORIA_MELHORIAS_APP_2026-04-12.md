@@ -681,6 +681,16 @@ Referência de pendências manuais (UI autenticada):
 - Elimina inconsistência entre assinatura utilitária e uso real no código.
 - Padroniza resultado final e evita retorno vazio em cenários de erro não estruturado.
 
+### Correção de semântica DOM no AI Builder
+- `src/features/ai-builder/AIBuilderPage.tsx`
+
+**Ajuste aplicado**
+- Removido `button` aninhado (`botão excluir` dentro do item clicável da conversa).
+- Estrutura ajustada para container + botão principal de seleção + botão de exclusão separado.
+
+**Impacto**
+- Remove warning de `validateDOMNesting` e reduz risco de comportamento inconsistente de clique/foco no item da conversa.
+
 ---
 
 ## Backlog recomendado (prioridade)
