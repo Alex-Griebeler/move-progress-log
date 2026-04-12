@@ -27,6 +27,7 @@ import { useOuraTestSync } from "@/hooks/useOuraTestSync";
 import { SendOuraConnectDialog } from "@/components/SendOuraConnectDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface OuraConnectionCardProps {
   studentId: string;
@@ -95,7 +96,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
           
           toast.dismiss(syncToastId);
           toast.error("Erro ao sincronizar Oura Ring", {
-            description: error.message || "Não foi possível conectar com a API do Oura. Tente novamente.",
+            description: buildErrorDescription(error, "Não foi possível conectar com a API do Oura. Tente novamente."),
             duration: 7000,
           });
           
@@ -122,7 +123,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
       onError: (error: Error) => {
         toast.dismiss(disconnectToastId);
         toast.error("Erro ao desconectar", {
-          description: error.message || "Não foi possível desconectar o Oura Ring. Tente novamente.",
+          description: buildErrorDescription(error, "Não foi possível desconectar o Oura Ring. Tente novamente."),
         });
       }
     });

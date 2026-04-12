@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Check, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface StudentObservationsCardProps {
   studentId: string;
@@ -52,7 +53,7 @@ export function StudentObservationsCard({ studentId }: StudentObservationsCardPr
     onError: (error) => {
       toast({
         title: "Erro ao resolver observação",
-        description: error.message,
+        description: buildErrorDescription(error, "Tente novamente."),
         variant: "destructive"
       });
     }

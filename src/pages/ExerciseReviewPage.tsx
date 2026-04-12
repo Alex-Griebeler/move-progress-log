@@ -13,6 +13,7 @@ import { Save, Filter } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { InlineExerciseNameEditor } from "@/components/InlineExerciseNameEditor";
 import { ExerciseDimensionReview } from "@/components/ExerciseDimensionReview";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import {
   EXERCISE_CATEGORIES,
   MOVEMENT_PATTERNS,
@@ -123,7 +124,7 @@ const ExerciseReviewPage = () => {
       notify.success("Alterações salvas com sucesso!");
     },
     onError: (err) => {
-      notify.error("Erro ao salvar", { description: err.message });
+      notify.error("Erro ao salvar", { description: buildErrorDescription(err, "Tente novamente.") });
     },
   });
 

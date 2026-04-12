@@ -577,6 +577,22 @@ Referência de pendências manuais (UI autenticada):
 - Falhas de inserção manual de métricas ficam mais claras para diagnóstico.
 - Fechado o lote de padronização de erro em hooks críticos.
 
+### Hardening de feedback de erro em componentes de operação
+- `src/pages/ExerciseReviewPage.tsx`
+- `src/components/ExerciseDimensionReview.tsx`
+- `src/components/StudentObservationsCard.tsx`
+- `src/components/AppSidebar.tsx`
+- `src/components/OuraConnectionCard.tsx`
+- `src/components/AddWorkoutDialog.tsx`
+
+**Ajuste aplicado**
+- Padronizado uso de `buildErrorDescription` em toasts de erro nesses componentes/páginas.
+- Mantidos os fluxos funcionais existentes (apenas melhora de diagnóstico de erro).
+
+**Impacto**
+- Menos mensagens genéricas no uso diário do app.
+- Melhora consistência de UX de erro entre módulos de sessões, observações, Oura e revisão do banco de exercícios.
+
 ---
 
 ## Backlog recomendado (prioridade)

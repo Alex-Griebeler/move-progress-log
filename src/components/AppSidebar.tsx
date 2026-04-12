@@ -9,6 +9,7 @@ import logoFabrik from "@/assets/logo-fabrik.png";
 import { isRouteActive } from "@/lib/navigationUtils";
 import { useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 import {
   Sidebar,
@@ -47,7 +48,7 @@ export function AppSidebar() {
     if (error) {
       toast({
         title: "Erro ao sair",
-        description: error.message,
+        description: buildErrorDescription(error, "Tente novamente."),
         variant: "destructive",
       });
     } else {

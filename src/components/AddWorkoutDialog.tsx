@@ -10,6 +10,7 @@ import { logger } from "@/utils/logger";
 import { POUND_TO_KG_CONVERSION } from "@/constants/units";
 import { useGetOrCreateStudent } from "@/hooks/useStudents";
 import { useCreateWorkout } from "@/hooks/useWorkouts";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface Exercise {
   exercise: string;
@@ -120,7 +121,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
         });
       } else {
         toast.error("Erro ao registrar sessão", {
-          description: err.message || "Tente novamente ou contate o suporte."
+          description: buildErrorDescription(err, "Tente novamente ou contate o suporte.")
         });
       }
     }

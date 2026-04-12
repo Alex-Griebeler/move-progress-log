@@ -16,6 +16,7 @@ import { notify } from "@/lib/notify";
 import { useClassifyExercises } from "@/hooks/useClassifyExercises";
 import { EXERCISE_DIMENSIONS, EXERCISE_CATEGORIES } from "@/constants/backToBasics";
 import { Brain, Save, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 const DIMENSION_KEYS = ["axial_load", "lumbar_demand", "technical_complexity", "metabolic_potential", "knee_dominance", "hip_dominance"] as const;
 
@@ -146,7 +147,7 @@ export const ExerciseDimensionReview = () => {
       notify.success("Dimensões atualizadas!");
     },
     onError: (err) => {
-      notify.error("Erro ao salvar", { description: err.message });
+      notify.error("Erro ao salvar", { description: buildErrorDescription(err, "Tente novamente.") });
     },
   });
 
