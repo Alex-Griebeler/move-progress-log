@@ -255,6 +255,23 @@ Referência de pendências manuais (UI autenticada):
 - Reduz erro de “última sessão” incorreta quando há múltiplas sessões no mesmo dia.
 - Evita falso negativo de dados Oura causado por falha silenciosa de query.
 
+### Alinhamento do motor de protocolos para FCR + deduplicação
+- `supabase/functions/generate-protocol-recommendations/index.ts`
+- `supabase/migrations/20260412112000_align_rhr_above_baseline_rules.sql`
+
+**Ajuste aplicado**
+- Motor de protocolos agora normaliza prioridade de severidade (`low/medium/high`) e consolida recomendações por `protocol_id`, evitando linhas duplicadas para o mesmo protocolo no mesmo dia.
+- Quando múltiplas regras disparam para o mesmo protocolo, o sistema mantém a maior prioridade e agrega os motivos de disparo no campo `reason`.
+- Migração adiciona/normaliza duas regras de FCR `above_baseline`:
+  - `+5 bpm` com severidade `medium`.
+  - `+10 bpm` com severidade `high`.
+- Migração também remove duplicatas legadas dessas regras mantendo uma linha por limiar.
+
+**Impacto**
+- Elimina inconsistência entre motor de treino e motor de protocolos para FCR.
+- Reduz ruído operacional no painel de recomendações (sem duplicidade).
+- Mantém compatibilidade com dados existentes e sem alteração de escopo funcional.
+
 ---
 
 ## Backlog recomendado (prioridade)

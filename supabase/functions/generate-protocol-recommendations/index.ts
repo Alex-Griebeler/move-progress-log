@@ -42,6 +42,37 @@ interface AdaptationRule {
   description: string;
 }
 
+type RecommendationPriority = "low" | "medium" | "high";
+
+interface RecommendationDraft {
+  student_id: string;
+  protocol_id: string;
+  recommended_date: string;
+  reasons: string[];
+  priority: RecommendationPriority;
+  priorityRank: number;
+}
+
+const PRIORITY_RANK: Record<RecommendationPriority, number> = {
+  low: 1,
+  medium: 2,
+  high: 3,
+};
+
+function normalizePriority(rawPriority: string): RecommendationPriority {
+  const normalized = rawPriority.trim().toLowerCase();
+
+  if (normalized === "high" || normalized === "alta" || normalized === "critical") {
+    return "high";
+  }
+
+  if (normalized === "medium" || normalized === "média" || normalized === "media") {
+    return "medium";
+  }
+
+  return "low";
+}
+
 function resolveBaselineValue(
   ruleMetricName: string,
   baseline: OuraBaseline | null
@@ -219,13 +250,7 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════
 
     // Analyze metrics and generate recommendations
-    const recommendations: Array<{
-      student_id: string;
-      protocol_id: string;
-      recommended_date: string;
-      reason: string;
-      priority: string;
-    }> = [];
+    const recommendationByProtocol = new Map<string, RecommendationDraft>();
 
     const metrics = latestMetrics as OuraMetrics;
     const today = new Date().toISOString().split('T')[0];
@@ -277,24 +302,54 @@ serve(async (req) => {
           return scoreB - scoreA; // Higher effectiveness first
         });
 
+        const normalizedPriority = normalizePriority(rule.severity);
+        const normalizedPriorityRank = PRIORITY_RANK[normalizedPriority];
+
         for (const protocol of recommendedProtocols) {
           const eff = protocolEffectiveness[protocol.id];
           const effNote = eff && eff.count >= 3
             ? ` (efetividade histórica: HRV ${eff.avgHrvDelta > 0 ? '+' : ''}${eff.avgHrvDelta.toFixed(1)}, Readiness ${eff.avgReadinessDelta > 0 ? '+' : ''}${eff.avgReadinessDelta.toFixed(0)})`
             : '';
 
-          recommendations.push({
-            student_id: student_id,
-            protocol_id: protocol.id,
-            recommended_date: today,
-            reason: `${rule.description}. ${rule.metric_name}: ${metricValue}${
-              compareValue !== null ? ` (limiar: ${compareValue.toFixed(1)})` : ""
-            }${effNote}`,
-            priority: rule.severity,
-          });
+          const reason = `${rule.description}. ${rule.metric_name}: ${metricValue}${
+            compareValue !== null ? ` (limiar: ${compareValue.toFixed(1)})` : ""
+          }${effNote}`;
+
+          const existing = recommendationByProtocol.get(protocol.id);
+
+          if (!existing) {
+            recommendationByProtocol.set(protocol.id, {
+              student_id,
+              protocol_id: protocol.id,
+              recommended_date: today,
+              reasons: [reason],
+              priority: normalizedPriority,
+              priorityRank: normalizedPriorityRank,
+            });
+            continue;
+          }
+
+          if (!existing.reasons.includes(reason)) {
+            existing.reasons.push(reason);
+          }
+
+          if (normalizedPriorityRank > existing.priorityRank) {
+            existing.priority = normalizedPriority;
+            existing.priorityRank = normalizedPriorityRank;
+          }
         }
       }
     }
+
+    const recommendations = Array.from(recommendationByProtocol.values())
+      .sort((a, b) => b.priorityRank - a.priorityRank)
+      .map((recommendation) => ({
+        student_id: recommendation.student_id,
+        protocol_id: recommendation.protocol_id,
+        recommended_date: recommendation.recommended_date,
+        reason: recommendation.reasons.join(" | "),
+        priority: recommendation.priority,
+      }));
 
     // Delete old recommendations for today (to avoid duplicates)
     await supabase
