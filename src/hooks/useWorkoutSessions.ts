@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 // Chaves i18n disponíveis para workouts
 const workoutKeys = i18n.modules.workouts;
@@ -269,11 +270,11 @@ export const useCreateGroupWorkoutSessions = () => {
           });
           
         } catch (error) {
-          
+          const description = buildErrorDescription(error);
           results.push({ 
             student: session.student_name, 
             success: false, 
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: description || 'Unknown error'
           });
         }
       }
@@ -305,9 +306,8 @@ export const useCreateGroupWorkoutSessions = () => {
       }
     },
     onError: (error) => {
-      
       notify.error(workoutKeys.errorGroupSessions, {
-        description: error instanceof Error ? error.message : i18n.errors.unknown,
+        description: buildErrorDescription(error) || i18n.errors.unknown,
       });
     },
   });
@@ -345,7 +345,7 @@ export const useReopenWorkoutSession = () => {
     },
     onError: (error) => {
       notify.error("Erro ao reabrir sessão", {
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        description: buildErrorDescription(error) || "Erro desconhecido",
       });
     },
   });
@@ -381,7 +381,7 @@ export const useFinalizeWorkoutSession = () => {
     },
     onError: (error) => {
       notify.error("Erro ao finalizar sessão", {
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        description: buildErrorDescription(error) || "Erro desconhecido",
       });
     },
   });

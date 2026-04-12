@@ -7,6 +7,11 @@ import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import {
+  buildErrorDescription,
+  parseErrorInfo,
+  type ParsedErrorInfo,
+} from "@/utils/errorParsing";
 
 type SpreadsheetRow = Record<string, unknown>;
 
@@ -157,31 +162,6 @@ interface ProcessingStatus {
   errors: string[];
   success: boolean;
 }
-
-type ParsedErrorInfo = {
-  message: string;
-  details?: string;
-  hint?: string;
-  code?: string;
-};
-
-const getErrorInfo = (error: unknown): ParsedErrorInfo => {
-  if (error instanceof Error) {
-    return { message: error.message };
-  }
-
-  if (typeof error === "object" && error !== null) {
-    const obj = error as Record<string, unknown>;
-    return {
-      message: typeof obj.message === "string" ? obj.message : "Erro desconhecido",
-      details: typeof obj.details === "string" ? obj.details : undefined,
-      hint: typeof obj.hint === "string" ? obj.hint : undefined,
-      code: typeof obj.code === "string" ? obj.code : undefined,
-    };
-  }
-
-  return { message: String(error) };
-};
 
 const formatExcelSerialDate = (serial: number): string | null => {
   if (!Number.isFinite(serial)) return null;
@@ -467,14 +447,12 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
               : prev
           );
         } catch (error: unknown) {
-          const errorInfo = getErrorInfo(error);
+          const errorInfo = parseErrorInfo(error);
 
           if (isDuplicateSessionError(errorInfo)) {
             skippedDuplicates++;
           } else {
-            const description = [errorInfo.message, errorInfo.details, errorInfo.hint]
-              .filter(Boolean)
-              .join(" | ");
+            const description = buildErrorDescription(errorInfo);
             errors.push(`Sessão ${key}: ${description}`);
           }
 
@@ -523,8 +501,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     } catch (error: unknown) {
       if (toastId) toast.dismiss(toastId);
       
-      const info = getErrorInfo(error);
-      const message = [info.message, info.details, info.hint].filter(Boolean).join(" | ");
+      const message = buildErrorDescription(error);
       
       toast.error("Erro ao processar arquivo", {
         description: message || "Verifique o formato do arquivo Excel e tente novamente.",

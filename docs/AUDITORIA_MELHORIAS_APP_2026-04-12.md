@@ -357,6 +357,21 @@ Referência de pendências manuais (UI autenticada):
 - Lista de protocolos fica estável e coerente com prioridade clínica esperada.
 - Reduz ruído e duplicidade no histórico de aderência.
 
+### Hardening de parsing de erro em sessões/importação
+- `src/utils/errorParsing.ts`
+- `src/utils/__tests__/errorParsing.test.ts`
+- `src/components/ImportSessionsDialog.tsx`
+- `src/hooks/useWorkoutSessions.ts`
+
+**Ajuste aplicado**
+- Parser único de erro (`parseErrorInfo`/`buildErrorDescription`) para erros `Error`, objetos Supabase (`message/details/hint/code`) e payloads não padronizados.
+- `ImportSessionsDialog` passou a usar parser central para evitar mensagens opacas como `[object Object]`.
+- `useWorkoutSessions` passou a usar descrição padronizada nos erros de criação em lote/grupo e nos toasts de reabrir/finalizar sessão.
+
+**Impacto**
+- Melhora legibilidade e rastreabilidade de falhas operacionais sem alterar fluxo de importação/sessão.
+- Reduz “erro genérico” em feedback para o coach.
+
 ---
 
 ## Backlog recomendado (prioridade)
