@@ -10,6 +10,24 @@ export interface ExerciseLoadHistoryItem {
   lastObservations: string | null;
 }
 
+interface ExerciseLookupRow {
+  session_id: string;
+  exercise_name: string | null;
+  load_kg: number | null;
+  load_description: string | null;
+  observations: string | null;
+  created_at: string | null;
+}
+
+const normalizeComparableText = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+
 export const useExerciseLoadHistory = (
   exerciseName: string,
   prescriptionId: string,
@@ -61,26 +79,52 @@ export const useExerciseLoadHistory = (
       // 3. Get exercises matching the name from these sessions
       const { data: exercises, error: exercisesError } = await supabase
         .from("exercises")
-        .select("session_id, load_kg, load_description, observations")
+        .select("session_id, exercise_name, load_kg, load_description, observations, created_at")
         .in("session_id", sessionIds)
-        .ilike("exercise_name", exerciseName);
+        .ilike("exercise_name", `%${exerciseName}%`)
+        .order("created_at", { ascending: false });
 
       if (exercisesError) throw exercisesError;
+
+      const targetName = normalizeComparableText(exerciseName);
+      const matchesTargetExercise = (candidate: string | null): boolean => {
+        if (!candidate) return false;
+        const normalizedCandidate = normalizeComparableText(candidate);
+        return (
+          normalizedCandidate === targetName ||
+          normalizedCandidate.includes(targetName) ||
+          targetName.includes(normalizedCandidate)
+        );
+      };
+
+      const exercisesBySessionId = new Map<string, ExerciseLookupRow[]>();
+      for (const exercise of (exercises || []) as ExerciseLookupRow[]) {
+        const bucket = exercisesBySessionId.get(exercise.session_id);
+        if (bucket) {
+          bucket.push(exercise);
+        } else {
+          exercisesBySessionId.set(exercise.session_id, [exercise]);
+        }
+      }
 
       // 4. For each student, find the most recent exercise
       const results: ExerciseLoadHistoryItem[] = [];
       for (const studentId of studentIds) {
-        const studentSessionIds = sessions
-          .filter((s) => s.student_id === studentId)
-          .map((s) => s.id);
+        const studentSessions = sessions.filter((s) => s.student_id === studentId);
+        let studentExercise: ExerciseLookupRow | null = null;
+        let matchingSession: typeof studentSessions[number] | null = null;
 
-        const studentExercise = exercises?.find((e) =>
-          studentSessionIds.includes(e.session_id)
-        );
-
-        const matchingSession = studentExercise
-          ? sessions.find((s) => s.id === studentExercise.session_id)
-          : null;
+        for (const session of studentSessions) {
+          const candidates = exercisesBySessionId.get(session.id) || [];
+          const matched = candidates.find((exercise) =>
+            matchesTargetExercise(exercise.exercise_name)
+          );
+          if (matched) {
+            studentExercise = matched;
+            matchingSession = session;
+            break;
+          }
+        }
 
         results.push({
           studentId,

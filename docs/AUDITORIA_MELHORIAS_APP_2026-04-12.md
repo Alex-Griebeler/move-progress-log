@@ -820,6 +820,19 @@ Referência de pendências manuais (UI autenticada):
 - Reduz risco de falha futura por depreciação de runtime das actions.
 - Mantém o gate de qualidade e smoke tests mais estáveis para os próximos lotes da auditoria.
 
+### Correção de recência no histórico de carga por exercício
+- `src/hooks/useExerciseLoadHistory.ts`
+
+**Ajuste aplicado**
+- Corrigida seleção de “última carga” por aluno para respeitar recência real de sessão:
+  - normalização robusta de nome (`acento/case/espaçamento`) para matching;
+  - busca de exercícios com ordenação por `created_at desc`;
+  - varredura por sessões já ordenadas (`date/time desc`) e seleção do primeiro match por aluno.
+
+**Impacto**
+- Evita apresentar carga antiga como se fosse a última execução.
+- Melhora confiabilidade operacional no apoio à prescrição e revisão de carga.
+
 ---
 
 ## Backlog recomendado (prioridade)
