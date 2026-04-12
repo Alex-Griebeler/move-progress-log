@@ -357,6 +357,19 @@ Referência de pendências manuais (UI autenticada):
 - Lista de protocolos fica estável e coerente com prioridade clínica esperada.
 - Reduz ruído e duplicidade no histórico de aderência.
 
+### Hardening de aderência com garantia no banco (idempotência)
+- `src/hooks/useProtocolRecommendations.ts`
+- `supabase/migrations/20260412130500_protocol_adherence_unique_recommendation.sql`
+
+**Ajuste aplicado**
+- Criada migration para deduplicar registros legados em `protocol_adherence` por `recommendation_id`, preservando o mais recente (`created_at`/`id`).
+- Adicionado índice único parcial `idx_protocol_adherence_recommendation_unique` em `recommendation_id` (`where recommendation_id is not null`) para impor unicidade no banco.
+- Hook de toggle de aderência alterado para `upsert(..., { onConflict: "recommendation_id" })` quando `applied=true`, com tratamento explícito de erro de upsert/delete.
+
+**Impacto**
+- Elimina condição de corrida em reenvio/retry que podia gerar mais de um snapshot de aderência para a mesma recomendação.
+- Torna o fluxo idempotente e consistente entre frontend e banco.
+
 ### Hardening de parsing de erro em sessões/importação
 - `src/utils/errorParsing.ts`
 - `src/utils/__tests__/errorParsing.test.ts`

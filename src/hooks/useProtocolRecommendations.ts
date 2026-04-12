@@ -133,14 +133,9 @@ export const useUpdateRecommendation = () => {
               .limit(1)
               .single();
 
-            await supabase
+            const { error: adherenceUpsertError } = await supabase
               .from("protocol_adherence")
-              .delete()
-              .eq("recommendation_id", id);
-
-            await supabase
-              .from("protocol_adherence")
-              .insert({
+              .upsert({
                 student_id: rec.student_id,
                 protocol_id: rec.protocol_id,
                 recommendation_id: id,
@@ -148,13 +143,17 @@ export const useUpdateRecommendation = () => {
                 followed_at: new Date().toISOString(),
                 hrv_before: currentMetrics?.average_sleep_hrv ?? null,
                 readiness_before: currentMetrics?.readiness_score ?? null,
-              });
+              }, { onConflict: "recommendation_id" });
+
+            if (adherenceUpsertError) throw adherenceUpsertError;
           } else {
             // Remove adherence record if un-toggled
-            await supabase
+            const { error: adherenceDeleteError } = await supabase
               .from("protocol_adherence")
               .delete()
               .eq("recommendation_id", id);
+
+            if (adherenceDeleteError) throw adherenceDeleteError;
           }
         }
       }
