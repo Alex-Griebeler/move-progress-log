@@ -719,6 +719,18 @@ Referência de pendências manuais (UI autenticada):
 - Evita ocultação silenciosa de registros em bases maiores.
 - Mantém compatibilidade com a UI atual, sem alterar fluxo funcional.
 
+### Robustez no auto-add de alunos via gravação em grupo
+- `src/components/RecordGroupSessionDialog.tsx`
+
+**Ajuste aplicado**
+- Removido uso de `.single()` em busca por nome (ponto frágil para homônimos e múltiplos matches).
+- Busca agora usa lista de candidatos, normalização textual (sem acento/case) e seleção do melhor match.
+- Prevenção de duplicação de aluno no lote `newStudents` durante o merge de múltiplas gravações.
+
+**Impacto**
+- Reduz erro de auto-vinculação de aluno em sessões de grupo com nomes semelhantes.
+- Evita falhas silenciosas por “múltiplas linhas retornadas” no fluxo de auto-add.
+
 ---
 
 ## Backlog recomendado (prioridade)

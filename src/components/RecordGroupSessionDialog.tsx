@@ -113,6 +113,13 @@ interface CustomAdaptationsShape {
   time?: string;
 }
 
+const normalizeComparableText = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 // ─── Component Types ────────────────────────────────────────
 
 interface RecordGroupSessionDialogProps {
@@ -435,10 +442,35 @@ export function RecordGroupSessionDialog({
       const newStudents: Student[] = [];
       for (let i = 0; i < data.sessions.length; i++) {
         const session = data.sessions[i];
-        const existingStudent = selectedStudents.find(s => s.name.toLowerCase() === session.student_name.toLowerCase());
-        if (!existingStudent) {
-          const { data: studentData, error } = await supabase.from('students').select('*').ilike('name', session.student_name).single();
-          if (error) { logger.warn(`Aluno "${session.student_name}" não encontrado:`, error); continue; }
+        const normalizedSessionName = normalizeComparableText(session.student_name);
+        const existingStudent = selectedStudents.find(
+          (student) => normalizeComparableText(student.name) === normalizedSessionName
+        );
+        const queuedStudent = newStudents.find(
+          (student) => normalizeComparableText(student.name) === normalizedSessionName
+        );
+        if (!existingStudent && !queuedStudent) {
+          const { data: candidateStudents, error } = await supabase
+            .from('students')
+            .select('*')
+            .ilike('name', session.student_name)
+            .order('created_at', { ascending: false })
+            .limit(20);
+          if (error) {
+            logger.warn(`Falha ao buscar aluno "${session.student_name}":`, error);
+            continue;
+          }
+
+          const targetName = normalizedSessionName;
+          const studentData =
+            candidateStudents?.find((candidate) => normalizeComparableText(candidate.name) === targetName) ||
+            candidateStudents?.[0];
+
+          if (!studentData) {
+            logger.warn(`Aluno "${session.student_name}" não encontrado`);
+            continue;
+          }
+
           if (studentData) {
             newStudents.push({ id: studentData.id, name: studentData.name, weight_kg: studentData.weight_kg ?? undefined, has_active_prescription: false });
             data.sessions[i].auto_added = true;
