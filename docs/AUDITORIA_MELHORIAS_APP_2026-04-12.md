@@ -736,6 +736,22 @@ Referência de pendências manuais (UI autenticada):
 - Reduz erro de auto-vinculação de aluno em sessões de grupo com nomes semelhantes.
 - Evita falhas silenciosas por “múltiplas linhas retornadas” no fluxo de auto-add.
 
+### Robustez no histórico para sugestão de carga e adesão de protocolos
+- `src/hooks/useExerciseLastSession.ts`
+- `src/hooks/useProtocolRecommendations.ts`
+
+**Ajuste aplicado**
+- `useExerciseLastSession`:
+  - removido teto fixo de 500 sessões, com paginação incremental;
+  - correção de ordem de seleção para garantir que a referência seja realmente a sessão mais recente;
+  - parada antecipada quando já encontrou todos os pares `aluno × exercício`.
+- `useProtocolRecommendations`:
+  - leitura de Oura “antes do protocolo” alterada de `.single()` para `.maybeSingle()` para não falhar quando não houver linha em `oura_metrics`.
+
+**Impacto**
+- Melhora consistência da “última carga válida” usada em sugestões.
+- Evita falha de toggle de adesão por ausência de métrica Oura no dia.
+
 ---
 
 ## Backlog recomendado (prioridade)

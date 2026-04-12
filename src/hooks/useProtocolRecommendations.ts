@@ -126,13 +126,15 @@ export const useUpdateRecommendation = () => {
         if (rec) {
           if (applied) {
             // Fetch current Oura metrics for "before" snapshot
-            const { data: currentMetrics } = await supabase
+            const { data: currentMetrics, error: metricsError } = await supabase
               .from("oura_metrics")
               .select("average_sleep_hrv, readiness_score")
               .eq("student_id", rec.student_id)
               .order("date", { ascending: false })
               .limit(1)
-              .single();
+              .maybeSingle();
+
+            if (metricsError) throw metricsError;
 
             const { error: adherenceUpsertError } = await supabase
               .from("protocol_adherence")

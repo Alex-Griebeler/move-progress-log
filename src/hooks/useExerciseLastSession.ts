@@ -9,6 +9,9 @@ export interface LastSessionData {
   observations: string | null;
 }
 
+const LAST_SESSION_PAGE_SIZE = 250;
+const LAST_SESSION_MAX_PAGES = 40;
+
 const normalizeComparableText = (value: string): string =>
   value
     .normalize("NFD")
@@ -35,60 +38,92 @@ export const useExerciseLastSession = (
     enabled: enabled && studentIds.length > 0 && exerciseNames.length > 0,
     queryFn: async (): Promise<Map<string, LastSessionData>> => {
       const result = new Map<string, LastSessionData>();
+      const normalizedExerciseNames = Array.from(
+        new Set(exerciseNames.map((name) => normalizeComparableText(name)))
+      );
+      const targetNameSet = new Set(normalizedExerciseNames);
+      const maxPossibleMatches = studentIds.length * normalizedExerciseNames.length;
 
-      // Get sessions for these students, most recent first
-      const { data: sessions, error: sessionsError } = await supabase
-        .from("workout_sessions")
-        .select("id, student_id, date, time, created_at")
-        .in("student_id", studentIds)
-        .order("date", { ascending: false })
-        .order("time", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .limit(500);
+      for (let pageIndex = 0; pageIndex < LAST_SESSION_MAX_PAGES; pageIndex += 1) {
+        const from = pageIndex * LAST_SESSION_PAGE_SIZE;
+        const to = from + LAST_SESSION_PAGE_SIZE - 1;
 
-      if (sessionsError) throw sessionsError;
-      if (!sessions || sessions.length === 0) return result;
+        // Get sessions for these students, most recent first
+        const { data: sessions, error: sessionsError } = await supabase
+          .from("workout_sessions")
+          .select("id, student_id, date, time, created_at")
+          .in("student_id", studentIds)
+          .order("date", { ascending: false })
+          .order("time", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to);
 
-      const sessionIds = sessions.map(s => s.id);
+        if (sessionsError) throw sessionsError;
+        if (!sessions || sessions.length === 0) break;
 
-      // Chunk sessionIds to avoid URL length limits (max ~300 per query)
-      const CHUNK_SIZE = 300;
-      const allExercises: Array<{ session_id: string; exercise_name: string; load_kg: number | null; load_breakdown: string | null; reps: number | null; observations: string | null }> = [];
-      for (let i = 0; i < sessionIds.length; i += CHUNK_SIZE) {
-        const chunk = sessionIds.slice(i, i + CHUNK_SIZE);
-        const { data: exercises, error: exError } = await supabase
-          .from("exercises")
-          .select("session_id, exercise_name, load_kg, load_breakdown, reps, observations")
-          .in("session_id", chunk);
-        if (exError) throw exError;
-        if (exercises) allExercises.push(...exercises);
-      }
+        const sessionIds = sessions.map((session) => session.id);
 
-      if (allExercises.length === 0) return result;
+        // Chunk sessionIds to avoid URL length limits (max ~300 per query)
+        const CHUNK_SIZE = 300;
+        const exercisesBySessionId = new Map<
+          string,
+          Array<{
+            session_id: string;
+            exercise_name: string;
+            load_kg: number | null;
+            load_breakdown: string | null;
+            reps: number | null;
+            observations: string | null;
+          }>
+        >();
 
-      // Build session lookup
-      const sessionMap = new Map(sessions.map(s => [s.id, s]));
+        for (let index = 0; index < sessionIds.length; index += CHUNK_SIZE) {
+          const chunk = sessionIds.slice(index, index + CHUNK_SIZE);
+          const { data: exercises, error: exError } = await supabase
+            .from("exercises")
+            .select("session_id, exercise_name, load_kg, load_breakdown, reps, observations")
+            .in("session_id", chunk);
+          if (exError) throw exError;
+          if (!exercises || exercises.length === 0) continue;
 
-      // Filter and find most recent per student+exercise
-      const nameSet = new Set(exerciseNames.map((n) => normalizeComparableText(n)));
-
-      for (const ex of allExercises) {
-        const exNameLower = normalizeComparableText(ex.exercise_name);
-        if (!nameSet.has(exNameLower)) continue;
-
-        const session = sessionMap.get(ex.session_id);
-        if (!session) continue;
-
-        const key = `${session.student_id}_${exNameLower}`;
-        if (!result.has(key)) {
-          result.set(key, {
-            load_kg: ex.load_kg ?? null,
-            load_breakdown: ex.load_breakdown ?? null,
-            reps: ex.reps ?? null,
-            date: session.date,
-            observations: ex.observations ?? null,
+          exercises.forEach((exercise) => {
+            const bucket = exercisesBySessionId.get(exercise.session_id);
+            if (bucket) {
+              bucket.push(exercise);
+            } else {
+              exercisesBySessionId.set(exercise.session_id, [exercise]);
+            }
           });
         }
+
+        if (exercisesBySessionId.size === 0) {
+          if (sessions.length < LAST_SESSION_PAGE_SIZE) break;
+          continue;
+        }
+
+        // Iterate sessions in recency order to guarantee first match = latest
+        for (const session of sessions) {
+          const sessionExercises = exercisesBySessionId.get(session.id) || [];
+          for (const exercise of sessionExercises) {
+            const normalizedExerciseName = normalizeComparableText(exercise.exercise_name);
+            if (!targetNameSet.has(normalizedExerciseName)) continue;
+
+            const key = `${session.student_id}_${normalizedExerciseName}`;
+            if (result.has(key)) continue;
+
+            result.set(key, {
+              load_kg: exercise.load_kg ?? null,
+              load_breakdown: exercise.load_breakdown ?? null,
+              reps: exercise.reps ?? null,
+              date: session.date,
+              observations: exercise.observations ?? null,
+            });
+          }
+        }
+
+        if (result.size >= maxPossibleMatches) break;
+        if (sessions.length < LAST_SESSION_PAGE_SIZE) break;
       }
 
       return result;
