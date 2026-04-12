@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { sortProtocolRecommendations } from "./protocolRecommendationUtils";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 export interface ProtocolRecommendation {
   id: string;
@@ -83,7 +84,7 @@ export const useGenerateRecommendations = () => {
     },
     onError: (error: Error) => {
       notify.error(i18n.modules.recommendations.errorGenerate, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -166,7 +167,7 @@ export const useUpdateRecommendation = () => {
     },
     onError: (error: Error) => {
       notify.error(i18n.modules.recommendations.errorUpdate, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });

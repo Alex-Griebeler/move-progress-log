@@ -544,6 +544,17 @@ Referência de pendências manuais (UI autenticada):
 - Falhas de geração de sessão em grupo ficam mais diagnósticas para operação.
 - Menor ambiguidade em erro de edge function.
 
+### Hardening de feedback de erro em recomendações de protocolo
+- `src/hooks/useProtocolRecommendations.ts`
+
+**Ajuste aplicado**
+- Mutações de gerar e atualizar recomendações passaram a usar `buildErrorDescription` nos toasts de erro.
+- Nenhuma mudança na lógica de recomendação/aderência já existente.
+
+**Impacto**
+- Erros do motor de protocolo ficam mais claros para operação clínica.
+- Menor chance de mascaramento de falha de persistência/edge function.
+
 ---
 
 ## Backlog recomendado (prioridade)
