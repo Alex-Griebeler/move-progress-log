@@ -325,6 +325,20 @@ Referência de pendências manuais (UI autenticada):
 - Reduz risco de inconsistência entre atribuição e leitura de adaptações de prescrição.
 - Evita estado parcial em atualização de prescrição quando `prescription_type` falha.
 
+### Hardening de filtros/caching do catálogo de exercícios
+- `src/hooks/exerciseFilters.ts`
+- `src/hooks/useExercisesLibrary.ts`
+- `src/hooks/__tests__/exerciseFilters.test.ts`
+
+**Ajuste aplicado**
+- Extraída normalização de filtros para módulo puro (`exerciseFilters`), removendo valores vazios e sentinelas (`all`/`todos`) antes da query.
+- Query key do React Query ficou determinística por string normalizada (`buildExercisesLibraryQueryKey`), evitando fragmentação de cache por ordem/forma do objeto de filtros.
+- Hook agora aplica os filtros saneados ao montar a consulta SQL.
+
+**Impacto**
+- Reduz inconsistência de cache e resultados quando filtros equivalentes chegam em formatos diferentes.
+- Evita consultas desnecessariamente restritivas por filtros vazios.
+
 ---
 
 ## Backlog recomendado (prioridade)

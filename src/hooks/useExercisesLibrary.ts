@@ -2,6 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import {
+  buildExercisesLibraryQueryKey,
+  sanitizeExerciseFilters,
+} from "./exerciseFilters";
+import type { ExerciseFilters } from "./exerciseFilters";
 
 // Re-exportar constantes do backToBasics para manter compatibilidade
 export {
@@ -90,21 +95,13 @@ export interface CreateExerciseInput {
   surface_modifier?: string | null;
 }
 
-export interface ExerciseFilters {
-  movement_pattern?: string;
-  laterality?: string;
-  movement_plane?: string;
-  contraction_type?: string;
-  level?: string;
-  category?: string;
-  subcategory?: string;
-  risk_level?: string;
-  stability_position?: string;
-}
+export type { ExerciseFilters } from "./exerciseFilters";
 
 export const useExercisesLibrary = (filters?: ExerciseFilters) => {
+  const normalizedFilters = sanitizeExerciseFilters(filters);
+
   return useQuery({
-    queryKey: ["exercises-library", filters],
+    queryKey: ["exercises-library", buildExercisesLibraryQueryKey(normalizedFilters)],
     queryFn: async () => {
       let query = supabase
         .from("exercises_library")
@@ -112,32 +109,32 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
         .order("name")
         .limit(2000);
 
-      if (filters?.movement_pattern) {
-        query = query.eq("movement_pattern", filters.movement_pattern);
+      if (normalizedFilters.movement_pattern) {
+        query = query.eq("movement_pattern", normalizedFilters.movement_pattern);
       }
-      if (filters?.laterality) {
-        query = query.eq("laterality", filters.laterality);
+      if (normalizedFilters.laterality) {
+        query = query.eq("laterality", normalizedFilters.laterality);
       }
-      if (filters?.movement_plane) {
-        query = query.eq("movement_plane", filters.movement_plane);
+      if (normalizedFilters.movement_plane) {
+        query = query.eq("movement_plane", normalizedFilters.movement_plane);
       }
-      if (filters?.contraction_type) {
-        query = query.eq("contraction_type", filters.contraction_type);
+      if (normalizedFilters.contraction_type) {
+        query = query.eq("contraction_type", normalizedFilters.contraction_type);
       }
-      if (filters?.level) {
-        query = query.eq("level", filters.level);
+      if (normalizedFilters.level) {
+        query = query.eq("level", normalizedFilters.level);
       }
-      if (filters?.category) {
-        query = query.eq("category", filters.category);
+      if (normalizedFilters.category) {
+        query = query.eq("category", normalizedFilters.category);
       }
-      if (filters?.subcategory) {
-        query = query.eq("subcategory", filters.subcategory);
+      if (normalizedFilters.subcategory) {
+        query = query.eq("subcategory", normalizedFilters.subcategory);
       }
-      if (filters?.risk_level) {
-        query = query.eq("risk_level", filters.risk_level);
+      if (normalizedFilters.risk_level) {
+        query = query.eq("risk_level", normalizedFilters.risk_level);
       }
-      if (filters?.stability_position) {
-        query = query.eq("stability_position", filters.stability_position);
+      if (normalizedFilters.stability_position) {
+        query = query.eq("stability_position", normalizedFilters.stability_position);
       }
 
       const { data, error } = await query;
