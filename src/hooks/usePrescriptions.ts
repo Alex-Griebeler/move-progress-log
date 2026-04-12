@@ -87,6 +87,9 @@ type AssignmentWithStudentRow = PrescriptionAssignmentRow & {
   students: { name: string } | null;
 };
 
+const PRESCRIPTIONS_PAGE_SIZE = 250;
+const PRESCRIPTIONS_MAX_PAGES = 40;
+
 const mapPrescriptionListItem = (row: PrescriptionListRow): WorkoutPrescription => ({
   id: row.id,
   name: row.name,
@@ -148,19 +151,31 @@ export const usePrescriptions = () => {
   return useQuery({
     queryKey: ["prescriptions"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("workout_prescriptions")
-        .select(`
-          *,
-          prescription_assignments(student_id)
-        `)
-        .order("folder_id", { ascending: true, nullsFirst: false })
-        .order("order_index", { ascending: true })
-        .limit(500);
+      const allPrescriptions: PrescriptionListRow[] = [];
 
-      if (error) throw error;
+      for (let pageIndex = 0; pageIndex < PRESCRIPTIONS_MAX_PAGES; pageIndex += 1) {
+        const from = pageIndex * PRESCRIPTIONS_PAGE_SIZE;
+        const to = from + PRESCRIPTIONS_PAGE_SIZE - 1;
 
-      return ((data || []) as PrescriptionListRow[]).map(mapPrescriptionListItem);
+        const { data, error } = await supabase
+          .from("workout_prescriptions")
+          .select(`
+            *,
+            prescription_assignments(student_id)
+          `)
+          .order("folder_id", { ascending: true, nullsFirst: false })
+          .order("order_index", { ascending: true })
+          .order("id", { ascending: true })
+          .range(from, to);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allPrescriptions.push(...(data as PrescriptionListRow[]));
+        if (data.length < PRESCRIPTIONS_PAGE_SIZE) break;
+      }
+
+      return allPrescriptions.map(mapPrescriptionListItem);
     },
   });
 };

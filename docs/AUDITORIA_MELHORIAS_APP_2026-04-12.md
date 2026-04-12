@@ -705,6 +705,18 @@ Referência de pendências manuais (UI autenticada):
 - Reduz risco de falso negativo na detecção de duplicados quando a base ultrapassar 2.000 exercícios.
 - Mantém mesma API do hook para a UI existente, sem mudança de escopo funcional.
 
+### Robustez de listagem para crescimento de base (alunos e prescrições)
+- `src/hooks/useStudents.ts`
+- `src/hooks/usePrescriptions.ts`
+
+**Ajuste aplicado**
+- Removidos cortes fixos de listagem (`students.limit(2000)` e `workout_prescriptions.limit(500)`).
+- Implementada paginação incremental com `range` e ordenação estável.
+
+**Impacto**
+- Evita ocultação silenciosa de registros em bases maiores.
+- Mantém compatibilidade com a UI atual, sem alterar fluxo funcional.
+
 ---
 
 ## Backlog recomendado (prioridade)

@@ -22,18 +22,34 @@ export interface Student {
   updated_at: string;
 }
 
+const STUDENTS_PAGE_SIZE = 500;
+const STUDENTS_MAX_PAGES = 50;
+
 export const useStudents = () => {
   return useQuery({
     queryKey: ["students"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("students")
-        .select("*")
-        .order("name")
-        .limit(2000);
-      
-      if (error) throw error;
-      return data as Student[];
+      const allStudents: Student[] = [];
+
+      for (let pageIndex = 0; pageIndex < STUDENTS_MAX_PAGES; pageIndex += 1) {
+        const from = pageIndex * STUDENTS_PAGE_SIZE;
+        const to = from + STUDENTS_PAGE_SIZE - 1;
+
+        const { data, error } = await supabase
+          .from("students")
+          .select("*")
+          .order("name")
+          .order("id")
+          .range(from, to);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allStudents.push(...(data as Student[]));
+        if (data.length < STUDENTS_PAGE_SIZE) break;
+      }
+
+      return allStudents;
     },
   });
 };
