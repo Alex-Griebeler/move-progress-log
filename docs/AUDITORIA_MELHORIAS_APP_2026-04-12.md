@@ -500,6 +500,17 @@ Referência de pendências manuais (UI autenticada):
 - Mensagens de falha mais confiáveis nos fluxos principais de cadastro e manutenção de alunos.
 - Melhor diagnóstico operacional sem alteração de regras de negócio.
 
+### Hardening de feedback de erro no módulo de pastas/prescrições
+- `src/hooks/useFolders.ts`
+
+**Ajuste aplicado**
+- Operações de pasta (`create/update/delete/reorder`) e movimentação de prescrição passaram a usar `buildErrorDescription`.
+- Removido uso direto de `error.message` para preservar detalhes úteis vindos do Supabase.
+
+**Impacto**
+- Erros de organização de pastas e ordenação de prescrições ficam claros para o coach.
+- Menor risco de retrabalho por diagnóstico incompleto em falhas de persistência.
+
 ---
 
 ## Backlog recomendado (prioridade)

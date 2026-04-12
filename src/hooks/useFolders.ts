@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 export interface PrescriptionFolder {
   id: string;
@@ -113,7 +114,7 @@ export const useCreateFolder = () => {
     },
     onError: (error: Error) => {
       notify.error("Erro ao criar pasta", {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -138,7 +139,7 @@ export const useUpdateFolder = () => {
     },
     onError: (error: Error) => {
       notify.error("Erro ao renomear pasta", {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -165,7 +166,7 @@ export const useDeleteFolder = () => {
     },
     onError: (error: Error) => {
       notify.error("Erro ao excluir pasta", {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -192,7 +193,7 @@ export const useReorderFolders = () => {
     },
     onError: (error: Error) => {
       notify.error("Erro ao reordenar pastas", {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -227,7 +228,7 @@ export const useMovePrescription = () => {
     },
     onError: (error: Error) => {
       notify.error("Erro ao mover prescrição", {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -253,7 +254,7 @@ export const useReorderPrescriptions = () => {
     },
     onError: (error: Error) => {
       notify.error("Erro ao reordenar prescrições", {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
