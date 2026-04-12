@@ -39,4 +39,9 @@ describe("errorParsing", () => {
 
     expect(description).toBe("Falha | Constraint X | Verifique Y");
   });
+
+  it("uses fallback when description cannot be parsed", () => {
+    const description = buildErrorDescription(undefined, "Tente novamente");
+    expect(description).toBe("Tente novamente");
+  });
 });

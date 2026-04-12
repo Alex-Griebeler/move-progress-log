@@ -669,6 +669,18 @@ Referência de pendências manuais (UI autenticada):
 - Menor risco de tela “silenciosa” em falhas de convite Oura.
 - Diagnóstico mais rápido quando houver problema de configuração ou resposta inválida da edge function.
 
+### Consistência estrutural do utilitário de erro global
+- `src/utils/errorParsing.ts`
+- `src/utils/__tests__/errorParsing.test.ts`
+
+**Ajuste aplicado**
+- `buildErrorDescription` passou a aceitar `fallback` opcional (padrão já usado em dezenas de chamadas no app).
+- Adicionado teste para garantir comportamento com fallback quando não houver descrição parseável.
+
+**Impacto**
+- Elimina inconsistência entre assinatura utilitária e uso real no código.
+- Padroniza resultado final e evita retorno vazio em cenários de erro não estruturado.
+
 ---
 
 ## Backlog recomendado (prioridade)

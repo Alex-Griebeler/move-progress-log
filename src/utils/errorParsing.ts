@@ -55,7 +55,10 @@ export const parseErrorInfo = (error: unknown): ParsedErrorInfo => {
   };
 };
 
-export const buildErrorDescription = (error: unknown): string => {
+export const buildErrorDescription = (error: unknown, fallback?: string): string => {
   const info = parseErrorInfo(error);
-  return [info.message, info.details, info.hint].filter(Boolean).join(" | ");
+  const description = [info.message, info.details, info.hint]
+    .filter((part): part is string => typeof part === "string" && part.trim() !== "")
+    .join(" | ");
+  return description || fallback || "Erro desconhecido";
 };
