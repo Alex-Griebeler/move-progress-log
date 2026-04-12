@@ -716,6 +716,7 @@ Referência de pendências manuais (UI autenticada):
 - Removido também corte fixo do hook legado de sessões (`workout_sessions.limit(2000)`).
 - No histórico por aluno, removido teto fixo de 500 sessões com paginação incremental; para visão global sem filtro, mantido cap de 500 por segurança de performance.
 - Implementada paginação incremental com `range` e ordenação estável.
+- Em `useGetOrCreateStudent`, removido `maybeSingle()` por busca de candidatos + matching normalizado para evitar falha em casos com homônimos/duplicados de nome.
 
 **Impacto**
 - Evita ocultação silenciosa de registros em bases maiores.

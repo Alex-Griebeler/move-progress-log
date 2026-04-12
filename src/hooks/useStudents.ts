@@ -25,6 +25,13 @@ export interface Student {
 const STUDENTS_PAGE_SIZE = 500;
 const STUDENTS_MAX_PAGES = 50;
 
+const normalizeComparableText = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 export const useStudents = () => {
   return useQuery({
     queryKey: ["students"],
@@ -94,13 +101,22 @@ export const useGetOrCreateStudent = () => {
       if (!user) throw new Error("Usuário não autenticado");
 
       // Buscar aluno existente do trainer atual
-      const { data: existing } = await supabase
+      const { data: existingCandidates, error: existingError } = await supabase
         .from("students")
         .select("*")
         .ilike("name", name)
         .eq("trainer_id", user.id)
-        .maybeSingle();
-      
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (existingError) throw existingError;
+
+      const targetName = normalizeComparableText(name);
+      const existing =
+        existingCandidates?.find(
+          (candidate) => normalizeComparableText(candidate.name) === targetName
+        ) ?? existingCandidates?.[0];
+
       if (existing) return existing as Student;
       
       // Criar novo aluno se não existir
