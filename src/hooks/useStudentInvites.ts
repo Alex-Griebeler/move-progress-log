@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 export const useGenerateInvite = () => {
   const queryClient = useQueryClient();
@@ -30,7 +31,7 @@ export const useGenerateInvite = () => {
     },
     onError: (error: Error) => {
       notify.error(i18n.modules.invites.errorGenerate, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -106,7 +107,7 @@ export const useCreateStudentFromInvite = () => {
     },
     onError: (error: Error) => {
       notify.error(i18n.modules.invites.errorCreate, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });

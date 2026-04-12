@@ -511,6 +511,17 @@ Referência de pendências manuais (UI autenticada):
 - Erros de organização de pastas e ordenação de prescrições ficam claros para o coach.
 - Menor risco de retrabalho por diagnóstico incompleto em falhas de persistência.
 
+### Hardening de feedback de erro no módulo de convites
+- `src/hooks/useStudentInvites.ts`
+
+**Ajuste aplicado**
+- Geração de convite e criação do aluno via convite passaram a usar `buildErrorDescription` nos toasts.
+- Removido uso direto de `error.message` para erros de edge function.
+
+**Impacto**
+- Melhor diagnóstico operacional nos fluxos de onboarding por convite.
+- Menos erro “genérico” em falhas de integração de edge functions.
+
 ---
 
 ## Backlog recomendado (prioridade)
