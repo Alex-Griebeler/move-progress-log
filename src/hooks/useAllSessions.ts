@@ -35,6 +35,9 @@ export interface SessionWithDetails {
   }>;
 }
 
+const ALL_SESSIONS_PAGE_SIZE = 500;
+const ALL_SESSIONS_MAX_PAGES = 40;
+
 const SESSION_SELECT = `
   id, date, time, session_type, workout_name, room_name,
   trainer_name, is_finalized, can_reopen, prescription_id, student_id,
@@ -91,14 +94,27 @@ export function useAllSessions(filters?: SessionFilters) {
   return useQuery({
     queryKey: buildStableQueryKey("all-sessions", filters),
     queryFn: async () => {
-      const query = buildSessionQuery(filters)
-        .order("date", { ascending: false })
-        .order("time", { ascending: false })
-        .limit(2000);
+      const allSessions: SessionWithDetails[] = [];
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data || []) as SessionWithDetails[];
+      for (let pageIndex = 0; pageIndex < ALL_SESSIONS_MAX_PAGES; pageIndex += 1) {
+        const from = pageIndex * ALL_SESSIONS_PAGE_SIZE;
+        const to = from + ALL_SESSIONS_PAGE_SIZE - 1;
+
+        const query = buildSessionQuery(filters)
+          .order("date", { ascending: false })
+          .order("time", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to);
+
+        const { data, error } = await query;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allSessions.push(...(data as SessionWithDetails[]));
+        if (data.length < ALL_SESSIONS_PAGE_SIZE) break;
+      }
+
+      return allSessions;
     },
   });
 }

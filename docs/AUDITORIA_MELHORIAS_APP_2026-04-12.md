@@ -708,9 +708,11 @@ Referência de pendências manuais (UI autenticada):
 ### Robustez de listagem para crescimento de base (alunos e prescrições)
 - `src/hooks/useStudents.ts`
 - `src/hooks/usePrescriptions.ts`
+- `src/hooks/useAllSessions.ts` (hook legado)
 
 **Ajuste aplicado**
 - Removidos cortes fixos de listagem (`students.limit(2000)` e `workout_prescriptions.limit(500)`).
+- Removido também corte fixo do hook legado de sessões (`workout_sessions.limit(2000)`).
 - Implementada paginação incremental com `range` e ordenação estável.
 
 **Impacto**
