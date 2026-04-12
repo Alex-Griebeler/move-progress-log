@@ -720,6 +720,7 @@ Referência de pendências manuais (UI autenticada):
 - Em `useGetOrCreateStudent`, removido `maybeSingle()` por busca de candidatos + matching normalizado para evitar falha em casos com homônimos/duplicados de nome.
 - Em `useStats`, removido limite fixo de 5.000 exercícios no cálculo de carga média mensal, com paginação incremental.
 - `useAllSessions` também recebeu chave de cache estável (ordenação defensiva de `studentIds`/`prescriptionIds`) para evitar duplicação de cache por ordem de filtros.
+- `useStats` passou a validar erros de consultas de contagem e RPC (`count_active_students`) em modo fail-fast, evitando métricas “0” silenciosas em caso de falha de backend.
 
 **Impacto**
 - Evita ocultação silenciosa de registros em bases maiores.

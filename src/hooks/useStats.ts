@@ -16,22 +16,25 @@ export const useStats = () => {
     queryKey: ["stats"],
     queryFn: async () => {
       // Total de sessões
-      const { count: totalSessions } = await supabase
+      const { count: totalSessions, error: totalSessionsError } = await supabase
         .from("workout_sessions")
         .select("*", { count: "exact", head: true });
+      if (totalSessionsError) throw totalSessionsError;
       
       // Sessões deste mês
       const now = new Date();
       const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
       
-      const { count: thisMonth } = await supabase
+      const { count: thisMonth, error: thisMonthError } = await supabase
         .from("workout_sessions")
         .select("*", { count: "exact", head: true })
         .gte("date", firstDayOfMonth);
+      if (thisMonthError) throw thisMonthError;
       
       // Alunos ativos (com pelo menos uma sessão) — NOVO-002: count distinct via RPC
-      const { data: activeStudentsCount } = await supabase
+      const { data: activeStudentsCount, error: activeStudentsError } = await supabase
         .rpc('count_active_students', { p_since: firstDayOfMonth });
+      if (activeStudentsError) throw activeStudentsError;
       const activeStudents = activeStudentsCount || 0;
       
       // Carga média por sessão — evita truncamento silencioso por limite fixo
