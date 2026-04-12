@@ -180,7 +180,7 @@ export const useCreateWorkoutSession = () => {
     onError: (error: unknown, variables) => {
       if (!variables?.silent) {
         notify.error(workoutKeys.errorSession, {
-          description: error instanceof Error ? error.message : i18n.errors.unknown,
+          description: buildErrorDescription(error) || i18n.errors.unknown,
         });
       }
     },

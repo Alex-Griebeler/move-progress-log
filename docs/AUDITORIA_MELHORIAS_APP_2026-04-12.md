@@ -629,6 +629,22 @@ Referência de pendências manuais (UI autenticada):
 - Melhor leitura de erro em fluxos administrativos críticos (auth, gestão de usuário, alunos, prescrição).
 - Menos retrabalho operacional por mensagens genéricas em produção.
 
+### Hardening de feedback de erro em importação/classificação e ferramentas auxiliares
+- `src/hooks/useClassifyExercises.ts`
+- `src/hooks/useWorkoutSessions.ts`
+- `src/components/CreateSubfolderDialog.tsx`
+- `src/components/AuthDebugPanel.tsx`
+- `src/components/ImportPrescriptionFromWordDialog.tsx`
+- `src/features/ai-builder/AIChat.tsx`
+
+**Ajuste aplicado**
+- Padronização de descrição de erro via `buildErrorDescription` nesses fluxos, preservando o comportamento funcional existente.
+- Mantido tratamento de regra específica de profundidade no diálogo de subpasta.
+
+**Impacto**
+- Diagnóstico mais consistente em fluxos de suporte (classificação batch, importação Word, AI Builder e manutenção de pastas).
+- Redução de mensagens vagas em operações auxiliares críticas para a rotina do app.
+
 ---
 
 ## Backlog recomendado (prioridade)

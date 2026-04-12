@@ -6,6 +6,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface ClassificationResult {
   classified: number;
@@ -89,7 +90,7 @@ export const useClassifyExercises = () => {
 
       notify.success(`${totalClassified} exercícios classificados com sucesso!`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      const message = buildErrorDescription(err) || "Erro desconhecido";
       notify.error("Erro na classificação", { description: message });
       allErrors.push(message);
     } finally {

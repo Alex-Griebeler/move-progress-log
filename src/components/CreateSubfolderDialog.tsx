@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { useCreateFolder, PrescriptionFolder } from "@/hooks/useFolders";
 import { Loader2, FolderPlus } from "lucide-react";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface CreateSubfolderDialogProps {
   open: boolean;
@@ -91,7 +92,7 @@ export function CreateSubfolderDialog({
       });
       onOpenChange(false);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = buildErrorDescription(err) || String(err);
       if (msg.includes("Maximum folder depth")) {
         setError("Limite de profundidade atingido (máximo 3 níveis)");
       } else {

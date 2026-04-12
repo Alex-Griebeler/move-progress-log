@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, Copy, RefreshCw, Trash2, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 export const AuthDebugPanel = () => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -74,7 +75,7 @@ export const AuthDebugPanel = () => {
     } catch (err) {
       toast({
         title: "❌ Erro ao renovar token",
-        description: err instanceof Error ? err.message : "Erro desconhecido",
+        description: buildErrorDescription(err) || "Erro desconhecido",
         variant: "destructive",
       });
     }

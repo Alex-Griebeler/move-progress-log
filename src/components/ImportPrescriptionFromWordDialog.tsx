@@ -15,6 +15,7 @@ import { useCreatePrescription } from "@/hooks/usePrescriptions";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { notify } from "@/lib/notify";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { AddExerciseDialog, type ExerciseDefaultValues } from "@/components/AddExerciseDialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -112,7 +113,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
       setSelectedIndex(0);
       setStep("review");
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erro desconhecido ao processar arquivo.";
+      const message = buildErrorDescription(err) || "Erro desconhecido ao processar arquivo.";
       logger.error("Import error:", err);
       notify.error("Erro ao processar arquivo", { description: message });
       setStep("upload");
@@ -184,7 +185,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
 
       notify.success(`Prescrição "${prescription.name}" criada com sucesso!`);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erro desconhecido ao criar prescrição.";
+      const message = buildErrorDescription(err) || "Erro desconhecido ao criar prescrição.";
       notify.error("Erro ao criar prescrição", { description: message });
     }
   };

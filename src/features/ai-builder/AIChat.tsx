@@ -6,6 +6,7 @@ import { sendAIBuilderMessage, type AIBuilderResponse } from "./aiService";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import ReactMarkdown from "react-markdown";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import {
   useAIBuilderMessages,
   useAddMessage,
@@ -87,7 +88,7 @@ export function AIChat({ conversationId }: AIChaChatProps) {
         issue_url: response.issue_url,
       });
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Erro desconhecido";
+      const errorMsg = buildErrorDescription(error) || "Erro desconhecido";
       toast.error(errorMsg);
 
       await addMessage.mutateAsync({
