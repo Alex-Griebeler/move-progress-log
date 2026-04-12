@@ -413,6 +413,23 @@ Referência de pendências manuais (UI autenticada):
 **Impacto**
 - Remove falha recorrente de quality gate por segurança sem alterar regras de negócio do app.
 
+### Hardening da sugestão de carga (escopo por categoria)
+- `src/hooks/loadSuggestionUtils.ts`
+- `src/hooks/useLoadSuggestions.ts`
+- `src/hooks/__tests__/loadSuggestionUtils.test.ts`
+
+**Ajuste aplicado**
+- Extraída utilidade de normalização/categoria para módulo puro (`loadSuggestionUtils`).
+- A lógica de `useLoadSuggestions` passou a excluir estritamente exercícios fora das categorias de força/hipertrofia.
+- Incluídos testes unitários para garantir:
+  - normalização textual consistente,
+  - aceitação de categorias elegíveis,
+  - rejeição de categorias não elegíveis.
+
+**Impacto**
+- Evita sugestão numérica de carga em exercícios fora do escopo do método atual.
+- Reduz ruído operacional no card de recomendações de carga.
+
 ---
 
 ## Backlog recomendado (prioridade)

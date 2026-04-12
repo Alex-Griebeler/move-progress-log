@@ -3,6 +3,10 @@ import { subDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/utils/logger";
 import { TrainingRecommendation } from "./useTrainingRecommendation";
+import {
+  isEligibleStrengthCategory,
+  normalizeComparableText,
+} from "./loadSuggestionUtils";
 
 type SuggestionStatus = "automatic" | "assisted" | "insufficient";
 
@@ -28,21 +32,6 @@ interface ExerciseExecution {
   prescriptionId: string | null;
   observations: string | null;
 }
-
-const normalizeComparableText = (value: string): string =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ");
-
-const isEligibleStrengthCategory = (category: string | null | undefined): boolean => {
-  if (!category) return false;
-  const normalized = normalizeComparableText(category);
-  return normalized.includes("forca") || normalized.includes("hipertrofia");
-};
 
 const inferIncrement = (equipmentRequired: string[] | null | undefined): number => {
   const normalized = (equipmentRequired || []).map((item) => normalizeComparableText(item));
@@ -173,7 +162,7 @@ export const useLoadSuggestions = (
 
           const libMeta = libraryByName.get(key);
           const eligibleByCategory = isEligibleStrengthCategory(libMeta?.category);
-          if (!eligibleByCategory && list.length < 2) return null;
+          if (!eligibleByCategory) return null;
 
           const referenceReps = first.reps;
           const bestEquivalent = list
