@@ -53,7 +53,9 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
+  const authDebugEnabledByEnv = import.meta.env.VITE_ENABLE_AUTH_DEBUG === "1";
   const showAuthDebug =
+    authDebugEnabledByEnv &&
     import.meta.env.DEV &&
     window.location.hostname === "localhost" &&
     new URLSearchParams(window.location.search).get("authDebug") === "1";

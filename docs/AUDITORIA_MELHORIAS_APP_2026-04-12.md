@@ -385,6 +385,17 @@ Referência de pendências manuais (UI autenticada):
 - Melhora legibilidade e rastreabilidade de falhas operacionais sem alterar fluxo de importação/sessão.
 - Reduz “erro genérico” em feedback para o coach.
 
+### Hardening de visibilidade de painel de debug (Auth)
+- `src/App.tsx`
+
+**Ajuste aplicado**
+- `AuthDebugPanel` agora exige `VITE_ENABLE_AUTH_DEBUG=1` além das condições já existentes (`DEV`, `localhost`, `authDebug=1`).
+- Com isso, o painel fica oculto por padrão em ambientes de preview/staging, evitando poluição de UI operacional.
+
+**Impacto**
+- Reduz risco de exposição de ferramentas de debug em uso real do app.
+- Mantém diagnóstico disponível somente quando habilitado explicitamente.
+
 ---
 
 ## Backlog recomendado (prioridade)
