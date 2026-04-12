@@ -311,7 +311,7 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
           </div>
 
           <p className="text-xs text-muted-foreground mt-4">
-            Baseado em {report.oura_data.dataPoints} dias de dados
+            Baseado em {report.oura_data.dataPoints ?? "--"} dias de dados
           </p>
         </Card>
       )}

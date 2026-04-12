@@ -380,7 +380,7 @@ export const ReportPDFDocument = ({
             </View>
             
             <Text style={[styles.subtitle, { marginTop: 8 }]}>
-              Baseado em {report.oura_data.dataPoints} dias de dados
+              Baseado em {report.oura_data.dataPoints ?? "--"} dias de dados
             </Text>
           </View>
         )}
