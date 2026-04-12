@@ -693,13 +693,16 @@ Referência de pendências manuais (UI autenticada):
 
 ### Robustez de carregamento do catálogo de exercícios
 - `src/hooks/useExercisesLibrary.ts`
+- `src/hooks/useDuplicateExerciseCheck.ts`
 
 **Ajuste aplicado**
 - Removido corte fixo de `.limit(2000)`.
 - Implementada paginação incremental (`range`) com ordenação estável por `name` + `id`.
+- Aplicado o mesmo padrão no check de duplicidade de exercícios.
 
 **Impacto**
 - Evita truncamento silencioso da biblioteca em crescimento.
+- Reduz risco de falso negativo na detecção de duplicados quando a base ultrapassar 2.000 exercícios.
 - Mantém mesma API do hook para a UI existente, sem mudança de escopo funcional.
 
 ---
