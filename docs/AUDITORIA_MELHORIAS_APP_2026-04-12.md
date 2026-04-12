@@ -396,6 +396,23 @@ Referência de pendências manuais (UI autenticada):
 - Reduz risco de exposição de ferramentas de debug em uso real do app.
 - Mantém diagnóstico disponível somente quando habilitado explicitamente.
 
+### Hardening de dependências (security gate CI)
+- `package.json`
+- `package-lock.json`
+
+**Ajuste aplicado**
+- Atualizado `vite` para faixa segura `^6.4.2` para cobrir advisories moderados reportados no `npm audit`.
+- Lockfile regenerado com resolução transitiva compatível.
+
+**Validação**
+- `npm audit --json`: 0 vulnerabilidades.
+- `npm run lint`: PASS.
+- `npm run test -- --run`: PASS (86/86).
+- `npm run build`: PASS.
+
+**Impacto**
+- Remove falha recorrente de quality gate por segurança sem alterar regras de negócio do app.
+
 ---
 
 ## Backlog recomendado (prioridade)
