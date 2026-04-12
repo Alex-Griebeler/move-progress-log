@@ -272,6 +272,25 @@ Referência de pendências manuais (UI autenticada):
 - Reduz ruído operacional no painel de recomendações (sem duplicidade).
 - Mantém compatibilidade com dados existentes e sem alteração de escopo funcional.
 
+### Cobertura automatizada do motor de recomendação (zona + override)
+- `src/hooks/useTrainingRecommendation.ts`
+- `src/hooks/__tests__/useTrainingRecommendation.test.ts`
+
+**Ajuste aplicado**
+- Extraída função pura `calculateTrainingRecommendation` para permitir testes determinísticos sem depender de renderização de hook.
+- Hook `useTrainingRecommendation` mantido como wrapper com `useMemo`, sem mudar a API pública usada pelo app.
+- Incluídos 6 testes unitários cobrindo:
+  - zona `green_high` com decisão de aumento,
+  - override por FCR elevada,
+  - alerta `CRITICAL` em FCR > baseline +10,
+  - ausência de override com histórico insuficiente,
+  - override por HRV aguda noturna muito baixa,
+  - bloqueio em zona vermelha.
+
+**Impacto**
+- Reduz risco de regressão silenciosa nas regras centrais do dia.
+- Estabelece base para ampliar testes de negócio sem refatoração estrutural adicional.
+
 ---
 
 ## Backlog recomendado (prioridade)
