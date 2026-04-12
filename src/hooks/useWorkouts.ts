@@ -86,12 +86,14 @@ export const useWorkouts = () => {
       const sessionIds = data.map(s => s.id);
       if (sessionIds.length === 0) return [];
 
-      const { data: observations } = await supabase
+      const { data: observations, error: observationsError } = await supabase
         .from('student_observations')
         .select('session_id')
         .in('session_id', sessionIds)
         .eq('is_resolved', false)
         .in('severity', ['baixa', 'média', 'alta']);
+
+      if (observationsError) throw observationsError;
 
       const sessionsWithObservations = new Set(
         observations?.map(o => o.session_id).filter(Boolean) || []
@@ -127,12 +129,14 @@ export const useWorkoutsPaginated = () => {
       let sessionsWithObservations = new Set<string>();
 
       if (sessionIds.length > 0) {
-        const { data: observations } = await supabase
+        const { data: observations, error: observationsError } = await supabase
           .from('student_observations')
           .select('session_id')
           .in('session_id', sessionIds)
           .eq('is_resolved', false)
           .in('severity', ['baixa', 'média', 'alta']);
+
+        if (observationsError) throw observationsError;
 
         sessionsWithObservations = new Set(
           observations?.map(o => o.session_id).filter(Boolean) || []
