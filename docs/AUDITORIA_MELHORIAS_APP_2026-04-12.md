@@ -658,6 +658,17 @@ Referência de pendências manuais (UI autenticada):
 - Mensagens mais consistentes nos fluxos de login/cadastro e transcrição de áudio.
 - Menor chance de erro operacional “sem contexto” em operações do dia a dia.
 
+### Hardening de robustez no fluxo de convite Oura
+- `src/pages/OuraConnectPage.tsx`
+
+**Ajuste aplicado**
+- Validação passou a verificar ausência de configuração cliente (`VITE_SUPABASE_URL`/`VITE_SUPABASE_PUBLISHABLE_KEY`) e `response.ok` do endpoint de convite.
+- Erros de validação e inicialização da conexão agora usam `buildErrorDescription` para feedback operacional mais claro.
+
+**Impacto**
+- Menor risco de tela “silenciosa” em falhas de convite Oura.
+- Diagnóstico mais rápido quando houver problema de configuração ou resposta inválida da edge function.
+
 ---
 
 ## Backlog recomendado (prioridade)

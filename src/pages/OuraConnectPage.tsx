@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface InviteData {
   valid: boolean;
@@ -30,6 +31,9 @@ export default function OuraConnectPage() {
       try {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error("Configuração do Supabase ausente no cliente");
+        }
 
         const response = await fetch(
           `${supabaseUrl}/functions/v1/validate-student-invite?token=${token}&type=oura_connect`,
@@ -37,13 +41,16 @@ export default function OuraConnectPage() {
         );
 
         const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result?.error || "Falha ao validar convite do Oura");
+        }
         if (!result.valid) {
           setError(result.error || "Link inválido ou expirado");
         } else {
           setInviteData(result);
         }
-      } catch {
-        setError("Erro ao validar link");
+      } catch (error: unknown) {
+        setError(buildErrorDescription(error) || "Erro ao validar link");
       } finally {
         setIsLoading(false);
       }
@@ -73,8 +80,10 @@ export default function OuraConnectPage() {
       const ouraAuthUrl = `https://cloud.ouraring.com/oauth/authorize?response_type=code&client_id=${ouraClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}`;
 
       window.location.href = ouraAuthUrl;
-    } catch {
-      toast.error("Erro ao iniciar conexão");
+    } catch (error: unknown) {
+      toast.error("Erro ao iniciar conexão", {
+        description: buildErrorDescription(error) || "Tente novamente em instantes.",
+      });
       setIsConnecting(false);
     }
   };
