@@ -17,6 +17,12 @@ const DEFAULT_BASELINE: OuraBaseline = {
   hasMinimumData: false,
 };
 
+const parseBaselineNumber = (value: unknown, fallback: number): number => {
+  if (value === null || value === undefined) return fallback;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 /**
  * Hook que retorna o baseline dinâmico de métricas Oura para um aluno.
  * Usa a função SQL `calc_oura_baseline` que calcula médias dos últimos N dias.
@@ -45,9 +51,9 @@ export const useOuraBaseline = (studentId: string, days: number = 14) => {
       }
 
       return {
-        avgHRV: Number(row.avg_hrv) || DEFAULT_BASELINE.avgHRV,
-        avgRHR: Number(row.avg_rhr) || DEFAULT_BASELINE.avgRHR,
-        avgSleepScore: Number(row.avg_sleep_score) || DEFAULT_BASELINE.avgSleepScore,
+        avgHRV: parseBaselineNumber(row.avg_hrv, DEFAULT_BASELINE.avgHRV),
+        avgRHR: parseBaselineNumber(row.avg_rhr, DEFAULT_BASELINE.avgRHR),
+        avgSleepScore: parseBaselineNumber(row.avg_sleep_score, DEFAULT_BASELINE.avgSleepScore),
         dataPoints: row.data_points,
         hasMinimumData: true,
       };
