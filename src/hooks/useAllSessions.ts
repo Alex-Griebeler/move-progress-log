@@ -77,10 +77,15 @@ function buildSessionQuery(filters?: SessionFilters) {
 
 function buildStableQueryKey(prefix: string, filters?: SessionFilters) {
   // INC-005: Serialized primitives for stable queryKey
+  const stableStudentIds = filters?.studentIds ? [...filters.studentIds].sort().join(",") : "";
+  const stablePrescriptionIds = filters?.prescriptionIds
+    ? [...filters.prescriptionIds].sort().join(",")
+    : "";
+
   return [
     prefix,
-    filters?.studentIds?.join(",") ?? "",
-    filters?.prescriptionIds?.join(",") ?? "",
+    stableStudentIds,
+    stablePrescriptionIds,
     filters?.startDate?.toISOString() ?? "",
     filters?.endDate?.toISOString() ?? "",
     filters?.startTime ?? "",

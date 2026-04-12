@@ -719,6 +719,7 @@ Referência de pendências manuais (UI autenticada):
 - Implementada paginação incremental com `range` e ordenação estável.
 - Em `useGetOrCreateStudent`, removido `maybeSingle()` por busca de candidatos + matching normalizado para evitar falha em casos com homônimos/duplicados de nome.
 - Em `useStats`, removido limite fixo de 5.000 exercícios no cálculo de carga média mensal, com paginação incremental.
+- `useAllSessions` também recebeu chave de cache estável (ordenação defensiva de `studentIds`/`prescriptionIds`) para evitar duplicação de cache por ordem de filtros.
 
 **Impacto**
 - Evita ocultação silenciosa de registros em bases maiores.
