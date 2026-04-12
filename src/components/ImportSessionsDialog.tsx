@@ -125,6 +125,14 @@ const parseAmPmTime = (input: string): string | null => {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 };
 
+const parseCompactTime = (value: number): string | null => {
+  if (!Number.isInteger(value) || value < 0 || value > 2359) return null;
+  const hours = Math.floor(value / 100);
+  const minutes = value % 100;
+  if (hours > 23 || minutes > 59) return null;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+};
+
 interface ImportSessionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -262,23 +270,33 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       }
       const amPmParsed = parseAmPmTime(normalized);
       if (amPmParsed) return amPmParsed;
+
+      if (/^\d{3,4}$/.test(normalized)) {
+        const compactParsed = parseCompactTime(Number(normalized));
+        if (compactParsed) return compactParsed;
+      }
+
       const numeric = Number(normalized.replace(",", "."));
       if (Number.isFinite(numeric)) {
+        if (numeric > 1) return null;
+        if (numeric < 0) return null;
         const totalMinutes = Math.round(numeric * 24 * 60);
-        const normalizedTotalMinutes = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
-        const hours = Math.floor(normalizedTotalMinutes / 60);
-        const minutes = normalizedTotalMinutes % 60;
-        return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
       }
       return null;
     }
     if (typeof timeValue === "number") {
-      // Excel armazena tempo como fração do dia
+      const compactParsed = parseCompactTime(timeValue);
+      if (compactParsed) return compactParsed;
+
+      if (timeValue < 0 || timeValue > 1) return null;
+      // Excel armazena tempo como fração do dia (0..1)
       const totalMinutes = Math.round(timeValue * 24 * 60);
-      const normalizedTotalMinutes = ((totalMinutes % (24 * 60)) + (24 * 60)) % (24 * 60);
-      const hours = Math.floor(normalizedTotalMinutes / 60);
-      const minutes = normalizedTotalMinutes % 60;
-      return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
     }
     return null;
   };
