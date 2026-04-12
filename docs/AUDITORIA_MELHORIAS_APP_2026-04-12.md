@@ -731,6 +731,7 @@ Referência de pendências manuais (UI autenticada):
 - Removido uso de `.single()` em busca por nome (ponto frágil para homônimos e múltiplos matches).
 - Busca agora usa lista de candidatos, normalização textual (sem acento/case) e seleção do melhor match.
 - Prevenção de duplicação de aluno no lote `newStudents` durante o merge de múltiplas gravações.
+- Busca da sessão existente para reabertura passou de `.single()` para `.maybeSingle()` (caso opcional sem sessão prévia).
 
 **Impacto**
 - Reduz erro de auto-vinculação de aluno em sessões de grupo com nomes semelhantes.

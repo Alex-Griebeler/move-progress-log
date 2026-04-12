@@ -588,7 +588,15 @@ export function RecordGroupSessionDialog({
       const student = selectedStudents.find(s => s.name.toLowerCase() === merged.student_name.toLowerCase());
       if (!student) continue;
 
-      const { data: sessionData } = await supabase.from('workout_sessions').select('id').eq('student_id', student.id).eq('date', date).eq('time', time).order('created_at', { ascending: false }).limit(1).single();
+      const { data: sessionData } = await supabase
+        .from('workout_sessions')
+        .select('id')
+        .eq('student_id', student.id)
+        .eq('date', date)
+        .eq('time', time)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (!sessionData) continue;
 
       // Save clinical observations
