@@ -16,6 +16,7 @@ import { Enable2FADialog } from "@/components/Enable2FADialog";
 import { Verify2FADialog } from "@/components/Verify2FADialog";
 import { NAV_LABELS, ROUTES, POST_LOGIN_ROUTE } from "@/constants/navigation";
 import i18n from "@/i18n/pt-BR.json";
+import { buildErrorDescription, parseErrorInfo } from "@/utils/errorParsing";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -49,7 +50,8 @@ export default function AuthPage() {
   }, [password, checkPasswordSecurity]);
 
   const getErrorMessage = (error: unknown): string => {
-    const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+    const baseMessage = parseErrorInfo(error).message;
+    const message = baseMessage.toLowerCase();
     
     if (message.includes('email') && message.includes('already')) {
       return i18n.errors.emailAlreadyRegistered;
@@ -70,7 +72,7 @@ export default function AuthPage() {
       return i18n.errors.tooManyRequests;
     }
     
-    return error instanceof Error ? error.message : String(error);
+    return buildErrorDescription(error) || baseMessage;
   };
 
   const handleGoogleSignIn = async () => {

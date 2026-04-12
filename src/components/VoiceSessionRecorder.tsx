@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface VoiceSessionRecorderProps {
   prescriptionId?: string;
@@ -159,12 +160,12 @@ export function VoiceSessionRecorder({
       });
 
       allSegmentsRef.current = [];
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("VoiceRecorder", "Error processing", error);
 
       if (processingToastId) sonnerToast.dismiss(processingToastId);
 
-      const errorMsg = error instanceof Error ? error.message : "Erro ao processar gravação";
+      const errorMsg = buildErrorDescription(error) || "Erro ao processar gravação";
       sonnerToast.error("Erro no processamento", { description: errorMsg });
 
       if (onError) {
@@ -246,7 +247,7 @@ export function VoiceSessionRecorder({
         description: "Fale sobre a sessão de treino. Clique em 'Parar' quando terminar.",
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("VoiceRecorder", "Error starting recording", error);
 
       if (permissionToastId) sonnerToast.dismiss(permissionToastId);
@@ -254,7 +255,7 @@ export function VoiceSessionRecorder({
       setIsStarting(false);
       setIsRecording(false);
 
-      const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
+      const errorMsg = buildErrorDescription(error) || "Não foi possível iniciar a gravação";
       sonnerToast.error("Erro ao acessar microfone", {
         description: errorMsg + ". Verifique as permissões do navegador.",
       });
@@ -308,10 +309,10 @@ export function VoiceSessionRecorder({
       sonnerToast.success(`Gravação retomada - Segmento ${currentSegment}`, {
         description: "Continue falando sobre a sessão de treino",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("VoiceRecorder", "Error resuming recording", error);
 
-      const errorMsg = error instanceof Error ? error.message : "Erro ao retomar gravação";
+      const errorMsg = buildErrorDescription(error) || "Erro ao retomar gravação";
       sonnerToast.error("Erro ao retomar", { description: errorMsg });
 
       if (onError) {

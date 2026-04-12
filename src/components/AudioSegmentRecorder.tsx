@@ -5,6 +5,7 @@ import { Mic, Square, Loader2 } from "lucide-react";
 import { toast as sonnerToast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface AudioSegment {
   segmentOrder: number;
@@ -104,12 +105,12 @@ export function AudioSegmentRecorder({
       } else {
         throw new Error(data.error || "Erro ao processar áudio");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error processing audio:", error);
 
       if (processingToastId) sonnerToast.dismiss(processingToastId);
 
-      const errorMsg = error instanceof Error ? error.message : "Erro ao processar gravação";
+      const errorMsg = buildErrorDescription(error) || "Erro ao processar gravação";
       sonnerToast.error("Erro no processamento", {
         description: errorMsg,
       });
@@ -175,11 +176,11 @@ export function AudioSegmentRecorder({
       sonnerToast.success(`Gravando Segmento ${currentSegmentNumber}! 🎙️`, {
         description: "Fale sobre a sessão. Clique em 'Parar' quando terminar este segmento.",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error starting recording:", error);
       if (permissionToastId) sonnerToast.dismiss(permissionToastId);
 
-      const errorMsg = error instanceof Error ? error.message : "Não foi possível iniciar a gravação";
+      const errorMsg = buildErrorDescription(error) || "Não foi possível iniciar a gravação";
       sonnerToast.error("Erro ao acessar microfone", {
         description: errorMsg,
       });

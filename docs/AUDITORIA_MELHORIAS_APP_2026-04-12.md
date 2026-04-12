@@ -645,6 +645,19 @@ Referência de pendências manuais (UI autenticada):
 - Diagnóstico mais consistente em fluxos de suporte (classificação batch, importação Word, AI Builder e manutenção de pastas).
 - Redução de mensagens vagas em operações auxiliares críticas para a rotina do app.
 
+### Hardening de feedback de erro em autenticação e gravação por voz
+- `src/pages/AuthPage.tsx`
+- `src/components/AudioSegmentRecorder.tsx`
+- `src/components/VoiceSessionRecorder.tsx`
+
+**Ajuste aplicado**
+- `AuthPage` passou a usar `parseErrorInfo`/`buildErrorDescription` para normalização de mensagens sem mudar as regras específicas de mapeamento.
+- Gravadores de voz passaram a padronizar descrição de erro com `buildErrorDescription`.
+
+**Impacto**
+- Mensagens mais consistentes nos fluxos de login/cadastro e transcrição de áudio.
+- Menor chance de erro operacional “sem contexto” em operações do dia a dia.
+
 ---
 
 ## Backlog recomendado (prioridade)
