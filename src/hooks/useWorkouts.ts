@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 // Chaves i18n disponíveis para workouts
 const workoutKeys = i18n.modules.workouts;
@@ -218,7 +219,7 @@ export const useCreateWorkout = () => {
     onError: (error: Error) => {
       
       notify.error(workoutKeys.errorCreate, {
-        description: error.message,
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });

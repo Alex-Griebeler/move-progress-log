@@ -522,6 +522,17 @@ Referência de pendências manuais (UI autenticada):
 - Melhor diagnóstico operacional nos fluxos de onboarding por convite.
 - Menos erro “genérico” em falhas de integração de edge functions.
 
+### Hardening de feedback de erro no registro de sessão individual
+- `src/hooks/useWorkouts.ts`
+
+**Ajuste aplicado**
+- Mutação de criação de sessão individual passou a usar `buildErrorDescription` no toast de erro.
+- Mantida a mesma lógica de persistência e invalidação de cache.
+
+**Impacto**
+- Mensagens de falha mais claras no registro rápido de sessão.
+- Menor risco de perda de contexto de erro em ambiente real.
+
 ---
 
 ## Backlog recomendado (prioridade)
