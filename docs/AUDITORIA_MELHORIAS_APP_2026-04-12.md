@@ -607,6 +607,28 @@ Referência de pendências manuais (UI autenticada):
 - Melhor diagnóstico em falhas de gravação/edição de sessão individual e grupo.
 - Redução de mensagens truncadas/ambíguas em operações críticas de rotina.
 
+### Hardening de feedback de erro em auth/usuários/prescrições e ferramentas de rotina
+- `src/pages/ResetPasswordPage.tsx`
+- `src/pages/AdminUsersPage.tsx`
+- `src/components/SendOuraConnectDialog.tsx`
+- `src/components/EditUserDialog.tsx`
+- `src/components/AddUserDialog.tsx`
+- `src/components/Enable2FADialog.tsx`
+- `src/components/AddStudentDialog.tsx`
+- `src/components/EditStudentDialog.tsx`
+- `src/components/EditPrescriptionDialog.tsx`
+- `src/components/CreatePrescriptionDialog.tsx`
+- `src/components/dashboard/RecentWorkoutsSection.tsx`
+- `src/components/dashboard/DevToolsCard.tsx`
+
+**Ajuste aplicado**
+- Padronizado uso de `buildErrorDescription` nos fluxos acima para substituir mensagens de erro incompletas derivadas de `error.message`.
+- Nenhuma alteração de regra de negócio (somente robustez de diagnóstico e consistência de UX em falhas).
+
+**Impacto**
+- Melhor leitura de erro em fluxos administrativos críticos (auth, gestão de usuário, alunos, prescrição).
+- Menos retrabalho operacional por mensagens genéricas em produção.
+
 ---
 
 ## Backlog recomendado (prioridade)

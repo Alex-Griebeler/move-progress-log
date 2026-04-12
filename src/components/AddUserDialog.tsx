@@ -5,6 +5,7 @@ import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import {
   Dialog,
   DialogContent,
@@ -118,7 +119,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
     } catch (error: unknown) {
       logger.error("Error creating user:", error);
       notify.error("Erro ao criar usuário", {
-        description: error instanceof Error ? error.message : "Tente novamente mais tarde",
+        description: buildErrorDescription(error) || "Tente novamente mais tarde",
       });
     } finally {
       setIsSubmitting(false);

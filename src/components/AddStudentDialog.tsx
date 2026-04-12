@@ -32,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { STUDENT_OBJECTIVES, MAX_OBJECTIVES, getObjectiveLabel } from "@/constants/objectives";
 import { NAV_LABELS } from "@/constants/navigation";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 const formSchema = z.object({
   name: z.string().trim().min(1, i18n.errors.required).max(100, i18n.errors.maxLength.replace("{{max}}", "100")),
@@ -182,8 +183,8 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
       if (onStudentCreated && newStudent) {
         onStudentCreated(newStudent);
       }
-    } catch (error) {
-      loader.error(i18n.modules.students.errorCreate, error instanceof Error ? error.message : "Erro desconhecido");
+    } catch (error: unknown) {
+      loader.error(i18n.modules.students.errorCreate, buildErrorDescription(error) || "Erro desconhecido");
     } finally {
       setIsUploadingAvatar(false);
     }

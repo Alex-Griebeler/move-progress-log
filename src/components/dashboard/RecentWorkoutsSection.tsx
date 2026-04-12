@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { notify } from "@/lib/notify";
 import { NAV_LABELS } from "@/constants/navigation";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import AddWorkoutDialog from "@/components/AddWorkoutDialog";
 
 interface RecentWorkoutsSectionProps {
@@ -35,9 +36,9 @@ export const RecentWorkoutsSection = ({ onSessionSelect, onImportOpen, onWorkout
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ['workouts'] });
       notify.success("Sessão reaberta com sucesso", { description: "Agora você pode editar os dados da sessão novamente." });
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Erro ao reabrir sessão:', error);
-      notify.error("Não foi possível reabrir a sessão", { description: error instanceof Error ? error.message : "Tente novamente ou contate o suporte." });
+      notify.error("Não foi possível reabrir a sessão", { description: buildErrorDescription(error) || "Tente novamente ou contate o suporte." });
     }
   };
 

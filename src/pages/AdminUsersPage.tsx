@@ -36,6 +36,7 @@ import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { AddUserDialog } from "@/components/AddUserDialog";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface UserWithRole {
   id: string;
@@ -153,11 +154,11 @@ export default function AdminUsersPage() {
       }));
 
       setUsers([...trainersData, ...studentsData]);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error("Error fetching users:", error);
       toast({
         title: "Erro ao carregar usuários",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        description: buildErrorDescription(error) || "Erro desconhecido",
         variant: "destructive",
       });
     } finally {

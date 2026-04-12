@@ -5,6 +5,7 @@ import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import {
   Dialog,
   DialogContent,
@@ -161,7 +162,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
     } catch (error: unknown) {
       logger.error("Error updating user:", error);
       notify.error("Erro ao atualizar usuário", {
-        description: error instanceof Error ? error.message : "Tente novamente mais tarde",
+        description: buildErrorDescription(error) || "Tente novamente mais tarde",
       });
     } finally {
       setIsSubmitting(false);
@@ -184,7 +185,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
     } catch (error: unknown) {
       logger.error("Error sending reset email:", error);
       notify.error("Erro ao enviar email", {
-        description: error instanceof Error ? error.message : "Tente novamente mais tarde",
+        description: buildErrorDescription(error) || "Tente novamente mais tarde",
       });
     }
   };

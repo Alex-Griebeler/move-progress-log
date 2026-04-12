@@ -32,6 +32,7 @@ import { useUpdateStudent } from "@/hooks/useStudents";
 import type { Student } from "@/hooks/useStudents";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 const formSchema = z.object({
   name: z.string().trim().min(1, i18n.errors.required),
@@ -184,7 +185,7 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
       loader.dismiss();
       onOpenChange(false);
     } catch (error: unknown) {
-      loader.error(i18n.modules.students.errorUpdate, error instanceof Error ? error.message : "Erro desconhecido");
+      loader.error(i18n.modules.students.errorUpdate, buildErrorDescription(error) || "Erro desconhecido");
     } finally {
       setIsUploadingAvatar(false);
     }

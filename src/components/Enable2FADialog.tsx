@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { QrCode, Shield, Copy, Check } from "lucide-react";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface Enable2FADialogProps {
   open: boolean;
@@ -40,7 +41,7 @@ export const Enable2FADialog = ({ open, onOpenChange }: Enable2FADialogProps) =>
     } catch (error: unknown) {
       logger.error('Error generating 2FA:', error);
       toast.error('Erro ao gerar 2FA', {
-        description: error instanceof Error ? error.message : 'Tente novamente mais tarde',
+        description: buildErrorDescription(error) || 'Tente novamente mais tarde',
       });
     } finally {
       setLoading(false);
@@ -83,7 +84,7 @@ export const Enable2FADialog = ({ open, onOpenChange }: Enable2FADialogProps) =>
     } catch (error: unknown) {
       logger.error('Error verifying 2FA:', error);
       toast.error('Erro ao verificar código', {
-        description: error instanceof Error ? error.message : 'Código incorreto. Tente novamente.',
+        description: buildErrorDescription(error) || 'Código incorreto. Tente novamente.',
       });
     } finally {
       setLoading(false);

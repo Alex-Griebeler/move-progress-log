@@ -19,6 +19,7 @@ import { clearTestSessions } from "@/utils/clearTestSessions";
 import { notify } from "@/lib/notify";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 export const DevToolsCard = () => {
   const [isPopulating, setIsPopulating] = useState(false);
@@ -33,9 +34,9 @@ export const DevToolsCard = () => {
       await queryClient.invalidateQueries({ queryKey: ['workouts'] });
       await queryClient.invalidateQueries({ queryKey: ['stats'] });
       loader.success("Dados de teste criados!", result.message);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Erro ao popular dados:', error);
-      loader.error("Falha ao criar dados de teste", error instanceof Error ? error.message : "Tente novamente ou contate o suporte.");
+      loader.error("Falha ao criar dados de teste", buildErrorDescription(error) || "Tente novamente ou contate o suporte.");
     } finally {
       setIsPopulating(false);
     }
@@ -49,9 +50,9 @@ export const DevToolsCard = () => {
       await queryClient.invalidateQueries({ queryKey: ['workouts'] });
       await queryClient.invalidateQueries({ queryKey: ['stats'] });
       loader.success("Dados removidos com sucesso!", result.message);
-    } catch (error) {
+    } catch (error: unknown) {
       logger.error('Erro ao limpar dados:', error);
-      loader.error("Falha ao remover dados", error instanceof Error ? error.message : "Tente novamente ou contate o suporte.");
+      loader.error("Falha ao remover dados", buildErrorDescription(error) || "Tente novamente ou contate o suporte.");
     } finally {
       setIsClearing(false);
     }

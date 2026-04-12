@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface SendOuraConnectDialogProps {
   open: boolean;
@@ -42,7 +43,7 @@ export const SendOuraConnectDialog = ({
       toast.success("Link gerado com sucesso");
     } catch (error: unknown) {
       toast.error("Erro ao gerar link", {
-        description: error instanceof Error ? error.message : "Tente novamente",
+        description: buildErrorDescription(error) || "Tente novamente",
       });
     } finally {
       setIsGenerating(false);

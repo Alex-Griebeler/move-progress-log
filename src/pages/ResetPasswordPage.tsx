@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { z } from "zod";
 import { checkRateLimit, recordFailedAttempt } from "@/lib/rateLimiter";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription, parseErrorInfo } from "@/utils/errorParsing";
 import { ROUTES } from "@/constants/navigation";
 
 const emailSchema = z.string().email("Email inválido");
@@ -103,7 +104,7 @@ export default function ResetPasswordPage() {
       await recordFailedAttempt('reset_password');
       toast({
         title: "Erro ao enviar email",
-        description: error instanceof Error ? error.message : "Tente novamente mais tarde.",
+        description: buildErrorDescription(error) || "Tente novamente mais tarde.",
         variant: "destructive",
       });
     } finally {
@@ -173,7 +174,7 @@ export default function ResetPasswordPage() {
       }, 2000);
     } catch (error: unknown) {
       logger.error("Error updating password:", error);
-      const errMsg = error instanceof Error ? error.message : "";
+      const errMsg = parseErrorInfo(error).message;
       if (errMsg.includes("token")) {
         toast({
           title: "Link expirado",
@@ -183,7 +184,7 @@ export default function ResetPasswordPage() {
       } else {
         toast({
           title: "Erro ao atualizar senha",
-          description: errMsg || "Tente novamente mais tarde.",
+          description: buildErrorDescription(error) || "Tente novamente mais tarde.",
           variant: "destructive",
         });
       }

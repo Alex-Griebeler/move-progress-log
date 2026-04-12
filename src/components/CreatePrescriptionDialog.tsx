@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 import { notify } from "@/lib/notify";
+import { buildErrorDescription } from "@/utils/errorParsing";
 import {
   DndContext,
   closestCenter,
@@ -294,7 +295,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       sonnerToast.dismiss(loadingToastId);
       toast({
         title: "Erro ao sugerir regressões",
-        description: error instanceof Error ? error.message : "Tente novamente mais tarde.",
+        description: buildErrorDescription(error) || "Tente novamente mais tarde.",
         variant: "destructive",
       });
     } finally {
@@ -400,9 +401,8 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
       ]);
       onOpenChange(false);
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro inesperado. Tente novamente.";
       notify.error("Erro ao criar prescrição", {
-        description: errorMessage
+        description: buildErrorDescription(error) || "Ocorreu um erro inesperado. Tente novamente."
       });
     }
   };
