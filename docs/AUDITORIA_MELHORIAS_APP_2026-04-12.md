@@ -710,6 +710,7 @@ Referência de pendências manuais (UI autenticada):
 - `src/hooks/usePrescriptions.ts`
 - `src/hooks/useAllSessions.ts` (hook legado)
 - `src/hooks/useWorkoutSessions.ts` (fluxo por aluno)
+- `src/hooks/useStats.ts`
 
 **Ajuste aplicado**
 - Removidos cortes fixos de listagem (`students.limit(2000)` e `workout_prescriptions.limit(500)`).
@@ -717,6 +718,7 @@ Referência de pendências manuais (UI autenticada):
 - No histórico por aluno, removido teto fixo de 500 sessões com paginação incremental; para visão global sem filtro, mantido cap de 500 por segurança de performance.
 - Implementada paginação incremental com `range` e ordenação estável.
 - Em `useGetOrCreateStudent`, removido `maybeSingle()` por busca de candidatos + matching normalizado para evitar falha em casos com homônimos/duplicados de nome.
+- Em `useStats`, removido limite fixo de 5.000 exercícios no cálculo de carga média mensal, com paginação incremental.
 
 **Impacto**
 - Evita ocultação silenciosa de registros em bases maiores.

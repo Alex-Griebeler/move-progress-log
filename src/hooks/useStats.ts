@@ -8,6 +8,9 @@ export interface Stats {
   avgLoad: number;
 }
 
+const MONTHLY_EXERCISES_PAGE_SIZE = 1000;
+const MONTHLY_EXERCISES_MAX_PAGES = 50;
+
 export const useStats = () => {
   return useQuery({
     queryKey: ["stats"],
@@ -31,12 +34,33 @@ export const useStats = () => {
         .rpc('count_active_students', { p_since: firstDayOfMonth });
       const activeStudents = activeStudentsCount || 0;
       
-      // Carga média por sessão — BUG-003 fix: filtrar pelo mês corrente + limite
-      const { data: exercises } = await supabase
-        .from("exercises")
-        .select("load_kg, session_id")
-        .gte("created_at", firstDayOfMonth)
-        .limit(5000);
+      // Carga média por sessão — evita truncamento silencioso por limite fixo
+      const exercises: Array<{ load_kg: number | null; session_id: string }> = [];
+
+      for (let pageIndex = 0; pageIndex < MONTHLY_EXERCISES_MAX_PAGES; pageIndex += 1) {
+        const from = pageIndex * MONTHLY_EXERCISES_PAGE_SIZE;
+        const to = from + MONTHLY_EXERCISES_PAGE_SIZE - 1;
+
+        const { data: pageData, error: pageError } = await supabase
+          .from("exercises")
+          .select("id, load_kg, session_id, created_at")
+          .gte("created_at", firstDayOfMonth)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to);
+
+        if (pageError) throw pageError;
+        if (!pageData || pageData.length === 0) break;
+
+        exercises.push(
+          ...pageData.map((exercise) => ({
+            load_kg: exercise.load_kg,
+            session_id: exercise.session_id,
+          }))
+        );
+
+        if (pageData.length < MONTHLY_EXERCISES_PAGE_SIZE) break;
+      }
       
       if (exercises && exercises.length > 0) {
         const sessionLoads = new Map<string, number>();
