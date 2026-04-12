@@ -20,6 +20,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 const normalizeComparableText = (value: string): string =>
   value
@@ -147,9 +148,12 @@ export function GenerateReportDialog({
 
         setPeriodExerciseIds(idsInPeriod);
         setSelectedExercises((prev) => prev.filter((exerciseId) => idsInPeriod.includes(exerciseId)));
-      } catch {
-        // Fallback safe: keep list empty and let backend validation decide.
+      } catch (error: unknown) {
+        // Keep list empty but make failure explicit to avoid false "no exercise" diagnosis.
         setPeriodExerciseIds([]);
+        toast.error("Falha ao carregar exercícios executados no período", {
+          description: buildErrorDescription(error, "Tente novamente em instantes."),
+        });
       } finally {
         setIsLoadingPeriodExercises(false);
       }

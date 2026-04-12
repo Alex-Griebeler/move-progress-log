@@ -430,6 +430,17 @@ Referência de pendências manuais (UI autenticada):
 - Evita sugestão numérica de carga em exercícios fora do escopo do método atual.
 - Reduz ruído operacional no card de recomendações de carga.
 
+### Hardening de feedback no diálogo de relatório
+- `src/components/GenerateReportDialog.tsx`
+
+**Ajuste aplicado**
+- Falha ao buscar exercícios executados no período deixou de ser silenciosa.
+- Em caso de erro de consulta, o diálogo agora exibe toast com mensagem detalhada via parser central (`buildErrorDescription`), mantendo fallback seguro da lista vazia.
+
+**Impacto**
+- Evita falso diagnóstico de “nenhum exercício executado” quando o problema é infra/consulta.
+- Melhora rastreabilidade operacional no fluxo de geração de relatórios.
+
 ---
 
 ## Backlog recomendado (prioridade)
