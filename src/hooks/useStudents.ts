@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 export interface Student {
   id: string;
@@ -61,7 +62,7 @@ export const useCreateStudent = () => {
     },
     onError: (error: Error) => {
       notify.error(i18n.modules.students.errorCreate, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -102,7 +103,7 @@ export const useGetOrCreateStudent = () => {
     },
     onError: (error: Error) => {
       notify.error("Erro ao buscar aluno", {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -131,7 +132,7 @@ export const useUpdateStudent = () => {
     },
     onError: (error: Error) => {
       notify.error(i18n.modules.students.errorUpdate, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });
@@ -155,7 +156,7 @@ export const useDeleteStudent = () => {
     },
     onError: (error: Error) => {
       notify.error(i18n.modules.students.errorDelete, {
-        description: error.message
+        description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },
   });

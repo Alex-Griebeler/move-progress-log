@@ -489,6 +489,17 @@ Referência de pendências manuais (UI autenticada):
 - Feedback mais claro para o coach no cadastro e manutenção do banco de exercícios.
 - Menor chance de erro operacional mascarado por descrição genérica.
 
+### Hardening de feedback de erro no módulo de alunos
+- `src/hooks/useStudents.ts`
+
+**Ajuste aplicado**
+- Fluxos de criar, localizar/criar, editar e excluir aluno passaram a usar `buildErrorDescription`.
+- Removido uso direto de `error.message` nos toasts para preservar mensagens úteis de erro de banco/API.
+
+**Impacto**
+- Mensagens de falha mais confiáveis nos fluxos principais de cadastro e manutenção de alunos.
+- Melhor diagnóstico operacional sem alteração de regras de negócio.
+
 ---
 
 ## Backlog recomendado (prioridade)
