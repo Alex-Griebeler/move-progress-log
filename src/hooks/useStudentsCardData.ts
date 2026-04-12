@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 export interface StudentCardData {
   ouraMetrics: {
@@ -26,18 +27,21 @@ type StudentCardDataMap = Record<string, StudentCardData>;
  * Reduz de N*3 queries para apenas 3 queries totais
  */
 export const useStudentsCardData = (studentIds: string[]) => {
+  const stableStudentIdsKey = [...studentIds].sort().join(",");
+
   return useQuery({
-    queryKey: ["students-card-data", studentIds.sort().join(",")],
+    queryKey: ["students-card-data", stableStudentIdsKey],
     enabled: studentIds.length > 0,
     staleTime: 60 * 1000, // 1 minuto
     gcTime: 5 * 60 * 1000, // 5 minutos
     queryFn: async (): Promise<StudentCardDataMap> => {
       // Query 1: Buscar métricas Oura mais recentes de todos os alunos
-      const { data: allMetrics } = await supabase
+      const { data: allMetrics, error: metricsError } = await supabase
         .from("oura_metrics")
         .select("student_id, readiness_score, date")
         .in("student_id", studentIds)
         .order("date", { ascending: false });
+      if (metricsError) throw metricsError;
 
       // Agrupar por student_id e pegar apenas o mais recente
       const latestMetricsByStudent: Record<string, { readiness_score: number | null }> = {};
@@ -50,7 +54,7 @@ export const useStudentsCardData = (studentIds: string[]) => {
       });
 
       // Query 2: Buscar observações importantes de todos os alunos
-      const { data: allObservations } = await supabase
+      const { data: allObservations, error: observationsError } = await supabase
         .from("student_observations")
         .select("id, student_id, observation_text, severity, created_at, categories, is_resolved")
         .in("student_id", studentIds)
@@ -58,6 +62,7 @@ export const useStudentsCardData = (studentIds: string[]) => {
         .in("severity", ["baixa", "média", "alta"])
         .order("severity", { ascending: false })
         .order("created_at", { ascending: false });
+      if (observationsError) throw observationsError;
 
       // Agrupar observações por student_id
       const observationsByStudent: Record<string, typeof allObservations> = {};
@@ -69,23 +74,28 @@ export const useStudentsCardData = (studentIds: string[]) => {
       });
 
       // Query 3: Buscar status de conexão Oura de todos os alunos
-      const { data: allConnections } = await supabase
+      const { data: allConnections, error: connectionsError } = await supabase
         .from("oura_connections")
         .select("student_id, last_sync_at, is_active")
         .in("student_id", studentIds)
         .eq("is_active", true);
+      if (connectionsError) throw connectionsError;
 
       // Query 4: Buscar logs de falha das últimas 24h para alunos conectados
       const connectedStudentIds = allConnections?.map((c) => c.student_id) || [];
       const failedLogsByStudent: Record<string, number> = {};
 
       if (connectedStudentIds.length > 0) {
-        const { data: failedLogs } = await supabase
+        const { data: failedLogs, error: failedLogsError } = await supabase
           .from("oura_sync_logs")
           .select("student_id")
           .in("student_id", connectedStudentIds)
           .eq("status", "failed")
           .gte("sync_time", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+        if (failedLogsError) {
+          logger.warn("[useStudentsCardData] failed to load oura_sync_logs", failedLogsError);
+        }
 
         failedLogs?.forEach((log) => {
           failedLogsByStudent[log.student_id] = (failedLogsByStudent[log.student_id] || 0) + 1;

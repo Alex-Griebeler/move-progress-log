@@ -27,6 +27,17 @@
 ### 2) Happy-path com service_role (opcional para gate avançado)
 - Executar cenários A3/B4/C4 no workflow de edge smoke com `RUN_SERVICE_ROLE_TESTS=true`.
 - Requer `SUPABASE_SERVICE_ROLE_KEY` configurada no ambiente CI.
+- Para execução local do script `scripts/ci-smoke-edge-auth.sh`, garantir:
+  - `SUPABASE_URL` e `SUPABASE_ANON_KEY` exportadas no shell; ou
+  - `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` carregadas no ambiente.
+
+## Quadro técnico consolidado de melhorias
+- Documento mestre atualizado em:
+  - `docs/AUDITORIA_MELHORIAS_APP_2026-04-12.md`
+- Contém:
+  - status por domínio (exercícios, prescrição, sessões, Oura, relatórios, segurança, performance);
+  - backlog priorizado por lotes (A/B/C);
+  - melhorias já executadas sem mudança de escopo funcional.
 
 ## Critério objetivo para considerar auditoria essencial concluída
 - Todos os itens de UI autenticada acima passam sem erro funcional.

@@ -9,6 +9,15 @@ export interface LastSessionData {
   observations: string | null;
 }
 
+const normalizeComparableText = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+
 /**
  * Batch hook that fetches the last session data for all students × exercises
  * Returns a Map keyed by `${studentId}_${exerciseName}` (lowercased)
@@ -18,8 +27,11 @@ export const useExerciseLastSession = (
   exerciseNames: string[],
   enabled: boolean
 ) => {
+  const stableStudentIdsKey = [...studentIds].sort().join(",");
+  const stableExerciseNamesKey = [...exerciseNames].sort().join(",");
+
   return useQuery({
-    queryKey: ["exercise-last-session-batch", studentIds.sort().join(","), exerciseNames.sort().join(",")],
+    queryKey: ["exercise-last-session-batch", stableStudentIdsKey, stableExerciseNamesKey],
     enabled: enabled && studentIds.length > 0 && exerciseNames.length > 0,
     queryFn: async (): Promise<Map<string, LastSessionData>> => {
       const result = new Map<string, LastSessionData>();
@@ -27,9 +39,11 @@ export const useExerciseLastSession = (
       // Get sessions for these students, most recent first
       const { data: sessions, error: sessionsError } = await supabase
         .from("workout_sessions")
-        .select("id, student_id, date")
+        .select("id, student_id, date, time, created_at")
         .in("student_id", studentIds)
         .order("date", { ascending: false })
+        .order("time", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
         .limit(500);
 
       if (sessionsError) throw sessionsError;
@@ -56,10 +70,10 @@ export const useExerciseLastSession = (
       const sessionMap = new Map(sessions.map(s => [s.id, s]));
 
       // Filter and find most recent per student+exercise
-      const nameSet = new Set(exerciseNames.map(n => n.toLowerCase().trim()));
+      const nameSet = new Set(exerciseNames.map((n) => normalizeComparableText(n)));
 
       for (const ex of allExercises) {
-        const exNameLower = ex.exercise_name.toLowerCase().trim();
+        const exNameLower = normalizeComparableText(ex.exercise_name);
         if (!nameSet.has(exNameLower)) continue;
 
         const session = sessionMap.get(ex.session_id);
