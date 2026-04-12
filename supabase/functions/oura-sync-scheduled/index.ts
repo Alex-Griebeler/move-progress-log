@@ -59,12 +59,20 @@ Deno.serve(async (req) => {
       const userId = userData.user.id;
       const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
-      const { data: roleData } = await supabaseAdmin
+      const { data: roleData, error: roleError } = await supabaseAdmin
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
         .eq('role', 'admin')
         .maybeSingle();
+
+      if (roleError) {
+        console.error('Error checking role:', roleError.message);
+        return new Response(
+          JSON.stringify({ error: 'Failed to verify permissions' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
 
       if (!roleData) {
         return new Response(

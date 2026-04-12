@@ -755,6 +755,24 @@ Referência de pendências manuais (UI autenticada):
 - Melhora consistência da “última carga válida” usada em sugestões.
 - Evita falha de toggle de adesão por ausência de métrica Oura no dia.
 
+### Hardening de autorização em edge functions críticas (roles)
+- `supabase/functions/ai-builder-chat/index.ts`
+- `supabase/functions/import-exercises/index.ts`
+- `supabase/functions/classify-exercises/index.ts`
+- `supabase/functions/generate-group-session/index.ts`
+- `supabase/functions/oura-sync-scheduled/index.ts`
+
+**Ajuste aplicado**
+- Padronizado tratamento explícito de erro ao consultar `user_roles` (retorno `500` em falha de verificação de permissão, em vez de negar como `403` silenciosamente).
+- Em `import-exercises`, consulta de papel ficou resiliente para cenários com múltiplos papéis válidos:
+  - troca de `.single()` por `.in("role", ["admin", "trainer"]).limit(1).maybeSingle()`;
+  - preservada regra de autorização (somente `admin/trainer`).
+
+**Impacto**
+- Reduz falso negativo de autorização por erro de consulta/perfil.
+- Evita mascarar falha de infraestrutura/RLS como “acesso negado”.
+- Mantém comportamento funcional existente para usuários válidos.
+
 ---
 
 ## Backlog recomendado (prioridade)

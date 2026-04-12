@@ -64,12 +64,17 @@ Deno.serve(async (req) => {
     // 2. Verify admin role using SERVICE ROLE to bypass RLS
     const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: roleData } = await supabaseService
+    const { data: roleData, error: roleError } = await supabaseService
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .eq("role", "admin")
       .maybeSingle();
+
+    if (roleError) {
+      console.error("Failed to verify admin role", roleError);
+      return jsonResponse(500, { error: "Falha ao verificar permissões" });
+    }
 
     if (!roleData) {
       return jsonResponse(403, { error: "Acesso negado" });

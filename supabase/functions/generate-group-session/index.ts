@@ -1550,12 +1550,19 @@ serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: roleData } = await supabaseAdmin
+    const { data: roleData, error: roleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", userData.user.id)
       .in("role", ["admin", "trainer"])
       .limit(1);
+
+    if (roleError) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Falha ao verificar permissões" }),
+        { headers: jsonHeaders, status: 500 }
+      );
+    }
 
     if (!roleData || roleData.length === 0) {
       return new Response(

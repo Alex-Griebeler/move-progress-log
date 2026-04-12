@@ -362,13 +362,22 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        const { data: roleData } = await supabase
+        const { data: roleData, error: roleError } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", userData.user.id)
-          .single();
+          .in("role", ["admin", "trainer"])
+          .limit(1)
+          .maybeSingle();
 
-        if (!roleData || !["admin", "trainer"].includes(roleData.role)) {
+        if (roleError) {
+          return new Response(
+            JSON.stringify({ error: "Failed to verify permissions" }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        if (!roleData) {
           return new Response(
             JSON.stringify({ error: "Forbidden: admin or trainer required" }),
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }

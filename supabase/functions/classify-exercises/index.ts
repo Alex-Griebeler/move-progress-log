@@ -137,12 +137,19 @@ serve(async (req) => {
     }
 
     const userId = userData.user.id;
-    const { data: roleData } = await userClient
+    const { data: roleData, error: roleError } = await userClient
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
       .in("role", ["admin", "trainer"])
       .limit(1);
+
+    if (roleError) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Falha ao verificar permissões" }),
+        { headers: jsonHeaders, status: 500 }
+      );
+    }
 
     if (!roleData || roleData.length === 0) {
       return new Response(
