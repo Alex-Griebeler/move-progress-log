@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import exercisesJSON from "@/data/exercicios_fabrik_categorizado.json";
 import { logger } from "@/utils/logger";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 const extractExcelCellValue = (value: unknown): unknown => {
   if (value instanceof Date) return value;
@@ -83,7 +84,9 @@ const AdminDiagnosticsPage = () => {
       setImportResult(data);
       toast.success(`Importação concluída: ${data.inserted} inseridos, ${data.updated} atualizados`);
     } catch (err) {
-      toast.error(`Erro na importação: ${(err as Error).message}`);
+      toast.error("Erro na importação", {
+        description: buildErrorDescription(err, "Tente novamente."),
+      });
     } finally {
       setImporting(false);
     }
@@ -246,7 +249,9 @@ const AdminDiagnosticsPage = () => {
       setImportResult(aggregatedResult);
       toast.success(`Importação XLSX: ${totalInserted} inseridos, ${totalUpdated} atualizados, ${totalOrphansReclassified} órfãos reclassificados`);
     } catch (err) {
-      toast.error(`Erro na importação XLSX: ${(err as Error).message}`);
+      toast.error("Erro na importação XLSX", {
+        description: buildErrorDescription(err, "Tente novamente."),
+      });
     } finally {
       setImportingXlsx(false);
       setImportProgress(null);

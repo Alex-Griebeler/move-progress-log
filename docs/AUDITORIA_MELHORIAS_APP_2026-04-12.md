@@ -578,6 +578,7 @@ Referência de pendências manuais (UI autenticada):
 - Fechado o lote de padronização de erro em hooks críticos.
 
 ### Hardening de feedback de erro em componentes de operação
+- `src/pages/AdminDiagnosticsPage.tsx`
 - `src/pages/ExerciseReviewPage.tsx`
 - `src/components/ExerciseDimensionReview.tsx`
 - `src/components/StudentObservationsCard.tsx`
