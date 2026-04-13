@@ -2199,6 +2199,36 @@ export type Database = {
           },
         ]
       }
+      workout_sessions_time_fix_audit: {
+        Row: {
+          created_at: string | null
+          date: string
+          new_time: string
+          old_time: string
+          run_at: string
+          session_id: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          date: string
+          new_time: string
+          old_time: string
+          run_at?: string
+          session_id: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string
+          new_time?: string
+          old_time?: string
+          run_at?: string
+          session_id?: string
+          student_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
