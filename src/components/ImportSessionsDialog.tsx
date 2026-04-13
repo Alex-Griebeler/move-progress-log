@@ -199,6 +199,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
     if (selectedFile) {
       setFile(selectedFile);
       setStatus(null);
+      toast("Arquivo carregado", {
+        description: `${selectedFile.name} pronto para importação.`,
+        duration: 3000,
+      });
     }
   };
 
@@ -479,12 +483,12 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
           duration: 5000,
         });
       } else if (errors.length === 0 && processed === 0 && skippedDuplicates > 0) {
-        toast.warning("Importação concluída sem novas sessões", {
+        toast("Importação concluída sem novas sessões", {
           description: `${skippedDuplicates} sessão(ões) já existiam e foram ignoradas.`,
           duration: 6000,
         });
       } else {
-        toast.warning("Importação concluída com avisos", {
+        toast("Importação concluída com pendências", {
           description: `${processed} importada(s), ${skippedDuplicates} duplicada(s) ignorada(s), ${errors.length} erro(s).`,
           duration: 7000,
         });
