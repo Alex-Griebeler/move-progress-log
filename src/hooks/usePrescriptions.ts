@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { buildErrorDescription } from "@/utils/errorParsing";
@@ -283,7 +283,7 @@ export const useAssignPrescription = () => {
         student_id,
         start_date: data.start_date,
         end_date: data.end_date || null,
-        custom_adaptations: customAdaptations,
+        custom_adaptations: customAdaptations as unknown as Json | null,
       }));
 
       const { error } = await supabase

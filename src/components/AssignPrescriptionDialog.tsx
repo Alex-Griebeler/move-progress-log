@@ -79,7 +79,7 @@ export function AssignPrescriptionDialog({
         student_ids: selectedStudents,
         start_date: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
         end_date: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
-        custom_adaptations: Object.keys(customAdaptations).length > 0 ? customAdaptations : undefined,
+        custom_adaptations: Object.keys(customAdaptations).length > 0 ? customAdaptations as unknown as undefined : undefined,
       });
 
       setSelectedStudents([]);

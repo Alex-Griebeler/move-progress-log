@@ -154,8 +154,8 @@ export const useLoadSuggestions = (
       const criticalFlags = recommendation.alerts.some((alert) => alert.level === "CRITICAL");
       const maxExercises = 5;
 
-      const suggestions = [...byExercise.entries()]
-        .map(([key, list]) => {
+      const suggestions: LoadSuggestionItem[] = ([...byExercise.entries()]
+        .map(([key, list]): LoadSuggestionItem | null => {
           list.sort((a, b) => (a.date < b.date ? 1 : -1));
           const first = list[0];
           if (!first) return null;
@@ -267,14 +267,14 @@ export const useLoadSuggestions = (
             guardrails,
           };
         })
-        .filter((item): item is LoadSuggestionItem => !!item)
+        .filter((item): item is LoadSuggestionItem => item !== null && item !== undefined)
         .sort((a, b) => {
           const aMissing = a.status === "insufficient" ? 1 : 0;
           const bMissing = b.status === "insufficient" ? 1 : 0;
           if (aMissing !== bMissing) return aMissing - bMissing;
           return (b.referenceLoadKg || 0) - (a.referenceLoadKg || 0);
         })
-        .slice(0, maxExercises);
+        .slice(0, maxExercises)) as LoadSuggestionItem[];
 
       logger.info("[load-suggestions] generated", {
         studentId,
