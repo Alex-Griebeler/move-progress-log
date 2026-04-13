@@ -29,6 +29,7 @@ interface SessionExercise {
   sets: number | null;
   reps: number | null;
   load_kg: number | null;
+  load_description: string | null;
   load_breakdown: string | null;
   observations: string | null;
   is_best_set: boolean | null;
@@ -351,7 +352,9 @@ export const SessionDetailDialog = ({
                               <TableCell className="text-center">
                                 <div>
                                   <p className="font-medium">
-                                    {exercise.load_kg ? `${exercise.load_kg} kg` : "-"}
+                                    {exercise.load_kg !== null && exercise.load_kg !== undefined
+                                      ? `${exercise.load_kg} kg`
+                                      : exercise.load_description || "-"}
                                   </p>
                                   {exercise.load_breakdown && (
                                     <p className="text-xs text-muted-foreground">

@@ -53,10 +53,34 @@ const resolveCanonicalHeader = (header: string): string => {
   if (["series", "serie", "sets", "set"].includes(normalized)) {
     return "sets";
   }
-  if (["reps", "repeticoes", "repeticao", "rep"].includes(normalized)) {
+  if (
+    [
+      "reps",
+      "repeticoes",
+      "repeticao",
+      "rep",
+      "n reps",
+      "n rep",
+      "no reps",
+      "numero reps",
+      "numero de reps",
+    ].includes(normalized)
+  ) {
     return "reps";
   }
-  if (["carga", "carga kg", "peso", "load", "kg"].includes(normalized)) {
+  if (
+    [
+      "carga",
+      "carga kg",
+      "carga total",
+      "carga total kg",
+      "carga parcial",
+      "carga parcial kg",
+      "peso",
+      "load",
+      "kg",
+    ].includes(normalized)
+  ) {
     return "load";
   }
   if (["observacoes", "observacao", "obs", "notes", "note"].includes(normalized)) {
@@ -108,12 +132,44 @@ const getStringValue = (row: SpreadsheetRow, keys: string[]): string => {
 };
 
 const getNumberValue = (row: SpreadsheetRow, keys: string[]): number | undefined => {
+  const parseNumericFromText = (raw: string): number | undefined => {
+    const value = raw.trim();
+    if (!value) return undefined;
+
+    const direct = Number(value.replace(",", "."));
+    if (!Number.isNaN(direct) && Number.isFinite(direct)) return direct;
+
+    if (value.includes("=")) {
+      const afterEquals = value.split("=").pop()?.trim() || "";
+      const tailMatch = afterEquals.match(/-?\d+(?:[.,]\d+)?/);
+      if (tailMatch) {
+        const parsed = Number(tailMatch[0].replace(",", "."));
+        if (!Number.isNaN(parsed) && Number.isFinite(parsed)) return parsed;
+      }
+    }
+
+    const multiplicative = value.match(/(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)/i);
+    if (multiplicative && !/[+]/.test(value)) {
+      const left = Number(multiplicative[1].replace(",", "."));
+      const right = Number(multiplicative[2].replace(",", "."));
+      if (!Number.isNaN(left) && !Number.isNaN(right)) return left * right;
+    }
+
+    const allMatches = value.match(/-?\d+(?:[.,]\d+)?/g);
+    if (!allMatches || allMatches.length === 0) return undefined;
+
+    const last = allMatches[allMatches.length - 1];
+    const parsed = Number(last.replace(",", "."));
+    if (!Number.isNaN(parsed) && Number.isFinite(parsed)) return parsed;
+    return undefined;
+  };
+
   for (const key of keys) {
     const value = row[key] ?? row[normalizeHeader(key)];
     if (typeof value === "number") return value;
     if (typeof value === "string") {
-      const parsed = Number(value.replace(",", "."));
-      if (!Number.isNaN(parsed)) return parsed;
+      const parsed = parseNumericFromText(value);
+      if (parsed !== undefined) return parsed;
     }
   }
   return undefined;
@@ -152,6 +208,7 @@ interface SessionRow {
   series?: number;
   reps?: number;
   carga?: number;
+  cargaDescricao?: string;
   observacoes?: string;
 }
 
@@ -384,7 +441,8 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
           exercicio: exerciseName,
           series: getNumberValue(row, ["sets", "series", "séries"]),
           reps: getNumberValue(row, ["reps", "n reps", "repeticoes", "repetições"]),
-          carga: getNumberValue(row, ["load", "carga", "carga kg"]),
+          carga: getNumberValue(row, ["load", "carga", "carga kg", "carga total", "carga total kg", "carga parcial"]),
+          cargaDescricao: getStringValue(row, ["load", "carga", "carga kg", "carga total", "carga total kg", "carga parcial"]) || undefined,
           observacoes: getStringValue(row, ["notes", "observacoes", "observações"]) || undefined,
         };
 
@@ -450,6 +508,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
               sets: ex.series,
               reps: ex.reps,
               load_kg: ex.carga,
+              load_description: ex.cargaDescricao,
               observations: ex.observacoes,
             })),
             silent: true,
