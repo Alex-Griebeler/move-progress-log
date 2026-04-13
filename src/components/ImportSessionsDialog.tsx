@@ -7,6 +7,7 @@ import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   buildErrorDescription,
   parseErrorInfo,
@@ -190,9 +191,24 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
   const [file, setFile] = useState<File | null>(null);
   const [processing, setProcessing] = useState(false);
   const [status, setStatus] = useState<ProcessingStatus | null>(null);
+  const queryClient = useQueryClient();
 
   const getOrCreateStudent = useGetOrCreateStudent();
   const createSession = useCreateWorkoutSession();
+
+  const invalidateAfterImport = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["stats"] }),
+      queryClient.invalidateQueries({ queryKey: ["workouts"] }),
+      queryClient.invalidateQueries({ queryKey: ["workouts-paginated"] }),
+      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] }),
+      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] }),
+      queryClient.invalidateQueries({ queryKey: ["all-sessions"] }),
+      queryClient.invalidateQueries({ queryKey: ["session-exercises"] }),
+      queryClient.invalidateQueries({ queryKey: ["students"] }),
+      queryClient.invalidateQueries({ queryKey: ["students-card-data"] }),
+    ]);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -476,6 +492,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
       // Toast final
       toast.dismiss(toastId);
+
+      if (processed > 0) {
+        await invalidateAfterImport();
+      }
       
       if (errors.length === 0 && skippedDuplicates === 0) {
         toast.success("Importação concluída com sucesso!", {
