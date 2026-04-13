@@ -160,12 +160,15 @@ Deno.serve(async (req) => {
       let successful = 0;
       let failed = 0;
 
+      const formatDateInSaoPaulo = (value: Date): string =>
+        new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(value);
+
       for (let batch = 0; batch < 30; batch += BATCH_SIZE) {
         const batchPromises = [];
         for (let i = batch; i < Math.min(batch + BATCH_SIZE, 30); i++) {
           const date = new Date();
           date.setDate(date.getDate() - i);
-          const dateStr = date.toISOString().split('T')[0];
+          const dateStr = formatDateInSaoPaulo(date);
           
           batchPromises.push(
             fetch(`${supabaseUrl}/functions/v1/oura-sync`, {

@@ -73,6 +73,9 @@ const hasAnyMetricValue = (metrics: Record<string, unknown>): boolean =>
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: jsonHeaders });
 
+const isUnauthorizedStatus = (status: number): boolean =>
+  status === 401 || status === 403;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -112,7 +115,10 @@ Deno.serve(async (req) => {
       return jsonResponse(401, { error: 'Unauthorized' });
     }
 
-    const token = authHeader.replace('Bearer ', '');
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) {
+      return jsonResponse(401, { error: 'Unauthorized' });
+    }
 
     // Check if this is a service role call (from oura-sync-all / oura-sync-scheduled)
     const isServiceRole = token === serviceRoleKey;
@@ -173,9 +179,14 @@ Deno.serve(async (req) => {
     let currentAccessToken = accessToken;
 
     // Check if token expired
-    const now = new Date();
-    const expiresAt = new Date(connection.token_expires_at);
-    if (now >= expiresAt) {
+    const nowMs = Date.now();
+    const tokenExpiresAtMs =
+      typeof connection.token_expires_at === 'string'
+        ? Date.parse(connection.token_expires_at)
+        : Number.NaN;
+    const refreshSkewMs = 60_000; // 1 min de margem para evitar expiração durante requisição
+
+    if (!Number.isFinite(tokenExpiresAtMs) || nowMs + refreshSkewMs >= tokenExpiresAtMs) {
       console.log('Access token expired, refreshing...');
 
       // Retrieve refresh token from Vault
@@ -215,24 +226,55 @@ Deno.serve(async (req) => {
       }
 
       const refreshData = await refreshResponse.json();
-      currentAccessToken = refreshData.access_token;
+      const refreshedAccessToken =
+        isPlainObject(refreshData) && typeof refreshData.access_token === 'string'
+          ? refreshData.access_token
+          : '';
+      const expiresInSeconds =
+        isPlainObject(refreshData) && typeof refreshData.expires_in === 'number'
+          ? refreshData.expires_in
+          : Number(isPlainObject(refreshData) ? refreshData.expires_in : Number.NaN);
+      const nextRefreshToken =
+        isPlainObject(refreshData) &&
+        typeof refreshData.refresh_token === 'string' &&
+        refreshData.refresh_token.length > 0
+          ? refreshData.refresh_token
+          : refreshToken;
+
+      if (!refreshedAccessToken || !Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
+        console.error('Token refresh response is missing required fields');
+        return jsonResponse(502, {
+          error: 'Resposta inválida ao renovar token do Oura Ring',
+          suggestion: 'Tente reconectar o Oura Ring do aluno',
+        });
+      }
+
+      currentAccessToken = refreshedAccessToken;
 
       const newExpiresAt = new Date();
-      newExpiresAt.setSeconds(newExpiresAt.getSeconds() + refreshData.expires_in);
+      newExpiresAt.setSeconds(newExpiresAt.getSeconds() + expiresInSeconds);
 
       // Store refreshed tokens securely in Vault
-      await supabaseClient.rpc('store_oura_tokens', {
+      const { error: storeTokenError } = await supabaseClient.rpc('store_oura_tokens', {
         p_student_id: student_id,
-        p_access_token: refreshData.access_token,
-        p_refresh_token: refreshData.refresh_token,
+        p_access_token: refreshedAccessToken,
+        p_refresh_token: nextRefreshToken,
         p_token_expires_at: newExpiresAt.toISOString(),
       });
+      if (storeTokenError) {
+        console.error('Failed to persist refreshed Oura tokens:', storeTokenError);
+        return jsonResponse(500, { error: 'Falha ao persistir tokens renovados do Oura Ring' });
+      }
 
       // O-04: Update token_expires_at in oura_connections to prevent unnecessary re-refresh
-      await supabaseClient
+      const { error: updateExpiresError } = await supabaseClient
         .from('oura_connections')
         .update({ token_expires_at: newExpiresAt.toISOString() })
         .eq('student_id', student_id);
+      if (updateExpiresError) {
+        console.error('Failed to update token_expires_at after refresh:', updateExpiresError);
+        return jsonResponse(500, { error: 'Falha ao atualizar expiração do token Oura Ring' });
+      }
 
       console.log('Token refreshed successfully');
     }
@@ -264,7 +306,15 @@ Deno.serve(async (req) => {
       }
 
       if (!existingMetricError && existingMetric) {
-        const lastSyncTime = new Date(existingMetric.created_at || 0).getTime();
+        const metricCreatedAtMs = new Date(existingMetric.created_at || 0).getTime();
+        const connectionLastSyncMs =
+          typeof connection.last_sync_at === 'string'
+            ? Date.parse(connection.last_sync_at)
+            : Number.NaN;
+        const lastSyncTime = Math.max(
+          Number.isFinite(metricCreatedAtMs) ? metricCreatedAtMs : 0,
+          Number.isFinite(connectionLastSyncMs) ? connectionLastSyncMs : 0
+        );
         const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
         if (lastSyncTime > twoHoursAgo) {
           return new Response(
@@ -316,8 +366,43 @@ Deno.serve(async (req) => {
       return null;
     };
 
-    const [readinessRes, dailySleepRes, sleepPeriodsRes, heartrateRes, activityRes, workoutsRes, stressRes, spo2Res, vo2Res, resilienceRes] = 
+    const [readinessRes, dailySleepRes, sleepPeriodsRes, heartrateRes, activityRes, workoutsRes, stressRes, spo2Res, vo2Res, resilienceRes] =
       Array.from({ length: 10 }, (_, i) => safeResult(i));
+
+    const endpointStatuses = [
+      { name: 'readiness', response: readinessRes },
+      { name: 'daily_sleep', response: dailySleepRes },
+      { name: 'sleep_periods', response: sleepPeriodsRes },
+      { name: 'heartrate', response: heartrateRes },
+      { name: 'activity', response: activityRes },
+      { name: 'workouts', response: workoutsRes },
+      { name: 'stress', response: stressRes },
+      { name: 'spo2', response: spo2Res },
+      { name: 'vo2', response: vo2Res },
+      { name: 'resilience', response: resilienceRes },
+    ];
+
+    const unauthorizedEndpoints = endpointStatuses
+      .filter((item) => item.response && isUnauthorizedStatus(item.response.status))
+      .map((item) => item.name);
+
+    if (unauthorizedEndpoints.length > 0) {
+      return jsonResponse(401, {
+        error: 'Falha de autenticação com a API do Oura Ring',
+        details: `Endpoints com 401/403: ${unauthorizedEndpoints.join(', ')}`,
+        suggestion: 'Reconecte o Oura Ring do aluno para renovar as credenciais.',
+      });
+    }
+
+    const successfulEndpoints = endpointStatuses.filter(
+      (item) => item.response && item.response.ok
+    );
+    if (successfulEndpoints.length === 0) {
+      return jsonResponse(502, {
+        error: 'Falha ao consultar a API do Oura Ring',
+        details: 'Nenhum endpoint retornou sucesso.',
+      });
+    }
 
     const safeJson = async (res: Response | null) => res && res.ok ? await res.json() : null;
     
@@ -343,6 +428,7 @@ Deno.serve(async (req) => {
     const spo2 = spo2Data?.data?.[0];
     const vo2 = vo2Data?.data?.[0];
     const resilience = resilienceData?.data?.[0];
+    const hasWorkoutsData = Array.isArray(workoutsData?.data) && workoutsData.data.length > 0;
 
     // Process sleep periods - get longest period or aggregate
     let sleepPeriod = null;
@@ -536,8 +622,16 @@ Deno.serve(async (req) => {
       acuteMetrics.movement_30_sec !== null ||
       acuteMetrics.stress_samples !== null;
 
-    if (!hasData && !hasAcuteData) {
+    if (!hasData && !hasAcuteData && !hasWorkoutsData) {
       if (DEBUG) console.log('No Oura data available for date:', syncDate);
+
+      const { error: noDataSyncUpdateError } = await supabaseClient
+        .from('oura_connections')
+        .update({ last_sync_at: new Date().toISOString() })
+        .eq('id', connection.id);
+      if (noDataSyncUpdateError) {
+        console.warn('Failed to update last_sync_at for no-data sync:', noDataSyncUpdateError.message);
+      }
       
       return new Response(
         JSON.stringify({
@@ -550,31 +644,33 @@ Deno.serve(async (req) => {
       );
     }
 
-    // O-11: Preserve previous non-null values when Oura returns sparse payloads.
-    const { data: existingMetricRow, error: existingMetricRowError } = await supabaseClient
-      .from('oura_metrics')
-      .select('*')
-      .eq('student_id', student_id)
-      .eq('date', syncDate)
-      .maybeSingle();
+    if (hasData) {
+      // O-11: Preserve previous non-null values when Oura returns sparse payloads.
+      const { data: existingMetricRow, error: existingMetricRowError } = await supabaseClient
+        .from('oura_metrics')
+        .select('*')
+        .eq('student_id', student_id)
+        .eq('date', syncDate)
+        .maybeSingle();
 
-    if (existingMetricRowError) {
-      console.warn('Failed to fetch existing daily metric for merge:', existingMetricRowError.message);
-    }
+      if (existingMetricRowError) {
+        console.warn('Failed to fetch existing daily metric for merge:', existingMetricRowError.message);
+      }
 
-    const mergedMetrics = mergePreservingExisting(
-      metrics as Record<string, unknown>,
-      !existingMetricRowError && isPlainObject(existingMetricRow) ? existingMetricRow : null
-    );
+      const mergedMetrics = mergePreservingExisting(
+        metrics as Record<string, unknown>,
+        !existingMetricRowError && isPlainObject(existingMetricRow) ? existingMetricRow : null
+      );
 
-    // Upsert metrics
-    const { error: upsertError } = await supabaseClient
-      .from('oura_metrics')
-      .upsert(mergedMetrics, { onConflict: 'student_id,date' });
+      // Upsert metrics
+      const { error: upsertError } = await supabaseClient
+        .from('oura_metrics')
+        .upsert(mergedMetrics, { onConflict: 'student_id,date' });
 
-    if (upsertError) {
-      console.error('Failed to save metrics:', upsertError);
-      return jsonResponse(500, { error: upsertError.message });
+      if (upsertError) {
+        console.error('Failed to save metrics:', upsertError);
+        return jsonResponse(500, { error: upsertError.message });
+      }
     }
 
     if (hasAcuteData) {
@@ -645,7 +741,7 @@ Deno.serve(async (req) => {
     return jsonResponse(200, {
       success: true,
       force_sync,
-      synced_metrics: metrics,
+      synced_metrics: hasData ? metrics : null,
       has_acute_data: hasAcuteData,
       synced_acute: hasAcuteData
         ? {

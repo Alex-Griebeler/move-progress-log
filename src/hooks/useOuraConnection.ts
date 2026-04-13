@@ -180,6 +180,20 @@ export const useSyncOura = () => {
       await invalidateOuraQueries(queryClient, variables.student_id);
 
       const result = data as MultiDaySyncResult | undefined;
+      const singleDayPayload =
+        (!variables.days || variables.days <= 1) &&
+        data &&
+        typeof data === "object" &&
+        !Array.isArray(data)
+          ? (data as Record<string, unknown>)
+          : null;
+      const singleDayNoDataMessage =
+        singleDayPayload &&
+        singleDayPayload.success === true &&
+        singleDayPayload.synced_metrics === null &&
+        typeof singleDayPayload.message === "string"
+          ? singleDayPayload.message
+          : null;
       
       if (variables.days && variables.days > 1 && result?.message) {
         const description = result.failed > 0
@@ -187,6 +201,10 @@ export const useSyncOura = () => {
           : `${result.successful} dias sincronizados com sucesso!`;
         
         notify.success(result.message, { description });
+      } else if (singleDayNoDataMessage) {
+        notify.warning("Sem novos dados do Oura Ring", {
+          description: singleDayNoDataMessage,
+        });
       } else {
         notify.success(i18n.modules.oura.dataUpdated, {
           description: i18n.modules.oura.synced
