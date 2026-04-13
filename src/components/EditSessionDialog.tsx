@@ -25,6 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatSessionTime } from "@/utils/sessionTime";
 import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface EditSessionDialogProps {
@@ -279,7 +280,7 @@ export function EditSessionDialog({
                           {format(new Date(sessionData.date), "dd/MM/yyyy", { locale: ptBR })}
                         </div>
                         <div>
-                          <span className="font-semibold">Horário:</span> {sessionData.time.substring(0, 5)}
+                          <span className="font-semibold">Horário:</span> {formatSessionTime(sessionData.time)}
                         </div>
                         {sessionData.workout_name && (
                           <div className="col-span-2">

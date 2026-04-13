@@ -20,6 +20,7 @@ import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { NAV_LABELS } from "@/constants/navigation";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { logger } from "@/utils/logger";
+import { formatSessionTime } from "@/utils/sessionTime";
 import { buildErrorDescription } from "@/utils/errorParsing";
 
 // Shared types, utilities & components
@@ -126,7 +127,7 @@ export function RecordIndividualSessionDialog({
     if (existingSessionData) {
       const { session, exercises } = existingSessionData;
       setDate(session.date);
-      setTime(session.time);
+      setTime(formatSessionTime(session.time));
       setTrainerName(session.trainer_name || '');
       setSelectedPrescriptionId(session.prescription_id || null);
       if (exercises && exercises.length > 0) {

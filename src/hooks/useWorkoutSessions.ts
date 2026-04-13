@@ -4,6 +4,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { formatSessionTime } from "@/utils/sessionTime";
 
 // Chaves i18n disponíveis para workouts
 const workoutKeys = i18n.modules.workouts;
@@ -54,7 +55,7 @@ const mapWorkoutSession = (row: WorkoutSessionRow): WorkoutSession => ({
   id: row.id,
   student_id: row.student_id,
   date: row.date,
-  time: row.time,
+  time: formatSessionTime(row.time),
   session_type: row.session_type === "group" ? "group" : "individual",
   workout_name: row.workout_name ?? undefined,
   room_name: row.room_name ?? undefined,

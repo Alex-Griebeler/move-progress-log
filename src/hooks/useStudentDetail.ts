@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatSessionTime } from "@/utils/sessionTime";
 
 export const useStudentPrescriptions = (studentId: string) => {
   return useQuery({
@@ -64,6 +65,7 @@ export const useSessionsWithExercises = (studentId: string) => {
       if (error) throw error;
       return (sessions || []).map((session) => ({
         ...session,
+        time: formatSessionTime(session.time),
         exercises: Array.isArray(session.exercises) ? session.exercises : [],
       }));
     },

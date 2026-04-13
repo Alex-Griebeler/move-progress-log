@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatSessionTime } from "@/utils/sessionTime";
 
 interface SessionFilters {
   studentIds?: string[];
@@ -45,6 +46,12 @@ const SESSION_SELECT = `
   prescription:workout_prescriptions!prescription_id ( name ),
   exercises!session_id ( load_kg )
 `;
+
+const normalizeSessionRows = (rows: SessionWithDetails[]): SessionWithDetails[] =>
+  rows.map((row) => ({
+    ...row,
+    time: formatSessionTime(row.time),
+  }));
 
 function buildSessionQuery(filters?: SessionFilters) {
   let query = supabase
@@ -115,7 +122,7 @@ export function useAllSessions(filters?: SessionFilters) {
         if (error) throw error;
         if (!data || data.length === 0) break;
 
-        allSessions.push(...(data as SessionWithDetails[]));
+        allSessions.push(...normalizeSessionRows(data as SessionWithDetails[]));
         if (data.length < ALL_SESSIONS_PAGE_SIZE) break;
       }
 
@@ -142,7 +149,7 @@ export function useAllSessionsPaginated(filters?: SessionFilters) {
       const { data, error } = await query;
       if (error) throw error;
       return {
-        sessions: (data || []) as SessionWithDetails[],
+        sessions: normalizeSessionRows((data || []) as SessionWithDetails[]),
         page: pageParam,
         hasMore: (data?.length ?? 0) === PAGE_SIZE,
       };

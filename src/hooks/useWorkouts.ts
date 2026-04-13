@@ -4,6 +4,7 @@ import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { formatSessionTime } from "@/utils/sessionTime";
 
 // Chaves i18n disponíveis para workouts
 const workoutKeys = i18n.modules.workouts;
@@ -52,7 +53,7 @@ const mapWorkouts = (data: Array<{
     id: workout.id,
     student_id: workout.student_id,
     date: workout.date,
-    time: workout.time,
+    time: formatSessionTime(workout.time),
     session_type: workout.session_type as 'individual' | 'group',
     student_name: workout.students.name?.trim() || 'Sem nome',
     avatar_url: workout.students.avatar_url,

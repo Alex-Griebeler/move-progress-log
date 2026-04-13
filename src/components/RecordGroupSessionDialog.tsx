@@ -28,6 +28,7 @@ import { AddStudentDialog } from "./AddStudentDialog";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { logger } from "@/utils/logger";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { formatSessionTime } from "@/utils/sessionTime";
 
 // Shared types, utilities & components
 import {
@@ -226,13 +227,14 @@ export function RecordGroupSessionDialog({
   reopenDate,
   reopenTime,
 }: RecordGroupSessionDialogProps) {
-  const isReopening = !!(reopenDate && reopenTime);
+  const normalizedReopenTime = reopenTime ? formatSessionTime(reopenTime) : undefined;
+  const isReopening = !!(reopenDate && normalizedReopenTime);
   const { hasUnsavedChanges, clearDraft } = useSessionDraft();
   const [dialogState, setDialogState] = useState<DialogState>(isReopening ? 'mode-selection' : 'context-setup');
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [date, setDate] = useState(reopenDate || new Date().toISOString().split('T')[0]);
   const [isSaving, setIsSaving] = useState(false);
-  const [time, setTime] = useState(reopenTime || new Date().toTimeString().slice(0, 5));
+  const [time, setTime] = useState(normalizedReopenTime || new Date().toTimeString().slice(0, 5));
   const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording<SessionData>[]>([]);
   const [currentRecordingNumber, setCurrentRecordingNumber] = useState(1);
   const [mergedStudents, setMergedStudents] = useState<MergedStudent[]>([]);
@@ -281,14 +283,14 @@ export function RecordGroupSessionDialog({
   };
 
   const loadExistingSessionsData = useCallback(async () => {
-    if (!prescriptionId || !reopenDate || !reopenTime) return;
+    if (!prescriptionId || !reopenDate || !normalizedReopenTime) return;
     try {
       const { data: sessions, error: sessionsError } = await supabase
         .from('workout_sessions')
         .select('id, student_id, students!inner(id, name, weight_kg)')
         .eq('prescription_id', prescriptionId)
         .eq('date', reopenDate)
-        .eq('time', reopenTime);
+        .eq('time', normalizedReopenTime);
       if (sessionsError) throw sessionsError;
       if (sessions && sessions.length > 0) {
         const typedSessions = sessions as unknown as SessionQueryRow[];
@@ -314,14 +316,14 @@ export function RecordGroupSessionDialog({
         notify.info("Sessão carregada", { description: `${typedSessions.length} aluno(s) carregado(s). Você pode adicionar mais gravações.` });
       }
     } catch (error) { logger.error("Erro ao carregar sessões existentes:", error); }
-  }, [prescriptionId, reopenDate, reopenTime]);
+  }, [prescriptionId, reopenDate, normalizedReopenTime]);
 
   // Load existing sessions when reopening
   useEffect(() => {
-    if (isReopening && prescriptionId && reopenDate && reopenTime && open) {
+    if (isReopening && prescriptionId && reopenDate && normalizedReopenTime && open) {
       loadExistingSessionsData();
     }
-  }, [isReopening, prescriptionId, reopenDate, reopenTime, open, loadExistingSessionsData]);
+  }, [isReopening, prescriptionId, reopenDate, normalizedReopenTime, open, loadExistingSessionsData]);
 
   const toggleStudent = (student: Student) => {
     setSelectedStudents((prev) => {
@@ -560,9 +562,9 @@ export function RecordGroupSessionDialog({
   const handleSave = async () => {
     if (mergedStudents.length === 0 || !prescriptionId) return;
 
-    if (isReopening && reopenDate && reopenTime) {
+    if (isReopening && reopenDate && normalizedReopenTime) {
       try {
-        const { data: existingSessions } = await supabase.from('workout_sessions').select('id').eq('prescription_id', prescriptionId).eq('date', reopenDate).eq('time', reopenTime);
+        const { data: existingSessions } = await supabase.from('workout_sessions').select('id').eq('prescription_id', prescriptionId).eq('date', reopenDate).eq('time', normalizedReopenTime);
         if (existingSessions && existingSessions.length > 0) {
           const sessionIds = existingSessions.map(s => s.id);
           await supabase.from('exercises').delete().in('session_id', sessionIds);

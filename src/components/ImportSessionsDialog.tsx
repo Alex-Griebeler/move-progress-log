@@ -117,9 +117,9 @@ const extractCellValue = (value: unknown): unknown => {
 };
 
 const formatDate = (date: Date): string => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
@@ -255,66 +255,125 @@ const normalizeExerciseName = (value: string) =>
     .replace(/\s+/g, " ")
     .replace(/[^a-z0-9 ]/g, "");
 
+const parseTimeToMinutes = (timeValue: string): number | null => {
+  const [h, m] = timeValue.split(":");
+  const hour = Number(h);
+  const minute = Number(m);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+};
+
 const mergeDuplicateSessionData = async (params: {
   studentId: string;
   date: string;
   time: string;
   exercises: SessionRow[];
 }): Promise<number> => {
-  const { data: existingSession, error: sessionError } = await supabase
+  const { data: candidateSessions, error: sessionError } = await supabase
     .from("workout_sessions")
-    .select("id")
+    .select("id, time, created_at")
     .eq("student_id", params.studentId)
     .eq("date", params.date)
-    .eq("time", params.time)
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(50);
 
-  if (sessionError || !existingSession) return 0;
+  if (sessionError || !candidateSessions || candidateSessions.length === 0) return 0;
+
+  const targetMinutes = parseTimeToMinutes(params.time);
+  const sameMinute = candidateSessions.find(
+    (session) => String(session.time).slice(0, 5) === params.time
+  );
+
+  let selectedSession = sameMinute ?? null;
+  if (!selectedSession && targetMinutes !== null) {
+    const nearest = candidateSessions
+      .map((session) => {
+        const sessionMinutes = parseTimeToMinutes(String(session.time).slice(0, 5));
+        return {
+          session,
+          distance:
+            sessionMinutes === null
+              ? Number.POSITIVE_INFINITY
+              : Math.abs(sessionMinutes - targetMinutes),
+        };
+      })
+      .sort((a, b) => a.distance - b.distance)[0];
+
+    if (nearest && Number.isFinite(nearest.distance) && nearest.distance <= 1) {
+      selectedSession = nearest.session;
+    }
+  }
+
+  if (!selectedSession) return 0;
 
   const { data: existingExercises, error: exercisesError } = await supabase
     .from("exercises")
     .select("id, exercise_name, sets, reps, load_kg, load_description, observations, created_at")
-    .eq("session_id", existingSession.id)
+    .eq("session_id", selectedSession.id)
     .order("created_at", { ascending: true });
 
   if (exercisesError || !existingExercises) return 0;
 
   const usedExerciseIds = new Set<string>();
+  const fallbackPairs: Array<{ imported: SessionRow; existing: (typeof existingExercises)[number] }> = [];
   let mergedCount = 0;
 
-  for (const imported of params.exercises) {
-    const importedName = normalizeExerciseName(imported.exercicio);
-    const match = existingExercises.find(
+  const importedByName = params.exercises.map((exercise, index) => ({
+    index,
+    exercise,
+    normalized: normalizeExerciseName(exercise.exercicio),
+  }));
+
+  for (const imported of importedByName) {
+    const exact = existingExercises.find(
       (exercise) =>
         !usedExerciseIds.has(exercise.id) &&
-        normalizeExerciseName(exercise.exercise_name) === importedName
+        normalizeExerciseName(exercise.exercise_name) === imported.normalized
     );
+    if (!exact) continue;
+    usedExerciseIds.add(exact.id);
+    fallbackPairs.push({ imported: imported.exercise, existing: exact });
+  }
 
-    if (!match) continue;
-    usedExerciseIds.add(match.id);
+  if (fallbackPairs.length < importedByName.length && existingExercises.length === params.exercises.length) {
+    for (let i = 0; i < params.exercises.length; i += 1) {
+      const existing = existingExercises[i];
+      if (!existing || usedExerciseIds.has(existing.id)) continue;
+      usedExerciseIds.add(existing.id);
+      fallbackPairs.push({ imported: params.exercises[i], existing });
+    }
+  }
+
+  for (const pair of fallbackPairs) {
+    const { imported, existing } = pair;
 
     const patch: Record<string, unknown> = {};
 
-    if ((match.sets === null || match.sets === undefined) && imported.series !== undefined) {
+    if (
+      (existing.sets === null || existing.sets === undefined || existing.sets <= 0) &&
+      imported.series !== undefined
+    ) {
       patch.sets = imported.series;
     }
-    if ((match.reps === null || match.reps === undefined) && imported.reps !== undefined) {
+    if (
+      (existing.reps === null || existing.reps === undefined || existing.reps <= 0) &&
+      imported.reps !== undefined
+    ) {
       patch.reps = imported.reps;
     }
-    if ((match.load_kg === null || match.load_kg === undefined) && imported.carga !== undefined) {
+    if ((existing.load_kg === null || existing.load_kg === undefined) && imported.carga !== undefined) {
       patch.load_kg = imported.carga;
     }
     if (
-      (!match.load_description || !match.load_description.trim()) &&
+      (!existing.load_description || !existing.load_description.trim()) &&
       imported.cargaDescricao &&
       imported.cargaDescricao.trim()
     ) {
       patch.load_description = imported.cargaDescricao.trim();
     }
     if (
-      (!match.observations || !match.observations.trim()) &&
+      (!existing.observations || !existing.observations.trim()) &&
       imported.observacoes &&
       imported.observacoes.trim()
     ) {
@@ -326,7 +385,7 @@ const mergeDuplicateSessionData = async (params: {
     const { error: updateError } = await supabase
       .from("exercises")
       .update(patch)
-      .eq("id", match.id);
+      .eq("id", existing.id);
 
     if (!updateError) mergedCount += 1;
   }
@@ -398,8 +457,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
   const parseTime = (timeValue: unknown): string | null => {
     if (timeValue instanceof Date) {
-      const hours = String(timeValue.getHours()).padStart(2, "0");
-      const minutes = String(timeValue.getMinutes()).padStart(2, "0");
+      // Excel time cells may come as Date objects anchored in 1899 with historical timezone offsets.
+      // UTC extraction avoids local offset artifacts like 04:53:00 for intended 08:00.
+      const hours = String(timeValue.getUTCHours()).padStart(2, "0");
+      const minutes = String(timeValue.getUTCMinutes()).padStart(2, "0");
       return `${hours}:${minutes}`;
     }
 
@@ -427,7 +488,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       if (Number.isFinite(numeric)) {
         if (numeric > 1) return null;
         if (numeric < 0) return null;
-        const totalMinutes = Math.round(numeric * 24 * 60);
+        const totalMinutes = Math.round(numeric * 24 * 60) % (24 * 60);
         const hours = Math.floor(totalMinutes / 60);
         const minutes = totalMinutes % 60;
         return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
@@ -440,7 +501,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
       if (timeValue < 0 || timeValue > 1) return null;
       // Excel armazena tempo como fração do dia (0..1)
-      const totalMinutes = Math.round(timeValue * 24 * 60);
+      const totalMinutes = Math.round(timeValue * 24 * 60) % (24 * 60);
       const hours = Math.floor(totalMinutes / 60);
       const minutes = totalMinutes % 60;
       return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;

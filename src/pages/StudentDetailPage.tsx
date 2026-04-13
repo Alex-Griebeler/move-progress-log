@@ -52,6 +52,7 @@ import { PageLayout } from "@/components/PageLayout";
 import { StudentHeaderSkeleton } from "@/components/skeletons/StudentHeaderSkeleton";
 import { getObjectiveLabel } from "@/constants/objectives";
 import { logger } from "@/utils/logger";
+import { formatSessionTime } from "@/utils/sessionTime";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -410,7 +411,7 @@ const StudentDetailPage = () => {
                   <WorkoutCard
                     key={session.id}
                     sessionId={session.id}
-                    name={session.workout_name || `Treino - ${session.time}`}
+                    name={session.workout_name || `Treino - ${formatSessionTime(session.time)}`}
                     exercises={session.exercises?.length || 0}
                     date={session.date}
                     sessionType={session.session_type as 'individual' | 'group'}

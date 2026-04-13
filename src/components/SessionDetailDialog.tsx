@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { LoadingState } from "./LoadingState";
 import { ErrorState } from "./ErrorState";
 import { useState, useMemo } from "react";
+import { formatSessionTime } from "@/utils/sessionTime";
 
 interface SessionDetailDialogProps {
   sessionId: string | null;
@@ -206,7 +207,7 @@ export const SessionDetailDialog = ({
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <p className="text-xs text-muted-foreground">Horário</p>
-                      <p className="font-medium">{session.time}</p>
+                      <p className="font-medium">{formatSessionTime(session.time)}</p>
                     </div>
                   </div>
                   {session.trainer_name && (

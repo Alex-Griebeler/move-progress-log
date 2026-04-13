@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/utils/logger";
+import { formatSessionTime } from "@/utils/sessionTime";
 
 interface SessionExercise {
   id: string;
@@ -88,6 +89,7 @@ export const useSessionDetail = (sessionId: string | null) => {
 
         return {
           ...sessionData,
+          time: formatSessionTime(sessionData.time),
           student: studentData,
           exercises: exercisesData || [],
         } as SessionDetail;
