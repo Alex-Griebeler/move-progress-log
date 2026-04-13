@@ -155,7 +155,7 @@ const PrescriptionCardComponent = ({
               onClick={() => onAssign(prescription.id)}
             >
               <Users className="h-4 w-4" />
-              {prescription.assigned_students_count === 0 ? "Atribuir" : "Gerenciar"}
+              Atribuir
             </Button>
             <Button
               variant="outline"
