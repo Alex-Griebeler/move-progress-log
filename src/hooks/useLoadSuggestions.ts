@@ -274,7 +274,7 @@ export const useLoadSuggestions = (
           if (aMissing !== bMissing) return aMissing - bMissing;
           return (b.referenceLoadKg || 0) - (a.referenceLoadKg || 0);
         })
-        .slice(0, maxExercises);
+        .slice(0, maxExercises)) as LoadSuggestionItem[];
 
       logger.info("[load-suggestions] generated", {
         studentId,
