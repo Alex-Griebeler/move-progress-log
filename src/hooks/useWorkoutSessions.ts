@@ -39,6 +39,7 @@ export interface Exercise {
 
 type WorkoutSessionRow = Database["public"]["Tables"]["workout_sessions"]["Row"];
 type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
+type ExerciseInsert = Database["public"]["Tables"]["exercises"]["Insert"];
 type GroupSessionCreationResult = {
   student: string;
   success: boolean;
@@ -77,6 +78,90 @@ const mapExercise = (row: ExerciseRow): Exercise => ({
   observations: row.observations ?? undefined,
   created_at: row.created_at,
 });
+
+const isMissingRpcFunctionError = (error: unknown, functionName: string): boolean => {
+  if (!error || typeof error !== "object") return false;
+  const record = error as Record<string, unknown>;
+  const code = typeof record.code === "string" ? record.code : "";
+  const message = buildErrorDescription(error).toLowerCase();
+
+  return (
+    code === "PGRST202" ||
+    message.includes(`could not find the function public.${functionName}`.toLowerCase()) ||
+    message.includes("function") && message.includes("does not exist")
+  );
+};
+
+const mapExercisesToInsert = (
+  sessionId: string,
+  exercises: Array<{
+    exercise_name: string;
+    sets?: number | null;
+    reps?: number | null;
+    load_kg?: number | null;
+    load_description?: string | null;
+    load_breakdown?: string | null;
+    observations?: string | null;
+  }>
+): ExerciseInsert[] =>
+  exercises.map((exercise) => ({
+    session_id: sessionId,
+    exercise_name: exercise.exercise_name,
+    sets: exercise.sets ?? null,
+    reps: exercise.reps ?? null,
+    load_kg: exercise.load_kg ?? null,
+    load_description: exercise.load_description ?? null,
+    load_breakdown: exercise.load_breakdown ?? null,
+    observations: exercise.observations ?? null,
+  }));
+
+const createSessionWithDirectInsert = async (params: {
+  student_id: string;
+  date: string;
+  time: string;
+  session_type: "individual" | "group";
+  prescription_id?: string;
+  exercises: Array<{
+    exercise_name: string;
+    sets?: number | null;
+    reps?: number | null;
+    load_kg?: number | null;
+    load_description?: string | null;
+    load_breakdown?: string | null;
+    observations?: string | null;
+  }>;
+}) => {
+  const { data: session, error: sessionError } = await supabase
+    .from("workout_sessions")
+    .insert({
+      student_id: params.student_id,
+      date: params.date,
+      time: params.time,
+      session_type: params.session_type,
+      prescription_id: params.prescription_id ?? null,
+      is_finalized: params.session_type === "group" ? true : null,
+      can_reopen: params.session_type === "group" ? true : null,
+    })
+    .select()
+    .single();
+
+  if (sessionError) throw sessionError;
+
+  try {
+    const exercisesToInsert = mapExercisesToInsert(session.id, params.exercises);
+    if (exercisesToInsert.length > 0) {
+      const { error: exercisesError } = await supabase
+        .from("exercises")
+        .insert(exercisesToInsert);
+      if (exercisesError) throw exercisesError;
+    }
+  } catch (stepError) {
+    await supabase.from("workout_sessions").delete().eq("id", session.id);
+    throw stepError;
+  }
+
+  return session;
+};
 
 export const useWorkoutSessions = (studentId?: string) => {
   return useQuery({
@@ -180,7 +265,19 @@ export const useCreateWorkoutSession = () => {
         }
       );
 
-      if (error) throw error;
+      if (error) {
+        if (isMissingRpcFunctionError(error, "create_workout_session_with_exercises")) {
+          const session = await createSessionWithDirectInsert({
+            student_id: data.student_id,
+            date: data.date,
+            time: data.time,
+            session_type: "individual",
+            exercises: exercisesPayload,
+          });
+          return mapWorkoutSession(session as WorkoutSessionRow);
+        }
+        throw error;
+      }
 
       const sessionRow = Array.isArray(createdSession)
         ? createdSession[0]
@@ -275,6 +372,23 @@ export const useCreateGroupWorkoutSessions = () => {
           );
 
           if (creationError) {
+            if (isMissingRpcFunctionError(creationError, "create_group_workout_session_with_exercises")) {
+              const fallbackSession = await createSessionWithDirectInsert({
+                student_id: session.student_id,
+                date: data.date,
+                time: data.time,
+                session_type: "group",
+                prescription_id: data.prescriptionId,
+                exercises: exercisesPayload,
+              });
+
+              results.push({
+                student: session.student_name,
+                success: true,
+                session_id: fallbackSession.id,
+              });
+              continue;
+            }
             throw creationError;
           }
 
