@@ -9,6 +9,10 @@ import {
   sanitizeAssignmentCustomAdaptations,
 } from "./prescriptionMappers";
 import type { CustomAdaptation } from "./prescriptionMappers";
+import {
+  createPrescriptionWithRelations,
+  type CreatePrescriptionInput,
+} from "./prescriptionCreateUtils";
 
 export interface WorkoutPrescription {
   id: string;
@@ -242,111 +246,12 @@ export const useCreatePrescription = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: {
-      name: string;
-      objective?: string;
-      prescription_type?: 'group' | 'individual';
-      exercises: Array<{
-        exercise_library_id: string;
-        sets: string;
-        reps: string;
-        interval_seconds?: number;
-        pse?: string;
-        load?: string;
-        rir?: string;
-        training_method?: string;
-        observations?: string;
-        group_with_previous?: boolean;
-        should_track?: boolean;
-        adaptations?: Array<{
-          type: "regression_1" | "regression_2" | "regression_3";
-          exercise_library_id: string;
-          sets?: string;
-          reps?: string;
-          interval_seconds?: number;
-          pse?: string;
-          observations?: string;
-        }>;
-      }>;
-    }) => {
+    mutationFn: async (data: CreatePrescriptionInput) => {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { data: prescription, error: prescError } = await supabase
-        .from("workout_prescriptions")
-        .insert({
-          name: data.name,
-          objective: data.objective || null,
-          prescription_type: data.prescription_type || "group",
-          trainer_id: user.id,
-        })
-        .select()
-        .single();
-
-      if (prescError) throw prescError;
-
-      // MEL-001: Batch insert exercises (exercises without adaptations)
-      const exercisesToInsert = data.exercises.map((ex, i) => ({
-        prescription_id: prescription.id,
-        exercise_library_id: ex.exercise_library_id,
-        order_index: i,
-        sets: ex.sets,
-        reps: ex.reps,
-        interval_seconds: ex.interval_seconds || null,
-        pse: ex.pse || null,
-        load: ex.load || null,
-        rir: ex.rir || null,
-        training_method: ex.training_method || null,
-        observations: ex.observations || null,
-        group_with_previous: ex.group_with_previous || false,
-        should_track: ex.should_track ?? true,
-      }));
-
-      const { data: insertedExercises, error: exError } = await supabase
-        .from("prescription_exercises")
-        .insert(exercisesToInsert)
-        .select();
-
-      if (exError) throw exError;
-
-      // Batch insert adaptations for all exercises that have them
-      const allAdaptations: Array<{
-        prescription_exercise_id: string;
-        adaptation_type: string;
-        exercise_library_id: string;
-        sets: string | null;
-        reps: string | null;
-        interval_seconds: number | null;
-        pse: string | null;
-        observations: string | null;
-      }> = [];
-      data.exercises.forEach((ex, i) => {
-        if (ex.adaptations && ex.adaptations.length > 0 && insertedExercises[i]) {
-          ex.adaptations.forEach((adapt) => {
-            allAdaptations.push({
-              prescription_exercise_id: insertedExercises[i].id,
-              adaptation_type: adapt.type,
-              exercise_library_id: adapt.exercise_library_id,
-              sets: adapt.sets || null,
-              reps: adapt.reps || null,
-              interval_seconds: adapt.interval_seconds || null,
-              pse: adapt.pse || null,
-              observations: adapt.observations || null,
-            });
-          });
-        }
-      });
-
-      if (allAdaptations.length > 0) {
-        const { error: adaptError } = await supabase
-          .from("exercise_adaptations")
-          .insert(allAdaptations);
-
-        if (adaptError) throw adaptError;
-      }
-
-      return prescription;
+      return createPrescriptionWithRelations(supabase, user.id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });

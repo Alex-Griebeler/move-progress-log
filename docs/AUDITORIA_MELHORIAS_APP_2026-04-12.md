@@ -833,6 +833,31 @@ Referência de pendências manuais (UI autenticada):
 - Evita apresentar carga antiga como se fosse a última execução.
 - Melhora confiabilidade operacional no apoio à prescrição e revisão de carga.
 
+### Robustez transacional na criação de prescrição
+- `src/hooks/usePrescriptions.ts`
+- `src/hooks/prescriptionCreateUtils.ts`
+
+**Ajuste aplicado**
+- Fluxo `useCreatePrescription` passou a executar rollback defensivo do cabeçalho de prescrição quando falha em etapas subsequentes (insert de exercícios/adaptações).
+- Em caso de erro parcial, a prescrição recém-criada é removida (`workout_prescriptions.delete`) para evitar estado órfão/incompleto.
+- Erro original da etapa que falhou continua sendo propagado para o usuário.
+
+**Impacto**
+- Evita prescrição “meio criada” no banco em falha intermediária.
+- Reduz inconsistência de dados no fluxo de criação e manutenção de programas.
+
+### Mitigação de risco residual de bundle pesado (excel/pdf)
+- `vite.config.ts`
+
+**Ajuste aplicado**
+- Estratégia de `manualChunks` refinada para quebrar o ecossistema `@react-pdf/*` e dependências em chunks menores por pacote (em vez de um único bloco monolítico).
+- Configurado `build.modulePreload.resolveDependencies` para não pré-carregar chunks pesados de `excel` e `react-pdf` no bootstrap da aplicação.
+
+**Impacto**
+- Reduz custo de rede e parse no carregamento inicial.
+- Mantém funcionalidades de importação Excel e exportação PDF somente sob demanda.
+- Mantém warning apenas para bibliotecas intrinsicamente grandes (`exceljs` e `@react-pdf/pdfkit`), sem impactar rota inicial.
+
 ---
 
 ## Backlog recomendado (prioridade)
