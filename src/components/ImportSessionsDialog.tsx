@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   buildErrorDescription,
   parseErrorInfo,
@@ -216,6 +217,7 @@ interface ProcessingStatus {
   total: number;
   attempted: number;
   processed: number;
+  mergedDuplicates: number;
   skippedDuplicates: number;
   errors: string[];
   success: boolean;
@@ -242,6 +244,94 @@ const isDuplicateSessionError = (errorInfo: ParsedErrorInfo): boolean => {
     raw.includes("idx_unique_student_session") ||
     raw.includes("workout_sessions_student_id_date_time")
   );
+};
+
+const normalizeExerciseName = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9 ]/g, "");
+
+const mergeDuplicateSessionData = async (params: {
+  studentId: string;
+  date: string;
+  time: string;
+  exercises: SessionRow[];
+}): Promise<number> => {
+  const { data: existingSession, error: sessionError } = await supabase
+    .from("workout_sessions")
+    .select("id")
+    .eq("student_id", params.studentId)
+    .eq("date", params.date)
+    .eq("time", params.time)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (sessionError || !existingSession) return 0;
+
+  const { data: existingExercises, error: exercisesError } = await supabase
+    .from("exercises")
+    .select("id, exercise_name, sets, reps, load_kg, load_description, observations, created_at")
+    .eq("session_id", existingSession.id)
+    .order("created_at", { ascending: true });
+
+  if (exercisesError || !existingExercises) return 0;
+
+  const usedExerciseIds = new Set<string>();
+  let mergedCount = 0;
+
+  for (const imported of params.exercises) {
+    const importedName = normalizeExerciseName(imported.exercicio);
+    const match = existingExercises.find(
+      (exercise) =>
+        !usedExerciseIds.has(exercise.id) &&
+        normalizeExerciseName(exercise.exercise_name) === importedName
+    );
+
+    if (!match) continue;
+    usedExerciseIds.add(match.id);
+
+    const patch: Record<string, unknown> = {};
+
+    if ((match.sets === null || match.sets === undefined) && imported.series !== undefined) {
+      patch.sets = imported.series;
+    }
+    if ((match.reps === null || match.reps === undefined) && imported.reps !== undefined) {
+      patch.reps = imported.reps;
+    }
+    if ((match.load_kg === null || match.load_kg === undefined) && imported.carga !== undefined) {
+      patch.load_kg = imported.carga;
+    }
+    if (
+      (!match.load_description || !match.load_description.trim()) &&
+      imported.cargaDescricao &&
+      imported.cargaDescricao.trim()
+    ) {
+      patch.load_description = imported.cargaDescricao.trim();
+    }
+    if (
+      (!match.observations || !match.observations.trim()) &&
+      imported.observacoes &&
+      imported.observacoes.trim()
+    ) {
+      patch.observations = imported.observacoes.trim();
+    }
+
+    if (Object.keys(patch).length === 0) continue;
+
+    const { error: updateError } = await supabase
+      .from("exercises")
+      .update(patch)
+      .eq("id", match.id);
+
+    if (!updateError) mergedCount += 1;
+  }
+
+  return mergedCount;
 };
 
 export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialogProps) => {
@@ -366,6 +456,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       total: 0,
       attempted: 0,
       processed: 0,
+      mergedDuplicates: 0,
       skippedDuplicates: 0,
       errors: [],
       success: false,
@@ -473,6 +564,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
       let attempted = 0;
       let processed = 0;
+      let mergedDuplicates = 0;
       let skippedDuplicates = 0;
       const errors: string[] = [...validationErrors];
 
@@ -521,6 +613,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                   ...prev,
                   attempted,
                   processed,
+                  mergedDuplicates,
                   skippedDuplicates,
                 }
               : prev
@@ -530,6 +623,19 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
 
           if (isDuplicateSessionError(errorInfo)) {
             skippedDuplicates++;
+            try {
+              const merged = await mergeDuplicateSessionData({
+                studentId: student.id,
+                date: firstRow.data,
+                time: firstRow.hora,
+                exercises,
+              });
+              if (merged > 0) {
+                mergedDuplicates += merged;
+              }
+            } catch {
+              // no-op: keep duplicate skip behavior if merge enrichment fails
+            }
           } else {
             const description = buildErrorDescription(errorInfo);
             errors.push(`Sessão ${key}: ${description}`);
@@ -541,6 +647,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                   ...prev,
                   attempted,
                   processed,
+                  mergedDuplicates,
                   skippedDuplicates,
                   errors,
                 }
@@ -552,7 +659,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       // Toast final
       toast.dismiss(toastId);
 
-      if (processed > 0) {
+      if (processed > 0 || mergedDuplicates > 0) {
         await invalidateAfterImport();
       }
       
@@ -563,12 +670,15 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         });
       } else if (errors.length === 0 && processed === 0 && skippedDuplicates > 0) {
         toast("Importação concluída sem novas sessões", {
-          description: `${skippedDuplicates} sessão(ões) já existiam e foram ignoradas.`,
+          description:
+            mergedDuplicates > 0
+              ? `${skippedDuplicates} sessão(ões) duplicadas ignoradas, ${mergedDuplicates} exercício(s) existente(s) atualizado(s).`
+              : `${skippedDuplicates} sessão(ões) já existiam e foram ignoradas.`,
           duration: 6000,
         });
       } else {
         toast("Importação concluída com pendências", {
-          description: `${processed} importada(s), ${skippedDuplicates} duplicada(s) ignorada(s), ${errors.length} erro(s).`,
+          description: `${processed} importada(s), ${skippedDuplicates} duplicada(s) ignorada(s), ${mergedDuplicates} exercício(s) atualizado(s), ${errors.length} erro(s).`,
           duration: 7000,
         });
       }
@@ -577,6 +687,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         total: totalSessions,
         attempted,
         processed,
+        mergedDuplicates,
         skippedDuplicates,
         errors,
         success: errors.length === 0 && skippedDuplicates === 0,
@@ -594,6 +705,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         total: 0,
         attempted: 0,
         processed: 0,
+        mergedDuplicates: 0,
         skippedDuplicates: 0,
         errors: [message],
         success: false,
@@ -680,6 +792,12 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                     <strong>Importação concluída sem novas sessões</strong>
                     <br />
                     {status.skippedDuplicates} sessão(ões) já existiam e foram ignoradas.
+                    {status.mergedDuplicates > 0 && (
+                      <>
+                        <br />
+                        {status.mergedDuplicates} exercício(s) existente(s) foram atualizados com dados faltantes.
+                      </>
+                    )}
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -688,7 +806,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                   <AlertDescription>
                     <strong>Importação concluída com erros</strong>
                     <br />
-                    {status.processed} importada(s), {status.skippedDuplicates} duplicada(s) ignorada(s), {status.errors.length} erro(s).
+                    {status.processed} importada(s), {status.skippedDuplicates} duplicada(s) ignorada(s), {status.mergedDuplicates} exercício(s) atualizado(s), {status.errors.length} erro(s).
                     <div className="mt-2 max-h-32 overflow-y-auto text-xs">
                       {status.errors.map((error, i) => (
                         <div key={i} className="mt-1">
