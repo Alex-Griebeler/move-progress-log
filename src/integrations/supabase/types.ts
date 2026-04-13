@@ -2219,54 +2219,6 @@ export type Database = {
       }
       cleanup_rate_limit_attempts: { Args: never; Returns: undefined }
       count_active_students: { Args: { p_since: string }; Returns: number }
-      create_group_workout_session_with_exercises: {
-        Args: {
-          p_date: string
-          p_exercises?: Json
-          p_prescription_id: string
-          p_student_id: string
-          p_time: string
-        }
-        Returns: {
-          can_reopen: boolean | null
-          created_at: string
-          date: string
-          id: string
-          is_finalized: boolean | null
-          prescription_id: string | null
-          room_name: string | null
-          session_type: string
-          student_id: string
-          time: string
-          trainer_name: string | null
-          updated_at: string
-          workout_name: string | null
-        }
-      }
-      create_workout_session_with_exercises: {
-        Args: {
-          p_date: string
-          p_exercises?: Json
-          p_session_type?: string
-          p_student_id: string
-          p_time: string
-        }
-        Returns: {
-          can_reopen: boolean | null
-          created_at: string
-          date: string
-          id: string
-          is_finalized: boolean | null
-          prescription_id: string | null
-          room_name: string | null
-          session_type: string
-          student_id: string
-          time: string
-          trainer_name: string | null
-          updated_at: string
-          workout_name: string | null
-        }
-      }
       delete_prescription_cascade: {
         Args: { p_prescription_id: string }
         Returns: undefined
