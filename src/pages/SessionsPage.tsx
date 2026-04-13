@@ -54,7 +54,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useAllSessions, SessionWithDetails } from "@/hooks/useAllSessions";
+import { useAllSessionsPaginated, SessionWithDetails } from "@/hooks/useAllSessions";
 import { useStudents } from "@/hooks/useStudents";
 import { usePrescriptions } from "@/hooks/usePrescriptions";
 import { useReopenWorkoutSession } from "@/hooks/useWorkoutSessions";
@@ -103,7 +103,15 @@ export default function SessionsPage() {
   // Data queries
   const { data: students } = useStudents();
   const { data: prescriptions } = usePrescriptions();
-  const { data: sessions, isLoading, error, refetch } = useAllSessions({
+  const {
+    data: sessionsPages,
+    isLoading,
+    error,
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useAllSessionsPaginated({
     studentIds: selectedStudentIds.length > 0 ? selectedStudentIds : undefined,
     prescriptionIds: selectedPrescriptionIds.length > 0 ? selectedPrescriptionIds : undefined,
     startDate,
@@ -112,6 +120,13 @@ export default function SessionsPage() {
     endTime: endTime || undefined,
     sessionType,
   });
+  const sessions = useMemo(
+    () =>
+      (sessionsPages?.pages ?? []).flatMap(
+        (page) => page.sessions as SessionWithDetails[]
+      ),
+    [sessionsPages]
+  );
 
   const reopenMutation = useReopenWorkoutSession();
 
@@ -451,11 +466,11 @@ export default function SessionsPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              {sessions?.length || 0} {sessions?.length === 1 ? "sessão encontrada" : "sessões encontradas"}
+              {sessions.length} {sessions.length === 1 ? "sessão carregada" : "sessões carregadas"}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {!sessions || sessions.length === 0 ? (
+            {sessions.length === 0 ? (
               <EmptyState
                 icon={<ClipboardList className="h-8 w-8 text-muted-foreground" />}
                 title="Nenhuma sessão encontrada"
@@ -557,6 +572,17 @@ export default function SessionsPage() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+            {hasNextPage && (
+              <div className="mt-md flex justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? "Carregando mais..." : "Carregar mais sessões"}
+                </Button>
               </div>
             )}
           </CardContent>

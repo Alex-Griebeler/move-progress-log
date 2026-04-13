@@ -35,6 +35,9 @@ const normalizeComparableText = (value: string): string =>
 export const useStudents = () => {
   return useQuery({
     queryKey: ["students"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       const allStudents: Student[] = [];
 

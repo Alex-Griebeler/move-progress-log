@@ -105,6 +105,9 @@ function buildStableQueryKey(prefix: string, filters?: SessionFilters) {
 export function useAllSessions(filters?: SessionFilters) {
   return useQuery({
     queryKey: buildStableQueryKey("all-sessions", filters),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       const allSessions: SessionWithDetails[] = [];
 
@@ -137,6 +140,9 @@ const PAGE_SIZE = 50;
 export function useAllSessionsPaginated(filters?: SessionFilters) {
   return useInfiniteQuery({
     queryKey: buildStableQueryKey("all-sessions-paginated", filters),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;

@@ -162,6 +162,9 @@ const mapPrescriptionAssignment = (row: AssignmentWithStudentRow): PrescriptionA
 export const usePrescriptions = () => {
   return useQuery({
     queryKey: ["prescriptions"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       const allPrescriptions: PrescriptionListRow[] = [];
 
@@ -196,6 +199,9 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
   return useQuery({
     queryKey: ["prescription", prescriptionId],
     enabled: !!prescriptionId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       if (!prescriptionId) return null;
 
@@ -412,6 +418,9 @@ export const usePrescriptionAssignments = (prescriptionId: string | null) => {
   return useQuery({
     queryKey: ["assignments", prescriptionId],
     enabled: !!prescriptionId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       if (!prescriptionId) return [];
 

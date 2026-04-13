@@ -71,6 +71,9 @@ const mapWorkouts = (data: Array<{
 export const useWorkouts = () => {
   return useQuery({
     queryKey: ["workouts"],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workout_sessions")

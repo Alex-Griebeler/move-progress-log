@@ -14,6 +14,9 @@ const MONTHLY_EXERCISES_MAX_PAGES = 50;
 export const useStats = () => {
   return useQuery({
     queryKey: ["stats"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       // Total de sessões
       const { count: totalSessions, error: totalSessionsError } = await supabase
