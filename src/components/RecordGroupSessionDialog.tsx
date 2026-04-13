@@ -15,6 +15,7 @@ import { useStudents } from "@/hooks/useStudents";
 import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateGroupWorkoutSessions } from "@/hooks/useWorkoutSessions";
 import { usePrescriptionDetails } from "@/hooks/usePrescriptions";
+import type { AssignmentScheduleAdaptations } from "@/hooks/usePrescriptions";
 import { supabase } from "@/integrations/supabase/client";
 import { Mic, User, Users, Save, Edit, Pencil, ChevronLeft, ChevronRight, Plus, BookOpen, UserPlus } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
@@ -109,17 +110,30 @@ interface GroupSessionToSave {
   clinical_observations: GroupObservation[];
 }
 
-interface CustomAdaptationsShape {
-  weekdays?: string[];
-  time?: string;
-}
-
 const normalizeComparableText = (value: string): string =>
   value
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+
+const isAssignmentScheduleAdaptations = (
+  value: unknown
+): value is AssignmentScheduleAdaptations => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const maybe = value as AssignmentScheduleAdaptations;
+
+  const hasWeekdays =
+    Array.isArray(maybe.weekdays) &&
+    maybe.weekdays.every((day) => typeof day === "string");
+
+  const hasTime = typeof maybe.time === "string" && maybe.time.length > 0;
+
+  return hasWeekdays || hasTime;
+};
 
 // ─── Component Types ────────────────────────────────────────
 
@@ -736,13 +750,12 @@ export function RecordGroupSessionDialog({
       const currentWeekday = weekdayMap[currentDate.getDay()];
       const currentTime = currentDate.toTimeString().slice(0, 5);
       const relevantAssignments = assignments.filter(assignment => {
-        const customAdaptations = assignment.custom_adaptations as unknown;
-        if (!customAdaptations || typeof customAdaptations !== 'object') return false;
-        const adapted = customAdaptations as CustomAdaptationsShape;
-        const hasWeekday = adapted.weekdays?.includes(currentWeekday);
+        const customAdaptations = assignment.custom_adaptations;
+        if (!isAssignmentScheduleAdaptations(customAdaptations)) return false;
+        const hasWeekday = customAdaptations.weekdays?.includes(currentWeekday);
         if (!hasWeekday) return false;
-        if (adapted.time) {
-          const [assignedHour, assignedMin] = adapted.time.split(':').map(Number);
+        if (customAdaptations.time) {
+          const [assignedHour, assignedMin] = customAdaptations.time.split(':').map(Number);
           const [currentHour, currentMin] = currentTime.split(':').map(Number);
           return Math.abs((assignedHour * 60 + assignedMin) - (currentHour * 60 + currentMin)) <= 5;
         }
