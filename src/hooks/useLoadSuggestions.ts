@@ -267,7 +267,7 @@ export const useLoadSuggestions = (
             guardrails,
           };
         })
-        .filter((item): item is LoadSuggestionItem => !!item)
+        .filter((item): item is LoadSuggestionItem => item !== null && item !== undefined)
         .sort((a, b) => {
           const aMissing = a.status === "insufficient" ? 1 : 0;
           const bMissing = b.status === "insufficient" ? 1 : 0;

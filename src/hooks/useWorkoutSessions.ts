@@ -255,7 +255,7 @@ export const useCreateWorkoutSession = () => {
         observations: ex.observations ?? null,
       }));
 
-      const { data: createdSession, error } = await supabase.rpc(
+      const { data: createdSession, error } = await (supabase.rpc as CallableFunction)(
         "create_workout_session_with_exercises",
         {
           p_student_id: data.student_id,
@@ -287,7 +287,7 @@ export const useCreateWorkoutSession = () => {
         throw new Error("Falha ao criar sessão");
       }
 
-      return mapWorkoutSession(sessionRow as WorkoutSessionRow);
+      return mapWorkoutSession(sessionRow as unknown as WorkoutSessionRow);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
@@ -361,7 +361,7 @@ export const useCreateGroupWorkoutSessions = () => {
             };
           });
 
-          const { data: createdSession, error: creationError } = await supabase.rpc(
+          const { data: createdSession, error: creationError } = await (supabase.rpc as CallableFunction)(
             "create_group_workout_session_with_exercises",
             {
               p_student_id: session.student_id,
@@ -394,7 +394,7 @@ export const useCreateGroupWorkoutSessions = () => {
           }
 
           const sessionRow = Array.isArray(createdSession)
-            ? createdSession[0]
+            ? (createdSession as Record<string, unknown>[])[0]
             : createdSession;
 
           if (!sessionRow) {

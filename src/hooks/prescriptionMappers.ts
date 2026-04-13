@@ -57,11 +57,12 @@ export const sanitizeAssignmentCustomAdaptations = (
 
   const sanitized = value
     .map((item) => {
+      const rawInterval = item.interval_seconds;
       const intervalCandidate =
-        typeof item.interval_seconds === "number"
-          ? item.interval_seconds
-          : typeof item.interval_seconds === "string" && item.interval_seconds.trim() !== ""
-            ? Number(item.interval_seconds)
+        typeof rawInterval === "number"
+          ? rawInterval
+          : typeof rawInterval === "string" && (rawInterval as string).trim() !== ""
+            ? Number(rawInterval)
             : null;
 
       return {

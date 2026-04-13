@@ -649,11 +649,11 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
           });
           
           // Cria ou busca aluno
-          const student = await getOrCreateStudent.mutateAsync(firstRow.aluno);
+          const currentStudent = await getOrCreateStudent.mutateAsync(firstRow.aluno);
 
           // Cria sessão com exercícios
           await createSession.mutateAsync({
-            student_id: student.id,
+            student_id: currentStudent.id,
             date: firstRow.data,
             time: firstRow.hora,
             exercises: exercises.map((ex) => ({
@@ -686,7 +686,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
             skippedDuplicates++;
             try {
               const merged = await mergeDuplicateSessionData({
-                studentId: student.id,
+                studentId: currentStudent.id,
                 date: firstRow.data,
                 time: firstRow.hora,
                 exercises,
