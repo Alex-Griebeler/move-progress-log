@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
 
               // OA-01: Pass service role key as Authorization header
               const { data: syncData, error: syncError } = await supabase.functions.invoke('oura-sync', {
-                body: { student_id: studentId, date: dateStr },
+                body: { student_id: studentId, date: dateStr, force_sync: true },
                 headers: { Authorization: `Bearer ${supabaseKey}` }
               });
 
