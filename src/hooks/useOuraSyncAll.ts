@@ -26,7 +26,7 @@ export const useOuraSyncAll = () => {
   return useMutation({
     mutationFn: async (): Promise<SyncAllResult> => {
       const { data, error } = await supabase.functions.invoke('oura-sync-all', {
-        body: {}
+        body: { force_sync: true }
       });
 
       if (error) throw error;
