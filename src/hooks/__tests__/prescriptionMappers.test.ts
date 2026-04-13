@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  mapAssignmentCustomAdaptations,
   mapCustomAdaptations,
+  sanitizeAssignmentScheduleAdaptations,
   sanitizeAssignmentCustomAdaptations,
 } from "../prescriptionMappers";
 
@@ -84,5 +86,29 @@ describe("prescriptionMappers", () => {
         observations: null,
       },
     ]);
+  });
+
+  it("sanitizes assignment schedule adaptations for weekdays and HH:mm time", () => {
+    const sanitized = sanitizeAssignmentScheduleAdaptations({
+      weekdays: [" monday ", "friday", "invalid-day"],
+      time: "08:00:00",
+    });
+
+    expect(sanitized).toEqual({
+      weekdays: ["monday", "friday"],
+      time: "08:00",
+    });
+  });
+
+  it("maps assignment custom adaptations when payload is schedule object", () => {
+    const mapped = mapAssignmentCustomAdaptations({
+      weekdays: ["tuesday", "thursday"],
+      time: "07:30",
+    });
+
+    expect(mapped).toEqual({
+      weekdays: ["tuesday", "thursday"],
+      time: "07:30",
+    });
   });
 });

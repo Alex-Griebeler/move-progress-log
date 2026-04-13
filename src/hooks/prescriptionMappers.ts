@@ -10,16 +10,35 @@ export interface CustomAdaptation {
   observations?: string | null;
 }
 
+export interface AssignmentScheduleAdaptations {
+  weekdays?: string[];
+  time?: string;
+}
+
+export type AssignmentCustomAdaptations =
+  | CustomAdaptation[]
+  | AssignmentScheduleAdaptations;
+
+const WEEKDAY_SET = new Set([
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+]);
+
+const isPlainObject = (value: unknown): value is Record<string, Json | undefined> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 export const mapCustomAdaptations = (value: Json | null): CustomAdaptation[] | null => {
   if (!Array.isArray(value)) {
     return null;
   }
 
   const adaptations = value
-    .filter(
-      (item): item is Record<string, Json | undefined> =>
-        typeof item === "object" && item !== null && !Array.isArray(item)
-    )
+    .filter((item): item is Record<string, Json | undefined> => isPlainObject(item))
     .map((item) => {
       const intervalCandidate =
         typeof item.interval_seconds === "number"
@@ -46,6 +65,62 @@ export const mapCustomAdaptations = (value: Json | null): CustomAdaptation[] | n
     .filter((item) => item.exercise_library_id && item.adaptation_type);
 
   return adaptations;
+};
+
+export const sanitizeAssignmentScheduleAdaptations = (
+  value: AssignmentScheduleAdaptations | null | undefined
+): AssignmentScheduleAdaptations | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const weekdays = Array.isArray(value.weekdays)
+    ? value.weekdays
+        .filter((day): day is string => typeof day === "string")
+        .map((day) => day.trim().toLowerCase())
+        .filter((day) => WEEKDAY_SET.has(day))
+    : [];
+
+  const rawTime =
+    typeof value.time === "string" && value.time.trim() !== ""
+      ? value.time.trim()
+      : "";
+
+  const normalizedTime =
+    rawTime.length >= 5 && /^\d{2}:\d{2}/.test(rawTime)
+      ? rawTime.slice(0, 5)
+      : "";
+
+  const sanitized: AssignmentScheduleAdaptations = {};
+
+  if (weekdays.length > 0) {
+    sanitized.weekdays = weekdays;
+  }
+
+  if (normalizedTime) {
+    sanitized.time = normalizedTime;
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
+};
+
+export const mapAssignmentCustomAdaptations = (
+  value: Json | null
+): AssignmentCustomAdaptations | null => {
+  if (Array.isArray(value)) {
+    return mapCustomAdaptations(value);
+  }
+
+  if (!isPlainObject(value)) {
+    return null;
+  }
+
+  return sanitizeAssignmentScheduleAdaptations({
+    weekdays: Array.isArray(value.weekdays)
+      ? value.weekdays.filter((day): day is string => typeof day === "string")
+      : undefined,
+    time: typeof value.time === "string" ? value.time : undefined,
+  });
 };
 
 export const sanitizeAssignmentCustomAdaptations = (

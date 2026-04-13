@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "react-day-picker";
+import type { AssignmentScheduleAdaptations } from "@/hooks/usePrescriptions";
 
 interface AssignPrescriptionDialogProps {
   open: boolean;
@@ -65,7 +66,7 @@ export function AssignPrescriptionDialog({
       return;
     }
 
-    const customAdaptations: Record<string, string | string[]> = {};
+    const customAdaptations: AssignmentScheduleAdaptations = {};
     if (selectedWeekdays.length > 0) {
       customAdaptations.weekdays = selectedWeekdays;
     }
@@ -79,7 +80,7 @@ export function AssignPrescriptionDialog({
         student_ids: selectedStudents,
         start_date: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
         end_date: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
-        custom_adaptations: Object.keys(customAdaptations).length > 0 ? customAdaptations as unknown as undefined : undefined,
+        custom_adaptations: Object.keys(customAdaptations).length > 0 ? customAdaptations : undefined,
       });
 
       setSelectedStudents([]);

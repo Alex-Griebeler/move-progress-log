@@ -5,10 +5,14 @@ import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import {
-  mapCustomAdaptations,
-  sanitizeAssignmentCustomAdaptations,
+  mapAssignmentCustomAdaptations,
+  sanitizeAssignmentScheduleAdaptations,
 } from "./prescriptionMappers";
-import type { CustomAdaptation } from "./prescriptionMappers";
+import type {
+  AssignmentCustomAdaptations,
+  AssignmentScheduleAdaptations,
+  CustomAdaptation,
+} from "./prescriptionMappers";
 import {
   createPrescriptionWithRelations,
   type CreatePrescriptionInput,
@@ -59,6 +63,10 @@ export interface ExerciseAdaptation {
 }
 
 export type { CustomAdaptation } from "./prescriptionMappers";
+export type {
+  AssignmentCustomAdaptations,
+  AssignmentScheduleAdaptations,
+} from "./prescriptionMappers";
 
 export interface PrescriptionAssignment {
   id: string;
@@ -66,7 +74,7 @@ export interface PrescriptionAssignment {
   student_id: string;
   start_date: string;
   end_date: string | null;
-  custom_adaptations: CustomAdaptation[] | null;
+  custom_adaptations: AssignmentCustomAdaptations | null;
   student_name?: string;
 }
 
@@ -147,7 +155,7 @@ const mapPrescriptionAssignment = (row: AssignmentWithStudentRow): PrescriptionA
   student_id: row.student_id,
   start_date: row.start_date,
   end_date: row.end_date,
-  custom_adaptations: mapCustomAdaptations(row.custom_adaptations),
+  custom_adaptations: mapAssignmentCustomAdaptations(row.custom_adaptations),
   student_name: row.students?.name,
 });
 
@@ -274,9 +282,11 @@ export const useAssignPrescription = () => {
       student_ids: string[];
       start_date: string;
       end_date?: string;
-      custom_adaptations?: CustomAdaptation[] | null;
+      custom_adaptations?: AssignmentScheduleAdaptations | null;
     }) => {
-      const customAdaptations = sanitizeAssignmentCustomAdaptations(data.custom_adaptations);
+      const customAdaptations = sanitizeAssignmentScheduleAdaptations(
+        data.custom_adaptations
+      );
 
       const assignments = data.student_ids.map((student_id) => ({
         prescription_id: data.prescription_id,
