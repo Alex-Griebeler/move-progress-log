@@ -154,8 +154,8 @@ export const useLoadSuggestions = (
       const criticalFlags = recommendation.alerts.some((alert) => alert.level === "CRITICAL");
       const maxExercises = 5;
 
-      const suggestions = [...byExercise.entries()]
-        .map(([key, list]) => {
+      const suggestions: LoadSuggestionItem[] = ([...byExercise.entries()]
+        .map(([key, list]): LoadSuggestionItem | null => {
           list.sort((a, b) => (a.date < b.date ? 1 : -1));
           const first = list[0];
           if (!first) return null;

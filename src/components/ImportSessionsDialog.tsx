@@ -641,6 +641,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
             : prev
         );
 
+        let currentStudentId = "";
         try {
           // Atualiza toast com progresso atual
           toast.loading(`Processando sessão ${attempted} de ${totalSessions}`, {
@@ -650,6 +651,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
           
           // Cria ou busca aluno
           const currentStudent = await getOrCreateStudent.mutateAsync(firstRow.aluno);
+          currentStudentId = currentStudent.id;
 
           // Cria sessão com exercícios
           await createSession.mutateAsync({
@@ -686,7 +688,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
             skippedDuplicates++;
             try {
               const merged = await mergeDuplicateSessionData({
-                studentId: currentStudent.id,
+                studentId: currentStudentId,
                 date: firstRow.data,
                 time: firstRow.hora,
                 exercises,
