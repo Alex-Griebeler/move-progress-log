@@ -8,6 +8,8 @@ const OURA_QUERY_ROOTS = [
   "oura-workouts",
   "oura-acute-metrics-latest",
   "oura-trends",
+  "oura-sync-logs",
+  "students-card-data",
 ] as const;
 
 export const invalidateOuraQueries = async (

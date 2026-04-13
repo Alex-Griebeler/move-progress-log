@@ -1,5 +1,5 @@
 -- Create oura_acute_metrics table
-CREATE TABLE public.oura_acute_metrics (
+CREATE TABLE IF NOT EXISTS public.oura_acute_metrics (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   student_id UUID NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
   date DATE NOT NULL,
@@ -30,6 +30,7 @@ CREATE TABLE public.oura_acute_metrics (
 ALTER TABLE public.oura_acute_metrics ENABLE ROW LEVEL SECURITY;
 
 -- RLS policy: trainers access own student metrics
+DROP POLICY IF EXISTS "Trainers access own student acute metrics" ON public.oura_acute_metrics;
 CREATE POLICY "Trainers access own student acute metrics"
   ON public.oura_acute_metrics
   FOR ALL
@@ -42,10 +43,11 @@ CREATE POLICY "Trainers access own student acute metrics"
   );
 
 -- Index for fast lookups
-CREATE INDEX idx_oura_acute_metrics_student_date
+CREATE INDEX IF NOT EXISTS idx_oura_acute_metrics_student_date
   ON public.oura_acute_metrics (student_id, date DESC);
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_oura_acute_metrics_updated_at ON public.oura_acute_metrics;
 CREATE TRIGGER update_oura_acute_metrics_updated_at
   BEFORE UPDATE ON public.oura_acute_metrics
   FOR EACH ROW

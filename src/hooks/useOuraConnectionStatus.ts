@@ -12,6 +12,7 @@ interface OuraConnectionStatus {
 export const useOuraConnectionStatus = (studentId: string) => {
   return useQuery({
     queryKey: ["oura-connection-status", studentId],
+    enabled: !!studentId,
     queryFn: async (): Promise<OuraConnectionStatus> => {
       // Verificar se tem conexão ativa
       const { data: connection, error: connectionError } = await supabase
