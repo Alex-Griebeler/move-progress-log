@@ -32,7 +32,7 @@ export const useLatestOuraAcuteMetrics = (studentId: string) => {
   return useQuery({
     queryKey: ["oura-acute-metrics-latest", studentId],
     enabled: !!studentId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
     gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase

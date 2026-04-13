@@ -65,7 +65,7 @@ export const useOuraMetrics = (studentId: string, limit?: number) => {
   return useQuery({
     queryKey: ["oura-metrics", studentId, limit],
     enabled: !!studentId,
-    staleTime: 5 * 60 * 1000, // Cache por 5 minutos
+    staleTime: 0,
     gcTime: 10 * 60 * 1000, // Manter em cache por 10 minutos
     queryFn: async () => {
       let query = supabase
