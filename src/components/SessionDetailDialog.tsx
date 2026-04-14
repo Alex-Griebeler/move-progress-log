@@ -15,6 +15,7 @@ import { LoadingState } from "./LoadingState";
 import { ErrorState } from "./ErrorState";
 import { useState, useMemo } from "react";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 
 interface SessionDetailDialogProps {
   sessionId: string | null;
@@ -35,6 +36,30 @@ interface SessionExercise {
   observations: string | null;
   is_best_set: boolean | null;
 }
+
+const resolveExerciseLoad = (exercise: SessionExercise): { kg: number | null; text: string | null } => {
+  if (exercise.load_kg !== null && exercise.load_kg !== undefined) {
+    return {
+      kg: exercise.load_kg,
+      text: exercise.load_breakdown || exercise.load_description || null,
+    };
+  }
+
+  const textCandidates = [
+    exercise.load_breakdown?.trim(),
+    exercise.load_description?.trim(),
+    exercise.observations?.trim(),
+  ].filter((value): value is string => Boolean(value));
+
+  for (const candidate of textCandidates) {
+    const parsed = calculateLoadFromBreakdown(candidate);
+    if (parsed !== null) {
+      return { kg: parsed, text: candidate };
+    }
+  }
+
+  return { kg: null, text: textCandidates[0] || null };
+};
 
 export const SessionDetailDialog = ({ 
   sessionId, 
@@ -73,7 +98,7 @@ export const SessionDetailDialog = ({
   const calculateTotalVolume = (): number => {
     if (!session?.exercises) return 0;
     return session.exercises.reduce((total, exercise) => {
-      const load = exercise.load_kg || 0;
+      const load = resolveExerciseLoad(exercise).kg || 0;
       const sets = exercise.sets || 0;
       const reps = exercise.reps || 0;
       return total + (load * sets * reps);
@@ -87,7 +112,7 @@ export const SessionDetailDialog = ({
   };
 
   const getExerciseIntensity = (exercise: SessionExercise): string => {
-    const volume = (exercise.load_kg || 0) * (exercise.sets || 0) * (exercise.reps || 0);
+    const volume = (resolveExerciseLoad(exercise).kg || 0) * (exercise.sets || 0) * (exercise.reps || 0);
     if (volume > 500) return "alta";
     if (volume > 200) return "moderada";
     return "leve";
@@ -352,16 +377,23 @@ export const SessionDetailDialog = ({
                               </TableCell>
                               <TableCell className="text-center">
                                 <div>
-                                  <p className="font-medium">
-                                    {exercise.load_kg !== null && exercise.load_kg !== undefined
-                                      ? `${exercise.load_kg} kg`
-                                      : exercise.load_description || "-"}
-                                  </p>
-                                  {exercise.load_breakdown && (
-                                    <p className="text-xs text-muted-foreground">
-                                      {exercise.load_breakdown}
-                                    </p>
-                                  )}
+                                  {(() => {
+                                    const resolvedLoad = resolveExerciseLoad(exercise);
+                                    return (
+                                      <>
+                                        <p className="font-medium">
+                                          {resolvedLoad.kg !== null
+                                            ? `${resolvedLoad.kg} kg`
+                                            : resolvedLoad.text || "-"}
+                                        </p>
+                                        {resolvedLoad.kg !== null && resolvedLoad.text && (
+                                          <p className="text-xs text-muted-foreground">
+                                            {resolvedLoad.text}
+                                          </p>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
                                 </div>
                               </TableCell>
                               <TableCell className="text-center">
