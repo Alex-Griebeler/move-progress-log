@@ -14,6 +14,7 @@ import {
   parseErrorInfo,
   type ParsedErrorInfo,
 } from "@/utils/errorParsing";
+import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 
 type SpreadsheetRow = Record<string, unknown>;
 
@@ -349,6 +350,14 @@ const mergeDuplicateSessionData = async (params: {
     const { imported, existing } = pair;
 
     const patch: Record<string, unknown> = {};
+    const normalizedLoadDescription = imported.cargaDescricao?.trim() || "";
+    const normalizedObservation = imported.observacoes?.trim() || "";
+    const parsedLoadFromDescription = normalizedLoadDescription
+      ? calculateLoadFromBreakdown(normalizedLoadDescription)
+      : null;
+    const parsedLoadFromObservation = normalizedObservation
+      ? calculateLoadFromBreakdown(normalizedObservation)
+      : null;
 
     if (
       (existing.sets === null || existing.sets === undefined || existing.sets <= 0) &&
@@ -366,18 +375,38 @@ const mergeDuplicateSessionData = async (params: {
       patch.load_kg = imported.carga;
     }
     if (
-      (!existing.load_description || !existing.load_description.trim()) &&
-      imported.cargaDescricao &&
-      imported.cargaDescricao.trim()
+      (existing.load_kg === null || existing.load_kg === undefined) &&
+      patch.load_kg === undefined &&
+      parsedLoadFromDescription !== null
     ) {
-      patch.load_description = imported.cargaDescricao.trim();
+      patch.load_kg = parsedLoadFromDescription;
+    }
+    if (
+      (existing.load_kg === null || existing.load_kg === undefined) &&
+      patch.load_kg === undefined &&
+      parsedLoadFromObservation !== null
+    ) {
+      patch.load_kg = parsedLoadFromObservation;
+    }
+    if (
+      (!existing.load_description || !existing.load_description.trim()) &&
+      normalizedLoadDescription
+    ) {
+      patch.load_description = normalizedLoadDescription;
+    }
+    if (
+      (!existing.load_description || !existing.load_description.trim()) &&
+      patch.load_description === undefined &&
+      parsedLoadFromObservation !== null &&
+      normalizedObservation
+    ) {
+      patch.load_description = normalizedObservation;
     }
     if (
       (!existing.observations || !existing.observations.trim()) &&
-      imported.observacoes &&
-      imported.observacoes.trim()
+      normalizedObservation
     ) {
-      patch.observations = imported.observacoes.trim();
+      patch.observations = normalizedObservation;
     }
 
     if (Object.keys(patch).length === 0) continue;
@@ -410,7 +439,9 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] }),
       queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] }),
       queryClient.invalidateQueries({ queryKey: ["all-sessions"] }),
+      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] }),
       queryClient.invalidateQueries({ queryKey: ["session-exercises"] }),
+      queryClient.invalidateQueries({ queryKey: ["session-detail"] }),
       queryClient.invalidateQueries({ queryKey: ["students"] }),
       queryClient.invalidateQueries({ queryKey: ["students-card-data"] }),
     ]);
