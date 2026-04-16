@@ -120,6 +120,9 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
           .order("id")
           .range(from, to);
 
+        if (normalizedFilters.search) {
+          query = query.ilike("name", `%${normalizedFilters.search}%`);
+        }
         if (normalizedFilters.movement_pattern) {
           query = query.eq("movement_pattern", normalizedFilters.movement_pattern);
         }

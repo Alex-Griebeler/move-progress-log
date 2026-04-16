@@ -1,4 +1,5 @@
 export interface ExerciseFilters {
+  search?: string;
   movement_pattern?: string;
   laterality?: string;
   movement_plane?: string;
@@ -26,6 +27,7 @@ export const sanitizeExerciseFilters = (filters?: ExerciseFilters): ExerciseFilt
   if (!filters) return {};
 
   return {
+    search: normalizeFilterValue(filters.search),
     movement_pattern: normalizeFilterValue(filters.movement_pattern),
     laterality: normalizeFilterValue(filters.laterality),
     movement_plane: normalizeFilterValue(filters.movement_plane),
