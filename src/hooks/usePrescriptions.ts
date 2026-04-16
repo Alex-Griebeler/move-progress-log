@@ -310,6 +310,11 @@ export const useAssignPrescription = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
+      queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
+      queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["students-active-prescriptions"] });
       notify.success(i18n.modules.prescriptions.assigned);
     },
     onError: (error: Error & { code?: string }) => {

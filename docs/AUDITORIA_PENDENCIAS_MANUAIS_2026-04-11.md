@@ -1,5 +1,28 @@
 # Auditoria Essencial — Pendências Manuais (2026-04-11)
 
+## Atualização de status (2026-04-16)
+- `main` atualizado com os dois pacotes mais recentes:
+  - `873d711` — hardening do sync/callback Oura (`PR #23`)
+  - `cb70683` — robustez de import/sessões legadas (`PR #24`)
+- Escopo de importação/sessões atualizado sem regressão de schema/RLS/edge auth:
+  - enriquecimento de duplicadas (fallback de carga por texto);
+  - invalidação extra de cache para refletir dados imediatamente;
+  - renderização de carga em sessões antigas quando `load_kg` vier nulo.
+- Pendência local fora do escopo desta rodada (ainda não integrada):
+  - `src/components/AssignPrescriptionDialog.tsx` (ajuste isolado de fluxo de atribuição).
+
+## Pendências manuais atuais (fonte única)
+1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
+2. Reimportar planilha duplicada e confirmar:
+   - duplicadas ignoradas sem erro;
+   - enriquecimento de `sets/reps/carga` aplicado quando houver dados faltantes.
+3. Smoke funcional autenticado:
+   - geração de relatório em `/alunos/:studentId/relatorios`;
+   - exportação de PDF.
+4. Decidir integração da alteração pendente em `AssignPrescriptionDialog.tsx`:
+   - integrar via PR dedicado, ou
+   - descartar se já substituída por outra solução em produção.
+
 ## Escopo concluído automaticamente
 - Correções de estabilidade e consistência em UI Oura, importação Excel, motor de recomendação e debug panel.
 - Validações automáticas executadas com sucesso:
