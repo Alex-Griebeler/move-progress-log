@@ -8,8 +8,8 @@
   - enriquecimento de duplicadas (fallback de carga por texto);
   - invalidação extra de cache para refletir dados imediatamente;
   - renderização de carga em sessões antigas quando `load_kg` vier nulo.
-- Pendência local fora do escopo desta rodada (ainda não integrada):
-  - `src/components/AssignPrescriptionDialog.tsx` (ajuste isolado de fluxo de atribuição).
+- Pendência local de atribuição resolvida e integrada:
+  - `127c722` (`PR #26`) — correção do fechamento acidental do dialog ao selecionar período.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
@@ -19,9 +19,6 @@
 3. Smoke funcional autenticado:
    - geração de relatório em `/alunos/:studentId/relatorios`;
    - exportação de PDF.
-4. Decidir integração da alteração pendente em `AssignPrescriptionDialog.tsx`:
-   - integrar via PR dedicado, ou
-   - descartar se já substituída por outra solução em produção.
 
 ## Escopo concluído automaticamente
 - Correções de estabilidade e consistência em UI Oura, importação Excel, motor de recomendação e debug panel.
