@@ -78,7 +78,10 @@ export default function ExercisesLibraryPage() {
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
   const [isPopulating, setIsPopulating] = useState(false);
 
-  const { data: exercises, isLoading, refetch } = useExercisesLibrary(filters);
+  const { data: exercises, isLoading, refetch } = useExercisesLibrary({
+    ...filters,
+    search: searchTerm || undefined,
+  });
   const deleteExercise = useDeleteExercise();
 
   const handlePopulateDatabase = async () => {
@@ -116,9 +119,7 @@ export default function ExercisesLibraryPage() {
 
   const hasActiveFilters = Object.values(filters).some((v) => v) || searchTerm;
 
-  const filteredExercises = exercises?.filter((exercise) =>
-    exercise.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredExercises = exercises;
 
   return (
     <PageLayout
