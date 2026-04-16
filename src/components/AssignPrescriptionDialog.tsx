@@ -31,6 +31,7 @@ export function AssignPrescriptionDialog({
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
   const [time, setTime] = useState("");
+  const [periodPickerOpen, setPeriodPickerOpen] = useState(false);
 
   const weekdays = [
     { value: "monday", label: "Seg" },
@@ -44,6 +45,19 @@ export function AssignPrescriptionDialog({
 
   const { data: students } = useStudents();
   const assignPrescription = useAssignPrescription();
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    // Evita fechamento acidental do dialog enquanto o calendário em popover está aberto.
+    if (!nextOpen && periodPickerOpen) {
+      return;
+    }
+    onOpenChange(nextOpen);
+  };
+
+  const closeDialog = () => {
+    setPeriodPickerOpen(false);
+    onOpenChange(false);
+  };
 
   const toggleStudent = (studentId: string) => {
     setSelectedStudents((prev) =>
@@ -87,17 +101,23 @@ export function AssignPrescriptionDialog({
       setDateRange(undefined);
       setSelectedWeekdays([]);
       setTime("");
-      onOpenChange(false);
+      closeDialog();
     } catch {
       // Error handled by mutation's onError callback
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         className="max-w-md"
         onInteractOutside={(event) => {
+          event.preventDefault();
+        }}
+        onPointerDownOutside={(event) => {
+          event.preventDefault();
+        }}
+        onFocusOutside={(event) => {
           event.preventDefault();
         }}
       >
@@ -131,7 +151,7 @@ export function AssignPrescriptionDialog({
 
           <div className="space-y-sm">
             <Label>Período da Prescrição (opcional)</Label>
-            <Popover>
+            <Popover open={periodPickerOpen} onOpenChange={setPeriodPickerOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -205,7 +225,7 @@ export function AssignPrescriptionDialog({
         </div>
 
         <div className="flex justify-end gap-sm pt-lg border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={closeDialog}>
             Cancelar
           </Button>
           <Button
