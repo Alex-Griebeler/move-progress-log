@@ -150,6 +150,7 @@ export function useAllSessionsPaginated(filters?: SessionFilters) {
       const query = buildSessionQuery(filters)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
+        .order("id", { ascending: false })
         .range(from, to);
 
       const { data, error } = await query;

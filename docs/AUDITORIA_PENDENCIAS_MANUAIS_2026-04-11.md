@@ -46,6 +46,9 @@
   - criado helper compartilhado `supabase/functions/_shared/auth.ts` para validação consistente de `service_role` ou JWT com `user_roles`;
   - `oura-sync-all`, `oura-sync-scheduled` e `import-exercises` migradas para o helper;
   - sem alteração de regra de acesso, somente redução de divergência entre endpoints.
+- Estabilidade/performance em listagem de sessões:
+  - paginação infinita de sessões agora ordena também por `id` (desempate estável entre páginas);
+  - `useWorkoutSessions` e `useSessionExercises` com `staleTime/gcTime/refetchOnMount` ajustados para reduzir refetch desnecessário e cliques lentos.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

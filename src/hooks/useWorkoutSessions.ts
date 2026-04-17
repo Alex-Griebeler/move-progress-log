@@ -167,6 +167,9 @@ const createSessionWithDirectInsert = async (params: {
 export const useWorkoutSessions = (studentId?: string) => {
   return useQuery({
     queryKey: ["workout-sessions", studentId],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       if (studentId) {
         const allStudentSessions: WorkoutSessionRow[] = [];
@@ -211,6 +214,9 @@ export const useSessionExercises = (sessionId: string | null) => {
   return useQuery({
     queryKey: ["session-exercises", sessionId],
     enabled: !!sessionId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       if (!sessionId) return [];
 
