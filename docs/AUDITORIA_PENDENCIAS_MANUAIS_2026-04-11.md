@@ -22,6 +22,9 @@
   - remove consulta N+1 de prescrições por exercício na página de comparação;
   - estabiliza `queryKey` com listas ordenadas/deduplicadas para reduzir refetch desnecessário;
   - preserva comportamento funcional (apenas aceleração e consistência de cache).
+- `PR #29` atualizado com robustez de erro em comparação:
+  - queries de sessões/prescrições/exercícios agora falham explicitamente (sem fallback silencioso);
+  - UI exibe erro claro quando a comparação não consegue carregar dados.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

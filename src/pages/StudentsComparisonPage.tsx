@@ -116,7 +116,7 @@ const StudentsComparisonPage = () => {
     },
   });
 
-  const { data: studentsStats, isLoading: statsLoading } = useQuery({
+  const { data: studentsStats, isLoading: statsLoading, error: statsError } = useQuery<StudentStats[]>({
     queryKey: [
       "students-comparison-stats",
       normalizedSelectedStudents,
@@ -141,12 +141,15 @@ const StudentsComparisonPage = () => {
             sessionsQuery = sessionsQuery.lte("date", endDateKey);
           }
 
-          const { data: sessions } = await sessionsQuery.order("date", { ascending: false });
-          const { data: assignmentRows } = await supabase
+          const { data: sessions, error: sessionsError } = await sessionsQuery.order("date", { ascending: false });
+          if (sessionsError) throw sessionsError;
+
+          const { data: assignmentRows, error: assignmentsError } = await supabase
             .from("prescription_assignments")
             .select("start_date, end_date, prescription_id, prescription:workout_prescriptions(name)")
             .eq("student_id", studentId)
             .order("start_date", { ascending: false });
+          if (assignmentsError) throw assignmentsError;
 
           const assignments = (assignmentRows || []) as AssignmentRangeRow[];
 
@@ -196,7 +199,8 @@ const StudentsComparisonPage = () => {
             exercisesQuery = exercisesQuery.in("exercise_name", normalizedSelectedExercises);
           }
 
-          const { data: exercisesData } = await exercisesQuery;
+          const { data: exercisesData, error: exercisesError } = await exercisesQuery;
+          if (exercisesError) throw exercisesError;
           const sessionById = new Map(filteredSessions.map((session) => [session.id, session]));
 
           const resolvePrescriptionNameByDate = (sessionDate: string): string => {
@@ -559,7 +563,11 @@ const StudentsComparisonPage = () => {
                         </div>
                       </CardHeader>
                        <CardContent>
-                         {statsLoading ? (
+                         {statsError ? (
+                           <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                             Erro ao carregar comparação. Atualize a página e tente novamente.
+                           </div>
+                         ) : statsLoading ? (
                            <LoadingSpinner size="sm" text="Carregando estatísticas..." />
                          ) : (
                           <Tabs defaultValue="summary" className="w-full">
