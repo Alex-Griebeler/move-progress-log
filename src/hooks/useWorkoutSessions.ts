@@ -297,6 +297,7 @@ export const useCreateWorkoutSession = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
 
       if (!variables.silent) {
         notify.success(workoutKeys.sessionCreated, {
@@ -433,6 +434,7 @@ export const useCreateGroupWorkoutSessions = () => {
     onSuccess: (results) => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
       
       const successResults = results.filter(r => r.success);
       const failedResults = results.filter(r => !r.success);
@@ -481,6 +483,7 @@ export const useReopenWorkoutSession = () => {
       queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
       queryClient.invalidateQueries({ queryKey: ["session-detail"] });
       queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
       queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
       
       notify.success("Sessão reaberta com sucesso", {
@@ -517,6 +520,7 @@ export const useFinalizeWorkoutSession = () => {
       queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
       queryClient.invalidateQueries({ queryKey: ["session-detail"] });
       queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
       queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
       
       notify.success("Sessão finalizada", {
