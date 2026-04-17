@@ -269,6 +269,8 @@ export const useCreatePrescription = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
+      queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
       notify.success(i18n.modules.prescriptions.created);
     },
     onError: (error) => {
@@ -409,6 +411,10 @@ export const useUpdatePrescription = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
       queryClient.invalidateQueries({ queryKey: ["prescription"] });
+      queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
+      queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
+      queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["students-active-prescriptions"] });
       notify.success(i18n.modules.prescriptions.updated);
     },
     onError: (error) => {
@@ -461,6 +467,9 @@ export const useDeletePrescriptionAssignment = () => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
+      queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
+      queryClient.invalidateQueries({ queryKey: ["students-active-prescriptions"] });
       // INC-009: usando chaves i18n
       notify.success(i18n.modules.prescriptions.deleted);
     },
@@ -486,6 +495,10 @@ export const useDeletePrescription = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
+      queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
+      queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["students-active-prescriptions"] });
       notify.success(i18n.modules.prescriptions.deleted);
     },
     onError: (error) => {
