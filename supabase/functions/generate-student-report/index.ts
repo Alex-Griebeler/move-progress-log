@@ -59,6 +59,12 @@ interface ExerciseLibraryRow {
   movement_pattern?: string | null;
 }
 
+interface ExerciseLibraryPatternRow {
+  name: string;
+  movement_pattern: string | null;
+  category: string | null;
+}
+
 interface OuraMetricsRow {
   date: string;
   readiness_score: number | null;
@@ -412,6 +418,19 @@ serve(async (req) => {
       basis: "program" | "timeline" | "insufficient";
     }> = [];
 
+    const executedNames = new Set(
+      allExecutions.map((execution) => normalizeComparableText(execution.exercise_name))
+    );
+    const selectedButNotExecuted = eligibleTrackedExercises.filter(
+      (exercise) => !executedNames.has(normalizeComparableText(exercise.name))
+    );
+    if (selectedButNotExecuted.length > 0) {
+      return jsonResponse(400, {
+        error:
+          "Selecione apenas exercícios de força/hipertrofia executados no período.",
+      });
+    }
+
     const insertTrackedExerciseRow = async ({
       exerciseLibraryId,
       exerciseName,
@@ -601,14 +620,20 @@ serve(async (req) => {
 
     const { data: libraryPatternRows } = await supabase
       .from("exercises_library")
-      .select("name, movement_pattern");
+      .select("name, movement_pattern, category");
 
-    const patternByExerciseName = new Map<string, string>();
-    for (const row of (libraryPatternRows || []) as Array<{ name: string; movement_pattern: string | null }>) {
+    const patternByExerciseName = new Map<
+      string,
+      { movementPattern: string | null; category: string | null }
+    >();
+    for (const row of (libraryPatternRows || []) as ExerciseLibraryPatternRow[]) {
       if (!row?.name) continue;
       const normalizedName = normalizeComparableText(row.name);
-      if (!patternByExerciseName.has(normalizedName) && row.movement_pattern) {
-        patternByExerciseName.set(normalizedName, row.movement_pattern);
+      if (!patternByExerciseName.has(normalizedName)) {
+        patternByExerciseName.set(normalizedName, {
+          movementPattern: row.movement_pattern ?? null,
+          category: row.category ?? null,
+        });
       }
     }
 
@@ -623,7 +648,11 @@ serve(async (req) => {
       const current = weeklyBuckets.get(weekNumber) || { push: 0, pull: 0, knee: 0, hip: 0 };
       for (const exercise of session.exercises || []) {
         const normalizedName = normalizeComparableText(exercise.exercise_name || "");
-        const movementPattern = patternByExerciseName.get(normalizedName) || null;
+        const exerciseMeta = patternByExerciseName.get(normalizedName);
+        if (!exerciseMeta || !isEligibleStrengthCategory(exerciseMeta.category)) {
+          continue;
+        }
+        const movementPattern = exerciseMeta.movementPattern;
         const bucket = mapMovementBucket(movementPattern);
         if (!bucket) {
           unknownPatternExecutions += 1;
