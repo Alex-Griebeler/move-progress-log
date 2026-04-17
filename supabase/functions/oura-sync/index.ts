@@ -731,10 +731,13 @@ Deno.serve(async (req) => {
     }
 
     // Update last_sync_at
-    await supabaseClient
+    const { error: lastSyncUpdateError } = await supabaseClient
       .from('oura_connections')
       .update({ last_sync_at: new Date().toISOString() })
       .eq('id', connection.id);
+    if (lastSyncUpdateError) {
+      console.warn('Failed to update last_sync_at after sync:', lastSyncUpdateError.message);
+    }
 
     if (DEBUG) console.log('Oura sync completed for', syncDate);
 

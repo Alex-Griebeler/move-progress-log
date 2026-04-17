@@ -29,6 +29,9 @@
   - `useExercisesLibrary` com `staleTime/gcTime` e `refetchOnMount=false`;
   - comparação de alunos com cache estável para listas de exercícios/prescrições;
   - objetivo: reduzir latência percebida em cliques/navegação.
+- Hardening de observabilidade no sync Oura:
+  - adicionada verificação explícita de erro ao atualizar `last_sync_at` no final da rotina;
+  - melhora diagnóstico quando a coleta salva métricas mas o marcador de sincronização não atualiza.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
