@@ -23,16 +23,18 @@ export const useStudentPrescriptions = (studentId: string) => {
 };
 
 export const useStudentsWithActivePrescriptions = (studentIds: string[]) => {
+  const normalizedStudentIds = Array.from(new Set(studentIds)).sort();
+
   return useQuery({
-    queryKey: ["students-active-prescriptions", studentIds],
-    enabled: studentIds.length > 0,
+    queryKey: ["students-active-prescriptions", normalizedStudentIds],
+    enabled: normalizedStudentIds.length > 0,
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       
       const { data: assignments, error } = await supabase
         .from("prescription_assignments")
         .select("student_id")
-        .in("student_id", studentIds)
+        .in("student_id", normalizedStudentIds)
         .lte("start_date", today)
         .or(`end_date.is.null,end_date.gte.${today}`);
 

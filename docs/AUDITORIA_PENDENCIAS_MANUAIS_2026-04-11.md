@@ -11,6 +11,18 @@
 - Pendência local de atribuição resolvida e integrada:
   - `127c722` (`PR #26`) — correção do fechamento acidental do dialog ao selecionar período.
 
+## Atualização de status (2026-04-17)
+- `PR #29` aberto: hardening do backend de relatório para consistência entre UI e edge function.
+  - branch: `codex/report-generation-consistency-20260417`
+  - commit: `968159e`
+  - mudanças:
+    - bloqueia geração quando o payload inclui exercício não executado no período;
+    - aplica regra mecânica apenas sobre exercícios elegíveis (força/hipertrofia), reduzindo ruído de classificação.
+- `PR #29` atualizado com otimização de performance em comparação/prescrições:
+  - remove consulta N+1 de prescrições por exercício na página de comparação;
+  - estabiliza `queryKey` com listas ordenadas/deduplicadas para reduzir refetch desnecessário;
+  - preserva comportamento funcional (apenas aceleração e consistência de cache).
+
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
 2. Reimportar planilha duplicada e confirmar:
