@@ -84,6 +84,7 @@ export const useWorkouts = () => {
         `)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
+        .order("id", { ascending: false })
         .limit(PAGE_SIZE);
       
       if (error) throw error;
@@ -112,6 +113,9 @@ export const useWorkouts = () => {
 export const useWorkoutsPaginated = () => {
   return useInfiniteQuery({
     queryKey: ["workouts-paginated"],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * PAGE_SIZE;
@@ -126,6 +130,7 @@ export const useWorkoutsPaginated = () => {
         `)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
+        .order("id", { ascending: false })
         .range(from, to);
 
       if (error) throw error;
@@ -213,8 +218,13 @@ export const useCreateWorkout = () => {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["workouts-paginated"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
       queryClient.invalidateQueries({ queryKey: ["workout-sessions", variables.studentId] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
       
       notify.success(workoutKeys.created, {
         description: `${variables.exercises.length} ${workoutKeys.exercisesSaved}`,
