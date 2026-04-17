@@ -209,6 +209,7 @@ export const useDeleteStudent = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["student"] });
       notify.success(i18n.modules.students.deleted);
     },
     onError: (error: Error) => {
