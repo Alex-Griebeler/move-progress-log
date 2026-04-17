@@ -18,6 +18,10 @@
   - mudanças:
     - bloqueia geração quando o payload inclui exercício não executado no período;
     - aplica regra mecânica apenas sobre exercícios elegíveis (força/hipertrofia), reduzindo ruído de classificação.
+- `PR #29` atualizado com otimização de performance em comparação/prescrições:
+  - remove consulta N+1 de prescrições por exercício na página de comparação;
+  - estabiliza `queryKey` com listas ordenadas/deduplicadas para reduzir refetch desnecessário;
+  - preserva comportamento funcional (apenas aceleração e consistência de cache).
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
