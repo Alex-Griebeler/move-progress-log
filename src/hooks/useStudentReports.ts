@@ -145,6 +145,12 @@ export const useGenerateReport = () => {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["student-reports", variables.studentId] });
+      const reportId =
+        isRecord(data) && typeof data.reportId === "string" ? data.reportId : null;
+      if (reportId) {
+        queryClient.invalidateQueries({ queryKey: ["student-report", reportId] });
+        queryClient.invalidateQueries({ queryKey: ["report-tracked-exercises", reportId] });
+      }
       toast.success("Relatório gerado com sucesso!");
     },
     onError: (error: Error) => {
