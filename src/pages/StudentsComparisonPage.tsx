@@ -44,6 +44,13 @@ interface StudentStats {
   }>;
 }
 
+interface AssignmentRangeRow {
+  start_date: string;
+  end_date: string | null;
+  prescription_id: string;
+  prescription: { name: string } | null;
+}
+
 const StudentsComparisonPage = () => {
   usePageTitle(NAV_LABELS.studentsComparison);
   useSEOHead(SEO_PRESETS.private);
@@ -76,6 +83,16 @@ const StudentsComparisonPage = () => {
   const [exerciseSearchQuery, setExerciseSearchQuery] = useState<string>("");
   
   const { data: students, isLoading: studentsLoading } = useStudents();
+  const normalizedSelectedStudents = useMemo(
+    () => Array.from(new Set(selectedStudents)).sort(),
+    [selectedStudents]
+  );
+  const normalizedSelectedExercises = useMemo(
+    () => Array.from(new Set(selectedExercises)).sort(),
+    [selectedExercises]
+  );
+  const startDateKey = startDate ? format(startDate, "yyyy-MM-dd") : null;
+  const endDateKey = endDate ? format(endDate, "yyyy-MM-dd") : null;
 
   const { data: exercises } = useQuery({
     queryKey: ["exercises-library"],
@@ -100,42 +117,61 @@ const StudentsComparisonPage = () => {
   });
 
   const { data: studentsStats, isLoading: statsLoading } = useQuery({
-    queryKey: ["students-comparison-stats", selectedStudents, startDate, endDate, selectedExercises, selectedPrescription],
-    enabled: selectedStudents.length > 0,
+    queryKey: [
+      "students-comparison-stats",
+      normalizedSelectedStudents,
+      startDateKey,
+      endDateKey,
+      normalizedSelectedExercises,
+      selectedPrescription,
+    ],
+    enabled: normalizedSelectedStudents.length > 0,
     queryFn: async () => {
       const stats = await Promise.all(
-        selectedStudents.map(async (studentId) => {
+        normalizedSelectedStudents.map(async (studentId) => {
           let sessionsQuery = supabase
             .from("workout_sessions")
             .select("id, date")
             .eq("student_id", studentId);
 
-          if (startDate) {
-            sessionsQuery = sessionsQuery.gte("date", format(startDate, "yyyy-MM-dd"));
+          if (startDateKey) {
+            sessionsQuery = sessionsQuery.gte("date", startDateKey);
           }
-          if (endDate) {
-            sessionsQuery = sessionsQuery.lte("date", format(endDate, "yyyy-MM-dd"));
+          if (endDateKey) {
+            sessionsQuery = sessionsQuery.lte("date", endDateKey);
           }
 
           const { data: sessions } = await sessionsQuery.order("date", { ascending: false });
+          const { data: assignmentRows } = await supabase
+            .from("prescription_assignments")
+            .select("start_date, end_date, prescription_id, prescription:workout_prescriptions(name)")
+            .eq("student_id", studentId)
+            .order("start_date", { ascending: false });
+
+          const assignments = (assignmentRows || []) as AssignmentRangeRow[];
 
           let filteredSessions = sessions || [];
           if (selectedPrescription !== "all") {
-            const { data: assignments } = await supabase
-              .from("prescription_assignments")
-              .select("start_date, end_date")
-              .eq("student_id", studentId)
-              .eq("prescription_id", selectedPrescription);
+            const selectedAssignments = assignments.filter(
+              (assignment) => assignment.prescription_id === selectedPrescription
+            );
 
-            if (assignments && assignments.length > 0) {
+            if (selectedAssignments.length > 0) {
               filteredSessions = filteredSessions.filter((session) => {
-                return assignments.some((assignment) => {
+                return selectedAssignments.some((assignment) => {
                   const sessionDate = new Date(session.date);
-                  const startDate = new Date(assignment.start_date);
-                  const endDate = assignment.end_date ? new Date(assignment.end_date) : new Date();
-                  return sessionDate >= startDate && sessionDate <= endDate;
+                  const assignmentStartDate = new Date(assignment.start_date);
+                  const assignmentEndDate = assignment.end_date
+                    ? new Date(assignment.end_date)
+                    : new Date();
+                  return (
+                    sessionDate >= assignmentStartDate &&
+                    sessionDate <= assignmentEndDate
+                  );
                 });
               });
+            } else {
+              filteredSessions = [];
             }
           }
 
@@ -156,34 +192,41 @@ const StudentsComparisonPage = () => {
             .select("load_kg, reps, session_id, exercise_name, load_description")
             .in("session_id", filteredSessions.map(s => s.id));
 
-          if (selectedExercises.length > 0) {
-            exercisesQuery = exercisesQuery.in("exercise_name", selectedExercises);
+          if (normalizedSelectedExercises.length > 0) {
+            exercisesQuery = exercisesQuery.in("exercise_name", normalizedSelectedExercises);
           }
 
           const { data: exercisesData } = await exercisesQuery;
+          const sessionById = new Map(filteredSessions.map((session) => [session.id, session]));
 
-          const exerciseDetails = await Promise.all(
-            (exercisesData || []).map(async (exercise) => {
-              const session = filteredSessions.find(s => s.id === exercise.session_id);
-              
-              const { data: assignment } = await supabase
-                .from("prescription_assignments")
-                .select("prescription:workout_prescriptions(name)")
-                .eq("student_id", studentId)
-                .lte("start_date", session?.date || "")
-                .or(`end_date.gte.${session?.date},end_date.is.null`)
-                .maybeSingle();
+          const resolvePrescriptionNameByDate = (sessionDate: string): string => {
+            const targetDate = new Date(sessionDate);
+            const match = assignments.find((assignment) => {
+              const assignmentStartDate = new Date(assignment.start_date);
+              const assignmentEndDate = assignment.end_date
+                ? new Date(assignment.end_date)
+                : new Date();
+              return (
+                targetDate >= assignmentStartDate &&
+                targetDate <= assignmentEndDate
+              );
+            });
+            return match?.prescription?.name || "Sem prescrição";
+          };
 
-              return {
-                exerciseName: exercise.exercise_name,
-                load: exercise.load_kg || 0,
-                reps: exercise.reps || 0,
-                date: session?.date || "",
-                prescription: assignment?.prescription?.name || "Sem prescrição",
-                loadDescription: exercise.load_description || null,
-              };
-            })
-          );
+          const exerciseDetails = (exercisesData || []).map((exercise) => {
+            const session = sessionById.get(exercise.session_id);
+            return {
+              exerciseName: exercise.exercise_name,
+              load: exercise.load_kg || 0,
+              reps: exercise.reps || 0,
+              date: session?.date || "",
+              prescription: session?.date
+                ? resolvePrescriptionNameByDate(session.date)
+                : "Sem prescrição",
+              loadDescription: exercise.load_description || null,
+            };
+          });
 
           const totalVolume = exercisesData?.reduce((sum, ex) => {
             return sum + ((ex.load_kg || 0) * (ex.reps || 0));
@@ -193,20 +236,12 @@ const StudentsComparisonPage = () => {
             ? exercisesData.reduce((sum, ex) => sum + (ex.load_kg || 0), 0) / exercisesData.length
             : 0;
 
-          const { data: prescription } = await supabase
-            .from("prescription_assignments")
-            .select("prescription:workout_prescriptions(name)")
-            .eq("student_id", studentId)
-            .order("start_date", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
           return {
             studentId,
             totalSessions: filteredSessions.length,
             totalVolume: Math.round(totalVolume),
             lastSessionDate: filteredSessions[0]?.date || null,
-            activePrescription: prescription?.prescription?.name || null,
+            activePrescription: assignments[0]?.prescription?.name || null,
             avgLoad: Math.round(avgLoad * 10) / 10,
             exerciseDetails: exerciseDetails.sort((a, b) => 
               new Date(b.date).getTime() - new Date(a.date).getTime()
