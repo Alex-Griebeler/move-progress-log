@@ -258,10 +258,14 @@ function mapSpreadsheetPlane(plano?: string): string {
 
 function mapSpreadsheetRisk(risco?: string): string | null {
     if (!risco) return null;
-    const r = risco.toLowerCase().trim();
+    const r = risco
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
     if (r.includes("baixo") || r === "low") return "low";
     if (r.includes("alto") || r === "high") return "high";
-    if (r.includes("medio") || r.includes("medio") || r === "medium") return "medium";
+    if (r.includes("medio") || r === "medium") return "medium";
     return null;
 }
 

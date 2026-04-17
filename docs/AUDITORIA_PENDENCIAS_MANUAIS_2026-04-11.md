@@ -32,6 +32,9 @@
 - Hardening de observabilidade no sync Oura:
   - adicionada verificação explícita de erro ao atualizar `last_sync_at` no final da rotina;
   - melhora diagnóstico quando a coleta salva métricas mas o marcador de sincronização não atualiza.
+- Ajuste de catalogação/import de exercícios:
+  - parser de risco (`mapSpreadsheetRisk`) agora normaliza acentos;
+  - evita perder classificação de risco quando planilha vier com `médio`.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
