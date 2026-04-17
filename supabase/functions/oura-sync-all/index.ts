@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { authenticateServiceRoleOrUserRole } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,77 +21,24 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const authResult = await authenticateServiceRoleOrUserRole(req, {
+      corsHeaders,
+      allowedRoles: ['admin'],
+      missingAuthMessage: 'Missing or invalid authorization header',
+      invalidTokenMessage: 'Invalid or expired token',
+      forbiddenMessage: 'Admin privileges required for this operation',
+    });
 
-    // --- Authentication ---
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Missing or invalid authorization header' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
+    if (authResult instanceof Response) {
+      return authResult;
     }
 
-    const token = authHeader.replace('Bearer ', '').trim();
-    if (!token) {
-      return new Response(
-        JSON.stringify({ error: 'Missing or invalid authorization header' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-      );
-    }
+    const { supabaseUrl, supabaseServiceKey: supabaseKey, isServiceRole, userId } = authResult;
 
-    // SECURITY: only accept real service role key, never JWT payload role spoofing.
-    const isServiceRole = token === supabaseKey;
-
-    if (!isServiceRole) {
-      // Validate user JWT via auth.getUser()
-      const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: authHeader } }
-      });
-
-      const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
-      if (userError || !userData?.user) {
-        console.error('Auth failed:', userError?.message);
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired token' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-        );
-      }
-
-      const userId = userData.user.id;
-
-      // Create service role client for privileged operations
-      const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
-
-      // Check admin role
-      const { data: roleData, error: roleError } = await supabaseAdmin
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('role', 'admin')
-        .maybeSingle();
-
-      if (roleError) {
-        console.error('Error checking role:', roleError.message);
-        return new Response(
-          JSON.stringify({ error: 'Failed to verify permissions' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
-      }
-
-      if (!roleData) {
-        console.warn(`Unauthorized sync attempt by user: ${userId}`);
-        return new Response(
-          JSON.stringify({ error: 'Admin privileges required for this operation' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
-        );
-      }
-
-      console.log(`Admin ${userId} initiated Oura sync for all students`);
-    } else {
+    if (isServiceRole) {
       console.log('Service role initiated Oura sync for all students');
+    } else {
+      console.log(`Admin ${userId} initiated Oura sync for all students`);
     }
 
     // --- Sync Logic ---

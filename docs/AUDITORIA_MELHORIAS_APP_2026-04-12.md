@@ -858,6 +858,24 @@ Referência de pendências manuais (UI autenticada):
 - Mantém funcionalidades de importação Excel e exportação PDF somente sob demanda.
 - Mantém warning apenas para bibliotecas intrinsicamente grandes (`exceljs` e `@react-pdf/pdfkit`), sem impactar rota inicial.
 
+### Padronização de autenticação em edge functions críticas
+- `supabase/functions/_shared/auth.ts`
+- `supabase/functions/oura-sync-all/index.ts`
+- `supabase/functions/oura-sync-scheduled/index.ts`
+- `supabase/functions/import-exercises/index.ts`
+
+**Ajuste aplicado**
+- Criado helper compartilhado para autenticação de funções com `verify_jwt=false`:
+  - aceita `service_role` real;
+  - aceita JWT válido apenas se usuário possuir role permitida em `user_roles`.
+- `oura-sync-all` e `oura-sync-scheduled` migradas para regra unificada (admin ou service_role).
+- `import-exercises` migrada para regra unificada (admin/trainer ou service_role).
+
+**Impacto**
+- Reduz risco de drift de segurança entre endpoints.
+- Mantém mesmos códigos HTTP e mesmas regras de autorização já praticadas.
+- Facilita manutenção e revisão de segurança nos próximos lotes.
+
 ---
 
 ## Backlog recomendado (prioridade)

@@ -42,6 +42,10 @@
 - Consistência de cache em prescrição:
   - mutations de criar/editar/excluir prescrição e excluir atribuição agora invalidam também `prescription-search`, `prescriptions-list` e `students-active-prescriptions`;
   - reduz estado stale após operações de prescrição.
+- Hardening de autenticação nas edge functions críticas (`verify_jwt=false`):
+  - criado helper compartilhado `supabase/functions/_shared/auth.ts` para validação consistente de `service_role` ou JWT com `user_roles`;
+  - `oura-sync-all`, `oura-sync-scheduled` e `import-exercises` migradas para o helper;
+  - sem alteração de regra de acesso, somente redução de divergência entre endpoints.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

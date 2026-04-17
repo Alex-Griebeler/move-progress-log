@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
+import { authenticateServiceRoleOrUserRole } from "../_shared/auth.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -334,59 +335,18 @@ Deno.serve(async (req: Request) => {
              try {
                    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
                    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-                   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
                    const supabase = createClient(supabaseUrl, serviceKey);
 
       // Auth check (required): service_role OR authenticated admin/trainer
-      const authHeader = req.headers.get("Authorization");
-      if (!authHeader?.startsWith("Bearer ")) {
-        return new Response(JSON.stringify({ error: "Missing or invalid authorization header" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const token = authHeader.replace("Bearer ", "").trim();
-      if (!token) {
-        return new Response(JSON.stringify({ error: "Missing or invalid authorization header" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      if (token !== serviceKey) {
-        const authClient = createClient(supabaseUrl, anonKey, {
-          global: { headers: { Authorization: `Bearer ${token}` } },
-        });
-        const { data: userData, error: authErr } = await authClient.auth.getUser();
-        if (authErr || !userData?.user) {
-          return new Response(JSON.stringify({ error: "Unauthorized" }), {
-            status: 401,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        const { data: roleData, error: roleError } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", userData.user.id)
-          .in("role", ["admin", "trainer"])
-          .limit(1)
-          .maybeSingle();
-
-        if (roleError) {
-          return new Response(
-            JSON.stringify({ error: "Failed to verify permissions" }),
-            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-
-        if (!roleData) {
-          return new Response(
-            JSON.stringify({ error: "Forbidden: admin or trainer required" }),
-            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
+      const authResult = await authenticateServiceRoleOrUserRole(req, {
+        corsHeaders,
+        allowedRoles: ["admin", "trainer"],
+        missingAuthMessage: "Missing or invalid authorization header",
+        invalidTokenMessage: "Unauthorized",
+        forbiddenMessage: "Forbidden: admin or trainer required",
+      });
+      if (authResult instanceof Response) {
+        return authResult;
       }
 
       const body = await req.json();
