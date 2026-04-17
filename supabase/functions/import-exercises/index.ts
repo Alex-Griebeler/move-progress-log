@@ -55,7 +55,7 @@ const SPREADSHEET_SUBCATEGORY_MAP: Record<string, string> = {
 // ============================================================================
 
 interface SubcategoryMapping {
-    movement_pattern: string;
+    movement_pattern: string | null;
     category: string;
 }
 
@@ -77,27 +77,27 @@ const SUBCATEGORY_MAP: Record<string, SubcategoryMapping> = {
     ponte_hip_thrust: { movement_pattern: "cadeia_posterior", category: "forca_hipertrofia" },
     carregamento: { movement_pattern: "carregar", category: "forca_hipertrofia" },
     carregamentos: { movement_pattern: "carregar", category: "forca_hipertrofia" },
-    anti_extensao: { movement_pattern: null as unknown as string, category: "core_ativacao" },
-    anti_flexao_lateral: { movement_pattern: null as unknown as string, category: "core_ativacao" },
-    anti_rotacao: { movement_pattern: null as unknown as string, category: "core_ativacao" },
-    escapula: { movement_pattern: null as unknown as string, category: "core_ativacao" },
-    gluteos_estabilidade: { movement_pattern: null as unknown as string, category: "core_ativacao" },
-    pe_tornozelo: { movement_pattern: null as unknown as string, category: "core_ativacao" },
-    corretivos_quadril: { movement_pattern: null as unknown as string, category: "core_ativacao" },
-    tornozelo: { movement_pattern: null as unknown as string, category: "mobilidade" },
-    quadril: { movement_pattern: null as unknown as string, category: "mobilidade" },
-    coluna_toracica: { movement_pattern: null as unknown as string, category: "mobilidade" },
-    integrados: { movement_pattern: null as unknown as string, category: "mobilidade" },
-    bilateral_linear: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
-    unilateral_linear: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
-    unilateral_lateral: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
-    unilateral_lateral_medial: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
-    frontal: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
-    sagital: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
-    transverso: { movement_pattern: null as unknown as string, category: "potencia_pliometria" },
-    regioes: { movement_pattern: null as unknown as string, category: "lmf" },
-    protocolos: { movement_pattern: null as unknown as string, category: "respiracao" },
-    tecnicas: { movement_pattern: null as unknown as string, category: "respiracao" },
+    anti_extensao: { movement_pattern: null, category: "core_ativacao" },
+    anti_flexao_lateral: { movement_pattern: null, category: "core_ativacao" },
+    anti_rotacao: { movement_pattern: null, category: "core_ativacao" },
+    escapula: { movement_pattern: null, category: "core_ativacao" },
+    gluteos_estabilidade: { movement_pattern: null, category: "core_ativacao" },
+    pe_tornozelo: { movement_pattern: null, category: "core_ativacao" },
+    corretivos_quadril: { movement_pattern: null, category: "core_ativacao" },
+    tornozelo: { movement_pattern: null, category: "mobilidade" },
+    quadril: { movement_pattern: null, category: "mobilidade" },
+    coluna_toracica: { movement_pattern: null, category: "mobilidade" },
+    integrados: { movement_pattern: null, category: "mobilidade" },
+    bilateral_linear: { movement_pattern: null, category: "potencia_pliometria" },
+    unilateral_linear: { movement_pattern: null, category: "potencia_pliometria" },
+    unilateral_lateral: { movement_pattern: null, category: "potencia_pliometria" },
+    unilateral_lateral_medial: { movement_pattern: null, category: "potencia_pliometria" },
+    frontal: { movement_pattern: null, category: "potencia_pliometria" },
+    sagital: { movement_pattern: null, category: "potencia_pliometria" },
+    transverso: { movement_pattern: null, category: "potencia_pliometria" },
+    regioes: { movement_pattern: null, category: "lmf" },
+    protocolos: { movement_pattern: null, category: "respiracao" },
+    tecnicas: { movement_pattern: null, category: "respiracao" },
 };
 
 const LATERALITY_MAP: Record<string, string> = {
@@ -137,7 +137,7 @@ function levelLabel(level: number): string {
 
 interface FlatExercise {
     nome: string;
-    movement_pattern: string;
+    movement_pattern: string | null;
     category: string;
     subcategory: string;
     base?: string;
@@ -163,7 +163,7 @@ function flattenJSON(json: Record<string, unknown>): FlatExercise[] {
 
       for (const [subKey, subVal] of Object.entries(subcategorias)) {
               const mapping = SUBCATEGORY_MAP[subKey];
-              const movementPattern = mapping?.movement_pattern || subKey;
+              const movementPattern = mapping ? mapping.movement_pattern : subKey;
               const category = mapping?.category || "forca_hipertrofia";
 
           const subObj = subVal as Record<string, unknown>;

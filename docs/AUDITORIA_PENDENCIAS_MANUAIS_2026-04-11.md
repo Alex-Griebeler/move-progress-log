@@ -35,6 +35,7 @@
 - Ajuste de catalogação/import de exercícios:
   - parser de risco (`mapSpreadsheetRisk`) agora normaliza acentos;
   - evita perder classificação de risco quando planilha vier com `médio`.
+  - mapeamento JSON de subcategorias não-força agora mantém `movement_pattern = null` (sem cast forçado), alinhando com o comportamento da planilha.
 - Otimização adicional de carregamento:
   - `StudentReportsPage` passa a buscar somente o aluno alvo (`useStudentById`) em vez de carregar a lista inteira;
   - reduz payload e tempo de render ao abrir relatórios de aluno.
