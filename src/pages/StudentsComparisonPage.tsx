@@ -96,6 +96,9 @@ const StudentsComparisonPage = () => {
 
   const { data: exercises } = useQuery({
     queryKey: ["exercises-library"],
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       const { data } = await supabase
         .from("exercises_library")
@@ -107,6 +110,9 @@ const StudentsComparisonPage = () => {
 
   const { data: prescriptions } = useQuery({
     queryKey: ["prescriptions-list"],
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       const { data } = await supabase
         .from("workout_prescriptions")

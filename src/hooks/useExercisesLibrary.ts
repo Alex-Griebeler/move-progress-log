@@ -106,6 +106,9 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
 
   return useQuery({
     queryKey: ["exercises-library", buildExercisesLibraryQueryKey(normalizedFilters)],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       const allExercises: ExerciseLibrary[] = [];
 

@@ -28,6 +28,8 @@ export const useStudentsWithActivePrescriptions = (studentIds: string[]) => {
   return useQuery({
     queryKey: ["students-active-prescriptions", normalizedStudentIds],
     enabled: normalizedStudentIds.length > 0,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       

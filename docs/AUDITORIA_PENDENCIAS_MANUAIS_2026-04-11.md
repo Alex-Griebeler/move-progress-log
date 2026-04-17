@@ -25,6 +25,10 @@
 - `PR #29` atualizado com robustez de erro em comparação:
   - queries de sessões/prescrições/exercícios agora falham explicitamente (sem fallback silencioso);
   - UI exibe erro claro quando a comparação não consegue carregar dados.
+- Otimização adicional aplicada em cache de listas/filtros:
+  - `useExercisesLibrary` com `staleTime/gcTime` e `refetchOnMount=false`;
+  - comparação de alunos com cache estável para listas de exercícios/prescrições;
+  - objetivo: reduzir latência percebida em cliques/navegação.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
