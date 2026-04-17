@@ -97,4 +97,24 @@ describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWO
       expect(body).not.toContain('"password"');
     });
   });
+
+  describe('import-exercises', () => {
+    it('returns 401 without auth header', async () => {
+      const { status } = await callFunction('import-exercises');
+      expect(status).toBe(401);
+    });
+
+    it('returns non-2xx with anon key (not admin/trainer JWT)', async () => {
+      const { status } = await callFunctionWithRetry('import-exercises', `Bearer ${ANON_KEY}`);
+      expect(status).toBeGreaterThanOrEqual(400);
+      expect(status).toBeLessThan(600);
+    });
+
+    it('rejects forged token with non-200', async () => {
+      const fakeJwt = 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYWRtaW4ifQ.invalid';
+      const { status } = await callFunction('import-exercises', `Bearer ${fakeJwt}`);
+      expect(status).toBeGreaterThanOrEqual(400);
+      expect(status).toBeLessThan(600);
+    });
+  });
 });
