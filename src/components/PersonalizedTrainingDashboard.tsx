@@ -89,8 +89,22 @@ const PersonalizedTrainingDashboard = ({
 
   const formatAcuteDate = (value: string | null | undefined) => {
     if (!value) return "--";
-    const parsed = parseISO(value);
-    if (Number.isNaN(parsed.getTime())) return value;
+    const normalized = value.trim();
+    const dateOnlyMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+      const [, year, month, day] = dateOnlyMatch;
+      return `${day}/${month}/${year}`;
+    }
+
+    const parsed = parseISO(normalized.replace(" ", "T"));
+    if (Number.isNaN(parsed.getTime())) {
+      const fallback = new Date(normalized);
+      if (Number.isNaN(fallback.getTime())) {
+        return normalized;
+      }
+      return format(fallback, "dd/MM/yyyy", { locale: ptBR });
+    }
+
     return format(parsed, "dd/MM/yyyy", { locale: ptBR });
   };
 

@@ -49,6 +49,8 @@
 - Estabilidade/performance em listagem de sessões:
   - paginação infinita de sessões agora ordena também por `id` (desempate estável entre páginas);
   - `useWorkoutSessions` e `useSessionExercises` com `staleTime/gcTime/refetchOnMount` ajustados para reduzir refetch desnecessário e cliques lentos.
+- UI Oura (card agudo):
+  - parsing/format de data endurecido para sempre renderizar `dd/MM/yyyy` mesmo com variações de payload (`YYYY-MM-DD`, `YYYY-MM-DD HH:mm:ss`, ISO).
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
