@@ -136,6 +136,7 @@ export function EditSessionDialog({
     queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
     queryClient.invalidateQueries({ queryKey: ["session-detail"] });
     queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
+    queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
     queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
   };
 
