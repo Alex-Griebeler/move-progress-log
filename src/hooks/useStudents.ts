@@ -64,6 +64,28 @@ export const useStudents = () => {
   });
 };
 
+export const useStudentById = (studentId: string | null) => {
+  return useQuery({
+    queryKey: ["student", studentId],
+    enabled: !!studentId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+    queryFn: async () => {
+      if (!studentId) return null;
+
+      const { data, error } = await supabase
+        .from("students")
+        .select("*")
+        .eq("id", studentId)
+        .single();
+
+      if (error) throw error;
+      return data as Student;
+    },
+  });
+};
+
 export const useCreateStudent = () => {
   const queryClient = useQueryClient();
   

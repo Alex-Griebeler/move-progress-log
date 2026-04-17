@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useStudentReports } from "@/hooks/useStudentReports";
-import { useStudents } from "@/hooks/useStudents";
+import { useStudentById } from "@/hooks/useStudents";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Plus, FileText, Calendar, TrendingUp, BarChart3, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
@@ -26,8 +26,7 @@ export default function StudentReportsPage() {
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
-  const { data: students } = useStudents();
-  const student = students?.find((s) => s.id === studentId);
+  const { data: student } = useStudentById(studentId || null);
   const { data: reports, isLoading } = useStudentReports(studentId || "");
 
   const formatMetric = (value: number | null | undefined, digits = 1): string => {

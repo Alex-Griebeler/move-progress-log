@@ -35,6 +35,9 @@
 - Ajuste de catalogação/import de exercícios:
   - parser de risco (`mapSpreadsheetRisk`) agora normaliza acentos;
   - evita perder classificação de risco quando planilha vier com `médio`.
+- Otimização adicional de carregamento:
+  - `StudentReportsPage` passa a buscar somente o aluno alvo (`useStudentById`) em vez de carregar a lista inteira;
+  - reduz payload e tempo de render ao abrir relatórios de aluno.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
