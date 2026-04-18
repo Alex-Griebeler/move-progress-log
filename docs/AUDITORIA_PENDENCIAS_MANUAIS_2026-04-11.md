@@ -59,6 +59,7 @@
   - `useStudentPrescriptions` e `useSessionsWithExercises` com cache ajustado (`staleTime/gcTime/refetchOnMount`) para diminuir refetch em navegação entre abas do aluno.
   - `EditGroupSessionDialog` sem N+1 no carregamento inicial: exercícios de todas as sessões do grupo passam a ser buscados em query única (`in('session_id', ...)`) e agrupados em memória.
   - normalização de data expandida para histórico/comparação (`ExerciseHistoryCard`, `WorkoutCard`, `StudentsComparisonPage`) usando util timezone-safe para reduzir risco de dia deslocado em `YYYY-MM-DD`.
+  - `useExerciseHistory` com cache (`staleTime/gcTime/refetchOnMount`) e lookup otimizado de sessões (`Map`) para reduzir custo de render em históricos longos.
 - UI Oura (card agudo):
   - parsing/format de data endurecido para sempre renderizar `dd/MM/yyyy` mesmo com variações de payload (`YYYY-MM-DD`, `YYYY-MM-DD HH:mm:ss`, ISO).
 

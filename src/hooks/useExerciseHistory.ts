@@ -46,6 +46,9 @@ export const useExerciseHistory = (studentId: string, exerciseName: string) => {
   return useQuery({
     queryKey: ["exercise-history", studentId, exerciseName],
     enabled: !!studentId && !!exerciseName,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       if (!studentId || !exerciseName) return [];
 
@@ -70,8 +73,12 @@ export const useExerciseHistory = (studentId: string, exerciseName: string) => {
 
       if (exercisesError) throw exercisesError;
 
+      const sessionsById = new Map<string, WorkoutSessionRow>(
+        sessions.map((session) => [session.id, session])
+      );
+
       const history: ExerciseHistoryEntry[] = (exercises || []).map((ex) => {
-        const session = sessions.find((s) => s.id === ex.session_id);
+        const session = sessionsById.get(ex.session_id);
         return mapExerciseHistoryEntry(ex, session);
       });
 
