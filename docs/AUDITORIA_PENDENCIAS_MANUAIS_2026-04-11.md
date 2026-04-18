@@ -81,6 +81,9 @@
 - Performance de navegação em telas com Oura:
   - hooks `useOuraMetrics`, `useLatestOuraMetrics`, `useOuraTrends` e `useLatestOuraAcuteMetrics` ajustados para cache curto (`staleTime=60s`, `gcTime=10min`, `refetchOnMount=false`);
   - objetivo: reduzir refetch em cada clique/aba e melhorar responsividade sem perder atualização prática (invalidação após sync continua imediata).
+- Observabilidade do sync Oura ampliada:
+  - `oura-sync` agora registra `warnings` por endpoint com falha de transporte (timeout/rejeição) e por endpoint com status não-OK (ex.: 429/5xx);
+  - mantém sucesso parcial quando possível, mas sem ocultar degradação de coleta.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

@@ -344,6 +344,21 @@ Deno.serve(async (req) => {
       ]);
 
     const OURA_TIMEOUT = 15_000;
+    const endpointNames = [
+      'readiness',
+      'daily_sleep',
+      'sleep_periods',
+      'heartrate',
+      'activity',
+      'workouts',
+      'stress',
+      'spo2',
+      'vo2',
+      'resilience',
+    ] as const;
+
+    const warnings: string[] = [];
+
     const apiCalls = [
       withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'readiness'),
       withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'daily_sleep'),
@@ -362,7 +377,9 @@ Deno.serve(async (req) => {
     const safeResult = (i: number): Response | null => {
       const r = results[i];
       if (r.status === 'fulfilled') return r.value;
-      console.error(`Oura API call ${i} failed:`, (r as PromiseRejectedResult).reason?.message);
+      const endpointName = endpointNames[i] ?? `endpoint-${i}`;
+      console.error(`Oura API call ${endpointName} failed:`, (r as PromiseRejectedResult).reason?.message);
+      warnings.push(`Falha de comunicação no endpoint ${endpointName}.`);
       return null;
     };
 
@@ -402,6 +419,13 @@ Deno.serve(async (req) => {
         error: 'Falha ao consultar a API do Oura Ring',
         details: 'Nenhum endpoint retornou sucesso.',
       });
+    }
+
+    const degradedEndpoints = endpointStatuses
+      .filter((item) => item.response && !item.response.ok)
+      .map((item) => `${item.name} (${item.response?.status})`);
+    if (degradedEndpoints.length > 0) {
+      warnings.push(`Endpoints com resposta não-OK: ${degradedEndpoints.join(', ')}.`);
     }
 
     const safeJson = async (res: Response | null) => res && res.ok ? await res.json() : null;
@@ -612,8 +636,6 @@ Deno.serve(async (req) => {
     };
 
     if (DEBUG) console.log('Extracted metrics:', metrics);
-    const warnings: string[] = [];
-
     // Check if all values are null (no data available)
     const hasData = hasAnyMetricValue(metrics as Record<string, unknown>);
     const hasAcuteData =
