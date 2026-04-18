@@ -63,6 +63,8 @@
 - Estabilidade/performance em relatórios:
   - `useStudentReports`, `useReportById` e `useReportTrackedExercises` agora com cache estável (`staleTime/gcTime/refetchOnMount`) para reduzir refetch ao abrir/fechar relatório.
   - atualização de notas do treinador invalida também a lista de relatórios do aluno (`student-reports`) para evitar estado stale após edição.
+- Cobertura de regressão (data/hora):
+  - adicionados testes unitários para `formatSessionDate` e `formatSessionTime`, garantindo `dd/MM/yyyy` timezone-safe e exibição `HH:MM` sem segundos.
 - UI Oura (card agudo):
   - parsing/format de data endurecido para sempre renderizar `dd/MM/yyyy` mesmo com variações de payload (`YYYY-MM-DD`, `YYYY-MM-DD HH:mm:ss`, ISO).
 
