@@ -622,24 +622,32 @@ export function RecordGroupSessionDialog({
 
     await createGroupSessions.mutateAsync({ prescriptionId, date, time, sessions: sessionsToSave });
 
+    const sessionLookupStudentIds = selectedStudents.map((student) => student.id);
+    const { data: savedSessions, error: savedSessionsError } = await supabase
+      .from('workout_sessions')
+      .select('id, student_id, created_at')
+      .in('student_id', sessionLookupStudentIds)
+      .eq('date', date)
+      .eq('time', time)
+      .order('created_at', { ascending: false });
+
+    const latestSessionByStudent = new Map<string, { id: string }>();
+    if (savedSessionsError) {
+      logger.error('Error fetching saved sessions for post-processing:', savedSessionsError);
+    } else {
+      (savedSessions || []).forEach((row) => {
+        if (!latestSessionByStudent.has(row.student_id)) {
+          latestSessionByStudent.set(row.student_id, { id: row.id });
+        }
+      });
+    }
+
     // Save clinical observations and audio segments per student
     for (const merged of mergedStudents) {
       const student = selectedStudents.find(s => s.name.toLowerCase() === merged.student_name.toLowerCase());
       if (!student) continue;
 
-      const { data: sessionData, error: sessionLookupError } = await supabase
-        .from('workout_sessions')
-        .select('id')
-        .eq('student_id', student.id)
-        .eq('date', date)
-        .eq('time', time)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (sessionLookupError) {
-        logger.error('Error fetching saved session for post-processing:', sessionLookupError);
-        continue;
-      }
+      const sessionData = latestSessionByStudent.get(student.id);
       if (!sessionData) continue;
 
       // Save clinical observations
