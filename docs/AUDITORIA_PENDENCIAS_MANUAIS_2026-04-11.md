@@ -103,6 +103,7 @@
 - Busca/listagem de prescrições com menos churn:
   - `usePrescriptionSearch` agora usa debounce (`searchText`), `queryKey` estável por primitivos e cache curto (`staleTime/gcTime`) com `refetchOnMount=false/refetchOnWindowFocus=false`;
   - reduz chamadas consecutivas durante digitação sem alterar resultado final da busca.
+  - `PrescriptionsPage` agora só considera “busca ativa” quando há texto não-vazio (`trim`) ou filtros reais, evitando estado stale ao limpar o campo de busca.
 - Cache de páginas analíticas/IA:
   - `AthleteInsightsDashboard` com cache explícito em todas as queries (`students`, `trends`, `records`, `goals`) e sem refetch automático em mount/focus;
   - `CoachConsole` com cache explícito na lista de alunos;

@@ -65,9 +65,9 @@ export default function PrescriptionsPage() {
 
   // Use search results if filters are active, otherwise use all prescriptions
   const { data: searchResults } = usePrescriptionSearch(searchFilters);
-  const hasActiveSearch = Object.keys(searchFilters).some(key => 
-    searchFilters[key as keyof typeof searchFilters] !== undefined
-  );
+  const hasActiveSearch = Boolean(searchFilters.searchText?.trim())
+    || searchFilters.folderId !== undefined
+    || Boolean(searchFilters.dayOfWeek);
   const prescriptions = hasActiveSearch ? searchResults : allPrescriptions;
 
   // Dialog states
