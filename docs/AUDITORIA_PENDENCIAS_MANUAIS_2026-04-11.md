@@ -84,6 +84,9 @@
 - Observabilidade do sync Oura ampliada:
   - `oura-sync` agora registra `warnings` por endpoint com falha de transporte (timeout/rejeição) e por endpoint com status não-OK (ex.: 429/5xx);
   - mantém sucesso parcial quando possível, mas sem ocultar degradação de coleta.
+- Performance no histórico de carga por exercício:
+  - `useExerciseLoadHistory` removido de fluxo “carrega todas as sessões + cruza em memória” para query direta de exercícios candidatos com join em `workout_sessions`;
+  - seleção do último registro por aluno feita em memória com timestamp da sessão, reduzindo payload e roundtrip em turmas maiores.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

@@ -17,6 +17,18 @@ interface ExerciseLookupRow {
   load_description: string | null;
   observations: string | null;
   created_at: string | null;
+  workout_sessions:
+    | {
+        student_id: string;
+        date: string;
+        time: string;
+      }
+    | {
+        student_id: string;
+        date: string;
+        time: string;
+      }[]
+    | null;
 }
 
 const normalizeComparableText = (value: string): string =>
@@ -54,33 +66,23 @@ export const useExerciseLoadHistory = (
         ])
       );
 
-      // 2. Get ALL sessions for these students (global history)
-      const { data: sessions, error: sessionsError } = await supabase
-        .from("workout_sessions")
-        .select("id, student_id, date, time")
-        .in("student_id", studentIds)
-        .order("date", { ascending: false })
-        .order("time", { ascending: false });
-
-      if (sessionsError) throw sessionsError;
-      if (!sessions || sessions.length === 0) {
-        return studentIds.map((id) => ({
-          studentId: id,
-          studentName: studentMap.get(id) || "—",
-          lastLoadKg: null,
-          lastLoadDescription: null,
-          lastDate: null,
-          lastObservations: null,
-        }));
-      }
-
-      const sessionIds = sessions.map((s) => s.id);
-
-      // 3. Get exercises matching the name from these sessions
-      const { data: exercises, error: exercisesError } = await supabase
+      // 2. Get candidate exercises with joined session metadata for selected students
+      const { data: exerciseMatches, error: exercisesError } = await supabase
         .from("exercises")
-        .select("session_id, exercise_name, load_kg, load_description, observations, created_at")
-        .in("session_id", sessionIds)
+        .select(`
+          session_id,
+          exercise_name,
+          load_kg,
+          load_description,
+          observations,
+          created_at,
+          workout_sessions!inner (
+            student_id,
+            date,
+            time
+          )
+        `)
+        .in("workout_sessions.student_id", studentIds)
         .ilike("exercise_name", `%${exerciseName}%`)
         .order("created_at", { ascending: false });
 
@@ -97,41 +99,51 @@ export const useExerciseLoadHistory = (
         );
       };
 
-      const exercisesBySessionId = new Map<string, ExerciseLookupRow[]>();
-      for (const exercise of (exercises || []) as ExerciseLookupRow[]) {
-        const bucket = exercisesBySessionId.get(exercise.session_id);
-        if (bucket) {
-          bucket.push(exercise);
-        } else {
-          exercisesBySessionId.set(exercise.session_id, [exercise]);
+      type LastExerciseEntry = {
+        exercise: ExerciseLookupRow;
+        date: string | null;
+        sortTs: number;
+      };
+      const lastExerciseByStudent = new Map<string, LastExerciseEntry>();
+
+      for (const exercise of (exerciseMatches || []) as ExerciseLookupRow[]) {
+        if (!matchesTargetExercise(exercise.exercise_name)) continue;
+
+        const session = Array.isArray(exercise.workout_sessions)
+          ? exercise.workout_sessions[0]
+          : exercise.workout_sessions;
+        if (!session?.student_id) continue;
+
+        const sessionTs = Date.parse(`${session.date}T${session.time}`);
+        const createdAtTs = exercise.created_at ? Date.parse(exercise.created_at) : Number.NaN;
+        const sortTs = Number.isFinite(sessionTs)
+          ? sessionTs
+          : Number.isFinite(createdAtTs)
+            ? createdAtTs
+            : 0;
+
+        const existing = lastExerciseByStudent.get(session.student_id);
+        if (!existing || sortTs > existing.sortTs) {
+          lastExerciseByStudent.set(session.student_id, {
+            exercise,
+            date: session.date ?? null,
+            sortTs,
+          });
         }
       }
 
-      // 4. For each student, find the most recent exercise
+      // 3. Build one entry per assigned student
       const results: ExerciseLoadHistoryItem[] = [];
       for (const studentId of studentIds) {
-        const studentSessions = sessions.filter((s) => s.student_id === studentId);
-        let studentExercise: ExerciseLookupRow | null = null;
-        let matchingSession: typeof studentSessions[number] | null = null;
-
-        for (const session of studentSessions) {
-          const candidates = exercisesBySessionId.get(session.id) || [];
-          const matched = candidates.find((exercise) =>
-            matchesTargetExercise(exercise.exercise_name)
-          );
-          if (matched) {
-            studentExercise = matched;
-            matchingSession = session;
-            break;
-          }
-        }
+        const latest = lastExerciseByStudent.get(studentId);
+        const studentExercise = latest?.exercise ?? null;
 
         results.push({
           studentId,
           studentName: studentMap.get(studentId) || "—",
           lastLoadKg: studentExercise?.load_kg ?? null,
           lastLoadDescription: studentExercise?.load_description ?? null,
-          lastDate: matchingSession?.date ?? null,
+          lastDate: latest?.date ?? null,
           lastObservations: studentExercise?.observations ?? null,
         });
       }
