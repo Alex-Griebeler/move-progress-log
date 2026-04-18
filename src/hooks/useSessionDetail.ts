@@ -102,12 +102,17 @@ export const useSessionDetail = (sessionId: string | null) => {
           throw new Error("Aluno não encontrado");
         }
         const exercisesData = Array.isArray(sessionData.exercises) ? sessionData.exercises : [];
+        const sortedExercises = [...exercisesData].sort((a, b) => {
+          const left = new Date(a.created_at).getTime();
+          const right = new Date(b.created_at).getTime();
+          return left - right;
+        });
 
         return {
           ...sessionData,
           time: formatSessionTime(sessionData.time),
           student: studentData,
-          exercises: exercisesData || [],
+          exercises: sortedExercises,
         } as SessionDetail;
       } catch (e) {
         logger.error("Erro inesperado no carregamento de detalhes da sessão", e);
