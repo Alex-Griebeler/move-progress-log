@@ -83,25 +83,48 @@ export function EditGroupSessionDialog({
         return;
       }
 
-      // Para cada sessão, buscar seus exercícios
-      const sessionsWithExercises = await Promise.all(
-        sessions.map(async (session: { id: string; student_id: string; students: { name: string } }) => {
-          const { data: exercises, error: exercisesError } = await supabase
-            .from('exercises')
-            .select('*')
-            .eq('session_id', session.id)
-            .order('created_at', { ascending: true });
+      const sessionIds = sessions.map((session: { id: string }) => session.id);
+      const { data: allExercises, error: exercisesError } = await supabase
+        .from('exercises')
+        .select(`
+          id,
+          session_id,
+          exercise_name,
+          sets,
+          reps,
+          load_kg,
+          load_breakdown,
+          observations,
+          is_best_set
+        `)
+        .in('session_id', sessionIds)
+        .order('created_at', { ascending: true });
 
-          if (exercisesError) throw exercisesError;
+      if (exercisesError) throw exercisesError;
 
-          return {
-            sessionId: session.id,
-            studentId: session.student_id,
-            studentName: session.students.name,
-            exercises: exercises || [],
-          };
-        })
-      );
+      const exercisesBySession = (allExercises || []).reduce<Record<string, Exercise[]>>((acc, exercise) => {
+        const sessionKey = String(exercise.session_id || "");
+        if (!sessionKey) return acc;
+        if (!acc[sessionKey]) acc[sessionKey] = [];
+        acc[sessionKey].push({
+          id: exercise.id,
+          exercise_name: exercise.exercise_name,
+          sets: exercise.sets ?? 0,
+          reps: exercise.reps ?? 0,
+          load_kg: exercise.load_kg,
+          load_breakdown: exercise.load_breakdown ?? "",
+          observations: exercise.observations,
+          is_best_set: exercise.is_best_set ?? false,
+        });
+        return acc;
+      }, {});
+
+      const sessionsWithExercises = sessions.map((session: { id: string; student_id: string; students: { name: string } }) => ({
+        sessionId: session.id,
+        studentId: session.student_id,
+        studentName: session.students.name,
+        exercises: exercisesBySession[session.id] || [],
+      }));
 
       setSessionsData(sessionsWithExercises);
       setCurrentStudentIndex(0);
