@@ -83,7 +83,14 @@ export function EditSessionDialog({
       const { data: session, error: sessionError } = await supabase
         .from('workout_sessions')
         .select(`
-          *,
+          id,
+          date,
+          time,
+          session_type,
+          workout_name,
+          trainer_name,
+          room_name,
+          is_finalized,
           student:students!student_id (
             id,
             name,
@@ -97,7 +104,7 @@ export function EditSessionDialog({
 
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('exercises')
-        .select('*')
+        .select('id, exercise_name, sets, reps, load_kg, load_breakdown, observations, is_best_set')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 

@@ -12,7 +12,7 @@ export const useStudentImportantObservations = (studentId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('student_observations')
-        .select('*')
+        .select('id, student_id, observation_text, categories, severity, created_at, is_resolved')
         .eq('student_id', studentId)
         .eq('is_resolved', false)
         .in('severity', ['baixa', 'média', 'alta'])

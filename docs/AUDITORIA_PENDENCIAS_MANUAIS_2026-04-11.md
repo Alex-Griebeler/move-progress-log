@@ -130,6 +130,9 @@
   - `RecordGroupSessionDialog` deixou de usar `select('*')` em consultas de exercícios/alunos (campos explícitos);
   - `RecordIndividualSessionDialog` deixou de usar `select('*')` em sessão/exercícios de reabertura e removeu fetch não usado de `session_audio_segments`;
   - `useSessionExercises` em `useWorkoutSessions` agora usa seleção explícita de colunas em vez de `select('*')`.
+- Redução de payload em observações/edição:
+  - `StudentObservationsCard` e `useStudentImportantObservations` migrados de `select('*')` para colunas explícitas;
+  - `EditSessionDialog` migrado para seleção explícita de colunas em `workout_sessions` e `exercises`.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
