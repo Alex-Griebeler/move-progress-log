@@ -271,9 +271,7 @@ export const useDisconnectOura = () => {
       return data;
     },
     onSuccess: (_, student_id) => {
-      queryClient.invalidateQueries({
-        queryKey: ["oura-connection", student_id],
-      });
+      void invalidateOuraQueries(queryClient, student_id);
       notify.success(i18n.modules.oura.disconnected, {
         description: "Seus dados já sincronizados foram preservados. Você pode reconectar a qualquer momento."
       });

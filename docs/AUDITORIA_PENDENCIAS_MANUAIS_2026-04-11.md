@@ -90,6 +90,9 @@
 - Consistência de cache após criação de sessões:
   - `useCreateWorkoutSession` e `useCreateGroupWorkoutSessions` agora invalidam também `all-sessions`, `sessions-with-exercises`, `session-exercises` e `stats`;
   - reduz risco de telas com contadores/listas desatualizados após salvar sessão.
+- Disconnect Oura com invalidação abrangente:
+  - `useDisconnectOura` passa a reutilizar `invalidateOuraQueries(...)` em vez de invalidar só `oura-connection`;
+  - evita estado stale em cards de conexão/métricas/tendências logo após desconectar.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
