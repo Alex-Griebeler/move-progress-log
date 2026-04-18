@@ -58,7 +58,9 @@ export const useOuraTrends = (studentId: string) => {
   return useQuery({
     queryKey: ["oura-trends", studentId],
     enabled: !!studentId,
-    staleTime: 0,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       // Buscar últimos 8 dias de métricas (hoje + 7 dias de histórico)
       const { data, error } = await supabase

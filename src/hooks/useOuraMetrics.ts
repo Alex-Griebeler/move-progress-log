@@ -65,8 +65,9 @@ export const useOuraMetrics = (studentId: string, limit?: number) => {
   return useQuery({
     queryKey: ["oura-metrics", studentId, limit],
     enabled: !!studentId,
-    staleTime: 0,
+    staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000, // Manter em cache por 10 minutos
+    refetchOnMount: false,
     queryFn: async () => {
       let query = supabase
         .from("oura_metrics")
@@ -107,6 +108,9 @@ export const useLatestOuraMetrics = (studentId: string) => {
   return useQuery({
     queryKey: ["oura-metrics-latest", studentId],
     enabled: !!studentId,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       // Search a wider window to avoid showing "--" when recent days are sparse.
       const { data, error } = await supabase
