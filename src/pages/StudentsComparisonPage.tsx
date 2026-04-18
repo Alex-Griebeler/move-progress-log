@@ -110,10 +110,11 @@ const StudentsComparisonPage = () => {
     gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("exercises_library")
         .select("id, name")
         .order("name");
+      if (error) throw error;
       return data || [];
     },
   });
@@ -124,10 +125,11 @@ const StudentsComparisonPage = () => {
     gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("workout_prescriptions")
         .select("id, name")
         .order("name");
+      if (error) throw error;
       return data || [];
     },
   });

@@ -116,6 +116,16 @@
   - `useBreathingProtocols`, `useRecoveryProtocols`, `useRecoveryProtocol` e `useProtocolRecommendations` com política explícita de cache e sem refetch automático em mount/focus;
   - `useStudentImportantObservations`, `useValidateInvite` e `StudentObservationsCard` com cache curto para reduzir chamadas repetidas;
   - `ExerciseReviewPage`, `ExerciseDimensionReview`, `ExerciseDistributionDiagnostic` e queries internas de `RecordIndividualSessionDialog` com `staleTime/gcTime` + `refetchOnMount=false/refetchOnWindowFocus=false`.
+- Hardening de erro Supabase em fluxos críticos de sessão:
+  - `AdminRoute` agora trata erro de consulta de role explicitamente (fallback seguro para não-admin + log técnico);
+  - `StudentsComparisonPage` agora propaga erro em queries de biblioteca de exercícios/prescrições (sem fallback silencioso);
+  - `RecordGroupSessionDialog` agora valida erros em:
+    - carregamento de exercícios na reabertura;
+    - lookup de sessões antigas;
+    - deletes de sessões/exercícios no modo reabertura;
+    - lookup de sessão para pós-processamento (observações/áudio);
+  - `RecordIndividualSessionDialog` agora valida erro ao limpar exercícios antigos antes de sobrescrever sessão reaberta;
+  - `useCreateSessionWithExercises` agora loga falha de rollback quando não conseguir excluir `workout_sessions` após erro de insert de exercícios.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

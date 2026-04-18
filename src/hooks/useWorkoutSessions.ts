@@ -157,7 +157,13 @@ const createSessionWithDirectInsert = async (params: {
       if (exercisesError) throw exercisesError;
     }
   } catch (stepError) {
-    await supabase.from("workout_sessions").delete().eq("id", session.id);
+    const { error: rollbackError } = await supabase
+      .from("workout_sessions")
+      .delete()
+      .eq("id", session.id);
+    if (rollbackError) {
+      console.error("[useCreateSessionWithExercises] Failed to rollback workout_session", rollbackError);
+    }
     throw stepError;
   }
 

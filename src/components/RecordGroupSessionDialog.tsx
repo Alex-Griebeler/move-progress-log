@@ -315,7 +315,13 @@ export function RecordGroupSessionDialog({
         setSelectedStudents(existingStudents);
         const allExercises = await Promise.all(
           typedSessions.map(async (session) => {
-            const { data: exercises } = await supabase.from('exercises').select('*').eq('session_id', session.id);
+            const { data: exercises, error: exercisesError } = await supabase
+              .from('exercises')
+              .select('*')
+              .eq('session_id', session.id);
+            if (exercisesError) {
+              throw exercisesError;
+            }
             return { student_name: session.students.name, exercises: (exercises || []) as ExerciseRow[] };
           })
         );
@@ -579,11 +585,27 @@ export function RecordGroupSessionDialog({
 
     if (isReopening && reopenDate && normalizedReopenTime) {
       try {
-        const { data: existingSessions } = await supabase.from('workout_sessions').select('id').eq('prescription_id', prescriptionId).eq('date', reopenDate).eq('time', normalizedReopenTime);
+        const { data: existingSessions, error: existingSessionsError } = await supabase
+          .from('workout_sessions')
+          .select('id')
+          .eq('prescription_id', prescriptionId)
+          .eq('date', reopenDate)
+          .eq('time', normalizedReopenTime);
+        if (existingSessionsError) throw existingSessionsError;
+
         if (existingSessions && existingSessions.length > 0) {
           const sessionIds = existingSessions.map(s => s.id);
-          await supabase.from('exercises').delete().in('session_id', sessionIds);
-          await supabase.from('workout_sessions').delete().in('id', sessionIds);
+          const { error: deleteExercisesError } = await supabase
+            .from('exercises')
+            .delete()
+            .in('session_id', sessionIds);
+          if (deleteExercisesError) throw deleteExercisesError;
+
+          const { error: deleteSessionsError } = await supabase
+            .from('workout_sessions')
+            .delete()
+            .in('id', sessionIds);
+          if (deleteSessionsError) throw deleteSessionsError;
         }
       } catch (error) {
         logger.error('Erro ao deletar sessões antigas:', error);
@@ -605,7 +627,7 @@ export function RecordGroupSessionDialog({
       const student = selectedStudents.find(s => s.name.toLowerCase() === merged.student_name.toLowerCase());
       if (!student) continue;
 
-      const { data: sessionData } = await supabase
+      const { data: sessionData, error: sessionLookupError } = await supabase
         .from('workout_sessions')
         .select('id')
         .eq('student_id', student.id)
@@ -614,6 +636,10 @@ export function RecordGroupSessionDialog({
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (sessionLookupError) {
+        logger.error('Error fetching saved session for post-processing:', sessionLookupError);
+        continue;
+      }
       if (!sessionData) continue;
 
       // Save clinical observations

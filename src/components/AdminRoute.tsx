@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import type { Session } from "@supabase/supabase-js";
 
 interface AdminRouteProps {
   children: React.ReactNode;
@@ -10,39 +11,46 @@ export function AdminRoute({ children }: AdminRouteProps) {
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    let isMounted = true;
+
+    const resolveAdmin = async (session: Session | null) => {
+      if (!isMounted) return;
       if (!session) {
         setIsAdmin(false);
         return;
       }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", session.user.id)
         .in("role", ["admin", "moderator"])
         .maybeSingle();
 
-      setIsAdmin(!!data);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!session) {
+      if (error) {
+        console.error("[AdminRoute] Failed to fetch user role", error);
         setIsAdmin(false);
         return;
       }
 
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .in("role", ["admin", "moderator"])
-        .maybeSingle();
-
       setIsAdmin(!!data);
+    };
+
+    const bootstrap = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      await resolveAdmin(session);
+    };
+
+    void bootstrap();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      void resolveAdmin(session);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   if (isAdmin === null) {

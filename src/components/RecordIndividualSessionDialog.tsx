@@ -295,7 +295,12 @@ export function RecordIndividualSessionDialog({
     try {
       let sessionId: string;
       if (isReopening && existingSessionId) {
-        await supabase.from('exercises').delete().eq('session_id', existingSessionId);
+        const { error: deleteExercisesError } = await supabase
+          .from('exercises')
+          .delete()
+          .eq('session_id', existingSessionId);
+        if (deleteExercisesError) throw deleteExercisesError;
+
         const { error: updateError } = await supabase.from('workout_sessions').update({ trainer_name: trainerName, is_finalized: true, updated_at: new Date().toISOString() }).eq('id', existingSessionId);
         if (updateError) throw updateError;
         sessionId = existingSessionId;
