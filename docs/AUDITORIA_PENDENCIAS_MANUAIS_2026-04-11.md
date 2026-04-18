@@ -98,6 +98,7 @@
   - comparação de faixa de prescrição no `StudentsComparisonPage` foi trocada de `Date` para comparação de strings `YYYY-MM-DD`, evitando risco de dia deslocado por timezone no match de prescrição por sessão.
 - Cache de infraestrutura endurecido:
   - `useStudentsCardData` agora deduplica `studentIds` (menos payload duplicado) e desativa refetch automático em mount/focus;
+  - `useStudentsCardData` também passa a limitar a leitura de `oura_metrics` para janela recente (45 dias), reduzindo leitura histórica sem impacto na decisão diária do card;
   - `useUserRole`, `useTrainers` e `useEquipmentInventory` agora com `staleTime/gcTime` + `refetchOnMount=false/refetchOnWindowFocus=false` para reduzir consultas repetidas em navegação.
 
 ## Pendências manuais atuais (fonte única)

@@ -38,11 +38,18 @@ export const useStudentsCardData = (studentIds: string[]) => {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<StudentCardDataMap> => {
+      const recentMetricsStartDate = new Date(
+        Date.now() - 45 * 24 * 60 * 60 * 1000
+      )
+        .toISOString()
+        .slice(0, 10);
+
       // Query 1: Buscar métricas Oura mais recentes de todos os alunos
       const { data: allMetrics, error: metricsError } = await supabase
         .from("oura_metrics")
         .select("student_id, readiness_score, date")
         .in("student_id", normalizedStudentIds)
+        .gte("date", recentMetricsStartDate)
         .order("date", { ascending: false });
       if (metricsError) throw metricsError;
 
