@@ -93,6 +93,12 @@
 - Disconnect Oura com invalidação abrangente:
   - `useDisconnectOura` passa a reutilizar `invalidateOuraQueries(...)` em vez de invalidar só `oura-connection`;
   - evita estado stale em cards de conexão/métricas/tendências logo após desconectar.
+- Cache/query hardening adicional para reduzir latência de navegação:
+  - `StudentsComparisonPage` agora usa cache explícito (`staleTime/gcTime/refetchOnMount=false/refetchOnWindowFocus=false`) para a query pesada de comparação;
+  - comparação de faixa de prescrição no `StudentsComparisonPage` foi trocada de `Date` para comparação de strings `YYYY-MM-DD`, evitando risco de dia deslocado por timezone no match de prescrição por sessão.
+- Cache de infraestrutura endurecido:
+  - `useStudentsCardData` agora deduplica `studentIds` (menos payload duplicado) e desativa refetch automático em mount/focus;
+  - `useUserRole`, `useTrainers` e `useEquipmentInventory` agora com `staleTime/gcTime` + `refetchOnMount=false/refetchOnWindowFocus=false` para reduzir consultas repetidas em navegação.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

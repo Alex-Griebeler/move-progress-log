@@ -8,6 +8,10 @@ export type AppRole = 'admin' | 'moderator' | 'user';
 export const useUserRole = () => {
   return useQuery({
     queryKey: ["user-role"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       

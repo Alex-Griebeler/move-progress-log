@@ -5,6 +5,10 @@ import type { EquipmentInventoryItem } from "@/types/aiSession";
 export const useEquipmentInventory = (onlyAvailable = true) => {
   return useQuery({
     queryKey: ["equipment-inventory", onlyAvailable],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let query = supabase
         .from("equipment_inventory")

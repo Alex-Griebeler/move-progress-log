@@ -52,6 +52,15 @@ interface AssignmentRangeRow {
   prescription: { name: string } | null;
 }
 
+const isWithinAssignmentRange = (
+  sessionDate: string,
+  assignmentStartDate: string,
+  assignmentEndDate: string | null
+) => {
+  const safeEndDate = assignmentEndDate ?? "9999-12-31";
+  return sessionDate >= assignmentStartDate && sessionDate <= safeEndDate;
+};
+
 const StudentsComparisonPage = () => {
   usePageTitle(NAV_LABELS.studentsComparison);
   useSEOHead(SEO_PRESETS.private);
@@ -133,6 +142,10 @@ const StudentsComparisonPage = () => {
       selectedPrescription,
     ],
     enabled: normalizedSelectedStudents.length > 0,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const stats = await Promise.all(
         normalizedSelectedStudents.map(async (studentId) => {
@@ -169,14 +182,10 @@ const StudentsComparisonPage = () => {
             if (selectedAssignments.length > 0) {
               filteredSessions = filteredSessions.filter((session) => {
                 return selectedAssignments.some((assignment) => {
-                  const sessionDate = new Date(session.date);
-                  const assignmentStartDate = new Date(assignment.start_date);
-                  const assignmentEndDate = assignment.end_date
-                    ? new Date(assignment.end_date)
-                    : new Date();
-                  return (
-                    sessionDate >= assignmentStartDate &&
-                    sessionDate <= assignmentEndDate
+                  return isWithinAssignmentRange(
+                    session.date,
+                    assignment.start_date,
+                    assignment.end_date
                   );
                 });
               });
@@ -211,15 +220,11 @@ const StudentsComparisonPage = () => {
           const sessionById = new Map(filteredSessions.map((session) => [session.id, session]));
 
           const resolvePrescriptionNameByDate = (sessionDate: string): string => {
-            const targetDate = new Date(sessionDate);
             const match = assignments.find((assignment) => {
-              const assignmentStartDate = new Date(assignment.start_date);
-              const assignmentEndDate = assignment.end_date
-                ? new Date(assignment.end_date)
-                : new Date();
-              return (
-                targetDate >= assignmentStartDate &&
-                targetDate <= assignmentEndDate
+              return isWithinAssignmentRange(
+                sessionDate,
+                assignment.start_date,
+                assignment.end_date
               );
             });
             return match?.prescription?.name || "Sem prescrição";

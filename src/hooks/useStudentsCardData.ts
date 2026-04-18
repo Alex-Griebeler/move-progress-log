@@ -27,19 +27,22 @@ type StudentCardDataMap = Record<string, StudentCardData>;
  * Reduz de N*3 queries para apenas 3 queries totais
  */
 export const useStudentsCardData = (studentIds: string[]) => {
-  const stableStudentIdsKey = [...studentIds].sort().join(",");
+  const normalizedStudentIds = Array.from(new Set(studentIds));
+  const stableStudentIdsKey = [...normalizedStudentIds].sort().join(",");
 
   return useQuery({
     queryKey: ["students-card-data", stableStudentIdsKey],
-    enabled: studentIds.length > 0,
+    enabled: normalizedStudentIds.length > 0,
     staleTime: 60 * 1000, // 1 minuto
     gcTime: 5 * 60 * 1000, // 5 minutos
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<StudentCardDataMap> => {
       // Query 1: Buscar métricas Oura mais recentes de todos os alunos
       const { data: allMetrics, error: metricsError } = await supabase
         .from("oura_metrics")
         .select("student_id, readiness_score, date")
-        .in("student_id", studentIds)
+        .in("student_id", normalizedStudentIds)
         .order("date", { ascending: false });
       if (metricsError) throw metricsError;
 
@@ -57,7 +60,7 @@ export const useStudentsCardData = (studentIds: string[]) => {
       const { data: allObservations, error: observationsError } = await supabase
         .from("student_observations")
         .select("id, student_id, observation_text, severity, created_at, categories, is_resolved")
-        .in("student_id", studentIds)
+        .in("student_id", normalizedStudentIds)
         .eq("is_resolved", false)
         .in("severity", ["baixa", "média", "alta"])
         .order("severity", { ascending: false })
@@ -77,7 +80,7 @@ export const useStudentsCardData = (studentIds: string[]) => {
       const { data: allConnections, error: connectionsError } = await supabase
         .from("oura_connections")
         .select("student_id, last_sync_at, is_active")
-        .in("student_id", studentIds)
+        .in("student_id", normalizedStudentIds)
         .eq("is_active", true);
       if (connectionsError) throw connectionsError;
 
@@ -114,7 +117,7 @@ export const useStudentsCardData = (studentIds: string[]) => {
       // Construir resultado final
       const result: StudentCardDataMap = {};
 
-      studentIds.forEach((studentId) => {
+      normalizedStudentIds.forEach((studentId) => {
         const connection = connectionsByStudent[studentId];
         const isConnected = !!connection?.is_active;
         const lastSync = connection?.last_sync_at ? new Date(connection.last_sync_at) : null;

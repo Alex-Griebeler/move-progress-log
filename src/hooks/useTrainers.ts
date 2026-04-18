@@ -9,6 +9,10 @@ export interface Trainer {
 export function useTrainers() {
   return useQuery({
     queryKey: ['trainers'],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('trainer_profiles')
