@@ -21,6 +21,10 @@ export const useOuraWorkouts = (studentId: string, limit?: number) => {
   return useQuery({
     queryKey: ["oura-workouts", studentId, limit],
     enabled: !!studentId,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let query = supabase
         .from("oura_workouts")

@@ -39,6 +39,10 @@ export const useOuraConnection = (studentId: string) => {
   return useQuery({
     queryKey: ["oura-connection", studentId],
     enabled: !!studentId,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("oura_connections")

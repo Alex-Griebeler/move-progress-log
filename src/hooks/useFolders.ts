@@ -48,6 +48,10 @@ const buildFolderTree = (folders: PrescriptionFolder[]): PrescriptionFolder[] =>
 export const useFolders = () => {
   return useQuery({
     queryKey: ["prescription-folders"],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");

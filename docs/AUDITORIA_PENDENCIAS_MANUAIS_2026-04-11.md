@@ -108,6 +108,10 @@
   - `AthleteInsightsDashboard` com cache explícito em todas as queries (`students`, `trends`, `records`, `goals`) e sem refetch automático em mount/focus;
   - `CoachConsole` com cache explícito na lista de alunos;
   - `useOuraSyncLogs` com cache curto e sem refetch automático em mount/focus.
+- Cache adicional em fluxos de base:
+  - `useFolders` com cache estável (`staleTime/gcTime`) e sem refetch automático em mount/focus;
+  - `useOuraConnection` e `useOuraWorkouts` com cache curto e sem refetch automático em mount/focus;
+  - `useDuplicateExerciseCheck` com cache estável para reduzir consultas repetidas durante digitação/edição de nomes.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

@@ -16,6 +16,10 @@ export function useDuplicateExerciseCheck(name: string, excludeId?: string) {
 
   return useQuery({
     queryKey: ["exercise-duplicate-check", normalizedName, excludeId],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (normalizedName.length < 3) return [];
 
