@@ -100,6 +100,9 @@
   - `useStudentsCardData` agora deduplica `studentIds` (menos payload duplicado) e desativa refetch automático em mount/focus;
   - `useStudentsCardData` também passa a limitar a leitura de `oura_metrics` para janela recente (45 dias), reduzindo leitura histórica sem impacto na decisão diária do card;
   - `useUserRole`, `useTrainers` e `useEquipmentInventory` agora com `staleTime/gcTime` + `refetchOnMount=false/refetchOnWindowFocus=false` para reduzir consultas repetidas em navegação.
+- Busca/listagem de prescrições com menos churn:
+  - `usePrescriptionSearch` agora usa debounce (`searchText`), `queryKey` estável por primitivos e cache curto (`staleTime/gcTime`) com `refetchOnMount=false/refetchOnWindowFocus=false`;
+  - reduz chamadas consecutivas durante digitação sem alterar resultado final da busca.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

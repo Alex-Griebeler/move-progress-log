@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { WorkoutPrescription } from "./usePrescriptions";
+import { useDebounce } from "./useDebounce";
 
 export interface PrescriptionSearchFilters {
   searchText?: string;
@@ -9,8 +10,19 @@ export interface PrescriptionSearchFilters {
 }
 
 export const usePrescriptionSearch = (filters: PrescriptionSearchFilters) => {
+  const debouncedSearchText = useDebounce(filters.searchText?.trim() ?? "", 300);
+  const stableFolderId =
+    filters.folderId === undefined ? "__all__" : filters.folderId === null ? "__none__" : filters.folderId;
+  const stableDayOfWeek = filters.dayOfWeek ?? "";
+  const hasSearchFilters =
+    debouncedSearchText.length > 0 || filters.folderId !== undefined || !!filters.dayOfWeek;
+
   return useQuery({
-    queryKey: ["prescription-search", filters],
+    queryKey: ["prescription-search", debouncedSearchText, stableFolderId, stableDayOfWeek],
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
@@ -24,8 +36,8 @@ export const usePrescriptionSearch = (filters: PrescriptionSearchFilters) => {
         .eq("trainer_id", user.id);
 
       // Filter by search text (name or objective)
-      if (filters.searchText && filters.searchText.trim()) {
-        const searchTerm = `%${filters.searchText.trim()}%`;
+      if (debouncedSearchText) {
+        const searchTerm = `%${debouncedSearchText}%`;
         query = query.or(`name.ilike.${searchTerm},objective.ilike.${searchTerm}`);
       }
 
@@ -55,8 +67,6 @@ export const usePrescriptionSearch = (filters: PrescriptionSearchFilters) => {
         assigned_count: Array.isArray(item.assigned_count) ? (item.assigned_count[0] as { count: number })?.count || 0 : 0,
       })) as unknown as WorkoutPrescription[];
     },
-    enabled: Object.keys(filters).some(key => 
-      filters[key as keyof PrescriptionSearchFilters] !== undefined
-    ),
+    enabled: hasSearchFilters,
   });
 };
