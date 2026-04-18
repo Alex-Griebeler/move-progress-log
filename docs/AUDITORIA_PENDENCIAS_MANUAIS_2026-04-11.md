@@ -32,6 +32,7 @@
 - Hardening de observabilidade no sync Oura:
   - adicionada verificação explícita de erro ao atualizar `last_sync_at` no final da rotina;
   - melhora diagnóstico quando a coleta salva métricas mas o marcador de sincronização não atualiza.
+  - `oura-sync` passa a retornar `warnings` no payload quando ocorrerem falhas não bloqueantes (métricas agudas, workouts, merge prévio ou update de `last_sync_at`), reduzindo falha silenciosa em produção.
 - Ajuste de catalogação/import de exercícios:
   - parser de risco (`mapSpreadsheetRisk`) agora normaliza acentos;
   - evita perder classificação de risco quando planilha vier com `médio`.

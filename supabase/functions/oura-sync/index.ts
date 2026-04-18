@@ -612,6 +612,7 @@ Deno.serve(async (req) => {
     };
 
     if (DEBUG) console.log('Extracted metrics:', metrics);
+    const warnings: string[] = [];
 
     // Check if all values are null (no data available)
     const hasData = hasAnyMetricValue(metrics as Record<string, unknown>);
@@ -631,6 +632,7 @@ Deno.serve(async (req) => {
         .eq('id', connection.id);
       if (noDataSyncUpdateError) {
         console.warn('Failed to update last_sync_at for no-data sync:', noDataSyncUpdateError.message);
+        warnings.push('Falha ao atualizar last_sync_at (sync sem dados).');
       }
       
       return new Response(
@@ -639,6 +641,7 @@ Deno.serve(async (req) => {
           message: `Sem dados do Oura Ring para ${syncDate}.`,
           synced_metrics: null,
           date: syncDate,
+          warnings,
         }),
         { headers: jsonHeaders }
       );
@@ -655,6 +658,7 @@ Deno.serve(async (req) => {
 
       if (existingMetricRowError) {
         console.warn('Failed to fetch existing daily metric for merge:', existingMetricRowError.message);
+        warnings.push('Falha ao buscar métrica diária anterior para merge.');
       }
 
       const mergedMetrics = mergePreservingExisting(
@@ -683,6 +687,7 @@ Deno.serve(async (req) => {
 
       if (existingAcuteRowError) {
         console.warn('Failed to fetch existing acute metric for merge:', existingAcuteRowError.message);
+        warnings.push('Falha ao buscar métrica aguda anterior para merge.');
       }
 
       const mergedAcuteMetrics = mergePreservingExisting(
@@ -697,6 +702,7 @@ Deno.serve(async (req) => {
       if (acuteUpsertError) {
         // Non-blocking: main daily metrics are already persisted.
         console.error('Failed to save acute metrics (non-blocking):', acuteUpsertError);
+        warnings.push('Falha ao salvar métricas agudas (não bloqueante).');
       }
     }
 
@@ -727,6 +733,7 @@ Deno.serve(async (req) => {
 
       if (workoutsError) {
         console.error('Failed to save workouts:', workoutsError.message);
+        warnings.push('Falha ao salvar treinos do Oura (não bloqueante).');
       }
     }
 
@@ -737,6 +744,7 @@ Deno.serve(async (req) => {
       .eq('id', connection.id);
     if (lastSyncUpdateError) {
       console.warn('Failed to update last_sync_at after sync:', lastSyncUpdateError.message);
+      warnings.push('Falha ao atualizar last_sync_at após sync.');
     }
 
     if (DEBUG) console.log('Oura sync completed for', syncDate);
@@ -755,6 +763,7 @@ Deno.serve(async (req) => {
             hr_day_avg: acuteMetrics.hr_day_avg,
           }
         : null,
+      warnings,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
