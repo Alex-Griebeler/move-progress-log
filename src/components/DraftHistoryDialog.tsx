@@ -217,7 +217,16 @@ export function DraftHistoryDialog({
                       </div>
 
                       <div className="pt-2 text-xs text-muted-foreground">
-                        <p>Salvo em: {new Date(selectedDraft.timestamp).toLocaleString('pt-BR')}</p>
+                        <p>
+                          Salvo em:{" "}
+                          {new Date(selectedDraft.timestamp).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
