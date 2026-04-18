@@ -78,6 +78,12 @@ export interface PrescriptionAssignment {
   student_name?: string;
 }
 
+export interface AssignPrescriptionResult {
+  totalCount: number;
+  createdCount: number;
+  duplicateCount: number;
+}
+
 type WorkoutPrescriptionRow = Database["public"]["Tables"]["workout_prescriptions"]["Row"];
 type PrescriptionAssignmentRow = Database["public"]["Tables"]["prescription_assignments"]["Row"];
 type PrescriptionExerciseRow = Database["public"]["Tables"]["prescription_exercises"]["Row"];
@@ -291,12 +297,32 @@ export const useAssignPrescription = () => {
       start_date: string;
       end_date?: string;
       custom_adaptations?: AssignmentScheduleAdaptations | null;
-    }) => {
+    }): Promise<AssignPrescriptionResult> => {
       const customAdaptations = sanitizeAssignmentScheduleAdaptations(
         data.custom_adaptations
       );
 
-      const assignments = data.student_ids.map((student_id) => ({
+      const { data: existingAssignments, error: existingError } = await supabase
+        .from("prescription_assignments")
+        .select("student_id")
+        .eq("prescription_id", data.prescription_id)
+        .eq("start_date", data.start_date)
+        .in("student_id", data.student_ids);
+
+      if (existingError) throw existingError;
+
+      const existingStudentIds = new Set((existingAssignments ?? []).map((row) => row.student_id));
+      const newStudentIds = data.student_ids.filter((studentId) => !existingStudentIds.has(studentId));
+
+      if (newStudentIds.length === 0) {
+        return {
+          totalCount: data.student_ids.length,
+          createdCount: 0,
+          duplicateCount: data.student_ids.length,
+        };
+      }
+
+      const assignments = newStudentIds.map((student_id) => ({
         prescription_id: data.prescription_id,
         student_id,
         start_date: data.start_date,
@@ -309,15 +335,36 @@ export const useAssignPrescription = () => {
         .insert(assignments);
 
       if (error) throw error;
+
+      return {
+        totalCount: data.student_ids.length,
+        createdCount: newStudentIds.length,
+        duplicateCount: data.student_ids.length - newStudentIds.length,
+      };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["assignments"] });
       queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
       queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
       queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
       queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
       queryClient.invalidateQueries({ queryKey: ["students-active-prescriptions"] });
-      notify.success(i18n.modules.prescriptions.assigned);
+
+      if (result.createdCount > 0 && result.duplicateCount === 0) {
+        notify.success(i18n.modules.prescriptions.assigned);
+        return;
+      }
+
+      if (result.createdCount > 0 && result.duplicateCount > 0) {
+        notify.warning("Atribuição parcial concluída", {
+          description: `${result.createdCount} novo(s) aluno(s) atribuídos e ${result.duplicateCount} duplicado(s) ignorado(s).`,
+        });
+        return;
+      }
+
+      notify.info("Nenhuma nova atribuição", {
+        description: `${result.duplicateCount} aluno(s) já tinham essa prescrição na mesma data de início.`,
+      });
     },
     onError: (error: Error & { code?: string }) => {
       const message = buildErrorDescription(error, i18n.errors.unknown);

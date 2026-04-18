@@ -89,7 +89,7 @@ export function AssignPrescriptionDialog({
     }
 
     try {
-      await assignPrescription.mutateAsync({
+      const result = await assignPrescription.mutateAsync({
         prescription_id: prescriptionId,
         student_ids: selectedStudents,
         start_date: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
@@ -97,11 +97,13 @@ export function AssignPrescriptionDialog({
         custom_adaptations: Object.keys(customAdaptations).length > 0 ? customAdaptations : undefined,
       });
 
-      setSelectedStudents([]);
-      setDateRange(undefined);
-      setSelectedWeekdays([]);
-      setTime("");
-      closeDialog();
+      if (result.createdCount > 0) {
+        setSelectedStudents([]);
+        setDateRange(undefined);
+        setSelectedWeekdays([]);
+        setTime("");
+        closeDialog();
+      }
     } catch {
       // Error handled by mutation's onError callback
     }

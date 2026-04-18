@@ -69,6 +69,16 @@
 - UI Oura (card agudo):
   - parsing/format de data endurecido para sempre renderizar `dd/MM/yyyy` mesmo com variações de payload (`YYYY-MM-DD`, `YYYY-MM-DD HH:mm:ss`, ISO).
 
+## Atualização de status (2026-04-18)
+- Fluxo de atribuição de prescrição endurecido para lote com duplicados:
+  - a mutation `useAssignPrescription` agora pré-valida alunos já atribuídos na mesma `start_date`;
+  - quando houver mistura de novos + duplicados, atribui os novos e ignora duplicados (sem falha total do lote);
+  - feedback de UX por cenário:
+    - sucesso total;
+    - atribuição parcial (com contagem de ignorados);
+    - nenhuma nova atribuição (todos duplicados);
+  - `AssignPrescriptionDialog` passa a fechar somente quando houver ao menos 1 atribuição nova, evitando perda de contexto para ajuste de período.
+
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
 2. Reimportar planilha duplicada e confirmar:
