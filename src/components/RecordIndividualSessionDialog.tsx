@@ -116,13 +116,18 @@ export function RecordIndividualSessionDialog({
     queryKey: ['existing-session', existingSessionId],
     queryFn: async () => {
       if (!existingSessionId) return null;
-      const { data: session, error: sessionError } = await supabase.from('workout_sessions').select('*').eq('id', existingSessionId).single();
+      const { data: session, error: sessionError } = await supabase
+        .from('workout_sessions')
+        .select('id, date, time, trainer_name, prescription_id')
+        .eq('id', existingSessionId)
+        .single();
       if (sessionError) throw sessionError;
-      const { data: exercises, error: exercisesError } = await supabase.from('exercises').select('*').eq('session_id', existingSessionId);
+      const { data: exercises, error: exercisesError } = await supabase
+        .from('exercises')
+        .select('id, session_id, exercise_name, sets, reps, load_kg, load_breakdown, observations, is_best_set')
+        .eq('session_id', existingSessionId);
       if (exercisesError) throw exercisesError;
-      const { data: segments, error: segmentsError } = await supabase.from('session_audio_segments').select('*').eq('session_id', existingSessionId).order('segment_order');
-      if (segmentsError) throw segmentsError;
-      return { session, exercises, segments };
+      return { session, exercises };
     },
     enabled: !!existingSessionId,
     staleTime: 2 * 60 * 1000,

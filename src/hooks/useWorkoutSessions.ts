@@ -228,7 +228,7 @@ export const useSessionExercises = (sessionId: string | null) => {
 
       const { data, error } = await supabase
         .from("exercises")
-        .select("*")
+        .select("id, session_id, exercise_name, sets, reps, load_kg, load_description, load_breakdown, observations, created_at")
         .eq("session_id", sessionId)
         .order("created_at");
 

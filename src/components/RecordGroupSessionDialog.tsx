@@ -317,7 +317,7 @@ export function RecordGroupSessionDialog({
           typedSessions.map(async (session) => {
             const { data: exercises, error: exercisesError } = await supabase
               .from('exercises')
-              .select('*')
+              .select('id, session_id, exercise_name, sets, reps, load_kg, load_breakdown, observations, is_best_set')
               .eq('session_id', session.id);
             if (exercisesError) {
               throw exercisesError;
@@ -475,7 +475,7 @@ export function RecordGroupSessionDialog({
         if (!existingStudent && !queuedStudent) {
           const { data: candidateStudents, error } = await supabase
             .from('students')
-            .select('*')
+            .select('id, name, weight_kg')
             .ilike('name', session.student_name)
             .order('created_at', { ascending: false })
             .limit(20);

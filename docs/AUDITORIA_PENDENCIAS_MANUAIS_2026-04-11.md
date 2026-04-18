@@ -126,6 +126,10 @@
     - lookup de sessão para pós-processamento (observações/áudio);
   - `RecordIndividualSessionDialog` agora valida erro ao limpar exercícios antigos antes de sobrescrever sessão reaberta;
   - `useCreateSessionWithExercises` agora loga falha de rollback quando não conseguir excluir `workout_sessions` após erro de insert de exercícios.
+- Redução de payload em queries de sessão (responsividade):
+  - `RecordGroupSessionDialog` deixou de usar `select('*')` em consultas de exercícios/alunos (campos explícitos);
+  - `RecordIndividualSessionDialog` deixou de usar `select('*')` em sessão/exercícios de reabertura e removeu fetch não usado de `session_audio_segments`;
+  - `useSessionExercises` em `useWorkoutSessions` agora usa seleção explícita de colunas em vez de `select('*')`.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
