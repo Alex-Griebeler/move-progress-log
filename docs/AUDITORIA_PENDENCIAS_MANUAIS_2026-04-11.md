@@ -87,6 +87,9 @@
 - Performance no histórico de carga por exercício:
   - `useExerciseLoadHistory` removido de fluxo “carrega todas as sessões + cruza em memória” para query direta de exercícios candidatos com join em `workout_sessions`;
   - seleção do último registro por aluno feita em memória com timestamp da sessão, reduzindo payload e roundtrip em turmas maiores.
+- Consistência de cache após criação de sessões:
+  - `useCreateWorkoutSession` e `useCreateGroupWorkoutSessions` agora invalidam também `all-sessions`, `sessions-with-exercises`, `session-exercises` e `stats`;
+  - reduz risco de telas com contadores/listas desatualizados após salvar sessão.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

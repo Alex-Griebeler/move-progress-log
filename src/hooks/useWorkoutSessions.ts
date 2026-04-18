@@ -297,7 +297,11 @@ export const useCreateWorkoutSession = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
 
       if (!variables.silent) {
         notify.success(workoutKeys.sessionCreated, {
@@ -433,8 +437,11 @@ export const useCreateGroupWorkoutSessions = () => {
     },
     onSuccess: (results) => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
       queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
       
       const successResults = results.filter(r => r.success);
       const failedResults = results.filter(r => !r.success);
