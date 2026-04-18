@@ -23,9 +23,8 @@ import { notify } from "@/lib/notify";
 import { Trash, Loader2, Mic } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { formatSessionDate } from "@/utils/sessionDate";
 import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface EditSessionDialogProps {
@@ -278,7 +277,7 @@ export function EditSessionDialog({
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <span className="font-semibold">Data:</span>{" "}
-                          {format(new Date(sessionData.date), "dd/MM/yyyy", { locale: ptBR })}
+                          {formatSessionDate(sessionData.date)}
                         </div>
                         <div>
                           <span className="font-semibold">Horário:</span> {formatSessionTime(sessionData.time)}

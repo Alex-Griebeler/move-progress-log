@@ -67,6 +67,7 @@ import { ErrorState } from "@/components/ErrorState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { cn } from "@/lib/utils";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { formatSessionDate } from "@/utils/sessionDate";
 
 export default function SessionsPage() {
   usePageTitle(NAV_LABELS.sessions);
@@ -508,7 +509,7 @@ export default function SessionsPage() {
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                              {format(new Date(session.date), "dd/MM/yyyy", { locale: ptBR })}
+                              {formatSessionDate(session.date)}
                               <Clock className="h-4 w-4 text-muted-foreground ml-2" />
                               {formatSessionTime(session.time)}
                             </div>

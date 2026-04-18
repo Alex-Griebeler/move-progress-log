@@ -52,6 +52,9 @@
   - mutations de sessão agora invalidam também `all-sessions-paginated` (além de `all-sessions`) para evitar lista stale após criar/reabrir/finalizar.
   - fluxo `useCreateWorkout` (dashboard) agora invalida também queries de sessões (`all-sessions`, `all-sessions-paginated`, `sessions-with-exercises`, `session-exercises`) e `workouts-paginated`.
   - edição de sessão (`EditSessionDialog`) agora invalida `all-sessions-paginated` para refletir alterações imediatamente na listagem paginada.
+  - normalização de data/hora de sessão aplicada nas telas críticas (`SessionsPage`, `SessionDetailDialog`, `EditSessionDialog`, `RecordGroupSessionDialog`, `DraftHistoryDialog`) com utilitários dedicados:
+    - data sempre em `dd/MM/yyyy` com parse timezone-safe para strings `YYYY-MM-DD`;
+    - horário sempre em `HH:MM` (sem segundos).
 - UI Oura (card agudo):
   - parsing/format de data endurecido para sempre renderizar `dd/MM/yyyy` mesmo com variações de payload (`YYYY-MM-DD`, `YYYY-MM-DD HH:mm:ss`, ISO).
 

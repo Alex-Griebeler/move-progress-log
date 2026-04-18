@@ -20,6 +20,8 @@ import {
 import { SessionDraft, useSessionDraftHistory } from "@/hooks/useSessionDraftHistory";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatSessionTime } from "@/utils/sessionTime";
+import { formatSessionDate } from "@/utils/sessionDate";
 
 interface DraftHistoryDialogProps {
   open: boolean;
@@ -143,11 +145,11 @@ export function DraftHistoryDialog({
                         <div className="flex flex-wrap gap-1.5">
                           <Badge variant="secondary" className="text-xs gap-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(draft.date).toLocaleDateString('pt-BR')}
+                            {formatSessionDate(draft.date)}
                           </Badge>
                           <Badge variant="secondary" className="text-xs gap-1">
                             <Clock className="h-3 w-3" />
-                            {draft.time}
+                            {formatSessionTime(draft.time)}
                           </Badge>
                           <Badge variant="secondary" className="text-xs gap-1">
                             <Users className="h-3 w-3" />
@@ -183,12 +185,12 @@ export function DraftHistoryDialog({
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">Data:</span>
-                          <span>{new Date(selectedDraft.date).toLocaleDateString('pt-BR')}</span>
+                          <span>{formatSessionDate(selectedDraft.date)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">Horário:</span>
-                          <span>{selectedDraft.time}</span>
+                          <span>{formatSessionTime(selectedDraft.time)}</span>
                         </div>
                       </div>
 

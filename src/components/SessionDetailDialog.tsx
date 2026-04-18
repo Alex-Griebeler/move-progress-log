@@ -7,14 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSessionDetail } from "@/hooks/useSessionDetail";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { Calendar, Clock, Users, Dumbbell, TrendingUp, User, Award, Filter } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { LoadingState } from "./LoadingState";
 import { ErrorState } from "./ErrorState";
 import { useState, useMemo } from "react";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { formatSessionDate } from "@/utils/sessionDate";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 
 interface SessionDetailDialogProps {
@@ -224,7 +223,7 @@ export const SessionDetailDialog = ({
                     <div>
                       <p className="text-xs text-muted-foreground">Data</p>
                       <p className="font-medium">
-                        {format(new Date(session.date), "dd/MM/yyyy", { locale: ptBR })}
+                        {formatSessionDate(session.date)}
                       </p>
                     </div>
                   </div>

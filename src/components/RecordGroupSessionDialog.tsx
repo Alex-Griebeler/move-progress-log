@@ -30,6 +30,7 @@ import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { logger } from "@/utils/logger";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { formatSessionDate } from "@/utils/sessionDate";
 
 // Shared types, utilities & components
 import {
@@ -962,7 +963,7 @@ export function RecordGroupSessionDialog({
         {dialogState === 'preview' && mergedStudents.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-              <span>📅 {new Date(date).toLocaleDateString('pt-BR')}</span>
+              <span>📅 {formatSessionDate(date)}</span>
               <span>🕐 {time}</span>
             </div>
             <div className="flex items-center gap-2">
