@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { User, Users, MoreVertical, Eye, Edit, FolderOpen, FileText, Check } from "lucide-react";
 import { memo, useState } from "react";
+import { formatSessionDate } from "@/utils/sessionDate";
 
 interface WorkoutCardProps {
   name: string;
@@ -98,7 +99,7 @@ const WorkoutCard = memo(({
                   )}
                   
                   <Badge variant="outline" className="text-xs capitalize shrink-0 opacity-70">
-                    {new Date(date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                    {formatSessionDate(date, "dd MMM")}
                   </Badge>
                   
                   {hasImportantObservations && (

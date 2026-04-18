@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { useExerciseHistory, useExerciseStats } from "@/hooks/useExerciseHistory";
 import { TrendingUp, Dumbbell, Calendar, Award } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatSessionDate } from "@/utils/sessionDate";
 
 interface ExerciseHistoryCardProps {
   studentId: string;
@@ -87,7 +88,7 @@ const ExerciseHistoryCard = ({ studentId, exerciseName }: ExerciseHistoryCardPro
             <p className="text-sm font-medium mb-sm">Última Sessão:</p>
             <div className="flex items-center gap-sm flex-wrap">
               <Badge variant="outline">
-                {new Date(stats.lastSession.session_date).toLocaleDateString('pt-BR')}
+                {formatSessionDate(stats.lastSession.session_date)}
               </Badge>
               <Badge variant="secondary">
                 {stats.lastSession.sets}x{stats.lastSession.reps} @ {stats.lastSession.load_kg}kg

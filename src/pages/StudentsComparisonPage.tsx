@@ -26,6 +26,7 @@ import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
+import { formatSessionDate } from "@/utils/sessionDate";
 
 interface StudentStats {
   studentId: string;
@@ -614,7 +615,7 @@ const StudentsComparisonPage = () => {
                                     <p className="text-xs text-muted-foreground">Última Sessão</p>
                                     <p className="text-sm font-semibold">
                                       {stats?.lastSessionDate
-                                        ? new Date(stats.lastSessionDate).toLocaleDateString('pt-BR')
+                                        ? formatSessionDate(stats.lastSessionDate)
                                         : "Nenhuma"}
                                     </p>
                                   </div>
@@ -649,7 +650,7 @@ const StudentsComparisonPage = () => {
                                        {stats.exerciseDetails.map((detail, idx) => (
                                         <TableRow key={idx}>
                                           <TableCell className="font-medium">
-                                            {new Date(detail.date).toLocaleDateString('pt-BR')}
+                                            {formatSessionDate(detail.date)}
                                           </TableCell>
                                           <TableCell>{detail.exerciseName}</TableCell>
                                           <TableCell>{detail.load} kg</TableCell>
