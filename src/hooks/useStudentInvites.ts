@@ -41,6 +41,10 @@ export const useValidateInvite = (token: string) => {
   return useQuery({
     queryKey: ["validate-invite", token],
     enabled: !!token,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;

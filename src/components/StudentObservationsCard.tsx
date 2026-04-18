@@ -18,6 +18,10 @@ export function StudentObservationsCard({ studentId }: StudentObservationsCardPr
   const { data: observations, isLoading } = useQuery({
     queryKey: ['student-observations', studentId],
     enabled: !!studentId,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('student_observations')

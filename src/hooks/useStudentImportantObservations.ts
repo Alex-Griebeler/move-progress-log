@@ -5,6 +5,10 @@ export const useStudentImportantObservations = (studentId: string) => {
   return useQuery({
     queryKey: ['student-important-observations', studentId],
     enabled: !!studentId,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('student_observations')

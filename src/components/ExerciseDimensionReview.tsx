@@ -37,6 +37,10 @@ export const ExerciseDimensionReview = () => {
   // Fetch exercises with dimension data
   const { data: exercises, isLoading } = useQuery({
     queryKey: ["exercises-dimensions", filter, categoryFilter],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let allData: Array<{ id: string; name: string; category: string | null; movement_pattern: string | null; axial_load: number | null; lumbar_demand: number | null; technical_complexity: number | null; metabolic_potential: number | null; knee_dominance: number | null; hip_dominance: number | null }> = [];
       let from = 0;
@@ -92,6 +96,10 @@ export const ExerciseDimensionReview = () => {
   // Total stats (unfiltered)
   const { data: totalStats } = useQuery({
     queryKey: ["exercises-dimension-stats"],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { count: total } = await supabase
         .from("exercises_library")

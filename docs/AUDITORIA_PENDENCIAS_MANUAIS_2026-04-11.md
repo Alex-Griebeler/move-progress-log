@@ -112,6 +112,10 @@
   - `useFolders` com cache estável (`staleTime/gcTime`) e sem refetch automático em mount/focus;
   - `useOuraConnection` e `useOuraWorkouts` com cache curto e sem refetch automático em mount/focus;
   - `useDuplicateExerciseCheck` com cache estável para reduzir consultas repetidas durante digitação/edição de nomes.
+- Cache em fluxos clínicos/revisão:
+  - `useBreathingProtocols`, `useRecoveryProtocols`, `useRecoveryProtocol` e `useProtocolRecommendations` com política explícita de cache e sem refetch automático em mount/focus;
+  - `useStudentImportantObservations`, `useValidateInvite` e `StudentObservationsCard` com cache curto para reduzir chamadas repetidas;
+  - `ExerciseReviewPage`, `ExerciseDimensionReview`, `ExerciseDistributionDiagnostic` e queries internas de `RecordIndividualSessionDialog` com `staleTime/gcTime` + `refetchOnMount=false/refetchOnWindowFocus=false`.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

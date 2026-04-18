@@ -16,6 +16,10 @@ interface DistributionRow {
 const useExerciseDistribution = () => {
   return useQuery({
     queryKey: ["exercise-distribution-diagnostic"],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       // Query 1: By category + movement_pattern
       const { data: byPattern, error: e1 } = await supabase

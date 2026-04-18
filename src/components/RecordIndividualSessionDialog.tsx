@@ -105,6 +105,10 @@ export function RecordIndividualSessionDialog({
       return data;
     },
     enabled: !!studentId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
   const studentWeightKg = studentData?.weight_kg ?? undefined;
 
@@ -121,6 +125,10 @@ export function RecordIndividualSessionDialog({
       return { session, exercises, segments };
     },
     enabled: !!existingSessionId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {
@@ -151,6 +159,10 @@ export function RecordIndividualSessionDialog({
       return data;
     },
     enabled: !!studentId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   const prescriptionOptions = [

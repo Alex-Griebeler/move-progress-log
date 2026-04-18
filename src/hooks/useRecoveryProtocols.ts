@@ -18,6 +18,10 @@ export interface RecoveryProtocol {
 export const useRecoveryProtocols = (category?: string) => {
   return useQuery({
     queryKey: ["recovery-protocols", category],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let query = supabase
         .from("recovery_protocols")
@@ -41,6 +45,10 @@ export const useRecoveryProtocol = (id: string) => {
   return useQuery({
     queryKey: ["recovery-protocol", id],
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recovery_protocols")

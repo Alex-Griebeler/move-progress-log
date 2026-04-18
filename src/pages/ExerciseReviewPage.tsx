@@ -73,6 +73,10 @@ const ExerciseReviewPage = () => {
 
   const { data: exercises, isLoading, error: queryError } = useQuery({
     queryKey: ["exercises-review"],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       // Fetch in batches to avoid the 1000 row limit
       type ExerciseRow = { id: string; name: string; category: string | null; movement_pattern: string | null; subcategory: string | null; movement_plane: string | null; level: string | null; laterality: string | null; contraction_type: string | null; emphasis: string | null; stability_position: string | null; surface_modifier: string | null };

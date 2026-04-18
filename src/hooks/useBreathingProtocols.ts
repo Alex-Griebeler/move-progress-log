@@ -8,6 +8,10 @@ type UsageContext = "pre_workout" | "intra_workout" | "post_workout" | "recovery
 export const useBreathingProtocols = (category?: BreathingCategory) => {
   return useQuery({
     queryKey: ["breathing-protocols", category],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let query = supabase
         .from("breathing_protocols")
