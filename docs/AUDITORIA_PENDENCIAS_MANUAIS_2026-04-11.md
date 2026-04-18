@@ -55,6 +55,8 @@
   - normalização de data/hora de sessão aplicada nas telas críticas (`SessionsPage`, `SessionDetailDialog`, `EditSessionDialog`, `RecordGroupSessionDialog`, `DraftHistoryDialog`) com utilitários dedicados:
     - data sempre em `dd/MM/yyyy` com parse timezone-safe para strings `YYYY-MM-DD`;
     - horário sempre em `HH:MM` (sem segundos).
+  - `useSessionDetail` refatorado para query única com join (`workout_sessions` + `students` + `exercises`) e cache (`staleTime/gcTime/refetchOnMount`) para reduzir latência de abertura do detalhe.
+  - `useStudentPrescriptions` e `useSessionsWithExercises` com cache ajustado (`staleTime/gcTime/refetchOnMount`) para diminuir refetch em navegação entre abas do aluno.
 - UI Oura (card agudo):
   - parsing/format de data endurecido para sempre renderizar `dd/MM/yyyy` mesmo com variações de payload (`YYYY-MM-DD`, `YYYY-MM-DD HH:mm:ss`, ISO).
 

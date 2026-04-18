@@ -6,6 +6,9 @@ export const useStudentPrescriptions = (studentId: string) => {
   return useQuery({
     queryKey: ["student-prescriptions", studentId],
     enabled: !!studentId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       const { data: assignments, error } = await supabase
         .from("prescription_assignments")
@@ -54,6 +57,9 @@ export const useSessionsWithExercises = (studentId: string) => {
   return useQuery({
     queryKey: ["sessions-with-exercises", studentId],
     enabled: !!studentId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       // BUG-002 fix: Single query with join instead of N+1
       const { data: sessions, error } = await supabase

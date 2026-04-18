@@ -42,13 +42,46 @@ export const useSessionDetail = (sessionId: string | null) => {
   return useQuery({
     queryKey: ["session-detail", sessionId],
     enabled: !!sessionId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       if (!sessionId) return null;
 
       try {
         const { data: sessionData, error: sessionError } = await supabase
           .from("workout_sessions")
-          .select("*")
+          .select(`
+            id,
+            student_id,
+            date,
+            time,
+            session_type,
+            workout_name,
+            trainer_name,
+            room_name,
+            is_finalized,
+            can_reopen,
+            prescription_id,
+            student:students!student_id (
+              id,
+              name,
+              avatar_url,
+              birth_date
+            ),
+            exercises (
+              id,
+              exercise_name,
+              sets,
+              reps,
+              load_kg,
+              load_description,
+              load_breakdown,
+              observations,
+              is_best_set,
+              created_at
+            )
+          `)
           .eq("id", sessionId)
           .single();
 
@@ -61,31 +94,14 @@ export const useSessionDetail = (sessionId: string | null) => {
           throw new Error("Sessão não encontrada");
         }
 
-        const { data: studentData, error: studentError } = await supabase
-          .from("students")
-          .select("id, name, avatar_url, birth_date")
-          .eq("id", sessionData.student_id)
-          .single();
-
-        if (studentError) {
-          logger.error("Erro ao buscar aluno da sessão", studentError);
-          throw studentError;
-        }
+        const studentData = Array.isArray(sessionData.student)
+          ? sessionData.student[0]
+          : sessionData.student;
         if (!studentData) {
           logger.error("Aluno não encontrado para sessão", { sessionId, studentId: sessionData.student_id });
           throw new Error("Aluno não encontrado");
         }
-
-        const { data: exercisesData, error: exercisesError } = await supabase
-          .from("exercises")
-          .select("*")
-          .eq("session_id", sessionId)
-          .order("created_at", { ascending: true });
-
-        if (exercisesError) {
-          logger.error("Erro ao buscar exercícios da sessão", exercisesError);
-          throw exercisesError;
-        }
+        const exercisesData = Array.isArray(sessionData.exercises) ? sessionData.exercises : [];
 
         return {
           ...sessionData,
