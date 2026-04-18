@@ -55,6 +55,9 @@ export const useStudentReports = (studentId: string) => {
   return useQuery({
     queryKey: ["student-reports", studentId],
     enabled: !!studentId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("student_reports")
@@ -72,6 +75,9 @@ export const useReportById = (reportId: string | null) => {
   return useQuery({
     queryKey: ["student-report", reportId],
     enabled: !!reportId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       if (!reportId) return null;
 
@@ -91,6 +97,9 @@ export const useReportTrackedExercises = (reportId: string | null) => {
   return useQuery({
     queryKey: ["report-tracked-exercises", reportId],
     enabled: !!reportId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
     queryFn: async () => {
       if (!reportId) return [];
 
@@ -193,6 +202,7 @@ export const useUpdateTrainerNotes = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["student-report", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["student-reports", data.student_id] });
       toast.success("Notas atualizadas com sucesso!");
     },
     onError: (error: Error) => {

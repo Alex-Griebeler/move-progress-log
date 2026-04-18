@@ -60,6 +60,9 @@
   - `EditGroupSessionDialog` sem N+1 no carregamento inicial: exercícios de todas as sessões do grupo passam a ser buscados em query única (`in('session_id', ...)`) e agrupados em memória.
   - normalização de data expandida para histórico/comparação (`ExerciseHistoryCard`, `WorkoutCard`, `StudentsComparisonPage`) usando util timezone-safe para reduzir risco de dia deslocado em `YYYY-MM-DD`.
   - `useExerciseHistory` com cache (`staleTime/gcTime/refetchOnMount`) e lookup otimizado de sessões (`Map`) para reduzir custo de render em históricos longos.
+- Estabilidade/performance em relatórios:
+  - `useStudentReports`, `useReportById` e `useReportTrackedExercises` agora com cache estável (`staleTime/gcTime/refetchOnMount`) para reduzir refetch ao abrir/fechar relatório.
+  - atualização de notas do treinador invalida também a lista de relatórios do aluno (`student-reports`) para evitar estado stale após edição.
 - UI Oura (card agudo):
   - parsing/format de data endurecido para sempre renderizar `dd/MM/yyyy` mesmo com variações de payload (`YYYY-MM-DD`, `YYYY-MM-DD HH:mm:ss`, ISO).
 
