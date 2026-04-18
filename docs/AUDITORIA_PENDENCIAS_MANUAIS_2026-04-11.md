@@ -103,6 +103,10 @@
 - Busca/listagem de prescrições com menos churn:
   - `usePrescriptionSearch` agora usa debounce (`searchText`), `queryKey` estável por primitivos e cache curto (`staleTime/gcTime`) com `refetchOnMount=false/refetchOnWindowFocus=false`;
   - reduz chamadas consecutivas durante digitação sem alterar resultado final da busca.
+- Cache de páginas analíticas/IA:
+  - `AthleteInsightsDashboard` com cache explícito em todas as queries (`students`, `trends`, `records`, `goals`) e sem refetch automático em mount/focus;
+  - `CoachConsole` com cache explícito na lista de alunos;
+  - `useOuraSyncLogs` com cache curto e sem refetch automático em mount/focus.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

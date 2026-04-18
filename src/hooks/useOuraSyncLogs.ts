@@ -16,6 +16,10 @@ export interface OuraSyncLog {
 export const useOuraSyncLogs = (studentId?: string, limit: number = 10) => {
   return useQuery({
     queryKey: ["oura-sync-logs", studentId, limit],
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let query = supabase
         .from("oura_sync_logs")

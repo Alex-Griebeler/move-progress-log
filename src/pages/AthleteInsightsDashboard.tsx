@@ -74,6 +74,10 @@ export default function AthleteInsightsDashboard() {
 
   const { data: students } = useQuery({
     queryKey: ['students'],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase.from('students').select('id, name').order('name');
       if (error) throw error;
@@ -84,6 +88,10 @@ export default function AthleteInsightsDashboard() {
   const { data: trends, isError: trendsError } = useQuery<MetricTrend[]>({
     queryKey: ['athlete-trends', studentId, days],
     enabled: !!studentId,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const since = formatDateInput(new Date(Date.now() - days * 86_400_000));
       const { data: sessions, error: sessionsError } = await supabase
@@ -135,6 +143,10 @@ export default function AthleteInsightsDashboard() {
   const { data: records } = useQuery<AthleteRecord[]>({
     queryKey: ['athlete-records', studentId],
     enabled: !!studentId,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data: sessions, error: sessionsError } = await supabase
         .from('workout_sessions')
@@ -215,6 +227,10 @@ export default function AthleteInsightsDashboard() {
   const { data: goals } = useQuery<AthleteGoal[]>({
     queryKey: ['athlete-goals', studentId],
     enabled: !!studentId,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('student_reports')

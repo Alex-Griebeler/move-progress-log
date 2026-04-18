@@ -25,6 +25,10 @@ export default function CoachConsole() {
 
   const { data: students } = useQuery({
     queryKey: ['students'],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase.from('students').select('id, name').order('name');
       if (error) throw error;
