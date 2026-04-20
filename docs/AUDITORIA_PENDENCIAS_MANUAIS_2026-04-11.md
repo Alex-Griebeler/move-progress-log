@@ -188,6 +188,9 @@
 - Duplicidade de exercício (detecção):
   - comparação de similaridade no `useDuplicateExerciseCheck` passou a ser bidirecional (`candidate includes input` OU `input includes candidate`);
   - reduz falso negativo quando o nome digitado é mais detalhado que o já cadastrado.
+- Horário de sessão (resiliência de apresentação):
+  - `formatSessionTime` agora aceita sufixos de timezone em `HH:mm:ss` e retorna fallback seguro (`--:--`) para strings inválidas, em vez de truncar texto arbitrário;
+  - suíte de teste ampliada para cobrir timezone suffix e formato inválido.
 - Prescrição (busca/atribuição) endurecida em dois pontos:
   - `usePrescriptionSearch` agora mapeia corretamente `assigned_students_count` no modo de busca (antes retornava `assigned_count` e os cards podiam mostrar 0 aluno(s) indevidamente);
   - filtro de `dayOfWeek` foi movido para pós-processamento no cliente para evitar ambiguidade de múltiplos `.or(...)` no mesmo query builder.

@@ -4,7 +4,9 @@ export const formatSessionTime = (timeValue: string | null | undefined): string 
   const normalized = String(timeValue).trim();
   if (!normalized) return "--:--";
 
-  const hhmmssMatch = normalized.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  const hhmmssMatch = normalized.match(
+    /^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?$/
+  );
   if (hhmmssMatch) {
     const hours = Number(hhmmssMatch[1]);
     const minutes = Number(hhmmssMatch[2]);
@@ -18,5 +20,5 @@ export const formatSessionTime = (timeValue: string | null | undefined): string 
     return `${String(maybeDate.getHours()).padStart(2, "0")}:${String(maybeDate.getMinutes()).padStart(2, "0")}`;
   }
 
-  return normalized.slice(0, 5);
+  return "--:--";
 };

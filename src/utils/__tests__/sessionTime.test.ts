@@ -10,6 +10,10 @@ describe("formatSessionTime", () => {
     expect(formatSessionTime("4:05")).toBe("04:05");
   });
 
+  it("supports HH:mm:ss with timezone suffix", () => {
+    expect(formatSessionTime("04:53:00Z")).toBe("04:53");
+  });
+
   it("returns fallback when value is empty", () => {
     expect(formatSessionTime("")).toBe("--:--");
   });
@@ -17,5 +21,8 @@ describe("formatSessionTime", () => {
   it("returns fallback when value is null", () => {
     expect(formatSessionTime(null)).toBe("--:--");
   });
-});
 
+  it("returns fallback for invalid time string", () => {
+    expect(formatSessionTime("invalid-time")).toBe("--:--");
+  });
+});
