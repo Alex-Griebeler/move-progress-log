@@ -90,7 +90,7 @@ describe("prescriptionMappers", () => {
 
   it("sanitizes assignment schedule adaptations for weekdays and HH:mm time", () => {
     const sanitized = sanitizeAssignmentScheduleAdaptations({
-      weekdays: [" monday ", "friday", "invalid-day"],
+      weekdays: [" monday ", "friday", "monday", "invalid-day"],
       time: "08:00:00",
     });
 

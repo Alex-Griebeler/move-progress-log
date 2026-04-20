@@ -25,10 +25,10 @@ export const usePrescriptionSearch = (filters: PrescriptionSearchFilters) => {
   const debouncedSearchText = useDebounce(filters.searchText?.trim() ?? "", 300);
   const stableFolderId =
     filters.folderId === undefined ? "__all__" : filters.folderId === null ? "__none__" : filters.folderId;
-  const stableDayOfWeek = filters.dayOfWeek ?? "";
+  const stableDayOfWeek = filters.dayOfWeek?.trim() ?? "";
   const normalizedDayOfWeek = stableDayOfWeek.trim().toLowerCase();
   const hasSearchFilters =
-    debouncedSearchText.length > 0 || filters.folderId !== undefined || !!filters.dayOfWeek;
+    debouncedSearchText.length > 0 || filters.folderId !== undefined || normalizedDayOfWeek.length > 0;
 
   return useQuery({
     queryKey: ["prescription-search", debouncedSearchText, stableFolderId, stableDayOfWeek],

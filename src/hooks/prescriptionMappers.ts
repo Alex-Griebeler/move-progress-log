@@ -76,10 +76,14 @@ export const sanitizeAssignmentScheduleAdaptations = (
   }
 
   const weekdays = Array.isArray(value.weekdays)
-    ? value.weekdays
+    ? Array.from(
+        new Set(
+          value.weekdays
         .filter((day): day is string => typeof day === "string")
         .map((day) => day.trim().toLowerCase())
         .filter((day) => WEEKDAY_SET.has(day))
+        )
+      )
     : [];
 
   const rawTime =
