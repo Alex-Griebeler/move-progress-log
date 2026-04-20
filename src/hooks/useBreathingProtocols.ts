@@ -4,6 +4,8 @@ import type { BreathingProtocol } from "@/types/aiSession";
 
 type BreathingCategory = "respiracao" | "mindfulness" | "meditacao";
 type UsageContext = "pre_workout" | "intra_workout" | "post_workout" | "recovery";
+const BREATHING_PROTOCOLS_SELECT =
+  "id, name, category, technique, rhythm, duration_seconds, instructions, benefits, when_to_use, audio_cues, is_active";
 
 export const useBreathingProtocols = (category?: BreathingCategory) => {
   return useQuery({
@@ -15,7 +17,7 @@ export const useBreathingProtocols = (category?: BreathingCategory) => {
     queryFn: async () => {
       let query = supabase
         .from("breathing_protocols")
-        .select("*")
+        .select(BREATHING_PROTOCOLS_SELECT)
         .eq("is_active", true)
         .order("name");
 

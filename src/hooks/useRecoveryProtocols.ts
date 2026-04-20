@@ -15,6 +15,9 @@ export interface RecoveryProtocol {
   updated_at: string;
 }
 
+const RECOVERY_PROTOCOLS_SELECT =
+  "id, name, category, subcategory, duration_minutes, benefits, contraindications, instructions, scientific_references, created_at, updated_at";
+
 export const useRecoveryProtocols = (category?: string) => {
   return useQuery({
     queryKey: ["recovery-protocols", category],
@@ -25,7 +28,7 @@ export const useRecoveryProtocols = (category?: string) => {
     queryFn: async () => {
       let query = supabase
         .from("recovery_protocols")
-        .select("*")
+        .select(RECOVERY_PROTOCOLS_SELECT)
         .order("category")
         .order("name");
 
@@ -52,7 +55,7 @@ export const useRecoveryProtocol = (id: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("recovery_protocols")
-        .select("*")
+        .select(RECOVERY_PROTOCOLS_SELECT)
         .eq("id", id)
         .maybeSingle();
 
