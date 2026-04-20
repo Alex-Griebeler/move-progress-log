@@ -182,6 +182,9 @@
 - Adaptações de agenda endurecidas:
   - weekdays agora são deduplicados;
   - horário aceita apenas formato válido (`H:MM`, `HH:MM` ou `HH:MM:SS`) e normaliza para `HH:MM`.
+- Catálogo de exercícios (UX/consistência):
+  - busca agora ignora espaços em branco no início/fim para decidir filtro ativo (`searchTerm.trim()`), evitando estado de filtro “ativo” sem filtro real;
+  - `boyle_score = 0` passa a renderizar no card técnico (antes era omitido por checagem truthy).
 - Prescrição (busca/atribuição) endurecida em dois pontos:
   - `usePrescriptionSearch` agora mapeia corretamente `assigned_students_count` no modo de busca (antes retornava `assigned_count` e os cards podiam mostrar 0 aluno(s) indevidamente);
   - filtro de `dayOfWeek` foi movido para pós-processamento no cliente para evitar ambiguidade de múltiplos `.or(...)` no mesmo query builder.

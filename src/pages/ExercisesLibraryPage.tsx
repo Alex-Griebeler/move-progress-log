@@ -80,7 +80,7 @@ export default function ExercisesLibraryPage() {
 
   const { data: exercises, isLoading, refetch } = useExercisesLibrary({
     ...filters,
-    search: searchTerm || undefined,
+    search: searchTerm.trim() || undefined,
   });
   const deleteExercise = useDeleteExercise();
 
@@ -117,7 +117,9 @@ export default function ExercisesLibraryPage() {
     setSearchTerm("");
   };
 
-  const hasActiveFilters = Object.values(filters).some((v) => v) || searchTerm;
+  const hasActiveFilters =
+    Object.values(filters).some((v) => v !== undefined && v !== null && String(v).trim() !== "") ||
+    searchTerm.trim().length > 0;
 
   const filteredExercises = exercises;
 
@@ -502,7 +504,7 @@ export default function ExercisesLibraryPage() {
                       )}
                     </div>
                     {/* Scores */}
-                    {exercise.boyle_score && (
+                    {exercise.boyle_score != null && (
                       <div className="flex flex-wrap gap-1">
                         <Badge variant="outline" className="text-xs font-mono">B{exercise.boyle_score}</Badge>
                         {exercise.axial_load != null && <Badge variant="outline" className="text-xs font-mono">AX{exercise.axial_load}</Badge>}
