@@ -100,6 +100,36 @@ describe("prescriptionMappers", () => {
     });
   });
 
+  it("rejects invalid schedule time and normalizes single-digit hour", () => {
+    expect(
+      sanitizeAssignmentScheduleAdaptations({
+        weekdays: ["monday"],
+        time: "8:05",
+      })
+    ).toEqual({
+      weekdays: ["monday"],
+      time: "08:05",
+    });
+
+    expect(
+      sanitizeAssignmentScheduleAdaptations({
+        weekdays: ["monday"],
+        time: "24:00",
+      })
+    ).toEqual({
+      weekdays: ["monday"],
+    });
+
+    expect(
+      sanitizeAssignmentScheduleAdaptations({
+        weekdays: ["monday"],
+        time: "08:00abc",
+      })
+    ).toEqual({
+      weekdays: ["monday"],
+    });
+  });
+
   it("maps assignment custom adaptations when payload is schedule object", () => {
     const mapped = mapAssignmentCustomAdaptations({
       weekdays: ["tuesday", "thursday"],

@@ -9,11 +9,24 @@ export interface PrescriptionSearchFilters {
   dayOfWeek?: string;
 }
 
+type PrescriptionSearchRow = {
+  id: string;
+  name: string;
+  objective: string | null;
+  created_at: string;
+  updated_at: string;
+  folder_id: string | null;
+  order_index: number;
+  prescription_type: "group" | "individual" | string;
+  assigned_count: Array<{ count: number }> | null;
+};
+
 export const usePrescriptionSearch = (filters: PrescriptionSearchFilters) => {
   const debouncedSearchText = useDebounce(filters.searchText?.trim() ?? "", 300);
   const stableFolderId =
     filters.folderId === undefined ? "__all__" : filters.folderId === null ? "__none__" : filters.folderId;
   const stableDayOfWeek = filters.dayOfWeek ?? "";
+  const normalizedDayOfWeek = stableDayOfWeek.trim().toLowerCase();
   const hasSearchFilters =
     debouncedSearchText.length > 0 || filters.folderId !== undefined || !!filters.dayOfWeek;
 
@@ -50,22 +63,34 @@ export const usePrescriptionSearch = (filters: PrescriptionSearchFilters) => {
         }
       }
 
-      // Filter by day of week (if stored in objective or name)
-      if (filters.dayOfWeek) {
-        const dayTerm = `%${filters.dayOfWeek}%`;
-        query = query.or(`name.ilike.${dayTerm},objective.ilike.${dayTerm}`);
-      }
-
       query = query.order("order_index", { ascending: true });
 
       const { data, error } = await query;
 
       if (error) throw error;
 
-      return (data ?? []).map((item) => ({
-        ...item,
-        assigned_count: Array.isArray(item.assigned_count) ? (item.assigned_count[0] as { count: number })?.count || 0 : 0,
-      })) as unknown as WorkoutPrescription[];
+      const mapped = ((data ?? []) as PrescriptionSearchRow[]).map((item): WorkoutPrescription => ({
+        id: item.id,
+        name: item.name,
+        objective: item.objective,
+        created_at: item.created_at,
+        updated_at: item.updated_at,
+        folder_id: item.folder_id,
+        order_index: item.order_index,
+        prescription_type: item.prescription_type === "individual" ? "individual" : "group",
+        assigned_students_count: Array.isArray(item.assigned_count)
+          ? item.assigned_count[0]?.count ?? 0
+          : 0,
+      }));
+
+      if (!normalizedDayOfWeek) {
+        return mapped;
+      }
+
+      return mapped.filter((item) => {
+        const haystack = `${item.name} ${item.objective ?? ""}`.toLowerCase();
+        return haystack.includes(normalizedDayOfWeek);
+      });
     },
     enabled: hasSearchFilters,
   });

@@ -28,6 +28,7 @@ const WEEKDAY_SET = new Set([
   "saturday",
   "sunday",
 ]);
+const TIME_WITH_OPTIONAL_SECONDS_REGEX = /^(\d{1,2}):([0-5]\d)(?::([0-5]\d))?$/;
 
 const isPlainObject = (value: unknown): value is Record<string, Json | undefined> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -86,10 +87,21 @@ export const sanitizeAssignmentScheduleAdaptations = (
       ? value.time.trim()
       : "";
 
-  const normalizedTime =
-    rawTime.length >= 5 && /^\d{2}:\d{2}/.test(rawTime)
-      ? rawTime.slice(0, 5)
-      : "";
+  const normalizeTime = (timeValue: string): string => {
+    const match = timeValue.match(TIME_WITH_OPTIONAL_SECONDS_REGEX);
+    if (!match) return "";
+
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+
+    if (!Number.isFinite(hour) || !Number.isFinite(minute) || hour < 0 || hour > 23) {
+      return "";
+    }
+
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  };
+
+  const normalizedTime = normalizeTime(rawTime);
 
   const sanitized: AssignmentScheduleAdaptations = {};
 
