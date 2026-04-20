@@ -21,7 +21,10 @@ export const findDuplicateCandidates = (
 
   return rows
     .filter((row) => !excludeId || row.id !== excludeId)
-    .filter((row) => normalize(row.name).includes(normalizedName))
+    .filter((row) => {
+      const candidate = normalize(row.name);
+      return candidate.includes(normalizedName) || normalizedName.includes(candidate);
+    })
     .slice(0, 5);
 };
 
