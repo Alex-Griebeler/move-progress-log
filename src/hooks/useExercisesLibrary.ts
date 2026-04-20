@@ -100,6 +100,14 @@ export type { ExerciseFilters } from "./exerciseFilters";
 
 const EXERCISES_PAGE_SIZE = 1000;
 const EXERCISES_MAX_PAGES = 50;
+const EXERCISES_LIBRARY_SELECT = `
+  id, name, movement_pattern, laterality, movement_plane, description,
+  contraction_type, level, created_at, updated_at, video_url,
+  equipment_required, prerequisites, risk_level, category, subcategory,
+  plyometric_phase, default_sets, default_reps, boyle_score, axial_load,
+  lumbar_demand, technical_complexity, metabolic_potential, knee_dominance,
+  hip_dominance, primary_muscles, emphasis, stability_position, surface_modifier
+`;
 
 export const useExercisesLibrary = (filters?: ExerciseFilters) => {
   const normalizedFilters = sanitizeExerciseFilters(filters);
@@ -109,6 +117,7 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const allExercises: ExerciseLibrary[] = [];
 
@@ -118,7 +127,7 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
 
         let query = supabase
           .from("exercises_library")
-          .select("*")
+          .select(EXERCISES_LIBRARY_SELECT)
           .order("name")
           .order("id")
           .range(from, to);

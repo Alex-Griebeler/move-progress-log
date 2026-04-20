@@ -145,6 +145,9 @@
   - hooks de sessões (`useAllSessions`, `useAllSessionsPaginated`, `useWorkoutSessions`, `useSessionExercises`) passaram a não refetchar por foco de janela (`refetchOnWindowFocus=false`), reduzindo recargas ao alternar abas;
   - consultas de `workout_sessions` em `useWorkoutSessions` agora usam seleção explícita de colunas (em vez de `*`), reduzindo payload sem alterar dados exibidos;
   - hooks de relatórios (`useStudentReports`, `useReportById`, `useReportTrackedExercises`) também passaram a `refetchOnWindowFocus=false` para diminuir latência de navegação entre tela/lista/detalhe.
+- Responsividade (catálogo de exercícios):
+  - `useExercisesLibrary` passou a usar seleção explícita de colunas e `refetchOnWindowFocus=false`;
+  - reduz payload e recarregamentos automáticos ao alternar abas sem alterar filtros/resultado.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
