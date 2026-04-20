@@ -176,6 +176,12 @@
   - `start_date` e `end_date` usam `formatSessionDate(...)`;
   - evita regressão de exibir dia anterior/posterior em ambientes com timezone diferente.
 - Lista de relatórios (`StudentReportsPage`) também passou a usar `formatSessionDate(...)` para `period_start/period_end`, alinhando o mesmo comportamento timezone-safe no fluxo de relatórios.
+- Busca de prescrições endurecida:
+  - mapeamento corrigido para `assigned_students_count` no resultado de busca (contagem de alunos consistente entre modo padrão e modo filtrado);
+  - filtro `dayOfWeek` com trimming e pós-filtro determinístico no cliente (evita ambiguidade de múltiplos `.or(...)` no mesmo query builder).
+- Adaptações de agenda endurecidas:
+  - weekdays agora são deduplicados;
+  - horário aceita apenas formato válido (`H:MM`, `HH:MM` ou `HH:MM:SS`) e normaliza para `HH:MM`.
 - Prescrição (busca/atribuição) endurecida em dois pontos:
   - `usePrescriptionSearch` agora mapeia corretamente `assigned_students_count` no modo de busca (antes retornava `assigned_count` e os cards podiam mostrar 0 aluno(s) indevidamente);
   - filtro de `dayOfWeek` foi movido para pós-processamento no cliente para evitar ambiguidade de múltiplos `.or(...)` no mesmo query builder.
