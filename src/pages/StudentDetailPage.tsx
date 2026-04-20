@@ -53,6 +53,7 @@ import { StudentHeaderSkeleton } from "@/components/skeletons/StudentHeaderSkele
 import { getObjectiveLabel } from "@/constants/objectives";
 import { logger } from "@/utils/logger";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { formatSessionDate } from "@/utils/sessionDate";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -531,7 +532,7 @@ const StudentDetailPage = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant="secondary">
-                          {new Date(assignment.start_date).toLocaleDateString('pt-BR')}
+                          {formatSessionDate(assignment.start_date)}
                         </Badge>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
@@ -576,7 +577,7 @@ const StudentDetailPage = () => {
                     )}
                     {assignment.end_date && (
                       <div className="text-sm text-muted-foreground">
-                        Término: {new Date(assignment.end_date).toLocaleDateString('pt-BR')}
+                        Término: {formatSessionDate(assignment.end_date)}
                       </div>
                     )}
                   </CardContent>

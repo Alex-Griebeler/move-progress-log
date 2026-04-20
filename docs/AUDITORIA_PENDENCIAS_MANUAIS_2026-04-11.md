@@ -172,6 +172,9 @@
 - Fluxo de geração de relatório foi endurecido para evitar falso positivo de sucesso:
   - `useGenerateReport` agora valida payload de resposta da edge function (`reportId` string e `status = completed`);
   - respostas parciais/inválidas agora quebram com erro explícito para UI, em vez de seguir como sucesso.
+- Perfil do aluno (`StudentDetailPage`) agora formata datas de atribuição de prescrição com parser timezone-safe:
+  - `start_date` e `end_date` usam `formatSessionDate(...)`;
+  - evita regressão de exibir dia anterior/posterior em ambientes com timezone diferente.
 
 ## O que ainda depende de validação manual
 
