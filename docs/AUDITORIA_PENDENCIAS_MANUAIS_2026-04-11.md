@@ -158,6 +158,9 @@
 - Filtro de sessões (timezone-safe):
   - `useAllSessions` deixou de usar `toISOString().split('T')[0]` para filtrar datas (risco de deslocar o dia em timezone UTC-3);
   - filtro agora usa formatação local estável `yyyy-MM-dd`, alinhando com a data escolhida no calendário.
+- Responsividade/estabilidade Oura:
+  - `useOuraMetrics` e `useLatestOuraMetrics` passaram a `refetchOnWindowFocus=false` para reduzir recargas automáticas ao alternar abas;
+  - deduplicação em `useOuraMetrics` foi otimizada com `Map` por data (mesma regra funcional, menor custo em listas maiores).
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

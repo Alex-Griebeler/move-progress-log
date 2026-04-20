@@ -68,6 +68,7 @@ export const useOuraMetrics = (studentId: string, limit?: number) => {
     staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000, // Manter em cache por 10 minutos
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let query = supabase
         .from("oura_metrics")
@@ -84,22 +85,17 @@ export const useOuraMetrics = (studentId: string, limit?: number) => {
       const { data, error } = await query;
 
       if (error) throw error;
-      
-      // AUD-F03: Deduplicar registros por data (pega o mais recente de cada dia)
-      const deduplicatedData = data.reduce((acc: OuraMetrics[], current: OuraMetrics) => {
-        const existingIndex = acc.findIndex(item => item.date === current.date);
-        if (existingIndex === -1) {
-          acc.push(current);
-        } else {
-          // Mantém o registro mais recente (created_at maior)
-          if (new Date(current.created_at) > new Date(acc[existingIndex].created_at)) {
-            acc[existingIndex] = current;
-          }
+
+      // AUD-F03: Deduplicar registros por data (mantendo o mais recente do dia)
+      const byDate = new Map<string, OuraMetrics>();
+      for (const current of (data || []) as OuraMetrics[]) {
+        const existing = byDate.get(current.date);
+        if (!existing || new Date(current.created_at) > new Date(existing.created_at)) {
+          byDate.set(current.date, current);
         }
-        return acc;
-      }, []);
-      
-      return deduplicatedData;
+      }
+
+      return Array.from(byDate.values()).sort((a, b) => b.date.localeCompare(a.date));
     },
   });
 };
@@ -111,6 +107,7 @@ export const useLatestOuraMetrics = (studentId: string) => {
     staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       // Search a wider window to avoid showing "--" when recent days are sparse.
       const { data, error } = await supabase
