@@ -107,6 +107,10 @@ type AssignmentWithStudentRow = PrescriptionAssignmentRow & {
 
 const PRESCRIPTIONS_PAGE_SIZE = 250;
 const PRESCRIPTIONS_MAX_PAGES = 40;
+const PRESCRIPTION_LIST_SELECT = `
+  id, name, objective, created_at, updated_at, folder_id, order_index, prescription_type,
+  prescription_assignments(student_id)
+`;
 
 const mapPrescriptionListItem = (row: PrescriptionListRow): WorkoutPrescription => ({
   id: row.id,
@@ -171,6 +175,7 @@ export const usePrescriptions = () => {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const allPrescriptions: PrescriptionListRow[] = [];
 
@@ -180,10 +185,7 @@ export const usePrescriptions = () => {
 
         const { data, error } = await supabase
           .from("workout_prescriptions")
-          .select(`
-            *,
-            prescription_assignments(student_id)
-          `)
+          .select(PRESCRIPTION_LIST_SELECT)
           .order("folder_id", { ascending: true, nullsFirst: false })
           .order("order_index", { ascending: true })
           .order("id", { ascending: true })
@@ -208,6 +210,7 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!prescriptionId) return null;
 
@@ -479,6 +482,7 @@ export const usePrescriptionAssignments = (prescriptionId: string | null) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!prescriptionId) return [];
 
