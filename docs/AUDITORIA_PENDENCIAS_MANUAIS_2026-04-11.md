@@ -161,6 +161,17 @@
   - `npx tsc --noEmit`
   - `scripts/ci-smoke-edge-auth.sh` (cenários de rejeição A1/B1/B2/B3/C1/C2/C3/D0)
   - Revalidação completa executada novamente em 2026-04-11 (gates e smoke de auth sem regressão)
+  - Revalidação completa executada novamente em 2026-04-20 (sem regressão):
+    - `npm run lint`
+    - `npm run test -- --run` (106/106)
+    - `npm run build`
+    - `npx tsc --noEmit`
+    - `npm audit --audit-level=high` (0 vulnerabilidades high/critical)
+
+## Atualização de status (2026-04-20)
+- Fluxo de geração de relatório foi endurecido para evitar falso positivo de sucesso:
+  - `useGenerateReport` agora valida payload de resposta da edge function (`reportId` string e `status = completed`);
+  - respostas parciais/inválidas agora quebram com erro explícito para UI, em vez de seguir como sucesso.
 
 ## O que ainda depende de validação manual
 

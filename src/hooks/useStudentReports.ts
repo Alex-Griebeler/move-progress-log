@@ -150,6 +150,11 @@ export const useGenerateReport = () => {
         const message = await extractEdgeFunctionErrorMessage(error);
         throw new Error(message);
       }
+
+      if (!isRecord(data) || typeof data.reportId !== "string" || data.status !== "completed") {
+        throw new Error("Resposta inválida da geração de relatório. Tente novamente.");
+      }
+
       return data;
     },
     onSuccess: (data, variables) => {
