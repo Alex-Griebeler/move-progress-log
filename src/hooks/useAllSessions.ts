@@ -1,6 +1,7 @@
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { format } from "date-fns";
 
 interface SessionFilters {
   studentIds?: string[];
@@ -65,10 +66,10 @@ function buildSessionQuery(filters?: SessionFilters) {
     query = query.in("prescription_id", filters.prescriptionIds);
   }
   if (filters?.startDate) {
-    query = query.gte("date", filters.startDate.toISOString().split("T")[0]);
+    query = query.gte("date", format(filters.startDate, "yyyy-MM-dd"));
   }
   if (filters?.endDate) {
-    query = query.lte("date", filters.endDate.toISOString().split("T")[0]);
+    query = query.lte("date", format(filters.endDate, "yyyy-MM-dd"));
   }
   if (filters?.startTime) {
     query = query.gte("time", filters.startTime);

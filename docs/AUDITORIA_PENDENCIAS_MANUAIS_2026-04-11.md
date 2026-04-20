@@ -155,6 +155,9 @@
   - `usePrescriptions` passou a usar seleção explícita de colunas na listagem (sem `*`);
   - `usePrescriptions`, `usePrescriptionDetails` e `usePrescriptionAssignments` passaram a `refetchOnWindowFocus=false`;
   - reduz recargas automáticas ao alternar foco e melhora fluidez nas telas de prescrição/sessões.
+- Filtro de sessões (timezone-safe):
+  - `useAllSessions` deixou de usar `toISOString().split('T')[0]` para filtrar datas (risco de deslocar o dia em timezone UTC-3);
+  - filtro agora usa formatação local estável `yyyy-MM-dd`, alinhando com a data escolhida no calendário.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
