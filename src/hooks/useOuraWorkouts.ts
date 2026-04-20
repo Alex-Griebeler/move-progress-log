@@ -17,6 +17,9 @@ export interface OuraWorkout {
   created_at: string;
 }
 
+const OURA_WORKOUTS_SELECT =
+  "id, student_id, oura_workout_id, activity, start_datetime, end_datetime, calories, distance, intensity, average_heart_rate, max_heart_rate, source, created_at";
+
 export const useOuraWorkouts = (studentId: string, limit?: number) => {
   return useQuery({
     queryKey: ["oura-workouts", studentId, limit],
@@ -28,7 +31,7 @@ export const useOuraWorkouts = (studentId: string, limit?: number) => {
     queryFn: async () => {
       let query = supabase
         .from("oura_workouts")
-        .select("*")
+        .select(OURA_WORKOUTS_SELECT)
         .eq("student_id", studentId)
         .order("start_datetime", { ascending: false });
 

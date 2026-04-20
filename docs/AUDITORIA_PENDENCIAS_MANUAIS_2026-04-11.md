@@ -161,6 +161,8 @@
 - Responsividade/estabilidade Oura:
   - `useOuraMetrics` e `useLatestOuraMetrics` passaram a `refetchOnWindowFocus=false` para reduzir recargas automáticas ao alternar abas;
   - deduplicação em `useOuraMetrics` foi otimizada com `Map` por data (mesma regra funcional, menor custo em listas maiores).
+  - hooks Oura auxiliares (`useLatestOuraAcuteMetrics`, `useOuraConnection`, `useOuraWorkouts`, `useOuraSyncLogs`) passaram a seleção explícita de colunas (sem `*`);
+  - `useLatestOuraAcuteMetrics` também passou a `refetchOnWindowFocus=false` para reduzir refetch automático em navegação.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

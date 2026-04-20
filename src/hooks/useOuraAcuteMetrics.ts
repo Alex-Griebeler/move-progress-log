@@ -28,6 +28,13 @@ export interface OuraAcuteMetrics {
   updated_at: string;
 }
 
+const OURA_ACUTE_METRICS_SELECT = `
+  id, student_id, date, sleep_hrv_series, sleep_hr_series, day_hr_series, sleep_phase_5min,
+  movement_30_sec, stress_samples, hrv_night_min, hrv_night_max, hrv_night_last, hrv_night_stddev,
+  hr_night_min, hr_night_max, hr_night_last, hr_day_min, hr_day_max, hr_day_avg,
+  samples_count_hrv, samples_count_hr_day, created_at, updated_at
+`;
+
 export const useLatestOuraAcuteMetrics = (studentId: string) => {
   return useQuery({
     queryKey: ["oura-acute-metrics-latest", studentId],
@@ -35,10 +42,11 @@ export const useLatestOuraAcuteMetrics = (studentId: string) => {
     staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("oura_acute_metrics")
-        .select("*")
+        .select(OURA_ACUTE_METRICS_SELECT)
         .eq("student_id", studentId)
         .order("date", { ascending: false })
         .limit(1)
