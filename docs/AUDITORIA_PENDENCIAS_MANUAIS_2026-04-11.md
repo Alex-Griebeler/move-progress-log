@@ -148,6 +148,9 @@
 - Responsividade (catálogo de exercícios):
   - `useExercisesLibrary` passou a usar seleção explícita de colunas e `refetchOnWindowFocus=false`;
   - reduz payload e recarregamentos automáticos ao alternar abas sem alterar filtros/resultado.
+- Responsividade (alunos):
+  - `useStudents` e `useStudentById` passaram a usar seleção explícita de colunas e `refetchOnWindowFocus=false`;
+  - reduz custo das consultas mais reutilizadas no app e evita refetch automático ao trocar de aba/janela.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

@@ -24,6 +24,8 @@ export interface Student {
 
 const STUDENTS_PAGE_SIZE = 500;
 const STUDENTS_MAX_PAGES = 50;
+const STUDENT_SELECT =
+  "id, name, weekly_sessions_proposed, birth_date, objectives, limitations, preferences, max_heart_rate, injury_history, fitness_level, avatar_url, weight_kg, height_cm, created_at, updated_at";
 
 const normalizeComparableText = (value: string): string =>
   value
@@ -38,6 +40,7 @@ export const useStudents = () => {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const allStudents: Student[] = [];
 
@@ -47,7 +50,7 @@ export const useStudents = () => {
 
         const { data, error } = await supabase
           .from("students")
-          .select("*")
+          .select(STUDENT_SELECT)
           .order("name")
           .order("id")
           .range(from, to);
@@ -71,12 +74,13 @@ export const useStudentById = (studentId: string | null) => {
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!studentId) return null;
 
       const { data, error } = await supabase
         .from("students")
-        .select("*")
+        .select(STUDENT_SELECT)
         .eq("id", studentId)
         .single();
 
