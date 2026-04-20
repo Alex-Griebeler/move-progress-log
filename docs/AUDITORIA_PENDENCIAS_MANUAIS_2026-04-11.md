@@ -175,6 +175,7 @@
 - Perfil do aluno (`StudentDetailPage`) agora formata datas de atribuição de prescrição com parser timezone-safe:
   - `start_date` e `end_date` usam `formatSessionDate(...)`;
   - evita regressão de exibir dia anterior/posterior em ambientes com timezone diferente.
+- Lista de relatórios (`StudentReportsPage`) também passou a usar `formatSessionDate(...)` para `period_start/period_end`, alinhando o mesmo comportamento timezone-safe no fluxo de relatórios.
 
 ## O que ainda depende de validação manual
 

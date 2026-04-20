@@ -12,6 +12,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { Plus, FileText, Calendar, TrendingUp, BarChart3, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatSessionDate } from "@/utils/sessionDate";
 
 const GenerateReportDialog = lazy(() =>
   import("@/components/GenerateReportDialog").then((module) => ({ default: module.GenerateReportDialog }))
@@ -125,8 +126,7 @@ export default function StudentReportsPage() {
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
                   <span>
-                    {format(new Date(report.period_start), "dd/MM/yyyy", { locale: ptBR })} até{" "}
-                    {format(new Date(report.period_end), "dd/MM/yyyy", { locale: ptBR })}
+                    {formatSessionDate(report.period_start)} até {formatSessionDate(report.period_end)}
                   </span>
                 </div>
 
