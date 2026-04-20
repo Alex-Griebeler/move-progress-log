@@ -134,6 +134,14 @@
   - `StudentObservationsCard` e `useStudentImportantObservations` migrados de `select('*')` para colunas explícitas;
   - `EditSessionDialog` migrado para seleção explícita de colunas em `workout_sessions` e `exercises`.
 
+## Atualização de status (2026-04-20)
+- Importação de sessões com duplicadas:
+  - `ImportSessionsDialog` agora deixa explícito quando a etapa de enriquecimento de duplicadas falha (adiciona erro no resumo final e log técnico), removendo comportamento silencioso.
+- Relatórios (datas e export):
+  - `StudentReportView` e `ReportPDFDocument` migrados para parse de data timezone-safe (`parseISO` + fallback validado), evitando deslocamento de dia em `period_start/period_end`;
+  - nome do PDF exportado usa as mesmas datas timezone-safe;
+  - falha de export PDF agora mostra descrição detalhada de erro ao usuário (não apenas mensagem genérica).
+
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.
 2. Reimportar planilha duplicada e confirmar:

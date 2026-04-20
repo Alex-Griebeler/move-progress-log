@@ -1,6 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
 import { StudentReport, TrackedExercise } from '@/hooks/useStudentReports';
-import { format } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 // Cores corporativas da Fabrik
@@ -215,8 +215,14 @@ export const ReportPDFDocument = ({
     if (value === null || value === undefined) return "--";
     return `${value.toFixed(digits)}${suffix}`;
   };
+  const parseDateSafe = (value: string): Date => {
+    const parsed = parseISO(value);
+    if (isValid(parsed)) return parsed;
+    const fallback = new Date(value);
+    return isValid(fallback) ? fallback : new Date();
+  };
   const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "dd/MM/yyyy", { locale: ptBR });
+    return format(parseDateSafe(dateString), "dd/MM/yyyy", { locale: ptBR });
   };
   const formatKg = (value: number | null | undefined): string => {
     if (value === null || value === undefined) return "--";
@@ -243,7 +249,7 @@ export const ReportPDFDocument = ({
           )}
           {report.generated_at && (
             <Text style={styles.subtitle}>
-              Gerado em: {format(new Date(report.generated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+              Gerado em: {format(parseDateSafe(report.generated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
             </Text>
           )}
           <View style={styles.badge}>

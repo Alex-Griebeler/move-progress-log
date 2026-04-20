@@ -727,8 +727,13 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
               if (merged > 0) {
                 mergedDuplicates += merged;
               }
-            } catch {
-              // no-op: keep duplicate skip behavior if merge enrichment fails
+            } catch (mergeError: unknown) {
+              const mergeMessage = buildErrorDescription(
+                mergeError,
+                "falha ao atualizar exercícios de sessão duplicada"
+              );
+              errors.push(`Sessão ${key}: duplicada ignorada, ${mergeMessage}.`);
+              console.warn("[ImportSessionsDialog] Failed to merge duplicate session data", mergeError);
             }
           } else {
             const description = buildErrorDescription(errorInfo);

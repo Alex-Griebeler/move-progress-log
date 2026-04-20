@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, parseISO, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   Calendar, 
@@ -23,6 +23,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useState, lazy, Suspense } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface StudentReportViewProps {
   reportId: string;
@@ -50,6 +51,12 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
   const formatPercentage = (value: number | null | undefined): string => {
     if (value === null || value === undefined) return "N/A";
     return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
+  };
+  const parseReportDate = (value: string): Date => {
+    const parsed = parseISO(value);
+    if (isValid(parsed)) return parsed;
+    const fallback = new Date(value);
+    return isValid(fallback) ? fallback : new Date();
   };
 
   const handleExportPDF = async () => {
@@ -86,13 +93,16 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
         />
       );
 
-      const blob = await pdf(pdfDoc).toBlob();
+	      const blob = await pdf(pdfDoc).toBlob();
+
+      const periodStart = parseReportDate(report.period_start);
+      const periodEnd = parseReportDate(report.period_end);
       
       // Create download link
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Relatorio_${studentName.replace(/\s+/g, '_')}_${format(new Date(report.period_start), 'yyyyMMdd')}-${format(new Date(report.period_end), 'yyyyMMdd')}.pdf`;
+      link.download = `Relatorio_${studentName.replace(/\s+/g, '_')}_${format(periodStart, 'yyyyMMdd')}-${format(periodEnd, 'yyyyMMdd')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -101,7 +111,9 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
       toast.success('PDF exportado com sucesso!');
     } catch (error) {
       logger.error('Error exporting PDF:', error);
-      toast.error('Erro ao exportar PDF');
+      toast.error('Erro ao exportar PDF', {
+        description: buildErrorDescription(error, "Tente novamente em instantes."),
+      });
     } finally {
       setIsExporting(false);
     }
@@ -114,6 +126,10 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
   if (!report) {
     return <div className="text-center py-8">Relatório não encontrado</div>;
   }
+
+  const periodStart = parseReportDate(report.period_start);
+  const periodEnd = parseReportDate(report.period_end);
+  const generatedAt = report.generated_at ? parseReportDate(report.generated_at) : null;
 
   const hasVo2Data = report.oura_data?.avgVo2Max !== null && report.oura_data?.avgVo2Max !== undefined;
 
@@ -128,13 +144,13 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 <span>
-                  {format(new Date(report.period_start), "dd/MM/yyyy", { locale: ptBR })} até{" "}
-                  {format(new Date(report.period_end), "dd/MM/yyyy", { locale: ptBR })}
+                  {format(periodStart, "dd/MM/yyyy", { locale: ptBR })} até{" "}
+                  {format(periodEnd, "dd/MM/yyyy", { locale: ptBR })}
                 </span>
               </div>
-              {report.generated_at && (
+              {generatedAt && (
                 <div className="text-xs">
-                  Gerado em {format(new Date(report.generated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                  Gerado em {format(generatedAt, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                 </div>
               )}
             </div>
