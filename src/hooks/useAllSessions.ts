@@ -108,6 +108,7 @@ export function useAllSessions(filters?: SessionFilters) {
     staleTime: 2 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const allSessions: SessionWithDetails[] = [];
 
@@ -143,6 +144,7 @@ export function useAllSessionsPaginated(filters?: SessionFilters) {
     staleTime: 2 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;

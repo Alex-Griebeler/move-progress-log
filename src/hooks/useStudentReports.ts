@@ -58,6 +58,7 @@ export const useStudentReports = (studentId: string) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("student_reports")
@@ -78,6 +79,7 @@ export const useReportById = (reportId: string | null) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!reportId) return null;
 
@@ -100,6 +102,7 @@ export const useReportTrackedExercises = (reportId: string | null) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!reportId) return [];
 

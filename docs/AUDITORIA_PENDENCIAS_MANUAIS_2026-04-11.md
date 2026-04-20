@@ -141,6 +141,10 @@
   - `StudentReportView` e `ReportPDFDocument` migrados para parse de data timezone-safe (`parseISO` + fallback validado), evitando deslocamento de dia em `period_start/period_end`;
   - nome do PDF exportado usa as mesmas datas timezone-safe;
   - falha de export PDF agora mostra descrição detalhada de erro ao usuário (não apenas mensagem genérica).
+- Responsividade (sessões e relatórios):
+  - hooks de sessões (`useAllSessions`, `useAllSessionsPaginated`, `useWorkoutSessions`, `useSessionExercises`) passaram a não refetchar por foco de janela (`refetchOnWindowFocus=false`), reduzindo recargas ao alternar abas;
+  - consultas de `workout_sessions` em `useWorkoutSessions` agora usam seleção explícita de colunas (em vez de `*`), reduzindo payload sem alterar dados exibidos;
+  - hooks de relatórios (`useStudentReports`, `useReportById`, `useReportTrackedExercises`) também passaram a `refetchOnWindowFocus=false` para diminuir latência de navegação entre tela/lista/detalhe.
 
 ## Pendências manuais atuais (fonte única)
 1. Validar no Lovable que sessões antigas com carga textual agora exibem carga no detalhe da sessão.

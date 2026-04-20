@@ -48,6 +48,9 @@ type GroupSessionCreationResult = {
   error?: string;
 };
 
+const WORKOUT_SESSION_SELECT =
+  "id, student_id, date, time, session_type, workout_name, room_name, trainer_name, is_finalized, can_reopen, prescription_id, created_at, updated_at";
+
 const STUDENT_WORKOUT_PAGE_SIZE = 200;
 const STUDENT_WORKOUT_MAX_PAGES = 30;
 
@@ -176,6 +179,7 @@ export const useWorkoutSessions = (studentId?: string) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (studentId) {
         const allStudentSessions: WorkoutSessionRow[] = [];
@@ -186,7 +190,7 @@ export const useWorkoutSessions = (studentId?: string) => {
 
           const { data, error } = await supabase
             .from("workout_sessions")
-            .select("*")
+            .select(WORKOUT_SESSION_SELECT)
             .eq("student_id", studentId)
             .order("date", { ascending: false })
             .order("time", { ascending: false })
@@ -205,7 +209,7 @@ export const useWorkoutSessions = (studentId?: string) => {
 
       const { data, error } = await supabase
         .from("workout_sessions")
-        .select("*")
+        .select(WORKOUT_SESSION_SELECT)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
         .limit(500);
@@ -223,6 +227,7 @@ export const useSessionExercises = (sessionId: string | null) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!sessionId) return [];
 
