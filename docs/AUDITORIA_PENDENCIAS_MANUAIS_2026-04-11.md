@@ -370,6 +370,18 @@
 - `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
 - `npm run build`: PASS.
 
+## Lote adicional de hardening (AI Builder erro silencioso)
+- `AIBuilderPage` tinha `catch {}` silencioso ao criar nova conversa.
+- Ajuste aplicado:
+  - exibição de feedback explícito (`notify.error`) com parsing padronizado (`buildErrorDescription`) quando a criação falha.
+- Objetivo: evitar falha sem retorno visual no fluxo de uso do AI Builder.
+
+### Validação deste lote
+- `eslint` (arquivo alterado): PASS.
+- `tsc --noEmit`: PASS.
+- `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
+- `npm run build`: PASS.
+
 ## Lote adicional de hardening (Auth Debug gate consistente)
 - Corrigida inconsistência de flag do painel de debug de autenticação:
   - `App.tsx` validava `VITE_ENABLE_AUTH_DEBUG === "1"`;

@@ -13,6 +13,8 @@ import {
 } from "./useAIBuilderChat";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { notify } from "@/lib/notify";
+import { buildErrorDescription } from "@/utils/errorParsing";
 
 export default function AIBuilderPage() {
   usePageTitle("AI Builder");
@@ -41,8 +43,10 @@ export default function AIBuilderPage() {
     try {
       const conv = await createConversation.mutateAsync("Nova conversa");
       setActiveConversationId(conv.id);
-    } catch {
-      // Error handled by mutation
+    } catch (error: unknown) {
+      notify.error("Erro ao criar conversa", {
+        description: buildErrorDescription(error),
+      });
     }
   };
 
