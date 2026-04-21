@@ -369,3 +369,18 @@
 - `tsc --noEmit`: PASS.
 - `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
 - `npm run build`: PASS.
+
+## Lote adicional de hardening (Auth Debug gate consistente)
+- Corrigida inconsistência de flag do painel de debug de autenticação:
+  - `App.tsx` validava `VITE_ENABLE_AUTH_DEBUG === "1"`;
+  - `AuthDebugPanel.tsx` validava `VITE_ENABLE_AUTH_DEBUG === "true"`.
+- Implementado util único `isAuthDebugEnabled()` em `src/utils/authDebug.ts`:
+  - aceita `"1"` e `"true"`;
+  - exige `DEV`, `localhost` e query param `authDebug=1`.
+- `App.tsx` e `AuthDebugPanel.tsx` passam a usar a mesma regra.
+
+### Validação deste lote
+- `eslint` (arquivos alterados): PASS.
+- `tsc --noEmit`: PASS.
+- `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
+- `npm run build`: PASS.

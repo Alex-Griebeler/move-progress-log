@@ -11,6 +11,7 @@ import { lazy, Suspense } from "react";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { isAuthDebugEnabled } from "@/utils/authDebug";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { ROUTES } from "@/constants/navigation";
@@ -53,12 +54,7 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
-  const authDebugEnabledByEnv = import.meta.env.VITE_ENABLE_AUTH_DEBUG === "1";
-  const showAuthDebug =
-    authDebugEnabledByEnv &&
-    import.meta.env.DEV &&
-    window.location.hostname === "localhost" &&
-    new URLSearchParams(window.location.search).get("authDebug") === "1";
+  const showAuthDebug = isAuthDebugEnabled();
 
   return (
     <ErrorBoundary>

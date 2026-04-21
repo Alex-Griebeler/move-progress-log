@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronUp, Copy, RefreshCw, Trash2, LogOut } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { isAuthDebugEnabled } from "@/utils/authDebug";
 
 export const AuthDebugPanel = () => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -17,9 +18,7 @@ export const AuthDebugPanel = () => {
   const [timeUntilRefresh, setTimeUntilRefresh] = useState<number>(0);
   const { toast } = useToast();
 
-  const isProd = import.meta.env.PROD;
-  const debugFlagEnabled = import.meta.env.VITE_ENABLE_AUTH_DEBUG === "true";
-  const shouldHidePanel = isProd || !debugFlagEnabled;
+  const shouldHidePanel = !isAuthDebugEnabled();
 
   useEffect(() => {
     if (shouldHidePanel) return;
