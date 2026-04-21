@@ -90,7 +90,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Get or create rate limit record
     const { data: existingAttempt, error: fetchError } = await supabase
       .from("rate_limit_attempts")
-      .select("*")
+      .select("id, attempt_count, first_attempt_at, blocked_until")
       .eq("ip_address", identifier)
       .eq("action", action)
       .maybeSingle();

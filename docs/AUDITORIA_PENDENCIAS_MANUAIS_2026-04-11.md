@@ -407,6 +407,28 @@
 - `npm run test -- --run`: PASS (98) + `21 skipped` localmente para integração.
 - `npm run build`: PASS.
 
+## Lote adicional de hardening (remoção de `select("*")` em edge functions de segurança/recuperação)
+- `supabase/functions/check-rate-limit/index.ts`
+  - `rate_limit_attempts` passou de `select("*")` para:
+    - `id, attempt_count, first_attempt_at, blocked_until`
+- `supabase/functions/generate-protocol-recommendations/index.ts`
+  - `oura_metrics` passou de `select("*")` para:
+    - `id, student_id, date, readiness_score, sleep_score, hrv_balance, resting_heart_rate, temperature_deviation, activity_balance`
+  - `adaptation_rules` passou de `select("*")` para:
+    - `id, metric_name, condition, threshold_value, action_type, severity, description`
+
+### Impacto
+- Menor acoplamento a mudanças de schema.
+- Menor payload em edge functions com tráfego recorrente.
+- Sem alteração de regra de negócio (somente projeção de colunas necessárias).
+
+### Validação deste lote
+- `eslint` (arquivos alterados): PASS.
+- `tsc --noEmit`: PASS.
+- `npm run test -- --run`: PASS (98) + integração local `skipped`.
+- `npm run build`: PASS.
+- `npm run verify:essential`: PASS.
+
 ## Lote adicional de hardening (AI Builder erro silencioso)
 - `AIBuilderPage` tinha `catch {}` silencioso ao criar nova conversa.
 - Ajuste aplicado:

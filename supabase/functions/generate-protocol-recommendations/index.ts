@@ -180,7 +180,7 @@ serve(async (req) => {
     // Get latest Oura metrics for the student
     const { data: latestMetrics, error: metricsError } = await supabase
       .from('oura_metrics')
-      .select('*')
+      .select('id, student_id, date, readiness_score, sleep_score, hrv_balance, resting_heart_rate, temperature_deviation, activity_balance')
       .eq('student_id', student_id)
       .order('date', { ascending: false })
       .limit(1)
@@ -205,7 +205,7 @@ serve(async (req) => {
     // Get all adaptation rules
     const { data: rules, error: rulesError } = await supabase
       .from('adaptation_rules')
-      .select('*');
+      .select('id, metric_name, condition, threshold_value, action_type, severity, description');
 
     if (rulesError) throw rulesError;
 
