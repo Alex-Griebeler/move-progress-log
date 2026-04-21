@@ -51,15 +51,26 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
-  // Auth: x-admin-key
-  const adminKey = req.headers.get("x-admin-key");
-  const expectedKey = Deno.env.get("ADMIN_CREATION_KEY");
-  if (!expectedKey || !adminKey || adminKey !== expectedKey) {
-    return jsonResponse({ error: "Unauthorized" }, 401);
-  }
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const expectedKey = Deno.env.get("ADMIN_CREATION_KEY");
+
+  // Auth: accept either x-admin-key OR service_role Bearer (internal trigger)
+  const adminKey = req.headers.get("x-admin-key");
+  const authHeader = req.headers.get("authorization") ?? "";
+  const bearerToken = authHeader.toLowerCase().startsWith("bearer ")
+    ? authHeader.slice(7).trim()
+    : "";
+  const internalTrigger = req.headers.get("x-internal-trigger") === "true";
+
+  const isAdminKeyValid =
+    !!expectedKey && !!adminKey && adminKey === expectedKey;
+  const isServiceRoleValid =
+    internalTrigger && !!bearerToken && bearerToken === serviceRoleKey;
+
+  if (!isAdminKeyValid && !isServiceRoleValid) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
 
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
