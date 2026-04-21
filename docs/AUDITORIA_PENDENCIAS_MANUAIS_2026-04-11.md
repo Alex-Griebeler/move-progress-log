@@ -327,3 +327,5 @@
   - filtros e limites de data (`SessionSetupForm`, `ProtocolRecommendationsCard`, `StudentOverviewDashboard`);
   - hooks de leitura (`useStudentDetail`, `useStats`).
 - Padrão aplicado: `format(new Date(), "yyyy-MM-dd")` (date-fns), mantendo comportamento estável em timezone local.
+- Resíduo eliminado no utilitário de dados de teste:
+  - `populateTestSessions`: geração de data migrou para `format(date, "yyyy-MM-dd")`.

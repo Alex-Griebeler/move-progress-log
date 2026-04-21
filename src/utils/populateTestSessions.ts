@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/utils/logger";
+import { format } from "date-fns";
 
 interface TestSessionExercise {
   exercise_name: string;
@@ -23,7 +24,7 @@ interface TestSession {
 const getRandomDate = (daysAgo: number): string => {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
-  return date.toISOString().split('T')[0];
+  return format(date, "yyyy-MM-dd");
 };
 
 // Gerar horário aleatório (manhã ou tarde)
