@@ -300,6 +300,12 @@
   - `npm run lint` ✅
   - `npm run test -- --run` ✅
   - `npm run build` ✅
+- Limpeza residual em administração de usuários:
+  - `admin-update-user` trocado de `select('*', { count, head })` para `select('id', { count, head })` no guard de “último admin”.
+- Revalidação automática pós-limpeza residual:
+  - `npm run lint` ✅
+  - `npm run test -- --run` ✅
+  - `npm run build` ✅
 
 ## O que ainda depende de validação manual
 

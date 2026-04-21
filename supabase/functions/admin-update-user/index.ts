@@ -141,7 +141,7 @@ serve(async (req) => {
       if (targetUserRole?.role === 'admin' && role !== 'admin') {
         const { count } = await supabaseClient
           .from("user_roles")
-          .select("*", { count: 'exact', head: true })
+          .select("id", { count: 'exact', head: true })
           .eq("role", "admin");
 
         if (count && count <= 1) {
