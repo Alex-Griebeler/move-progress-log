@@ -519,6 +519,7 @@
 - `npm run build`: PASS.
 - `npm run verify:essential`: PASS.
 - `scripts/ci-smoke-edge-auth.sh`: PASS (A1/B1/B2/B3/C1/C2/C3/D0).
+- `npm run test:oura-integration`: PASS (33/33), executando smoke de auth ao vivo nas edge functions Oura.
 
 ## Lote adicional de hardening (falhas silenciosas em queries Supabase)
 - Tratamento explícito de `error` adicionado em pontos críticos que antes ignoravam falhas de leitura:

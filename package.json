@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "verify:essential": "bash ./scripts/verify-essential-gates.sh",
-    "verify:data-integrity": "node ./scripts/verify-data-integrity.js"
+    "verify:data-integrity": "node ./scripts/verify-data-integrity.js",
+    "test:oura-integration": "VITE_RUN_OURA_INTEGRATION_TESTS=true vitest run src/utils/__tests__/ouraIntegration.test.ts --run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
