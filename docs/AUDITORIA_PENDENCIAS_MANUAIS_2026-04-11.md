@@ -241,6 +241,7 @@
   - `npm run test -- --run` ✅
   - `npm run build` ✅
   - `npm run verify:essential` ✅
+  - `VITE_RUN_OURA_INTEGRATION_TESTS=true npm run test -- src/utils/__tests__/ouraIntegration.test.ts --run` ✅ (33/33 no endpoint live)
 
 ## O que ainda depende de validação manual
 
