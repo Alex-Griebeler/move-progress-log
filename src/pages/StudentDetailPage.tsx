@@ -57,13 +57,28 @@ import { formatSessionDate } from "@/utils/sessionDate";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const studentId = id ?? "";
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("training");
+  const needsSessions = activeTab === "overview" || activeTab === "sessions" || activeTab === "exercises";
+  const needsAssignments = activeTab === "overview" || activeTab === "prescriptions";
+  const needsOuraHistory = activeTab === "training" || activeTab === "oura";
+  const needsLatestOura =
+    activeTab === "training" || activeTab === "overview" || activeTab === "oura";
+
   const { data: student, isLoading: loadingStudent } = useStudentById(id ?? null);
-  const { data: sessions, isLoading: loadingSessions } = useSessionsWithExercises(id!);
-  const { data: assignments, isLoading: loadingAssignments } = useStudentPrescriptions(id!);
-  const { data: ouraMetrics, isLoading: loadingOuraMetrics } = useOuraMetrics(id!, 30);
-  const { data: latestOuraMetrics } = useLatestOuraMetrics(id!);
-  const { data: ouraConnection } = useOuraConnection(id!);
+  const { data: sessions, isLoading: loadingSessions } = useSessionsWithExercises(
+    needsSessions ? studentId : ""
+  );
+  const { data: assignments, isLoading: loadingAssignments } = useStudentPrescriptions(
+    needsAssignments ? studentId : ""
+  );
+  const { data: ouraMetrics, isLoading: loadingOuraMetrics } = useOuraMetrics(
+    needsOuraHistory ? studentId : "",
+    30
+  );
+  const { data: latestOuraMetrics } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
+  const { data: ouraConnection } = useOuraConnection(studentId);
   const { isAdmin } = useIsAdmin();
   const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
@@ -296,7 +311,7 @@ const StudentDetailPage = () => {
         </Alert>
       )}
 
-      <Tabs defaultValue="training" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="training">{NAV_LABELS.tabTraining}</TabsTrigger>
           <TabsTrigger value="overview">{NAV_LABELS.tabOverview}</TabsTrigger>

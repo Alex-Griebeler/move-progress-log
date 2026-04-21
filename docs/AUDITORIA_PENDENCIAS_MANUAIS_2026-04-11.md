@@ -241,6 +241,7 @@
 - Performance de navegação em perfil de aluno:
   - `StudentDetailPage` deixou de carregar a lista completa de alunos (`useStudents`) para resolver apenas um perfil;
   - página agora usa `useStudentById(id)` diretamente, reduzindo payload e latência na abertura da rota `/alunos/:id`.
+  - queries pesadas foram condicionadas por aba ativa (`training/overview/sessions/exercises/prescriptions/oura`) para evitar carregamento antecipado desnecessário de sessões, prescrições e histórico Oura.
   - resposta para chamadas sem token passa a ser `401` consistente, reduzindo exposição de validação interna para cliente não autenticado.
 - Hardening de falhas silenciosas em edge functions:
   - `generate-student-report` agora valida explicitamente erro ao buscar padrões da `exercises_library` e métricas `oura_metrics` (falha com erro claro em vez de seguir silenciosamente);
