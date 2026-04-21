@@ -480,6 +480,7 @@
 - `npm run test -- --run`: PASS (98/98; 33 skipped).
 - `npm run build`: PASS.
 - `npm run verify:essential`: PASS (inclui `npm audit --audit-level=high`, 0 high/critical).
+- `scripts/ci-smoke-edge-auth.sh`: PASS (A1/B1/B2/B3/C1/C2/C3/D0 = PASS; service-role = SKIP opcional).
 
 ## Lote adicional de hardening (estabilidade dos testes de integração Oura)
 - `src/utils/__tests__/ouraIntegration.test.ts`:
