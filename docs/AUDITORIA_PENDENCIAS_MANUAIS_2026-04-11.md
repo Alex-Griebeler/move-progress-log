@@ -261,6 +261,15 @@
   - `npm run test -- --run` ✅
   - `npm run build` ✅
   - `npm run verify:essential` ✅
+- Hardening adicional em edge functions (`select()` sem colunas):
+  - `generate-student-invite`: insert de `student_invites` passou para `select('id, expires_at')`;
+  - `generate-oura-connect-link`: insert de `student_invites` passou para `select('id, expires_at')`;
+  - `oura-sync-test`: upsert em `oura_metrics` passou para `select('student_id, date, readiness_score, sleep_score, average_sleep_hrv, resting_heart_rate')`;
+  - `create-student-from-invite`: `update/insert` em `students` passaram para `select('id')`.
+- Revalidação automática do lote de edge functions:
+  - `npm run lint` ✅
+  - `npm run test -- --run` ✅
+  - `npm run build` ✅
 
 ## O que ainda depende de validação manual
 

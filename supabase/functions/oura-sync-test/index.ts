@@ -528,7 +528,7 @@ Deno.serve(async (req) => {
     const { data: upsertedData, error: upsertError } = await supabaseClient
       .from('oura_metrics')
       .upsert(metrics, { onConflict: 'student_id,date' })
-      .select()
+      .select('student_id, date, readiness_score, sleep_score, average_sleep_hrv, resting_heart_rate')
       .single();
 
     if (upsertError) {

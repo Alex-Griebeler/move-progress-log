@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
         email,
         expires_at: expires_at.toISOString(),
       })
-      .select()
+      .select('id, expires_at')
       .single();
 
     if (insertError) {

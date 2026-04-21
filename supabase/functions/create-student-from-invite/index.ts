@@ -462,7 +462,7 @@ Deno.serve(async (req) => {
             max_heart_rate: maxHeartRate,
           })
           .eq('id', studentToUpdate.id)
-          .select()
+          .select('id')
           .single();
 
         if (updateError) {
@@ -492,7 +492,7 @@ Deno.serve(async (req) => {
             avatar_url: avatarPath,
             max_heart_rate: maxHeartRate,
           })
-          .select()
+          .select('id')
           .single();
 
         if (studentError) {

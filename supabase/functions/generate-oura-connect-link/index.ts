@@ -136,7 +136,7 @@ Deno.serve(async (req) => {
         expires_at: expires_at.toISOString(),
         created_student_id: student_id,
       })
-      .select()
+      .select('id, expires_at')
       .single();
 
     if (insertError) {
