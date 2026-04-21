@@ -87,7 +87,12 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
       time: data.time,
       exercises: data.exercises.filter(ex => ex.exercise_name.trim() !== ""),
     });
-    form.reset();
+    form.reset({
+      student_id: "",
+      date: format(new Date(), "yyyy-MM-dd"),
+      time: getCurrentSessionTimeHHmm(),
+      exercises: [{ exercise_name: "" }],
+    });
     setExerciseCount(1);
     onOpenChange(false);
   };
