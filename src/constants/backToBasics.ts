@@ -584,5 +584,5 @@ export type PlyometricsLevel = "none" | "low" | "full";
 
 export const getMethodsForCycle = (cycle: PeriodizationCycle): TrainingMethod[] => {
   const cycleMethods = PERIODIZATION_CYCLES[cycle].methods;
-  return cycleMethods as unknown as TrainingMethod[];
+  return cycleMethods as TrainingMethod[];
 };

@@ -349,3 +349,23 @@
   - `prescriptionCreateUtils`
   - `useWorkoutSessions`
 - Padrão aplicado: `logger.error`/`logger.warn` centralizado para manter sanitização e consistência de observabilidade.
+
+## Lote adicional de hardening (casts frágeis em prescrição/sessão)
+- `useExercisesLibrary`:
+  - contrato tipado ampliado com `functional_group` e `numeric_level`;
+  - projeção SQL explícita atualizada para incluir esses campos.
+- `CreatePrescriptionDialog` e `EditPrescriptionDialog`:
+  - remoção de casts `as unknown as Record<string, unknown>` para leitura de `functional_group` e `numeric_level`;
+  - uso direto de propriedades tipadas do exercício da biblioteca.
+- `EditPrescriptionDialog`:
+  - normalização de `prescription_type` sem cast duplo (fallback explícito para `group`).
+- `useWorkoutSessions`:
+  - remoção de `as unknown as WorkoutSessionRow` no retorno de RPC de criação de sessão.
+- `usePrescriptions`:
+  - simplificação de cast de `custom_adaptations` para `Json | null` sem cast duplo.
+
+### Validação deste lote
+- `eslint` (arquivos alterados): PASS.
+- `tsc --noEmit`: PASS.
+- `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
+- `npm run build`: PASS.

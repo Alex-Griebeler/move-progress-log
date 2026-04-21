@@ -298,14 +298,14 @@ export const useCreateWorkoutSession = () => {
         throw error;
       }
 
-      const sessionRow = Array.isArray(createdSession)
+      const sessionRow = (Array.isArray(createdSession)
         ? createdSession[0]
-        : createdSession;
+        : createdSession) as WorkoutSessionRow | null;
       if (!sessionRow) {
         throw new Error("Falha ao criar sessão");
       }
 
-      return mapWorkoutSession(sessionRow as unknown as WorkoutSessionRow);
+      return mapWorkoutSession(sessionRow);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });

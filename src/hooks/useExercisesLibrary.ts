@@ -33,11 +33,13 @@ export interface ExerciseLibrary {
   id: string;
   name: string;
   movement_pattern: string;
+  functional_group: string | null;
   laterality: string | null;
   movement_plane: string | null;
   description: string | null;
   contraction_type: string | null;
   level: string | null;
+  numeric_level: number | null;
   created_at: string;
   updated_at: string;
   video_url: string | null;
@@ -101,8 +103,8 @@ export type { ExerciseFilters } from "./exerciseFilters";
 const EXERCISES_PAGE_SIZE = 1000;
 const EXERCISES_MAX_PAGES = 50;
 const EXERCISES_LIBRARY_SELECT = `
-  id, name, movement_pattern, laterality, movement_plane, description,
-  contraction_type, level, created_at, updated_at, video_url,
+  id, name, movement_pattern, functional_group, laterality, movement_plane, description,
+  contraction_type, level, numeric_level, created_at, updated_at, video_url,
   equipment_required, prerequisites, risk_level, category, subcategory,
   plyometric_phase, default_sets, default_reps, boyle_score, axial_load,
   lumbar_demand, technical_complexity, metabolic_potential, knee_dominance,

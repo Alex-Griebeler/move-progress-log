@@ -273,7 +273,7 @@ export default function ExercisesLibraryPage() {
                 if (filters.category === "forca_hipertrofia" && filters.movement_pattern && STRENGTH_SUBCATEGORIES[filters.movement_pattern]) {
                   subcatOptions = STRENGTH_SUBCATEGORIES[filters.movement_pattern];
                 } else if (filters.category === "potencia_pliometria") {
-                  subcatOptions = POTENCIA_SUBCATEGORIES as unknown as Record<string, string>;
+                  subcatOptions = POTENCIA_SUBCATEGORIES;
                 }
                 if (!subcatOptions) return null;
                 return (

@@ -122,7 +122,9 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   useEffect(() => {
     if (prescriptionData && open && !dataLoaded) {
       setName(prescriptionData.name);
-      setPrescriptionType((prescriptionData as unknown as Record<string, unknown>).prescription_type as 'group' | 'individual' || 'group');
+      setPrescriptionType(
+        prescriptionData.prescription_type === "individual" ? "individual" : "group"
+      );
       setObjective(prescriptionData.objective || "");
       
       if (prescriptionData.exercises && prescriptionData.exercises.length > 0) {
@@ -307,7 +309,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
           movementPattern: selectedExercise.movement_pattern,
           movementPlane: selectedExercise.movement_plane,
           laterality: selectedExercise.laterality,
-          functionalGroup: (selectedExercise as unknown as Record<string, unknown>).functional_group,
+          functionalGroup: selectedExercise.functional_group,
           direction: 'regression',
           availableExercises: exercisesLibrary.map((ex) => ({
             id: ex.id,
@@ -315,7 +317,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
             movement_pattern: ex.movement_pattern,
             movement_plane: ex.movement_plane,
             laterality: ex.laterality,
-            numeric_level: (ex as unknown as Record<string, unknown>).numeric_level,
+            numeric_level: ex.numeric_level,
           })),
         },
       });

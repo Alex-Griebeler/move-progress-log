@@ -335,7 +335,7 @@ export const useAssignPrescription = () => {
         student_id,
         start_date: data.start_date,
         end_date: data.end_date || null,
-        custom_adaptations: customAdaptations as unknown as Json | null,
+        custom_adaptations: (customAdaptations ?? null) as Json | null,
       }));
 
       const { error } = await supabase

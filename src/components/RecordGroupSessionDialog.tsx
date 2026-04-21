@@ -309,7 +309,7 @@ export function RecordGroupSessionDialog({
         .eq('time', normalizedReopenTime);
       if (sessionsError) throw sessionsError;
       if (sessions && sessions.length > 0) {
-        const typedSessions = sessions as unknown as SessionQueryRow[];
+        const typedSessions = (sessions ?? []) as SessionQueryRow[];
         const existingStudents = typedSessions.map((s) => ({
           id: s.student_id, name: s.students.name, weight_kg: s.students.weight_kg ?? undefined, has_active_prescription: true,
         }));
