@@ -492,6 +492,18 @@
 - `npm run test -- --run`: PASS (105/105; 33 skipped).
 - `npm run build`: PASS.
 
+## Lote adicional de proteção de CI (smoke de auth das edge functions)
+- `.github/workflows/ci.yml`:
+  - novo passo opcional `Edge auth smoke (optional)` executando `scripts/ci-smoke-edge-auth.sh`;
+  - executa somente quando `SUPABASE_URL` e `SUPABASE_ANON_KEY` estiverem configuradas nos secrets;
+  - `RUN_SERVICE_ROLE_TESTS` permanece `false` no CI padrão para evitar bloqueio por segredo sensível ausente.
+  - upload opcional do artefato `artifacts/edge-smoke-report.md`.
+
+### Validação deste lote
+- `npm run lint`: PASS.
+- `npm run test -- --run`: PASS (105/105; 33 skipped).
+- `npm run build`: PASS.
+
 ## Lote adicional de consistência de horário (`HH:MM`) em dialogs de sessão
 - Objetivo:
   - remover geração ad-hoc de horário com `toTimeString().slice(0, 5)`;

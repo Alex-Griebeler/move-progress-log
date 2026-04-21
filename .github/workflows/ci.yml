@@ -42,11 +42,32 @@ jobs:
           fi
           npm run test:oura-integration
 
+      - name: Edge auth smoke (optional)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          RUN_SERVICE_ROLE_TESTS: "false"
+        run: |
+          if [ -z "${SUPABASE_URL}" ] || [ -z "${SUPABASE_ANON_KEY}" ]; then
+            echo "Skipping edge auth smoke (missing SUPABASE_URL/SUPABASE_ANON_KEY secrets)."
+            exit 0
+          fi
+          scripts/ci-smoke-edge-auth.sh
+
       - name: Build
         run: npm run build
 
       - name: Security audit
         run: npm audit --audit-level=high
+
+      - name: Upload edge smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: edge-smoke-report
+          path: artifacts/edge-smoke-report.md
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload build artifacts
         if: always()
