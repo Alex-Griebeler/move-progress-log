@@ -286,6 +286,12 @@
   - `npm run lint` ✅
   - `npm run test -- --run` ✅
   - `npm run build` ✅
+- Otimização de leitura em listagens de treino:
+  - `useWorkouts` e `useWorkoutsPaginated` migrados de `select('*', ...)` para `WORKOUTS_WITH_DETAILS_SELECT` explícito.
+- Revalidação automática pós-otimização:
+  - `npm run lint` ✅
+  - `npm run test -- --run` ✅
+  - `npm run build` ✅
 
 ## O que ainda depende de validação manual
 

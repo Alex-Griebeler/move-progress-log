@@ -41,6 +41,11 @@ export interface WorkoutWithDetails extends WorkoutSession {
 }
 
 const PAGE_SIZE = 20;
+const WORKOUTS_WITH_DETAILS_SELECT = `
+  id, student_id, date, time, session_type, created_at, updated_at, is_finalized, can_reopen,
+  students!inner(name, avatar_url),
+  exercises(id, load_kg)
+`;
 
 const mapWorkouts = (data: Array<{
   id: string; student_id: string; date: string; time: string;
@@ -78,11 +83,7 @@ export const useWorkouts = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workout_sessions")
-        .select(`
-          *,
-          students!inner(name, avatar_url),
-          exercises(id, load_kg)
-        `)
+        .select(WORKOUTS_WITH_DETAILS_SELECT)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
         .order("id", { ascending: false })
@@ -125,11 +126,7 @@ export const useWorkoutsPaginated = () => {
 
       const { data, error } = await supabase
         .from("workout_sessions")
-        .select(`
-          *,
-          students!inner(name, avatar_url),
-          exercises(id, load_kg)
-        `)
+        .select(WORKOUTS_WITH_DETAILS_SELECT)
         .order("date", { ascending: false })
         .order("time", { ascending: false })
         .order("id", { ascending: false })
