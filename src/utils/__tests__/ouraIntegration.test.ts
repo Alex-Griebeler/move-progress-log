@@ -120,4 +120,64 @@ describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWO
       expect(status).toBeLessThan(600);
     });
   });
+
+  describe('generate-group-session', () => {
+    it('returns 401 without auth header', async () => {
+      const { status } = await callFunction('generate-group-session');
+      expect(status).toBe(401);
+    });
+
+    it('returns non-2xx with anon key (not a user JWT)', async () => {
+      const { status } = await callFunctionWithRetry('generate-group-session', `Bearer ${ANON_KEY}`);
+      expect(status).toBeGreaterThanOrEqual(400);
+      expect(status).toBeLessThan(600);
+    });
+
+    it('rejects forged token with non-200', async () => {
+      const fakeJwt = 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYWRtaW4ifQ.invalid';
+      const { status } = await callFunction('generate-group-session', `Bearer ${fakeJwt}`);
+      expect(status).toBeGreaterThanOrEqual(400);
+      expect(status).toBeLessThan(600);
+    });
+  });
+
+  describe('parse-word-prescription', () => {
+    it('returns 401 without auth header', async () => {
+      const { status } = await callFunction('parse-word-prescription');
+      expect(status).toBe(401);
+    });
+
+    it('returns non-2xx with anon key (not a user JWT)', async () => {
+      const { status } = await callFunctionWithRetry('parse-word-prescription', `Bearer ${ANON_KEY}`);
+      expect(status).toBeGreaterThanOrEqual(400);
+      expect(status).toBeLessThan(600);
+    });
+
+    it('rejects forged token with non-200', async () => {
+      const fakeJwt = 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYWRtaW4ifQ.invalid';
+      const { status } = await callFunction('parse-word-prescription', `Bearer ${fakeJwt}`);
+      expect(status).toBeGreaterThanOrEqual(400);
+      expect(status).toBeLessThan(600);
+    });
+  });
+
+  describe('generate-student-report', () => {
+    it('returns 401 without auth header', async () => {
+      const { status } = await callFunction('generate-student-report');
+      expect(status).toBe(401);
+    });
+
+    it('returns non-2xx with anon key (not a user JWT)', async () => {
+      const { status } = await callFunctionWithRetry('generate-student-report', `Bearer ${ANON_KEY}`);
+      expect(status).toBeGreaterThanOrEqual(400);
+      expect(status).toBeLessThan(600);
+    });
+
+    it('rejects forged token with non-200', async () => {
+      const fakeJwt = 'eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYWRtaW4ifQ.invalid';
+      const { status } = await callFunction('generate-student-report', `Bearer ${fakeJwt}`);
+      expect(status).toBeGreaterThanOrEqual(400);
+      expect(status).toBeLessThan(600);
+    });
+  });
 });

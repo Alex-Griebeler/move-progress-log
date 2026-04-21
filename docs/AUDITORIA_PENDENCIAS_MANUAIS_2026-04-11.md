@@ -386,6 +386,27 @@
 - `npm run test -- --run`: PASS (98 testes) + 12 testes de integração Oura `skipped` localmente.
 - `npm run build`: PASS.
 
+## Lote adicional de hardening (cobertura de auth smoke em edge functions críticas)
+- `src/utils/__tests__/ouraIntegration.test.ts` ampliado para cobrir mais endpoints sensíveis:
+  - `generate-group-session`
+  - `parse-word-prescription`
+  - `generate-student-report`
+- Para cada endpoint, adicionados cenários:
+  - sem `Authorization` (espera 401);
+  - `Bearer ANON_KEY` (espera não-2xx);
+  - token forjado (espera não-2xx).
+
+### Impacto
+- Reduz risco de regressão de auth em funções críticas que estavam sem smoke de segurança.
+- Mantém estratégia CI/local já definida:
+  - roda em CI automaticamente;
+  - local via opt-in (`VITE_RUN_OURA_INTEGRATION_TESTS=true`).
+
+### Validação deste lote
+- `eslint` (teste alterado): PASS.
+- `npm run test -- --run`: PASS (98) + `21 skipped` localmente para integração.
+- `npm run build`: PASS.
+
 ## Lote adicional de hardening (AI Builder erro silencioso)
 - `AIBuilderPage` tinha `catch {}` silencioso ao criar nova conversa.
 - Ajuste aplicado:
