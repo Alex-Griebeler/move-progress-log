@@ -262,22 +262,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const rawPayload = await req.json().catch(() => null);
-    if (!isPlainObject(rawPayload)) {
-      return jsonResponse(400, { error: 'Corpo inválido' });
-    }
-
-    const student_id =
-      typeof rawPayload.student_id === 'string' ? rawPayload.student_id.trim() : '';
-
-    if (!student_id) {
-      return jsonResponse(400, { error: 'student_id é obrigatório' });
-    }
-    if (!UUID_RE.test(student_id)) {
-      return jsonResponse(400, { error: 'student_id inválido' });
-    }
-
-    // Authenticate the caller
+    // Authenticate caller first
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -294,6 +279,21 @@ Deno.serve(async (req) => {
     const { data: userData, error: userError } = await supabaseAuth.auth.getUser();
     if (userError || !userData?.user) {
       return jsonResponse(401, { error: 'Invalid or expired token' });
+    }
+
+    const rawPayload = await req.json().catch(() => null);
+    if (!isPlainObject(rawPayload)) {
+      return jsonResponse(400, { error: 'Corpo inválido' });
+    }
+
+    const student_id =
+      typeof rawPayload.student_id === 'string' ? rawPayload.student_id.trim() : '';
+
+    if (!student_id) {
+      return jsonResponse(400, { error: 'student_id é obrigatório' });
+    }
+    if (!UUID_RE.test(student_id)) {
+      return jsonResponse(400, { error: 'student_id inválido' });
     }
 
     const userId = userData.user.id;

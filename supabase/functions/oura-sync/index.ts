@@ -82,6 +82,23 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+
+    // Authenticate first: Allow service role (internal calls) OR authenticated trainer
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return jsonResponse(401, { error: 'Unauthorized' });
+    }
+
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) {
+      return jsonResponse(401, { error: 'Unauthorized' });
+    }
+
+    const isServiceRole = token === serviceRoleKey;
+
     const rawPayload = await req.json().catch(() => null);
     if (!isPlainObject(rawPayload)) {
       return jsonResponse(400, { error: 'Corpo inválido' });
@@ -104,24 +121,6 @@ Deno.serve(async (req) => {
     if (date && !DATE_RE.test(date)) {
       return jsonResponse(400, { error: 'date deve estar no formato YYYY-MM-DD' });
     }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
-
-    // Authentication: Allow service role (internal calls) OR authenticated trainer
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return jsonResponse(401, { error: 'Unauthorized' });
-    }
-
-    const token = authHeader.replace('Bearer ', '').trim();
-    if (!token) {
-      return jsonResponse(401, { error: 'Unauthorized' });
-    }
-
-    // Check if this is a service role call (from oura-sync-all / oura-sync-scheduled)
-    const isServiceRole = token === serviceRoleKey;
 
     if (!isServiceRole) {
       // Validate user JWT and check trainer ownership

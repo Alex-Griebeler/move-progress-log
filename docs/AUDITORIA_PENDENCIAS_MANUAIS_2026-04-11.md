@@ -236,6 +236,9 @@
 - Oura sync com payload de merge mais enxuto:
   - removido `select('*')` no merge de `oura_metrics` e `oura_acute_metrics`;
   - seleção agora usa apenas as chaves efetivas do payload (`Object.keys(metrics|acuteMetrics)`), reduzindo custo e acoplamento a colunas não usadas.
+- Ordem de validação de segurança padronizada:
+  - `oura-sync` e `oura-sync-test` agora autenticam antes de validar payload (`student_id/date`);
+  - resposta para chamadas sem token passa a ser `401` consistente, reduzindo exposição de validação interna para cliente não autenticado.
 - Revalidação automática pós-lote:
   - `npm run lint` ✅
   - `npm run test -- --run` ✅
