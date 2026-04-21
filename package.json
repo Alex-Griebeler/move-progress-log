@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "verify:essential": "bash ./scripts/verify-essential-gates.sh"
+    "verify:essential": "bash ./scripts/verify-essential-gates.sh",
+    "verify:data-integrity": "node ./scripts/verify-data-integrity.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -502,6 +502,16 @@
 - Hardening/performance adicional em frontend:
   - `src/features/ai-builder/useAIBuilderChat.ts` agora registra warning explícito quando falha o update de `updated_at` da conversa (falha não bloqueante; mensagem já persistida);
   - `src/hooks/useWeeklyMovementBalance.ts` agora usa cache explícito (`staleTime/gcTime`) e busca catálogo apenas com `movement_pattern` não nulo, reduzindo payload/refetch.
+- Novo verificador de integridade de dados:
+  - script adicionado: `scripts/verify-data-integrity.js`;
+  - comando: `npm run verify:data-integrity`;
+  - checks cobertos:
+    - contagem global (`workout_sessions`, `exercises`);
+    - sessões sem exercícios;
+    - possíveis duplicatas por `(student_id, date, time)`;
+    - relatórios `completed` sem `report_tracked_exercises`;
+    - frescor Oura (conexões ativas sem `oura_metrics` nos últimos 7 dias).
+  - pré-requisito: `SUPABASE_SERVICE_ROLE_KEY` disponível no ambiente para leitura completa.
 
 ### Validação desta atualização (2026-04-21)
 - `npm run lint`: PASS.
