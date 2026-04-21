@@ -329,3 +329,9 @@
 - Padrão aplicado: `format(new Date(), "yyyy-MM-dd")` (date-fns), mantendo comportamento estável em timezone local.
 - Resíduo eliminado no utilitário de dados de teste:
   - `populateTestSessions`: geração de data migrou para `format(date, "yyyy-MM-dd")`.
+
+## Lote adicional de hardening (protocol recommendations query)
+- `useProtocolRecommendations` migrou de select amplo (`*`) para projeção explícita:
+  - colunas necessárias de `protocol_recommendations`;
+  - nested select explícito de `recovery_protocols`.
+- Objetivo: reduzir payload e estabilizar contrato de dados sem alterar comportamento funcional.

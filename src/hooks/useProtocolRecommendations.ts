@@ -5,6 +5,29 @@ import i18n from "@/i18n/pt-BR.json";
 import { sortProtocolRecommendations } from "./protocolRecommendationUtils";
 import { buildErrorDescription } from "@/utils/errorParsing";
 
+const PROTOCOL_RECOMMENDATIONS_SELECT = `
+  id,
+  student_id,
+  protocol_id,
+  recommended_date,
+  reason,
+  priority,
+  applied,
+  trainer_notes,
+  created_at,
+  protocol:recovery_protocols(
+    id,
+    name,
+    category,
+    subcategory,
+    duration_minutes,
+    benefits,
+    contraindications,
+    instructions,
+    scientific_references
+  )
+`;
+
 export interface ProtocolRecommendation {
   id: string;
   student_id: string;
@@ -39,10 +62,7 @@ export const useProtocolRecommendations = (studentId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("protocol_recommendations")
-        .select(`
-          *,
-          protocol:recovery_protocols(*)
-        `)
+        .select(PROTOCOL_RECOMMENDATIONS_SELECT)
         .eq("student_id", studentId)
         .order("recommended_date", { ascending: false })
         .order("created_at", { ascending: false });
