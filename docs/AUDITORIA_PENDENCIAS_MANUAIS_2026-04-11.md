@@ -294,6 +294,9 @@
   - `useOuraMetrics`: select explícito para `oura_metrics` (lista e latest).
 - Admin:
   - `AdminUsersPage`: select explícito de `trainer_profiles`.
+- AI Builder:
+  - `useAIBuilderChat`: remoção dos dois `select("*")` restantes com selects explícitos em conversas/mensagens;
+  - `useAIBuilderConversations` e `useAIBuilderMessages` com `refetchOnWindowFocus: false`.
 
 ### Validação deste lote
 - `rg` sem ocorrência de `select("*")` em `src/hooks`, `src/pages` e `src/components`.

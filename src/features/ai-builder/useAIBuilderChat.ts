@@ -1,6 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+const AI_BUILDER_CONVERSATION_SELECT = "id,title,created_at,updated_at";
+const AI_BUILDER_MESSAGE_SELECT = "id,conversation_id,role,content,message_type,issue_url,created_at";
+
 export interface Conversation {
   id: string;
   title: string;
@@ -21,10 +24,11 @@ export interface PersistedMessage {
 export function useAIBuilderConversations() {
   return useQuery({
     queryKey: ["ai-builder-conversations"],
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ai_builder_conversations")
-        .select("*")
+        .select(AI_BUILDER_CONVERSATION_SELECT)
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -37,10 +41,11 @@ export function useAIBuilderMessages(conversationId: string | null) {
   return useQuery({
     queryKey: ["ai-builder-messages", conversationId],
     enabled: !!conversationId,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("ai_builder_messages")
-        .select("*")
+        .select(AI_BUILDER_MESSAGE_SELECT)
         .eq("conversation_id", conversationId!)
         .order("created_at", { ascending: true });
 
@@ -61,7 +66,7 @@ export function useCreateConversation() {
       const { data, error } = await supabase
         .from("ai_builder_conversations")
         .insert({ user_id: user.id, title })
-        .select()
+        .select(AI_BUILDER_CONVERSATION_SELECT)
         .single();
 
       if (error) throw error;
@@ -87,7 +92,7 @@ export function useAddMessage() {
       const { data, error } = await supabase
         .from("ai_builder_messages")
         .insert(msg)
-        .select()
+        .select(AI_BUILDER_MESSAGE_SELECT)
         .single();
 
       if (error) throw error;
