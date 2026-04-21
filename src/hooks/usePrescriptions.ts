@@ -111,6 +111,17 @@ const PRESCRIPTION_LIST_SELECT = `
   id, name, objective, created_at, updated_at, folder_id, order_index, prescription_type,
   prescription_assignments(student_id)
 `;
+const PRESCRIPTION_DETAILS_SELECT =
+  "id, name, objective, created_at, updated_at, folder_id, order_index, prescription_type, trainer_id";
+const PRESCRIPTION_EXERCISES_SELECT = `
+  id, prescription_id, exercise_library_id, order_index, sets, reps, interval_seconds, pse, training_method,
+  observations, group_with_previous, should_track, load, rir,
+  exercises_library!prescription_exercises_exercise_library_id_fkey(name, category)
+`;
+const PRESCRIPTION_ADAPTATIONS_SELECT = `
+  id, prescription_exercise_id, adaptation_type, exercise_library_id, sets, reps, interval_seconds, pse, observations,
+  exercises_library!exercise_adaptations_exercise_library_id_fkey(name)
+`;
 
 const mapPrescriptionListItem = (row: PrescriptionListRow): WorkoutPrescription => ({
   id: row.id,
@@ -216,7 +227,7 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
 
       const { data: prescription, error: prescError } = await supabase
         .from("workout_prescriptions")
-        .select("*")
+        .select(PRESCRIPTION_DETAILS_SELECT)
         .eq("id", prescriptionId)
         .single();
 
@@ -224,10 +235,7 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
 
       const { data: exercises, error: exError } = await supabase
         .from("prescription_exercises")
-        .select(`
-          *,
-          exercises_library!prescription_exercises_exercise_library_id_fkey(name, category)
-        `)
+        .select(PRESCRIPTION_EXERCISES_SELECT)
         .eq("prescription_id", prescriptionId)
         .order("order_index");
 
@@ -243,10 +251,7 @@ export const usePrescriptionDetails = (prescriptionId: string | null) => {
 
       const { data: adaptations, error: adaptError } = await supabase
         .from("exercise_adaptations")
-        .select(`
-          *,
-          exercises_library!exercise_adaptations_exercise_library_id_fkey(name)
-        `)
+        .select(PRESCRIPTION_ADAPTATIONS_SELECT)
         .in("prescription_exercise_id", exerciseIds);
 
       if (adaptError) throw adaptError;

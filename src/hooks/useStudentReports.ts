@@ -16,6 +16,16 @@ export type {
   WeeklyProgressionPoint,
 } from "./reportMappers";
 
+const STUDENT_REPORTS_SELECT = `
+  id, student_id, trainer_id, period_start, period_end, report_type, status, total_sessions, weekly_average,
+  adherence_percentage, sessions_proposed, trainer_highlights, attention_points, next_cycle_plan,
+  oura_data, consistency_analysis, strength_analysis, generated_at, created_at, updated_at
+`;
+const REPORT_TRACKED_EXERCISES_SELECT = `
+  id, report_id, exercise_library_id, exercise_name, initial_load, final_load, load_variation_percentage,
+  initial_total_work, final_total_work, work_variation_percentage, weekly_progression, created_at
+`;
+
 const extractEdgeFunctionErrorMessage = async (error: unknown): Promise<string> => {
   if (!(error instanceof Error)) return "Erro inesperado ao gerar relatório";
 
@@ -62,7 +72,7 @@ export const useStudentReports = (studentId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("student_reports")
-        .select("*")
+        .select(STUDENT_REPORTS_SELECT)
         .eq("student_id", studentId)
         .order("period_end", { ascending: false });
 
@@ -85,7 +95,7 @@ export const useReportById = (reportId: string | null) => {
 
       const { data, error } = await supabase
         .from("student_reports")
-        .select("*")
+        .select(STUDENT_REPORTS_SELECT)
         .eq("id", reportId)
         .single();
 
@@ -108,7 +118,7 @@ export const useReportTrackedExercises = (reportId: string | null) => {
 
       const { data, error } = await supabase
         .from("report_tracked_exercises")
-        .select("*")
+        .select(REPORT_TRACKED_EXERCISES_SELECT)
         .eq("report_id", reportId)
         .order("load_variation_percentage", { ascending: false });
 

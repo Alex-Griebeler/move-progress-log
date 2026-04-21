@@ -278,3 +278,26 @@
 - `d93359b` fix(import): parser de hora endurecido (HH:MM, AM/PM, HHMM e fração Excel 0..1), sem normalização silenciosa de valores inválidos
 - `f3bfc2e` chore(ci): atualização de actions do workflow `ai-engineer` para majors suportadas
 - `e71eb4d` docs(smoke): runbook de staging atualizado com validação de duplicatas e horas inválidas
+
+## Lote adicional de hardening (frontend queries)
+- Eliminação dos `select("*")` restantes no frontend para reduzir payload, acoplamento a schema e risco de regressão por coluna nova.
+- Sessões/Histórico:
+  - `useExerciseHistory`: select explícito para `exercises`.
+- Relatórios:
+  - `useStudentReports`: select explícito para `student_reports` e `report_tracked_exercises` (lista, detalhe e exercícios rastreados).
+- Alunos:
+  - `useStudents` (`useGetOrCreateStudent`): retorno de aluno padronizado com `STUDENT_SELECT`.
+- Pastas/Prescrições:
+  - `useFolders`: select explícito de `prescription_folders`.
+  - `usePrescriptions`: selects explícitos para `prescriptions` (detalhe), `prescription_exercises` e `exercise_adaptations`.
+- Oura:
+  - `useOuraMetrics`: select explícito para `oura_metrics` (lista e latest).
+- Admin:
+  - `AdminUsersPage`: select explícito de `trainer_profiles`.
+
+### Validação deste lote
+- `rg` sem ocorrência de `select("*")` em `src/hooks`, `src/pages` e `src/components`.
+- `eslint` (arquivos alterados): PASS.
+- `tsc --noEmit`: PASS.
+- `vitest --run`: PASS.
+- `vite build`: PASS.

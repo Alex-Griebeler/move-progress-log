@@ -132,7 +132,7 @@ export const useGetOrCreateStudent = () => {
       // Buscar aluno existente do trainer atual
       const { data: existingCandidates, error: existingError } = await supabase
         .from("students")
-        .select("*")
+        .select(STUDENT_SELECT)
         .ilike("name", name)
         .eq("trainer_id", user.id)
         .order("created_at", { ascending: false })
