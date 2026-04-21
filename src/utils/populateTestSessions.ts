@@ -191,7 +191,7 @@ export const populateTestSessions = async () => {
             time: session.time,
             session_type: 'individual',
           })
-          .select()
+          .select('id')
           .single();
 
         if (sessionError) {

@@ -280,6 +280,12 @@
   - `npm run lint` ✅
   - `npm run test -- --run` ✅
   - `npm run build` ✅
+- Limpeza final de `select()` sem coluna:
+  - `populateTestSessions` (utilitário de ambiente DEV) agora cria sessão com `select('id')`.
+- Revalidação automática pós-limpeza:
+  - `npm run lint` ✅
+  - `npm run test -- --run` ✅
+  - `npm run build` ✅
 
 ## O que ainda depende de validação manual
 
