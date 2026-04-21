@@ -88,6 +88,7 @@ export const useLoadSuggestions = (
   return useQuery({
     queryKey: ["load-suggestions", studentId, recommendationKey],
     enabled: !!studentId && !!recommendation,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<LoadSuggestionItem[]> => {
       if (!recommendation) return [];
 

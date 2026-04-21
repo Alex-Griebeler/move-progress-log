@@ -51,6 +51,7 @@ export const useExerciseHistory = (studentId: string, exerciseName: string) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!studentId || !exerciseName) return [];
 

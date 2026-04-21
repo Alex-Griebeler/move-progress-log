@@ -48,6 +48,7 @@ export const useExerciseLoadHistory = (
   return useQuery({
     queryKey: ["exercise-load-history", exerciseName, prescriptionId],
     enabled: enabled && !!exerciseName && !!prescriptionId,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<ExerciseLoadHistoryItem[]> => {
       // 1. Get assigned students via prescription_assignments + students
       const { data: assignments, error: assignError } = await supabase

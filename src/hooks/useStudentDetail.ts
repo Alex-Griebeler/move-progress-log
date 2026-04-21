@@ -9,6 +9,7 @@ export const useStudentPrescriptions = (studentId: string) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data: assignments, error } = await supabase
         .from("prescription_assignments")
@@ -33,6 +34,7 @@ export const useStudentsWithActivePrescriptions = (studentIds: string[]) => {
     enabled: normalizedStudentIds.length > 0,
     staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const today = new Date().toISOString().split('T')[0];
       
@@ -60,6 +62,7 @@ export const useSessionsWithExercises = (studentId: string) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       // BUG-002 fix: Single query with join instead of N+1
       const { data: sessions, error } = await supabase

@@ -36,6 +36,7 @@ export const useExerciseLastSession = (
   return useQuery({
     queryKey: ["exercise-last-session-batch", stableStudentIdsKey, stableExerciseNamesKey],
     enabled: enabled && studentIds.length > 0 && exerciseNames.length > 0,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<Map<string, LastSessionData>> => {
       const result = new Map<string, LastSessionData>();
       const normalizedExerciseNames = Array.from(

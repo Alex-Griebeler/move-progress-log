@@ -34,6 +34,7 @@ export const useOuraBaseline = (studentId: string, days: number = 14) => {
     enabled: !!studentId,
     staleTime: 24 * 60 * 60 * 1000, // 24h
     gcTime: 48 * 60 * 60 * 1000, // 48h
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<OuraBaseline> => {
       const { data, error } = await supabase.rpc("calc_oura_baseline", {
         p_student_id: studentId,

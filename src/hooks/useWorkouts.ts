@@ -74,6 +74,7 @@ export const useWorkouts = () => {
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workout_sessions")
@@ -116,6 +117,7 @@ export const useWorkoutsPaginated = () => {
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * PAGE_SIZE;

@@ -54,6 +54,7 @@ export const useWeeklyMovementBalance = (studentId: string) => {
   return useQuery({
     queryKey: ["weekly-movement-balance", studentId],
     enabled: !!studentId,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<WeeklyMovementBalance> => {
       const now = new Date();
       const start = startOfWeek(now, { weekStartsOn: 1 });
@@ -165,4 +166,3 @@ export const useWeeklyMovementBalance = (studentId: string) => {
     staleTime: 60 * 1000,
   });
 };
-

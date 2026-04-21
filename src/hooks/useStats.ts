@@ -17,6 +17,7 @@ export const useStats = () => {
     staleTime: 5 * 60 * 1000,
     gcTime: 20 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       // Total de sessões
       const { count: totalSessions, error: totalSessionsError } = await supabase

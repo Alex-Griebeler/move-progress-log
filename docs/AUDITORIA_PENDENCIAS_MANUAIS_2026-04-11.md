@@ -304,3 +304,19 @@
 - `tsc --noEmit`: PASS.
 - `vitest --run`: PASS.
 - `vite build`: PASS.
+
+## Lote adicional de hardening (responsividade de leitura)
+- Padronização de `refetchOnWindowFocus: false` em hooks críticos que ainda refaziam leitura ao trocar foco da aba:
+  - `useExerciseLoadHistory`
+  - `useExerciseHistory`
+  - `useExerciseLastSession`
+  - `useOuraTrends`
+  - `useOuraBaseline`
+  - `useStats`
+  - `useStudentDetail` (3 queries do módulo)
+  - `useOuraConnectionStatus`
+  - `useWeeklyMovementBalance`
+  - `useWorkouts` e `useWorkoutsPaginated`
+  - `useSessionDetail`
+  - `useLoadSuggestions`
+- Objetivo: reduzir recarregamentos desnecessários ao alternar abas/janelas, mantendo refresh por invalidação explícita já existente nas mutações.

@@ -45,6 +45,7 @@ export const useSessionDetail = (sessionId: string | null) => {
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnMount: false,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       if (!sessionId) return null;
 
