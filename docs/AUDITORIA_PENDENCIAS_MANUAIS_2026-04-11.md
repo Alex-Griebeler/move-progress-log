@@ -238,6 +238,9 @@
   - seleção agora usa apenas as chaves efetivas do payload (`Object.keys(metrics|acuteMetrics)`), reduzindo custo e acoplamento a colunas não usadas.
 - Ordem de validação de segurança padronizada:
   - `oura-sync` e `oura-sync-test` agora autenticam antes de validar payload (`student_id/date`);
+- Performance de navegação em perfil de aluno:
+  - `StudentDetailPage` deixou de carregar a lista completa de alunos (`useStudents`) para resolver apenas um perfil;
+  - página agora usa `useStudentById(id)` diretamente, reduzindo payload e latência na abertura da rota `/alunos/:id`.
   - resposta para chamadas sem token passa a ser `401` consistente, reduzindo exposição de validação interna para cliente não autenticado.
 - Hardening de falhas silenciosas em edge functions:
   - `generate-student-report` agora valida explicitamente erro ao buscar padrões da `exercises_library` e métricas `oura_metrics` (falha com erro claro em vez de seguir silenciosamente);

@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
-import { useStudents } from "@/hooks/useStudents";
+import { useStudentById } from "@/hooks/useStudents";
 import { useStudentPrescriptions, useSessionsWithExercises } from "@/hooks/useStudentDetail";
 import { useDeletePrescriptionAssignment } from "@/hooks/usePrescriptions";
 import { Button } from "@/components/ui/button";
@@ -58,7 +58,7 @@ import { formatSessionDate } from "@/utils/sessionDate";
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: students, isLoading: loadingStudents } = useStudents();
+  const { data: student, isLoading: loadingStudent } = useStudentById(id ?? null);
   const { data: sessions, isLoading: loadingSessions } = useSessionsWithExercises(id!);
   const { data: assignments, isLoading: loadingAssignments } = useStudentPrescriptions(id!);
   const { data: ouraMetrics, isLoading: loadingOuraMetrics } = useOuraMetrics(id!, 30);
@@ -69,7 +69,6 @@ const StudentDetailPage = () => {
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [studentNotFound, setStudentNotFound] = useState(false);
   const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'individual' | 'group'>('all');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [editStudentOpen, setEditStudentOpen] = useState(false);
@@ -77,8 +76,6 @@ const StudentDetailPage = () => {
   const reopenSession = useReopenWorkoutSession();
   const finalizeSession = useFinalizeWorkoutSession();
 
-  const student = students?.find((s) => s.id === id);
-  
   // Dynamic page title with student name
   const pageTitle = useMemo(() => {
     return student ? student.name : NAV_LABELS.students;
@@ -109,7 +106,7 @@ const StudentDetailPage = () => {
     return calculatedAge;
   }, [student?.birth_date]);
 
-  if (loadingStudents) {
+  if (loadingStudent) {
     return (
       <PageLayout>
         <Skeleton className="h-10 w-64" />
@@ -171,7 +168,7 @@ const StudentDetailPage = () => {
         ]}
       />
       
-      {loadingStudents ? (
+      {loadingStudent ? (
         <StudentHeaderSkeleton />
       ) : (
         <Card className="bg-card border border-primary/15 shadow-sm rounded-xl mb-md animate-fade-in">
