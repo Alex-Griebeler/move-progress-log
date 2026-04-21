@@ -490,6 +490,22 @@
 - `npm run test -- --run`: PASS (98 passed, 33 skipped).
 - `npm run build`: PASS.
 
+## Atualização de status (2026-04-21)
+- `main` recebeu dois ajustes automáticos de estabilidade/consistência:
+  - `c627a60` — padronização de geração de horário atual (`HH:MM`) em dialogs de sessão (individual, grupo, add workout, add workout session);
+  - `19c85ca` — reset de `date/time` no `AddWorkoutSessionDialog` após salvar (evita reaproveitar horário antigo).
+- Hardening adicional do sync Oura:
+  - `supabase/functions/oura-sync/index.ts` agora valida configuração obrigatória antes de executar:
+    - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`;
+    - `OURA_CLIENT_ID`, `OURA_CLIENT_SECRET` (quando precisar renovar token).
+  - objetivo: evitar falhas opacas por segredo ausente e retornar erro explícito de configuração.
+
+### Validação desta atualização (2026-04-21)
+- `npm run lint`: PASS.
+- `npm run test -- --run`: PASS (98 passed, 33 skipped).
+- `npm run build`: PASS.
+- `npm run verify:essential`: PASS.
+
 ## Lote adicional de hardening (falhas silenciosas em queries Supabase)
 - Tratamento explícito de `error` adicionado em pontos críticos que antes ignoravam falhas de leitura:
   - `supabase/functions/ai-builder-chat/index.ts` (`ai_project_memory`)

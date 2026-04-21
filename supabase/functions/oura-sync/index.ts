@@ -85,6 +85,15 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const ouraClientId = Deno.env.get('OURA_CLIENT_ID') ?? '';
+    const ouraClientSecret = Deno.env.get('OURA_CLIENT_SECRET') ?? '';
+
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+      return jsonResponse(500, {
+        error: 'Configuração incompleta do backend',
+        details: 'Variáveis SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY/SUPABASE_ANON_KEY ausentes.',
+      });
+    }
 
     // Authenticate first: Allow service role (internal calls) OR authenticated trainer
     const authHeader = req.headers.get('Authorization');
@@ -197,14 +206,22 @@ Deno.serve(async (req) => {
         return jsonResponse(500, { error: 'Falha ao recuperar refresh token' });
       }
 
+      if (!ouraClientId || !ouraClientSecret) {
+        return jsonResponse(500, {
+          error: 'Configuração incompleta do Oura Ring',
+          details: 'Variáveis OURA_CLIENT_ID/OURA_CLIENT_SECRET ausentes.',
+          suggestion: 'Configure os segredos e tente novamente.',
+        });
+      }
+
       const refreshResponse = await fetch('https://api.ouraring.com/oauth/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
           refresh_token: refreshToken,
-          client_id: Deno.env.get('OURA_CLIENT_ID') || '',
-          client_secret: Deno.env.get('OURA_CLIENT_SECRET') || '',
+          client_id: ouraClientId,
+          client_secret: ouraClientSecret,
         }).toString(),
       });
 
