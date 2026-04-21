@@ -239,6 +239,9 @@
 - Ordem de validação de segurança padronizada:
   - `oura-sync` e `oura-sync-test` agora autenticam antes de validar payload (`student_id/date`);
   - resposta para chamadas sem token passa a ser `401` consistente, reduzindo exposição de validação interna para cliente não autenticado.
+- Hardening de falhas silenciosas em edge functions:
+  - `generate-student-report` agora valida explicitamente erro ao buscar padrões da `exercises_library` e métricas `oura_metrics` (falha com erro claro em vez de seguir silenciosamente);
+  - `parse-word-prescription` agora trata erro no RPC `search_exercises_by_name` por exercício (log estruturado + fallback seguro para `matches=[]` naquele item).
 - Revalidação automática pós-lote:
   - `npm run lint` ✅
   - `npm run test -- --run` ✅

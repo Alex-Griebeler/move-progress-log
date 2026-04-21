@@ -746,9 +746,13 @@ serve(async (req) => {
       });
     }
 
-    const { data: libraryPatternRows } = await supabase
+    const { data: libraryPatternRows, error: libraryPatternRowsError } = await supabase
       .from("exercises_library")
       .select("name, movement_pattern, category");
+    if (libraryPatternRowsError) {
+      console.error("Error fetching exercise library patterns:", libraryPatternRowsError);
+      return jsonResponse(500, { error: "Falha ao carregar padrões de movimento da biblioteca." });
+    }
 
     const patternByExerciseName = new Map<
       string,
@@ -842,13 +846,17 @@ serve(async (req) => {
           `Semanas com razão conforme: ${ratioCompliantWeeks}/${totalWeeks}.`
         : "Regra mecânica semanal: período sem semanas completas para validação.";
 
-    const { data: ouraMetricsRaw } = await supabase
+    const { data: ouraMetricsRaw, error: ouraMetricsRawError } = await supabase
       .from("oura_metrics")
       .select("date, readiness_score, sleep_score, average_sleep_hrv, resting_heart_rate, vo2_max")
       .eq("student_id", studentId)
       .gte("date", periodStart)
       .lte("date", periodEnd)
       .order("date", { ascending: true });
+    if (ouraMetricsRawError) {
+      console.error("Error fetching Oura metrics for report:", ouraMetricsRawError);
+      return jsonResponse(500, { error: "Falha ao carregar métricas Oura para o relatório." });
+    }
 
     const ouraMetrics = (ouraMetricsRaw || [])
       .map(parseOuraMetricsRow)

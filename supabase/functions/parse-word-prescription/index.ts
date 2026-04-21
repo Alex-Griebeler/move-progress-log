@@ -354,15 +354,21 @@ REGRAS:
 
     for (const prescription of prescriptions) {
       for (const exercise of prescription.exercises) {
-        const { data: matches } = await supabaseAdmin.rpc(
+        const { data: matches, error: matchesError } = await supabaseAdmin.rpc(
           "search_exercises_by_name",
           {
             p_query: exercise.name,
             p_limit: 3,
           }
         );
+        if (matchesError) {
+          console.error("Error matching exercise by name:", {
+            exercise_name: exercise.name,
+            error: matchesError.message,
+          });
+        }
 
-        exercise.matches = (matches || []).map((m: Record<string, unknown>) => ({
+        exercise.matches = (matchesError ? [] : matches || []).map((m: Record<string, unknown>) => ({
           id: m.id,
           name: m.name,
           similarity: Math.round((m.similarity as number) * 100),
