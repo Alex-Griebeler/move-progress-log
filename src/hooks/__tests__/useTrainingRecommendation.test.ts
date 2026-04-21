@@ -169,4 +169,74 @@ describe("calculateTrainingRecommendation", () => {
     expect(recommendation?.zone).toBe("red");
     expect(recommendation?.loadDecision).toBe("block");
   });
+
+  it("applies one-zone override when sleep is insufficient and stress is high", () => {
+    const recommendation = calculateTrainingRecommendation(
+      buildMetrics({
+        readiness_score: 72,
+        total_sleep_duration: 20000,
+        stress_high_time: 9000,
+        resting_heart_rate: 60,
+      }),
+      buildRecentMetrics(7, 500),
+      baseline
+    );
+
+    expect(recommendation?.overrideApplied).toBe(true);
+    expect(recommendation?.zone).toBe("yellow");
+    expect(recommendation?.alerts.some((alert) => alert.message.includes("Override agudo"))).toBe(
+      true
+    );
+  });
+
+  it("does not apply downgrade override when already in red zone", () => {
+    const recommendation = calculateTrainingRecommendation(
+      buildMetrics({
+        readiness_score: 18,
+        resting_heart_rate: 75,
+        total_sleep_duration: 18000,
+        stress_high_time: 10000,
+      }),
+      buildRecentMetrics(7, 500),
+      baseline,
+      undefined,
+      buildAcuteMetrics({ samples_count_hrv: 4, hrv_night_last: 35 })
+    );
+
+    expect(recommendation?.zone).toBe("red");
+    expect(recommendation?.overrideApplied).toBe(false);
+    expect(recommendation?.loadDecision).toBe("block");
+  });
+
+  it("does not apply acute HRV override when there are no acute HRV samples", () => {
+    const recommendation = calculateTrainingRecommendation(
+      buildMetrics({ readiness_score: 90, resting_heart_rate: 60 }),
+      buildRecentMetrics(7, 500),
+      baseline,
+      undefined,
+      buildAcuteMetrics({ samples_count_hrv: 0, hrv_night_last: 35 })
+    );
+
+    expect(recommendation?.overrideApplied).toBe(false);
+    expect(recommendation?.zone).toBe("green_high");
+    expect(recommendation?.loadDecision).toBe("increase");
+  });
+
+  it("maps expected adjustment percentages per final zone", () => {
+    const green = calculateTrainingRecommendation(
+      buildMetrics({ readiness_score: 72, resting_heart_rate: 60 }),
+      buildRecentMetrics(7, 500),
+      baseline
+    );
+    const yellow = calculateTrainingRecommendation(
+      buildMetrics({ readiness_score: 52, resting_heart_rate: 60 }),
+      buildRecentMetrics(7, 500),
+      baseline
+    );
+
+    expect(green?.zone).toBe("green");
+    expect(green?.loadAdjustmentPercent).toBe(0);
+    expect(yellow?.zone).toBe("yellow");
+    expect(yellow?.loadAdjustmentPercent).toBe(-20);
+  });
 });

@@ -475,6 +475,23 @@
 - `npm run test -- --run`: PASS (98/98; 33 skipped).
 - `npm run build`: PASS.
 
+## Lote adicional de cobertura de testes (motor de recomendação + contrato de relatórios)
+- `src/hooks/__tests__/useTrainingRecommendation.test.ts`:
+  - novos cenários para override por sono insuficiente + estresse alto;
+  - garantia de que zona vermelha não sofre downgrade adicional indevido;
+  - validação de não aplicar override agudo sem amostras agudas;
+  - validação explícita de `loadAdjustmentPercent` por zona final.
+- `src/hooks/__tests__/useStudentReports.contract.test.ts`:
+  - novos cenários para parsing numérico com espaços;
+  - fallback de `oura_data` inválido;
+  - fallback de `weekly_progression` não-array;
+  - preservação de status válidos (`generating`, `completed`).
+
+### Validação deste lote
+- `npm run lint`: PASS.
+- `npm run test -- --run`: PASS (105/105; 33 skipped).
+- `npm run build`: PASS.
+
 ## Lote adicional de consistência de horário (`HH:MM`) em dialogs de sessão
 - Objetivo:
   - remover geração ad-hoc de horário com `toTimeString().slice(0, 5)`;

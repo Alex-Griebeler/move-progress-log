@@ -53,6 +53,7 @@ describe("useStudentReports contract mappers", () => {
   it("parses numeric values from number and numeric string", () => {
     expect(toNullableNumber(12)).toBe(12);
     expect(toNullableNumber("12.5")).toBe(12.5);
+    expect(toNullableNumber("  18.2 ")).toBe(18.2);
     expect(toNullableNumber("abc")).toBeNull();
   });
 
@@ -117,5 +118,33 @@ describe("useStudentReports contract mappers", () => {
     expect(mapped.weekly_progression).toEqual([
       { week: 2, avgLoad: 72.5, totalWork: 2200 },
     ]);
+  });
+
+  it("returns null for invalid oura_data payload shape", () => {
+    expect(mapOuraReportData(null)).toBeNull();
+    expect(mapOuraReportData(["invalid"])).toBeNull();
+  });
+
+  it("returns null weekly progression when payload is not an array", () => {
+    const mapped = mapTrackedExercise({
+      ...baseTrackedExerciseRow,
+      weekly_progression: { week: 1, avgLoad: 70, totalWork: 2100 } as unknown as TrackedExerciseRow["weekly_progression"],
+    });
+
+    expect(mapped.weekly_progression).toBeNull();
+  });
+
+  it("keeps valid status values untouched", () => {
+    const generating = mapStudentReport({
+      ...baseStudentReportRow,
+      status: "generating",
+    });
+    const completed = mapStudentReport({
+      ...baseStudentReportRow,
+      status: "completed",
+    });
+
+    expect(generating.status).toBe("generating");
+    expect(completed.status).toBe("completed");
   });
 });
