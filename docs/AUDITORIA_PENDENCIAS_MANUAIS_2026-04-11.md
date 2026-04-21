@@ -499,6 +499,9 @@
     - `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`;
     - `OURA_CLIENT_ID`, `OURA_CLIENT_SECRET` (quando precisar renovar token).
   - objetivo: evitar falhas opacas por segredo ausente e retornar erro explícito de configuração.
+- Hardening/performance adicional em frontend:
+  - `src/features/ai-builder/useAIBuilderChat.ts` agora registra warning explícito quando falha o update de `updated_at` da conversa (falha não bloqueante; mensagem já persistida);
+  - `src/hooks/useWeeklyMovementBalance.ts` agora usa cache explícito (`staleTime/gcTime`) e busca catálogo apenas com `movement_pattern` não nulo, reduzindo payload/refetch.
 
 ### Validação desta atualização (2026-04-21)
 - `npm run lint`: PASS.

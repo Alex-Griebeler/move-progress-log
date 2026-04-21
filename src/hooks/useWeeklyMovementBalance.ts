@@ -55,6 +55,8 @@ export const useWeeklyMovementBalance = (studentId: string) => {
     queryKey: ["weekly-movement-balance", studentId],
     enabled: !!studentId,
     refetchOnWindowFocus: false,
+    staleTime: 60_000,
+    gcTime: 10 * 60_000,
     queryFn: async (): Promise<WeeklyMovementBalance> => {
       const now = new Date();
       const start = startOfWeek(now, { weekStartsOn: 1 });
@@ -75,7 +77,10 @@ export const useWeeklyMovementBalance = (studentId: string) => {
             .eq("student_id", studentId)
             .gte("date", periodStart)
             .lte("date", periodEnd),
-          supabase.from("exercises_library").select("name, movement_pattern"),
+          supabase
+            .from("exercises_library")
+            .select("name, movement_pattern")
+            .not("movement_pattern", "is", null),
         ]);
 
       if (studentError) throw studentError;

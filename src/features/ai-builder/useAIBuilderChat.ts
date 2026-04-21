@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/utils/logger";
 
 const AI_BUILDER_CONVERSATION_SELECT = "id,title,created_at,updated_at";
 const AI_BUILDER_MESSAGE_SELECT = "id,conversation_id,role,content,message_type,issue_url,created_at";
@@ -98,10 +99,14 @@ export function useAddMessage() {
       if (error) throw error;
 
       // Update conversation timestamp and title if first user message
-      await supabase
+      const { error: updateConversationError } = await supabase
         .from("ai_builder_conversations")
         .update({ updated_at: new Date().toISOString() })
         .eq("id", msg.conversation_id);
+      if (updateConversationError) {
+        // Non-blocking: the message was already persisted successfully.
+        logger.warn("Failed to update ai_builder_conversations.updated_at", updateConversationError);
+      }
 
       return data as PersistedMessage;
     },
