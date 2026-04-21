@@ -21,6 +21,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { logger } from "@/utils/logger";
 
 const normalizeComparableText = (value: string): string =>
   value
@@ -239,7 +240,8 @@ export function GenerateReportDialog({
       setHighlights("");
       setAttentionPoints("");
       setNextCyclePlan("");
-    } catch {
+    } catch (error: unknown) {
+      logger.warn("GenerateReportDialog submit failed", error);
       // Error feedback is handled in mutation onError.
     }
   };

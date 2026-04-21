@@ -382,6 +382,23 @@
 - `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
 - `npm run build`: PASS.
 
+## Lote adicional de hardening (catch silencioso em fluxos críticos de UI)
+- Substituídos `catch {}` por captura explícita + `logger.warn(...)` em:
+  - `AssignPrescriptionDialog` (atribuição de prescrição);
+  - `GenerateReportDialog` (geração de relatório);
+  - `GenerateGroupSessionDialog` (geração de mesociclo);
+  - `EditExerciseLibraryDialog` (edição de exercício);
+  - `ExerciseFirstSessionEntry` (salvamento de sessão inicial).
+- Comportamento funcional preservado:
+  - feedback ao usuário continua vindo dos `onError`/handlers existentes;
+  - adicionada apenas rastreabilidade para diagnóstico em caso de falha.
+
+### Validação deste lote
+- `eslint` (arquivos alterados): PASS.
+- `tsc --noEmit`: PASS.
+- `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
+- `npm run build`: PASS.
+
 ## Lote adicional de hardening (oura-sync parse resiliente)
 - `supabase/functions/oura-sync/index.ts`:
   - `safeJson` passou a tratar falha de parse JSON por endpoint (degrada para `null` + warning), em vez de derrubar a sync inteira via `Promise.all`.

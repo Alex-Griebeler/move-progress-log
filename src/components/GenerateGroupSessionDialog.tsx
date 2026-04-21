@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { useGenerateGroupSession } from "@/hooks/useGenerateGroupSession";
 import { MesocyclePreview } from "@/components/MesocyclePreview";
+import { logger } from "@/utils/logger";
 import {
   MESOCYCLE_STRUCTURE,
   TRAINING_VALENCES,
@@ -125,7 +126,8 @@ export function GenerateGroupSessionDialog({
       const mesocycle = await generateMesocycle.mutateAsync(input);
       setGeneratedMesocycle(mesocycle);
       setStep("preview");
-    } catch {
+    } catch (error: unknown) {
+      logger.warn("GenerateGroupSessionDialog generation failed", error);
       setStep("valences");
     }
   };

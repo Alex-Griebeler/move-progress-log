@@ -37,6 +37,7 @@ import {
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
 import { Checkbox } from "@/components/ui/checkbox";
+import { logger } from "@/utils/logger";
 
 
 // Flatten equipment for selection
@@ -165,8 +166,9 @@ export const EditExerciseLibraryDialog = ({
       } satisfies Partial<CreateExerciseInput> & { id: string });
 
       onOpenChange(false);
-    } catch {
-      // Error handled by mutation's onError callback
+    } catch (error: unknown) {
+      logger.warn("EditExerciseLibraryDialog submit failed", error);
+      // Error feedback is handled by mutation's onError callback.
     }
   };
 

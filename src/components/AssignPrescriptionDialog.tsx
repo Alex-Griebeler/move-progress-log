@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "react-day-picker";
 import type { AssignmentScheduleAdaptations } from "@/hooks/usePrescriptions";
+import { logger } from "@/utils/logger";
 
 interface AssignPrescriptionDialogProps {
   open: boolean;
@@ -104,8 +105,9 @@ export function AssignPrescriptionDialog({
         setTime("");
         closeDialog();
       }
-    } catch {
-      // Error handled by mutation's onError callback
+    } catch (error: unknown) {
+      logger.warn("AssignPrescriptionDialog submit failed", error);
+      // Error feedback is handled by mutation's onError callback.
     }
   };
 

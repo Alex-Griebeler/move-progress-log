@@ -22,6 +22,7 @@ import { useExerciseLastSession, type LastSessionData } from "@/hooks/useExercis
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { notify } from "@/lib/notify";
+import { logger } from "@/utils/logger";
 import {
   Table,
   TableBody,
@@ -335,8 +336,9 @@ export function ExerciseFirstSessionEntry({
         }),
       }));
       await onSave({ studentExercises });
-    } catch {
-      // Error handled by parent
+    } catch (error: unknown) {
+      logger.warn("ExerciseFirstSessionEntry save failed", error);
+      // Error handling is delegated to parent.
     } finally {
       setIsSubmitting(false);
     }
