@@ -652,6 +652,8 @@ Deno.serve(async (req) => {
       samples_count_hrv: hrvStats.count,
       samples_count_hr_day: hrDayStats.count,
     };
+    const metricColumnsForMerge = Object.keys(metrics).join(',');
+    const acuteMetricColumnsForMerge = Object.keys(acuteMetrics).join(',');
 
     if (DEBUG) console.log('Extracted metrics:', metrics);
     // Check if all values are null (no data available)
@@ -691,7 +693,7 @@ Deno.serve(async (req) => {
       // O-11: Preserve previous non-null values when Oura returns sparse payloads.
       const { data: existingMetricRow, error: existingMetricRowError } = await supabaseClient
         .from('oura_metrics')
-        .select('*')
+        .select(metricColumnsForMerge)
         .eq('student_id', student_id)
         .eq('date', syncDate)
         .maybeSingle();
@@ -720,7 +722,7 @@ Deno.serve(async (req) => {
     if (hasAcuteData) {
       const { data: existingAcuteRow, error: existingAcuteRowError } = await supabaseClient
         .from('oura_acute_metrics')
-        .select('*')
+        .select(acuteMetricColumnsForMerge)
         .eq('student_id', student_id)
         .eq('date', syncDate)
         .maybeSingle();

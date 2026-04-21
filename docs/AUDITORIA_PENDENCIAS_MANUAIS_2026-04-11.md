@@ -233,6 +233,9 @@
     - `create-student-from-invite`
     - `oura-callback`
     - `check-rate-limit`
+- Oura sync com payload de merge mais enxuto:
+  - removido `select('*')` no merge de `oura_metrics` e `oura_acute_metrics`;
+  - seleção agora usa apenas as chaves efetivas do payload (`Object.keys(metrics|acuteMetrics)`), reduzindo custo e acoplamento a colunas não usadas.
 - Revalidação automática pós-lote:
   - `npm run lint` ✅
   - `npm run test -- --run` ✅
