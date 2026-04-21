@@ -70,6 +70,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+function parseInviteRow(value: unknown): InviteRow | null {
+  if (!isRecord(value)) return null;
+  const { id, is_used, expires_at, trainer_id } = value;
+  if (
+    typeof id !== 'string' ||
+    typeof is_used !== 'boolean' ||
+    typeof expires_at !== 'string' ||
+    typeof trainer_id !== 'string'
+  ) {
+    return null;
+  }
+  return { id, is_used, expires_at, trainer_id };
+}
+
 function normalizeInviteToken(rawValue: unknown) {
   if (typeof rawValue !== 'string') {
     throw new Error('Convite inválido');
@@ -301,7 +315,10 @@ async function claimInvite(
     return { invite: null, error: 'Convite não encontrado' };
   }
 
-  const existingInvite = rawExisting as unknown as InviteRow;
+  const existingInvite = parseInviteRow(rawExisting);
+  if (!existingInvite) {
+    return { invite: null, error: 'Convite com formato inválido' };
+  }
 
   if (existingInvite.is_used) {
     return { invite: null, error: 'Convite já foi utilizado' };

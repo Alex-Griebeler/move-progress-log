@@ -427,3 +427,28 @@
 - `tsc --noEmit`: PASS.
 - `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
 - `npm run build`: PASS.
+
+## Lote adicional de hardening (remoção de casts frágeis em edge functions críticas)
+- `supabase/functions/generate-student-report/index.ts`:
+  - removidos casts `as unknown as` em `student`, `existingReports`, `trackedExerciseRows`, `sessions`, `ouraMetricsRaw`;
+  - adicionadas funções de parse/validação de shape:
+    - `parseStudentRow`
+    - `parseReportWindowRow`
+    - `parseExerciseLibraryRow`
+    - `parseSessionExerciseRow`
+    - `parseSessionRow`
+    - `parseOuraMetricsRow`
+  - adicionada guarda para payload inesperado de `report.id`.
+- `supabase/functions/create-student-from-invite/index.ts`:
+  - removido cast `rawExisting as unknown as InviteRow`;
+  - adicionada função `parseInviteRow` com validação explícita de shape.
+
+### Impacto
+- Menor risco de erro silencioso ou comportamento indefinido quando o Supabase retornar payload com shape inesperado.
+- Fluxos funcionais preservados; alterações são de validação e segurança de tipo em runtime.
+
+### Validação deste lote
+- `eslint` (arquivos alterados): PASS.
+- `tsc --noEmit`: PASS.
+- `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
+- `npm run build`: PASS.

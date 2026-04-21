@@ -175,6 +175,119 @@ const mapMovementBucket = (movementPattern: string | null | undefined): Movement
   return null;
 };
 
+const parseStudentRow = (value: unknown): StudentRow | null => {
+  if (!isPlainObject(value)) return null;
+  const { id, name, trainer_id, weekly_sessions_proposed } = value;
+  if (typeof id !== "string" || typeof name !== "string" || typeof trainer_id !== "string") {
+    return null;
+  }
+  if (
+    weekly_sessions_proposed !== null &&
+    weekly_sessions_proposed !== undefined &&
+    (typeof weekly_sessions_proposed !== "number" || !Number.isFinite(weekly_sessions_proposed))
+  ) {
+    return null;
+  }
+  return {
+    id,
+    name,
+    trainer_id,
+    weekly_sessions_proposed:
+      typeof weekly_sessions_proposed === "number" ? weekly_sessions_proposed : null,
+  };
+};
+
+const parseReportWindowRow = (value: unknown): ReportWindowRow | null => {
+  if (!isPlainObject(value)) return null;
+  const { id, period_start, period_end, status } = value;
+  if (typeof id !== "string" || typeof period_start !== "string" || typeof period_end !== "string") {
+    return null;
+  }
+  if (status !== "generating" && status !== "completed" && status !== "failed") {
+    return null;
+  }
+  return { id, period_start, period_end, status };
+};
+
+const parseExerciseLibraryRow = (value: unknown): ExerciseLibraryRow | null => {
+  if (!isPlainObject(value)) return null;
+  const { id, name, category, movement_pattern } = value;
+  if (typeof id !== "string" || typeof name !== "string") return null;
+  if (category !== null && category !== undefined && typeof category !== "string") return null;
+  if (
+    movement_pattern !== null &&
+    movement_pattern !== undefined &&
+    typeof movement_pattern !== "string"
+  ) {
+    return null;
+  }
+  return {
+    id,
+    name,
+    category: typeof category === "string" ? category : null,
+    movement_pattern: typeof movement_pattern === "string" ? movement_pattern : null,
+  };
+};
+
+const parseSessionExerciseRow = (value: unknown): SessionExerciseRow | null => {
+  if (!isPlainObject(value)) return null;
+  const { id, exercise_name, load_kg, reps, sets, created_at } = value;
+  if (typeof id !== "string" || typeof exercise_name !== "string" || typeof created_at !== "string") {
+    return null;
+  }
+  if (load_kg !== null && load_kg !== undefined && typeof load_kg !== "number") return null;
+  if (reps !== null && reps !== undefined && typeof reps !== "number") return null;
+  if (sets !== null && sets !== undefined && typeof sets !== "number") return null;
+  return {
+    id,
+    exercise_name,
+    load_kg: typeof load_kg === "number" ? load_kg : null,
+    reps: typeof reps === "number" ? reps : null,
+    sets: typeof sets === "number" ? sets : null,
+    created_at,
+  };
+};
+
+const parseSessionRow = (value: unknown): SessionRow | null => {
+  if (!isPlainObject(value)) return null;
+  const { id, date, prescription_id, exercises } = value;
+  if (typeof id !== "string" || typeof date !== "string") return null;
+  if (prescription_id !== null && prescription_id !== undefined && typeof prescription_id !== "string") {
+    return null;
+  }
+  if (exercises !== null && exercises !== undefined && !Array.isArray(exercises)) {
+    return null;
+  }
+  const parsedExercises = Array.isArray(exercises)
+    ? exercises.map(parseSessionExerciseRow).filter((row): row is SessionExerciseRow => row !== null)
+    : null;
+  return {
+    id,
+    date,
+    prescription_id: typeof prescription_id === "string" ? prescription_id : null,
+    exercises: parsedExercises,
+  };
+};
+
+const parseOuraMetricsRow = (value: unknown): OuraMetricsRow | null => {
+  if (!isPlainObject(value)) return null;
+  const { date, readiness_score, sleep_score, average_sleep_hrv, resting_heart_rate, vo2_max } = value;
+  if (typeof date !== "string") return null;
+  const numericOrNull = (candidate: unknown): number | null => {
+    if (candidate === null || candidate === undefined) return null;
+    if (typeof candidate === "number" && Number.isFinite(candidate)) return candidate;
+    return null;
+  };
+  return {
+    date,
+    readiness_score: numericOrNull(readiness_score),
+    sleep_score: numericOrNull(sleep_score),
+    average_sleep_hrv: numericOrNull(average_sleep_hrv),
+    resting_heart_rate: numericOrNull(resting_heart_rate),
+    vo2_max: numericOrNull(vo2_max),
+  };
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -292,7 +405,10 @@ serve(async (req) => {
       return jsonResponse(404, { error: "Student not found" });
     }
 
-    const typedStudent = student as unknown as StudentRow;
+    const typedStudent = parseStudentRow(student);
+    if (!typedStudent) {
+      return jsonResponse(500, { error: "Unexpected student payload shape" });
+    }
     if (typedStudent.trainer_id !== trainerId) {
       return jsonResponse(403, { error: "Student not found or unauthorized" });
     }
@@ -308,7 +424,10 @@ serve(async (req) => {
       return jsonResponse(500, { error: "Failed to validate existing report windows" });
     }
 
-    const overlappingReport = ((existingReports || []) as unknown as ReportWindowRow[]).find((candidate) => {
+    const reportWindows = (existingReports || [])
+      .map(parseReportWindowRow)
+      .filter((row): row is ReportWindowRow => row !== null);
+    const overlappingReport = reportWindows.find((candidate) => {
       const start = parseDateOnly(candidate.period_start);
       const end = parseDateOnly(candidate.period_end);
       if (!start || !end) {
@@ -332,7 +451,9 @@ serve(async (req) => {
       return jsonResponse(500, { error: "Failed to validate tracked exercises" });
     }
 
-    const trackedLibrary = (trackedExerciseRows || []) as unknown as ExerciseLibraryRow[];
+    const trackedLibrary = (trackedExerciseRows || [])
+      .map(parseExerciseLibraryRow)
+      .filter((row): row is ExerciseLibraryRow => row !== null);
     if (trackedLibrary.length !== trackedExercises.length) {
       return jsonResponse(400, {
         error: "One or more selected exercises were not found",
@@ -368,7 +489,12 @@ serve(async (req) => {
     if (reportError || !report) {
       return jsonResponse(500, { error: "Failed to create report" });
     }
-    reportId = (report as { id: string }).id;
+    const reportIdValue =
+      isPlainObject(report) && typeof report.id === "string" ? report.id : null;
+    if (!reportIdValue) {
+      return jsonResponse(500, { error: "Unexpected report payload shape" });
+    }
+    reportId = reportIdValue;
 
     const { data: sessions, error: sessionsError } = await supabase
       .from("workout_sessions")
@@ -382,7 +508,9 @@ serve(async (req) => {
       throw new Error("Failed to fetch sessions");
     }
 
-    const typedSessions = (sessions || []) as unknown as SessionRow[];
+    const typedSessions = (sessions || [])
+      .map(parseSessionRow)
+      .filter((row): row is SessionRow => row !== null);
     const totalSessions = typedSessions.length;
     const weeksDiff = Math.max(1, daysDiffInclusive / 7);
     const weeklyAverage = totalSessions / weeksDiff;
@@ -722,7 +850,9 @@ serve(async (req) => {
       .lte("date", periodEnd)
       .order("date", { ascending: true });
 
-    const ouraMetrics = (ouraMetricsRaw || []) as unknown as OuraMetricsRow[];
+    const ouraMetrics = (ouraMetricsRaw || [])
+      .map(parseOuraMetricsRow)
+      .filter((row): row is OuraMetricsRow => row !== null);
     let ouraData: Record<string, unknown> | null = null;
 
     if (ouraMetrics.length > 0) {
