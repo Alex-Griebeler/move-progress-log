@@ -251,6 +251,16 @@
   - `npm run build` ✅
   - `npm run verify:essential` ✅
   - `VITE_RUN_OURA_INTEGRATION_TESTS=true npm run test -- src/utils/__tests__/ouraIntegration.test.ts --run` ✅ (33/33 no endpoint live)
+- Otimização de payload em mutações/listas de alto tráfego:
+  - `useStats` trocado de `select("*", { count, head })` para `select("id", { count, head })` em contadores de sessões;
+  - `useWorkoutSessions` removeu `select()` amplo em `insert/update` e passou para `select(WORKOUT_SESSION_SELECT)`;
+  - `useStudents` removeu `select()` amplo em `create/getOrCreate/update` e passou para `select(STUDENT_SELECT)`;
+  - `useExercisesLibrary` removeu `select()` amplo em `create/update` e passou para `select(EXERCISES_LIBRARY_SELECT)`.
+- Revalidação automática do lote acima:
+  - `npm run lint` ✅
+  - `npm run test -- --run` ✅
+  - `npm run build` ✅
+  - `npm run verify:essential` ✅
 
 ## O que ainda depende de validação manual
 

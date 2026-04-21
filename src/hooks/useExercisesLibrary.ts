@@ -190,7 +190,7 @@ export const useCreateExercise = () => {
       const { data, error } = await supabase
         .from("exercises_library")
         .insert(exercise as never)
-        .select()
+        .select(EXERCISES_LIBRARY_SELECT)
         .single();
 
       if (error) throw error;
@@ -217,7 +217,7 @@ export const useUpdateExercise = () => {
         .from("exercises_library")
         .update(exercise as never)
         .eq("id", id)
-        .select()
+        .select(EXERCISES_LIBRARY_SELECT)
         .single();
 
       if (error) throw error;

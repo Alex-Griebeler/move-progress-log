@@ -147,7 +147,7 @@ const createSessionWithDirectInsert = async (params: {
       is_finalized: params.session_type === "group" ? true : null,
       can_reopen: params.session_type === "group" ? true : null,
     })
-    .select()
+    .select(WORKOUT_SESSION_SELECT)
     .single();
 
   if (sessionError) throw sessionError;
@@ -490,7 +490,7 @@ export const useReopenWorkoutSession = () => {
           is_finalized: false,
         })
         .eq("id", sessionId)
-        .select()
+        .select(WORKOUT_SESSION_SELECT)
         .single();
 
       if (error) throw error;
@@ -528,7 +528,7 @@ export const useFinalizeWorkoutSession = () => {
           is_finalized: true,
         })
         .eq("id", sessionId)
-        .select()
+        .select(WORKOUT_SESSION_SELECT)
         .single();
 
       if (error) throw error;

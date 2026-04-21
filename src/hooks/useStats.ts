@@ -23,7 +23,7 @@ export const useStats = () => {
       // Total de sessões
       const { count: totalSessions, error: totalSessionsError } = await supabase
         .from("workout_sessions")
-        .select("*", { count: "exact", head: true });
+        .select("id", { count: "exact", head: true });
       if (totalSessionsError) throw totalSessionsError;
       
       // Sessões deste mês
@@ -32,7 +32,7 @@ export const useStats = () => {
       
       const { count: thisMonth, error: thisMonthError } = await supabase
         .from("workout_sessions")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .gte("date", firstDayOfMonth);
       if (thisMonthError) throw thisMonthError;
       

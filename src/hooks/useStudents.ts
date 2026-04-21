@@ -102,7 +102,7 @@ export const useCreateStudent = () => {
       const { data, error } = await supabase
         .from("students")
         .insert({ ...studentData, trainer_id: user.id })
-        .select()
+        .select(STUDENT_SELECT)
         .single();
       
       if (error) throw error;
@@ -152,7 +152,7 @@ export const useGetOrCreateStudent = () => {
       const { data: newStudent, error } = await supabase
         .from("students")
         .insert({ name, trainer_id: user.id })
-        .select()
+        .select(STUDENT_SELECT)
         .single();
       
       if (error) throw error;
@@ -180,7 +180,7 @@ export const useUpdateStudent = () => {
         .from("students")
         .update(updateData)
         .eq("id", id)
-        .select()
+        .select(STUDENT_SELECT)
         .single();
       
       if (error) throw error;
