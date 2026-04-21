@@ -335,3 +335,9 @@
   - colunas necessárias de `protocol_recommendations`;
   - nested select explícito de `recovery_protocols`.
 - Objetivo: reduzir payload e estabilizar contrato de dados sem alterar comportamento funcional.
+
+## Lote adicional de hardening (student detail query)
+- `useStudentDetail`:
+  - `useStudentPrescriptions`: select explícito de `prescription_assignments` e nested mínimo de `workout_prescriptions`;
+  - `useSessionsWithExercises`: select explícito para sessões e exercícios usados no dashboard/tab de sessões.
+- Objetivo: reduzir dados carregados na página do aluno mantendo os mesmos campos consumidos na UI.

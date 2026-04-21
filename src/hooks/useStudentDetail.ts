@@ -3,6 +3,33 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { format } from "date-fns";
 
+const STUDENT_ASSIGNMENTS_SELECT = `
+  id,
+  start_date,
+  end_date,
+  custom_adaptations,
+  prescription:workout_prescriptions(
+    id,
+    name,
+    objective
+  )
+`;
+
+const STUDENT_SESSIONS_WITH_EXERCISES_SELECT = `
+  id,
+  student_id,
+  date,
+  time,
+  session_type,
+  workout_name,
+  is_finalized,
+  can_reopen,
+  exercises(
+    exercise_name,
+    load_kg
+  )
+`;
+
 export const useStudentPrescriptions = (studentId: string) => {
   return useQuery({
     queryKey: ["student-prescriptions", studentId],
@@ -14,10 +41,7 @@ export const useStudentPrescriptions = (studentId: string) => {
     queryFn: async () => {
       const { data: assignments, error } = await supabase
         .from("prescription_assignments")
-        .select(`
-          *,
-          prescription:workout_prescriptions(*)
-        `)
+        .select(STUDENT_ASSIGNMENTS_SELECT)
         .eq("student_id", studentId)
         .order("start_date", { ascending: false });
 
@@ -68,10 +92,7 @@ export const useSessionsWithExercises = (studentId: string) => {
       // BUG-002 fix: Single query with join instead of N+1
       const { data: sessions, error } = await supabase
         .from("workout_sessions")
-        .select(`
-          *,
-          exercises(*)
-        `)
+        .select(STUDENT_SESSIONS_WITH_EXERCISES_SELECT)
         .eq("student_id", studentId)
         .order("date", { ascending: false })
         .order("time", { ascending: false });
