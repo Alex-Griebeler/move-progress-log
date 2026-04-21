@@ -36,8 +36,27 @@ Deno.serve(async (req) => {
       console.log(`Admin ${userId} triggered scheduled sync`);
     }
 
-    const body = await req.json().catch(() => ({}));
-    const schedule = body.schedule || 'manual';
+    let body: Record<string, unknown> = {};
+    const rawBody = await req.text();
+    if (rawBody.trim().length > 0) {
+      try {
+        const parsed = JSON.parse(rawBody);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          body = parsed as Record<string, unknown>;
+        } else {
+          return new Response(
+            JSON.stringify({ success: false, error: 'Invalid JSON body' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
+        }
+      } catch {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Malformed JSON body' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+    }
+    const schedule = typeof body.schedule === 'string' ? body.schedule : 'manual';
 
     console.log('🕐 === SCHEDULED OURA SYNC STARTED ===');
     console.log('Schedule:', schedule);

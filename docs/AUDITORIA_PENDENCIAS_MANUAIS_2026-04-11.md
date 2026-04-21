@@ -470,6 +470,10 @@
   - `src/components/StudentReportView.tsx` (lookup de `trainer_profiles` no export PDF)
   - `src/hooks/useProtocolRecommendations.ts` (lookup pós-update da recomendação)
 - Resultado: removido comportamento “seguir com payload vazio” quando havia erro real de query em fluxos de IA, autenticação e recomendações.
+- `oura-sync-scheduled`:
+  - parser de body refeito para não mascarar JSON inválido;
+  - `body` vazio continua permitido;
+  - payload malformado agora retorna `400` com erro explícito.
 
 ### Validação deste lote
 - `npm run lint`: PASS.
