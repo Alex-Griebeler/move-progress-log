@@ -5,6 +5,7 @@ import { format } from "date-fns";
 
 const STUDENT_ASSIGNMENTS_SELECT = `
   id,
+  prescription_id,
   start_date,
   end_date,
   custom_adaptations,
@@ -26,7 +27,9 @@ const STUDENT_SESSIONS_WITH_EXERCISES_SELECT = `
   can_reopen,
   exercises(
     exercise_name,
-    load_kg
+    load_kg,
+    sets,
+    reps
   )
 `;
 

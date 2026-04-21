@@ -168,6 +168,5 @@ export const useWeeklyMovementBalance = (studentId: string) => {
         warnings,
       };
     },
-    staleTime: 60 * 1000,
   });
 };

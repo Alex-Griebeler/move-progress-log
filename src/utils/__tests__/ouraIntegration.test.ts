@@ -35,7 +35,7 @@ describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWO
     const query = options?.query ? `?${options.query}` : '';
     const method = options?.method ?? 'POST';
     const requestInit: RequestInit = { method, headers };
-    if (method !== 'GET' && method !== 'HEAD') {
+    if (method !== 'GET') {
       requestInit.body = options?.body ?? '{}';
     }
     const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}${query}`, requestInit);
