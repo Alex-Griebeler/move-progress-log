@@ -512,6 +512,18 @@
   - `npm run verify:data-integrity`: FAIL esperado por ausência de `SUPABASE_SERVICE_ROLE_KEY` no shell local.
   - Sem alteração funcional no app; pendência fica restrita à disponibilidade de segredo para rodar checagem completa.
 
+## Lote adicional de robustez operacional (query safety + checklist de erro)
+- Novo script `scripts/check-no-select-star.sh` para bloquear uso de `select('*')` em `src` e `supabase/functions`.
+- Novo comando npm: `npm run verify:query-safety`.
+- CI atualizado em `.github/workflows/ci.yml` com passo `Query type safety check`.
+- Novo documento operacional: `docs/ERROR_CHECKLIST_OPERACIONAL.md`.
+
+### Validação deste lote
+- `npm run verify:query-safety`: PASS.
+- `npm run lint`: PASS.
+- `npm run test -- --run`: PASS (105/105; 33 skipped).
+- `npm run build`: PASS.
+
 ## Lote adicional de consistência de horário (`HH:MM`) em dialogs de sessão
 - Objetivo:
   - remover geração ad-hoc de horário com `toTimeString().slice(0, 5)`;

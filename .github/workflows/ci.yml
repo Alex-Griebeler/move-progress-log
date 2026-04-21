@@ -28,6 +28,9 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
+      - name: Query type safety check
+        run: npm run verify:query-safety
+
       - name: Unit tests
         run: npm run test
 
