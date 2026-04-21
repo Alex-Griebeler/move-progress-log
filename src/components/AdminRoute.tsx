@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import { logger } from "@/utils/logger";
 
 interface AdminRouteProps {
   children: React.ReactNode;
@@ -28,7 +29,7 @@ export function AdminRoute({ children }: AdminRouteProps) {
         .maybeSingle();
 
       if (error) {
-        console.error("[AdminRoute] Failed to fetch user role", error);
+        logger.error("[AdminRoute] Failed to fetch user role", error);
         setIsAdmin(false);
         return;
       }

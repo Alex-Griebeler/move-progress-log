@@ -15,6 +15,7 @@ import {
   type ParsedErrorInfo,
 } from "@/utils/errorParsing";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
+import { logger } from "@/utils/logger";
 
 type SpreadsheetRow = Record<string, unknown>;
 
@@ -733,7 +734,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                 "falha ao atualizar exercícios de sessão duplicada"
               );
               errors.push(`Sessão ${key}: duplicada ignorada, ${mergeMessage}.`);
-              console.warn("[ImportSessionsDialog] Failed to merge duplicate session data", mergeError);
+              logger.warn("[ImportSessionsDialog] Failed to merge duplicate session data", mergeError);
             }
           } else {
             const description = buildErrorDescription(errorInfo);

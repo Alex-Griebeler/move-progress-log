@@ -5,6 +5,7 @@ import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { logger } from "@/utils/logger";
 
 // Chaves i18n disponíveis para workouts
 const workoutKeys = i18n.modules.workouts;
@@ -165,7 +166,7 @@ const createSessionWithDirectInsert = async (params: {
       .delete()
       .eq("id", session.id);
     if (rollbackError) {
-      console.error("[useCreateSessionWithExercises] Failed to rollback workout_session", rollbackError);
+      logger.error("[useCreateSessionWithExercises] Failed to rollback workout_session", rollbackError);
     }
     throw stepError;
   }

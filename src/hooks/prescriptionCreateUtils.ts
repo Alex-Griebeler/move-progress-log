@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { logger } from "@/utils/logger";
 
 type PrescriptionInsert = Database["public"]["Tables"]["workout_prescriptions"]["Insert"];
 type PrescriptionRow = Database["public"]["Tables"]["workout_prescriptions"]["Row"];
@@ -96,7 +97,7 @@ const rollbackPrescriptionHeader = async (
     .eq("id", prescriptionId);
 
   if (rollbackError) {
-    console.error("Failed to rollback partial prescription", rollbackError);
+    logger.error("Failed to rollback partial prescription", rollbackError);
   }
 };
 
@@ -144,4 +145,3 @@ export const createPrescriptionWithRelations = async (
 
   return prescription;
 };
-

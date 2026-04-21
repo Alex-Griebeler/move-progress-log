@@ -341,3 +341,11 @@
   - `useStudentPrescriptions`: select explícito de `prescription_assignments` e nested mínimo de `workout_prescriptions`;
   - `useSessionsWithExercises`: select explícito para sessões e exercícios usados no dashboard/tab de sessões.
 - Objetivo: reduzir dados carregados na página do aluno mantendo os mesmos campos consumidos na UI.
+
+## Lote adicional de hardening (logging runtime)
+- Remoção de `console.*` diretos em runtime (fora do logger central):
+  - `AdminRoute`
+  - `ImportSessionsDialog`
+  - `prescriptionCreateUtils`
+  - `useWorkoutSessions`
+- Padrão aplicado: `logger.error`/`logger.warn` centralizado para manter sanitização e consistência de observabilidade.
