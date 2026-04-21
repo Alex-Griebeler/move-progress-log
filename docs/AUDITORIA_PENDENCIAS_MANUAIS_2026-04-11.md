@@ -382,6 +382,20 @@
 - `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
 - `npm run build`: PASS.
 
+## Lote adicional de hardening (oura-sync parse resiliente)
+- `supabase/functions/oura-sync/index.ts`:
+  - `safeJson` passou a tratar falha de parse JSON por endpoint (degrada para `null` + warning), em vez de derrubar a sync inteira via `Promise.all`.
+  - Endpoints now tagged no warning (`daily_readiness`, `daily_sleep`, `sleep`, `heartrate`, `daily_activity`, `workout`, `daily_stress`, `daily_spo2`, `vO2_max`, `daily_resilience`).
+- Impacto esperado:
+  - menor chance de erro 500 por payload inválido/inesperado em um único endpoint;
+  - maior resiliência de sync parcial sem perder dados válidos dos demais endpoints.
+
+### Validação deste lote
+- `eslint` (arquivo alterado): PASS.
+- `tsc --noEmit`: PASS.
+- `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
+- `npm run build`: PASS.
+
 ## Lote adicional de hardening (Auth Debug gate consistente)
 - Corrigida inconsistência de flag do painel de debug de autenticação:
   - `App.tsx` validava `VITE_ENABLE_AUTH_DEBUG === "1"`;

@@ -428,11 +428,29 @@ Deno.serve(async (req) => {
       warnings.push(`Endpoints com resposta não-OK: ${degradedEndpoints.join(', ')}.`);
     }
 
-    const safeJson = async (res: Response | null) => res && res.ok ? await res.json() : null;
+    const safeJson = async (res: Response | null, endpointName: string) => {
+      if (!res || !res.ok) return null;
+      try {
+        return await res.json();
+      } catch (error) {
+        const warningMessage = `Resposta JSON inválida no endpoint ${endpointName}.`;
+        warnings.push(warningMessage);
+        if (DEBUG) console.warn(warningMessage, error);
+        return null;
+      }
+    };
     
     const [readinessData, dailySleepData, sleepPeriodsData, heartrateData, activityData, workoutsData, stressData, spo2Data, vo2Data, resilienceData] = await Promise.all([
-      safeJson(readinessRes), safeJson(dailySleepRes), safeJson(sleepPeriodsRes), safeJson(heartrateRes),
-      safeJson(activityRes), safeJson(workoutsRes), safeJson(stressRes), safeJson(spo2Res), safeJson(vo2Res), safeJson(resilienceRes),
+      safeJson(readinessRes, 'daily_readiness'),
+      safeJson(dailySleepRes, 'daily_sleep'),
+      safeJson(sleepPeriodsRes, 'sleep'),
+      safeJson(heartrateRes, 'heartrate'),
+      safeJson(activityRes, 'daily_activity'),
+      safeJson(workoutsRes, 'workout'),
+      safeJson(stressRes, 'daily_stress'),
+      safeJson(spo2Res, 'daily_spo2'),
+      safeJson(vo2Res, 'vO2_max'),
+      safeJson(resilienceRes, 'daily_resilience'),
     ]);
 
     // O-02: Conditional debug logging
