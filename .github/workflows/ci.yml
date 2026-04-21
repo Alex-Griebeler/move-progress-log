@@ -31,6 +31,17 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      - name: Oura integration auth smoke (optional)
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "${VITE_SUPABASE_URL}" ] || [ -z "${VITE_SUPABASE_PUBLISHABLE_KEY}" ]; then
+            echo "Skipping Oura integration smoke (missing SUPABASE_URL/SUPABASE_ANON_KEY secrets)."
+            exit 0
+          fi
+          npm run test:oura-integration
+
       - name: Build
         run: npm run build
 
