@@ -242,6 +242,9 @@
 - Hardening de falhas silenciosas em edge functions:
   - `generate-student-report` agora valida explicitamente erro ao buscar padrões da `exercises_library` e métricas `oura_metrics` (falha com erro claro em vez de seguir silenciosamente);
   - `parse-word-prescription` agora trata erro no RPC `search_exercises_by_name` por exercício (log estruturado + fallback seguro para `matches=[]` naquele item).
+- Hardening adicional no `ai-coach`:
+  - removido `select('*')` em `athlete_goals` e `athlete_records` (colunas explícitas);
+  - falhas de leitura de sessões/metas/records agora retornam erro explícito (sem seguir com contexto parcial silencioso para IA).
 - Revalidação automática pós-lote:
   - `npm run lint` ✅
   - `npm run test -- --run` ✅

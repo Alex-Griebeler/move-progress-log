@@ -57,11 +57,37 @@ serve(async (req) => {
     if (studentError || !student) return json({ error: 'Atleta não encontrado' }, 404);
     if (student.trainer_id !== user.id) return json({ error: 'Acesso negado — aluno não pertence a este treinador' }, 403);
 
-    const [{ data: sessions }, { data: goals }, { data: records }] = await Promise.all([
-      svc.from('workout_sessions').select('date, exercises(exercise_name,load_kg,reps)').eq('student_id', student_id).order('date', { ascending: false }).limit(10),
-      svc.from('athlete_goals').select('*').eq('student_id', student_id).eq('status', 'active'),
-      svc.from('athlete_records').select('*').eq('student_id', student_id).order('achieved_at', { ascending: false }).limit(10),
+    const [
+      { data: sessions, error: sessionsError },
+      { data: goals, error: goalsError },
+      { data: records, error: recordsError },
+    ] = await Promise.all([
+      svc
+        .from('workout_sessions')
+        .select('date, exercises(exercise_name,load_kg,reps)')
+        .eq('student_id', student_id)
+        .order('date', { ascending: false })
+        .limit(10),
+      svc
+        .from('athlete_goals')
+        .select('id,title,description,goal_type,target_value,target_unit,target_date,status,created_at,updated_at')
+        .eq('student_id', student_id)
+        .eq('status', 'active'),
+      svc
+        .from('athlete_records')
+        .select('id,exercise_name,record_type,value,achieved_at,session_id,created_at')
+        .eq('student_id', student_id)
+        .order('achieved_at', { ascending: false })
+        .limit(10),
     ]);
+    if (sessionsError || goalsError || recordsError) {
+      console.error('ai-coach data fetch error:', {
+        sessionsError: sessionsError?.message ?? null,
+        goalsError: goalsError?.message ?? null,
+        recordsError: recordsError?.message ?? null,
+      });
+      return json({ error: 'Falha ao carregar contexto do atleta para IA' }, 500);
+    }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY não configurada');
