@@ -138,9 +138,12 @@ Deno.serve(async (req) => {
     }
 
     // 4. Load project memory using service role
-    const { data: memoryRows } = await supabaseService
+    const { data: memoryRows, error: memoryError } = await supabaseService
       .from("ai_project_memory")
       .select("key, content");
+    if (memoryError) {
+      throw new Error(`Failed to load project memory: ${memoryError.message}`);
+    }
 
     const projectMemory = (memoryRows || [])
       .map((row: { key: string; content: string }) => `## ${row.key}\n${row.content}`)

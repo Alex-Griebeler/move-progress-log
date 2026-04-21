@@ -289,7 +289,17 @@ export default function AuthPage() {
     }
 
     // Verificar se o usuário tem 2FA ativado
-    const { data: factors } = await supabase.auth.mfa.listFactors();
+    const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
+    if (factorsError) {
+      console.error("Erro ao listar fatores MFA:", factorsError);
+      await supabase.auth.signOut();
+      toast({
+        title: "Erro na validação de segurança",
+        description: "Não foi possível validar o 2FA neste momento. Tente novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (factors?.totp && factors.totp.length > 0) {
       // Usuário tem 2FA, mostrar dialog de verificação
       setMfaFactorId(factors.totp[0].id);

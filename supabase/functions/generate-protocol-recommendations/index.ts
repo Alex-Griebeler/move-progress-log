@@ -193,10 +193,13 @@ serve(async (req) => {
       );
     }
 
-    const { data: baselineRows } = await supabase.rpc("calc_oura_baseline", {
+    const { data: baselineRows, error: baselineError } = await supabase.rpc("calc_oura_baseline", {
       p_student_id: student_id,
       p_days: 14,
     });
+    if (baselineError) {
+      throw new Error(`Erro ao calcular baseline: ${baselineError.message}`);
+    }
     const baseline =
       Array.isArray(baselineRows) && baselineRows.length > 0
         ? (baselineRows[0] as OuraBaseline)
@@ -219,13 +222,16 @@ serve(async (req) => {
     // ═══════════════════════════════════════════════════════════
     // MEL-IA-007: Query adherence history for effectiveness-based prioritization
     // ═══════════════════════════════════════════════════════════
-    const { data: adherenceHistory } = await supabase
+    const { data: adherenceHistory, error: adherenceHistoryError } = await supabase
       .from('protocol_adherence')
       .select('protocol_id, followed, hrv_delta, readiness_delta')
       .eq('student_id', student_id)
       .eq('followed', true)
       .order('created_at', { ascending: false })
       .limit(50);
+    if (adherenceHistoryError) {
+      throw new Error(`Erro ao carregar histórico de aderência: ${adherenceHistoryError.message}`);
+    }
 
     // Calculate effectiveness score per protocol
     const protocolEffectiveness: Record<string, { avgHrvDelta: number; avgReadinessDelta: number; count: number }> = {};

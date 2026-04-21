@@ -141,11 +141,14 @@ export const useUpdateRecommendation = () => {
       // MEL-IA-007: Record adherence when toggling "Seguiu?"
       if (applied !== undefined) {
         // Get recommendation details to record adherence
-        const { data: rec } = await supabase
+        const { data: rec, error: recError } = await supabase
           .from("protocol_recommendations")
           .select("student_id, protocol_id")
           .eq("id", id)
           .single();
+        if (recError) {
+          throw recError;
+        }
 
         if (rec) {
           if (applied) {

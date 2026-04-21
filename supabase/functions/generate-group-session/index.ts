@@ -1601,16 +1601,22 @@ serve(async (req) => {
     if (exercisesError) throw new Error(`Erro ao buscar exercícios: ${exercisesError.message}`);
 
     // Fetch breathing protocols (with category for closing selection)
-    const { data: breathingProtocols } = await supabase
+    const { data: breathingProtocols, error: breathingProtocolsError } = await supabase
       .from("breathing_protocols")
       .select("id, name, technique, rhythm, duration_seconds, instructions, category, when_to_use")
       .eq("is_active", true);
+    if (breathingProtocolsError) {
+      throw new Error(`Erro ao buscar protocolos respiratórios: ${breathingProtocolsError.message}`);
+    }
 
     // Fetch available equipment
-    const { data: equipmentData } = await supabase
+    const { data: equipmentData, error: equipmentDataError } = await supabase
       .from("equipment_inventory")
       .select("name")
       .eq("is_available", true);
+    if (equipmentDataError) {
+      throw new Error(`Erro ao buscar equipamentos disponíveis: ${equipmentDataError.message}`);
+    }
 
     const availableEquipment = new Set<string>(
       (equipmentData || []).map((e: { name: string }) => e.name.toLowerCase())

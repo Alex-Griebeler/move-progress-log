@@ -131,11 +131,14 @@ serve(async (req) => {
 
     // Verificar se está tentando alterar role de admin
     if (role) {
-      const { data: targetUserRole } = await supabaseClient
+      const { data: targetUserRole, error: targetUserRoleError } = await supabaseClient
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
         .single();
+      if (targetUserRoleError) {
+        throw new Error(`Failed to fetch target user role: ${targetUserRoleError.message}`);
+      }
 
       // Se está removendo último admin, bloquear
       if (targetUserRole?.role === 'admin' && role !== 'admin') {
@@ -174,11 +177,14 @@ serve(async (req) => {
 
     // Atualizar perfil de treinador se existir
     if (fullName) {
-      const { data: profile } = await supabaseClient
+      const { data: profile, error: profileLookupError } = await supabaseClient
         .from("trainer_profiles")
         .select("id")
         .eq("id", userId)
-        .single();
+        .maybeSingle();
+      if (profileLookupError) {
+        throw new Error(`Failed to fetch trainer profile: ${profileLookupError.message}`);
+      }
 
       if (profile) {
         const { error: profileError } = await supabaseClient
@@ -195,27 +201,36 @@ serve(async (req) => {
     // Atualizar role se fornecido
     if (role) {
       // Verificar se precisa criar/atualizar perfil de treinador
-      const { data: currentRole } = await supabaseClient
+      const { data: currentRole, error: currentRoleError } = await supabaseClient
         .from("user_roles")
         .select("role")
         .eq("user_id", userId)
         .single();
+      if (currentRoleError) {
+        throw new Error(`Failed to fetch current role: ${currentRoleError.message}`);
+      }
 
       // Se está mudando para admin/moderator e não tem perfil de treinador
       if ((role === 'admin' || role === 'moderator') && currentRole?.role === 'user') {
-        const { data: profile } = await supabaseClient
+        const { data: profile, error: roleProfileLookupError } = await supabaseClient
           .from("trainer_profiles")
           .select("id")
           .eq("id", userId)
-          .single();
+          .maybeSingle();
+        if (roleProfileLookupError) {
+          throw new Error(`Failed to validate trainer profile: ${roleProfileLookupError.message}`);
+        }
 
         if (!profile) {
-          await supabaseClient
+          const { error: trainerProfileInsertError } = await supabaseClient
             .from("trainer_profiles")
             .insert({
               id: userId,
               full_name: fullName || "Sem nome",
             });
+          if (trainerProfileInsertError) {
+            throw new Error(`Failed to create trainer profile: ${trainerProfileInsertError.message}`);
+          }
         }
       }
 

@@ -85,11 +85,14 @@ Deno.serve(async (req) => {
 
       let studentName = 'Aluno';
       if (invite.created_student_id) {
-        const { data: student } = await supabaseClient
+        const { data: student, error: studentError } = await supabaseClient
           .from('students')
           .select('name')
           .eq('id', invite.created_student_id)
           .single();
+        if (studentError) {
+          console.error('Failed to load student name for invite:', studentError);
+        }
         if (student) studentName = student.name;
       }
 

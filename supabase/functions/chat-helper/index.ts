@@ -121,11 +121,14 @@ serve(async (req) => {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
       // Verify trainer owns the student
-      const { data: studentOwner } = await supabase
+      const { data: studentOwner, error: studentOwnerError } = await supabase
         .from("students")
         .select("trainer_id")
         .eq("id", studentId)
         .single();
+      if (studentOwnerError) {
+        throw new Error(`Erro ao validar dono do aluno: ${studentOwnerError.message}`);
+      }
 
       if (!studentOwner || studentOwner.trainer_id !== user.id) {
         return new Response(

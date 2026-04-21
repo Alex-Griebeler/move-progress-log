@@ -372,9 +372,12 @@ Deno.serve(async (req: Request) => {
       }
 
       // Fetch existing exercises for matching
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
                      .from("exercises_library")
                      .select("id, name, category, movement_pattern, boyle_score");
+      if (existingError) {
+        throw new Error(`Erro ao buscar exercícios existentes: ${existingError.message}`);
+      }
 
       const existingMap = new Map<string, { id: string; name: string; category: string | null; movement_pattern: string | null; boyle_score: number | null }>();
                    for (const ex of existing || []) {

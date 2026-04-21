@@ -456,6 +456,27 @@
 - `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
 - `npm run build`: PASS.
 
+## Lote adicional de hardening (falhas silenciosas em queries Supabase)
+- Tratamento explícito de `error` adicionado em pontos críticos que antes ignoravam falhas de leitura:
+  - `supabase/functions/ai-builder-chat/index.ts` (`ai_project_memory`)
+  - `supabase/functions/validate-student-invite/index.ts` (lookup de aluno no convite Oura)
+  - `src/pages/AuthPage.tsx` (`mfa.listFactors` com fallback seguro: `signOut` + erro claro)
+  - `supabase/functions/import-exercises/index.ts` (leitura de `exercises_library`)
+  - `supabase/functions/chat-helper/index.ts` (validação de ownership do aluno)
+  - `supabase/functions/admin-update-user/index.ts` (lookup de roles/perfil + insert de perfil)
+  - `supabase/functions/suggest-exercise/index.ts` (queries de fallback na biblioteca)
+  - `supabase/functions/generate-group-session/index.ts` (protocolos respiratórios e inventário)
+  - `supabase/functions/generate-protocol-recommendations/index.ts` (baseline RPC e aderência)
+  - `src/components/StudentReportView.tsx` (lookup de `trainer_profiles` no export PDF)
+  - `src/hooks/useProtocolRecommendations.ts` (lookup pós-update da recomendação)
+- Resultado: removido comportamento “seguir com payload vazio” quando havia erro real de query em fluxos de IA, autenticação e recomendações.
+
+### Validação deste lote
+- `npm run lint`: PASS.
+- `npm run test -- --run`: PASS (98/98; 33 skipped).
+- `npm run build`: PASS.
+- `npm run verify:essential`: PASS (inclui `npm audit --audit-level=high`, 0 high/critical).
+
 ## Lote adicional de hardening (estabilidade dos testes de integração Oura)
 - `src/utils/__tests__/ouraIntegration.test.ts`:
   - testes continuam rodando automaticamente em CI;

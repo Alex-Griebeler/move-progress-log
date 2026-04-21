@@ -102,25 +102,34 @@ serve(async (req) => {
         query = query.eq('movement_pattern', movementPattern);
       }
 
-      const { data: filteredFromDb } = await query.order('name').limit(MAX_CANDIDATES);
+      const { data: filteredFromDb, error: filteredFromDbError } = await query.order('name').limit(MAX_CANDIDATES);
+      if (filteredFromDbError) {
+        throw new Error(`Erro ao buscar candidatos filtrados: ${filteredFromDbError.message}`);
+      }
       candidates = filteredFromDb || [];
 
       if (candidates.length === 0 && movementPattern) {
-        const { data: movementOnlyResults } = await supabase
+        const { data: movementOnlyResults, error: movementOnlyError } = await supabase
           .from('exercises_library')
           .select('id, name')
           .eq('movement_pattern', movementPattern)
           .order('name')
           .limit(MAX_CANDIDATES);
+        if (movementOnlyError) {
+          throw new Error(`Erro ao buscar candidatos por padrão: ${movementOnlyError.message}`);
+        }
         candidates = movementOnlyResults || [];
       }
 
       if (candidates.length === 0) {
-        const { data: allFromDb } = await supabase
+        const { data: allFromDb, error: allFromDbError } = await supabase
           .from('exercises_library')
           .select('id, name')
           .order('name')
           .limit(MAX_CANDIDATES);
+        if (allFromDbError) {
+          throw new Error(`Erro ao buscar fallback de exercícios: ${allFromDbError.message}`);
+        }
         candidates = allFromDb || [];
       }
     }

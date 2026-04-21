@@ -69,12 +69,14 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
       let trainerName = undefined;
       
       if (user) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('trainer_profiles')
           .select('full_name')
           .eq('id', user.id)
           .single();
-        
+        if (profileError) {
+          console.error('Failed to load trainer profile for PDF export:', profileError);
+        }
         trainerName = profile?.full_name || undefined;
       }
 
