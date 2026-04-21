@@ -36,6 +36,7 @@ import { ExerciseEditor } from "@/components/session/ExerciseEditor";
 import { ObservationEditor } from "@/components/session/ObservationEditor";
 import { ExercisePreviewCard } from "@/components/session/ExercisePreviewCard";
 import { ObservationPreview } from "@/components/session/ObservationPreview";
+import { format } from "date-fns";
 
 interface RecordIndividualSessionDialogProps {
   open: boolean;
@@ -67,9 +68,10 @@ export function RecordIndividualSessionDialog({
   studentName,
   existingSessionId,
 }: RecordIndividualSessionDialogProps) {
+  const getTodayDate = () => format(new Date(), "yyyy-MM-dd");
   const [dialogState, setDialogState] = useState<DialogState>('setup');
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(getTodayDate());
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
   const [trainerName, setTrainerName] = useState<string>('');
   const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording<SessionData>[]>([]);
@@ -218,7 +220,7 @@ export function RecordIndividualSessionDialog({
     if (!open) {
       setDialogState('setup');
       setSelectedPrescriptionId(null);
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(getTodayDate());
       setTime(new Date().toTimeString().slice(0, 5));
       setTrainerName('');
       setAccumulatedRecordings([]);

@@ -14,6 +14,7 @@ import { logger } from "@/utils/logger";
 import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { VoiceSessionRecorder } from "./VoiceSessionRecorder";
+import { format } from "date-fns";
 
 interface AddWorkoutSessionDialogProps {
   open: boolean;
@@ -44,7 +45,7 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
   const form = useForm<SessionFormData>({
     defaultValues: {
       student_id: "",
-      date: new Date().toISOString().split('T')[0],
+      date: format(new Date(), "yyyy-MM-dd"),
       time: new Date().toTimeString().split(' ')[0].slice(0, 5),
       exercises: [{ exercise_name: "" }],
     },

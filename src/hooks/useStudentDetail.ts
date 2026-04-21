@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { format } from "date-fns";
 
 export const useStudentPrescriptions = (studentId: string) => {
   return useQuery({
@@ -36,7 +37,7 @@ export const useStudentsWithActivePrescriptions = (studentIds: string[]) => {
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = format(new Date(), "yyyy-MM-dd");
       
       const { data: assignments, error } = await supabase
         .from("prescription_assignments")

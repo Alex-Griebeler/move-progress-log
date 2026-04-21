@@ -320,3 +320,10 @@
   - `useSessionDetail`
   - `useLoadSuggestions`
 - Objetivo: reduzir recarregamentos desnecessários ao alternar abas/janelas, mantendo refresh por invalidação explícita já existente nas mutações.
+
+## Lote adicional de hardening (datas locale-safe)
+- Removidos usos críticos de `toISOString().split('T')[0]` no frontend para evitar desvio de dia por timezone em:
+  - defaults de formulário de sessão (`RecordIndividualSessionDialog`, `AddWorkoutSessionDialog`, `RecordGroupSessionDialog`, `AddWorkoutDialog`);
+  - filtros e limites de data (`SessionSetupForm`, `ProtocolRecommendationsCard`, `StudentOverviewDashboard`);
+  - hooks de leitura (`useStudentDetail`, `useStats`).
+- Padrão aplicado: `format(new Date(), "yyyy-MM-dd")` (date-fns), mantendo comportamento estável em timezone local.

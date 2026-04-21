@@ -9,6 +9,7 @@ import {
 } from "@/hooks/useProtocolRecommendations";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
+import { format } from "date-fns";
 
 interface ProtocolRecommendationsCardProps {
   studentId: string;
@@ -52,9 +53,9 @@ const ProtocolRecommendationsCard = ({ studentId }: ProtocolRecommendationsCardP
     }
   };
 
-  const todayRecommendations = recommendations?.filter(
-    r => r.recommended_date === new Date().toISOString().split('T')[0]
-  ) || [];
+  const todayDate = format(new Date(), "yyyy-MM-dd");
+  const todayRecommendations =
+    recommendations?.filter((r) => r.recommended_date === todayDate) || [];
 
   return (
     <Card className="rounded-lg">

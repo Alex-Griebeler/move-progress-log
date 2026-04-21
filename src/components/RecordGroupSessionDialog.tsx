@@ -31,6 +31,7 @@ import { logger } from "@/utils/logger";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
+import { format } from "date-fns";
 
 // Shared types, utilities & components
 import {
@@ -247,7 +248,7 @@ export function RecordGroupSessionDialog({
   const { hasUnsavedChanges, clearDraft } = useSessionDraft();
   const [dialogState, setDialogState] = useState<DialogState>(isReopening ? 'mode-selection' : 'context-setup');
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
-  const [date, setDate] = useState(reopenDate || new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(reopenDate || format(new Date(), "yyyy-MM-dd"));
   const [isSaving, setIsSaving] = useState(false);
   const [time, setTime] = useState(normalizedReopenTime || new Date().toTimeString().slice(0, 5));
   const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording<SessionData>[]>([]);
@@ -737,7 +738,7 @@ export function RecordGroupSessionDialog({
       setDialogState('context-setup');
       setSelectedStudents([]);
       setTrainer('');
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(format(new Date(), "yyyy-MM-dd"));
       setTime(new Date().toTimeString().slice(0, 5));
       setHasAutoSelected(false);
       onOpenChange(false);
@@ -816,7 +817,7 @@ export function RecordGroupSessionDialog({
       setCurrentRecordingNumber(1);
       setMergedStudents([]);
       setValidationIssues({ errors: [], warnings: [] });
-      setDate(new Date().toISOString().split('T')[0]);
+      setDate(format(new Date(), "yyyy-MM-dd"));
       setTime(new Date().toTimeString().slice(0, 5));
       setHasAutoSelected(false);
       setTrainer('');

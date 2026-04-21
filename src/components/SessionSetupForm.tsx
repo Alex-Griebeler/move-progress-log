@@ -92,7 +92,7 @@ export function SessionSetupForm({
       const sessionDate = new Date(date);
       const startDate = new Date(sessionDate);
       startDate.setDate(startDate.getDate() - 30);
-      params.set('startDate', startDate.toISOString().split('T')[0]);
+      params.set('startDate', format(startDate, "yyyy-MM-dd"));
       params.set('endDate', date);
     }
     
@@ -112,7 +112,7 @@ export function SessionSetupForm({
             type="date"
             value={date}
             onChange={(e) => onDateChange(e.target.value)}
-            max={new Date().toISOString().split('T')[0]}
+            max={format(new Date(), "yyyy-MM-dd")}
             className={showValidation && !date ? "border-destructive" : ""}
           />
         </div>

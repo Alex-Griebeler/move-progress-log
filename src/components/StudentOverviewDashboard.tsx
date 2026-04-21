@@ -135,7 +135,7 @@ export const StudentOverviewDashboard = ({
 
   const activePrescriptions = useMemo(() => {
     if (!assignments) return 0;
-    const today = new Date().toISOString().split('T')[0];
+    const today = format(new Date(), "yyyy-MM-dd");
     return assignments.filter(a => 
       a.start_date <= today && (!a.end_date || a.end_date >= today)
     ).length;

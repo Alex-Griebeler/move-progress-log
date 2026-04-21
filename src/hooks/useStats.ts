@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 export interface Stats {
   totalSessions: number;
@@ -27,7 +28,7 @@ export const useStats = () => {
       
       // Sessões deste mês
       const now = new Date();
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const firstDayOfMonth = format(new Date(now.getFullYear(), now.getMonth(), 1), "yyyy-MM-dd");
       
       const { count: thisMonth, error: thisMonthError } = await supabase
         .from("workout_sessions")
