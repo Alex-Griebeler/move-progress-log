@@ -16,7 +16,7 @@ type WorkoutSessionRow = Pick<
 
 type ExerciseRow = Database["public"]["Tables"]["exercises"]["Row"];
 const EXERCISE_HISTORY_SELECT =
-  "id, session_id, exercise_name, sets, reps, load_kg, load_description, load_breakdown, observations, created_at";
+  "id, session_id, exercise_name, sets, reps, load_kg, load_description, load_breakdown, observations, is_best_set, created_at";
 
 const mapExerciseHistoryEntry = (
   exercise: ExerciseRow,
