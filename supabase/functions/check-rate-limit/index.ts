@@ -19,6 +19,15 @@ const RATE_LIMITS: Record<string, RateLimitConfig> = {
   verify_email: { maxAttempts: 10, windowMinutes: 60, blockDurationMinutes: 15 },
 };
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const jsonResponse = (status: number, payload: Record<string, unknown>) =>
+  new Response(JSON.stringify(payload), {
+    status,
+    headers: { "Content-Type": "application/json", ...corsHeaders },
+  });
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -41,25 +50,35 @@ const handler = async (req: Request): Promise<Response> => {
       req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
       'unknown';
 
-    const { action, increment = false, user_id } = await req.json();
+    const rawBody = await req.json().catch(() => null);
+    if (!isRecord(rawBody)) {
+      return jsonResponse(400, { error: "Invalid request body" });
+    }
+
+    const action = typeof rawBody.action === "string" ? rawBody.action.trim() : "";
+    const increment = rawBody.increment === true;
+    const user_id =
+      typeof rawBody.user_id === "string" && rawBody.user_id.trim().length > 0
+        ? rawBody.user_id.trim()
+        : null;
 
     if (!action) {
-      throw new Error("Missing required parameter: action");
+      return jsonResponse(400, { error: "Missing required parameter: action" });
     }
 
     const config = RATE_LIMITS[action];
     if (!config) {
-      throw new Error(`Invalid action: ${action}`);
+      return jsonResponse(400, {
+        error: `Invalid action: ${action}`,
+        allowedActions: Object.keys(RATE_LIMITS),
+      });
     }
 
     // RL-01: For increment=true with user_id, validate JWT to prevent malicious pre-blocking
     if (increment && user_id) {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader?.startsWith('Bearer ')) {
-        return new Response(
-          JSON.stringify({ error: 'Authorization required when user_id is provided' }),
-          { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
+        return jsonResponse(401, { error: 'Authorization required when user_id is provided' });
       }
 
       const token = authHeader.replace('Bearer ', '');
@@ -69,17 +88,11 @@ const handler = async (req: Request): Promise<Response> => {
       const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
 
       if (userError || !user) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired token' }),
-          { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
+        return jsonResponse(401, { error: 'Invalid or expired token' });
       }
 
       if (user.id !== user_id) {
-        return new Response(
-          JSON.stringify({ error: 'user_id does not match authenticated user' }),
-          { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
-        );
+        return jsonResponse(403, { error: 'user_id does not match authenticated user' });
       }
     }
 
@@ -231,13 +244,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     console.error("[Rate Limit] Error:", error);
-    return new Response(
-      JSON.stringify({ error: message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return jsonResponse(500, { error: message });
   }
 };
 

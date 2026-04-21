@@ -21,13 +21,22 @@ describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWO
 
   const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  async function callFunction(name: string, authHeader?: string) {
+  async function callFunction(
+    name: string,
+    authHeader?: string,
+    options?: {
+      method?: 'GET' | 'POST';
+      query?: string;
+      body?: string;
+    }
+  ) {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (authHeader) headers['Authorization'] = authHeader;
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, {
-      method: 'POST',
+    const query = options?.query ? `?${options.query}` : '';
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/${name}${query}`, {
+      method: options?.method ?? 'POST',
       headers,
-      body: '{}',
+      body: options?.body ?? '{}',
     });
     const body = await res.text();
     return { status: res.status, body };
@@ -178,6 +187,95 @@ describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWO
       const { status } = await callFunction('generate-student-report', `Bearer ${fakeJwt}`);
       expect(status).toBeGreaterThanOrEqual(400);
       expect(status).toBeLessThan(600);
+    });
+  });
+
+  describe('oura-sync', () => {
+    it('returns 401 without auth header', async () => {
+      const { status } = await callFunction('oura-sync');
+      expect(status).toBe(401);
+    });
+
+    it('returns 401 with anon key (not a user JWT)', async () => {
+      const { status } = await callFunctionWithRetry('oura-sync', `Bearer ${ANON_KEY}`);
+      expect(status).toBe(401);
+    });
+  });
+
+  describe('oura-sync-test', () => {
+    it('returns 401 without auth header', async () => {
+      const { status } = await callFunction('oura-sync-test');
+      expect(status).toBe(401);
+    });
+
+    it('returns 401 with anon key (not a user JWT)', async () => {
+      const { status } = await callFunctionWithRetry('oura-sync-test', `Bearer ${ANON_KEY}`);
+      expect(status).toBe(401);
+    });
+  });
+
+  describe('validate-student-invite', () => {
+    it('returns 400 when token is missing', async () => {
+      const { status } = await callFunction('validate-student-invite', undefined, { method: 'GET', body: '' });
+      expect(status).toBe(400);
+    });
+
+    it('returns 400 for malformed token format', async () => {
+      const { status } = await callFunction('validate-student-invite', undefined, {
+        method: 'GET',
+        query: 'token=invalid-token',
+        body: '',
+      });
+      expect(status).toBe(400);
+    });
+  });
+
+  describe('create-student-from-invite', () => {
+    it('returns 400 with invalid payload shape', async () => {
+      const { status } = await callFunction('create-student-from-invite');
+      expect(status).toBe(400);
+    });
+
+    it('returns 400 with malformed invite_token', async () => {
+      const { status } = await callFunction('create-student-from-invite', undefined, {
+        body: JSON.stringify({
+          invite_token: 'invalid-token',
+          student_data: { name: 'Teste' },
+        }),
+      });
+      expect(status).toBe(400);
+    });
+  });
+
+  describe('oura-callback', () => {
+    it('returns 400 when code/state are missing', async () => {
+      const { status } = await callFunction('oura-callback', undefined, { method: 'GET', body: '' });
+      expect(status).toBe(400);
+    });
+  });
+
+  describe('check-rate-limit', () => {
+    it('returns 400 when action is missing', async () => {
+      const { status } = await callFunction('check-rate-limit');
+      expect(status).toBe(400);
+    });
+
+    it('returns 400 for invalid action', async () => {
+      const { status } = await callFunction('check-rate-limit', undefined, {
+        body: JSON.stringify({ action: 'invalid_action' }),
+      });
+      expect(status).toBe(400);
+    });
+
+    it('returns 401 for increment + user_id without auth', async () => {
+      const { status } = await callFunction('check-rate-limit', undefined, {
+        body: JSON.stringify({
+          action: 'login',
+          increment: true,
+          user_id: '00000000-0000-4000-8000-000000000000',
+        }),
+      });
+      expect(status).toBe(401);
     });
   });
 });

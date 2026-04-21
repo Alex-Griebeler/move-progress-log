@@ -221,6 +221,24 @@
   - filtro de `dayOfWeek` foi movido para pós-processamento no cliente para evitar ambiguidade de múltiplos `.or(...)` no mesmo query builder.
 - `sanitizeAssignmentScheduleAdaptations` agora valida horário com regra estrita (`HH:mm` ou `HH:mm:ss`) e normaliza hora de 1 dígito (`8:05` -> `08:05`), rejeitando horários inválidos.
 
+## Atualização de status (2026-04-21)
+- Hardening de input no endpoint `check-rate-limit`:
+  - erros de cliente (`body` inválido, `action` ausente/inválida) deixaram de cair como `500` e agora retornam `400`;
+  - mantém `401/403` para cenários de `increment + user_id` sem JWT válido.
+- Cobertura de smoke de edge functions ampliada:
+  - suíte `src/utils/__tests__/ouraIntegration.test.ts` expandida para cobrir também:
+    - `oura-sync`
+    - `oura-sync-test`
+    - `validate-student-invite`
+    - `create-student-from-invite`
+    - `oura-callback`
+    - `check-rate-limit`
+- Revalidação automática pós-lote:
+  - `npm run lint` ✅
+  - `npm run test -- --run` ✅
+  - `npm run build` ✅
+  - `npm run verify:essential` ✅
+
 ## O que ainda depende de validação manual
 
 ### 1) Fluxos de UI autenticada (smoke funcional)
