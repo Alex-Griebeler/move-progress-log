@@ -195,7 +195,7 @@ export const useCreateWorkout = () => {
           time,
           session_type: 'individual'
         })
-        .select()
+        .select("id, student_id, date, time, session_type, created_at, updated_at")
         .single();
       
       if (sessionError) throw sessionError;

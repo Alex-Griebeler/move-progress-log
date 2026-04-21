@@ -109,7 +109,7 @@ export const useCreateFolder = () => {
           parent_id: parentId || null,
           order_index: maxOrder + 1,
         })
-        .select()
+        .select(PRESCRIPTION_FOLDERS_SELECT)
         .single();
 
       if (error) throw error;

@@ -270,6 +270,16 @@
   - `npm run lint` ✅
   - `npm run test -- --run` ✅
   - `npm run build` ✅
+- Otimização adicional (frontend de sessão/prescrição/relatório):
+  - `RecordIndividualSessionDialog` e `RecordGroupSessionDialog` agora criam sessão com `select('id')` (sem retorno amplo);
+  - `useWorkouts` (create) agora usa `select("id, student_id, date, time, session_type, created_at, updated_at")`;
+  - `useFolders` (create) agora usa `select(PRESCRIPTION_FOLDERS_SELECT)`;
+  - `prescriptionCreateUtils` (create header) agora usa `WORKOUT_PRESCRIPTION_SELECT` explícito;
+  - `useStudentReports` (update notes) agora usa `select(STUDENT_REPORTS_SELECT)`.
+- Revalidação automática do lote de frontend:
+  - `npm run lint` ✅
+  - `npm run test -- --run` ✅
+  - `npm run build` ✅
 
 ## O que ainda depende de validação manual
 

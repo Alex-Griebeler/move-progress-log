@@ -87,6 +87,9 @@ const buildAdaptationsInsertPayload = (
   return allAdaptations;
 };
 
+const WORKOUT_PRESCRIPTION_SELECT =
+  "id, name, objective, prescription_type, trainer_id, folder_id, order_index, created_at, updated_at";
+
 const rollbackPrescriptionHeader = async (
   supabaseClient: AppSupabaseClient,
   prescriptionId: string
@@ -116,7 +119,7 @@ export const createPrescriptionWithRelations = async (
   const { data: prescription, error: prescriptionError } = await supabaseClient
     .from("workout_prescriptions")
     .insert(prescriptionToInsert)
-    .select()
+    .select(WORKOUT_PRESCRIPTION_SELECT)
     .single();
 
   if (prescriptionError) throw prescriptionError;

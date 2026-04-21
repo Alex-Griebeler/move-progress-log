@@ -212,7 +212,7 @@ export const useUpdateTrainerNotes = () => {
           next_cycle_plan: nextCyclePlan,
         })
         .eq("id", reportId)
-        .select()
+        .select(STUDENT_REPORTS_SELECT)
         .single();
 
       if (error) throw error;

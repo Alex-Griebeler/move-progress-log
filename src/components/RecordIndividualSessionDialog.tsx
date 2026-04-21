@@ -313,7 +313,7 @@ export function RecordIndividualSessionDialog({
         sessionId = existingSessionId;
         notify.info("Atualizando sessão existente", { description: "Substituindo exercícios com dados consolidados" });
       } else {
-        const { data: session, error: sessionError } = await supabase.from('workout_sessions').insert({ student_id: studentId, prescription_id: selectedPrescriptionId, date, time, trainer_name: trainerName, is_finalized: true, session_type: 'individual' }).select().single();
+        const { data: session, error: sessionError } = await supabase.from('workout_sessions').insert({ student_id: studentId, prescription_id: selectedPrescriptionId, date, time, trainer_name: trainerName, is_finalized: true, session_type: 'individual' }).select('id').single();
         if (sessionError) throw sessionError;
         sessionId = session.id;
       }
