@@ -504,6 +504,14 @@
 - `npm run test -- --run`: PASS (105/105; 33 skipped).
 - `npm run build`: PASS.
 
+## Lote adicional de proteção de CI (verificador de integridade de dados)
+- `.github/workflows/ci.yml`:
+  - novo passo opcional `Data integrity verifier (optional)`;
+  - executa `npm run verify:data-integrity` somente quando `SUPABASE_SERVICE_ROLE_KEY` estiver configurada.
+- Execução local nesta rodada:
+  - `npm run verify:data-integrity`: FAIL esperado por ausência de `SUPABASE_SERVICE_ROLE_KEY` no shell local.
+  - Sem alteração funcional no app; pendência fica restrita à disponibilidade de segredo para rodar checagem completa.
+
 ## Lote adicional de consistência de horário (`HH:MM`) em dialogs de sessão
 - Objetivo:
   - remover geração ad-hoc de horário com `toTimeString().slice(0, 5)`;

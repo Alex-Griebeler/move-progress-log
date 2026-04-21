@@ -54,6 +54,17 @@ jobs:
           fi
           scripts/ci-smoke-edge-auth.sh
 
+      - name: Data integrity verifier (optional)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ -z "${SUPABASE_SERVICE_ROLE_KEY}" ]; then
+            echo "Skipping data integrity verifier (missing SUPABASE_SERVICE_ROLE_KEY secret)."
+            exit 0
+          fi
+          npm run verify:data-integrity
+
       - name: Build
         run: npm run build
 
