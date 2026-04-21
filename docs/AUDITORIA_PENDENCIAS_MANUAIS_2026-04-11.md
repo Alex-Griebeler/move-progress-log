@@ -292,6 +292,14 @@
   - `npm run lint` ✅
   - `npm run test -- --run` ✅
   - `npm run build` ✅
+- Remoção adicional de wildcard em fluxos de prescrição/voz:
+  - `usePrescriptions` (`usePrescriptionAssignments`) agora usa `PRESCRIPTION_ASSIGNMENTS_SELECT` explícito;
+  - `usePrescriptionSearch` agora usa `PRESCRIPTION_SEARCH_SELECT` explícito;
+  - edge function `process-voice-session` passou de `select('*', ...)` para `select('id, name, prescription_exercises(...)')`.
+- Revalidação automática pós-remoção:
+  - `npm run lint` ✅
+  - `npm run test -- --run` ✅
+  - `npm run build` ✅
 
 ## O que ainda depende de validação manual
 

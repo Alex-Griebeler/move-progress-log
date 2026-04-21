@@ -21,6 +21,11 @@ type PrescriptionSearchRow = {
   assigned_count: Array<{ count: number }> | null;
 };
 
+const PRESCRIPTION_SEARCH_SELECT = `
+  id, name, objective, created_at, updated_at, folder_id, order_index, prescription_type,
+  assigned_count:prescription_assignments(count)
+`;
+
 export const usePrescriptionSearch = (filters: PrescriptionSearchFilters) => {
   const debouncedSearchText = useDebounce(filters.searchText?.trim() ?? "", 300);
   const stableFolderId =
@@ -42,10 +47,7 @@ export const usePrescriptionSearch = (filters: PrescriptionSearchFilters) => {
 
       let query = supabase
         .from("workout_prescriptions")
-        .select(`
-          *,
-          assigned_count:prescription_assignments(count)
-        `)
+        .select(PRESCRIPTION_SEARCH_SELECT)
         .eq("trainer_id", user.id);
 
       // Filter by search text (name or objective)

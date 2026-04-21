@@ -122,6 +122,10 @@ const PRESCRIPTION_ADAPTATIONS_SELECT = `
   id, prescription_exercise_id, adaptation_type, exercise_library_id, sets, reps, interval_seconds, pse, observations,
   exercises_library!exercise_adaptations_exercise_library_id_fkey(name)
 `;
+const PRESCRIPTION_ASSIGNMENTS_SELECT = `
+  id, prescription_id, student_id, start_date, end_date, custom_adaptations,
+  students!prescription_assignments_student_id_fkey(name)
+`;
 
 const mapPrescriptionListItem = (row: PrescriptionListRow): WorkoutPrescription => ({
   id: row.id,
@@ -493,10 +497,7 @@ export const usePrescriptionAssignments = (prescriptionId: string | null) => {
 
       const { data, error } = await supabase
         .from("prescription_assignments")
-        .select(`
-          *,
-          students!prescription_assignments_student_id_fkey(name)
-        `)
+        .select(PRESCRIPTION_ASSIGNMENTS_SELECT)
         .eq("prescription_id", prescriptionId)
         .order("start_date", { ascending: false });
 

@@ -277,7 +277,7 @@ Retorne APENAS a transcrição corrigida, sem adicionar comentários.`
     if (prescriptionId) {
       const { data: prescDetailsData, error: prescDetailsError } = await supabaseClient
         .from('workout_prescriptions')
-        .select(`*, prescription_exercises (id, sets, reps, order_index, should_track, exercises_library (name))`)
+        .select('id, name, prescription_exercises (id, sets, reps, order_index, should_track, exercises_library (name))')
         .eq('id', prescriptionId)
         .single();
       
