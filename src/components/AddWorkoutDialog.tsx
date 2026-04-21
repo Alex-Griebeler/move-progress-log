@@ -11,6 +11,7 @@ import { POUND_TO_KG_CONVERSION } from "@/constants/units";
 import { useGetOrCreateStudent } from "@/hooks/useStudents";
 import { useCreateWorkout } from "@/hooks/useWorkouts";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { getCurrentSessionTimeHHmm } from "@/utils/sessionTime";
 import { format } from "date-fns";
 
 interface Exercise {
@@ -24,7 +25,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
   const [open, setOpen] = useState(false);
   const [studentName, setStudentName] = useState("");
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [time, setTime] = useState(getCurrentSessionTimeHHmm());
   const [exercises, setExercises] = useState<Exercise[]>([
     { exercise: "", load: "", reps: 0, observations: "" }
   ]);
@@ -102,7 +103,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
       // Reset form
       setStudentName("");
       setDate(format(new Date(), "yyyy-MM-dd"));
-      setTime(new Date().toTimeString().slice(0, 5));
+      setTime(getCurrentSessionTimeHHmm());
       setExercises([{ exercise: "", load: "", reps: 0, observations: "" }]);
       setOpen(false);
       onWorkoutAdded();

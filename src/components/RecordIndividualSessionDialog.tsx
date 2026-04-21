@@ -20,7 +20,7 @@ import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { NAV_LABELS } from "@/constants/navigation";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { logger } from "@/utils/logger";
-import { formatSessionTime } from "@/utils/sessionTime";
+import { formatSessionTime, getCurrentSessionTimeHHmm } from "@/utils/sessionTime";
 import { buildErrorDescription } from "@/utils/errorParsing";
 
 // Shared types, utilities & components
@@ -72,7 +72,7 @@ export function RecordIndividualSessionDialog({
   const [dialogState, setDialogState] = useState<DialogState>('setup');
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   const [date, setDate] = useState(getTodayDate());
-  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [time, setTime] = useState(getCurrentSessionTimeHHmm());
   const [trainerName, setTrainerName] = useState<string>('');
   const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording<SessionData>[]>([]);
   const [currentRecordingNumber, setCurrentRecordingNumber] = useState(1);
@@ -221,7 +221,7 @@ export function RecordIndividualSessionDialog({
       setDialogState('setup');
       setSelectedPrescriptionId(null);
       setDate(getTodayDate());
-      setTime(new Date().toTimeString().slice(0, 5));
+      setTime(getCurrentSessionTimeHHmm());
       setTrainerName('');
       setAccumulatedRecordings([]);
       setCurrentRecordingNumber(1);

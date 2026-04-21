@@ -22,3 +22,8 @@ export const formatSessionTime = (timeValue: string | null | undefined): string 
 
   return "--:--";
 };
+
+export const getCurrentSessionTimeHHmm = (): string => {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+};

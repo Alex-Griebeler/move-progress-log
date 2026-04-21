@@ -460,6 +460,36 @@
 - `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
 - `npm run build`: PASS.
 
+## Lote adicional de consistência de horário (`HH:MM`) em dialogs de sessão
+- Objetivo:
+  - remover geração ad-hoc de horário com `toTimeString().slice(0, 5)`;
+  - centralizar padrão em util único para evitar divergências.
+- Mudanças:
+  - `src/utils/sessionTime.ts`
+    - adicionado `getCurrentSessionTimeHHmm()`.
+  - `src/components/RecordIndividualSessionDialog.tsx`
+    - inicialização e reset de `time` usam `getCurrentSessionTimeHHmm()`.
+  - `src/components/AddWorkoutDialog.tsx`
+    - inicialização e reset de `time` usam `getCurrentSessionTimeHHmm()`.
+  - `src/components/AddWorkoutSessionDialog.tsx`
+    - `defaultValues.time` usa `getCurrentSessionTimeHHmm()`.
+  - `src/components/RecordGroupSessionDialog.tsx`
+    - inicialização de `time`;
+    - reset no fluxo manual;
+    - reset ao fechar dialog;
+    - comparação de janela no auto-select
+    - todos migrados para `getCurrentSessionTimeHHmm()`.
+
+### Impacto
+- Reduz inconsistência de exibição e persistência de horário.
+- Evita reaparecimento de segundos por implementação local divergente.
+- Sem alteração de regra de negócio.
+
+### Validação deste lote
+- `npm run lint`: PASS.
+- `npm run test -- --run`: PASS (98 passed, 33 skipped).
+- `npm run build`: PASS.
+
 ## Lote adicional de hardening (falhas silenciosas em queries Supabase)
 - Tratamento explícito de `error` adicionado em pontos críticos que antes ignoravam falhas de leitura:
   - `supabase/functions/ai-builder-chat/index.ts` (`ai_project_memory`)

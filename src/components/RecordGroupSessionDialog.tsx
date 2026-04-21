@@ -29,7 +29,7 @@ import { AddStudentDialog } from "./AddStudentDialog";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { logger } from "@/utils/logger";
 import { buildErrorDescription } from "@/utils/errorParsing";
-import { formatSessionTime } from "@/utils/sessionTime";
+import { formatSessionTime, getCurrentSessionTimeHHmm } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
 import { format } from "date-fns";
 
@@ -250,7 +250,7 @@ export function RecordGroupSessionDialog({
   const [selectedStudents, setSelectedStudents] = useState<Student[]>([]);
   const [date, setDate] = useState(reopenDate || format(new Date(), "yyyy-MM-dd"));
   const [isSaving, setIsSaving] = useState(false);
-  const [time, setTime] = useState(normalizedReopenTime || new Date().toTimeString().slice(0, 5));
+  const [time, setTime] = useState(normalizedReopenTime || getCurrentSessionTimeHHmm());
   const [accumulatedRecordings, setAccumulatedRecordings] = useState<AccumulatedRecording<SessionData>[]>([]);
   const [currentRecordingNumber, setCurrentRecordingNumber] = useState(1);
   const [mergedStudents, setMergedStudents] = useState<MergedStudent[]>([]);
@@ -739,7 +739,7 @@ export function RecordGroupSessionDialog({
       setSelectedStudents([]);
       setTrainer('');
       setDate(format(new Date(), "yyyy-MM-dd"));
-      setTime(new Date().toTimeString().slice(0, 5));
+      setTime(getCurrentSessionTimeHHmm());
       setHasAutoSelected(false);
       onOpenChange(false);
     } catch (error) {
@@ -784,7 +784,7 @@ export function RecordGroupSessionDialog({
       const currentDate = new Date();
       const weekdayMap: { [key: number]: string } = { 0: 'sunday', 1: 'monday', 2: 'tuesday', 3: 'wednesday', 4: 'thursday', 5: 'friday', 6: 'saturday' };
       const currentWeekday = weekdayMap[currentDate.getDay()];
-      const currentTime = currentDate.toTimeString().slice(0, 5);
+      const currentTime = getCurrentSessionTimeHHmm();
       const relevantAssignments = assignments.filter(assignment => {
         const customAdaptations = assignment.custom_adaptations;
         if (!isAssignmentScheduleAdaptations(customAdaptations)) return false;
@@ -818,7 +818,7 @@ export function RecordGroupSessionDialog({
       setMergedStudents([]);
       setValidationIssues({ errors: [], warnings: [] });
       setDate(format(new Date(), "yyyy-MM-dd"));
-      setTime(new Date().toTimeString().slice(0, 5));
+      setTime(getCurrentSessionTimeHHmm());
       setHasAutoSelected(false);
       setTrainer('');
     }
