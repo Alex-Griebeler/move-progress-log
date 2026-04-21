@@ -460,6 +460,21 @@
 - `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
 - `npm run build`: PASS.
 
+## Lote adicional de performance (importação silenciosa sem invalidação redundante)
+- `src/hooks/useWorkoutSessions.ts`:
+  - `useCreateWorkoutSession.onSuccess` agora retorna cedo quando `variables.silent === true`;
+  - com isso, importações em lote deixam de invalidar queries globais a cada sessão criada.
+- Motivação:
+  - o fluxo de importação (`ImportSessionsDialog`) já executa invalidação única ao final;
+  - remover invalidações por item reduz custo de rede/re-render e melhora responsividade em planilhas grandes.
+- Comportamento funcional preservado:
+  - para criação manual (`silent !== true`), notificações e invalidações continuam iguais.
+
+### Validação deste lote
+- `npm run lint`: PASS.
+- `npm run test -- --run`: PASS (98/98; 33 skipped).
+- `npm run build`: PASS.
+
 ## Lote adicional de consistência de horário (`HH:MM`) em dialogs de sessão
 - Objetivo:
   - remover geração ad-hoc de horário com `toTimeString().slice(0, 5)`;

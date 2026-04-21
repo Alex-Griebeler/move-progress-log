@@ -308,6 +308,10 @@ export const useCreateWorkoutSession = () => {
       return mapWorkoutSession(sessionRow);
     },
     onSuccess: (_, variables) => {
+      if (variables.silent) {
+        return;
+      }
+
       queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
       queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
@@ -315,11 +319,9 @@ export const useCreateWorkoutSession = () => {
       queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
 
-      if (!variables.silent) {
-        notify.success(workoutKeys.sessionCreated, {
-          description: workoutKeys.sessionSaved,
-        });
-      }
+      notify.success(workoutKeys.sessionCreated, {
+        description: workoutKeys.sessionSaved,
+      });
     },
     onError: (error: unknown, variables) => {
       if (!variables?.silent) {
