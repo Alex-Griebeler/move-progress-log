@@ -9,8 +9,11 @@ import { describe, it, expect } from 'vitest';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const IS_CI = import.meta.env.CI === 'true';
+const RUN_LOCAL_INTEGRATION = import.meta.env.VITE_RUN_OURA_INTEGRATION_TESTS === 'true';
+const SHOULD_RUN_INTEGRATION = Boolean(SUPABASE_URL && ANON_KEY) && (IS_CI || RUN_LOCAL_INTEGRATION);
 
-const describeIntegration = SUPABASE_URL ? describe : describe.skip;
+const describeIntegration = SHOULD_RUN_INTEGRATION ? describe : describe.skip;
 const NETWORK_TEST_TIMEOUT_MS = 20000;
 
 describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWORK_TEST_TIMEOUT_MS }, () => {

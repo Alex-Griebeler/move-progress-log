@@ -370,6 +370,22 @@
 - `vitest --exclude src/utils/__tests__/ouraIntegration.test.ts`: PASS (98 testes).
 - `npm run build`: PASS.
 
+## Lote adicional de hardening (estabilidade dos testes de integração Oura)
+- `src/utils/__tests__/ouraIntegration.test.ts`:
+  - testes continuam rodando automaticamente em CI;
+  - ambiente local passa a exigir opt-in explícito via `VITE_RUN_OURA_INTEGRATION_TESTS=true`.
+- Gate adotado:
+  - `SHOULD_RUN_INTEGRATION = SUPABASE_URL + ANON_KEY + (CI || RUN_LOCAL_INTEGRATION)`.
+
+### Motivo
+- Evitar falso negativo local por indisponibilidade de DNS/rede externa no executor.
+- Preservar cobertura de integração no pipeline CI (onde `CI=true`).
+
+### Validação deste lote
+- `eslint`: PASS.
+- `npm run test -- --run`: PASS (98 testes) + 12 testes de integração Oura `skipped` localmente.
+- `npm run build`: PASS.
+
 ## Lote adicional de hardening (AI Builder erro silencioso)
 - `AIBuilderPage` tinha `catch {}` silencioso ao criar nova conversa.
 - Ajuste aplicado:
