@@ -11,8 +11,8 @@ const jsonHeaders = {
   'Cache-Control': 'no-store',
 };
 
-const DEFAULT_FRONTEND_URL = 'http://localhost:5173';
 const LOVABLE_PREVIEW_SUFFIX = '.lovable.app';
+const LOVABLE_EDITOR_HOSTS = new Set(['lovable.dev', 'www.lovable.dev']);
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function jsonResponse(payload: unknown, status = 200) {
@@ -29,28 +29,41 @@ function toOrigin(rawUrl: string | null) {
   }
 }
 
-function resolveFrontendUrl(req: Request) {
+function isTrustedOrigin(origin: string, siteUrlOrigin: string | null): boolean {
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+
+    if (LOVABLE_EDITOR_HOSTS.has(host)) {
+      return false;
+    }
+
+    if (siteUrlOrigin && origin === siteUrlOrigin) return true;
+
+    return (
+      host.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
+      host === 'localhost' ||
+      host === '127.0.0.1'
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+function resolveFrontendUrl(req: Request, bodyFrontendOrigin: string | null) {
   const siteUrlOrigin = toOrigin(Deno.env.get('SITE_URL') ?? null);
   const requestOrigins = [
+    toOrigin(bodyFrontendOrigin),
+    siteUrlOrigin,
     toOrigin(req.headers.get('origin')),
     toOrigin(req.headers.get('referer')),
   ].filter((origin): origin is string => Boolean(origin));
 
-  const isTrustedOrigin = (origin: string) => {
-    if (siteUrlOrigin && origin === siteUrlOrigin) return true;
-
-    return (
-      origin.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
-      origin.startsWith('http://localhost:') ||
-      origin.startsWith('https://localhost:')
-    );
-  };
-
   for (const origin of requestOrigins) {
-    if (isTrustedOrigin(origin)) return origin;
+    if (isTrustedOrigin(origin, siteUrlOrigin)) return origin;
   }
 
-  return siteUrlOrigin ?? DEFAULT_FRONTEND_URL;
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -85,6 +98,9 @@ Deno.serve(async (req) => {
 
     const payload = body as Record<string, unknown>;
     const student_id = typeof payload.student_id === 'string' ? payload.student_id.trim() : '';
+    const frontend_origin = typeof payload.frontend_origin === 'string'
+      ? payload.frontend_origin.trim()
+      : null;
 
     if (!student_id) {
       return jsonResponse({ error: 'student_id é obrigatório' }, 400);
@@ -144,8 +160,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: insertError.message }, 400);
     }
 
-    // Use a trusted frontend origin instead of reflecting arbitrary request headers.
-    const baseUrl = resolveFrontendUrl(req);
+    // Resolve only trusted public app origins. Never fallback to editor/local silently.
+    const baseUrl = resolveFrontendUrl(req, frontend_origin);
+    if (!baseUrl) {
+      return jsonResponse(
+        {
+          error:
+            'Não foi possível determinar a URL pública do app para gerar o convite Oura. Configure SITE_URL ou envie frontend_origin válido.',
+        },
+        400
+      );
+    }
     const invite_url = `${baseUrl}/oura-connect/${invite_token}`;
 
     console.log('Oura connect link generated for student');
