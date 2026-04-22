@@ -64,7 +64,17 @@ export default function OuraErrorPage() {
       const ouraClientId = import.meta.env.VITE_OURA_CLIENT_ID;
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
-      const state = `${studentId}:retry`;
+      const encodedOrigin = (() => {
+        try {
+          return btoa(window.location.origin)
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/g, "");
+        } catch (_error) {
+          return "";
+        }
+      })();
+      const state = encodedOrigin ? `${studentId}:retry:${encodedOrigin}` : `${studentId}:retry`;
 
       if (!ouraClientId) {
         toast.error("Configuração do Oura Ring não encontrada");

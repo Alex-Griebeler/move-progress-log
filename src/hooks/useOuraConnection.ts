@@ -98,6 +98,7 @@ interface SyncParams {
   student_id: string;
   date?: string;
   days?: number;
+  forceSync?: boolean;
   onProgress?: (current: number, total: number) => void;
 }
 
@@ -122,6 +123,7 @@ export const useSyncOura = () => {
       student_id,
       date,
       days = 1,
+      forceSync = true,
       onProgress,
     }: SyncParams): Promise<MultiDaySyncResult | unknown> => {
       // Detectar status offline ANTES de fazer requisição
@@ -136,7 +138,7 @@ export const useSyncOura = () => {
       if (days === 1) {
         // Single day sync
         onProgress?.(1, 1);
-        const data = await invokeWithTimeout("oura-sync", { student_id, date }, timeout);
+        const data = await invokeWithTimeout("oura-sync", { student_id, date, force_sync: forceSync }, timeout);
         return data;
       } else {
         // Multiple days sync with progress tracking - Use Brazil timezone
@@ -149,7 +151,7 @@ export const useSyncOura = () => {
           try {
             const data = await invokeWithTimeout(
               "oura-sync",
-              { student_id, date: dateStr },
+              { student_id, date: dateStr, force_sync: forceSync },
               timeout
             );
 
@@ -184,6 +186,13 @@ export const useSyncOura = () => {
     },
     onSuccess: async (data, variables) => {
       await invalidateOuraQueries(queryClient, variables.student_id);
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["oura-connection", variables.student_id], type: "active" }),
+        queryClient.refetchQueries({ queryKey: ["oura-metrics", variables.student_id], type: "active" }),
+        queryClient.refetchQueries({ queryKey: ["oura-metrics-latest", variables.student_id], type: "active" }),
+        queryClient.refetchQueries({ queryKey: ["oura-acute-metrics-latest", variables.student_id], type: "active" }),
+        queryClient.refetchQueries({ queryKey: ["oura-baseline", variables.student_id], type: "active" }),
+      ]);
 
       const result = data as MultiDaySyncResult | undefined;
       const singleDayPayload =

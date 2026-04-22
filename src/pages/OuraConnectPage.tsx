@@ -74,7 +74,19 @@ export default function OuraConnectPage() {
       }
 
       const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
-      const state = `${inviteData.student_id}:${inviteData.invite_id}`;
+      const encodedOrigin = (() => {
+        try {
+          return btoa(window.location.origin)
+            .replace(/\+/g, "-")
+            .replace(/\//g, "_")
+            .replace(/=+$/g, "");
+        } catch (_error) {
+          return "";
+        }
+      })();
+      const state = encodedOrigin
+        ? `${inviteData.student_id}:${inviteData.invite_id}:${encodedOrigin}`
+        : `${inviteData.student_id}:${inviteData.invite_id}`;
       const scope = 'email personal daily heartrate workout session spo2 tag sleep stress ring_configuration';
 
       const ouraAuthUrl = `https://cloud.ouraring.com/oauth/authorize?response_type=code&client_id=${ouraClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${encodeURIComponent(state)}`;

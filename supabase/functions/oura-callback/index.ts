@@ -3,6 +3,54 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const DEFAULT_FRONTEND_URL = 'http://localhost:5173';
+const LOVABLE_PREVIEW_SUFFIX = '.lovable.app';
+
+const toOrigin = (rawUrl: string | null): string | null => {
+  if (!rawUrl) return null;
+  try {
+    return new URL(rawUrl).origin;
+  } catch (_error) {
+    return null;
+  }
+};
+
+const decodeBase64Url = (value: string): string | null => {
+  if (!value) return null;
+  try {
+    const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
+    const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
+    return atob(normalized + padding);
+  } catch (_error) {
+    return null;
+  }
+};
+
+const resolveFrontendUrl = (req: Request, encodedStateOrigin?: string | null): string => {
+  const siteUrlOrigin = toOrigin(Deno.env.get('SITE_URL') ?? null);
+  const candidates = [
+    toOrigin(decodeBase64Url(encodedStateOrigin ?? '') ?? null),
+    toOrigin(req.headers.get('origin')),
+    toOrigin(req.headers.get('referer')),
+  ].filter((origin): origin is string => Boolean(origin));
+
+  const isTrustedOrigin = (origin: string) => {
+    if (siteUrlOrigin && origin === siteUrlOrigin) return true;
+
+    return (
+      origin.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
+      origin.startsWith('http://localhost:') ||
+      origin.startsWith('https://localhost:')
+    );
+  };
+
+  for (const origin of candidates) {
+    if (isTrustedOrigin(origin)) return origin;
+  }
+
+  return siteUrlOrigin ?? DEFAULT_FRONTEND_URL;
+};
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -20,8 +68,8 @@ Deno.serve(async (req) => {
 
     console.log('Oura callback - code received');
 
-    // Parse state to get student_id and invite_token
-    const [student_id, invite_token] = state.split(':');
+    // Parse state to get student_id and invite_token (+ optional frontend origin)
+    const [student_id, invite_token, encodedFrontendOrigin] = state.split(':');
 
     if (!student_id) {
       console.error('Invalid state format');
@@ -73,25 +121,8 @@ Deno.serve(async (req) => {
     const ouraClientSecret = Deno.env.get('OURA_CLIENT_SECRET');
     const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
     
-    // OCB-03: Derive frontend URL from SITE_URL env or allowed origins list
-    const ALLOWED_ORIGINS = [
-      'https://move-progress-log.lovable.app',
-      'https://id-preview--905d5174-1667-49dc-b1cc-1e7743b2741e.lovable.app',
-    ];
-    const siteUrl = Deno.env.get('SITE_URL');
-    let frontendUrl = siteUrl || ALLOWED_ORIGINS[0];
-    
-    const origin = req.headers.get('origin') || req.headers.get('referer');
-    if (origin) {
-      try {
-        const originUrl = new URL(origin).origin;
-        if (ALLOWED_ORIGINS.includes(originUrl) || originUrl.endsWith('.lovable.app')) {
-          frontendUrl = originUrl;
-        }
-      } catch (_e) {
-        // Keep default
-      }
-    }
+    // OCB-03: Derive frontend URL from trusted state origin first, then fallback
+    const frontendUrl = resolveFrontendUrl(req, encodedFrontendOrigin);
 
     console.log('Token exchange attempt:', {
       redirectUri,
