@@ -17,6 +17,7 @@ import {
   createPrescriptionWithRelations,
   type CreatePrescriptionInput,
 } from "./prescriptionCreateUtils";
+import { invalidatePrescriptionQueries } from "./prescriptionQueryInvalidation";
 
 export interface WorkoutPrescription {
   id: string;
@@ -286,9 +287,7 @@ export const useCreatePrescription = () => {
       return createPrescriptionWithRelations(supabase, user.id, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
-      queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
+      void invalidatePrescriptionQueries(queryClient);
       notify.success(i18n.modules.prescriptions.created);
     },
     onError: (error) => {
@@ -354,13 +353,11 @@ export const useAssignPrescription = () => {
         duplicateCount: data.student_ids.length - newStudentIds.length,
       };
     },
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
-      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
-      queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
-      queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["students-active-prescriptions"] });
+    onSuccess: (result, variables) => {
+      void invalidatePrescriptionQueries(queryClient, {
+        prescriptionId: variables.prescription_id,
+        studentId: variables.student_ids.length === 1 ? variables.student_ids[0] : undefined,
+      });
 
       if (result.createdCount > 0 && result.duplicateCount === 0) {
         notify.success(i18n.modules.prescriptions.assigned);
@@ -467,13 +464,10 @@ export const useUpdatePrescription = () => {
 
       return data.id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["prescription"] });
-      queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
-      queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
-      queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["students-active-prescriptions"] });
+    onSuccess: (prescriptionId) => {
+      void invalidatePrescriptionQueries(queryClient, {
+        prescriptionId,
+      });
       notify.success(i18n.modules.prescriptions.updated);
     },
     onError: (error) => {
@@ -521,12 +515,7 @@ export const useDeletePrescriptionAssignment = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
-      queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
-      queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
-      queryClient.invalidateQueries({ queryKey: ["students-active-prescriptions"] });
+      void invalidatePrescriptionQueries(queryClient);
       // INC-009: usando chaves i18n
       notify.success(i18n.modules.prescriptions.deleted);
     },
@@ -550,12 +539,7 @@ export const useDeletePrescription = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
-      queryClient.invalidateQueries({ queryKey: ["prescription-search"] });
-      queryClient.invalidateQueries({ queryKey: ["prescriptions-list"] });
-      queryClient.invalidateQueries({ queryKey: ["student-prescriptions"] });
-      queryClient.invalidateQueries({ queryKey: ["students-active-prescriptions"] });
+      void invalidatePrescriptionQueries(queryClient);
       notify.success(i18n.modules.prescriptions.deleted);
     },
     onError: (error) => {
