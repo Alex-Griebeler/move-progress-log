@@ -3,8 +3,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const DEFAULT_FRONTEND_URL = 'http://localhost:5173';
 const LOVABLE_PREVIEW_SUFFIX = '.lovable.app';
+const LOVABLE_EDITOR_HOSTS = new Set(['lovable.dev', 'www.lovable.dev']);
 
 const toOrigin = (rawUrl: string | null): string | null => {
   if (!rawUrl) return null;
@@ -26,29 +26,38 @@ const decodeBase64Url = (value: string): string | null => {
   }
 };
 
-const resolveFrontendUrl = (req: Request, encodedStateOrigin?: string | null): string => {
+const isTrustedOrigin = (origin: string, siteUrlOrigin: string | null): boolean => {
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+
+    if (LOVABLE_EDITOR_HOSTS.has(host)) return false;
+    if (siteUrlOrigin && origin === siteUrlOrigin) return true;
+
+    return (
+      host.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
+      host === 'localhost' ||
+      host === '127.0.0.1'
+    );
+  } catch (_error) {
+    return false;
+  }
+};
+
+const resolveFrontendUrl = (req: Request, encodedStateOrigin?: string | null): string | null => {
   const siteUrlOrigin = toOrigin(Deno.env.get('SITE_URL') ?? null);
   const candidates = [
     toOrigin(decodeBase64Url(encodedStateOrigin ?? '') ?? null),
+    siteUrlOrigin,
     toOrigin(req.headers.get('origin')),
     toOrigin(req.headers.get('referer')),
   ].filter((origin): origin is string => Boolean(origin));
 
-  const isTrustedOrigin = (origin: string) => {
-    if (siteUrlOrigin && origin === siteUrlOrigin) return true;
-
-    return (
-      origin.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
-      origin.startsWith('http://localhost:') ||
-      origin.startsWith('https://localhost:')
-    );
-  };
-
   for (const origin of candidates) {
-    if (isTrustedOrigin(origin)) return origin;
+    if (isTrustedOrigin(origin, siteUrlOrigin)) return origin;
   }
 
-  return siteUrlOrigin ?? DEFAULT_FRONTEND_URL;
+  return null;
 };
 
 Deno.serve(async (req) => {
@@ -123,6 +132,10 @@ Deno.serve(async (req) => {
     
     // OCB-03: Derive frontend URL from trusted state origin first, then fallback
     const frontendUrl = resolveFrontendUrl(req, encodedFrontendOrigin);
+    if (!frontendUrl) {
+      console.error('Invalid frontend URL resolution for Oura callback');
+      return new Response('Frontend URL inválida para callback Oura', { status: 400 });
+    }
 
     console.log('Token exchange attempt:', {
       redirectUri,

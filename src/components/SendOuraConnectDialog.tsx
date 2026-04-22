@@ -35,10 +35,18 @@ export const SendOuraConnectDialog = ({
     try {
       const { data, error } = await supabase.functions.invoke(
         "generate-oura-connect-link",
-        { body: { student_id: studentId } }
+        {
+          body: {
+            student_id: studentId,
+            frontend_origin: window.location.origin,
+          },
+        }
       );
 
       if (error) throw error;
+      if (!data?.invite_url || typeof data.invite_url !== "string") {
+        throw new Error("Não foi possível gerar um link de convite válido para o Oura.");
+      }
       setInviteUrl(data.invite_url);
       toast.success("Link gerado com sucesso");
     } catch (error: unknown) {
