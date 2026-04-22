@@ -61,6 +61,10 @@ Levar o app para estado operacional estavel no escopo atual, sem introduzir nova
 - Ajuste incremental de UX/estabilidade no import de sessoes:
   - `ImportSessionsDialog` agora exibe aviso explicito quando a invalidacao de cache falha apos importar;
   - evita falso positivo de "importou, mas nao apareceu" sem feedback acionavel.
+- Hardening preventivo de links de convite:
+  - `generate-student-invite` passou a exigir origem publica confiavel do app (sem fallback silencioso para localhost/editor);
+  - `useStudentInvites` agora envia `frontend_origin` explicitamente;
+  - reduz risco de convite sair com dominio errado fora do app real.
 
 ## Pendencias que ainda dependem de validacao manual
 1. Importacao de sessao via Excel (novo + duplicado) em UI autenticada.

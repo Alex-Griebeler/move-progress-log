@@ -18,7 +18,11 @@ export const useGenerateInvite = () => {
       const { data, error } = await supabase.functions.invoke(
         "generate-student-invite",
         {
-          body: { email, expires_in_days },
+          body: {
+            email,
+            expires_in_days,
+            frontend_origin: window.location.origin,
+          },
         }
       );
 

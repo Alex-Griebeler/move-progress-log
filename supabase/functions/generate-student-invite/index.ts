@@ -11,11 +11,11 @@ const jsonHeaders = {
   'Cache-Control': 'no-store',
 };
 
-const DEFAULT_FRONTEND_URL = 'http://localhost:5173';
 const DEFAULT_EXPIRY_DAYS = 7;
 const MIN_EXPIRY_DAYS = 1;
 const MAX_EXPIRY_DAYS = 30;
 const LOVABLE_PREVIEW_SUFFIX = '.lovable.app';
+const LOVABLE_EDITOR_HOSTS = new Set(['lovable.dev', 'www.lovable.dev']);
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -56,28 +56,40 @@ function normalizeInviteEmail(rawValue: unknown) {
   return normalized;
 }
 
-function resolveFrontendUrl(req: Request) {
+function isTrustedOrigin(origin: string, siteUrlOrigin: string | null): boolean {
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+
+    if (LOVABLE_EDITOR_HOSTS.has(host)) {
+      return false;
+    }
+    if (siteUrlOrigin && origin === siteUrlOrigin) return true;
+
+    return (
+      host.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
+      host === 'localhost' ||
+      host === '127.0.0.1'
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+function resolveFrontendUrl(req: Request, bodyFrontendOrigin: string | null) {
   const siteUrlOrigin = toOrigin(Deno.env.get('SITE_URL') ?? null);
   const requestOrigins = [
+    toOrigin(bodyFrontendOrigin),
+    siteUrlOrigin,
     toOrigin(req.headers.get('origin')),
     toOrigin(req.headers.get('referer')),
   ].filter((origin): origin is string => Boolean(origin));
 
-  const isTrustedOrigin = (origin: string) => {
-    if (siteUrlOrigin && origin === siteUrlOrigin) return true;
-
-    return (
-      origin.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
-      origin.startsWith('http://localhost:') ||
-      origin.startsWith('https://localhost:')
-    );
-  };
-
   for (const origin of requestOrigins) {
-    if (isTrustedOrigin(origin)) return origin;
+    if (isTrustedOrigin(origin, siteUrlOrigin)) return origin;
   }
 
-  return siteUrlOrigin ?? DEFAULT_FRONTEND_URL;
+  return null;
 }
 
 Deno.serve(async (req) => {
@@ -109,6 +121,9 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const expiresInDays = clampInviteExpiry(body?.expires_in_days);
+    const frontend_origin = typeof body?.frontend_origin === 'string'
+      ? body.frontend_origin.trim()
+      : null;
     let email: string | null;
 
     try {
@@ -144,8 +159,17 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: insertError.message }, 400);
     }
 
-    // Prefer trusted frontend origins instead of blindly trusting request headers.
-    const baseUrl = resolveFrontendUrl(req);
+    // Prefer trusted public frontend origin and fail fast when unavailable.
+    const baseUrl = resolveFrontendUrl(req, frontend_origin);
+    if (!baseUrl) {
+      return jsonResponse(
+        {
+          error:
+            'Não foi possível determinar a URL pública do app para gerar o convite. Configure SITE_URL ou envie frontend_origin válido.',
+        },
+        400
+      );
+    }
     const invite_url = `${baseUrl}/onboarding/${invite_token}`;
 
     console.log('Invite generated successfully');
