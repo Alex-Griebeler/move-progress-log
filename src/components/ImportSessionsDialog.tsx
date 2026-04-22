@@ -755,6 +755,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       if (processed > 0 || mergedDuplicates > 0) {
         invalidateAfterImport().catch((error) => {
           logger.warn("[ImportSessionsDialog] Failed to invalidate caches after import", error);
+          toast("Importação concluída, mas a tela pode demorar para atualizar", {
+            description: "Reabra a página de sessões ou atualize o dashboard para refletir os dados recentes.",
+            duration: 6000,
+          });
         });
       }
       
