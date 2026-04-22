@@ -42,6 +42,23 @@ Levar o app para estado operacional estavel no escopo atual, sem introduzir nova
 - `npm run verify:essential`: PASS
 - `npm run verify:query-safety`: PASS
 
+## Atualizacao de status (2026-04-22)
+- `PR #32` atualizado na branch `codex/session-stability-pass-20260422` com hardening adicional de cache em prescricoes.
+- Novo helper de invalidacao centralizada:
+  - `src/hooks/prescriptionQueryInvalidation.ts`
+- Migrados para a rotina unica de invalidacao/refetch ativo:
+  - `src/hooks/usePrescriptions.ts` (`create`, `assign`, `update`, `delete assignment`, `delete`)
+- Ganho pratico:
+  - reduz estado stale apos operacoes de prescricao;
+  - padroniza comportamento de invalidacao (evita divergencia entre mutacoes);
+  - reduz risco de refetch parcial sem impacto funcional no fluxo existente.
+- Revalidacao local apos ajuste:
+  - `npm run lint`: PASS
+  - `npx tsc --noEmit`: PASS
+  - `npm run test -- --run`: PASS
+  - `npm run verify:essential`: PASS
+  - `npm run verify:query-safety`: PASS
+
 ## Pendencias que ainda dependem de validacao manual
 1. Importacao de sessao via Excel (novo + duplicado) em UI autenticada.
 2. Geracao de relatorio em `/alunos/:id/relatorios`.
@@ -50,7 +67,7 @@ Levar o app para estado operacional estavel no escopo atual, sem introduzir nova
 
 ## Proximo bloco automatico (sem depender do usuario)
 1. Revisar fluxos de erro silencioso restantes em sessoes/prescricoes (principalmente `catch` sem retorno acionavel para UI).
-2. Consolidar checklist objetivo de smoke manual pendente (import novo, relatorio, PDF, Oura abas) para fechamento GO final.
+2. Executar checklist manual final consolidado em `docs/SMOKE_MANUAL_FINAL_2026-04-22.md`.
 3. Preparar PR de fechamento do lote com escopo estritamente de estabilidade.
 
 ## Regra de escopo para este ciclo
