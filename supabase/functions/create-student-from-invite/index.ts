@@ -66,6 +66,19 @@ function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { headers: jsonHeaders, status });
 }
 
+function toOrigin(rawUrl: string | null): string | null {
+  if (!rawUrl) return null;
+  try {
+    return new URL(rawUrl).origin;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function encodeBase64Url(value: string): string {
+  return btoa(value).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -520,6 +533,8 @@ Deno.serve(async (req) => {
       if (studentData.has_oura_ring && studentData.accepts_oura_sharing) {
         const ouraClientId = Deno.env.get('OURA_CLIENT_ID');
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const frontendOrigin =
+          toOrigin(req.headers.get('origin')) ?? toOrigin(req.headers.get('referer'));
 
         if (!ouraClientId) {
           console.warn('OURA_CLIENT_ID not configured');
@@ -531,7 +546,9 @@ Deno.serve(async (req) => {
         }
 
         const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
-        const state = `${student.id}:${invite.id}`;
+        const state = frontendOrigin
+          ? `${student.id}:${invite.id}:${encodeBase64Url(frontendOrigin)}`
+          : `${student.id}:${invite.id}`;
         const scope = 'email personal daily heartrate workout session spo2 tag sleep stress ring_configuration';
 
         const ouraAuthUrl = `https://cloud.ouraring.com/oauth/authorize?response_type=code&client_id=${ouraClientId}&redirect_uri=${encodeURIComponent(

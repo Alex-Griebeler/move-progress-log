@@ -10,6 +10,8 @@ const OURA_QUERY_ROOTS = [
   "oura-trends",
   "oura-sync-logs",
   "students-card-data",
+  "oura-baseline",
+  "load-suggestions",
 ] as const;
 
 export const invalidateOuraQueries = async (
@@ -21,8 +23,9 @@ export const invalidateOuraQueries = async (
     : OURA_QUERY_ROOTS.map((root) => [root] as const);
 
   await Promise.all(
-    queryKeys.map((queryKey) =>
-      queryClient.invalidateQueries({ queryKey })
-    )
+    queryKeys.map(async (queryKey) => {
+      await queryClient.invalidateQueries({ queryKey });
+      await queryClient.refetchQueries({ queryKey, type: "active" });
+    })
   );
 };
