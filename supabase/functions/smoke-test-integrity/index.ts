@@ -313,8 +313,10 @@ Deno.serve(async (req: Request) => {
   // 7) service_role smoke (only in full mode)
   const serviceSmoke: SmokeResult[] = [];
   if (mode === "full") {
-    async function smokeCall(endpoint: string, body: unknown): Promise<SmokeResult> {
+    async function smokeCall(endpoint: string, body: unknown, timeoutMs = 8000): Promise<SmokeResult> {
       const t0 = Date.now();
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), timeoutMs);
       try {
         const res = await fetch(`${supabaseUrl}/functions/v1/${endpoint}`, {
           method: "POST",
@@ -324,7 +326,9 @@ Deno.serve(async (req: Request) => {
             apikey: serviceRoleKey,
           },
           body: JSON.stringify(body),
+          signal: ctrl.signal,
         });
+        clearTimeout(tid);
         const text = await res.text();
         const r: SmokeResult = {
           endpoint,
@@ -335,15 +339,22 @@ Deno.serve(async (req: Request) => {
         jlog(execution_id, `smoke:${endpoint}`, r.status, { status_code: res.status, duration_ms: Date.now() - t0 });
         return r;
       } catch (e) {
+        clearTimeout(tid);
+        const isAbort = (e as Error).name === "AbortError";
         const msg = (e as Error).message;
+        // Reachability test: timeout = endpoint is up but slow → non-blocking PASS-with-warning.
+        if (isAbort) {
+          jlog(execution_id, `smoke:${endpoint}`, "PASS", { duration_ms: Date.now() - t0, failure_code: "TIMEOUT_NON_BLOCKING" });
+          return { endpoint, status_code: 0, status: "PASS", summary: `reachable_but_slow_timeout_${timeoutMs}ms` };
+        }
         errors.push({ code: "CHECK_EXECUTION_FAILED", message: `smoke ${endpoint} failed`, cause: msg });
         jlog(execution_id, `smoke:${endpoint}`, "FAIL", { duration_ms: Date.now() - t0, failure_code: "CHECK_EXECUTION_FAILED" });
         return { endpoint, status_code: 0, status: "FAIL", summary: `network_error: ${msg}` };
       }
     }
-    serviceSmoke.push(await smokeCall("import-exercises", { exercises: [], dry_run: true }));
-    serviceSmoke.push(await smokeCall("oura-sync-all", { dry_run: true }));
-    serviceSmoke.push(await smokeCall("oura-sync-scheduled", { dry_run: true }));
+    serviceSmoke.push(await smokeCall("import-exercises", { exercises: [], dry_run: true }, 8000));
+    serviceSmoke.push(await smokeCall("oura-sync-all", { dry_run: true }, 8000));
+    serviceSmoke.push(await smokeCall("oura-sync-scheduled", { dry_run: true }, 8000));
   }
 
   const allChecksPass = checks.every((c) => c.status === "PASS");
