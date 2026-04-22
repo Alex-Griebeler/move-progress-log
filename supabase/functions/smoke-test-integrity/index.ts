@@ -59,7 +59,8 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 function truncateBody(text: string, max = 200): string {
   if (!text) return "";
-  const sanitized = text.replace(/eyJ[A-Za-z0-9_\-\.]{20,}/g, "[REDACTED]");
+  // Strip anything resembling a token (jwt-like) just in case
+  const sanitized = text.replace(/eyJ[A-Za-z0-9_.-]{20,}/g, "[REDACTED]");
   return sanitized.length > max ? sanitized.slice(0, max) + "..." : sanitized;
 }
 
@@ -199,14 +200,14 @@ Deno.serve(async (req: Request) => {
 
   // 1) workout_sessions total
   await runCheck("workout_sessions_total", async () => {
-    const { count, error } = await admin.from("workout_sessions").select("*", { count: "exact", head: true });
+    const { count, error } = await admin.from("workout_sessions").select("id", { count: "exact", head: true });
     if (error) throw error;
     return { name: "workout_sessions_total", expected: ">= 0", found: count ?? 0, status: "PASS", sample_ids: [] };
   });
 
   // 2) exercises total
   await runCheck("exercises_total", async () => {
-    const { count, error } = await admin.from("exercises").select("*", { count: "exact", head: true });
+    const { count, error } = await admin.from("exercises").select("id", { count: "exact", head: true });
     if (error) throw error;
     return { name: "exercises_total", expected: ">= 0", found: count ?? 0, status: "PASS", sample_ids: [] };
   });
