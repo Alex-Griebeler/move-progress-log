@@ -3,9 +3,10 @@
 Esta chave protege as edge functions internas de auditoria:
 - `smoke-test-integrity`
 - `smoke-health`
-- `create-audit-admin`
 
-A função aceita também autenticação via JWT de usuário com role `admin` (modo `admin_jwt`), portanto a rotação **não derruba** o acesso administrativo via UI logada.
+As funções de smoke aceitam também autenticação via JWT de usuário com role `admin` (modo `admin_jwt`), portanto a rotação **não derruba** o acesso administrativo via UI logada.
+
+`create-audit-admin` tem fluxo diferente: exige `Authorization: Bearer <service_role>` **e** `adminKey` no body.
 
 ---
 

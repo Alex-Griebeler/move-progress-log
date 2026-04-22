@@ -314,7 +314,12 @@ Deno.serve(async (req: Request) => {
   // 7) service_role smoke (only in full mode)
   const serviceSmoke: SmokeResult[] = [];
   if (mode === "full") {
-    async function smokeCall(endpoint: string, body: unknown, timeoutMs = 8000): Promise<SmokeResult> {
+    async function smokeCall(
+      endpoint: string,
+      body: unknown,
+      timeoutMs: number,
+      expectedStatuses: number[],
+    ): Promise<SmokeResult> {
       const t0 = Date.now();
       const ctrl = new AbortController();
       const tid = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -331,10 +336,20 @@ Deno.serve(async (req: Request) => {
         });
         clearTimeout(tid);
         const text = await res.text();
+        const statusOk = expectedStatuses.includes(res.status);
+
+        if (!statusOk) {
+          errors.push({
+            code: "SMOKE_BAD_STATUS",
+            message: `smoke ${endpoint} returned unexpected status`,
+            cause: `expected=${expectedStatuses.join(",")} got=${res.status}`,
+          });
+        }
+
         const r: SmokeResult = {
           endpoint,
           status_code: res.status,
-          status: res.status < 500 ? "PASS" : "FAIL",
+          status: statusOk ? "PASS" : "FAIL",
           summary: truncateBody(text),
         };
         jlog(execution_id, `smoke:${endpoint}`, r.status, { status_code: res.status, duration_ms: Date.now() - t0 });
@@ -343,19 +358,27 @@ Deno.serve(async (req: Request) => {
         clearTimeout(tid);
         const isAbort = (e as Error).name === "AbortError";
         const msg = (e as Error).message;
-        // Reachability test: timeout = endpoint is up but slow → non-blocking PASS-with-warning.
         if (isAbort) {
-          jlog(execution_id, `smoke:${endpoint}`, "PASS", { duration_ms: Date.now() - t0, failure_code: "TIMEOUT_NON_BLOCKING" });
-          return { endpoint, status_code: 0, status: "PASS", summary: `reachable_but_slow_timeout_${timeoutMs}ms` };
+          errors.push({
+            code: "SMOKE_TIMEOUT",
+            message: `smoke ${endpoint} timed out`,
+            cause: `timeout_ms=${timeoutMs}`,
+          });
+          jlog(execution_id, `smoke:${endpoint}`, "FAIL", {
+            duration_ms: Date.now() - t0,
+            failure_code: "SMOKE_TIMEOUT",
+            timeout_ms: timeoutMs,
+          });
+          return { endpoint, status_code: 0, status: "FAIL", summary: `timeout_after_${timeoutMs}ms` };
         }
         errors.push({ code: "CHECK_EXECUTION_FAILED", message: `smoke ${endpoint} failed`, cause: msg });
         jlog(execution_id, `smoke:${endpoint}`, "FAIL", { duration_ms: Date.now() - t0, failure_code: "CHECK_EXECUTION_FAILED" });
         return { endpoint, status_code: 0, status: "FAIL", summary: `network_error: ${msg}` };
       }
     }
-    serviceSmoke.push(await smokeCall("import-exercises", { exercises: [], dry_run: true }, 8000));
-    serviceSmoke.push(await smokeCall("oura-sync-all", { dry_run: true }, 8000));
-    serviceSmoke.push(await smokeCall("oura-sync-scheduled", { dry_run: true }, 8000));
+    serviceSmoke.push(await smokeCall("import-exercises", { exercises: [], dry_run: true }, 10000, [200]));
+    serviceSmoke.push(await smokeCall("oura-sync-all", { dry_run: true }, 70000, [200]));
+    serviceSmoke.push(await smokeCall("oura-sync-scheduled", { dry_run: true }, 30000, [200]));
   }
 
   const allChecksPass = checks.every((c) => c.status === "PASS");
