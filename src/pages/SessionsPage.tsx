@@ -68,6 +68,7 @@ import { NAV_LABELS } from "@/constants/navigation";
 import { cn } from "@/lib/utils";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
+import { logger } from "@/utils/logger";
 
 export default function SessionsPage() {
   usePageTitle(NAV_LABELS.sessions);
@@ -186,8 +187,12 @@ export default function SessionsPage() {
   };
 
   const handleReopen = async (sessionId: string) => {
-    await reopenMutation.mutateAsync(sessionId);
-    refetch();
+    try {
+      await reopenMutation.mutateAsync(sessionId);
+    } catch (error) {
+      // Mutation onError already shows user-facing feedback.
+      logger.warn("[SessionsPage] Failed to reopen session", error);
+    }
   };
 
   if (isLoading) {

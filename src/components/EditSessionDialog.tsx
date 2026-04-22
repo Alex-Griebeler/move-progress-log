@@ -26,6 +26,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { invalidateSessionQueries } from "@/hooks/sessionQueryInvalidation";
 
 interface EditSessionDialogProps {
   open: boolean;
@@ -138,12 +139,10 @@ export function EditSessionDialog({
   };
 
   const invalidateAllSessionQueries = () => {
-    queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
-    queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
-    queryClient.invalidateQueries({ queryKey: ["session-detail"] });
-    queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
-    queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
-    queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+    void invalidateSessionQueries(queryClient, {
+      includeStudentsData: true,
+      studentId: sessionData?.student?.id ?? undefined,
+    });
   };
 
   const deleteRemovedExercises = async (currentIds: string[]) => {

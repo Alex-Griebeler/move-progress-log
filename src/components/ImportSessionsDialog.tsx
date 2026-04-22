@@ -16,6 +16,8 @@ import {
 } from "@/utils/errorParsing";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { logger } from "@/utils/logger";
+import { formatSessionTime } from "@/utils/sessionTime";
+import { invalidateSessionQueries } from "@/hooks/sessionQueryInvalidation";
 
 type SpreadsheetRow = Record<string, unknown>;
 
@@ -283,15 +285,16 @@ const mergeDuplicateSessionData = async (params: {
   if (sessionError || !candidateSessions || candidateSessions.length === 0) return 0;
 
   const targetMinutes = parseTimeToMinutes(params.time);
+  const normalizeCandidateTime = (value: unknown): string => formatSessionTime(String(value));
   const sameMinute = candidateSessions.find(
-    (session) => String(session.time).slice(0, 5) === params.time
+    (session) => normalizeCandidateTime(session.time) === params.time
   );
 
   let selectedSession = sameMinute ?? null;
   if (!selectedSession && targetMinutes !== null) {
     const nearest = candidateSessions
       .map((session) => {
-        const sessionMinutes = parseTimeToMinutes(String(session.time).slice(0, 5));
+        const sessionMinutes = parseTimeToMinutes(normalizeCandidateTime(session.time));
         return {
           session,
           distance:
@@ -433,19 +436,9 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
   const createSession = useCreateWorkoutSession();
 
   const invalidateAfterImport = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["stats"] }),
-      queryClient.invalidateQueries({ queryKey: ["workouts"] }),
-      queryClient.invalidateQueries({ queryKey: ["workouts-paginated"] }),
-      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] }),
-      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] }),
-      queryClient.invalidateQueries({ queryKey: ["all-sessions"] }),
-      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] }),
-      queryClient.invalidateQueries({ queryKey: ["session-exercises"] }),
-      queryClient.invalidateQueries({ queryKey: ["session-detail"] }),
-      queryClient.invalidateQueries({ queryKey: ["students"] }),
-      queryClient.invalidateQueries({ queryKey: ["students-card-data"] }),
-    ]);
+    await invalidateSessionQueries(queryClient, {
+      includeStudentsData: true,
+    });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -760,7 +753,9 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       toast.dismiss(toastId);
 
       if (processed > 0 || mergedDuplicates > 0) {
-        await invalidateAfterImport();
+        invalidateAfterImport().catch((error) => {
+          logger.warn("[ImportSessionsDialog] Failed to invalidate caches after import", error);
+        });
       }
       
       if (errors.length === 0 && skippedDuplicates === 0) {
