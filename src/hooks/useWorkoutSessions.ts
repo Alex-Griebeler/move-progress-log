@@ -6,6 +6,7 @@ import i18n from "@/i18n/pt-BR.json";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { logger } from "@/utils/logger";
+import { invalidateSessionQueries } from "@/hooks/sessionQueryInvalidation";
 
 // Chaves i18n disponíveis para workouts
 const workoutKeys = i18n.modules.workouts;
@@ -312,12 +313,10 @@ export const useCreateWorkoutSession = () => {
         return;
       }
 
-      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
-      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
-      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      void invalidateSessionQueries(queryClient, {
+        includeStudentsData: true,
+        studentId: variables.student_id,
+      });
 
       notify.success(workoutKeys.sessionCreated, {
         description: workoutKeys.sessionSaved,
@@ -450,12 +449,9 @@ export const useCreateGroupWorkoutSessions = () => {
       return results;
     },
     onSuccess: (results) => {
-      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
-      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      void invalidateSessionQueries(queryClient, {
+        includeStudentsData: true,
+      });
       
       const successResults = results.filter(r => r.success);
       const failedResults = results.filter(r => !r.success);
@@ -499,13 +495,7 @@ export const useReopenWorkoutSession = () => {
       return data;
     },
     onSuccess: () => {
-      // Invalidar TODAS as queries relacionadas a sessões
-      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
-      queryClient.invalidateQueries({ queryKey: ["session-detail"] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+      void invalidateSessionQueries(queryClient);
       
       notify.success("Sessão reaberta com sucesso", {
         description: "Você pode continuar editando esta sessão",
@@ -537,12 +527,7 @@ export const useFinalizeWorkoutSession = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["workout-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
-      queryClient.invalidateQueries({ queryKey: ["session-detail"] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+      void invalidateSessionQueries(queryClient);
       
       notify.success("Sessão finalizada", {
         description: "A sessão foi salva e finalizada com sucesso",

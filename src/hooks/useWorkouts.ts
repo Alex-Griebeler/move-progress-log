@@ -5,6 +5,7 @@ import i18n from "@/i18n/pt-BR.json";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { invalidateSessionQueries } from "@/hooks/sessionQueryInvalidation";
 
 // Chaves i18n disponíveis para workouts
 const workoutKeys = i18n.modules.workouts;
@@ -215,15 +216,11 @@ export const useCreateWorkout = () => {
       
       return session;
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["workouts"] });
-      queryClient.invalidateQueries({ queryKey: ["workouts-paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["stats"] });
-      queryClient.invalidateQueries({ queryKey: ["workout-sessions", variables.studentId] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["all-sessions-paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["sessions-with-exercises"] });
-      queryClient.invalidateQueries({ queryKey: ["session-exercises"] });
+    onSuccess: (_data, variables) => {
+      void invalidateSessionQueries(queryClient, {
+        includeStudentsData: true,
+        studentId: variables.studentId,
+      });
       
       notify.success(workoutKeys.created, {
         description: `${variables.exercises.length} ${workoutKeys.exercisesSaved}`,
