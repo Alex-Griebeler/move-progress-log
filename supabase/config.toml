@@ -88,6 +88,10 @@ verify_jwt = false
 [functions.create-audit-admin]
 verify_jwt = false
 
-# Internal smoke/integrity tests - protected by x-admin-key header
+# Internal smoke/integrity tests - protected by x-admin-key OR admin JWT (validated in code)
 [functions.smoke-test-integrity]
+verify_jwt = false
+
+# Internal health endpoint - protected by x-admin-key OR admin JWT (validated in code)
+[functions.smoke-health]
 verify_jwt = false
