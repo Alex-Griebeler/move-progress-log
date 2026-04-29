@@ -13,6 +13,9 @@ const jsonHeaders = {
 };
 
 const inviteTokenPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LOVABLE_PREVIEW_SUFFIX = '.lovable.app';
+const LOVABLE_ID_PREVIEW_PREFIX = 'id-preview--';
+const LOVABLE_EDITOR_HOSTS = new Set(['lovable.dev', 'www.lovable.dev']);
 const MAX_AVATAR_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_NAME_LENGTH = 120;
 const MAX_TEXT_FIELD_LENGTH = 1000;
@@ -73,6 +76,67 @@ function toOrigin(rawUrl: string | null): string | null {
   } catch (_error) {
     return null;
   }
+}
+
+function isTrustedFrontendOrigin(origin: string): boolean {
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+    if (LOVABLE_EDITOR_HOSTS.has(host)) return false;
+    return (
+      host.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
+      host === 'localhost' ||
+      host === '127.0.0.1'
+    );
+  } catch (_error) {
+    return false;
+  }
+}
+
+function canonicalizeIdPreviewOrigin(origin: string): string {
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+    if (!host.startsWith(LOVABLE_ID_PREVIEW_PREFIX) || !host.endsWith(LOVABLE_PREVIEW_SUFFIX)) {
+      return origin;
+    }
+
+    const canonicalHost = `preview--${host.slice(LOVABLE_ID_PREVIEW_PREFIX.length)}`;
+    const port = parsed.port ? `:${parsed.port}` : '';
+    return `${parsed.protocol}//${canonicalHost}${port}`;
+  } catch (_error) {
+    return origin;
+  }
+}
+
+function resolvePreferredFrontendOrigin(candidates: Array<string | null>): string | null {
+  const normalizedCandidates = candidates.filter((candidate): candidate is string => Boolean(candidate));
+  const uniqueOrigins = Array.from(new Set(normalizedCandidates));
+  const trustedOrigins = uniqueOrigins.filter(isTrustedFrontendOrigin);
+
+  const nonIdPreview = trustedOrigins.find((origin) => {
+    try {
+      const host = new URL(origin).hostname.toLowerCase();
+      return !(host.startsWith(LOVABLE_ID_PREVIEW_PREFIX) && host.endsWith(LOVABLE_PREVIEW_SUFFIX));
+    } catch (_error) {
+      return false;
+    }
+  });
+
+  if (nonIdPreview) return nonIdPreview;
+
+  const idPreview = trustedOrigins.find((origin) => {
+    try {
+      const host = new URL(origin).hostname.toLowerCase();
+      return host.startsWith(LOVABLE_ID_PREVIEW_PREFIX) && host.endsWith(LOVABLE_PREVIEW_SUFFIX);
+    } catch (_error) {
+      return false;
+    }
+  });
+
+  if (idPreview) return canonicalizeIdPreviewOrigin(idPreview);
+
+  return null;
 }
 
 function encodeBase64Url(value: string): string {
@@ -533,8 +597,11 @@ Deno.serve(async (req) => {
       if (studentData.has_oura_ring && studentData.accepts_oura_sharing) {
         const ouraClientId = Deno.env.get('OURA_CLIENT_ID');
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
-        const frontendOrigin =
-          toOrigin(req.headers.get('origin')) ?? toOrigin(req.headers.get('referer'));
+        const frontendOrigin = resolvePreferredFrontendOrigin([
+          toOrigin(Deno.env.get('PUBLIC_APP_URL') ?? Deno.env.get('APP_PUBLIC_URL') ?? Deno.env.get('SITE_URL') ?? null),
+          toOrigin(req.headers.get('origin')),
+          toOrigin(req.headers.get('referer')),
+        ]);
 
         if (!ouraClientId) {
           console.warn('OURA_CLIENT_ID not configured');
