@@ -8,6 +8,11 @@ Fechar GO/NO-GO funcional no escopo atual, sem expandir features.
 - Registrar evidencias por cenario: screenshot + resultado observado.
 - Classificar cada cenario em `PASS`, `FAIL` ou `BLOQUEADO`.
 
+## Pre-condicoes
+- Usar um aluno com historico real de sessoes.
+- Ter ao menos 1 planilha de importacao com dados novos e outra ja importada (duplicada).
+- Ter ao menos 1 aluno com conexao Oura ativa para validar sincronizacao e convite.
+
 ## Cenario 1 — Importacao de sessoes (arquivo novo)
 1. Ir em `Dashboard` -> `Importar Excel`.
 2. Selecionar uma planilha com sessoes ainda nao importadas.
@@ -18,6 +23,7 @@ Fechar GO/NO-GO funcional no escopo atual, sem expandir features.
 - Lista de sessoes atualizada apos fechar dialog.
 - Em detalhe da sessao, `sets/reps/carga` aparecem quando vierem na planilha.
 - Horario exibido em `HH:MM` (sem segundos).
+- Se a atualizacao de cache falhar, UI deve exibir aviso explicito (nao pode falhar em silencio).
 
 ## Cenario 2 — Reimportacao da mesma planilha (duplicados)
 1. Repetir upload da mesma planilha do Cenario 1.
@@ -57,9 +63,19 @@ Fechar GO/NO-GO funcional no escopo atual, sem expandir features.
   - FC aguda visivel quando disponivel.
   - HRV oculta quando indisponivel (sem ruido visual).
 
+## Cenario 6 — Convite Oura (dominio correto)
+1. Abrir o aluno e acionar envio de convite Oura.
+2. Copiar o link gerado e abrir em aba anonima.
+3. Validar inicio e retorno do fluxo.
+
+### Esperado (PASS)
+- Link de convite usa dominio publico do app (`*.lovable.app`), nunca `lovable.dev`.
+- Fluxo abre em `/oura-connect/:studentId` no app correto.
+- Callback retorna para o app sem cair em dominio de editor/sistema.
+
 ## Criterio de fechamento
 - `GO`: todos os cenarios em `PASS`.
-- `NO-GO`: qualquer `FAIL` em cenario funcional critico (import, relatorio, PDF, Oura).
+- `NO-GO`: qualquer `FAIL` em cenario funcional critico (import, relatorio, PDF, Oura, convite Oura).
 - `BLOQUEADO`: ausencia de dados reais para executar cenario (documentar causa e proximo passo).
 
 ## Registro final (preencher apos execucao)
@@ -70,4 +86,7 @@ Fechar GO/NO-GO funcional no escopo atual, sem expandir features.
 | 3. Geracao de relatorio |  |  |  |
 | 4. Exportacao PDF |  |  |  |
 | 5. Oura abas do aluno |  |  |  |
+| 6. Convite Oura (dominio) |  |  |  |
 
+---
+Atualizado em 2026-04-29 (escopo estrito de estabilidade, sem expansao funcional).
