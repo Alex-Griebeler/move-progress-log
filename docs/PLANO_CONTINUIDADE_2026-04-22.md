@@ -111,9 +111,11 @@ Levar o app para estado operacional estavel no escopo atual, sem introduzir nova
   - `npm run build`: PASS
   - `npm run verify:query-safety`: PASS
 - PR aberto: `#43` (`fix(oura): add dry_run fast-path for sync-all/scheduled`).
-- Bloqueio externo no momento:
-  - merge pendente por indisponibilidade de rede no executor (`Could not resolve host: github.com`).
-  - assim que a rede voltar, proximo passo automatico e merge imediato do PR #43.
+- Atualizacao de fechamento:
+  - PR `#43` mergeado em `main` (`20777cd`).
+  - Escopo entregue no merge:
+    - `dry_run` fast-path em `oura-sync-all` e propagacao em `oura-sync-scheduled`;
+    - hardening adicional de dominio em convites/callback (`id-preview` -> `preview`) para reduzir convites em host tecnico.
 
 ## Pendencias que ainda dependem de validacao manual
 0. Configurar secret de runtime `PUBLIC_APP_URL` com o dominio publico final do app (ex.: `https://move-progress-log.lovable.app`) para forcar convite Oura no dominio canonico.
