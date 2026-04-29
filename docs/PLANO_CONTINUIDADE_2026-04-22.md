@@ -98,6 +98,23 @@ Levar o app para estado operacional estavel no escopo atual, sem introduzir nova
   - `npm run build`: PASS
   - `npm run verify:essential`: PASS
 
+## Atualizacao de status (2026-04-29 - smoke Oura sem timeout longo)
+- Patch tecnico pronto na branch `codex/oura-dry-run-fast-path`:
+  - `oura-sync-all` passa a aceitar payload `dry_run` e retorna fast-path sem executar sync pesado.
+  - `oura-sync-scheduled` repassa `dry_run` para `oura-sync-all`.
+- Objetivo do patch:
+  - permitir smoke tecnico rapido sem travar em execucoes longas de sincronizacao Oura.
+- Revalidacao local do patch:
+  - `npm run lint`: PASS
+  - `npx tsc --noEmit`: PASS
+  - `npm run test -- --run`: PASS
+  - `npm run build`: PASS
+  - `npm run verify:query-safety`: PASS
+- PR aberto: `#43` (`fix(oura): add dry_run fast-path for sync-all/scheduled`).
+- Bloqueio externo no momento:
+  - merge pendente por indisponibilidade de rede no executor (`Could not resolve host: github.com`).
+  - assim que a rede voltar, proximo passo automatico e merge imediato do PR #43.
+
 ## Pendencias que ainda dependem de validacao manual
 0. Configurar secret de runtime `PUBLIC_APP_URL` com o dominio publico final do app (ex.: `https://move-progress-log.lovable.app`) para forcar convite Oura no dominio canonico.
 1. Importacao de sessao via Excel (novo + duplicado) em UI autenticada.
