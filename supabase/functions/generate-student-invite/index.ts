@@ -15,6 +15,7 @@ const DEFAULT_EXPIRY_DAYS = 7;
 const MIN_EXPIRY_DAYS = 1;
 const MAX_EXPIRY_DAYS = 30;
 const LOVABLE_PREVIEW_SUFFIX = '.lovable.app';
+const LOVABLE_ID_PREVIEW_PREFIX = 'id-preview--';
 const LOVABLE_EDITOR_HOSTS = new Set(['lovable.dev', 'www.lovable.dev']);
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -56,7 +57,16 @@ function normalizeInviteEmail(rawValue: unknown) {
   return normalized;
 }
 
-function isTrustedOrigin(origin: string, siteUrlOrigin: string | null): boolean {
+function isIdPreviewOrigin(origin: string): boolean {
+  try {
+    const host = new URL(origin).hostname.toLowerCase();
+    return host.startsWith(LOVABLE_ID_PREVIEW_PREFIX) && host.endsWith(LOVABLE_PREVIEW_SUFFIX);
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isTrustedOrigin(origin: string, canonicalOrigin: string | null): boolean {
   try {
     const parsed = new URL(origin);
     const host = parsed.hostname.toLowerCase();
@@ -64,7 +74,7 @@ function isTrustedOrigin(origin: string, siteUrlOrigin: string | null): boolean 
     if (LOVABLE_EDITOR_HOSTS.has(host)) {
       return false;
     }
-    if (siteUrlOrigin && origin === siteUrlOrigin) return true;
+    if (canonicalOrigin && origin === canonicalOrigin) return true;
 
     return (
       host.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
@@ -77,19 +87,43 @@ function isTrustedOrigin(origin: string, siteUrlOrigin: string | null): boolean 
 }
 
 function resolveFrontendUrl(req: Request, bodyFrontendOrigin: string | null) {
+  const publicAppOrigin = toOrigin(
+    Deno.env.get('PUBLIC_APP_URL') ??
+    Deno.env.get('APP_PUBLIC_URL') ??
+    null
+  );
   const siteUrlOrigin = toOrigin(Deno.env.get('SITE_URL') ?? null);
+  const canonicalOrigin = publicAppOrigin ?? siteUrlOrigin;
   const requestOrigins = [
+    publicAppOrigin,
     toOrigin(bodyFrontendOrigin),
     siteUrlOrigin,
     toOrigin(req.headers.get('origin')),
     toOrigin(req.headers.get('referer')),
   ].filter((origin): origin is string => Boolean(origin));
+  const uniqueOrigins = Array.from(new Set(requestOrigins));
+  const trustedOrigins = uniqueOrigins.filter((origin) =>
+    isTrustedOrigin(origin, canonicalOrigin)
+  );
 
-  for (const origin of requestOrigins) {
-    if (isTrustedOrigin(origin, siteUrlOrigin)) return origin;
+  if (publicAppOrigin && trustedOrigins.includes(publicAppOrigin)) {
+    return publicAppOrigin;
   }
 
-  return null;
+  if (siteUrlOrigin && trustedOrigins.includes(siteUrlOrigin) && !isIdPreviewOrigin(siteUrlOrigin)) {
+    return siteUrlOrigin;
+  }
+
+  const firstNonIdPreview = trustedOrigins.find((origin) => !isIdPreviewOrigin(origin));
+  if (firstNonIdPreview) {
+    return firstNonIdPreview;
+  }
+
+  if (siteUrlOrigin && trustedOrigins.includes(siteUrlOrigin)) {
+    return siteUrlOrigin;
+  }
+
+  return trustedOrigins[0] ?? null;
 }
 
 Deno.serve(async (req) => {
@@ -165,7 +199,7 @@ Deno.serve(async (req) => {
       return jsonResponse(
         {
           error:
-            'Não foi possível determinar a URL pública do app para gerar o convite. Configure SITE_URL ou envie frontend_origin válido.',
+            'Não foi possível determinar a URL pública do app para gerar o convite. Configure PUBLIC_APP_URL (ou SITE_URL) ou envie frontend_origin válido.',
         },
         400
       );
