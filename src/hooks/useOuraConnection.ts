@@ -226,34 +226,43 @@ export const useSyncOura = () => {
         });
       }
     },
-    onError: (error: Error) => {
+    onError: (error: unknown) => {
       let title = "❌ Erro na sincronização";
       let description = "";
+      const rawMessage = buildErrorDescription(error, "Erro desconhecido");
+      const message = rawMessage.toLowerCase();
 
       // Detectar tipo específico de erro para feedback preciso
       if (
         !navigator.onLine ||
-        error.message.includes("offline") ||
-        error.message.includes("Você está offline")
+        message.includes("offline") ||
+        message.includes("você está offline")
       ) {
         title = "🔴 Sem conexão com a internet";
         description = "Conecte-se à internet e tente novamente.";
       } else if (
-        error.message.includes("timeout") ||
-        error.message.includes("Timeout")
+        message.includes("timeout")
       ) {
         title = "⏱️ Tempo esgotado";
         description =
           "A sincronização demorou muito. Verifique sua conexão e tente novamente.";
       } else if (
-        error.message.includes("token") ||
-        error.message.includes("unauthorized") ||
-        error.message.includes("autenticação")
+        message.includes("token") ||
+        message.includes("unauthorized") ||
+        message.includes("autenticação")
       ) {
         title = "🔒 Autenticação expirada";
         description =
           "Reconecte o Oura Ring através de um novo link de convite.";
-      } else if (error.message.includes("Falha ao sincronizar todos")) {
+      } else if (
+        message.includes("access denied") ||
+        message.includes("forbidden") ||
+        message.includes("not this student's trainer")
+      ) {
+        title = "🚫 Sem permissão para sincronizar";
+        description =
+          "Você não tem permissão para sincronizar este aluno. Entre com uma conta admin ou com o treinador responsável.";
+      } else if (message.includes("falha ao sincronizar todos")) {
         title = "❌ Nenhum dado disponível";
         description =
           "Não foi possível sincronizar nenhum dia. Tente mais tarde.";

@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
     }
 
     if (!isServiceRole) {
-      // Validate user JWT and check trainer ownership
+      // Validate user JWT, then allow admin role OR trainer ownership
       const supabaseAuth = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: `Bearer ${token}` } }
       });
@@ -142,17 +142,33 @@ Deno.serve(async (req) => {
       }
 
       const userId = user.id;
-
-      // Verify the user is the trainer for this student
       const supabaseCheck = createClient(supabaseUrl, serviceRoleKey);
-      const { data: student, error: studentError } = await supabaseCheck
-        .from('students')
-        .select('trainer_id')
-        .eq('id', student_id)
-        .single();
 
-      if (studentError || !student || student.trainer_id !== userId) {
-        return jsonResponse(403, { error: 'Access denied: you are not this student\'s trainer' });
+      // Admin users can sync any student (same behavior as oura-sync-all)
+      const { data: adminRole, error: roleError } = await supabaseCheck
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('role', 'admin')
+        .limit(1)
+        .maybeSingle();
+
+      if (roleError) {
+        return jsonResponse(500, { error: 'Failed to verify permissions' });
+      }
+
+      const isAdmin = Boolean(adminRole);
+      if (!isAdmin) {
+        // Non-admin users can only sync students they own as trainer
+        const { data: student, error: studentError } = await supabaseCheck
+          .from('students')
+          .select('trainer_id')
+          .eq('id', student_id)
+          .single();
+
+        if (studentError || !student || student.trainer_id !== userId) {
+          return jsonResponse(403, { error: 'Access denied: you are not this student\'s trainer' });
+        }
       }
     }
 
