@@ -337,7 +337,12 @@ export function RecordGroupSessionDialog({
         setMergedStudents(merged);
         notify.info("Sessão carregada", { description: `${typedSessions.length} aluno(s) carregado(s). Você pode adicionar mais gravações.` });
       }
-    } catch (error) { logger.error("Erro ao carregar sessões existentes:", error); }
+    } catch (error) {
+      logger.error("Erro ao carregar sessões existentes:", error);
+      notify.error("Falha ao reabrir sessão", {
+        description: "Não foi possível carregar os dados existentes da sessão. Você pode continuar manualmente.",
+      });
+    }
   }, [prescriptionId, reopenDate, normalizedReopenTime]);
 
   // Load existing sessions when reopening
@@ -505,7 +510,12 @@ export function RecordGroupSessionDialog({
         setSelectedStudents(prev => [...prev, ...newStudents]);
         notify.success(i18n.modules.workouts.studentsAutoAdded, { description: `${newStudents.map(s => s.name).join(", ")} ${i18n.modules.workouts.studentsWereAdded}` });
       }
-    } catch (error) { logger.error("Erro em handleAutoAddStudents:", error); }
+    } catch (error) {
+      logger.error("Erro em handleAutoAddStudents:", error);
+      notify.warning("Autoassociação indisponível", {
+        description: "Não foi possível sugerir alunos automaticamente neste áudio. Continue com seleção manual.",
+      });
+    }
   };
 
   // ─── Session Data Handlers ────────────────────────────────────────
@@ -635,6 +645,9 @@ export function RecordGroupSessionDialog({
     const latestSessionByStudent = new Map<string, { id: string }>();
     if (savedSessionsError) {
       logger.error('Error fetching saved sessions for post-processing:', savedSessionsError);
+      notify.warning("Sessões salvas com pendências", {
+        description: "Não foi possível vincular automaticamente observações e transcrições nesta gravação.",
+      });
     } else {
       (savedSessions || []).forEach((row) => {
         if (!latestSessionByStudent.has(row.student_id)) {
@@ -644,6 +657,7 @@ export function RecordGroupSessionDialog({
     }
 
     // Save clinical observations and audio segments per student
+    let hasAudioSegmentsInsertError = false;
     for (const merged of mergedStudents) {
       const student = selectedStudents.find(s => s.name.toLowerCase() === merged.student_name.toLowerCase());
       if (!student) continue;
@@ -677,9 +691,16 @@ export function RecordGroupSessionDialog({
           const { error: segmentsError } = await supabase.from('session_audio_segments').insert(audioSegments);
           if (segmentsError) {
             logger.error('Error saving audio segments for group:', segmentsError);
+            hasAudioSegmentsInsertError = true;
           }
         }
       }
+    }
+
+    if (hasAudioSegmentsInsertError) {
+      notify.warning("Sessão salva com pendências", {
+        description: "Alguns segmentos de áudio não foram salvos. Os exercícios da sessão foram preservados.",
+      });
     }
 
     setSelectedStudents([]);
