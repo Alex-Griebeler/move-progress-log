@@ -99,6 +99,7 @@ Levar o app para estado operacional estavel no escopo atual, sem introduzir nova
   - `npm run verify:essential`: PASS
 
 ## Pendencias que ainda dependem de validacao manual
+0. Configurar secret de runtime `PUBLIC_APP_URL` com o dominio publico final do app (ex.: `https://move-progress-log.lovable.app`) para forcar convite Oura no dominio canonico.
 1. Importacao de sessao via Excel (novo + duplicado) em UI autenticada.
 2. Geracao de relatorio em `/alunos/:id/relatorios`.
 3. Exportacao PDF do relatorio.
