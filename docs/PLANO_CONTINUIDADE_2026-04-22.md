@@ -82,6 +82,22 @@ Levar o app para estado operacional estavel no escopo atual, sem introduzir nova
   - `npm run verify:essential`: PASS
   - `npm run verify:query-safety`: PASS
 
+## Atualizacao de status (2026-04-29 - convite Oura/canonical)
+- Correcao aplicada no resolvedor de origem dos convites e callback Oura:
+  - `generate-oura-connect-link`, `generate-student-invite` e `oura-callback` agora priorizam dominio canonico (`PUBLIC_APP_URL`/`APP_PUBLIC_URL`) quando configurado.
+  - `SITE_URL` continua suportado como fallback.
+  - dominios `id-preview--*.lovable.app` passaram a ser fallback de ultima opcao (quando nao houver origem publica melhor).
+- Resultado pratico:
+  - reduz risco de envio de convite em dominio tecnico de preview;
+  - reduz risco de retorno do callback para dominio nao desejado;
+  - mantem compatibilidade com fluxo atual sem expandir escopo funcional.
+- Revalidacao local:
+  - `npm run lint`: PASS
+  - `npx tsc --noEmit`: PASS
+  - `npm run test -- --run`: PASS
+  - `npm run build`: PASS
+  - `npm run verify:essential`: PASS
+
 ## Pendencias que ainda dependem de validacao manual
 1. Importacao de sessao via Excel (novo + duplicado) em UI autenticada.
 2. Geracao de relatorio em `/alunos/:id/relatorios`.
