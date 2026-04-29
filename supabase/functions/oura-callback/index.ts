@@ -36,6 +36,20 @@ const isIdPreviewOrigin = (origin: string): boolean => {
   }
 };
 
+const toPreviewOrigin = (origin: string): string | null => {
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname.toLowerCase();
+    if (!host.startsWith(LOVABLE_ID_PREVIEW_PREFIX) || !host.endsWith(LOVABLE_PREVIEW_SUFFIX)) {
+      return origin;
+    }
+    const previewHost = host.replace(LOVABLE_ID_PREVIEW_PREFIX, 'preview--');
+    return `${parsed.protocol}//${previewHost}${parsed.port ? `:${parsed.port}` : ''}`;
+  } catch (_error) {
+    return null;
+  }
+};
+
 const isTrustedOrigin = (origin: string, canonicalOrigin: string | null): boolean => {
   try {
     const parsed = new URL(origin);
@@ -73,25 +87,32 @@ const resolveFrontendUrl = (req: Request, encodedStateOrigin?: string | null): s
   const trustedOrigins = uniqueOrigins.filter((origin) =>
     isTrustedOrigin(origin, canonicalOrigin)
   );
+  const normalizedTrustedOrigins = Array.from(
+    new Set(
+      trustedOrigins
+        .map((origin) => toPreviewOrigin(origin))
+        .filter((origin): origin is string => Boolean(origin))
+    )
+  );
 
-  if (publicAppOrigin && trustedOrigins.includes(publicAppOrigin)) {
+  if (publicAppOrigin && normalizedTrustedOrigins.includes(publicAppOrigin)) {
     return publicAppOrigin;
   }
 
-  if (siteUrlOrigin && trustedOrigins.includes(siteUrlOrigin) && !isIdPreviewOrigin(siteUrlOrigin)) {
+  if (siteUrlOrigin && normalizedTrustedOrigins.includes(siteUrlOrigin) && !isIdPreviewOrigin(siteUrlOrigin)) {
     return siteUrlOrigin;
   }
 
-  const firstNonIdPreview = trustedOrigins.find((origin) => !isIdPreviewOrigin(origin));
+  const firstNonIdPreview = normalizedTrustedOrigins.find((origin) => !isIdPreviewOrigin(origin));
   if (firstNonIdPreview) {
     return firstNonIdPreview;
   }
 
-  if (siteUrlOrigin && trustedOrigins.includes(siteUrlOrigin)) {
+  if (siteUrlOrigin && normalizedTrustedOrigins.includes(siteUrlOrigin)) {
     return siteUrlOrigin;
   }
 
-  return trustedOrigins[0] ?? null;
+  return normalizedTrustedOrigins[0] ?? null;
 };
 
 Deno.serve(async (req) => {
