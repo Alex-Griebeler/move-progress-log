@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { getPreferredFrontendOrigin } from "@/utils/frontendOrigin";
 
 export const useGenerateInvite = () => {
   const queryClient = useQueryClient();
@@ -21,7 +22,7 @@ export const useGenerateInvite = () => {
           body: {
             email,
             expires_in_days,
-            frontend_origin: window.location.origin,
+            frontend_origin: getPreferredFrontendOrigin(),
           },
         }
       );
