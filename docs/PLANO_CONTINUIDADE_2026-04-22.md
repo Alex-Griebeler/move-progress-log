@@ -66,6 +66,22 @@ Levar o app para estado operacional estavel no escopo atual, sem introduzir nova
   - `useStudentInvites` agora envia `frontend_origin` explicitamente;
   - reduz risco de convite sair com dominio errado fora do app real.
 
+## Atualizacao de status (2026-04-29)
+- Bloco automatico de erro silencioso em sessoes/prescricoes executado:
+  - `RecordGroupSessionDialog` agora mostra feedback acionavel nos cenarios antes silenciosos:
+    - falha ao carregar sessao existente na reabertura;
+    - falha de autoassociacao de alunos por audio;
+    - falha de vinculo de pos-processamento (observacoes/transcricoes);
+    - falha parcial ao salvar segmentos de audio.
+- Nenhuma regra funcional nova foi introduzida; apenas endurecimento de observabilidade/UX.
+- Revalidacao completa do lote:
+  - `npm run lint`: PASS
+  - `npx tsc --noEmit`: PASS
+  - `npm run test -- --run`: PASS
+  - `npm run build`: PASS
+  - `npm run verify:essential`: PASS
+  - `npm run verify:query-safety`: PASS
+
 ## Pendencias que ainda dependem de validacao manual
 1. Importacao de sessao via Excel (novo + duplicado) em UI autenticada.
 2. Geracao de relatorio em `/alunos/:id/relatorios`.
@@ -73,9 +89,8 @@ Levar o app para estado operacional estavel no escopo atual, sem introduzir nova
 4. Revisao visual final das abas de aluno com Oura.
 
 ## Proximo bloco automatico (sem depender do usuario)
-1. Revisar fluxos de erro silencioso restantes em sessoes/prescricoes (principalmente `catch` sem retorno acionavel para UI).
-2. Executar checklist manual final consolidado em `docs/SMOKE_MANUAL_FINAL_2026-04-22.md`.
-3. Preparar PR de fechamento do lote com escopo estritamente de estabilidade.
+1. Preparar PR de fechamento do lote com escopo estritamente de estabilidade.
+2. Consolidar checklist manual final em `docs/SMOKE_MANUAL_FINAL_2026-04-22.md` para execucao assistida.
 
 ## Regra de escopo para este ciclo
 - Sem expansao funcional nova.
