@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { getPreferredFrontendOrigin } from "@/utils/frontendOrigin";
 
 interface SendOuraConnectDialogProps {
   open: boolean;
@@ -38,7 +39,7 @@ export const SendOuraConnectDialog = ({
         {
           body: {
             student_id: studentId,
-            frontend_origin: window.location.origin,
+            frontend_origin: getPreferredFrontendOrigin(),
           },
         }
       );
