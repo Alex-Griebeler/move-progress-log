@@ -41,6 +41,31 @@ Deno.serve(async (req) => {
       console.log(`Admin ${userId} initiated Oura sync for all students`);
     }
 
+    let body: Record<string, unknown> = {};
+    const rawBody = await req.text();
+    if (rawBody.trim().length > 0) {
+      try {
+        const parsed = JSON.parse(rawBody);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          body = parsed as Record<string, unknown>;
+        } else {
+          return new Response(
+            JSON.stringify({ error: 'Invalid JSON body' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          );
+        }
+      } catch {
+        return new Response(
+          JSON.stringify({ error: 'Malformed JSON body' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        );
+      }
+    }
+
+    const dryRun =
+      body.dry_run === true ||
+      (typeof body.dry_run === 'string' && body.dry_run.toLowerCase() === 'true');
+
     // --- Sync Logic ---
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -65,6 +90,17 @@ Deno.serve(async (req) => {
     if (!connections || connections.length === 0) {
       return new Response(
         JSON.stringify({ message: 'No active Oura connections found', results: [] }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    if (dryRun) {
+      return new Response(
+        JSON.stringify({
+          dry_run: true,
+          message: `Dry-run OK: ${connections.length} active Oura connections ready for sync`,
+          total_connections: connections.length,
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }

@@ -57,9 +57,13 @@ Deno.serve(async (req) => {
       }
     }
     const schedule = typeof body.schedule === 'string' ? body.schedule : 'manual';
+    const dryRun =
+      body.dry_run === true ||
+      (typeof body.dry_run === 'string' && body.dry_run.toLowerCase() === 'true');
 
     console.log('🕐 === SCHEDULED OURA SYNC STARTED ===');
     console.log('Schedule:', schedule);
+    console.log('Dry run:', dryRun);
     console.log('Timestamp:', new Date().toISOString());
 
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -67,7 +71,7 @@ Deno.serve(async (req) => {
     // OA-03: Pass service role key as Authorization for oura-sync-all
     console.log('📞 Calling oura-sync-all function...');
     const { data, error } = await supabase.functions.invoke('oura-sync-all', {
-      body: {},
+      body: { dry_run: dryRun },
       headers: { Authorization: `Bearer ${supabaseKey}` }
     });
 
