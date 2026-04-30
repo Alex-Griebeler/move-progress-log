@@ -117,6 +117,15 @@ Levar o app para estado operacional estavel no escopo atual, sem introduzir nova
     - `dry_run` fast-path em `oura-sync-all` e propagacao em `oura-sync-scheduled`;
     - hardening adicional de dominio em convites/callback (`id-preview` -> `preview`) para reduzir convites em host tecnico.
 
+## Atualizacao de status (2026-04-30 - gate preventivo de auth)
+- Novo gate automatizado adicionado para evitar regressao em endpoints Edge com `verify_jwt=false`:
+  - script: `scripts/verify-edge-auth-guards.sh`
+  - npm script: `npm run verify:edge-auth`
+- Gate incorporado no fluxo `verify:essential`.
+- Resultado desta rodada:
+  - `verify:edge-auth`: PASS
+  - `verify:essential`: PASS (com `npm audit` em WARN local por indisponibilidade de rede no registry, sem achado funcional novo).
+
 ## Pendencias que ainda dependem de validacao manual
 0. Configurar secret de runtime `PUBLIC_APP_URL` com o dominio publico final do app (ex.: `https://move-progress-log.lovable.app`) para forcar convite Oura no dominio canonico.
 1. Importacao de sessao via Excel (novo + duplicado) em UI autenticada.

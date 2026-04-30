@@ -10,7 +10,10 @@ npm run test
 echo "==> [3/4] Build"
 npm run build
 
-echo "==> [4/4] Security audit (high)"
+echo "==> [4/5] Edge auth guard audit"
+bash ./scripts/verify-edge-auth-guards.sh
+
+echo "==> [5/5] Security audit (high)"
 AUDIT_OUTPUT_FILE="$(mktemp)"
 set +e
 npm audit --audit-level=high >"${AUDIT_OUTPUT_FILE}" 2>&1
