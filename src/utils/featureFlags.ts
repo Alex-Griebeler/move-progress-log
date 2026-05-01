@@ -7,3 +7,7 @@ export const isFeatureFlagEnabled = (value: unknown): boolean => {
 export const isExperimentalNavigationEnabled = (): boolean => {
   return isFeatureFlagEnabled(import.meta.env.VITE_SHOW_EXPERIMENTAL_NAV);
 };
+
+export const isDevToolsEnabled = (): boolean => {
+  return import.meta.env.DEV && isFeatureFlagEnabled(import.meta.env.VITE_SHOW_DEV_TOOLS);
+};

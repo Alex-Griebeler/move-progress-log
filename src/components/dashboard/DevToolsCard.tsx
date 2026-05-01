@@ -20,6 +20,7 @@ import { notify } from "@/lib/notify";
 import { useQueryClient } from "@tanstack/react-query";
 import { logger } from "@/utils/logger";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { isDevToolsEnabled } from "@/utils/featureFlags";
 
 export const DevToolsCard = () => {
   const [isPopulating, setIsPopulating] = useState(false);
@@ -58,7 +59,7 @@ export const DevToolsCard = () => {
     }
   };
 
-  if (!import.meta.env.DEV) return null;
+  if (!isDevToolsEnabled()) return null;
 
   return (
     <Card className="mb-6 border-dashed border-2 border-muted-foreground/20 bg-muted/30">
