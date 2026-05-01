@@ -355,14 +355,14 @@ export const SessionDetailDialog = ({
               {/* Lista de Exercícios */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Filter className="h-5 w-5" />
                       Exercícios Realizados
                     </CardTitle>
-                    <div className="flex items-center gap-2">
+                    <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
                       <Select value={movementPatternFilter} onValueChange={setMovementPatternFilter}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-full sm:w-[180px]">
                           <SelectValue placeholder="Padrão de movimento" />
                         </SelectTrigger>
                         <SelectContent>
@@ -378,7 +378,7 @@ export const SessionDetailDialog = ({
                         </SelectContent>
                       </Select>
                       <Select value={intensityFilter} onValueChange={setIntensityFilter}>
-                        <SelectTrigger className="w-[150px]">
+                        <SelectTrigger className="w-full sm:w-[150px]">
                           <SelectValue placeholder="Intensidade" />
                         </SelectTrigger>
                         <SelectContent>
@@ -399,77 +399,153 @@ export const SessionDetailDialog = ({
                         : "Nenhum exercício corresponde aos filtros selecionados."}
                     </p>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Exercício</TableHead>
-                            <TableHead className="text-center">Séries</TableHead>
-                            <TableHead className="text-center">Reps</TableHead>
-                            <TableHead className="text-center">Carga</TableHead>
-                            <TableHead className="text-center">Intensidade</TableHead>
-                            <TableHead>Observações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredExercises.map((exercise) => (
-                            <TableRow key={exercise.id}>
-                              <TableCell className="font-medium">
-                                {renderExerciseNameCell(exercise)}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {exercise.sets || "-"}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                {exercise.reps || "-"}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <div>
-                                  {(() => {
-                                    const resolvedLoad = resolveExerciseLoad(exercise);
-                                    return (
-                                      <>
-                                        <p className="font-medium">
-                                          {resolvedLoad.kg !== null
-                                            ? `${resolvedLoad.kg} kg`
-                                            : resolvedLoad.text || "-"}
-                                        </p>
-                                        {resolvedLoad.kg !== null && resolvedLoad.text && (
-                                          <p className="text-xs text-muted-foreground">
-                                            {resolvedLoad.text}
-                                          </p>
-                                        )}
-                                      </>
-                                    );
-                                  })()}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Badge 
-                                  variant={
-                                    getExerciseIntensity(exercise) === "alta" ? "destructive" : 
-                                    getExerciseIntensity(exercise) === "moderada" ? "default" : 
-                                    "secondary"
-                                  }
-                                  className="capitalize"
-                                >
-                                  {getExerciseIntensity(exercise)}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {exercise.observations ? (
-                                  <p className="text-sm text-muted-foreground max-w-xs truncate">
-                                    {exercise.observations}
+                    <>
+                      <div className="space-y-3 lg:hidden">
+                        {filteredExercises.map((exercise) => {
+                          const pattern = getExerciseMovementPattern(exercise.exercise_name);
+                          const resolvedLoad = resolveExerciseLoad(exercise);
+                          const intensity = getExerciseIntensity(exercise);
+
+                          return (
+                            <div key={exercise.id} className="rounded-lg border bg-muted/20 p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="font-semibold leading-tight">{exercise.exercise_name}</p>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    {pattern
+                                      ? formatMovementPatternLabel(pattern)
+                                      : exercisesLibrary
+                                      ? "Sem padrão cadastrado"
+                                      : "Carregando padrão..."}
                                   </p>
-                                ) : (
-                                  <span className="text-muted-foreground">-</span>
-                                )}
-                              </TableCell>
+                                </div>
+                                <div className="flex shrink-0 flex-col items-end gap-2">
+                                  {exercise.is_best_set && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Best Set
+                                    </Badge>
+                                  )}
+                                  <Badge
+                                    variant={
+                                      intensity === "alta"
+                                        ? "destructive"
+                                        : intensity === "moderada"
+                                        ? "default"
+                                        : "secondary"
+                                    }
+                                    className="capitalize"
+                                  >
+                                    {intensity}
+                                  </Badge>
+                                </div>
+                              </div>
+
+                              <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
+                                <div className="rounded-md bg-background/70 p-3">
+                                  <p className="text-xs text-muted-foreground">Séries</p>
+                                  <p className="mt-1 font-semibold">{exercise.sets || "-"}</p>
+                                </div>
+                                <div className="rounded-md bg-background/70 p-3">
+                                  <p className="text-xs text-muted-foreground">Reps</p>
+                                  <p className="mt-1 font-semibold">{exercise.reps || "-"}</p>
+                                </div>
+                                <div className="rounded-md bg-background/70 p-3">
+                                  <p className="text-xs text-muted-foreground">Carga</p>
+                                  <p className="mt-1 font-semibold">
+                                    {resolvedLoad.kg !== null
+                                      ? `${resolvedLoad.kg} kg`
+                                      : resolvedLoad.text || "-"}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {resolvedLoad.kg !== null && resolvedLoad.text && (
+                                <p className="mt-3 text-xs text-muted-foreground">{resolvedLoad.text}</p>
+                              )}
+
+                              {exercise.observations && (
+                                <div className="mt-3 rounded-md bg-background/70 p-3">
+                                  <p className="text-xs text-muted-foreground">Observações</p>
+                                  <p className="mt-1 text-sm">{exercise.observations}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="hidden overflow-x-auto lg:block">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Exercício</TableHead>
+                              <TableHead className="text-center">Séries</TableHead>
+                              <TableHead className="text-center">Reps</TableHead>
+                              <TableHead className="text-center">Carga</TableHead>
+                              <TableHead className="text-center">Intensidade</TableHead>
+                              <TableHead>Observações</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredExercises.map((exercise) => (
+                              <TableRow key={exercise.id}>
+                                <TableCell className="font-medium">
+                                  {renderExerciseNameCell(exercise)}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {exercise.sets || "-"}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {exercise.reps || "-"}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <div>
+                                    {(() => {
+                                      const resolvedLoad = resolveExerciseLoad(exercise);
+                                      return (
+                                        <>
+                                          <p className="font-medium">
+                                            {resolvedLoad.kg !== null
+                                              ? `${resolvedLoad.kg} kg`
+                                              : resolvedLoad.text || "-"}
+                                          </p>
+                                          {resolvedLoad.kg !== null && resolvedLoad.text && (
+                                            <p className="text-xs text-muted-foreground">
+                                              {resolvedLoad.text}
+                                            </p>
+                                          )}
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Badge
+                                    variant={
+                                      getExerciseIntensity(exercise) === "alta" ? "destructive" :
+                                      getExerciseIntensity(exercise) === "moderada" ? "default" :
+                                      "secondary"
+                                    }
+                                    className="capitalize"
+                                  >
+                                    {getExerciseIntensity(exercise)}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {exercise.observations ? (
+                                    <p className="text-sm text-muted-foreground max-w-xs truncate">
+                                      {exercise.observations}
+                                    </p>
+                                  ) : (
+                                    <span className="text-muted-foreground">-</span>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
