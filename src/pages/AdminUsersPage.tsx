@@ -47,6 +47,8 @@ interface UserWithRole {
   last_sign_in_at: string | null;
 }
 
+type SortField = 'name' | 'email' | 'role' | 'last_sign_in';
+
 const TRAINER_PROFILES_SELECT = "id, full_name, created_at, updated_at";
 
 const roleLabels: Record<string, string> = {
@@ -78,7 +80,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [sortField, setSortField] = useState<'name' | 'email' | 'role' | 'last_sign_in'>('name');
+  const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -174,7 +176,7 @@ export default function AdminUsersPage() {
     }
   }, [isAdmin]);
 
-  const handleSort = (field: typeof sortField) => {
+  const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
@@ -235,6 +237,34 @@ export default function AdminUsersPage() {
   const clearFilters = () => {
     setSearchTerm("");
     setRoleFilter("all");
+  };
+
+  const getSortAria = (field: SortField): "ascending" | "descending" | "none" =>
+    sortField === field ? (sortDirection === "asc" ? "ascending" : "descending") : "none";
+
+  const renderSortHeader = (field: SortField, label: string) => {
+    const isActive = sortField === field;
+    const directionLabel = sortDirection === "asc" ? "crescente" : "decrescente";
+
+    return (
+      <th scope="col" aria-sort={getSortAria(field)} className="p-0 text-left font-medium">
+        <button
+          type="button"
+          onClick={() => handleSort(field)}
+          className="flex w-full items-center gap-2 p-4 text-left font-medium transition-colors hover:bg-muted-foreground/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
+          <span>{label}</span>
+          <span aria-hidden="true" className="text-xs text-muted-foreground">
+            {isActive ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}
+          </span>
+          <span className="sr-only">
+            {isActive
+              ? `Ordenado em ordem ${directionLabel}. Clique para inverter.`
+              : "Clique para ordenar esta coluna."}
+          </span>
+        </button>
+      </th>
+    );
   };
 
   return (
@@ -331,35 +361,15 @@ export default function AdminUsersPage() {
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th 
-                        className="text-left p-4 font-medium cursor-pointer hover:bg-muted-foreground/10 select-none"
-                        onClick={() => handleSort('name')}
-                      >
-                        Nome {sortField === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th 
-                        className="text-left p-4 font-medium cursor-pointer hover:bg-muted-foreground/10 select-none"
-                        onClick={() => handleSort('email')}
-                      >
-                        Email {sortField === 'email' && (sortDirection === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th 
-                        className="text-left p-4 font-medium cursor-pointer hover:bg-muted-foreground/10 select-none"
-                        onClick={() => handleSort('role')}
-                      >
-                        Perfil {sortField === 'role' && (sortDirection === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th 
-                        className="text-left p-4 font-medium cursor-pointer hover:bg-muted-foreground/10 select-none"
-                        onClick={() => handleSort('last_sign_in')}
-                      >
-                        Último Acesso {sortField === 'last_sign_in' && (sortDirection === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th className="text-left p-4 font-medium">Ações</th>
-                    </tr>
-                  </thead>
+	                  <thead className="bg-muted">
+	                    <tr>
+	                      {renderSortHeader("name", "Nome")}
+	                      {renderSortHeader("email", "Email")}
+	                      {renderSortHeader("role", "Perfil")}
+	                      {renderSortHeader("last_sign_in", "Último Acesso")}
+	                      <th scope="col" className="text-left p-4 font-medium">Ações</th>
+	                    </tr>
+	                  </thead>
                   <tbody>
                      {filteredAndSortedUsers.map((user) => (
                       <tr key={user.id} className="border-t hover:bg-muted/50 transition-colors">
