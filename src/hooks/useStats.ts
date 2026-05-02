@@ -42,7 +42,10 @@ export const useStats = () => {
       if (activeStudentsError) throw activeStudentsError;
       const activeStudents = activeStudentsCount || 0;
       
-      // Carga média por sessão — evita truncamento silencioso por limite fixo
+      // Carga média por sessão — filtra pela DATA DA SESSÃO (workout_sessions.date),
+      // não por created_at do exercise. Importações em massa (Excel) e edições de
+      // sessões antigas geram registros em exercises com created_at recente; usar
+      // created_at distorcia o avgLoad do mês corrente. Paginação preserva escala.
       const exercises: Array<{ load_kg: number | null; session_id: string }> = [];
 
       for (let pageIndex = 0; pageIndex < MONTHLY_EXERCISES_MAX_PAGES; pageIndex += 1) {
@@ -51,9 +54,8 @@ export const useStats = () => {
 
         const { data: pageData, error: pageError } = await supabase
           .from("exercises")
-          .select("id, load_kg, session_id, created_at")
-          .gte("created_at", firstDayOfMonth)
-          .order("created_at", { ascending: false })
+          .select("id, load_kg, session_id, workout_sessions!inner(date)")
+          .gte("workout_sessions.date", firstDayOfMonth)
           .order("id", { ascending: false })
           .range(from, to);
 
