@@ -92,7 +92,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
         onError: (error) => {
           setSyncProgress(0);
           setSyncStatus("");
-          setSyncError(error.message);
+          setSyncError(error instanceof Error ? error.message : String(error));
           
           toast.dismiss(syncToastId);
           toast.error("Erro ao sincronizar Oura Ring", {
