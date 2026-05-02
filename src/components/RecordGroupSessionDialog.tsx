@@ -999,7 +999,7 @@ export function RecordGroupSessionDialog({
               </div>
               <div className="lg:col-span-3">
                 <MultiSegmentRecorder
-                  prescriptionId={prescriptionId || undefined}
+                  prescriptionId={effectivePrescriptionId || undefined}
                   selectedStudents={selectedStudents.map(s => ({ id: s.id, name: s.name, weight_kg: s.weight_kg }))}
                   date={date} time={time}
                   onComplete={(segments) => {
