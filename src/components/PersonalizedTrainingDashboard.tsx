@@ -674,18 +674,26 @@ const PersonalizedTrainingDashboard = ({
                 </p>
               )}
 
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">FC Média Dia</span>
-                <span className="font-semibold">
-                  {formatValue(latestAcuteMetrics?.hr_day_avg, "bpm", 0)}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Amostras FC Dia</span>
-                <span className="font-semibold">
-                  {latestAcuteMetrics?.samples_count_hr_day ?? "--"}
-                </span>
-              </div>
+              {hasAcuteHeartRateData ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">FC Média Dia</span>
+                    <span className="font-semibold">
+                      {formatValue(latestAcuteMetrics?.hr_day_avg, "bpm", 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amostras FC Dia</span>
+                    <span className="font-semibold">
+                      {latestAcuteMetrics?.samples_count_hr_day ?? "--"}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  FC aguda indisponível nesta conta Oura.
+                </p>
+              )}
             </div>
           </Card>
         )}
