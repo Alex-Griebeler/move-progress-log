@@ -51,7 +51,6 @@ import { ErrorState } from "@/components/ErrorState";
 import { PageLayout } from "@/components/PageLayout";
 import { StudentHeaderSkeleton } from "@/components/skeletons/StudentHeaderSkeleton";
 import { getObjectiveLabel } from "@/constants/objectives";
-import { logger } from "@/utils/logger";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
 
@@ -353,10 +352,7 @@ const StudentDetailPage = () => {
             assignments={assignments || []}
             latestOuraMetrics={latestOuraMetrics}
             ouraConnection={ouraConnection}
-            onNavigateToOura={() => {
-              const ouraTab = document.querySelector('[value="oura"]') as HTMLElement;
-              if (ouraTab) ouraTab.click();
-            }}
+            onNavigateToOura={() => setActiveTab("oura")}
           />
         </TabsContent>
 
@@ -456,10 +452,7 @@ const StudentDetailPage = () => {
                       });
                     }}
                     onFinalize={() => finalizeSession.mutate(session.id)}
-                    onClick={() => {
-                      logger.log("CLICOU NO CARD - Session ID:", session.id, "Session:", session);
-                      setSelectedSessionId(session.id);
-                    }}
+                    onClick={() => setSelectedSessionId(session.id)}
                   />
                 );
               })}
@@ -795,7 +788,6 @@ const StudentDetailPage = () => {
         sessionId={selectedSessionId}
         open={!!selectedSessionId}
         onOpenChange={(open) => {
-          logger.log("DIALOG ONCHANGE - open:", open, "selectedSessionId:", selectedSessionId);
           if (!open) setSelectedSessionId(null);
         }}
         onReopenSession={(sessionId) => {
