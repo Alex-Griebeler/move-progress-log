@@ -21,7 +21,7 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground shadow-sm hover:shadow-md hover:bg-secondary/80",
         
         // Tertiary action - ênfase baixa
-        outline: "border-2 border-input bg-background hover:bg-accent hover:text-accent-foreground hover:border-accent-foreground/20",
+        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:border-accent-foreground/20",
         
         // Minimal action - mínima ênfase
         ghost: "hover:bg-accent hover:text-accent-foreground",

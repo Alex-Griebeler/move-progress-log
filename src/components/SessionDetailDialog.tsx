@@ -450,18 +450,18 @@ export const SessionDetailDialog = ({
                               <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
                                 <div className="rounded-md bg-background/70 p-3">
                                   <p className="text-xs text-muted-foreground">Séries</p>
-                                  <p className="mt-1 font-semibold">{exercise.sets || "-"}</p>
+                                  <p className="mt-1 font-semibold">{exercise.sets || "—"}</p>
                                 </div>
                                 <div className="rounded-md bg-background/70 p-3">
                                   <p className="text-xs text-muted-foreground">Reps</p>
-                                  <p className="mt-1 font-semibold">{exercise.reps || "-"}</p>
+                                  <p className="mt-1 font-semibold">{exercise.reps || "—"}</p>
                                 </div>
                                 <div className="rounded-md bg-background/70 p-3">
                                   <p className="text-xs text-muted-foreground">Carga</p>
                                   <p className="mt-1 font-semibold">
                                     {resolvedLoad.kg !== null
                                       ? `${resolvedLoad.kg} kg`
-                                      : resolvedLoad.text || "-"}
+                                      : resolvedLoad.text || "—"}
                                   </p>
                                 </div>
                               </div>
@@ -500,10 +500,10 @@ export const SessionDetailDialog = ({
                                   {renderExerciseNameCell(exercise)}
                                 </TableCell>
                                 <TableCell className="text-center">
-                                  {exercise.sets || "-"}
+                                  {exercise.sets || "—"}
                                 </TableCell>
                                 <TableCell className="text-center">
-                                  {exercise.reps || "-"}
+                                  {exercise.reps || "—"}
                                 </TableCell>
                                 <TableCell className="text-center">
                                   <div>
@@ -514,7 +514,7 @@ export const SessionDetailDialog = ({
                                           <p className="font-medium">
                                             {resolvedLoad.kg !== null
                                               ? `${resolvedLoad.kg} kg`
-                                              : resolvedLoad.text || "-"}
+                                              : resolvedLoad.text || "—"}
                                           </p>
                                           {resolvedLoad.kg !== null && resolvedLoad.text && (
                                             <p className="text-xs text-muted-foreground">
@@ -544,7 +544,7 @@ export const SessionDetailDialog = ({
                                       {exercise.observations}
                                     </p>
                                   ) : (
-                                    <span className="text-muted-foreground">-</span>
+                                    <span className="text-muted-foreground">—</span>
                                   )}
                                 </TableCell>
                               </TableRow>

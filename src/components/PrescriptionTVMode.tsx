@@ -61,6 +61,9 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
 
   const groups = groupExercises(exercises);
   const intensityLabel = prescription.prescription_type === "individual" ? "Carga" : "PSE";
+  const hasAnyObservations = groups.some((g) =>
+    g.exercises.some((ex) => ex.observations?.trim())
+  );
 
   return createPortal(
     <div
@@ -106,7 +109,9 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                   <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">RR</th>
                 )}
                 <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">Método</th>
-                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">OBS</th>
+                {hasAnyObservations && (
+                  <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">OBS</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -170,9 +175,11 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                           )}
                         </td>
                       )}
-                      <td className="text-lg text-center max-w-md py-5 px-6 text-muted-foreground">
-                        {exercise.observations || "—"}
-                      </td>
+                      {hasAnyObservations && (
+                        <td className="text-lg text-center max-w-md py-5 px-6 text-muted-foreground">
+                          {exercise.observations || "—"}
+                        </td>
+                      )}
                     </tr>
                   );
                 })

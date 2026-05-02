@@ -23,9 +23,45 @@ const RecoveryProtocolCard = ({ protocol }: RecoveryProtocolCardProps) => {
     }
   };
 
+  const BENEFIT_LABELS_PT: Record<string, string> = {
+    energy: "Energia",
+    recovery: "Recuperação",
+    pain: "Dor",
+    sleep_quality: "Qualidade do Sono",
+    muscle_soreness: "Dor Muscular",
+    stress: "Estresse",
+    focus: "Foco",
+    anxiety: "Ansiedade",
+    mood: "Humor",
+    cortisol: "Cortisol",
+    hrv: "VFC",
+    inflammation: "Inflamação",
+    circulation: "Circulação",
+    detoxification: "Desintoxicação",
+    respiratory: "Respiratório",
+    skin_health: "Saúde da Pele",
+    relaxation: "Relaxamento",
+    immune_system: "Sistema Imunológico",
+    alertness: "Disposição",
+    stress_resilience: "Resiliência ao Estresse",
+    blood_pressure: "Pressão Arterial",
+    emotional_regulation: "Regulação Emocional",
+    body_awareness: "Consciência Corporal",
+    tension: "Tensão",
+    pain_management: "Manejo da Dor",
+    aerobic_capacity: "Capacidade Aeróbica",
+    fat_burning: "Queima de Gordura",
+    mitochondrial_health: "Saúde Mitocondrial",
+    mobility: "Mobilidade",
+    balance: "Equilíbrio",
+    cardiovascular: "Cardiovascular",
+  };
+
   const formatBenefits = (benefits: Record<string, string>) => {
     return Object.entries(benefits).map(([key, value]) => ({
-      key: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      key:
+        BENEFIT_LABELS_PT[key] ??
+        key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
       value: value === 'increase' ? '↑' : value === 'decrease' ? '↓' : value === 'improve' ? '⚡' : '✓'
     }));
   };
