@@ -377,14 +377,14 @@ export function ManualSessionEntry({
       <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
         <Button
           variant="outline"
-          size="sm"
+          size="default"
           onClick={goToPreviousStudent}
           disabled={currentStudentIndex === 0}
         >
           <ChevronLeft className="h-4 w-4 mr-2" />
           Anterior
         </Button>
-        
+
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
             Aluno {currentStudentIndex + 1} de {selectedStudents.length}
@@ -394,10 +394,10 @@ export function ManualSessionEntry({
             <p className="text-xs text-muted-foreground">Peso: {currentStudent.weight_kg} kg</p>
           )}
         </div>
-        
+
         <Button
           variant="outline"
-          size="sm"
+          size="default"
           onClick={goToNextStudent}
           disabled={currentStudentIndex === selectedStudents.length - 1}
         >
@@ -439,19 +439,19 @@ export function ManualSessionEntry({
                              variant="ghost"
                              size="sm"
                              onClick={() => openExerciseSelection(currentStudent.id, idx)}
-                             className="h-6 px-2 gap-1 text-primary hover:text-primary"
+                             className="h-9 px-3 gap-1 text-primary hover:text-primary"
                              title="Substituir por exercício cadastrado"
                            >
-                             <BookOpen className="h-3 w-3" />
+                             <BookOpen className="h-4 w-4" />
                              <span className="text-xs">Substituir</span>
                            </Button>
                            <Button
                              variant="ghost"
                              size="sm"
                              onClick={() => removeExercise(currentStudent.id, idx)}
-                             className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                             className="h-9 w-9 p-0 text-destructive hover:text-destructive"
                            >
-                             <Trash className="h-3 w-3" />
+                             <Trash className="h-4 w-4" />
                            </Button>
                          </div>
                        </div>

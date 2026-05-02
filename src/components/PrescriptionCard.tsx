@@ -106,6 +106,9 @@ const PrescriptionCardComponent = ({
   const { data: details, isLoading } = usePrescriptionDetails(prescription.id);
   const { data: folders } = useFolders();
   const [tvMode, setTvMode] = useState(false);
+  const hasAnyObservations = (details?.exercises || []).some(
+    (ex) => ex.observations?.trim()
+  );
 
   return (
     <Card className="animate-fade-in card-interactive">
@@ -130,7 +133,7 @@ const PrescriptionCardComponent = ({
           </div>
           <div className="flex gap-xs flex-wrap items-center">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               className="gap-2"
               onClick={() => setTvMode(true)}
@@ -158,7 +161,7 @@ const PrescriptionCardComponent = ({
               Atribuir
             </Button>
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
               className="gap-2"
               onClick={() => onAddSession(prescription.id)}
@@ -253,7 +256,9 @@ const PrescriptionCardComponent = ({
                     <TableHead className="font-semibold text-center uppercase tracking-wider">RR</TableHead>
                   )}
                   <TableHead className="font-semibold text-center uppercase tracking-wider">Método</TableHead>
-                  <TableHead className="font-semibold text-center uppercase tracking-wider">OBS</TableHead>
+                  {hasAnyObservations && (
+                    <TableHead className="font-semibold text-center uppercase tracking-wider">OBS</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -298,7 +303,7 @@ const PrescriptionCardComponent = ({
                               {intensityValue ? (
                                 <span className="text-sm font-medium">{intensityValue}</span>
                               ) : (
-                                <span className="text-muted-foreground">-</span>
+                                <span className="text-muted-foreground">—</span>
                               )}
                             </ExerciseLoadHistoryPopover>
                           </TableCell>
@@ -307,7 +312,7 @@ const PrescriptionCardComponent = ({
                               {exercise.rir ? (
                                 <span className="text-sm font-medium">{exercise.rir}</span>
                               ) : (
-                                <span className="text-muted-foreground">-</span>
+                                <span className="text-muted-foreground">—</span>
                               )}
                             </TableCell>
                           )}
@@ -318,13 +323,15 @@ const PrescriptionCardComponent = ({
                                   {exercise.training_method}
                                 </Badge>
                               ) : (
-                                <span className="text-muted-foreground">-</span>
+                                <span className="text-muted-foreground">—</span>
                               )}
                             </TableCell>
                           )}
-                          <TableCell className="text-sm text-muted-foreground text-center max-w-xs truncate">
-                            {exercise.observations || "-"}
-                          </TableCell>
+                          {hasAnyObservations && (
+                            <TableCell className="text-sm text-muted-foreground text-center max-w-xs truncate">
+                              {exercise.observations || "—"}
+                            </TableCell>
+                          )}
                         </TableRow>
                       );
                     });
