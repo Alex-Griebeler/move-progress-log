@@ -1056,7 +1056,7 @@ export function RecordGroupSessionDialog({
             prescriptionDetails={prescriptionDetails}
             selectedStudents={selectedStudents}
             date={date} time={time} trainer={trainer}
-            prescriptionId={prescriptionId || null}
+            prescriptionId={effectivePrescriptionId || null}
             onSave={handleSaveManual}
             onCancel={() => setDialogState('mode-selection')}
             onAddStudent={() => setShowAddStudentDialog(true)}
