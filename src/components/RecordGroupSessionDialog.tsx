@@ -12,7 +12,7 @@ import { MultiSegmentRecorder } from "./MultiSegmentRecorder";
 import { ManualSessionEntry } from "./ManualSessionEntry";
 import { SessionSetupForm } from "./SessionSetupForm";
 import { useStudents } from "@/hooks/useStudents";
-import { usePrescriptionAssignments } from "@/hooks/usePrescriptions";
+import { usePrescriptionAssignments, usePrescriptions } from "@/hooks/usePrescriptions";
 import { useCreateGroupWorkoutSessions } from "@/hooks/useWorkoutSessions";
 import { usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import type { AssignmentScheduleAdaptations } from "@/hooks/usePrescriptions";
@@ -264,6 +264,11 @@ export function RecordGroupSessionDialog({
   const [trainer, setTrainer] = useState<string>('');
   const [showValidation, setShowValidation] = useState(false);
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
+  const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
+
+  // When prop is provided (e.g. opened from /prescricoes), use it.
+  // Otherwise, the user must pick a prescription explicitly in the context-setup step.
+  const effectivePrescriptionId = prescriptionId ?? selectedPrescriptionId;
 
   // Shared hook for exercise replacement
   const {
@@ -275,8 +280,9 @@ export function RecordGroupSessionDialog({
   } = useExerciseReplacement(editableExercises, setEditableExercises);
 
   const { data: students } = useStudents();
-  const { data: assignments } = usePrescriptionAssignments(prescriptionId);
-  const { data: prescriptionDetails } = usePrescriptionDetails(prescriptionId);
+  const { data: prescriptionsList } = usePrescriptions();
+  const { data: assignments } = usePrescriptionAssignments(effectivePrescriptionId);
+  const { data: prescriptionDetails } = usePrescriptionDetails(effectivePrescriptionId);
   const createGroupSessions = useCreateGroupWorkoutSessions();
   
   useEffect(() => { logger.debug("Dialog State mudou para:", dialogState); }, [dialogState]);
@@ -592,14 +598,14 @@ export function RecordGroupSessionDialog({
   // ─── Save Logic ────────────────────────────────────────
 
   const handleSave = async () => {
-    if (mergedStudents.length === 0 || !prescriptionId) return;
+    if (mergedStudents.length === 0 || !effectivePrescriptionId) return;
 
     if (isReopening && reopenDate && normalizedReopenTime) {
       try {
         const { data: existingSessions, error: existingSessionsError } = await supabase
           .from('workout_sessions')
           .select('id')
-          .eq('prescription_id', prescriptionId)
+          .eq('prescription_id', effectivePrescriptionId)
           .eq('date', reopenDate)
           .eq('time', normalizedReopenTime);
         if (existingSessionsError) throw existingSessionsError;
@@ -631,7 +637,7 @@ export function RecordGroupSessionDialog({
       return { student_id: student.id, student_name: student.name, exercises: merged.exercises, clinical_observations: merged.clinical_observations || [] };
     }).filter((s): s is GroupSessionToSave => s !== null);
 
-    await createGroupSessions.mutateAsync({ prescriptionId, date, time, sessions: sessionsToSave });
+    await createGroupSessions.mutateAsync({ prescriptionId: effectivePrescriptionId, date, time, sessions: sessionsToSave });
 
     const sessionLookupStudentIds = selectedStudents.map((student) => student.id);
     const { data: savedSessions, error: savedSessionsError } = await supabase
@@ -748,7 +754,7 @@ export function RecordGroupSessionDialog({
       });
 
       for (const session of sessionsToCreate) {
-        const { data: workoutSession, error: sessionError } = await supabase.from("workout_sessions").insert({ student_id: session.student_id, prescription_id: prescriptionId, date, time, session_type: 'group', trainer_name: trainer, is_finalized: true, can_reopen: true }).select("id").single();
+        const { data: workoutSession, error: sessionError } = await supabase.from("workout_sessions").insert({ student_id: session.student_id, prescription_id: effectivePrescriptionId, date, time, session_type: 'group', trainer_name: trainer, is_finalized: true, can_reopen: true }).select("id").single();
         if (sessionError) throw sessionError;
         const exercisesToInsert = session.exercises.map((ex) => ({ session_id: workoutSession.id, exercise_name: ex.executed_exercise_name, sets: ex.sets, reps: ex.reps, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown, observations: ex.observations || null }));
         const { error: exercisesError } = await supabase.from("exercises").insert(exercisesToInsert);
@@ -779,16 +785,20 @@ export function RecordGroupSessionDialog({
   // ─── Close Protection ────────────────────────────────────────
 
   const handleCloseAttempt = (shouldClose: boolean) => {
-    if (dialogState === 'manual-entry' && hasUnsavedChanges({ date, time, trainer, prescriptionId, selectedStudents, studentExercises: {} })) {
+    if (dialogState === 'manual-entry' && hasUnsavedChanges({ date, time, trainer, prescriptionId: effectivePrescriptionId, selectedStudents, studentExercises: {} })) {
       const confirmed = window.confirm('⚠️ Você tem alterações não salvas. Seu rascunho foi salvo automaticamente e estará disponível quando você reabrir. Deseja sair mesmo assim?');
       if (!confirmed) return;
+    }
+    if (!shouldClose) {
+      // Reset internal prescription selection so the next open starts clean
+      setSelectedPrescriptionId(null);
     }
     onOpenChange(shouldClose);
   };
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (dialogState === 'manual-entry' && hasUnsavedChanges({ date, time, trainer, prescriptionId, selectedStudents, studentExercises: {} })) {
+      if (dialogState === 'manual-entry' && hasUnsavedChanges({ date, time, trainer, prescriptionId: effectivePrescriptionId, selectedStudents, studentExercises: {} })) {
         e.preventDefault();
         e.returnValue = '';
       }
@@ -797,7 +807,7 @@ export function RecordGroupSessionDialog({
       window.addEventListener('beforeunload', handleBeforeUnload);
       return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }
-  }, [open, dialogState, date, time, trainer, prescriptionId, selectedStudents, hasUnsavedChanges]);
+  }, [open, dialogState, date, time, trainer, effectivePrescriptionId, selectedStudents, hasUnsavedChanges]);
 
   // Auto-select students
   useEffect(() => {
@@ -888,9 +898,46 @@ export function RecordGroupSessionDialog({
         </DialogHeader>
 
         {dialogState === 'context-setup' && (
-          <SessionSetupForm date={date} time={time} trainerName={trainer} selectedStudents={selectedStudents}
-            onDateChange={setDate} onTimeChange={setTime} onTrainerNameChange={setTrainer}
-            onStudentToggle={toggleStudent} prescriptionId={prescriptionId} showValidation={showValidation} />
+          <div className="space-y-6">
+            {!prescriptionId && (
+              <div className="space-y-2">
+                <Label htmlFor="prescription-select">Prescrição *</Label>
+                <Select
+                  value={selectedPrescriptionId ?? ''}
+                  onValueChange={(value) => {
+                    setSelectedPrescriptionId(value);
+                    // Reset selected students when prescription changes to avoid mismatched assignments
+                    setSelectedStudents([]);
+                    setHasAutoSelected(false);
+                  }}
+                >
+                  <SelectTrigger
+                    id="prescription-select"
+                    className={showValidation && !selectedPrescriptionId ? 'border-destructive' : ''}
+                  >
+                    <SelectValue placeholder="Selecione uma prescrição em grupo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(prescriptionsList ?? [])
+                      .filter((p) => p.prescription_type === 'group')
+                      .map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name}
+                          {p.assigned_students_count > 0 ? ` · ${p.assigned_students_count} aluno(s)` : ''}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Os alunos atribuídos à prescrição aparecem destacados na lista abaixo.
+                </p>
+              </div>
+            )}
+
+            <SessionSetupForm date={date} time={time} trainerName={trainer} selectedStudents={selectedStudents}
+              onDateChange={setDate} onTimeChange={setTime} onTrainerNameChange={setTrainer}
+              onStudentToggle={toggleStudent} prescriptionId={effectivePrescriptionId} showValidation={showValidation} />
+          </div>
         )}
 
         {dialogState === 'mode-selection' && (
@@ -952,7 +999,7 @@ export function RecordGroupSessionDialog({
               </div>
               <div className="lg:col-span-3">
                 <MultiSegmentRecorder
-                  prescriptionId={prescriptionId || undefined}
+                  prescriptionId={effectivePrescriptionId || undefined}
                   selectedStudents={selectedStudents.map(s => ({ id: s.id, name: s.name, weight_kg: s.weight_kg }))}
                   date={date} time={time}
                   onComplete={(segments) => {
@@ -1009,7 +1056,7 @@ export function RecordGroupSessionDialog({
             prescriptionDetails={prescriptionDetails}
             selectedStudents={selectedStudents}
             date={date} time={time} trainer={trainer}
-            prescriptionId={prescriptionId || null}
+            prescriptionId={effectivePrescriptionId || null}
             onSave={handleSaveManual}
             onCancel={() => setDialogState('mode-selection')}
             onAddStudent={() => setShowAddStudentDialog(true)}
@@ -1096,9 +1143,13 @@ export function RecordGroupSessionDialog({
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
               <Button onClick={() => {
-                if (!date || !time || !trainer || selectedStudents.length === 0) {
+                if (!date || !time || !trainer || selectedStudents.length === 0 || !effectivePrescriptionId) {
                   setShowValidation(true);
-                  notify.error("Preencha todos os campos obrigatórios");
+                  notify.error(
+                    !effectivePrescriptionId
+                      ? "Selecione uma prescrição antes de continuar"
+                      : "Preencha todos os campos obrigatórios"
+                  );
                   return;
                 }
                 setShowValidation(false);
