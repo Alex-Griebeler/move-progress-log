@@ -53,6 +53,7 @@ import { StudentHeaderSkeleton } from "@/components/skeletons/StudentHeaderSkele
 import { getObjectiveLabel } from "@/constants/objectives";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
+import { formatFitnessLevel } from "@/utils/formatStudent";
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -219,13 +220,13 @@ const StudentDetailPage = () => {
                   {/* Badges Row com stagger animation */}
                   <div className="flex flex-wrap gap-xs">
                     {student.fitness_level && (
-                      <Badge 
-                        variant="secondary" 
+                      <Badge
+                        variant="secondary"
                         className="gap-xs animate-fade-in"
                         style={{ animationDelay: '0ms' }}
                       >
                         <TrendingUp className="h-3 w-3" />
-                        {student.fitness_level}
+                        {formatFitnessLevel(student.fitness_level)}
                       </Badge>
                     )}
                     {ouraConnection?.is_active && (
