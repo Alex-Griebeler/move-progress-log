@@ -134,11 +134,7 @@ export const NAV_LABELS = {
   statWeekAdherence: "Adesão da semana",
   statPrescriptionsStagnant: "Prescrições estagnadas",
 
-  // Stats cards (legacy — preserved for other screens)
-  statTotalSessions: "Sessões registradas",
-  statThisMonth: "Este mês",
-  statActiveStudents: "Alunos ativos",
-  statAvgLoad: "Carga média",
+  // Stats cards (admin/users — kept until admin dashboard cleanup)
   statTotalUsers: "Total de usuários",
   statAdmins: "Administradores",
   statModerators: "Treinadores",
