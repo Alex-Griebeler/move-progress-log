@@ -2258,7 +2258,14 @@ export type Database = {
         Returns: boolean
       }
       cleanup_rate_limit_attempts: { Args: never; Returns: undefined }
+      compute_week_adherence: { Args: never; Returns: Json }
       count_active_students: { Args: { p_since: string }; Returns: number }
+      count_prescriptions_stagnant: {
+        Args: { p_weeks: number }
+        Returns: number
+      }
+      count_students_frequency_dropping: { Args: never; Returns: number }
+      count_students_inactive: { Args: { p_days: number }; Returns: number }
       delete_prescription_cascade: {
         Args: { p_prescription_id: string }
         Returns: undefined
