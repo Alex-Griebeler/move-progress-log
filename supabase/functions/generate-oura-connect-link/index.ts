@@ -62,13 +62,18 @@ function isTrustedOrigin(origin: string, canonicalOrigin: string | null): boolea
       return false;
     }
 
+    // PUBLIC_APP_URL / SITE_URL is always honored, even if it points to a
+    // dev host. This is an explicit operator override.
     if (canonicalOrigin && origin === canonicalOrigin) return true;
 
-    return (
-      host.endsWith(LOVABLE_PREVIEW_SUFFIX) ||
-      host === 'localhost' ||
-      host === '127.0.0.1'
-    );
+    // Invite links are sent to a third party (the student). localhost and
+    // 127.0.0.1 are unreachable from anywhere except the trainer's own
+    // machine, so they MUST NOT win automatic origin resolution — even
+    // when the trainer is testing from a Vite dev server inside the
+    // Lovable preview iframe (which makes window.location.origin become
+    // http://localhost:5173). The only allowed automatic fallback is a
+    // *.lovable.app host.
+    return host.endsWith(LOVABLE_PREVIEW_SUFFIX);
   } catch (_error) {
     return false;
   }
@@ -218,10 +223,19 @@ Deno.serve(async (req) => {
     // Resolve only trusted public app origins. Never fallback to editor/local silently.
     const baseUrl = resolveFrontendUrl(req, frontend_origin);
     if (!baseUrl) {
+      console.error(
+        '[generate-oura-connect-link] No trusted public origin resolved.',
+        {
+          publicAppUrlSet: Boolean(Deno.env.get('PUBLIC_APP_URL') ?? Deno.env.get('APP_PUBLIC_URL')),
+          siteUrlSet: Boolean(Deno.env.get('SITE_URL')),
+          frontendOrigin: frontend_origin,
+          requestOrigin: req.headers.get('origin'),
+        }
+      );
       return jsonResponse(
         {
           error:
-            'Não foi possível determinar a URL pública do app para gerar o convite Oura. Configure PUBLIC_APP_URL (ou SITE_URL) ou envie frontend_origin válido.',
+            'Não foi possível determinar a URL pública do app para gerar o convite Oura. Configure PUBLIC_APP_URL (ex.: https://move-progress-log.lovable.app) nos secrets do Supabase.',
         },
         400
       );
