@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
@@ -65,7 +65,7 @@ import { EditSessionDialog } from "@/components/EditSessionDialog";
 import EmptyState from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
-import { NAV_LABELS } from "@/constants/navigation";
+import { NAV_LABELS, ROUTES } from "@/constants/navigation";
 import { cn } from "@/lib/utils";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
@@ -82,6 +82,7 @@ export default function SessionsPage() {
     url: true,
   });
 
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Filters state
@@ -762,7 +763,8 @@ export default function SessionsPage() {
                   variant="outline"
                   className="w-full justify-start"
                   onClick={() => {
-                    window.location.href = `/alunos/${student.id}`;
+                    setStudentSelectionOpen(false);
+                    navigate(ROUTES.studentDetail(student.id));
                   }}
                 >
                   <Avatar className="h-8 w-8 mr-2">
