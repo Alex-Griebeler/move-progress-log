@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { resolveFrontendUrl } from '../_shared/frontendOrigin.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,24 +15,11 @@ const jsonHeaders = {
 const DEFAULT_EXPIRY_DAYS = 7;
 const MIN_EXPIRY_DAYS = 1;
 const MAX_EXPIRY_DAYS = 30;
-const LOVABLE_PREVIEW_SUFFIX = '.lovable.app';
-const LOVABLE_ID_PREVIEW_PREFIX = 'id-preview--';
-const LOVABLE_EDITOR_HOSTS = new Set(['lovable.dev', 'www.lovable.dev']);
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function jsonResponse(payload: unknown, status = 200) {
   return new Response(JSON.stringify(payload), { headers: jsonHeaders, status });
-}
-
-function toOrigin(rawUrl: string | null) {
-  if (!rawUrl) return null;
-
-  try {
-    return new URL(rawUrl).origin;
-  } catch (_error) {
-    return null;
-  }
 }
 
 function clampInviteExpiry(rawValue: unknown) {
@@ -55,102 +43,6 @@ function normalizeInviteEmail(rawValue: unknown) {
   }
 
   return normalized;
-}
-
-function isIdPreviewOrigin(origin: string): boolean {
-  try {
-    const host = new URL(origin).hostname.toLowerCase();
-    return host.startsWith(LOVABLE_ID_PREVIEW_PREFIX) && host.endsWith(LOVABLE_PREVIEW_SUFFIX);
-  } catch (_error) {
-    return false;
-  }
-}
-
-function toPreviewOrigin(origin: string): string | null {
-  try {
-    const parsed = new URL(origin);
-    const host = parsed.hostname.toLowerCase();
-    if (!host.startsWith(LOVABLE_ID_PREVIEW_PREFIX) || !host.endsWith(LOVABLE_PREVIEW_SUFFIX)) {
-      return origin;
-    }
-    const previewHost = host.replace(LOVABLE_ID_PREVIEW_PREFIX, 'preview--');
-    return `${parsed.protocol}//${previewHost}${parsed.port ? `:${parsed.port}` : ''}`;
-  } catch (_error) {
-    return null;
-  }
-}
-
-function isTrustedOrigin(origin: string, canonicalOrigin: string | null): boolean {
-  try {
-    const parsed = new URL(origin);
-    const host = parsed.hostname.toLowerCase();
-
-    if (LOVABLE_EDITOR_HOSTS.has(host)) {
-      return false;
-    }
-
-    // PUBLIC_APP_URL / SITE_URL is always honored, even if it points to a
-    // dev host. Explicit operator override.
-    if (canonicalOrigin && origin === canonicalOrigin) return true;
-
-    // Invite links go to a third party (the student). localhost/127.0.0.1
-    // are unreachable from anywhere except the trainer's own machine, so
-    // they MUST NOT win automatic origin resolution. Same defense as
-    // generate-oura-connect-link.
-    return host.endsWith(LOVABLE_PREVIEW_SUFFIX);
-  } catch (_error) {
-    return false;
-  }
-}
-
-function resolveFrontendUrl(req: Request, bodyFrontendOrigin: string | null) {
-  const publicAppOrigin = toOrigin(
-    Deno.env.get('PUBLIC_APP_URL') ??
-    Deno.env.get('APP_PUBLIC_URL') ??
-    null
-  );
-  // PUBLIC_APP_URL has absolute priority when configured. It must never be
-  // overridden by request headers (Origin/Referer), body frontend_origin or
-  // SITE_URL. This guarantees invite links always point to the canonical
-  // public domain even when the request originates from the editor preview
-  // or a localhost dev server.
-  if (publicAppOrigin) {
-    return publicAppOrigin;
-  }
-  const siteUrlOrigin = toOrigin(Deno.env.get('SITE_URL') ?? null);
-  const canonicalOrigin = siteUrlOrigin;
-  const requestOrigins = [
-    toOrigin(bodyFrontendOrigin),
-    siteUrlOrigin,
-    toOrigin(req.headers.get('origin')),
-    toOrigin(req.headers.get('referer')),
-  ].filter((origin): origin is string => Boolean(origin));
-  const uniqueOrigins = Array.from(new Set(requestOrigins));
-  const trustedOrigins = uniqueOrigins.filter((origin) =>
-    isTrustedOrigin(origin, canonicalOrigin)
-  );
-  const normalizedTrustedOrigins = Array.from(
-    new Set(
-      trustedOrigins
-        .map((origin) => toPreviewOrigin(origin))
-        .filter((origin): origin is string => Boolean(origin))
-    )
-  );
-
-  if (siteUrlOrigin && normalizedTrustedOrigins.includes(siteUrlOrigin) && !isIdPreviewOrigin(siteUrlOrigin)) {
-    return siteUrlOrigin;
-  }
-
-  const firstNonIdPreview = normalizedTrustedOrigins.find((origin) => !isIdPreviewOrigin(origin));
-  if (firstNonIdPreview) {
-    return firstNonIdPreview;
-  }
-
-  if (siteUrlOrigin && normalizedTrustedOrigins.includes(siteUrlOrigin)) {
-    return siteUrlOrigin;
-  }
-
-  return normalizedTrustedOrigins[0] ?? null;
 }
 
 Deno.serve(async (req) => {
