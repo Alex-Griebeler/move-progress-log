@@ -1,19 +1,8 @@
+import { resolveFrontendUrl as sharedResolveFrontendUrl } from '../_shared/frontendOrigin.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
-
-const LOVABLE_PREVIEW_SUFFIX = '.lovable.app';
-const LOVABLE_ID_PREVIEW_PREFIX = 'id-preview--';
-const LOVABLE_EDITOR_HOSTS = new Set(['lovable.dev', 'www.lovable.dev']);
-
-const toOrigin = (rawUrl: string | null): string | null => {
-  if (!rawUrl) return null;
-  try {
-    return new URL(rawUrl).origin;
-  } catch (_error) {
-    return null;
-  }
 };
 
 const decodeBase64Url = (value: string): string | null => {
@@ -27,96 +16,17 @@ const decodeBase64Url = (value: string): string | null => {
   }
 };
 
-const isIdPreviewOrigin = (origin: string): boolean => {
-  try {
-    const host = new URL(origin).hostname.toLowerCase();
-    return host.startsWith(LOVABLE_ID_PREVIEW_PREFIX) && host.endsWith(LOVABLE_PREVIEW_SUFFIX);
-  } catch (_error) {
-    return false;
-  }
-};
-
-const toPreviewOrigin = (origin: string): string | null => {
-  try {
-    const parsed = new URL(origin);
-    const host = parsed.hostname.toLowerCase();
-    if (!host.startsWith(LOVABLE_ID_PREVIEW_PREFIX) || !host.endsWith(LOVABLE_PREVIEW_SUFFIX)) {
-      return origin;
-    }
-    const previewHost = host.replace(LOVABLE_ID_PREVIEW_PREFIX, 'preview--');
-    return `${parsed.protocol}//${previewHost}${parsed.port ? `:${parsed.port}` : ''}`;
-  } catch (_error) {
-    return null;
-  }
-};
-
-const isTrustedOrigin = (origin: string, canonicalOrigin: string | null): boolean => {
-  try {
-    const parsed = new URL(origin);
-    const host = parsed.hostname.toLowerCase();
-
-    if (LOVABLE_EDITOR_HOSTS.has(host)) return false;
-
-    // PUBLIC_APP_URL / SITE_URL is always honored when explicitly set.
-    if (canonicalOrigin && origin === canonicalOrigin) return true;
-
-    // OAuth callback redirects to a frontend that the user (the student
-    // who connected their Oura) needs to reach. localhost/127.0.0.1 are
-    // never reachable from a phone or another browser, so reject them
-    // from automatic origin resolution. Same defense as the invite-link
-    // generators (see generate-oura-connect-link).
-    return host.endsWith(LOVABLE_PREVIEW_SUFFIX);
-  } catch (_error) {
-    return false;
-  }
-};
-
-const resolveFrontendUrl = (req: Request, encodedStateOrigin?: string | null): string | null => {
-  const publicAppOrigin = toOrigin(
-    Deno.env.get('PUBLIC_APP_URL') ??
-    Deno.env.get('APP_PUBLIC_URL') ??
-    null
+// Wrapper that decodes the OAuth state's base64-url-encoded origin before
+// delegating to the shared resolver. Keeps the OAuth-specific decoding here
+// while the trust/canonicalization logic lives in `_shared/frontendOrigin`.
+const resolveFrontendUrl = (
+  req: Request,
+  encodedStateOrigin?: string | null,
+): string | null =>
+  sharedResolveFrontendUrl(
+    req,
+    decodeBase64Url(encodedStateOrigin ?? '') ?? null,
   );
-  // PUBLIC_APP_URL has absolute priority when configured. Never override with
-  // request headers, encoded state origin or SITE_URL.
-  if (publicAppOrigin) {
-    return publicAppOrigin;
-  }
-  const siteUrlOrigin = toOrigin(Deno.env.get('SITE_URL') ?? null);
-  const canonicalOrigin = siteUrlOrigin;
-  const candidates = [
-    toOrigin(decodeBase64Url(encodedStateOrigin ?? '') ?? null),
-    siteUrlOrigin,
-    toOrigin(req.headers.get('origin')),
-    toOrigin(req.headers.get('referer')),
-  ].filter((origin): origin is string => Boolean(origin));
-  const uniqueOrigins = Array.from(new Set(candidates));
-  const trustedOrigins = uniqueOrigins.filter((origin) =>
-    isTrustedOrigin(origin, canonicalOrigin)
-  );
-  const normalizedTrustedOrigins = Array.from(
-    new Set(
-      trustedOrigins
-        .map((origin) => toPreviewOrigin(origin))
-        .filter((origin): origin is string => Boolean(origin))
-    )
-  );
-
-  if (siteUrlOrigin && normalizedTrustedOrigins.includes(siteUrlOrigin) && !isIdPreviewOrigin(siteUrlOrigin)) {
-    return siteUrlOrigin;
-  }
-
-  const firstNonIdPreview = normalizedTrustedOrigins.find((origin) => !isIdPreviewOrigin(origin));
-  if (firstNonIdPreview) {
-    return firstNonIdPreview;
-  }
-
-  if (siteUrlOrigin && normalizedTrustedOrigins.includes(siteUrlOrigin)) {
-    return siteUrlOrigin;
-  }
-
-  return normalizedTrustedOrigins[0] ?? null;
-};
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
