@@ -16,6 +16,7 @@ import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { VoiceSessionRecorder } from "./VoiceSessionRecorder";
 import { format } from "date-fns";
 import { getCurrentSessionTimeHHmm } from "@/utils/sessionTime";
+import { matchesSearch } from "@/utils/searchNormalize";
 
 interface AddWorkoutSessionDialogProps {
   open: boolean;
@@ -55,9 +56,10 @@ export function AddWorkoutSessionDialog({ open, onOpenChange, prescriptionId }: 
   const handleVoiceData = (voiceData: { student_name: string; date: string; time: string; exercises: Array<{ name: string; reps?: number; load_kg?: number; load_breakdown?: string; observations?: string }> }) => {
     logger.log("Voice data received:", voiceData);
     
-    // Find student by name
-    const student = assignments?.find(a => 
-      a.student_name?.toLowerCase().includes(voiceData.student_name.toLowerCase())
+    // Find student by name (accent-insensitive — voice transcription may
+    // strip diacritics, e.g. "joao" should match "João").
+    const student = assignments?.find((a) =>
+      matchesSearch(a.student_name, voiceData.student_name),
     );
     
     if (student) {
