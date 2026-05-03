@@ -22,6 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { NAV_LABELS } from "@/constants/navigation";
+import { matchesSearch } from "@/utils/searchNormalize";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
@@ -284,9 +285,7 @@ const StudentsComparisonPage = () => {
 
   const filteredStudents = useMemo(() => {
     if (!searchQuery) return students || [];
-    return students?.filter((student) =>
-      student.name.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+    return students?.filter((student) => matchesSearch(student.name, searchQuery)) || [];
   }, [students, searchQuery]);
 
   const selectedStudentsData = useMemo(() => {
@@ -415,9 +414,7 @@ const StudentsComparisonPage = () => {
                     <ScrollArea className="h-[280px]">
                       <div className="p-2 space-y-1">
                         {exercises
-                          ?.filter((ex) =>
-                            ex.name.toLowerCase().includes(exerciseSearchQuery.toLowerCase())
-                          )
+                          ?.filter((ex) => matchesSearch(ex.name, exerciseSearchQuery))
                           .map((exercise) => (
                             <div
                               key={exercise.id}

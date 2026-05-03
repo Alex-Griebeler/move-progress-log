@@ -66,6 +66,7 @@ import EmptyState from "@/components/EmptyState";
 import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
 import { NAV_LABELS, ROUTES } from "@/constants/navigation";
+import { matchesSearch } from "@/utils/searchNormalize";
 import { cn } from "@/lib/utils";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
@@ -161,22 +162,18 @@ export default function SessionsPage() {
 
   const reopenMutation = useReopenWorkoutSession();
 
-  // Filter student list based on search
+  // Filter student list based on search (accent-insensitive)
   const filteredStudents = useMemo(() => {
     if (!students) return [];
     if (!studentSearchTerm) return students;
-    return students.filter(s => 
-      s.name.toLowerCase().includes(studentSearchTerm.toLowerCase())
-    );
+    return students.filter((s) => matchesSearch(s.name, studentSearchTerm));
   }, [students, studentSearchTerm]);
 
-  // Filter prescription list based on search
+  // Filter prescription list based on search (accent-insensitive)
   const filteredPrescriptions = useMemo(() => {
     if (!prescriptions) return [];
     if (!prescriptionSearchTerm) return prescriptions;
-    return prescriptions.filter(p => 
-      p.name.toLowerCase().includes(prescriptionSearchTerm.toLowerCase())
-    );
+    return prescriptions.filter((p) => matchesSearch(p.name, prescriptionSearchTerm));
   }, [prescriptions, prescriptionSearchTerm]);
 
   // Calculate total volume for a session

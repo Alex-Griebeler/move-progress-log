@@ -32,6 +32,7 @@ import {
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
+import { matchesSearch } from "@/utils/searchNormalize";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { AddUserDialog } from "@/components/AddUserDialog";
 import { EditUserDialog } from "@/components/EditUserDialog";
@@ -187,10 +188,11 @@ export default function AdminUsersPage() {
 
   const filteredAndSortedUsers = users
     .filter(user => {
-      const matchesSearch = user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesQuery =
+        matchesSearch(user.full_name, searchTerm) ||
+        matchesSearch(user.email, searchTerm);
       const matchesRole = roleFilter === "all" || user.role === roleFilter;
-      return matchesSearch && matchesRole;
+      return matchesQuery && matchesRole;
     })
     .sort((a, b) => {
       let comparison = 0;

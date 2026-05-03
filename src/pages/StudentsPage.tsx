@@ -30,6 +30,7 @@ import {
 import { useStudentsCardData, StudentCardData } from "@/hooks/useStudentsCardData";
 import { useStudentsActivityFilter, type StudentsActivityFilter } from "@/hooks/useStudentsActivityFilter";
 import type { Student } from "@/hooks/useStudents";
+import { matchesSearch } from "@/utils/searchNormalize";
 import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
@@ -357,9 +358,9 @@ const StudentsPage = () => {
     activityFilter.kind !== "none" && isActivityFilterLoading;
 
   const filteredStudents = students?.filter(student => {
-    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesName = matchesSearch(student.name, searchTerm);
     const matchesActivity = activityFilterSet ? activityFilterSet.has(student.id) : true;
-    return matchesSearch && matchesActivity;
+    return matchesName && matchesActivity;
   });
 
   const activityFilterCount = activityFilterSet?.size ?? null;

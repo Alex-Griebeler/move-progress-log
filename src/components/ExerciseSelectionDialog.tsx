@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Search, Sparkles, CheckCircle, XCircle } from "lucide-react";
+import { matchesSearch, normalizeForSearch } from "@/utils/searchNormalize";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
@@ -91,9 +92,10 @@ export function ExerciseSelectionDialog({
 
   // Smart sorting: same movement_pattern first, then same category, then rest
   const filteredExercises = (() => {
+    const normalizedCurrent = normalizeForSearch(currentExerciseName);
     const base = exercises?.filter(ex =>
-      ex.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      ex.name.toLowerCase() !== currentExerciseName.toLowerCase()
+      matchesSearch(ex.name, searchTerm) &&
+      normalizeForSearch(ex.name) !== normalizedCurrent
     ) || [];
 
     if (!initialMovementPattern && !initialCategory) {
