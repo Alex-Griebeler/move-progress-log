@@ -88,32 +88,26 @@ export const useDashboardKPIs = () => {
 
       const errors: DashboardKPIs["errors"] = {};
 
-      let inactive7d: number | null = null;
-      if (inactive.ok) {
-        if (typeof inactive.data === "number") inactive7d = inactive.data;
-      } else {
-        errors.inactive7d = inactive.errorName;
-      }
+      const extractNumber = (
+        result: RpcOk<number> | RpcErr,
+        key: DashboardKPIKey,
+      ): number | null => {
+        if (result.ok === false) {
+          errors[key] = result.errorName;
+          return null;
+        }
+        return typeof result.data === "number" ? result.data : null;
+      };
 
-      let frequencyDropping: number | null = null;
-      if (dropping.ok) {
-        if (typeof dropping.data === "number") frequencyDropping = dropping.data;
-      } else {
-        errors.frequencyDropping = dropping.errorName;
-      }
+      const inactive7d = extractNumber(inactive, "inactive7d");
+      const frequencyDropping = extractNumber(dropping, "frequencyDropping");
+      const stagnant4w = extractNumber(stagnant, "stagnant4w");
 
       let weekAdherence: DashboardKPIs["weekAdherence"] = null;
-      if (adherence.ok) {
-        if (isWeekAdherence(adherence.data)) weekAdherence = adherence.data;
-      } else {
+      if (adherence.ok === false) {
         errors.weekAdherence = adherence.errorName;
-      }
-
-      let stagnant4w: number | null = null;
-      if (stagnant.ok) {
-        if (typeof stagnant.data === "number") stagnant4w = stagnant.data;
-      } else {
-        errors.stagnant4w = stagnant.errorName;
+      } else if (isWeekAdherence(adherence.data)) {
+        weekAdherence = adherence.data;
       }
 
       return {
