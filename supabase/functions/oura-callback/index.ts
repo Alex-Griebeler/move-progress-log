@@ -5,6 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const decodeBase64Url = (value: string): string | null => {
   if (!value) return null;
   try {
@@ -53,6 +55,18 @@ Deno.serve(async (req) => {
       return new Response('Invalid state parameter', { status: 400 });
     }
 
+    // OCB-04: Validate UUID format on every id parsed from the state. The
+    // state echoes back to us via Oura, so we treat all of it as untrusted
+    // input. Reject before any DB query or redirect.
+    if (!UUID_RE.test(student_id)) {
+      console.error('OCB-04: Invalid student_id format in state');
+      return new Response('Invalid OAuth state', { status: 400 });
+    }
+    if (invite_token && invite_token !== 'retry' && !UUID_RE.test(invite_token)) {
+      console.error('OCB-04: Invalid invite_token format in state');
+      return new Response('Invalid OAuth state', { status: 400 });
+    }
+
     // OCB-01: Validate state against database to prevent CSRF/state injection
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -65,7 +79,7 @@ Deno.serve(async (req) => {
       // Validate that this invite exists and belongs to this student
       const { data: invite, error: inviteError } = await supabaseValidationClient
         .from('student_invites')
-        .select('id, created_student_id')
+        .select('id, created_student_id, expires_at, is_used')
         .eq('id', invite_token)
         .single();
 
@@ -77,6 +91,22 @@ Deno.serve(async (req) => {
       // If student was already created, verify it matches the state
       if (invite.created_student_id && invite.created_student_id !== student_id) {
         console.error('OCB-01: State mismatch - student_id does not match invite');
+        return new Response('Invalid OAuth state', { status: 400 });
+      }
+
+      // OCB-05: Reject expired invites — even if signed correctly by Oura,
+      // an invite past expires_at must not be honored.
+      if (invite.expires_at && new Date(invite.expires_at).getTime() < Date.now()) {
+        console.error('OCB-05: Invite expired');
+        return new Response('Invalid OAuth state', { status: 400 });
+      }
+
+      // OCB-06: Reject replay — a state captured from a successful OAuth
+      // round-trip must not be re-usable. is_used is flipped by the Oura
+      // connect flow on success; a true value here means an attacker is
+      // replaying an old state.
+      if (invite.is_used === true) {
+        console.error('OCB-06: Invite already used (replay attempt)');
         return new Response('Invalid OAuth state', { status: 400 });
       }
     } else {
@@ -127,9 +157,27 @@ Deno.serve(async (req) => {
     });
 
     if (!tokenResponse.ok) {
+      // OCB-07: Do NOT log the raw response body — it can echo client_id
+      // (and rarely client_secret in misconfigurations) back from Oura's
+      // error envelope. Surface only status + parsed error fields.
       const errorText = await tokenResponse.text();
-      console.error('Oura token exchange failed:', errorText);
-      
+      let errorCode: string | null = null;
+      let errorDescription: string | null = null;
+      try {
+        const parsed = JSON.parse(errorText) as Record<string, unknown>;
+        if (typeof parsed.error === 'string') errorCode = parsed.error;
+        if (typeof parsed.error_description === 'string') {
+          errorDescription = parsed.error_description;
+        }
+      } catch (_parseError) {
+        // Non-JSON response — keep code/description null and only surface status.
+      }
+      console.error('Oura token exchange failed', {
+        status: tokenResponse.status,
+        errorCode,
+        errorDescription,
+      });
+
       return Response.redirect(
         `${frontendUrl}/onboarding/oura-error?student_id=${student_id}&reason=token_exchange`,
         302
