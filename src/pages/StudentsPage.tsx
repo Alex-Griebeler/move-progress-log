@@ -31,6 +31,7 @@ import { useStudentsCardData, StudentCardData } from "@/hooks/useStudentsCardDat
 import { useStudentsActivityFilter, type StudentsActivityFilter } from "@/hooks/useStudentsActivityFilter";
 import type { Student } from "@/hooks/useStudents";
 import { matchesSearch } from "@/utils/searchNormalize";
+import { formatFitnessLevel } from "@/utils/formatStudent";
 import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Input } from "@/components/ui/input";
@@ -127,8 +128,8 @@ const StudentCard = memo(({
               <div className="flex flex-col">
                 <span className="text-lg font-semibold">{student.name}</span>
                 {student.fitness_level && (
-                  <Badge variant="outline" className="text-xs capitalize w-fit mt-1 opacity-70">
-                    {student.fitness_level}
+                  <Badge variant="outline" className="text-xs w-fit mt-1 opacity-70">
+                    {formatFitnessLevel(student.fitness_level)}
                   </Badge>
                 )}
               </div>
