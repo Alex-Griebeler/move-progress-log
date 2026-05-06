@@ -1,0 +1,2 @@
+DELETE FROM public.exercises WHERE id IN ('88aa545f-89e1-48e6-939d-5fc7790cd62d','728d4424-b1b1-4360-9995-b46c7ad3702d');
+DELETE FROM public.workout_sessions WHERE student_id='f8c2ae99-037f-4769-ad66-567d8eb3f70d' AND date=CURRENT_DATE AND time='08:00' AND session_type='individual' AND NOT EXISTS (SELECT 1 FROM public.exercises e WHERE e.session_id = workout_sessions.id);
