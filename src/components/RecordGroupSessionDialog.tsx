@@ -55,6 +55,7 @@ import { PrescriptionSidebar } from "@/components/session/PrescriptionSidebar";
 
 interface PrescriptionExerciseDetail {
   id: string;
+  exercise_library_id?: string | null;
   exercise_name?: string;
   sets: string;
   reps: string;
@@ -77,8 +78,9 @@ interface PrescriptionDetailsData {
 interface ManualSavePayload {
   studentExercises: Array<{
     studentId: string;
-    exercises: Array<{
-      exercise_name: string;
+      exercises: Array<{
+        exercise_library_id?: string | null;
+        exercise_name: string;
       sets: number;
       reps: number;
       load_kg: number | null;
@@ -96,6 +98,7 @@ interface SessionQueryRow {
 
 interface ExerciseRow {
   id: string;
+  exercise_library_id: string | null;
   exercise_name: string;
   sets: number | null;
   reps: number | null;
@@ -194,6 +197,7 @@ function ManualEntryWithToggle({
 
   const exercises = prescriptionDetails?.exercises?.filter((ex) => ex.should_track !== false).map((ex) => ({
     id: ex.id, exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps,
+    exercise_library_id: ex.exercise_library_id ?? null,
     interval_seconds: ex.interval_seconds, pse: ex.pse, training_method: ex.training_method, observations: ex.observations,
     category: ex.category || null,
   })) || [];
@@ -770,7 +774,12 @@ export function RecordGroupSessionDialog({
           if (!ex.exercise_name || ex.exercise_name.trim() === '') validationErrors.push(`${studentName} - Exercício ${exIdx + 1}: nome obrigatório`);
           if (ex.sets <= 0) validationErrors.push(`${studentName} - ${ex.exercise_name}: séries deve ser maior que 0`);
           if (ex.reps <= 0) validationErrors.push(`${studentName} - ${ex.exercise_name}: reps deve ser maior que 0`);
-          const matchedPrescribed = prescriptionDetails?.exercises?.find((pe: PrescriptionExerciseDetail) => pe.exercise_name === ex.exercise_name);
+          const matchedPrescribed = prescriptionDetails?.exercises?.find(
+            (pe: PrescriptionExerciseDetail) =>
+              (ex.exercise_library_id && pe.exercise_library_id === ex.exercise_library_id) ||
+              pe.exercise_name === ex.exercise_name ||
+              pe.exercises_library?.name === ex.exercise_name
+          );
           const exCategory = matchedPrescribed?.category?.toLowerCase() || '';
           const isLoadExempt = exCategory === 'respiracao' || exCategory === 'lmf';
           if (!isLoadExempt && (!ex.load_breakdown || ex.load_breakdown.trim() === '')) validationErrors.push(`${studentName} - ${ex.exercise_name}: descrição da carga obrigatória`);
@@ -786,14 +795,14 @@ export function RecordGroupSessionDialog({
         const student = selectedStudents.find(s => s.id === se.studentId);
         return {
           student_id: se.studentId, student_name: student?.name || '',
-          exercises: se.exercises.map(ex => ({ executed_exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown, observations: ex.observations, is_best_set: false }))
+          exercises: se.exercises.map(ex => ({ exercise_library_id: ex.exercise_library_id ?? null, executed_exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown, observations: ex.observations, is_best_set: false }))
         };
       });
 
       for (const session of sessionsToCreate) {
         const { data: workoutSession, error: sessionError } = await supabase.from("workout_sessions").insert({ student_id: session.student_id, prescription_id: effectivePrescriptionId, date, time, session_type: 'group', trainer_name: trainer, is_finalized: true, can_reopen: true }).select("id").single();
         if (sessionError) throw sessionError;
-        const exercisesToInsert = session.exercises.map((ex) => ({ session_id: workoutSession.id, exercise_name: ex.executed_exercise_name, sets: ex.sets, reps: ex.reps, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown, observations: ex.observations || null }));
+        const exercisesToInsert = session.exercises.map((ex) => ({ session_id: workoutSession.id, exercise_library_id: ex.exercise_library_id ?? null, exercise_name: ex.executed_exercise_name, sets: ex.sets, reps: ex.reps, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown, observations: ex.observations || null }));
         const { error: exercisesError } = await supabase.from("exercises").insert(exercisesToInsert);
         if (exercisesError) throw exercisesError;
       }
@@ -906,6 +915,7 @@ export function RecordGroupSessionDialog({
       });
       const newExercises: SessionExercise[] = unmentionedExercises.map((prescribed: PrescriptionExerciseDetail) => ({
         prescribed_exercise_name: prescribed.exercise_name || prescribed.exercises_library?.name,
+        exercise_library_id: prescribed.exercise_library_id ?? null,
         executed_exercise_name: prescribed.exercise_name || prescribed.exercises_library?.name || '',
         sets: parseInt(prescribed.sets) || null, reps: null, load_kg: null, load_breakdown: '',
         observations: '⚠️ Exercício prescrito mas não mencionado - preencher manualmente', is_best_set: false,

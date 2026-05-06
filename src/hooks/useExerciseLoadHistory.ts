@@ -90,7 +90,7 @@ export const useExerciseLoadHistory = ({
       type LastExerciseEntry = {
         exercise: ExerciseLookupRow;
         date: string | null;
-        sortTs: number;
+        sortKey: string;
       };
       const lastExerciseByStudent = new Map<string, LastExerciseEntry>();
 
@@ -103,20 +103,17 @@ export const useExerciseLoadHistory = ({
             : exercise.workout_sessions;
           if (!session?.student_id) continue;
 
-          const sessionTs = Date.parse(`${session.date}T${session.time}`);
-          const createdAtTs = exercise.created_at ? Date.parse(exercise.created_at) : Number.NaN;
-          const sortTs = Number.isFinite(sessionTs)
-            ? sessionTs
-            : Number.isFinite(createdAtTs)
-              ? createdAtTs
-              : 0;
+          const sortKey =
+            session.date && session.time
+              ? `${session.date}T${session.time}`
+              : exercise.created_at ?? "";
 
           const existing = lastExerciseByStudent.get(session.student_id);
-          if (!existing || sortTs > existing.sortTs) {
+          if (!existing || sortKey > existing.sortKey) {
             lastExerciseByStudent.set(session.student_id, {
               exercise,
               date: session.date ?? null,
-              sortTs,
+              sortKey,
             });
           }
         }

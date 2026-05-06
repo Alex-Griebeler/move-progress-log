@@ -34,6 +34,7 @@ import {
   SURFACE_MODIFIER_OPTIONS,
 } from "@/hooks/useExercisesLibrary";
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
+import { normalizeExerciseName } from "@/hooks/duplicateExerciseUtils";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -47,6 +48,7 @@ export interface ExerciseDefaultValues {
   laterality?: string;
   movementPlane?: string;
   contractionType?: string;
+  level?: string;
   boyleScore?: string;
   axialLoad?: string;
   lumbarDemand?: string;
@@ -100,6 +102,7 @@ export const AddExerciseDialog = ({
         setLaterality(defaultValues.laterality || "");
         setMovementPlane(defaultValues.movementPlane || "");
         setContractionType(defaultValues.contractionType || "");
+        setLevel(defaultValues.level || "");
         setBoyleScore(defaultValues.boyleScore || "");
         setAxialLoad(defaultValues.axialLoad || "");
         setLumbarDemand(defaultValues.lumbarDemand || "");
@@ -127,6 +130,7 @@ export const AddExerciseDialog = ({
   const [laterality, setLaterality] = useState("");
   const [movementPlane, setMovementPlane] = useState("");
   const [contractionType, setContractionType] = useState("");
+  const [level, setLevel] = useState("");
   const [boyleScore, setBoyleScore] = useState("");
   const [axialLoad, setAxialLoad] = useState("");
   const [lumbarDemand, setLumbarDemand] = useState("");
@@ -153,6 +157,7 @@ export const AddExerciseDialog = ({
     laterality,
     movementPlane,
     contractionType,
+    level,
     axialLoad,
     lumbarDemand,
     technicalComplexity,
@@ -173,6 +178,9 @@ export const AddExerciseDialog = ({
 
   const createExercise = useCreateExercise();
   const { data: duplicates } = useDuplicateExerciseCheck(name);
+  const hasExactDuplicate = Boolean(
+    duplicates?.some((duplicate) => normalizeExerciseName(duplicate.name) === normalizeExerciseName(name))
+  );
 
   const handleMovementPatternChange = (pattern: string) => {
     setMovementPattern(pattern);
@@ -199,6 +207,13 @@ export const AddExerciseDialog = ({
       return;
     }
 
+    if (hasExactDuplicate) {
+      notify.error("Exercício duplicado", {
+        description: "Já existe um exercício com esse mesmo nome normalizado. Use o exercício existente ou ajuste a nomenclatura.",
+      });
+      return;
+    }
+
     try {
 
     const result = await createExercise.mutateAsync({
@@ -207,7 +222,7 @@ export const AddExerciseDialog = ({
       laterality: laterality && laterality !== "none" ? laterality : null,
       movement_plane: movementPlane && movementPlane !== "none" ? movementPlane : null,
       contraction_type: contractionType && contractionType !== "none" ? contractionType : null,
-      level: null,
+      level: level && level !== "none" ? level : null,
       numeric_level: boyleScore && boyleScore !== "none" ? parseInt(boyleScore) : null,
       boyle_score: boyleScore && boyleScore !== "none" ? parseInt(boyleScore) : null,
       axial_load: axialLoad ? parseInt(axialLoad) : null,
@@ -241,6 +256,7 @@ export const AddExerciseDialog = ({
     setLaterality("");
     setMovementPlane("");
     setContractionType("");
+    setLevel("");
     setBoyleScore("");
     setAxialLoad("");
     setLumbarDemand("");
@@ -378,6 +394,23 @@ export const AddExerciseDialog = ({
                       {Object.entries(RISK_LEVELS).map(([key, value]) => (
                         <SelectItem key={key} value={key}>
                           {value.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="level">Nível Técnico</Label>
+                  <Select value={level} onValueChange={setLevel}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {Object.entries(LEVEL_OPTIONS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
                         </SelectItem>
                       ))}
                     </SelectContent>
