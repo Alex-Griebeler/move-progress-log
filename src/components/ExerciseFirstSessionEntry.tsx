@@ -19,6 +19,10 @@ import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { expandLoadShorthand, compressLoadShorthand } from "@/utils/loadShorthand";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { useExerciseLastSession, type LastSessionData } from "@/hooks/useExerciseLastSession";
+import {
+  buildExerciseLastSessionKey,
+  normalizeExerciseSessionName,
+} from "@/utils/exerciseSessionKeys";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { notify } from "@/lib/notify";
@@ -124,11 +128,14 @@ export function ExerciseFirstSessionEntry({
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   // Last session history
-  const exerciseNames = prescriptionExercises.map((e) => e.exercise_name);
+  const exerciseTargets = prescriptionExercises.map((exercise) => ({
+    exerciseLibraryId: exercise.exercise_library_id ?? null,
+    exerciseName: exercise.exercise_name,
+  }));
   const studentIds = selectedStudents.map((s) => s.id);
   const { data: lastSessionMap } = useExerciseLastSession(
     studentIds,
-    exerciseNames,
+    exerciseTargets,
     prescriptionExercises.length > 0 && selectedStudents.length > 0
   );
 
@@ -141,9 +148,19 @@ export function ExerciseFirstSessionEntry({
   }, [selectedStudents]);
 
   const getLastSession = useCallback(
-    (studentId: string, exerciseName: string): LastSessionData | undefined => {
+    (
+      studentId: string,
+      exerciseName: string,
+      exerciseLibraryId?: string | null
+    ): LastSessionData | undefined => {
       if (!lastSessionMap) return undefined;
-      return lastSessionMap.get(`${studentId}_${exerciseName.toLowerCase().trim()}`);
+      const idKey = exerciseLibraryId
+        ? buildExerciseLastSessionKey(studentId, { exerciseLibraryId, exerciseName })
+        : null;
+      return (
+        (idKey ? lastSessionMap.get(idKey) : undefined) ??
+        lastSessionMap.get(`${studentId}_name:${normalizeExerciseSessionName(exerciseName)}`)
+      );
     },
     [lastSessionMap]
   );
@@ -256,7 +273,7 @@ export function ExerciseFirstSessionEntry({
     (studentId: string) => {
       const entry = data[studentId]?.[exerciseIndex];
       if (!entry) return;
-      const last = getLastSession(studentId, entry.exercise_name);
+      const last = getLastSession(studentId, entry.exercise_name, entry.exercise_library_id);
       if (!last?.load_breakdown) return;
 
       setData((prev) => ({
@@ -315,7 +332,7 @@ export function ExerciseFirstSessionEntry({
     (studentId: string, exIdx: number): boolean => {
       const entry = data[studentId]?.[exIdx];
       if (!entry?.load_kg) return false;
-      const last = getLastSession(studentId, entry.exercise_name);
+      const last = getLastSession(studentId, entry.exercise_name, entry.exercise_library_id);
       if (!last?.load_kg) return false;
       const deviation = Math.abs(entry.load_kg - last.load_kg) / last.load_kg;
       return deviation > 0.3;
@@ -369,7 +386,7 @@ export function ExerciseFirstSessionEntry({
     const entry = data[student.id]?.[exerciseIndex];
     if (!entry) return null;
 
-    const last = getLastSession(student.id, entry.exercise_name);
+    const last = getLastSession(student.id, entry.exercise_name, entry.exercise_library_id);
     const deviation = hasLoadDeviation(student.id, exerciseIndex);
     const isSubstituted = entry.exercise_name !== currentPrescribed.exercise_name;
 
@@ -580,7 +597,7 @@ export function ExerciseFirstSessionEntry({
                 {selectedStudents.map((student, studentIdx) => {
                   const entry = data[student.id]?.[exerciseIndex];
                   if (!entry) return null;
-                  const last = getLastSession(student.id, entry.exercise_name);
+                  const last = getLastSession(student.id, entry.exercise_name, entry.exercise_library_id);
                   const deviation = hasLoadDeviation(student.id, exerciseIndex);
 
                   return (

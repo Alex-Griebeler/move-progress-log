@@ -54,6 +54,13 @@ import { getObjectiveLabel } from "@/constants/objectives";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
 import { formatFitnessLevel } from "@/utils/formatStudent";
+import { normalizeExerciseSessionName } from "@/utils/exerciseSessionKeys";
+
+type StudentExerciseOption = {
+  key: string;
+  name: string;
+  exerciseLibraryId: string | null;
+};
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -80,7 +87,7 @@ const StudentDetailPage = () => {
   const { data: latestOuraMetrics } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
   const { data: ouraConnection } = useOuraConnection(studentId);
   const { isAdmin } = useIsAdmin();
-  const [selectedExercise, setSelectedExercise] = useState<string | null>(null);
+  const [selectedExerciseKey, setSelectedExerciseKey] = useState<string | null>(null);
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -143,14 +150,45 @@ const StudentDetailPage = () => {
     );
   }
 
-  // Get unique exercises from all sessions
-  const uniqueExercises = Array.from(
-    new Set(
-      sessions?.flatMap((session) => 
-        session.exercises?.map((ex) => ex.exercise_name) || []
-      ) || []
-    )
+  // Get unique exercises from all sessions. Prefer the stable library id and keep name fallback for legacy rows.
+  const allSessionExercises =
+    sessions?.flatMap((session) => session.exercises || []).filter((exercise) => exercise.exercise_name) || [];
+  const canonicalOptionsByName = new Map<string, StudentExerciseOption>();
+  const uniqueExerciseOptionsByKey = new Map<string, StudentExerciseOption>();
+
+  allSessionExercises.forEach((exercise) => {
+    if (!exercise.exercise_library_id) return;
+    const normalizedName = normalizeExerciseSessionName(exercise.exercise_name);
+    const option = {
+      key: `id:${exercise.exercise_library_id}`,
+      name: exercise.exercise_name,
+      exerciseLibraryId: exercise.exercise_library_id,
+    };
+    uniqueExerciseOptionsByKey.set(option.key, option);
+    if (!canonicalOptionsByName.has(normalizedName)) {
+      canonicalOptionsByName.set(normalizedName, option);
+    }
+  });
+
+  allSessionExercises.forEach((exercise) => {
+    if (exercise.exercise_library_id) return;
+    const normalizedName = normalizeExerciseSessionName(exercise.exercise_name);
+    if (canonicalOptionsByName.has(normalizedName)) return;
+    const key = `name:${normalizedName}`;
+    if (!uniqueExerciseOptionsByKey.has(key)) {
+      uniqueExerciseOptionsByKey.set(key, {
+        key,
+        name: exercise.exercise_name,
+        exerciseLibraryId: null,
+      });
+    }
+  });
+
+  const uniqueExercises = Array.from(uniqueExerciseOptionsByKey.values()).sort((a, b) =>
+    a.name.localeCompare(b.name)
   );
+  const selectedExerciseOption =
+    uniqueExercises.find((exercise) => exercise.key === selectedExerciseKey) ?? null;
 
   // Check for missing student data
   const getMissingFields = () => {
@@ -512,18 +550,22 @@ const StudentDetailPage = () => {
             <div className="flex flex-wrap gap-2">
               {uniqueExercises.map((exercise) => (
                 <Button
-                  key={exercise}
-                  variant={selectedExercise === exercise ? "default" : "outline"}
-                  onClick={() => setSelectedExercise(exercise)}
+                  key={exercise.key}
+                  variant={selectedExerciseKey === exercise.key ? "default" : "outline"}
+                  onClick={() => setSelectedExerciseKey(exercise.key)}
                 >
-                  {exercise}
+                  {exercise.name}
                 </Button>
               ))}
             </div>
           </div>
 
-          {selectedExercise ? (
-            <ExerciseHistoryCard studentId={id!} exerciseName={selectedExercise} />
+          {selectedExerciseOption ? (
+            <ExerciseHistoryCard
+              studentId={id!}
+              exerciseName={selectedExerciseOption.name}
+              exerciseLibraryId={selectedExerciseOption.exerciseLibraryId}
+            />
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">

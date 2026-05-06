@@ -26,6 +26,7 @@ const STUDENT_SESSIONS_WITH_EXERCISES_SELECT = `
   is_finalized,
   can_reopen,
   exercises(
+    exercise_library_id,
     exercise_name,
     load_kg,
     sets,
