@@ -1,5 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  normalizeExerciseSessionName,
+  type ExerciseLastSessionTarget,
+} from "@/utils/exerciseSessionKeys";
 
 export interface LastSessionData {
   load_kg: number | null;
@@ -12,38 +16,44 @@ export interface LastSessionData {
 const LAST_SESSION_PAGE_SIZE = 250;
 const LAST_SESSION_MAX_PAGES = 40;
 
-const normalizeComparableText = (value: string): string =>
-  value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, " ")
-    .replace(/\s+/g, " ");
-
 /**
  * Batch hook that fetches the last session data for all students × exercises
- * Returns a Map keyed by `${studentId}_${exerciseName}` (lowercased)
+ * Returns a Map keyed by stable library id when available, with name fallback for legacy rows.
  */
 export const useExerciseLastSession = (
   studentIds: string[],
-  exerciseNames: string[],
+  exerciseTargets: ExerciseLastSessionTarget[],
   enabled: boolean
 ) => {
   const stableStudentIdsKey = [...studentIds].sort().join(",");
-  const stableExerciseNamesKey = [...exerciseNames].sort().join(",");
+  const stableExerciseTargetsKey = exerciseTargets
+    .map((target) => target.exerciseLibraryId ?? `name:${normalizeExerciseSessionName(target.exerciseName)}`)
+    .sort()
+    .join(",");
 
   return useQuery({
-    queryKey: ["exercise-last-session-batch", stableStudentIdsKey, stableExerciseNamesKey],
-    enabled: enabled && studentIds.length > 0 && exerciseNames.length > 0,
+    queryKey: ["exercise-last-session-batch", stableStudentIdsKey, stableExerciseTargetsKey],
+    enabled: enabled && studentIds.length > 0 && exerciseTargets.length > 0,
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<Map<string, LastSessionData>> => {
       const result = new Map<string, LastSessionData>();
+      const targetLibraryIds = new Set(
+        exerciseTargets
+          .map((target) => target.exerciseLibraryId)
+          .filter((id): id is string => Boolean(id))
+      );
       const normalizedExerciseNames = Array.from(
-        new Set(exerciseNames.map((name) => normalizeComparableText(name)))
+        new Set(exerciseTargets.map((target) => normalizeExerciseSessionName(target.exerciseName)))
       );
       const targetNameSet = new Set(normalizedExerciseNames);
-      const maxPossibleMatches = studentIds.length * normalizedExerciseNames.length;
+      const targetKeys = new Set(
+        exerciseTargets.map((target) =>
+          target.exerciseLibraryId
+            ? `id:${target.exerciseLibraryId}`
+            : `name:${normalizeExerciseSessionName(target.exerciseName)}`
+        )
+      );
+      const maxPossibleMatches = studentIds.length * targetKeys.size;
 
       for (let pageIndex = 0; pageIndex < LAST_SESSION_MAX_PAGES; pageIndex += 1) {
         const from = pageIndex * LAST_SESSION_PAGE_SIZE;
@@ -71,6 +81,7 @@ export const useExerciseLastSession = (
           string,
           Array<{
             session_id: string;
+            exercise_library_id: string | null;
             exercise_name: string;
             load_kg: number | null;
             load_breakdown: string | null;
@@ -83,7 +94,7 @@ export const useExerciseLastSession = (
           const chunk = sessionIds.slice(index, index + CHUNK_SIZE);
           const { data: exercises, error: exError } = await supabase
             .from("exercises")
-            .select("session_id, exercise_name, load_kg, load_breakdown, reps, observations")
+            .select("session_id, exercise_library_id, exercise_name, load_kg, load_breakdown, reps, observations")
             .in("session_id", chunk);
           if (exError) throw exError;
           if (!exercises || exercises.length === 0) continue;
@@ -107,10 +118,15 @@ export const useExerciseLastSession = (
         for (const session of sessions) {
           const sessionExercises = exercisesBySessionId.get(session.id) || [];
           for (const exercise of sessionExercises) {
-            const normalizedExerciseName = normalizeComparableText(exercise.exercise_name);
-            if (!targetNameSet.has(normalizedExerciseName)) continue;
+            const normalizedExerciseName = normalizeExerciseSessionName(exercise.exercise_name);
+            const matchesById =
+              !!exercise.exercise_library_id && targetLibraryIds.has(exercise.exercise_library_id);
+            const matchesByName = targetNameSet.has(normalizedExerciseName);
+            if (!matchesById && !matchesByName) continue;
 
-            const key = `${session.student_id}_${normalizedExerciseName}`;
+            const key = matchesById
+              ? `${session.student_id}_id:${exercise.exercise_library_id}`
+              : `${session.student_id}_name:${normalizedExerciseName}`;
             if (result.has(key)) continue;
 
             result.set(key, {

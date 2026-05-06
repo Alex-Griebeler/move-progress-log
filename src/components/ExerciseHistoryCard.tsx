@@ -8,11 +8,16 @@ import { formatSessionDate } from "@/utils/sessionDate";
 interface ExerciseHistoryCardProps {
   studentId: string;
   exerciseName: string;
+  exerciseLibraryId?: string | null;
 }
 
-const ExerciseHistoryCard = ({ studentId, exerciseName }: ExerciseHistoryCardProps) => {
-  const { data: history, isLoading } = useExerciseHistory(studentId, exerciseName);
-  const stats = useExerciseStats(studentId, exerciseName);
+const ExerciseHistoryCard = ({
+  studentId,
+  exerciseName,
+  exerciseLibraryId,
+}: ExerciseHistoryCardProps) => {
+  const { data: history, isLoading } = useExerciseHistory(studentId, exerciseName, exerciseLibraryId);
+  const stats = useExerciseStats(studentId, exerciseName, exerciseLibraryId);
 
   if (isLoading) {
     return (

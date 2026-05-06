@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Exercise } from "./useWorkoutSessions";
+import { normalizeExerciseSessionName } from "@/utils/exerciseSessionKeys";
 
 export interface ExerciseHistoryEntry extends Exercise {
   session_date: string;
@@ -44,9 +45,13 @@ const mapExerciseHistoryEntry = (
   };
 };
 
-export const useExerciseHistory = (studentId: string, exerciseName: string) => {
+export const useExerciseHistory = (
+  studentId: string,
+  exerciseName: string,
+  exerciseLibraryId?: string | null
+) => {
   return useQuery({
-    queryKey: ["exercise-history", studentId, exerciseName],
+    queryKey: ["exercise-history", studentId, exerciseLibraryId ?? null, exerciseName],
     enabled: !!studentId && !!exerciseName,
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
@@ -66,32 +71,72 @@ export const useExerciseHistory = (studentId: string, exerciseName: string) => {
       if (!sessions || sessions.length === 0) return [];
 
       const sessionIds = sessions.map((s) => s.id);
+      const exerciseRowsById = new Map<string, ExerciseRow>();
 
-      const { data: exercises, error: exercisesError } = await supabase
+      if (exerciseLibraryId) {
+        const { data: idMatches, error: idMatchesError } = await supabase
+          .from("exercises")
+          .select(EXERCISE_HISTORY_SELECT)
+          .in("session_id", sessionIds)
+          .eq("exercise_library_id", exerciseLibraryId)
+          .order("created_at", { ascending: false });
+
+        if (idMatchesError) throw idMatchesError;
+        (idMatches || []).forEach((exercise) => {
+          exerciseRowsById.set(exercise.id, exercise as ExerciseRow);
+        });
+      }
+
+      const { data: nameMatches, error: nameMatchesError } = await supabase
         .from("exercises")
         .select(EXERCISE_HISTORY_SELECT)
         .in("session_id", sessionIds)
+        .is("exercise_library_id", null)
         .ilike("exercise_name", `%${exerciseName}%`)
         .order("created_at", { ascending: false });
 
-      if (exercisesError) throw exercisesError;
+      if (nameMatchesError) throw nameMatchesError;
+
+      const targetName = normalizeExerciseSessionName(exerciseName);
+      (nameMatches || [])
+        .filter((exercise) => {
+          const candidate = normalizeExerciseSessionName(exercise.exercise_name);
+          return (
+            candidate === targetName ||
+            candidate.includes(targetName) ||
+            targetName.includes(candidate)
+          );
+        })
+        .forEach((exercise) => {
+          exerciseRowsById.set(exercise.id, exercise as ExerciseRow);
+        });
 
       const sessionsById = new Map<string, WorkoutSessionRow>(
         sessions.map((session) => [session.id, session])
       );
 
-      const history: ExerciseHistoryEntry[] = (exercises || []).map((ex) => {
-        const session = sessionsById.get(ex.session_id);
-        return mapExerciseHistoryEntry(ex, session);
-      });
+      const history: ExerciseHistoryEntry[] = Array.from(exerciseRowsById.values())
+        .map((ex) => {
+          const session = sessionsById.get(ex.session_id);
+          return mapExerciseHistoryEntry(ex, session);
+        })
+        .sort((a, b) => {
+          const aKey = `${a.session_date}T${a.session_time}`;
+          const bKey = `${b.session_date}T${b.session_time}`;
+          return bKey.localeCompare(aKey);
+        });
 
       return history;
     },
   });
 };
 
-export const useExerciseStats = (studentId: string, exerciseName: string) => {
-  const { data: history } = useExerciseHistory(studentId, exerciseName);
+export const useExerciseStats = (
+  studentId: string,
+  exerciseName: string,
+  exerciseLibraryId?: string | null
+) => {
+  const { data: history } = useExerciseHistory(studentId, exerciseName, exerciseLibraryId);
 
   if (!history || history.length === 0) {
     return {
