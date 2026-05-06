@@ -145,8 +145,8 @@ export default function StudentOnboardingPage() {
           window.location.href = result.oura_auth_url;
         }, 2000);
       } else if (values.has_oura_ring && values.accepts_oura_sharing && !result.oura_auth_url) {
-        toast.warning("Oura Ring não configurado", {
-          description: "O sistema não está configurado para Oura Ring. Você pode conectar mais tarde.",
+        toast.warning("Oura Ring não conectado agora", {
+          description: result.oura_error || "Você pode conectar o Oura Ring mais tarde.",
           duration: 4000,
         });
         navigate(ROUTES.onboardingSuccess);

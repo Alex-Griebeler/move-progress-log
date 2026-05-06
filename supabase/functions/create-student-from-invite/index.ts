@@ -58,6 +58,11 @@ interface ClaimedInvite {
   trainer_id: string;
 }
 
+interface OuraInvite {
+  id: string;
+  invite_token: string;
+}
+
 interface InviteRow {
   id: string;
   is_used: boolean;
@@ -408,6 +413,41 @@ async function claimInvite(
   return { invite: null, error: 'Convite indisponível' };
 }
 
+async function createOuraInvite(
+  supabaseClient: SupabaseClient,
+  trainerId: string,
+  studentId: string
+): Promise<OuraInvite> {
+  const inviteToken = crypto.randomUUID();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+
+  const { data, error } = await supabaseClient
+    .from('student_invites')
+    .insert({
+      trainer_id: trainerId,
+      invite_token: inviteToken,
+      email: '__oura_connect__',
+      expires_at: expiresAt.toISOString(),
+      created_student_id: studentId,
+    })
+    .select('id, invite_token')
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!isRecord(data) || typeof data.id !== 'string' || typeof data.invite_token !== 'string') {
+    throw new Error('Convite Oura com formato inválido');
+  }
+
+  return {
+    id: data.id,
+    invite_token: data.invite_token,
+  };
+}
+
 function calculateMaxHeartRate(birthDate: string | null) {
   if (!birthDate) return null;
 
@@ -609,13 +649,30 @@ Deno.serve(async (req) => {
             success: true,
             student_id: student.id,
             redirect_to_oura: false,
+            oura_error: 'Oura Ring não configurado no sistema.',
+          });
+        }
+
+        let ouraInvite: OuraInvite;
+        try {
+          // The onboarding invite is already consumed by student creation.
+          // OAuth needs its own unused, one-time invite so oura-callback can
+          // enforce replay/race protection without breaking onboarding.
+          ouraInvite = await createOuraInvite(supabaseClient, invite.trainer_id, student.id);
+        } catch (ouraInviteError) {
+          console.error('Failed to create Oura invite after student onboarding:', ouraInviteError);
+          return jsonResponse({
+            success: true,
+            student_id: student.id,
+            redirect_to_oura: false,
+            oura_error: 'Não foi possível gerar o convite Oura. O aluno foi criado e pode conectar o Oura mais tarde.',
           });
         }
 
         const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
         const state = frontendOrigin
-          ? `${student.id}:${invite.id}:${encodeBase64Url(frontendOrigin)}`
-          : `${student.id}:${invite.id}`;
+          ? `${student.id}:${ouraInvite.id}:${encodeBase64Url(frontendOrigin)}`
+          : `${student.id}:${ouraInvite.id}`;
         const scope = 'email personal daily heartrate workout session spo2 tag sleep stress ring_configuration';
 
         const ouraAuthUrl = `https://cloud.ouraring.com/oauth/authorize?response_type=code&client_id=${ouraClientId}&redirect_uri=${encodeURIComponent(
