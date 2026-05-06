@@ -35,9 +35,11 @@ import {
   CreateExerciseInput,
 } from "@/hooks/useExercisesLibrary";
 import { useDuplicateExerciseCheck } from "@/hooks/useDuplicateExerciseCheck";
+import { normalizeExerciseName } from "@/hooks/duplicateExerciseUtils";
 import { EQUIPMENT_CATEGORIES } from "@/constants/equipment";
 import { Checkbox } from "@/components/ui/checkbox";
 import { logger } from "@/utils/logger";
+import { notify } from "@/lib/notify";
 
 
 // Flatten equipment for selection
@@ -59,6 +61,7 @@ export const EditExerciseLibraryDialog = ({
   const [laterality, setLaterality] = useState(exercise.laterality || "");
   const [movementPlane, setMovementPlane] = useState(exercise.movement_plane || "");
   const [contractionType, setContractionType] = useState(exercise.contraction_type || "");
+  const [level, setLevel] = useState(exercise.level || "");
   const [boyleScore, setBoyleScore] = useState(
     exercise.boyle_score?.toString() || ""
   );
@@ -83,6 +86,9 @@ export const EditExerciseLibraryDialog = ({
 
   const updateExercise = useUpdateExercise();
   const { data: duplicates } = useDuplicateExerciseCheck(name, exercise.id);
+  const hasExactDuplicate = Boolean(
+    duplicates?.some((duplicate) => normalizeExerciseName(duplicate.name) === normalizeExerciseName(name))
+  );
 
   useEffect(() => {
     setName(exercise.name);
@@ -90,6 +96,7 @@ export const EditExerciseLibraryDialog = ({
     setLaterality(exercise.laterality || "");
     setMovementPlane(exercise.movement_plane || "");
     setContractionType(exercise.contraction_type || "");
+    setLevel(exercise.level || "");
     setBoyleScore(exercise.boyle_score?.toString() || "");
     setAxialLoad(exercise.axial_load?.toString() || "");
     setLumbarDemand(exercise.lumbar_demand?.toString() || "");
@@ -130,7 +137,14 @@ export const EditExerciseLibraryDialog = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!name.trim() || !movementPattern) {
+    if (!name.trim()) {
+      return;
+    }
+
+    if (hasExactDuplicate) {
+      notify.error("Exercício duplicado", {
+        description: "Já existe um exercício com esse mesmo nome normalizado. Use o exercício existente ou ajuste a nomenclatura.",
+      });
       return;
     }
 
@@ -138,11 +152,11 @@ export const EditExerciseLibraryDialog = ({
       await updateExercise.mutateAsync({
         id: exercise.id,
         name: name.trim(),
-        movement_pattern: movementPattern,
+        movement_pattern: movementPattern && movementPattern !== "none" ? movementPattern : null,
         laterality: laterality && laterality !== "none" ? laterality : null,
         movement_plane: movementPlane && movementPlane !== "none" ? movementPlane : null,
         contraction_type: contractionType && contractionType !== "none" ? contractionType : null,
-        level: null,
+        level: level && level !== "none" ? level : null,
         numeric_level: boyleScore && boyleScore !== "none" ? parseInt(boyleScore) : null,
         boyle_score: boyleScore && boyleScore !== "none" ? parseInt(boyleScore) : null,
         axial_load: axialLoad ? parseInt(axialLoad) : null,
@@ -272,6 +286,23 @@ export const EditExerciseLibraryDialog = ({
                       {Object.entries(RISK_LEVELS).map(([key, value]) => (
                         <SelectItem key={key} value={key}>
                           {value.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-level">Nível Técnico</Label>
+                  <Select value={level} onValueChange={setLevel}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
+                      {Object.entries(LEVEL_OPTIONS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
                         </SelectItem>
                       ))}
                     </SelectContent>

@@ -25,6 +25,7 @@ import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { expandLoadShorthand } from "@/utils/loadShorthand";
 
 type StudentExerciseEntry = {
+  exercise_library_id?: string | null;
   exercise_name: string;
   sets: number;
   reps: number;
@@ -38,6 +39,7 @@ type StudentExercisesMap = Record<string, StudentExerciseEntry[]>;
 interface ManualSessionEntryProps {
   prescriptionExercises: Array<{
     id: string;
+    exercise_library_id?: string | null;
     exercise_name: string;
     sets: string;
     reps: string;
@@ -61,6 +63,7 @@ interface ManualSessionEntryProps {
       studentId: string;
       exercises: Array<{
         exercise_name: string;
+        exercise_library_id?: string | null;
         sets: number;
         reps: number;
         load_kg: number | null;
@@ -111,6 +114,7 @@ export function ManualSessionEntry({
     const initial: StudentExercisesMap = {};
     selectedStudents.forEach(student => {
       initial[student.id] = prescriptionExercises.map(ex => ({
+        exercise_library_id: ex.exercise_library_id ?? null,
         exercise_name: ex.exercise_name,
         sets: parseInt(ex.sets) || 0,
         reps: parseInt(ex.reps) || 0,
@@ -146,6 +150,7 @@ export function ManualSessionEntry({
         if (!newStudentExercises[student.id]) {
           // Novo aluno sem exercícios inicializados
           newStudentExercises[student.id] = prescriptionExercises.map(ex => ({
+            exercise_library_id: ex.exercise_library_id ?? null,
             exercise_name: ex.exercise_name,
             sets: parseInt(ex.sets) || 0,
             reps: parseInt(ex.reps) || 0,
@@ -300,6 +305,7 @@ export function ManualSessionEntry({
     if (!selectedExerciseForReplacement) return;
     
     const { studentId, exerciseIndex } = selectedExerciseForReplacement;
+    updateExercise(studentId, exerciseIndex, 'exercise_library_id', exerciseId);
     updateExercise(studentId, exerciseIndex, 'exercise_name', exerciseName);
     
     setSelectedExerciseForReplacement(null);

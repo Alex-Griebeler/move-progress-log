@@ -18,6 +18,7 @@ export interface IndividualObservation {
 
 export interface SessionExercise {
   prescribed_exercise_name?: string | null;
+  exercise_library_id?: string | null;
   executed_exercise_name: string;
   sets?: number | null;
   reps: number | null;

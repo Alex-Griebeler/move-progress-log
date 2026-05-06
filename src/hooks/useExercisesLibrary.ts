@@ -32,7 +32,7 @@ export {
 export interface ExerciseLibrary {
   id: string;
   name: string;
-  movement_pattern: string;
+  movement_pattern: string | null;
   functional_group: string | null;
   laterality: string | null;
   movement_plane: string | null;
@@ -68,7 +68,7 @@ export interface ExerciseLibrary {
 // Interface para criação (campos opcionais)
 export interface CreateExerciseInput {
   name: string;
-  movement_pattern: string;
+  movement_pattern?: string | null;
   laterality?: string | null;
   movement_plane?: string | null;
   description?: string | null;
@@ -264,6 +264,30 @@ export const useDeleteExercise = () => {
 
       if (adaptations && adaptations.length > 0) {
         throw new Error("Este exercício está sendo usado em adaptações de prescrições e não pode ser excluído. Remova-o das adaptações primeiro.");
+      }
+
+      const { data: sessionExercises, error: sessionExerciseError } = await supabase
+        .from("exercises")
+        .select("id")
+        .eq("exercise_library_id", id)
+        .limit(1);
+
+      if (sessionExerciseError) throw sessionExerciseError;
+
+      if (sessionExercises && sessionExercises.length > 0) {
+        throw new Error("Este exercício já aparece em sessões registradas e não pode ser excluído sem preservar o histórico. Renomeie ou consolide em vez de excluir.");
+      }
+
+      const { data: reportTracked, error: reportTrackedError } = await supabase
+        .from("report_tracked_exercises")
+        .select("id")
+        .eq("exercise_library_id", id)
+        .limit(1);
+
+      if (reportTrackedError) throw reportTrackedError;
+
+      if (reportTracked && reportTracked.length > 0) {
+        throw new Error("Este exercício está vinculado a relatórios gerados e não pode ser excluído sem preservar o histórico. Renomeie ou consolide em vez de excluir.");
       }
 
       const { error } = await supabase

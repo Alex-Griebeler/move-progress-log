@@ -34,6 +34,7 @@ import {
 
 interface PrescriptionExercise {
   id: string;
+  exercise_library_id?: string | null;
   exercise_name: string;
   sets: string;
   reps: string;
@@ -51,6 +52,7 @@ interface StudentInfo {
 }
 
 interface ExerciseData {
+  exercise_library_id?: string | null;
   exercise_name: string;
   sets: number;
   reps: number;
@@ -92,6 +94,7 @@ export function ExerciseFirstSessionEntry({
       initial[student.id] = {};
       prescriptionExercises.forEach((ex, idx) => {
         initial[student.id][idx] = {
+          exercise_library_id: ex.exercise_library_id ?? null,
           exercise_name: ex.exercise_name,
           sets: parseInt(ex.sets) || 0,
           reps: parseInt(ex.reps) || 0,
@@ -279,8 +282,10 @@ export function ExerciseFirstSessionEntry({
       if (!entry) return;
 
       // Look up exercise metadata from library
-      const libExercise = exercisesLibrary?.find(
-        (ex) => ex.name.toLowerCase().trim() === entry.exercise_name.toLowerCase().trim()
+      const libExercise = exercisesLibrary?.find((ex) =>
+        entry.exercise_library_id
+          ? ex.id === entry.exercise_library_id
+          : ex.name.toLowerCase().trim() === entry.exercise_name.toLowerCase().trim()
       );
 
       setSelectionTarget({
@@ -296,8 +301,9 @@ export function ExerciseFirstSessionEntry({
   );
 
   const handleExerciseSelected = useCallback(
-    (_exerciseId: string, exerciseName: string) => {
+    (exerciseId: string, exerciseName: string) => {
       if (!selectionTarget) return;
+      updateField(selectionTarget.studentId, selectionTarget.exerciseIdx, "exercise_library_id", exerciseId);
       updateField(selectionTarget.studentId, selectionTarget.exerciseIdx, "exercise_name", exerciseName);
       setSelectionTarget(null);
     },
@@ -327,6 +333,7 @@ export function ExerciseFirstSessionEntry({
           const entry = data[student.id]?.[idx];
           return {
             exercise_name: entry?.exercise_name || "",
+            exercise_library_id: entry?.exercise_library_id ?? null,
             sets: entry?.sets || 0,
             reps: entry?.reps || 0,
             load_kg: entry?.load_kg ?? null,

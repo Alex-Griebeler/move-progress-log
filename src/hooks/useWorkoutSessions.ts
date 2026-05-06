@@ -30,6 +30,7 @@ export interface WorkoutSession {
 export interface Exercise {
   id: string;
   session_id: string;
+  exercise_library_id?: string | null;
   exercise_name: string;
   sets?: number;
   reps?: number;
@@ -75,6 +76,7 @@ const mapWorkoutSession = (row: WorkoutSessionRow): WorkoutSession => ({
 const mapExercise = (row: ExerciseRow): Exercise => ({
   id: row.id,
   session_id: row.session_id,
+  exercise_library_id: row.exercise_library_id,
   exercise_name: row.exercise_name,
   sets: row.sets ?? undefined,
   reps: row.reps ?? undefined,
@@ -101,6 +103,7 @@ const isMissingRpcFunctionError = (error: unknown, functionName: string): boolea
 const mapExercisesToInsert = (
   sessionId: string,
   exercises: Array<{
+    exercise_library_id?: string | null;
     exercise_name: string;
     sets?: number | null;
     reps?: number | null;
@@ -112,6 +115,7 @@ const mapExercisesToInsert = (
 ): ExerciseInsert[] =>
   exercises.map((exercise) => ({
     session_id: sessionId,
+    exercise_library_id: exercise.exercise_library_id ?? null,
     exercise_name: exercise.exercise_name,
     sets: exercise.sets ?? null,
     reps: exercise.reps ?? null,
@@ -128,6 +132,7 @@ const createSessionWithDirectInsert = async (params: {
   session_type: "individual" | "group";
   prescription_id?: string;
   exercises: Array<{
+    exercise_library_id?: string | null;
     exercise_name: string;
     sets?: number | null;
     reps?: number | null;
@@ -235,7 +240,7 @@ export const useSessionExercises = (sessionId: string | null) => {
 
       const { data, error } = await supabase
         .from("exercises")
-        .select("id, session_id, exercise_name, sets, reps, load_kg, load_description, load_breakdown, observations, created_at")
+        .select("id, session_id, exercise_library_id, exercise_name, sets, reps, load_kg, load_description, load_breakdown, observations, created_at")
         .eq("session_id", sessionId)
         .order("created_at");
 
@@ -255,6 +260,7 @@ export const useCreateWorkoutSession = () => {
       time: string;
       silent?: boolean;
       exercises: Array<{
+        exercise_library_id?: string | null;
         exercise_name: string;
         sets?: number;
         reps?: number;
@@ -265,6 +271,7 @@ export const useCreateWorkoutSession = () => {
       }>;
     }) => {
       const exercisesPayload = data.exercises.map((ex) => ({
+        exercise_library_id: ex.exercise_library_id ?? null,
         exercise_name: ex.exercise_name,
         sets: ex.sets ?? null,
         reps: ex.reps ?? null,
@@ -346,6 +353,7 @@ export const useCreateGroupWorkoutSessions = () => {
         exercises: Array<{
           prescribed_exercise_name?: string | null;
           executed_exercise_name: string;
+          exercise_library_id?: string | null;
           sets?: number | null;
           prescribed_sets?: number;
           reps: number;
@@ -377,6 +385,7 @@ export const useCreateGroupWorkoutSessions = () => {
             
             return {
               exercise_name: ex.executed_exercise_name,
+              exercise_library_id: ex.exercise_library_id ?? null,
               sets: finalSets,
               reps: ex.reps,
               load_kg: ex.load_kg,

@@ -10,6 +10,7 @@ interface Student {
 
 interface StudentExercises {
   [studentId: string]: Array<{
+    exercise_library_id?: string | null;
     exercise_name: string;
     sets: number;
     reps: number;
