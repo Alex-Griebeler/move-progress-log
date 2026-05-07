@@ -20,13 +20,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
-import { Trash, Loader2, Mic } from "lucide-react";
+import { Trash, Loader2, Mic, BookOpen } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { invalidateSessionQueries } from "@/hooks/sessionQueryInvalidation";
+import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 
 interface EditSessionDialogProps {
   open: boolean;
@@ -38,6 +39,7 @@ interface EditSessionDialogProps {
 
 interface Exercise {
   id: string;
+  exercise_library_id: string | null;
   exercise_name: string;
   sets: number;
   reps: number;
@@ -75,6 +77,10 @@ export function EditSessionDialog({
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
+  const [exerciseSelectionTarget, setExerciseSelectionTarget] = useState<{
+    index: number;
+    currentName: string;
+  } | null>(null);
 
   const loadSessionData = useCallback(async () => {
     if (!sessionId) return;
@@ -105,7 +111,7 @@ export function EditSessionDialog({
 
       const { data: exercisesData, error: exercisesError } = await supabase
         .from('exercises')
-        .select('id, exercise_name, sets, reps, load_kg, load_breakdown, observations, is_best_set')
+        .select('id, exercise_library_id, exercise_name, sets, reps, load_kg, load_breakdown, observations, is_best_set')
         .eq('session_id', sessionId)
         .order('created_at', { ascending: true });
 
@@ -136,6 +142,30 @@ export function EditSessionDialog({
 
   const removeExercise = (index: number) => {
     setExercises(exercises.filter((_, i) => i !== index));
+  };
+
+  const openExerciseSelection = (index: number) => {
+    const exercise = exercises[index];
+    if (!exercise) return;
+
+    setExerciseSelectionTarget({
+      index,
+      currentName: exercise.exercise_name,
+    });
+  };
+
+  const handleExerciseSelected = (exerciseId: string, exerciseName: string) => {
+    if (!exerciseSelectionTarget) return;
+
+    const updated = [...exercises];
+    updated[exerciseSelectionTarget.index] = {
+      ...updated[exerciseSelectionTarget.index],
+      exercise_library_id: exerciseId,
+      exercise_name: exerciseName,
+    };
+
+    setExercises(updated);
+    setExerciseSelectionTarget(null);
   };
 
   const invalidateAllSessionQueries = () => {
@@ -173,6 +203,7 @@ export function EditSessionDialog({
       const { error } = await supabase
         .from('exercises')
         .update({
+          exercise_library_id: exercise.exercise_library_id,
           exercise_name: exercise.exercise_name,
           sets: exercise.sets,
           reps: exercise.reps,
@@ -189,6 +220,14 @@ export function EditSessionDialog({
 
   const handleSave = async (finalize: boolean = false) => {
     if (!sessionId) return;
+
+    const unlinkedExercise = exercises.find(exercise => !exercise.exercise_library_id);
+    if (unlinkedExercise) {
+      notify.error("Vincule todos os exercícios ao catálogo", {
+        description: `Selecione um exercício cadastrado para "${unlinkedExercise.exercise_name}".`,
+      });
+      return;
+    }
 
     setLoading(true);
     try {
@@ -334,11 +373,29 @@ export function EditSessionDialog({
                             )}
                             <div className="space-y-2">
                               <Label className="text-xs">Nome do Exercício *</Label>
-                              <Input
-                                value={exercise.exercise_name}
-                                onChange={(e) => updateExercise(idx, 'exercise_name', e.target.value)}
-                                placeholder="Nome do exercício"
-                              />
+                              <div className="flex gap-2">
+                                <Input
+                                  value={exercise.exercise_name}
+                                  readOnly
+                                  placeholder="Selecione um exercício cadastrado"
+                                  className={!exercise.exercise_library_id ? "border-destructive" : ""}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => openExerciseSelection(idx)}
+                                  aria-label="Substituir por exercício cadastrado"
+                                  title="Substituir por exercício cadastrado"
+                                >
+                                  <BookOpen className="h-4 w-4" />
+                                </Button>
+                              </div>
+                              {!exercise.exercise_library_id && (
+                                <p className="text-xs text-destructive">
+                                  Selecione um exercício cadastrado antes de salvar.
+                                </p>
+                              )}
                             </div>
 
                             <div className="grid gap-3 md:grid-cols-4">
@@ -465,6 +522,16 @@ export function EditSessionDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ExerciseSelectionDialog
+        open={!!exerciseSelectionTarget}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setExerciseSelectionTarget(null);
+        }}
+        currentExerciseName={exerciseSelectionTarget?.currentName || ""}
+        onExerciseSelected={handleExerciseSelected}
+        autoSuggest
+      />
     </>
   );
 }
