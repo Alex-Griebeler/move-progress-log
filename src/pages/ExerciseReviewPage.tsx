@@ -9,11 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { notify } from "@/lib/notify";
-import { Save, Filter } from "lucide-react";
+import { AlertTriangle, Download, FileSearch, Save, Filter } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { InlineExerciseNameEditor } from "@/components/InlineExerciseNameEditor";
 import { ExerciseDimensionReview } from "@/components/ExerciseDimensionReview";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { normalizeExerciseLibraryMatchName } from "@/utils/exerciseLibraryMatching";
 import {
   EXERCISE_CATEGORIES,
   MOVEMENT_PATTERNS,
@@ -65,6 +66,22 @@ interface EditedExercise {
   [key: string]: string | null | undefined;
 }
 
+interface LegacySessionExerciseRow {
+  exercise_name: string | null;
+  load_kg: number | null;
+  load_breakdown: string | null;
+  observations: string | null;
+}
+
+interface LegacyExerciseGroup {
+  normalizedName: string;
+  displayName: string;
+  count: number;
+  variants: Array<{ name: string; count: number }>;
+  loadSamples: string[];
+  observationSamples: string[];
+}
+
 const ExerciseReviewPage = () => {
   const queryClient = useQueryClient();
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -101,6 +118,41 @@ const ExerciseReviewPage = () => {
           hasMore = false;
         }
       }
+      return allData;
+    },
+  });
+
+  const { data: legacyRows, isLoading: legacyLoading, error: legacyError } = useQuery({
+    queryKey: ["legacy-unlinked-session-exercises"],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      type LegacyRow = LegacySessionExerciseRow;
+      let allData: LegacyRow[] = [];
+      let from = 0;
+      const batchSize = 500;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("exercises")
+          .select("exercise_name, load_kg, load_breakdown, observations")
+          .is("exercise_library_id", null)
+          .order("exercise_name")
+          .range(from, from + batchSize - 1);
+
+        if (error) throw error;
+        if (data) {
+          allData = [...allData, ...data];
+          hasMore = data.length === batchSize;
+          from += batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
       return allData;
     },
   });
@@ -181,6 +233,64 @@ const ExerciseReviewPage = () => {
     return counts;
   }, [exercises]);
 
+  const legacyGroups = useMemo<LegacyExerciseGroup[]>(() => {
+    if (!legacyRows) return [];
+
+    const groups = new Map<string, {
+      count: number;
+      variantCounts: Map<string, number>;
+      loadSamples: Set<string>;
+      observationSamples: Set<string>;
+    }>();
+
+    for (const row of legacyRows) {
+      const rawName = row.exercise_name?.trim() || "";
+      const normalizedName = normalizeExerciseLibraryMatchName(rawName);
+      if (!normalizedName) continue;
+
+      const group = groups.get(normalizedName) || {
+        count: 0,
+        variantCounts: new Map<string, number>(),
+        loadSamples: new Set<string>(),
+        observationSamples: new Set<string>(),
+      };
+
+      group.count += 1;
+      group.variantCounts.set(rawName, (group.variantCounts.get(rawName) || 0) + 1);
+
+      const loadSample = row.load_breakdown?.trim() || (row.load_kg !== null ? `${Number(row.load_kg)} kg` : "");
+      if (loadSample && group.loadSamples.size < 3) {
+        group.loadSamples.add(loadSample);
+      }
+
+      const observationSample = row.observations?.trim();
+      if (observationSample && group.observationSamples.size < 2) {
+        group.observationSamples.add(observationSample);
+      }
+
+      groups.set(normalizedName, group);
+    }
+
+    return Array.from(groups.entries())
+      .map(([normalizedName, group]) => {
+        const variants = Array.from(group.variantCounts.entries())
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "pt-BR"));
+
+        return {
+          normalizedName,
+          displayName: variants[0]?.name || normalizedName,
+          count: group.count,
+          variants,
+          loadSamples: Array.from(group.loadSamples),
+          observationSamples: Array.from(group.observationSamples),
+        };
+      })
+      .sort((a, b) => b.count - a.count || a.displayName.localeCompare(b.displayName, "pt-BR"));
+  }, [legacyRows]);
+
+  const legacyTotalRows = legacyRows?.length ?? 0;
+
   const getSubcategoryOptions = (category: string | null, movementPattern: string | null) => {
     if (category === "forca_hipertrofia" && movementPattern && STRENGTH_SUBCATEGORIES[movementPattern]) {
       return STRENGTH_SUBCATEGORIES[movementPattern];
@@ -195,6 +305,43 @@ const ExerciseReviewPage = () => {
     return edits[exerciseId]?.[field] !== undefined ? (edits[exerciseId][field] as string | null) : originalValue;
   };
 
+  const downloadLegacyReviewCsv = useCallback(() => {
+    if (legacyGroups.length === 0) return;
+
+    const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
+    const rows = [
+      [
+        "nome_legado",
+        "nome_normalizado",
+        "linhas",
+        "variantes",
+        "amostras_carga",
+        "amostras_observacoes",
+      ],
+      ...legacyGroups.map((group) => [
+        group.displayName,
+        group.normalizedName,
+        String(group.count),
+        group.variants.map((variant) => `${variant.name} (${variant.count})`).join(" | "),
+        group.loadSamples.join(" | "),
+        group.observationSamples.join(" | "),
+      ]),
+    ];
+
+    const csv = rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+
+    link.href = url;
+    link.download = `fila-revisao-exercicios-legados-${timestamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }, [legacyGroups]);
+
   const editCount = Object.keys(edits).length;
 
   return (
@@ -206,10 +353,117 @@ const ExerciseReviewPage = () => {
       <Tabs defaultValue="dimensions" className="space-y-4">
         <TabsList>
           <TabsTrigger value="dimensions">Dimensões (v14.5)</TabsTrigger>
+          <TabsTrigger value="legacy">Legados sem vínculo ({legacyTotalRows})</TabsTrigger>
           <TabsTrigger value="fields">Campos Incompletos ({incompleteExercises.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="dimensions">
           <ExerciseDimensionReview />
+        </TabsContent>
+        <TabsContent value="legacy">
+          <div className="space-y-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div className="flex gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div>
+                    <h2 className="font-semibold">Fila de curadoria manual</h2>
+                    <p className="mt-1 text-sm leading-relaxed">
+                      Essas linhas são históricas e ainda não têm vínculo com a biblioteca canônica.
+                      Use esta fila para decidir se cada nome deve ser mapeado para um canônico existente,
+                      virar um novo exercício ou permanecer sem match. Não há ação automática nesta tela.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={downloadLegacyReviewCsv}
+                  disabled={legacyGroups.length === 0}
+                  className="border-amber-300 bg-white/80 text-amber-950 hover:bg-white"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar CSV
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Linhas históricas sem FK</p>
+                <p className="mt-1 text-2xl font-semibold">{legacyTotalRows}</p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Nomes normalizados</p>
+                <p className="mt-1 text-2xl font-semibold">{legacyGroups.length}</p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="text-sm text-muted-foreground">Regra operacional</p>
+                <p className="mt-2 text-sm font-medium">Revisão humana antes de qualquer UPDATE</p>
+              </div>
+            </div>
+
+            {legacyError ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                Erro ao carregar legados: {buildErrorDescription(legacyError, "Tente novamente.")}
+              </div>
+            ) : legacyLoading ? (
+              <div className="rounded-lg border p-8 text-center text-muted-foreground">
+                Carregando legados sem vínculo...
+              </div>
+            ) : legacyGroups.length === 0 ? (
+              <div className="rounded-lg border p-8 text-center text-muted-foreground">
+                <FileSearch className="mx-auto mb-3 h-8 w-8" />
+                Nenhum exercício histórico sem vínculo foi encontrado.
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[240px]">Nome legado</TableHead>
+                      <TableHead className="w-[90px]">Linhas</TableHead>
+                      <TableHead>Variantes</TableHead>
+                      <TableHead>Evidência de carga</TableHead>
+                      <TableHead>Observações</TableHead>
+                      <TableHead className="w-[130px]">Prioridade</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {legacyGroups.map((group) => (
+                      <TableRow key={group.normalizedName}>
+                        <TableCell>
+                          <div className="font-medium">{group.displayName}</div>
+                          <div className="mt-1 text-xs text-muted-foreground">{group.normalizedName}</div>
+                        </TableCell>
+                        <TableCell className="font-semibold">{group.count}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {group.variants.slice(0, 4).map((variant) => (
+                            <div key={variant.name}>
+                              {variant.name} ({variant.count})
+                            </div>
+                          ))}
+                          {group.variants.length > 4 && (
+                            <div>+{group.variants.length - 4} variantes</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-[220px] text-xs text-muted-foreground">
+                          {group.loadSamples.length > 0 ? group.loadSamples.join(" | ") : "—"}
+                        </TableCell>
+                        <TableCell className="max-w-[280px] text-xs text-muted-foreground">
+                          {group.observationSamples.length > 0 ? group.observationSamples.join(" | ") : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={group.count >= 10 ? "destructive" : "outline"}>
+                            {group.count >= 10 ? "Prioridade" : "Revisar"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
         </TabsContent>
         <TabsContent value="fields">
       <div className="space-y-4">
@@ -466,7 +720,7 @@ const ExerciseReviewPage = () => {
                 })}
                 {incompleteExercises.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                       Todos os exercícios estão completos para os filtros selecionados! 🎉
                     </TableCell>
                   </TableRow>
