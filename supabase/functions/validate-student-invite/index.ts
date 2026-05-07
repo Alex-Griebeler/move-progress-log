@@ -63,19 +63,19 @@ Deno.serve(async (req) => {
 
     if (inviteError || !invite) {
       console.log('Invite not found:', inviteError);
-      return jsonResponse({ valid: false, error: 'Convite não encontrado' });
+      return jsonResponse({ valid: false, error: 'Convite não encontrado' }, 404);
     }
 
     const now = new Date();
     const expiresAt = new Date(invite.expires_at);
     if (now > expiresAt) {
       console.log('Invite expired');
-      return jsonResponse({ valid: false, error: 'Convite expirado' });
+      return jsonResponse({ valid: false, error: 'Convite expirado' }, 410);
     }
 
     if (invite.is_used) {
       console.log('Invite already used');
-      return jsonResponse({ valid: false, error: 'Convite já foi utilizado' });
+      return jsonResponse({ valid: false, error: 'Convite já foi utilizado' }, 409);
     }
 
     console.log('Invite is valid');
