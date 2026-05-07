@@ -7,10 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
-import { Trash, Loader2, Mic, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trash, Loader2, Mic, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 
 interface EditGroupSessionDialogProps {
   open: boolean;
@@ -29,6 +30,7 @@ interface Student {
 
 interface Exercise {
   id: string;
+  exercise_library_id: string | null;
   exercise_name: string;
   sets: number;
   reps: number;
@@ -58,6 +60,10 @@ export function EditGroupSessionDialog({
   const [sessionsData, setSessionsData] = useState<SessionData[]>([]);
   const [currentStudentIndex, setCurrentStudentIndex] = useState(0);
   const [editableExercises, setEditableExercises] = useState<Exercise[]>([]);
+  const [exerciseSelectionTarget, setExerciseSelectionTarget] = useState<{
+    index: number;
+    currentName: string;
+  } | null>(null);
 
   const loadSessionsData = useCallback(async () => {
     if (!prescriptionId || !date || !time) return;
@@ -89,6 +95,7 @@ export function EditGroupSessionDialog({
         .select(`
           id,
           session_id,
+          exercise_library_id,
           exercise_name,
           sets,
           reps,
@@ -108,6 +115,7 @@ export function EditGroupSessionDialog({
         if (!acc[sessionKey]) acc[sessionKey] = [];
         acc[sessionKey].push({
           id: exercise.id,
+          exercise_library_id: exercise.exercise_library_id,
           exercise_name: exercise.exercise_name,
           sets: exercise.sets ?? 0,
           reps: exercise.reps ?? 0,
@@ -159,10 +167,41 @@ export function EditGroupSessionDialog({
     setEditableExercises(editableExercises.filter((_, i) => i !== index));
   };
 
+  const openExerciseSelection = (index: number) => {
+    const exercise = editableExercises[index];
+    if (!exercise) return;
+
+    setExerciseSelectionTarget({
+      index,
+      currentName: exercise.exercise_name,
+    });
+  };
+
+  const handleExerciseSelected = (exerciseId: string, exerciseName: string) => {
+    if (!exerciseSelectionTarget) return;
+
+    const updated = [...editableExercises];
+    updated[exerciseSelectionTarget.index] = {
+      ...updated[exerciseSelectionTarget.index],
+      exercise_library_id: exerciseId,
+      exercise_name: exerciseName,
+    };
+
+    setEditableExercises(updated);
+    setExerciseSelectionTarget(null);
+  };
+
   const handleSaveCurrentStudent = async () => {
     if (sessionsData.length === 0) return;
 
     const currentSession = sessionsData[currentStudentIndex];
+    const unlinkedExercise = editableExercises.find((exercise) => !exercise.exercise_library_id);
+    if (unlinkedExercise) {
+      notify.error("Vincule todos os exercícios ao catálogo", {
+        description: `Selecione um exercício cadastrado para "${unlinkedExercise.exercise_name}".`,
+      });
+      return;
+    }
     
     setLoading(true);
     try {
@@ -194,6 +233,7 @@ export function EditGroupSessionDialog({
           const { error } = await supabase
             .from('exercises')
             .update({
+              exercise_library_id: exercise.exercise_library_id,
               exercise_name: exercise.exercise_name,
               sets: exercise.sets,
               reps: exercise.reps,
@@ -211,6 +251,7 @@ export function EditGroupSessionDialog({
             .from('exercises')
             .insert({
               session_id: currentSession.sessionId,
+              exercise_library_id: exercise.exercise_library_id,
               exercise_name: exercise.exercise_name,
               sets: exercise.sets,
               reps: exercise.reps,
@@ -265,7 +306,8 @@ export function EditGroupSessionDialog({
   const currentStudent = sessionsData[currentStudentIndex];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>Editar Sessão em Grupo</DialogTitle>
@@ -307,11 +349,29 @@ export function EditGroupSessionDialog({
                   <CardContent className="space-y-3">
                     <div className="space-y-2">
                       <Label className="text-xs">Nome do Exercício *</Label>
-                      <Input
-                        value={exercise.exercise_name}
-                        onChange={(e) => updateExercise(idx, 'exercise_name', e.target.value)}
-                        placeholder="Nome do exercício"
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          value={exercise.exercise_name}
+                          readOnly
+                          placeholder="Selecione um exercício cadastrado"
+                          className={!exercise.exercise_library_id ? "border-destructive" : ""}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => openExerciseSelection(idx)}
+                          aria-label="Substituir por exercício cadastrado"
+                          title="Substituir por exercício cadastrado"
+                        >
+                          <BookOpen className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {!exercise.exercise_library_id && (
+                        <p className="text-xs text-destructive">
+                          Selecione um exercício cadastrado antes de salvar.
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid gap-3 md:grid-cols-4">
@@ -426,5 +486,16 @@ export function EditGroupSessionDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+      <ExerciseSelectionDialog
+        open={!!exerciseSelectionTarget}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setExerciseSelectionTarget(null);
+        }}
+        currentExerciseName={exerciseSelectionTarget?.currentName || ""}
+        onExerciseSelected={handleExerciseSelected}
+        autoSuggest
+      />
+    </>
   );
 }
