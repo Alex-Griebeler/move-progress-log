@@ -24,6 +24,7 @@ import {
   resolveExerciseLibraryIdByName,
   type ExerciseLibraryMatchMap,
 } from "@/utils/exerciseLibraryMatching";
+import { buildUnlinkedExerciseReportFromRows } from "@/utils/importUnlinkedExercises";
 
 type SpreadsheetRow = Record<string, unknown>;
 
@@ -230,6 +231,8 @@ interface ProcessingStatus {
   processed: number;
   mergedDuplicates: number;
   skippedDuplicates: number;
+  unlinkedExerciseRows: number;
+  unlinkedExerciseNames: Array<{ name: string; count: number }>;
   errors: string[];
   success: boolean;
 }
@@ -240,6 +243,9 @@ interface ImportErrorGroup {
   action: string;
   errors: string[];
 }
+
+const formatUnlinkedExerciseWarning = (totalRows: number): string =>
+  totalRows > 0 ? ` ${totalRows} exercício(s) sem vínculo ao catálogo.` : "";
 
 const categorizeImportErrors = (errors: string[]): ImportErrorGroup[] => {
   const groups: Record<string, ImportErrorGroup> = {
@@ -660,6 +666,8 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       processed: 0,
       mergedDuplicates: 0,
       skippedDuplicates: 0,
+      unlinkedExerciseRows: 0,
+      unlinkedExerciseNames: [],
       errors: [],
       success: false,
     });
@@ -765,6 +773,19 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       });
 
       const exerciseLibraryMatchMap = await loadExactExerciseLibraryMatchMap();
+      const unlinkedExerciseReport = buildUnlinkedExerciseReportFromRows(
+        Array.from(sessionsMap.values()).flat(),
+        exerciseLibraryMatchMap
+      );
+      setStatus((prev) =>
+        prev
+          ? {
+              ...prev,
+              unlinkedExerciseRows: unlinkedExerciseReport.totalRows,
+              unlinkedExerciseNames: unlinkedExerciseReport.names,
+            }
+          : prev
+      );
       let attempted = 0;
       let processed = 0;
       let mergedDuplicates = 0;
@@ -885,20 +906,28 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       
       if (errors.length === 0 && skippedDuplicates === 0) {
         toast.success("Importação concluída com sucesso!", {
-          description: `${processed} sessão(ões) importada(s) com ${validRows} linha(s) válida(s).`,
+          description: `${processed} sessão(ões) importada(s) com ${validRows} linha(s) válida(s).${formatUnlinkedExerciseWarning(
+            unlinkedExerciseReport.totalRows
+          )}`,
           duration: 5000,
         });
       } else if (errors.length === 0 && processed === 0 && skippedDuplicates > 0) {
         toast("Importação concluída sem novas sessões", {
           description:
             mergedDuplicates > 0
-              ? `${skippedDuplicates} sessão(ões) duplicadas ignoradas, ${mergedDuplicates} exercício(s) existente(s) atualizado(s).`
-              : `${skippedDuplicates} sessão(ões) já existiam e foram ignoradas.`,
+              ? `${skippedDuplicates} sessão(ões) duplicadas ignoradas, ${mergedDuplicates} exercício(s) existente(s) atualizado(s).${formatUnlinkedExerciseWarning(
+                  unlinkedExerciseReport.totalRows
+                )}`
+              : `${skippedDuplicates} sessão(ões) já existiam e foram ignoradas.${formatUnlinkedExerciseWarning(
+                  unlinkedExerciseReport.totalRows
+                )}`,
           duration: 6000,
         });
       } else {
         toast("Importação concluída com pendências", {
-          description: `${processed} importada(s), ${skippedDuplicates} duplicada(s) ignorada(s), ${mergedDuplicates} exercício(s) atualizado(s), ${errors.length} erro(s).`,
+          description: `${processed} importada(s), ${skippedDuplicates} duplicada(s) ignorada(s), ${mergedDuplicates} exercício(s) atualizado(s), ${errors.length} erro(s).${formatUnlinkedExerciseWarning(
+            unlinkedExerciseReport.totalRows
+          )}`,
           duration: 7000,
         });
       }
@@ -909,6 +938,8 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         processed,
         mergedDuplicates,
         skippedDuplicates,
+        unlinkedExerciseRows: unlinkedExerciseReport.totalRows,
+        unlinkedExerciseNames: unlinkedExerciseReport.names,
         errors,
         success: errors.length === 0 && skippedDuplicates === 0,
       });
@@ -927,6 +958,8 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
         processed: 0,
         mergedDuplicates: 0,
         skippedDuplicates: 0,
+        unlinkedExerciseRows: 0,
+        unlinkedExerciseNames: [],
         errors: [message],
         success: false,
       });
@@ -1020,6 +1053,12 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                     <strong>Importação concluída com sucesso!</strong>
                     <br />
                     {status.processed} sessão(ões) importada(s).
+                    {status.unlinkedExerciseRows > 0 && (
+                      <>
+                        <br />
+                        {status.unlinkedExerciseRows} exercício(s) sem vínculo ao catálogo.
+                      </>
+                    )}
                   </AlertDescription>
                 </Alert>
               ) : status.errors.length === 0 && status.skippedDuplicates > 0 ? (
@@ -1035,6 +1074,12 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                         {status.mergedDuplicates} exercício(s) existente(s) foram atualizados com dados faltantes.
                       </>
                     )}
+                    {status.unlinkedExerciseRows > 0 && (
+                      <>
+                        <br />
+                        {status.unlinkedExerciseRows} exercício(s) sem vínculo ao catálogo.
+                      </>
+                    )}
                   </AlertDescription>
                 </Alert>
               ) : (
@@ -1044,7 +1089,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                     <strong>Importação concluída com erros</strong>
                     <br />
                     {status.processed} importada(s), {status.skippedDuplicates} duplicada(s) ignorada(s), {status.mergedDuplicates} exercício(s) atualizado(s), {status.errors.length} erro(s).
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
                       <div className="rounded-md border border-destructive/20 bg-background/60 p-2">
                         <p className="text-muted-foreground">Importadas</p>
                         <p className="text-base font-semibold">{status.processed}</p>
@@ -1060,6 +1105,10 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                       <div className="rounded-md border border-destructive/20 bg-background/60 p-2">
                         <p className="text-muted-foreground">Erros</p>
                         <p className="text-base font-semibold">{status.errors.length}</p>
+                      </div>
+                      <div className="rounded-md border border-destructive/20 bg-background/60 p-2">
+                        <p className="text-muted-foreground">Sem catálogo</p>
+                        <p className="text-base font-semibold">{status.unlinkedExerciseRows}</p>
                       </div>
                     </div>
                     <div className="mt-3 space-y-2">
@@ -1102,6 +1151,29 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                       <Download className="mr-2 h-4 w-4" />
                       Baixar relatório CSV de erros
                     </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {status.unlinkedExerciseRows > 0 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>{status.unlinkedExerciseRows} exercício(s) sem vínculo ao catálogo</strong>
+                    <p className="mt-1 text-sm">
+                      A importação não foi bloqueada, mas estes nomes não tiveram match exato e único na biblioteca.
+                      Revise o catálogo antes de usar esses exercícios para histórico de carga por exercício.
+                    </p>
+                    <div className="mt-3 space-y-1 text-xs">
+                      {status.unlinkedExerciseNames.map((exercise) => (
+                        <div
+                          key={exercise.name}
+                          className="flex items-center justify-between gap-3 rounded-md border bg-background/60 px-2 py-1"
+                        >
+                          <span className="truncate">{exercise.name}</span>
+                          <span className="shrink-0 font-medium">{exercise.count}</span>
+                        </div>
+                      ))}
+                    </div>
                   </AlertDescription>
                 </Alert>
               )}
