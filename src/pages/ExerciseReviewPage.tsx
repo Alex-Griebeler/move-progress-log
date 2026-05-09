@@ -5,11 +5,12 @@ import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { notify } from "@/lib/notify";
-import { AlertTriangle, Download, FileSearch, Save, Filter } from "lucide-react";
+import { AlertTriangle, Download, FileSearch, Save, Filter, Search } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { InlineExerciseNameEditor } from "@/components/InlineExerciseNameEditor";
 import { ExerciseDimensionReview } from "@/components/ExerciseDimensionReview";
@@ -60,6 +61,8 @@ const LMF_SUBCATEGORIES: Record<string, string> = {
   pe: "Pé",
 };
 
+const LEGACY_REVIEW_PAGE_SIZE = 25;
+
 interface EditedExercise {
   id: string;
   [key: string]: string | null | undefined;
@@ -78,6 +81,9 @@ const ExerciseReviewPage = () => {
   const queryClient = useQueryClient();
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [missingFieldFilter, setMissingFieldFilter] = useState<MissingField | "all">("all");
+  const [legacySearch, setLegacySearch] = useState("");
+  const [legacyPriorityOnly, setLegacyPriorityOnly] = useState(false);
+  const [legacyPage, setLegacyPage] = useState(1);
   const [edits, setEdits] = useState<Record<string, EditedExercise>>({});
 
   const { data: exercises, isLoading, error: queryError } = useQuery({
@@ -232,8 +238,44 @@ const ExerciseReviewPage = () => {
     return edits[exerciseId]?.[field] !== undefined ? (edits[exerciseId][field] as string | null) : originalValue;
   };
 
+  const legacyFilteredGroups = useMemo(() => {
+    const query = legacySearch.trim().toLowerCase();
+
+    return legacyGroups.filter((group) => {
+      if (legacyPriorityOnly && group.count < 10) return false;
+      if (!query) return true;
+
+      const searchable = [
+        group.displayName,
+        group.normalizedName,
+        ...group.variants,
+        ...group.loadSamples,
+        ...group.observationSamples,
+      ].join(" ").toLowerCase();
+
+      return searchable.includes(query);
+    });
+  }, [legacyGroups, legacyPriorityOnly, legacySearch]);
+
+  const legacyTotalPages = Math.max(1, Math.ceil(legacyFilteredGroups.length / LEGACY_REVIEW_PAGE_SIZE));
+  const safeLegacyPage = Math.min(legacyPage, legacyTotalPages);
+  const legacyPageGroups = legacyFilteredGroups.slice(
+    (safeLegacyPage - 1) * LEGACY_REVIEW_PAGE_SIZE,
+    safeLegacyPage * LEGACY_REVIEW_PAGE_SIZE
+  );
+
+  const handleLegacySearchChange = (value: string) => {
+    setLegacySearch(value);
+    setLegacyPage(1);
+  };
+
+  const handleLegacyPriorityToggle = () => {
+    setLegacyPriorityOnly((current) => !current);
+    setLegacyPage(1);
+  };
+
   const downloadLegacyReviewCsv = useCallback(() => {
-    if (legacyGroups.length === 0) return;
+    if (legacyFilteredGroups.length === 0) return;
 
     const escapeCsv = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
     const rows = [
@@ -245,7 +287,7 @@ const ExerciseReviewPage = () => {
         "amostras_carga",
         "amostras_observacoes",
       ],
-      ...legacyGroups.map((group) => [
+      ...legacyFilteredGroups.map((group) => [
         group.displayName,
         group.normalizedName,
         String(group.count),
@@ -267,7 +309,7 @@ const ExerciseReviewPage = () => {
     link.click();
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
-  }, [legacyGroups]);
+  }, [legacyFilteredGroups]);
 
   const editCount = Object.keys(edits).length;
 
@@ -305,7 +347,7 @@ const ExerciseReviewPage = () => {
                   type="button"
                   variant="outline"
                   onClick={downloadLegacyReviewCsv}
-                  disabled={legacyGroups.length === 0}
+                  disabled={legacyFilteredGroups.length === 0}
                   className="border-amber-300 bg-white/80 text-amber-950 hover:bg-white"
                 >
                   <Download className="mr-2 h-4 w-4" />
@@ -329,6 +371,30 @@ const ExerciseReviewPage = () => {
               </div>
             </div>
 
+            <div className="flex flex-col gap-3 rounded-lg border p-3 md:flex-row md:items-center md:justify-between">
+              <div className="relative w-full md:max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={legacySearch}
+                  onChange={(event) => handleLegacySearchChange(event.target.value)}
+                  placeholder="Buscar nome, variante, carga ou observação"
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant={legacyPriorityOnly ? "default" : "outline"}
+                  onClick={handleLegacyPriorityToggle}
+                >
+                  Prioridade 10+ linhas
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {legacyFilteredGroups.length} de {legacyGroups.length} grupos
+                </span>
+              </div>
+            </div>
+
             {legacyError ? (
               <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
                 Erro ao carregar legados: {buildErrorDescription(legacyError, "Tente novamente.")}
@@ -341,6 +407,11 @@ const ExerciseReviewPage = () => {
               <div className="rounded-lg border p-8 text-center text-muted-foreground">
                 <FileSearch className="mx-auto mb-3 h-8 w-8" />
                 Nenhum exercício histórico sem vínculo foi encontrado.
+              </div>
+            ) : legacyFilteredGroups.length === 0 ? (
+              <div className="rounded-lg border p-8 text-center text-muted-foreground">
+                <FileSearch className="mx-auto mb-3 h-8 w-8" />
+                Nenhum grupo corresponde aos filtros atuais.
               </div>
             ) : (
               <div className="overflow-hidden rounded-lg border">
@@ -356,7 +427,7 @@ const ExerciseReviewPage = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {legacyGroups.map((group) => (
+                    {legacyPageGroups.map((group) => (
                       <TableRow key={group.normalizedName}>
                         <TableCell>
                           <div className="font-medium">{group.displayName}</div>
@@ -388,6 +459,31 @@ const ExerciseReviewPage = () => {
                     ))}
                   </TableBody>
                 </Table>
+                <div className="flex flex-col gap-3 border-t bg-muted/20 p-3 md:flex-row md:items-center md:justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Página {safeLegacyPage} de {legacyTotalPages} · exibindo {legacyPageGroups.length} grupos
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setLegacyPage((page) => Math.max(1, page - 1))}
+                      disabled={safeLegacyPage <= 1}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setLegacyPage((page) => Math.min(legacyTotalPages, page + 1))}
+                      disabled={safeLegacyPage >= legacyTotalPages}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
