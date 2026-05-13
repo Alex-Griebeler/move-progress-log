@@ -53,30 +53,14 @@ type SitToStandInsert = TableInsert<"sit_to_stand_results">;
 type CardiovascularInsert = TableInsert<"cardiovascular_baseline">;
 type SubjectiveInsert = TableInsert<"subjective_scores">;
 
-type RpcError = Error | { message?: string } | null;
-
-type CreateAssessmentRpcParams = {
-  p_parent: Json;
-  p_child_kind: "vo2" | "handgrip" | "dexa" | "sit_to_stand" | "none";
-  p_child_data: Json;
-  p_bike_stages: Json;
-  p_cardiovascular: Json | null;
-  p_subjective: Json | null;
-};
-
-type CreateAssessmentRpc = (
-  fn: "create_precision12_assessment",
-  args: CreateAssessmentRpcParams,
-) => Promise<{ data: Assessment | null; error: RpcError }>;
-
-const createAssessmentRpc = supabase.rpc as unknown as CreateAssessmentRpc;
+/**
+ * Discriminator pra qual tabela filha vai ser criada. Espelha o
+ * domínio do parâmetro `p_child_kind` da RPC `create_precision12_assessment`.
+ */
+type ChildKind = "vo2" | "handgrip" | "dexa" | "sit_to_stand" | "none";
 
 const toJson = (value: unknown): Json =>
   JSON.parse(JSON.stringify(value ?? {})) as Json;
-
-const throwIfError = (error: RpcError) => {
-  if (error) throw error;
-};
 
 // ---------------------------------------------------------------------------
 // Tipos compostos (assessment + tabela filha)
@@ -290,22 +274,21 @@ export const useCreateAssessment = () => {
       const childData = args.child.kind === "none" ? {} : args.child.data;
       const bikeStages = args.child.kind === "vo2" ? args.child.stages ?? [] : [];
 
-      const { data, error } = await createAssessmentRpc(
-        "create_precision12_assessment",
-        {
-          p_parent: toJson(args.parent),
-          p_child_kind: args.child.kind,
-          p_child_data: toJson(childData),
-          p_bike_stages: toJson(bikeStages),
-          p_cardiovascular: args.cardiovascular ? toJson(args.cardiovascular) : null,
-          p_subjective: args.subjective ? toJson(args.subjective) : null,
-        },
-      );
+      const childKind: ChildKind = args.child.kind;
 
-      throwIfError(error);
+      const { data, error } = await supabase.rpc("create_precision12_assessment", {
+        p_parent: toJson(args.parent),
+        p_child_kind: childKind,
+        p_child_data: toJson(childData),
+        p_bike_stages: toJson(bikeStages),
+        p_cardiovascular: args.cardiovascular ? toJson(args.cardiovascular) : undefined,
+        p_subjective: args.subjective ? toJson(args.subjective) : undefined,
+      });
+
+      if (error) throw error;
       if (!data) throw new Error("Falha ao criar avaliação");
 
-      return data;
+      return data as Assessment;
     },
     onSuccess: (assessment) => {
       queryClient.invalidateQueries({ queryKey: ["assessment", assessment.id] });
