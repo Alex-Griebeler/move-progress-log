@@ -1,0 +1,2 @@
+-- Apply the file from supabase/migrations/20260513002546_precision12_assessment_foundation.sql verbatim
+-- Loaded inline below
