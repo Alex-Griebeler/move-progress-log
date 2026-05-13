@@ -47,8 +47,11 @@ create index if not exists idx_p12_links_student
 create index if not exists idx_p12_links_expires_at
   on public.precision12_questionnaire_links (expires_at);
 
--- Garante 1 link ATIVO por assessment (não usado, não revogado, não expirado).
--- Permite múltiplos links históricos (revogados/usados/expirados).
+-- Garante 1 link não usado e não revogado por assessment. Expiração é
+-- validada pela edge function de submit (lookup compara expires_at > now()),
+-- não pelo índice — links expirados não usados permanecem na tabela mas
+-- não passam no submit. Permite múltiplos links históricos (revogados ou
+-- usados) coexistindo no mesmo assessment.
 create unique index if not exists idx_p12_links_one_active_per_assessment
   on public.precision12_questionnaire_links (assessment_id)
   where used_at is null and revoked_at is null;
