@@ -39,9 +39,7 @@ import type {
 // ---------------------------------------------------------------------------
 
 const ASSESSMENT_SELECT =
-  "id, student_id, trainer_id, professional_id, assessment_type, " +
-  "assessment_date, status, started_at, completed_at, " +
-  "age_years, weight_kg, height_cm, sex, notes, created_at, updated_at";
+  "id, student_id, trainer_id, professional_id, assessment_type, assessment_date, status, started_at, completed_at, age_years, weight_kg, height_cm, sex, notes, created_at, updated_at" as const;
 
 type PublicTables = Database["public"]["Tables"];
 type TableInsert<T extends keyof PublicTables> = PublicTables[T]["Insert"];
