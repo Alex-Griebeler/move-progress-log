@@ -61,6 +61,9 @@ export const SitToStandScorePreview = ({
     <div
       className={`inline-flex items-center gap-1.5 text-xs ${className ?? ""}`}
       data-testid="sit-to-stand-preview"
+      role="status"
+      aria-live="polite"
+      aria-label={`${label}: ${score.toFixed(1)} de 5 pontos`}
     >
       <span className="text-muted-foreground">{label}:</span>
       <Badge variant="outline" className={`font-mono ${colorClasses}`}>

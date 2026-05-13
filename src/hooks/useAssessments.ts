@@ -2,31 +2,18 @@
  * Hooks de leitura/escrita do módulo de avaliação Precision 12.
  *
  * Cobre as 11 tabelas criadas em
- * supabase/migrations/20260513002546_precision12_assessment_foundation.sql:
- *
- *   assessments (mãe)
- *   ├─ vo2_assessment_details + vo2_bike_stages
- *   ├─ handgrip_results
- *   ├─ dexa_results
- *   ├─ sit_to_stand_results
- *   ├─ cardiovascular_baseline
- *   ├─ subjective_scores
- *   └─ questionnaire_responses
- *
- *   student_external_professionals (separada, FK com students)
- *   precision_reports (separada, gerada em E6/E7)
+ * supabase/migrations/20260513002546_precision12_assessment_foundation.sql.
  *
  * Padrão TanStack Query igual a useStudents.ts:
- *   • useQuery pra leitura, com staleTime e invalidateQueries em mutations
- *   • useMutation com onSuccess (invalidate + toast) e onError (toast + parse)
- *   • Notify via @/lib/notify, i18n via @/i18n/pt-BR.json
+ *   - useQuery pra leitura, com staleTime e invalidateQueries em mutations
+ *   - useMutation com onSuccess (invalidate + toast) e onError (toast + parse)
+ *   - Notify via @/lib/notify, i18n via @/i18n/pt-BR.json
  *
- * Decisões aplicadas (vide PR #116 e memory Section 8):
- *   • trainer_id é o campo canônico, professional_id é LEGACY (nullable)
- *   • sit_to_stand_results: coach insere sit_score/rise_score já descontados;
+ * Decisões aplicadas (vide PR #116):
+ *   - trainer_id é o campo canônico, professional_id é LEGACY (nullable)
+ *   - sit_to_stand_results: coach insere sit_score/rise_score já descontados;
  *     supports/instabilities ficam como audit trail
- *   • DEXA upload de PDF vai pro bucket storage 'dexa-pdfs' (não está neste
- *     hook — é responsabilidade do DexaForm via supabase.storage)
+ *   - DEXA upload de PDF vai pro bucket storage 'dexa-pdfs' fora deste hook
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import type { Database, Json } from "@/integrations/supabase/types";
 import type {
   Assessment,
   AssessmentType,
@@ -46,23 +34,59 @@ import type {
   Vo2BikeStage,
 } from "@/types/assessment";
 
-// ────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 // Constantes
-// ────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 
 const ASSESSMENT_SELECT =
   "id, student_id, trainer_id, professional_id, assessment_type, " +
   "assessment_date, status, started_at, completed_at, " +
   "age_years, weight_kg, height_cm, sex, notes, created_at, updated_at";
 
-// ────────────────────────────────────────────────────────────────────────────
+type PublicTables = Database["public"]["Tables"];
+type TableInsert<T extends keyof PublicTables> = PublicTables[T]["Insert"];
+
+type AssessmentInsert = TableInsert<"assessments">;
+type Vo2DetailsInsert = TableInsert<"vo2_assessment_details">;
+type Vo2BikeStageInsert = TableInsert<"vo2_bike_stages">;
+type HandgripInsert = TableInsert<"handgrip_results">;
+type DexaInsert = TableInsert<"dexa_results">;
+type SitToStandInsert = TableInsert<"sit_to_stand_results">;
+type CardiovascularInsert = TableInsert<"cardiovascular_baseline">;
+type SubjectiveInsert = TableInsert<"subjective_scores">;
+
+type RpcError = Error | { message?: string } | null;
+
+type CreateAssessmentRpcParams = {
+  p_parent: Json;
+  p_child_kind: "vo2" | "handgrip" | "dexa" | "sit_to_stand" | "none";
+  p_child_data: Json;
+  p_bike_stages: Json;
+  p_cardiovascular: Json | null;
+  p_subjective: Json | null;
+};
+
+type CreateAssessmentRpc = (
+  fn: "create_precision12_assessment",
+  args: CreateAssessmentRpcParams,
+) => Promise<{ data: Assessment | null; error: RpcError }>;
+
+const createAssessmentRpc = supabase.rpc as unknown as CreateAssessmentRpc;
+
+const toJson = (value: unknown): Json =>
+  JSON.parse(JSON.stringify(value ?? {})) as Json;
+
+const throwIfError = (error: RpcError) => {
+  if (error) throw error;
+};
+
+// ---------------------------------------------------------------------------
 // Tipos compostos (assessment + tabela filha)
-// ────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 
 /**
  * Resultado completo da query 1-assessment-com-filha. Apenas o campo
- * correspondente ao `assessment_type` virá preenchido — os outros são
- * nulos. Discrimine por `assessment.assessment_type` antes de usar.
+ * correspondente ao `assessment_type` virá preenchido.
  */
 export interface AssessmentWithChild {
   assessment: Assessment;
@@ -75,9 +99,9 @@ export interface AssessmentWithChild {
   subjective?: SubjectiveScores | null;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 // Queries
-// ────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 
 /**
  * Lista todas as avaliações de um aluno, ordenadas por data desc.
@@ -125,7 +149,6 @@ export const useAssessment = (id: string | null) => {
       const type = assessment.assessment_type as AssessmentType;
       const result: AssessmentWithChild = { assessment: assessment as Assessment };
 
-      // Discrimina e carrega tabela filha apropriada
       if (
         type === "vo2_bike_max" ||
         type === "vo2_bike_submax" ||
@@ -133,58 +156,67 @@ export const useAssessment = (id: string | null) => {
         type === "vo2_treadmill_run_submax" ||
         type === "vo2_treadmill_run_max"
       ) {
-        const { data: vo2 } = await supabase
+        const { data: vo2, error: vo2Error } = await supabase
           .from("vo2_assessment_details")
           .select("*")
           .eq("assessment_id", id)
           .maybeSingle();
+        if (vo2Error) throw vo2Error;
         result.vo2 = (vo2 as Vo2AssessmentDetails) ?? null;
 
         if (type === "vo2_bike_max" || type === "vo2_bike_submax") {
-          const { data: stages } = await supabase
+          const { data: stages, error: stagesError } = await supabase
             .from("vo2_bike_stages")
             .select("*")
             .eq("assessment_id", id)
-            .order("stage_number", { ascending: true });
-          result.bike_stages = (stages as Vo2BikeStage[]) ?? null;
+            .order("stage_order", { ascending: true });
+          if (stagesError) throw stagesError;
+          result.bike_stages = (stages as Vo2BikeStage[]) ?? [];
         }
       } else if (type === "handgrip") {
-        const { data } = await supabase
+        const { data, error: childError } = await supabase
           .from("handgrip_results")
           .select("*")
           .eq("assessment_id", id)
           .maybeSingle();
+        if (childError) throw childError;
         result.handgrip = (data as HandgripResults) ?? null;
       } else if (type === "dexa") {
-        const { data } = await supabase
+        const { data, error: childError } = await supabase
           .from("dexa_results")
           .select("*")
           .eq("assessment_id", id)
           .maybeSingle();
+        if (childError) throw childError;
         result.dexa = (data as DexaResults) ?? null;
       } else if (type === "sit_to_stand") {
-        const { data } = await supabase
+        const { data, error: childError } = await supabase
           .from("sit_to_stand_results")
           .select("*")
           .eq("assessment_id", id)
           .maybeSingle();
+        if (childError) throw childError;
         result.sit_to_stand = (data as SitToStandResults) ?? null;
       }
 
-      // Cardiovascular baseline + subjective scores são opcionais
-      // em qualquer assessment — carrega se existirem
-      const [{ data: cv }, { data: subj }] = await Promise.all([
-        supabase
-          .from("cardiovascular_baseline")
-          .select("*")
-          .eq("assessment_id", id)
-          .maybeSingle(),
-        supabase
-          .from("subjective_scores")
-          .select("*")
-          .eq("assessment_id", id)
-          .maybeSingle(),
-      ]);
+      const [{ data: cv, error: cvError }, { data: subj, error: subjError }] =
+        await Promise.all([
+          supabase
+            .from("cardiovascular_baseline")
+            .select("*")
+            .eq("assessment_id", id)
+            .maybeSingle(),
+          supabase
+            .from("subjective_scores")
+            .select("*")
+            .eq("assessment_id", id)
+            .order("recorded_at", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+        ]);
+      if (cvError) throw cvError;
+      if (subjError) throw subjError;
       result.cardiovascular = (cv as CardiovascularBaseline) ?? null;
       result.subjective = (subj as SubjectiveScores) ?? null;
 
@@ -193,17 +225,12 @@ export const useAssessment = (id: string | null) => {
   });
 };
 
-// ────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 // Mutation payloads (omitem generated columns + audit cols)
-// ────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 
-/**
- * Payload de criação da row mãe. Omite `id`, `created_at`, `updated_at`,
- * `trainer_id` (vem do auth.uid()), `professional_id` (LEGACY, preenchido
- * com trainer_id pra compat).
- */
 export type CreateAssessmentInput = Omit<
-  Assessment,
+  AssessmentInsert,
   | "id"
   | "created_at"
   | "updated_at"
@@ -213,122 +240,81 @@ export type CreateAssessmentInput = Omit<
   | "completed_at"
 >;
 
-/**
- * Args do useCreateAssessment: row mãe + payload da tabela filha
- * tipado de acordo com o assessment_type.
- */
 export interface CreateAssessmentArgs {
   parent: CreateAssessmentInput;
   child:
-    | { kind: "vo2"; data: Omit<Vo2AssessmentDetails, "assessment_id">; stages?: Omit<Vo2BikeStage, "id" | "assessment_id" | "created_at">[] }
-    | { kind: "handgrip"; data: Omit<HandgripResults, "assessment_id" | "best_kg"> }
-    | { kind: "dexa"; data: Omit<DexaResults, "assessment_id"> }
-    | { kind: "sit_to_stand"; data: Omit<SitToStandResults, "assessment_id" | "total_score"> }
+    | {
+        kind: "vo2";
+        data: Omit<Vo2DetailsInsert, "assessment_id">;
+        stages?: Omit<Vo2BikeStageInsert, "id" | "assessment_id">[];
+      }
+    | {
+        kind: "handgrip";
+        data: Omit<HandgripInsert, "assessment_id" | "best_kg">;
+      }
+    | {
+        kind: "dexa";
+        data: Omit<DexaInsert, "assessment_id">;
+      }
+    | {
+        kind: "sit_to_stand";
+        data: Omit<SitToStandInsert, "assessment_id" | "total_score">;
+      }
     | { kind: "questionnaire"; data: never }
     | { kind: "none" };
-  cardiovascular?: Omit<CardiovascularBaseline, "assessment_id">;
-  subjective?: Omit<SubjectiveScores, "assessment_id">;
+  cardiovascular?: Omit<CardiovascularInsert, "assessment_id">;
+  subjective?: Omit<
+    SubjectiveInsert,
+    "id" | "student_id" | "assessment_id" | "created_at"
+  >;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 // Mutations
-// ────────────────────────────────────────────────────────────────────────────
+// ---------------------------------------------------------------------------
 
 /**
- * Cria 1 avaliação completa: row mãe + tabela filha + (opcional)
- * cardiovascular_baseline + subjective_scores.
+ * Cria 1 avaliação completa de forma atômica: row mãe + tabela filha +
+ * (opcional) cardiovascular_baseline + subjective_scores.
  *
- * NOTA: não é transação real (Supabase JS não suporta), mas inserts são
- * sequenciais. Se a filha falhar após a mãe ter sido criada, fica um
- * registro órfão — UI deve oferecer "tentar novamente" ou apagar.
- * Em produção, considerar mover essa orquestração pra edge function
- * em ciclo posterior.
+ * A transação vive no Postgres via RPC `create_precision12_assessment`.
+ * Se qualquer insert filho falhar, a assessment mãe também é rollbackada.
  */
 export const useCreateAssessment = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (args: CreateAssessmentArgs) => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuário não autenticado");
-
-      // 1. Cria row mãe
-      const parentInsert = {
-        ...args.parent,
-        trainer_id: user.id,
-        // LEGACY: preenche professional_id com mesmo trainer_id pra rows
-        // novas. Schema nullable então não obrigatório, mas mantém
-        // consistência com queries antigas.
-        professional_id: user.id,
-      };
-
-      const { data: assessment, error: parentError } = await supabase
-        .from("assessments")
-        .insert(parentInsert)
-        .select(ASSESSMENT_SELECT)
-        .single();
-
-      if (parentError) throw parentError;
-      if (!assessment) throw new Error("Falha ao criar avaliação");
-
-      const assessmentId = (assessment as Assessment).id;
-
-      // 2. Cria tabela filha conforme kind
-      if (args.child.kind === "vo2") {
-        const { error: vo2Error } = await supabase
-          .from("vo2_assessment_details")
-          .insert({ ...args.child.data, assessment_id: assessmentId });
-        if (vo2Error) throw vo2Error;
-
-        if (args.child.stages && args.child.stages.length > 0) {
-          const { error: stagesError } = await supabase
-            .from("vo2_bike_stages")
-            .insert(
-              args.child.stages.map((s) => ({ ...s, assessment_id: assessmentId })),
-            );
-          if (stagesError) throw stagesError;
-        }
-      } else if (args.child.kind === "handgrip") {
-        const { error } = await supabase
-          .from("handgrip_results")
-          .insert({ ...args.child.data, assessment_id: assessmentId });
-        if (error) throw error;
-      } else if (args.child.kind === "dexa") {
-        const { error } = await supabase
-          .from("dexa_results")
-          .insert({ ...args.child.data, assessment_id: assessmentId });
-        if (error) throw error;
-      } else if (args.child.kind === "sit_to_stand") {
-        const { error } = await supabase
-          .from("sit_to_stand_results")
-          .insert({ ...args.child.data, assessment_id: assessmentId });
-        if (error) throw error;
-      }
-      // kind === "none" ou "questionnaire" → não escreve filha aqui
-      // (questionnaire vai por edge function em E3)
-
-      // 3. Cardiovascular baseline e subjective scores (opcionais)
-      if (args.cardiovascular) {
-        const { error } = await supabase
-          .from("cardiovascular_baseline")
-          .insert({ ...args.cardiovascular, assessment_id: assessmentId });
-        if (error) throw error;
-      }
-      if (args.subjective) {
-        const { error } = await supabase
-          .from("subjective_scores")
-          .insert({ ...args.subjective, assessment_id: assessmentId });
-        if (error) throw error;
+      if (args.child.kind === "questionnaire") {
+        throw new Error("Questionário Precision 12 deve ser criado pelo link mágico");
       }
 
-      return assessment as Assessment;
+      const childData = args.child.kind === "none" ? {} : args.child.data;
+      const bikeStages = args.child.kind === "vo2" ? args.child.stages ?? [] : [];
+
+      const { data, error } = await createAssessmentRpc(
+        "create_precision12_assessment",
+        {
+          p_parent: toJson(args.parent),
+          p_child_kind: args.child.kind,
+          p_child_data: toJson(childData),
+          p_bike_stages: toJson(bikeStages),
+          p_cardiovascular: args.cardiovascular ? toJson(args.cardiovascular) : null,
+          p_subjective: args.subjective ? toJson(args.subjective) : null,
+        },
+      );
+
+      throwIfError(error);
+      if (!data) throw new Error("Falha ao criar avaliação");
+
+      return data;
     },
     onSuccess: (assessment) => {
+      queryClient.invalidateQueries({ queryKey: ["assessment", assessment.id] });
       queryClient.invalidateQueries({
         queryKey: ["assessments", "by-student", assessment.student_id],
       });
+      queryClient.invalidateQueries({ queryKey: ["student", assessment.student_id] });
       notify.success("Avaliação registrada com sucesso");
     },
     onError: (error: Error) => {
@@ -341,14 +327,16 @@ export const useCreateAssessment = () => {
 
 /**
  * Atualiza status / notes da row mãe. Edição completa de filhas vai em
- * mutations específicas que ainda não existem — adicionar quando E2.5+
- * pedir edição.
+ * mutations específicas quando E2.5+ pedir edição.
  */
 export const useUpdateAssessment = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (args: { id: string; patch: Partial<Pick<Assessment, "status" | "notes" | "assessment_date">> }) => {
+    mutationFn: async (args: {
+      id: string;
+      patch: Partial<Pick<Assessment, "status" | "notes" | "assessment_date">>;
+    }) => {
       const { data, error } = await supabase
         .from("assessments")
         .update(args.patch)
@@ -363,6 +351,7 @@ export const useUpdateAssessment = () => {
       queryClient.invalidateQueries({
         queryKey: ["assessments", "by-student", assessment.student_id],
       });
+      queryClient.invalidateQueries({ queryKey: ["student", assessment.student_id] });
       notify.success("Avaliação atualizada");
     },
     onError: (error: Error) => {
@@ -394,6 +383,7 @@ export const useDeleteAssessment = () => {
       queryClient.invalidateQueries({
         queryKey: ["assessments", "by-student", args.studentId],
       });
+      queryClient.invalidateQueries({ queryKey: ["student", args.studentId] });
       notify.success("Avaliação removida");
     },
     onError: (error: Error) => {

@@ -93,6 +93,9 @@ const SUPPORT_LABELS: Array<{ key: keyof ReturnType<typeof emptySupports>; label
   { key: "hand_on_knee", label: "Mão no joelho" },
 ];
 
+const parseOptionalNumber = (value: string): number | undefined =>
+  value === "" ? undefined : Number(value);
+
 export const SitToStandForm = ({
   open,
   onOpenChange,
@@ -113,10 +116,10 @@ export const SitToStandForm = ({
       height_cm: defaults?.height_cm ?? null,
       sex: defaults?.sex ?? null,
       notes: "",
-      sit_score: 5,
+      sit_score: undefined as unknown as number,
       sit_supports: emptySupports(),
       sit_instabilities: 0,
-      rise_score: 5,
+      rise_score: undefined as unknown as number,
       rise_supports: emptySupports(),
       rise_instabilities: 0,
       sit_to_stand_notes: "",
@@ -182,7 +185,7 @@ export const SitToStandForm = ({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Base — data, peso, idade, etc. */}
-            <section className="grid grid-cols-2 gap-3">
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="assessment_date"
@@ -232,7 +235,7 @@ export const SitToStandForm = ({
                 />
               </header>
 
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {SUPPORT_LABELS.map((s) => (
                   <FormField
                     key={`sit_${s.key}`}
@@ -247,7 +250,10 @@ export const SitToStandForm = ({
                             min={0}
                             max={10}
                             {...field}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            value={field.value ?? ""}
+                            onChange={(e) =>
+                              field.onChange(parseOptionalNumber(e.target.value))
+                            }
                           />
                         </FormControl>
                         <FormMessage />
@@ -257,7 +263,7 @@ export const SitToStandForm = ({
                 ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="sit_instabilities"
@@ -270,7 +276,10 @@ export const SitToStandForm = ({
                           min={0}
                           max={20}
                           {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(parseOptionalNumber(e.target.value))
+                          }
                         />
                       </FormControl>
                       <FormMessage />
@@ -290,7 +299,10 @@ export const SitToStandForm = ({
                           min={0}
                           max={5}
                           {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(parseOptionalNumber(e.target.value))
+                          }
                         />
                       </FormControl>
                       <FormMessage />
@@ -310,7 +322,7 @@ export const SitToStandForm = ({
                 />
               </header>
 
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {SUPPORT_LABELS.map((s) => (
                   <FormField
                     key={`rise_${s.key}`}
@@ -325,7 +337,10 @@ export const SitToStandForm = ({
                             min={0}
                             max={10}
                             {...field}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
+                            value={field.value ?? ""}
+                            onChange={(e) =>
+                              field.onChange(parseOptionalNumber(e.target.value))
+                            }
                           />
                         </FormControl>
                         <FormMessage />
@@ -335,7 +350,7 @@ export const SitToStandForm = ({
                 ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="rise_instabilities"
@@ -348,7 +363,10 @@ export const SitToStandForm = ({
                           min={0}
                           max={20}
                           {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(parseOptionalNumber(e.target.value))
+                          }
                         />
                       </FormControl>
                       <FormMessage />
@@ -368,7 +386,10 @@ export const SitToStandForm = ({
                           min={0}
                           max={5}
                           {...field}
-                          onChange={(e) => field.onChange(Number(e.target.value))}
+                          value={field.value ?? ""}
+                          onChange={(e) =>
+                            field.onChange(parseOptionalNumber(e.target.value))
+                          }
                         />
                       </FormControl>
                       <FormMessage />
