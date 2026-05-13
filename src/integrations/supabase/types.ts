@@ -1854,6 +1854,7 @@ export type Database = {
           email: string | null
           energy_level: number | null
           exercise_history: string | null
+          external_training_resources: string[] | null
           firm_professional_response: string | null
           fitness_self_rating: number | null
           frequent_traveler: boolean | null
@@ -1862,8 +1863,10 @@ export type Database = {
           goal_details: string | null
           goals: string[] | null
           has_medical_condition: boolean | null
+          injury_surgery_history: string | null
           life_stability: string | null
           medical_condition_details: string | null
+          medications_continuous: string | null
           missed_session_response: string | null
           motivations: string[] | null
           pain_location: string | null
@@ -1879,6 +1882,7 @@ export type Database = {
           parq_q9_chest_pain_exercise: boolean | null
           phone: string | null
           previous_attempts: string | null
+          primary_adherence_barrier: string | null
           profession: string | null
           questionnaire_version: string
           recovery_quality: string | null
@@ -1892,8 +1896,10 @@ export type Database = {
           stress_level: number | null
           submitted_at: string | null
           tobacco: string | null
+          training_available_days: string[] | null
           training_period: string | null
           updated_at: string | null
+          uses_medications: boolean | null
           uses_wearable: boolean | null
           wearable_brand: string | null
           weekly_frequency: number | null
@@ -1919,6 +1925,7 @@ export type Database = {
           email?: string | null
           energy_level?: number | null
           exercise_history?: string | null
+          external_training_resources?: string[] | null
           firm_professional_response?: string | null
           fitness_self_rating?: number | null
           frequent_traveler?: boolean | null
@@ -1927,8 +1934,10 @@ export type Database = {
           goal_details?: string | null
           goals?: string[] | null
           has_medical_condition?: boolean | null
+          injury_surgery_history?: string | null
           life_stability?: string | null
           medical_condition_details?: string | null
+          medications_continuous?: string | null
           missed_session_response?: string | null
           motivations?: string[] | null
           pain_location?: string | null
@@ -1944,6 +1953,7 @@ export type Database = {
           parq_q9_chest_pain_exercise?: boolean | null
           phone?: string | null
           previous_attempts?: string | null
+          primary_adherence_barrier?: string | null
           profession?: string | null
           questionnaire_version?: string
           recovery_quality?: string | null
@@ -1957,8 +1967,10 @@ export type Database = {
           stress_level?: number | null
           submitted_at?: string | null
           tobacco?: string | null
+          training_available_days?: string[] | null
           training_period?: string | null
           updated_at?: string | null
+          uses_medications?: boolean | null
           uses_wearable?: boolean | null
           wearable_brand?: string | null
           weekly_frequency?: number | null
@@ -1984,6 +1996,7 @@ export type Database = {
           email?: string | null
           energy_level?: number | null
           exercise_history?: string | null
+          external_training_resources?: string[] | null
           firm_professional_response?: string | null
           fitness_self_rating?: number | null
           frequent_traveler?: boolean | null
@@ -1992,8 +2005,10 @@ export type Database = {
           goal_details?: string | null
           goals?: string[] | null
           has_medical_condition?: boolean | null
+          injury_surgery_history?: string | null
           life_stability?: string | null
           medical_condition_details?: string | null
+          medications_continuous?: string | null
           missed_session_response?: string | null
           motivations?: string[] | null
           pain_location?: string | null
@@ -2009,6 +2024,7 @@ export type Database = {
           parq_q9_chest_pain_exercise?: boolean | null
           phone?: string | null
           previous_attempts?: string | null
+          primary_adherence_barrier?: string | null
           profession?: string | null
           questionnaire_version?: string
           recovery_quality?: string | null
@@ -2022,8 +2038,10 @@ export type Database = {
           stress_level?: number | null
           submitted_at?: string | null
           tobacco?: string | null
+          training_available_days?: string[] | null
           training_period?: string | null
           updated_at?: string | null
+          uses_medications?: boolean | null
           uses_wearable?: boolean | null
           wearable_brand?: string | null
           weekly_frequency?: number | null
