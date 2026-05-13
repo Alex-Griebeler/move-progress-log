@@ -116,7 +116,7 @@ A diferença entre **60 itens visíveis** e **63 campos persistidos** vem da Tel
 | 3.1 | "Quais são seus principais objetivos com este programa? (selecione até 2)" | checkbox (max 2) | ✓ | Reduzir gordura corporal → `reduce_body_fat` · Ganhar massa muscular → `gain_muscle` · Melhorar performance física → `improve_performance` · Melhorar mobilidade/flexibilidade → `improve_mobility` · Reduzir dores/desconfortos → `reduce_pain` · Melhorar saúde geral/longevidade → `improve_health_longevity` · Melhorar energia e recuperação → `improve_energy_recovery` · Outro → `other` | `goals` (text[]) | objetivos no PDF inicial + coach review |
 | 3.2 | "Descreva com mais detalhes o que você quer alcançar" | textarea | ◯ | — | `goal_details` | contexto qualitativo |
 | 3.3 | "Você já tentou alcançar esse objetivo antes? Se sim, o que funcionou ou não funcionou." | textarea | ◯ | — | `previous_attempts` | calibração coach (evitar erros passados) |
-| **3.4** | **"Como você descreve sua prática de exercícios HOJE?"** (Q18 reformulada — D2) | radio | ✓ | Nunca treinei com regularidade → `never_regular` · Já treinei, mas estou parado(a) há mais de 1 mês → `paused_over_1_month` · Estou voltando — treinando há menos de 1 mês → `returning_under_1_month` · Treino regularmente há 1 a 6 meses → `regular_1_to_6_months` · Treino regularmente há 6 meses a 2 anos → `regular_6_months_to_2_years` · Treino regularmente há mais de 2 anos → `regular_over_2_years` | `exercise_history` | **dupla derivação**: `training_experience_level` (sedentary/transition/beginner/intermediate/advanced) + `active_last_30_days` (boolean) — ver Seção 7.1 |
+| **3.4** | **"Sobre sua prática de exercícios HOJE"** (Q18 reformulada — D2) | radio | ✓ | Nunca treinei com regularidade → `never_regular` · Já treinei, mas estou parado(a) há mais de 1 mês → `stopped_more_than_1_month` · Estou voltando — treinando há menos de 1 mês → `returning_less_than_1_month` · Treino regularmente há 1 a 6 meses → `regular_1_to_6_months` · Treino regularmente há 6 meses a 2 anos → `regular_6_months_to_2_years` · Treino regularmente há mais de 2 anos → `regular_more_than_2_years` | `exercise_history` | **dupla derivação**: `training_experience_level` (sedentary/transitioning/beginner/intermediate/advanced) + `active_last_30_days` (boolean) — ver Seção 7.1 |
 | 3.5 | "Como você avalia seu condicionamento físico atual?" | likert 1-5 | ✓ | 1 = Muito baixo … 5 = Muito alto | `fitness_self_rating` | benchmark subjetivo vs experiência declarada + Oura HRV |
 | 3.6 | "Como você avalia sua satisfação com seu corpo?" | likert 1-5 | ✓ | 1 = Muito insatisfeito … 5 = Muito satisfeito | `body_satisfaction` | calibração wording PDF (motivação intrínseca vs extrínseca) |
 
@@ -217,11 +217,11 @@ GOALS = [
 ] as const;
 EXERCISE_HISTORY = [
   "never_regular",
-  "paused_over_1_month",
-  "returning_under_1_month",
+  "stopped_more_than_1_month",
+  "returning_less_than_1_month",
   "regular_1_to_6_months",
   "regular_6_months_to_2_years",
-  "regular_over_2_years",
+  "regular_more_than_2_years",
 ] as const;
 
 // Tela 4
@@ -318,27 +318,27 @@ Resumo das **6 dependências** (todas implementadas client-side via watch do for
 ```ts
 type TrainingExperienceLevel =
   | "sedentary"
-  | "transition"          // voltando há <1 mês
-  | "active_beginner"     // 1-6 meses regular
-  | "active_intermediate" // 6m-2 anos regular
-  | "active_advanced";    // >2 anos regular
+  | "transitioning"   // voltando há <1 mês
+  | "beginner"        // 1-6 meses regular
+  | "intermediate"    // 6m-2 anos regular
+  | "advanced";       // >2 anos regular
 
 const HISTORY_TO_TRAINING_EXPERIENCE: Record<typeof EXERCISE_HISTORY[number], TrainingExperienceLevel> = {
-  never_regular:              "sedentary",
-  paused_over_1_month:        "sedentary",
-  returning_under_1_month:    "transition",
-  regular_1_to_6_months:      "active_beginner",
-  regular_6_months_to_2_years:"active_intermediate",
-  regular_over_2_years:       "active_advanced",
+  never_regular:                "sedentary",
+  stopped_more_than_1_month:    "sedentary",
+  returning_less_than_1_month:  "transitioning",
+  regular_1_to_6_months:        "beginner",
+  regular_6_months_to_2_years:  "intermediate",
+  regular_more_than_2_years:    "advanced",
 };
 
 const ACTIVE_LAST_30_DAYS: Record<typeof EXERCISE_HISTORY[number], boolean> = {
-  never_regular:              false,
-  paused_over_1_month:        false,
-  returning_under_1_month:    true,
-  regular_1_to_6_months:      true,
-  regular_6_months_to_2_years:true,
-  regular_over_2_years:       true,
+  never_regular:                false,
+  stopped_more_than_1_month:    false,
+  returning_less_than_1_month:  true,
+  regular_1_to_6_months:        true,
+  regular_6_months_to_2_years:  true,
+  regular_more_than_2_years:    true,
 };
 ```
 
