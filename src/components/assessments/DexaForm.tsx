@@ -118,7 +118,6 @@ export const DexaForm = ({
   const createAssessment = useCreateAssessment();
   const [isSaving, setIsSaving] = useState(false);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [pdfPath, setPdfPath] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const form = useForm<FormData>({
@@ -162,38 +161,29 @@ export const DexaForm = ({
       return;
     }
 
-    setIsUploading(true);
-    try {
-      const ext = file.name.split(".").pop() ?? "pdf";
-      const path = `${studentId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("dexa-pdfs")
-        .upload(path, file, { contentType: "application/pdf" });
-      if (error) throw error;
-      setPdfFile(file);
-      setPdfPath(path);
-      notify.success("PDF carregado");
-    } catch (err) {
-      notify.error("Erro no upload do PDF", {
-        description: err instanceof Error ? err.message : "Tente novamente",
-      });
-    } finally {
-      setIsUploading(false);
-    }
+    setPdfFile(file);
   };
 
-  const removePdf = async () => {
-    if (pdfPath) {
-      // Best-effort: ignora erro de remoção (RLS pode bloquear se não for o trainer)
-      await supabase.storage.from("dexa-pdfs").remove([pdfPath]);
-    }
+  const removePdf = () => {
     setPdfFile(null);
-    setPdfPath(null);
   };
 
   const onSubmit = async (data: FormData) => {
     setIsSaving(true);
+    let uploadedPdfPath: string | null = null;
+    let mutationStarted = false;
     try {
+      if (pdfFile) {
+        setIsUploading(true);
+        const ext = pdfFile.name.split(".").pop() ?? "pdf";
+        uploadedPdfPath = `${studentId}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage
+          .from("dexa-pdfs")
+          .upload(uploadedPdfPath, pdfFile, { contentType: "application/pdf" });
+        if (error) throw error;
+      }
+
+      mutationStarted = true;
       const result = await createAssessment.mutateAsync({
         parent: {
           student_id: data.student_id,
@@ -223,7 +213,7 @@ export const DexaForm = ({
             fat_percentile: data.fat_percentile ?? null,
             bmr_harris_benedict_kcal: data.bmr_harris_benedict_kcal ?? null,
             bmr_mifflin_stjeor_kcal: data.bmr_mifflin_stjeor_kcal ?? null,
-            scan_pdf_storage_path: pdfPath,
+            scan_pdf_storage_path: uploadedPdfPath,
             scan_pdf_url: null,
             regional_distribution: data.regional_distribution ?? null,
             conclusion_text: data.conclusion_text || null,
@@ -235,10 +225,16 @@ export const DexaForm = ({
       });
       form.reset();
       setPdfFile(null);
-      setPdfPath(null);
       onOpenChange(false);
       onCreated?.(result.id);
+    } catch (err) {
+      if (!mutationStarted) {
+        notify.error("Erro no upload do PDF", {
+          description: err instanceof Error ? err.message : "Tente novamente",
+        });
+      }
     } finally {
+      setIsUploading(false);
       setIsSaving(false);
     }
   };
@@ -326,6 +322,7 @@ export const DexaForm = ({
                     variant="ghost"
                     onClick={removePdf}
                     disabled={isUploading || isSaving}
+                    aria-label="Remover PDF selecionado"
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -352,8 +349,8 @@ export const DexaForm = ({
                 </label>
               )}
               <p className="text-xs text-muted-foreground">
-                Upload é opcional; campos clínicos podem ser preenchidos
-                manualmente do laudo impresso.
+                Upload é opcional e só acontece ao salvar; cancelar esta tela
+                não cria arquivo órfão.
               </p>
             </section>
 

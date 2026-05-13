@@ -19,7 +19,7 @@
  * em tempo real; coach pode sobrescrever se houver razão clínica.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2 } from "lucide-react";
@@ -82,6 +82,8 @@ const ABORT_REASONS = [
   { value: "equipment", label: "Falha de equipamento" },
 ] as const;
 
+const CLEAR_SELECT_VALUE = "__none";
+
 const formSchema = assessmentBaseSchema.extend({
   fc_max_predicted: vo2BikeMaxSchema.shape.fc_max_predicted,
   fc_peak: vo2BikeMaxSchema.shape.fc_peak,
@@ -142,6 +144,7 @@ export const Vo2BikeForm = ({
   const fcMaxPredictedAuto = defaults?.age_years
     ? calcFcMaxPredicted(defaults.age_years)
     : null;
+  const lastAutoFcMax = useRef<number | null>(fcMaxPredictedAuto);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -168,6 +171,24 @@ export const Vo2BikeForm = ({
   });
 
   const stagesArray = useFieldArray({ control: form.control, name: "stages" });
+
+  const ageYears = form.watch("age_years");
+  useEffect(() => {
+    const nextAuto =
+      typeof ageYears === "number" && Number.isFinite(ageYears)
+        ? calcFcMaxPredicted(ageYears)
+        : null;
+    const current = form.getValues("fc_max_predicted");
+
+    if (current === null || current === undefined || current === lastAutoFcMax.current) {
+      form.setValue("fc_max_predicted", nextAuto, {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
+    }
+
+    lastAutoFcMax.current = nextAuto;
+  }, [ageYears, form]);
 
   // Preview reativo: VO₂ ACSM e %FCmáx
   const weightKg = form.watch("weight_kg");
@@ -220,8 +241,8 @@ export const Vo2BikeForm = ({
             last_valid_watts: data.last_valid_watts ?? null,
             abort_reason: data.abort_reason ?? null,
           },
-          stages: data.stages.map((s) => ({
-            stage_order: s.stage_order,
+          stages: data.stages.map((s, index) => ({
+            stage_order: index + 1,
             time_label: s.time_label ?? null,
             phase: s.phase ?? null,
             load_value: s.load_value ?? null,
@@ -671,7 +692,11 @@ export const Vo2BikeForm = ({
                   <FormLabel>Motivo de parada</FormLabel>
                   <Select
                     value={field.value ?? undefined}
-                    onValueChange={(v) => field.onChange(v as FormData["abort_reason"])}
+                    onValueChange={(v) =>
+                      field.onChange(
+                        v === CLEAR_SELECT_VALUE ? null : (v as FormData["abort_reason"]),
+                      )
+                    }
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -679,6 +704,7 @@ export const Vo2BikeForm = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value={CLEAR_SELECT_VALUE}>Sem motivo registrado</SelectItem>
                       {ABORT_REASONS.map((r) => (
                         <SelectItem key={r.value} value={r.value}>
                           {r.label}
