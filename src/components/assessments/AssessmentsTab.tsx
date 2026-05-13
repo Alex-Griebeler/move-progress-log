@@ -12,7 +12,7 @@
 import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronRight, Plus, Stethoscope } from "lucide-react";
+import { Plus, Stethoscope } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -183,18 +183,7 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
                   return (
                     <Card
                       key={a.id}
-                      className="flex cursor-pointer items-center justify-between gap-3 p-3 hover:bg-muted/30"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => {
-                        // Drill-down: detail page será criada em E6/E7.
-                        // Por ora, no-op (apenas hover visual).
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                        }
-                      }}
+                      className="flex items-center justify-between gap-3 p-3"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -215,7 +204,6 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
                         <Badge variant={STATUS_VARIANTS[a.status] ?? "outline"}>
                           {STATUS_LABELS[a.status] ?? a.status}
                         </Badge>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </Card>
                   );

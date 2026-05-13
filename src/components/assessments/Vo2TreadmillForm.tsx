@@ -19,7 +19,7 @@
  *     / safety_*); submáximo aceita "pse_9_submax".
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -84,6 +84,8 @@ const ABORT_REASONS = [
   { value: "equipment", label: "Falha de equipamento" },
 ] as const;
 
+const CLEAR_SELECT_VALUE = "__none";
+
 const formSchema = assessmentBaseSchema.extend({
   fc_max_predicted: vo2TreadmillSchema.shape.fc_max_predicted,
   fc_peak: vo2TreadmillSchema.shape.fc_peak,
@@ -131,6 +133,7 @@ export const Vo2TreadmillForm = ({
   const fcMaxPredictedAuto = defaults?.age_years
     ? calcFcMaxPredicted(defaults.age_years)
     : null;
+  const lastAutoFcMax = useRef<number | null>(fcMaxPredictedAuto);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -153,6 +156,24 @@ export const Vo2TreadmillForm = ({
       abort_reason: null,
     },
   });
+
+  const ageYears = form.watch("age_years");
+  useEffect(() => {
+    const nextAuto =
+      typeof ageYears === "number" && Number.isFinite(ageYears)
+        ? calcFcMaxPredicted(ageYears)
+        : null;
+    const current = form.getValues("fc_max_predicted");
+
+    if (current === null || current === undefined || current === lastAutoFcMax.current) {
+      form.setValue("fc_max_predicted", nextAuto, {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
+    }
+
+    lastAutoFcMax.current = nextAuto;
+  }, [ageYears, form]);
 
   const fcPeak = form.watch("fc_peak");
   const fcMaxPred = form.watch("fc_max_predicted");
@@ -470,7 +491,11 @@ export const Vo2TreadmillForm = ({
                   <FormLabel>Motivo de parada</FormLabel>
                   <Select
                     value={field.value ?? undefined}
-                    onValueChange={(v) => field.onChange(v as FormData["abort_reason"])}
+                    onValueChange={(v) =>
+                      field.onChange(
+                        v === CLEAR_SELECT_VALUE ? null : (v as FormData["abort_reason"]),
+                      )
+                    }
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -478,6 +503,7 @@ export const Vo2TreadmillForm = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value={CLEAR_SELECT_VALUE}>Sem motivo registrado</SelectItem>
                       {ABORT_REASONS.map((r) => (
                         <SelectItem key={r.value} value={r.value}>
                           {r.label}

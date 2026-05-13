@@ -4,8 +4,8 @@
  * Protocolo:
  *   - 3 tentativas com a mão direita
  *   - 3 tentativas com a mão esquerda
- *   - Banco calcula `best_kg` (generated column) = max das 6 tentativas
- *   - `right_kg` / `left_kg` = max da própria mão (coach digita ou banco calcula)
+ *   - Form calcula `right_kg` / `left_kg` como melhor tentativa de cada mão
+ *   - Banco calcula `best_kg` (generated column) = greatest(right_kg, left_kg)
  *
  * Classificação clínica é feita em ciclo posterior (E5 Evidence) via
  * tabela `handgrip_reference_ranges` (Mathiowetz). Aqui só coleta.
