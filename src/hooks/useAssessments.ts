@@ -194,7 +194,7 @@ export const useAssessment = (id: string | null) => {
           .eq("assessment_id", id)
           .maybeSingle();
         if (childError) throw childError;
-        result.sit_to_stand = (data as SitToStandResults) ?? null;
+        result.sit_to_stand = (data as unknown as SitToStandResults) ?? null;
       }
 
       const [{ data: cv, error: cvError }, { data: subj, error: subjError }] =
