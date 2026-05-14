@@ -65,6 +65,8 @@ Dados de questionário úteis para E4:
 - `external_training_resources`
 - `uses_medications`
 - `medications_continuous`
+- `has_medical_condition`
+- `medical_condition_details`
 - `injury_surgery_history`
 - `pain_status`
 - `pain_location`
@@ -116,19 +118,20 @@ Campos por linha:
 
 ### 3. Progresso por aluno
 
-Mostrar, por aluno, a cobertura dos 9 tipos:
+Mostrar, por aluno, a cobertura por **categoria de avaliação**, não por tipo. Os 9 tipos Precision 12 se agrupam em **5 categorias** — o app já faz esse mapeamento em `ASSESSMENT_TYPE_METADATA[type].category` (reusar, não recriar):
 
-- Questionário
-- VO₂ Bike Max/Submax ou Esteira
-- Handgrip
-- DEXA
-- Sentar e Levantar
-- Cardiovascular/subjetivo quando existir
+- **VO₂** — satisfeita por qualquer um dos 5 tipos `vo2_*`. O aluno faz um protocolo, não os cinco; não somar as variantes.
+- **Força** — `handgrip`
+- **Composição** — `dexa`
+- **Funcional** — `sit_to_stand`
+- **Anamnese** — `questionnaire_precision12`
+
+Cardiovascular/subjetivo entra como contexto adicional quando existir, fora da base de 5.
 
 Regra MVP de progresso:
 
-- Base = 9 tipos de avaliação do Precision 12.
-- `completed` conta como feito.
+- Base = **5 categorias** (reusar `ASSESSMENT_TYPE_METADATA[].category`), não 9 tipos.
+- Uma categoria conta como **feita** se tem ao menos uma assessment `completed` daquele grupo.
 - `blocked` conta como respondido, mas exige ação clínica.
 - `in_progress` conta como pendente.
 - `aborted` não conta como feito.
@@ -278,15 +281,21 @@ Decisão futura: se trainers não-admin também precisarem do console, mover a r
 
 ### PR E4.1 — Derivações e hook read-only
 
+Verificar antes de escrever (de-risca o PR):
+
+- **RLS**: conferir as policies de `questionnaire_responses` e `precision12_questionnaire_links` — confirmar que coach/admin consegue leitura consolidada. Se bloquear, parar e reavaliar RPC antes de seguir.
+- **Progresso por categoria**: `deriveStudentProgress` mede contra as **5 categorias** (ver seção 3), não contra 9 tipos. VO₂ satisfeita por qualquer `vo2_*`.
+- **"DEXA sem PDF" na fila**: esclarecer a regra antes de codar `deriveActionQueue` — uma DEXA `in_progress` já cai em "avaliação incompleta". "DEXA sem PDF/conclusão" só vale pra DEXA fora de `in_progress` com `dexa_results.scan_pdf_url`/`conclusion_text` nulos. Não duplicar o mesmo aluno em duas linhas.
+
 Escopo:
 
 - Criar funções puras em `precision12CoachConsole.ts`:
   - `deriveAssessmentStatusCounts`
-  - `deriveStudentProgress`
+  - `deriveStudentProgress` — base = 5 categorias (ver seção 3)
   - `deriveQuestionnaireAlerts`
   - `deriveActionQueue`
 - Criar testes unitários com fixtures simples.
-- Criar `usePrecision12CoachConsole` com fetch read-only.
+- Criar `usePrecision12CoachConsole` com fetch read-only — usar queries **bulk `.in()`** (uma para os assessments de todos os alunos visíveis, uma para `questionnaire_responses` por `assessment_id`, uma para `precision12_questionnaire_links` quando necessário). Não fazer fetch por aluno em loop — evita o N+1 que a tabela de riscos aponta.
 - Sem UI grande ainda.
 
 Gates:
