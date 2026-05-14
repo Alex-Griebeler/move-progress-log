@@ -46,6 +46,7 @@ declare
   v_link public.precision12_questionnaire_links%rowtype;
   v_assessment public.assessments%rowtype;
   v_response public.questionnaire_responses%rowtype;
+  v_rec public.questionnaire_responses%rowtype;
   v_response_exists boolean;
   v_final_status text;
 begin
@@ -113,22 +114,71 @@ begin
   end if;
 
   -- ─── 4. INSERT em questionnaire_responses ───────────────────────────────
-  -- Força assessment_id, questionnaire_version e submitted_at server-side.
-  -- Remove parq_blocked do payload pra garantir que vem da generated column.
-  -- jsonb_populate_record popula colunas a partir do payload (campos
-  -- ausentes ficam null; campos extras são ignorados; tipos são coagidos).
-  insert into public.questionnaire_responses
-  select * from jsonb_populate_record(
+  -- Estratégia (após patches in-place do Lovable em 2026-05-14):
+  --   a) jsonb_populate_record só pra COERÇÃO DE TIPOS do payload em
+  --      um record variable (sem inserir nada ainda).
+  --   b) INSERT EXPLÍCITO listando colunas (omitindo parq_blocked
+  --      generated, created_at e updated_at — defaults do schema).
+  --   c) assessment_id, questionnaire_version e submitted_at forçados
+  --      server-side (não vêm do payload do aluno).
+  --
+  -- Por que não `INSERT ... SELECT * FROM jsonb_populate_record(...)`:
+  -- esse atalho inclui TODAS as colunas no SELECT, incluindo
+  -- parq_blocked (generated) → Postgres rejeita.
+  v_rec := jsonb_populate_record(
     null::public.questionnaire_responses,
-    p_payload
-      - 'parq_blocked'
-      - 'created_at'
-      - 'updated_at'
-    || jsonb_build_object(
-      'assessment_id', v_assessment.id,
-      'questionnaire_version', 'precision12_v1',
-      'submitted_at', now()
-    )
+    p_payload - 'parq_blocked' - 'created_at' - 'updated_at'
+      || jsonb_build_object(
+        'assessment_id', v_assessment.id,
+        'questionnaire_version', 'precision12_v1',
+        'submitted_at', now()
+      )
+  );
+
+  insert into public.questionnaire_responses (
+    assessment_id, questionnaire_version,
+    full_name, email, phone, birthdate, gender, profession, routine,
+    parq_q8_heart_condition, parq_q9_chest_pain_exercise, parq_q10_chest_pain_recent,
+    parq_q11_loss_consciousness_or_dizziness_fall, parq_q12_bone_joint,
+    parq_q13_blood_pressure_meds, parq_q14_other_health_reason,
+    goals, goal_details, previous_attempts, exercise_history,
+    fitness_self_rating, body_satisfaction,
+    session_duration, weekly_frequency, training_available_days, training_period,
+    frequent_traveler, external_training_resources, routine_description,
+    primary_adherence_barrier,
+    pain_status, pain_movements, pain_location, biggest_difficulty,
+    has_medical_condition, medical_condition_details,
+    uses_medications, medications_continuous, injury_surgery_history,
+    recovery_strategies, alcohol, tobacco, caffeine_doses,
+    sleep_hours, sleep_quality, stress_level, energy_level, recovery_quality,
+    uses_wearable, wearable_brand, share_data,
+    motivations, discomfort_response, difficulty_helper, missed_session_response,
+    firm_professional_response, accompaniment_preference, correction_preference,
+    consistency_self_rating, life_stability, deal_breaker,
+    consent_truthful, consent_not_medical, consent_data_use, consent_terms,
+    submitted_at
+  ) values (
+    v_assessment.id, 'precision12_v1',
+    v_rec.full_name, v_rec.email, v_rec.phone, v_rec.birthdate, v_rec.gender, v_rec.profession, v_rec.routine,
+    v_rec.parq_q8_heart_condition, v_rec.parq_q9_chest_pain_exercise, v_rec.parq_q10_chest_pain_recent,
+    v_rec.parq_q11_loss_consciousness_or_dizziness_fall, v_rec.parq_q12_bone_joint,
+    v_rec.parq_q13_blood_pressure_meds, v_rec.parq_q14_other_health_reason,
+    v_rec.goals, v_rec.goal_details, v_rec.previous_attempts, v_rec.exercise_history,
+    v_rec.fitness_self_rating, v_rec.body_satisfaction,
+    v_rec.session_duration, v_rec.weekly_frequency, v_rec.training_available_days, v_rec.training_period,
+    v_rec.frequent_traveler, v_rec.external_training_resources, v_rec.routine_description,
+    v_rec.primary_adherence_barrier,
+    v_rec.pain_status, v_rec.pain_movements, v_rec.pain_location, v_rec.biggest_difficulty,
+    v_rec.has_medical_condition, v_rec.medical_condition_details,
+    v_rec.uses_medications, v_rec.medications_continuous, v_rec.injury_surgery_history,
+    v_rec.recovery_strategies, v_rec.alcohol, v_rec.tobacco, v_rec.caffeine_doses,
+    v_rec.sleep_hours, v_rec.sleep_quality, v_rec.stress_level, v_rec.energy_level, v_rec.recovery_quality,
+    v_rec.uses_wearable, v_rec.wearable_brand, v_rec.share_data,
+    v_rec.motivations, v_rec.discomfort_response, v_rec.difficulty_helper, v_rec.missed_session_response,
+    v_rec.firm_professional_response, v_rec.accompaniment_preference, v_rec.correction_preference,
+    v_rec.consistency_self_rating, v_rec.life_stability, v_rec.deal_breaker,
+    v_rec.consent_truthful, v_rec.consent_not_medical, v_rec.consent_data_use, v_rec.consent_terms,
+    now()
   );
 
   -- Re-read pra obter o parq_blocked computado pela generated column
