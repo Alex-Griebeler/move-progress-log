@@ -28,9 +28,15 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
 
+// Browser-compatible CORS allow-list.
+// `supabase.functions.invoke` envia authorization (anon key), apikey e
+// headers x-supabase-client-*; um preflight com allow-list mais restrita
+// derruba a chamada antes de chegar no handler. Mantém paridade com
+// create-precision12-questionnaire-link e generate-oura-connect-link.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const jsonHeaders = {
