@@ -37,7 +37,10 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
-import { precision12SubmitSchema, normalizeForSubmit } from "../_shared/precision12QuestionnaireValidation.ts";
+import {
+  buildPrecision12SubmitSchema,
+  normalizeForSubmit,
+} from "../_shared/precision12QuestionnaireValidation.ts";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Constantes
@@ -116,32 +119,94 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Payload inválido" }, 400);
     }
 
-    // 2. Validar payload via Zod (mesmas regras do app)
-    const parseResult = precision12SubmitSchema.safeParse(body.payload);
+    // 2. Calcular SHA-256 do token. Token puro NUNCA é logado nem
+    //    persistido — apenas o hash trafega pro banco.
+    const tokenHash = await sha256Hex(token);
+
+    // 3. Service role client (única forma de chamar a RPC, que tem
+    //    GRANT apenas pro service_role; também usado no preflight abaixo)
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // 4. Preflight — valida token/link/assessment ANTES de aceitar payload.
+    //    Razões:
+    //      a) Anti-enumeração: erros de token viram resposta genérica
+    //         sem expor detalhes de Zod (que vazariam estrutura do form).
+    //      b) Contexto pra schema: precisa de student.birth_date pra
+    //         decidir se birthdate é obrigatório (D11).
+    //    A RPC ainda faz as validações finais transacionais — o
+    //    preflight é só pra UX e ordering correto.
+    const { data: link, error: linkError } = await adminClient
+      .from("precision12_questionnaire_links")
+      .select("id, assessment_id, used_at, revoked_at, expires_at")
+      .eq("token_hash", tokenHash)
+      .maybeSingle();
+
+    if (linkError) {
+      console.error("[submit-p12-questionnaire] link lookup error:", linkError.message);
+      return jsonResponse({ error: GENERIC_TOKEN_ERROR }, 400);
+    }
+    if (!link) {
+      return jsonResponse({ error: GENERIC_TOKEN_ERROR }, 400);
+    }
+    if (link.revoked_at || link.used_at) {
+      return jsonResponse({ error: GENERIC_TOKEN_ERROR }, 400);
+    }
+    if (new Date(link.expires_at).getTime() <= Date.now()) {
+      return jsonResponse({ error: GENERIC_TOKEN_ERROR }, 400);
+    }
+
+    // Lookup do assessment vinculado pra extrair student_id + validar tipo/status
+    const { data: assessment, error: assessmentError } = await adminClient
+      .from("assessments")
+      .select("id, student_id, assessment_type, status")
+      .eq("id", link.assessment_id)
+      .maybeSingle();
+
+    if (assessmentError || !assessment) {
+      console.error("[submit-p12-questionnaire] assessment lookup:", assessmentError?.message);
+      return jsonResponse({ error: GENERIC_TOKEN_ERROR }, 400);
+    }
+    if (
+      assessment.assessment_type !== "questionnaire_precision12" ||
+      !["in_progress", "blocked"].includes(assessment.status)
+    ) {
+      return jsonResponse({ error: GENERIC_TOKEN_ERROR }, 400);
+    }
+
+    // Lookup do birth_date do aluno pra decidir requireBirthdate
+    const { data: student, error: studentError } = await adminClient
+      .from("students")
+      .select("birth_date")
+      .eq("id", assessment.student_id)
+      .maybeSingle();
+
+    if (studentError || !student) {
+      console.error("[submit-p12-questionnaire] student lookup:", studentError?.message);
+      return jsonResponse({ error: GENERIC_TOKEN_ERROR }, 400);
+    }
+
+    const requireBirthdate = student.birth_date == null;
+
+    // 5. Validar payload via Zod com contexto correto (D11).
+    //    SÓ AGORA — depois de confirmar que o link é válido.
+    const schema = buildPrecision12SubmitSchema({ requireBirthdate });
+    const parseResult = schema.safeParse(body.payload);
     if (!parseResult.success) {
-      // Devolve issues estruturados (sem dados sensíveis)
       const issues = parseResult.error.issues.map((i) => ({
         path: i.path.join("."),
         message: i.message,
       }));
       console.error("[submit-p12-questionnaire] payload validation failed", {
         issueCount: issues.length,
+        requireBirthdate,
       });
       return jsonResponse({ error: "Respostas inválidas", issues }, 400);
     }
 
-    // 3. Normalizar payload (vazios → null, condicionais → null, etc.)
+    // 6. Normalizar payload (vazios → null, condicionais → null, etc.)
     const normalized = normalizeForSubmit(parseResult.data);
 
-    // 4. Calcular SHA-256 do token. Token puro NUNCA é logado nem
-    //    persistido — apenas o hash trafega pro banco.
-    const tokenHash = await sha256Hex(token);
-
-    // 5. Service role client (única forma de chamar a RPC, que tem
-    //    GRANT apenas pro service_role)
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    // 6. Chamar RPC transacional
+    // 7. Chamar RPC transacional (re-valida tudo no banco de forma atômica)
     const { data, error } = await adminClient.rpc(
       // @ts-expect-error: types.ts pode ainda não conhecer a RPC nova.
       // O Lovable regenera types após aplicar a migration.

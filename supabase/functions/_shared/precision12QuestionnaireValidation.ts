@@ -317,78 +317,117 @@ export type Precision12SubmitInput = z.infer<typeof baseSchema>;
 // Schema com superRefine (mesmas 6 condicionais do app)
 // ============================================================================
 
-export const precision12SubmitSchema = baseSchema.superRefine((data, ctx) => {
-  // pain_status ≠ none → exige movements + location
-  if ((PAIN_STATUS_REQUIRES_DETAILS as readonly string[]).includes(data.pain_status)) {
-    const hasMovements =
-      Array.isArray(data.pain_movements) && data.pain_movements.length > 0;
-    const hasLocation = !!data.pain_location && data.pain_location.length > 0;
-    if (!hasMovements) {
-      ctx.addIssue({
+/**
+ * Contexto cross-field. Espelha `Precision12QuestionnaireContext` do app:
+ *   - requireBirthdate: ativa a obrigatoriedade do campo `birthdate`
+ *     quando o aluno NÃO tem `students.birth_date` cadastrado. A edge
+ *     function determina esse flag via preflight antes de validar o
+ *     payload do aluno.
+ */
+export interface Precision12SubmitContext {
+  requireBirthdate?: boolean;
+}
+
+/**
+ * Builder do schema completo. Aplica condicionais cross-field +
+ * obrigatoriedade condicional de birthdate.
+ *
+ * A edge function DEVE usar este builder injetando `requireBirthdate`
+ * com base em `students.birth_date`. O schema default
+ * `precision12SubmitSchema` (sem contexto) permanece para compatibilidade
+ * de import, mas a edge function de submit NÃO deve usá-lo —
+ * birthdate ficaria sempre opcional, contrariando D11.
+ */
+export function buildPrecision12SubmitSchema(ctx: Precision12SubmitContext = {}) {
+  return baseSchema.superRefine((data, refinement) => {
+    // D11 — birthdate obrigatório quando aluno não tem cadastro
+    if (ctx.requireBirthdate && !data.birthdate) {
+      refinement.addIssue({
         code: "custom",
-        path: ["pain_movements"],
-        message: "Selecione pelo menos um movimento que causa dor",
+        path: ["birthdate"],
+        message: "Data de nascimento obrigatória",
       });
     }
-    if (!hasLocation) {
-      ctx.addIssue({
+
+    // pain_status ≠ none → exige movements + location
+    if ((PAIN_STATUS_REQUIRES_DETAILS as readonly string[]).includes(data.pain_status)) {
+      const hasMovements =
+        Array.isArray(data.pain_movements) && data.pain_movements.length > 0;
+      const hasLocation = !!data.pain_location && data.pain_location.length > 0;
+      if (!hasMovements) {
+        refinement.addIssue({
+          code: "custom",
+          path: ["pain_movements"],
+          message: "Selecione pelo menos um movimento que causa dor",
+        });
+      }
+      if (!hasLocation) {
+        refinement.addIssue({
+          code: "custom",
+          path: ["pain_location"],
+          message: "Descreva o local da dor",
+        });
+      }
+    }
+
+    if (data.has_medical_condition && !data.medical_condition_details) {
+      refinement.addIssue({
         code: "custom",
-        path: ["pain_location"],
-        message: "Descreva o local da dor",
+        path: ["medical_condition_details"],
+        message: "Descreva a condição médica",
       });
     }
-  }
 
-  if (data.has_medical_condition && !data.medical_condition_details) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["medical_condition_details"],
-      message: "Descreva a condição médica",
-    });
-  }
+    if (data.uses_medications && !data.medications_continuous) {
+      refinement.addIssue({
+        code: "custom",
+        path: ["medications_continuous"],
+        message: "Liste os medicamentos contínuos",
+      });
+    }
 
-  if (data.uses_medications && !data.medications_continuous) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["medications_continuous"],
-      message: "Liste os medicamentos contínuos",
-    });
-  }
+    if (data.uses_wearable && !data.wearable_brand) {
+      refinement.addIssue({
+        code: "custom",
+        path: ["wearable_brand"],
+        message: "Informe qual dispositivo",
+      });
+    }
 
-  if (data.uses_wearable && !data.wearable_brand) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["wearable_brand"],
-      message: "Informe qual dispositivo",
-    });
-  }
+    // `none` exclusivo em external_training_resources
+    if (
+      Array.isArray(data.external_training_resources) &&
+      data.external_training_resources.includes("none") &&
+      data.external_training_resources.length > 1
+    ) {
+      refinement.addIssue({
+        code: "custom",
+        path: ["external_training_resources"],
+        message: "Se selecionar 'Nenhum', não marque outras opções",
+      });
+    }
 
-  // `none` exclusivo em external_training_resources
-  if (
-    Array.isArray(data.external_training_resources) &&
-    data.external_training_resources.includes("none") &&
-    data.external_training_resources.length > 1
-  ) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["external_training_resources"],
-      message: "Se selecionar 'Nenhum', não marque outras opções",
-    });
-  }
+    // `none` exclusivo em recovery_strategies
+    if (
+      Array.isArray(data.recovery_strategies) &&
+      data.recovery_strategies.includes("none") &&
+      data.recovery_strategies.length > 1
+    ) {
+      refinement.addIssue({
+        code: "custom",
+        path: ["recovery_strategies"],
+        message: "Se selecionar 'Nenhuma', não marque outras opções",
+      });
+    }
+  });
+}
 
-  // `none` exclusivo em recovery_strategies
-  if (
-    Array.isArray(data.recovery_strategies) &&
-    data.recovery_strategies.includes("none") &&
-    data.recovery_strategies.length > 1
-  ) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["recovery_strategies"],
-      message: "Se selecionar 'Nenhuma', não marque outras opções",
-    });
-  }
-});
+/**
+ * Schema padrão sem contexto. NÃO usar diretamente na edge function de
+ * submit — birthdate fica sempre opcional, violando D11. Existe para
+ * compatibilidade de import / testes que não simulam contexto.
+ */
+export const precision12SubmitSchema = buildPrecision12SubmitSchema();
 
 // ============================================================================
 // Normalização (espelha src/utils/precision12QuestionnaireValidation.ts)

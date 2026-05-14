@@ -15,11 +15,17 @@
 -- nenhuma escrita persiste (sem assessments completados sem response,
 -- sem links marcados como used sem dados, etc.).
 --
--- SECURITY INVOKER: chamada APENAS via service role (edge function
--- submit-precision12-questionnaire). RLS continua valendo se algum
--- outro caller tentar — defesa em profundidade.
+-- SECURITY INVOKER: chamada APENAS via service_role (edge function
+-- submit-precision12-questionnaire). GRANT EXECUTE concedido somente
+-- a service_role; anon/authenticated/public ficam REVOKE.
 --
--- GRANT: apenas service_role pode executar. Anon/authenticated bloqueados.
+-- ATENÇÃO: como o caller efetivo é service_role (que bypassa RLS),
+-- RLS NÃO é defesa adicional dentro desta RPC. A defesa real está em:
+--   a) GRANT EXECUTE restrito a service_role
+--   b) Validação por token_hash (link existe, não usado, não revogado,
+--      não expirado)
+--   c) Validação de status do assessment (in_progress ou blocked)
+--   d) Transação Postgres atomica via plpgsql + SELECT FOR UPDATE
 -- ============================================================================
 
 
@@ -90,10 +96,16 @@ begin
   end if;
 
   -- ─── 3. Bloquear submit duplicado ───────────────────────────────────────
+  -- Bloqueia QUALQUER row pré-existente para esse assessment_id, mesmo
+  -- sem submitted_at. Por convenção de produto (D4 do PR #127),
+  -- questionnaire_responses NÃO é criada no E3.4 — então nenhum
+  -- placeholder vazio deve existir. Qualquer row presente nesse ponto
+  -- significa "já houve submit anterior" ou "estado inconsistente";
+  -- nos dois casos a resposta correta é 409 already_submitted (e o
+  -- coach precisa gerar novo link).
   select exists (
     select 1 from public.questionnaire_responses
      where assessment_id = v_assessment.id
-       and submitted_at is not null
   ) into v_response_exists;
 
   if v_response_exists then
@@ -168,4 +180,4 @@ grant execute on function public.submit_precision12_questionnaire_response(text,
 -- SECTION 3 — COMMENT (string literal única, sem `||` — gotcha Lovable)
 -- ────────────────────────────────────────────────────────────────────────────
 
-comment on function public.submit_precision12_questionnaire_response(text, jsonb) is 'RPC atomico de submit do Questionario Precision 12. Valida token (lookup por hash, nao usado/nao revogado/nao expirado), valida assessment (tipo questionnaire_precision12, status in_progress ou blocked), INSERT em questionnaire_responses (assessment_id/questionnaire_version/submitted_at sao forcados server-side; parq_blocked nunca aceita do payload pois e generated column), UPDATE em assessments.status (completed ou blocked baseado em parq_blocked), UPDATE em precision12_questionnaire_links.used_at. Tudo numa unica transacao. SECURITY INVOKER + GRANT apenas service_role. Erros de token sao genericos (invalid_token) para nao ajudar enumeracao.';
+comment on function public.submit_precision12_questionnaire_response(text, jsonb) is 'RPC atomico de submit do Questionario Precision 12. Defesa em camadas: GRANT EXECUTE restrito a service_role (anon/authenticated/public revogados); valida token via hash (lookup, nao usado/nao revogado/nao expirado); valida assessment (tipo questionnaire_precision12, status in_progress ou blocked); bloqueia QUALQUER row pre-existente em questionnaire_responses (already_submitted); INSERT forcando assessment_id/questionnaire_version/submitted_at server-side; parq_blocked nunca aceita do payload (generated column); UPDATE em assessments.status (completed/blocked baseado em parq_blocked) + completed_at; UPDATE em precision12_questionnaire_links.used_at. Tudo numa unica transacao plpgsql com SELECT FOR UPDATE no link. SECURITY INVOKER mas chamada efetiva e por service_role (RLS bypass), entao a defesa real esta em GRANT + validacoes explicitas. Erros de token sao genericos (invalid_token) para nao ajudar enumeracao.';
