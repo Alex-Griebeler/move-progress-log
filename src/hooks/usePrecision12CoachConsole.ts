@@ -25,6 +25,7 @@ import {
   type ActionQueueItem,
   type AssessmentStatusCounts,
   type CoachConsoleAssessment,
+  type CoachConsoleDexaResult,
   type CoachConsoleLink,
   type CoachConsoleQuestionnaire,
   type CoachConsoleStudent,
@@ -32,18 +33,25 @@ import {
 } from "@/utils/precision12CoachConsole";
 
 const QUESTIONNAIRE_TYPE = "questionnaire_precision12";
+const DEXA_TYPE = "dexa";
 
 const ASSESSMENT_COLUMNS =
   "id, student_id, assessment_type, status, assessment_date, created_at" as const;
 const QUESTIONNAIRE_COLUMNS =
   "assessment_id, parq_blocked, primary_adherence_barrier, sleep_quality, stress_level, energy_level, consistency_self_rating, life_stability, pain_status, uses_medications, has_medical_condition, injury_surgery_history" as const;
 const LINK_COLUMNS = "assessment_id, used_at, revoked_at, expires_at" as const;
+// E4.6 — Subset enxuto do schema `dexa_results` usado pela triagem do
+// Coach Console. Mantido alinhado com `CoachConsoleDexaResult`.
+const DEXA_COLUMNS =
+  "assessment_id, fat_mass_kg, fat_pct, lean_mass_kg, visceral_fat_g, android_gynoid_ratio, appendicular_lean_mass_kg, imma_baumgartner, fmi, bmr_harris_benedict_kcal, bmr_mifflin_stjeor_kcal, conclusion_text, scan_pdf_storage_path, scan_pdf_url" as const;
 
 export interface Precision12CoachConsoleRaw {
   students: CoachConsoleStudent[];
   assessments: CoachConsoleAssessment[];
   responses: CoachConsoleQuestionnaire[];
   links: CoachConsoleLink[];
+  /** E4.6 — usado para emitir alerta `dexa_pending` na fila. */
+  dexaResults: CoachConsoleDexaResult[];
 }
 
 export interface Precision12CoachConsoleData
@@ -73,6 +81,11 @@ async function fetchCoachConsoleData(): Promise<Precision12CoachConsoleRaw> {
   const studentIds = [...new Set(assessments.map((a) => a.student_id))];
   const questionnaireAssessmentIds = assessments
     .filter((a) => a.assessment_type === QUESTIONNAIRE_TYPE)
+    .map((a) => a.id);
+  // E4.6 — IDs das DEXA. Só fazemos a query se houver alguma DEXA — evita
+  // request vazio com .in("assessment_id", []) (gera 400 em alguns clients).
+  const dexaAssessmentIds = assessments
+    .filter((a) => a.assessment_type === DEXA_TYPE)
     .map((a) => a.id);
 
   // 2. Alunos Precision 12: `program_tier = 'precision_12'` OU com ao menos
@@ -111,7 +124,19 @@ async function fetchCoachConsoleData(): Promise<Precision12CoachConsoleRaw> {
     links = (linksRes.data ?? []) as CoachConsoleLink[];
   }
 
-  return { students, assessments, responses, links };
+  // 5. dexa_results (E4.6) — só se houver assessment DEXA. RLS via JOIN com
+  //    assessments→students libera SELECT pra admin sem RPC.
+  let dexaResults: CoachConsoleDexaResult[] = [];
+  if (dexaAssessmentIds.length > 0) {
+    const { data: dexaRaw, error: dexaError } = await supabase
+      .from("dexa_results")
+      .select(DEXA_COLUMNS)
+      .in("assessment_id", dexaAssessmentIds);
+    if (dexaError) throw dexaError;
+    dexaResults = (dexaRaw ?? []) as CoachConsoleDexaResult[];
+  }
+
+  return { students, assessments, responses, links, dexaResults };
 }
 
 /**
@@ -131,6 +156,7 @@ function deriveAll(
       students: raw.students,
       assessments: raw.assessments,
       responses: raw.responses,
+      dexaResults: raw.dexaResults,
     }),
     activeLinkAssessmentIds: deriveActiveLinkAssessmentIds(raw.links),
   };

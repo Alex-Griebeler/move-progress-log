@@ -38,6 +38,7 @@ import {
   canRevokeQuestionnaireLink,
   type ActionQueueAlertType,
   type ActionQueueItem,
+  type DexaPendingReason,
 } from "@/utils/precision12CoachConsole";
 
 import { Precision12ReissueLinkDialog } from "./Precision12ReissueLinkDialog";
@@ -71,6 +72,7 @@ const ALERT_LABEL: Record<ActionQueueAlertType, string> = {
   parq_blocked: "PAR-Q bloqueado",
   questionnaire_pending: "Questionário pendente",
   assessment_incomplete: "Avaliação incompleta",
+  dexa_pending: "DEXA pendente",
   student_no_assessment: "Sem avaliação no ciclo",
   adherence_risk: "Possível risco de adesão",
 };
@@ -82,8 +84,20 @@ const ALERT_VARIANT: Record<
   parq_blocked: "destructive",
   questionnaire_pending: "secondary",
   assessment_incomplete: "secondary",
+  dexa_pending: "secondary",
   student_no_assessment: "outline",
   adherence_risk: "secondary",
+};
+
+/**
+ * Microcopy dinâmica do alerta DEXA (E4.6 spec). Mostrada como sub-label
+ * abaixo do Badge da fila, no lugar do `assessmentTypeLabel` quando o
+ * alertType é `dexa_pending`.
+ */
+const DEXA_REASON_LABEL: Record<DexaPendingReason, string> = {
+  awaiting_pdf_and_data: "DEXA aguardando laudo",
+  missing_pdf: "DEXA sem PDF anexado",
+  incomplete_data: "DEXA incompleto",
 };
 
 const STATUS_LABEL: Record<AssessmentStatus, string> = {
@@ -147,7 +161,13 @@ export function Precision12ActionQueue({
           </TableHeader>
           <TableBody>
             {items.map((item, index) => {
-              const typeLabel = assessmentTypeLabel(item.assessmentType);
+              // E4.6 — alertas `dexa_pending` mostram a microcopy dinâmica do
+              // motivo no lugar do label do tipo de assessment. Para os
+              // demais, mantém o nome do tipo (ex.: "Questionário Precision 12").
+              const subLabel =
+                item.alertType === "dexa_pending" && item.dexaPendingReason
+                  ? DEXA_REASON_LABEL[item.dexaPendingReason]
+                  : assessmentTypeLabel(item.assessmentType);
               const canReissue = canReissueQuestionnaireLink(item);
               const canRevoke = canRevokeQuestionnaireLink(
                 item,
@@ -166,9 +186,9 @@ export function Precision12ActionQueue({
                       >
                         {ALERT_LABEL[item.alertType]}
                       </Badge>
-                      {typeLabel && (
+                      {subLabel && (
                         <span className="text-xs text-muted-foreground">
-                          {typeLabel}
+                          {subLabel}
                         </span>
                       )}
                     </div>

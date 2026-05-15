@@ -58,6 +58,34 @@ export interface CoachConsoleLink {
   expires_at: string;
 }
 
+/**
+ * Subset de `dexa_results` lido pelo Coach Console — apenas as colunas
+ * usadas para decidir se o alerta DEXA #4 (E4.6) deve aparecer. O schema
+ * real (vide migration `*_precision12_assessment_foundation.sql`) tem
+ * mais colunas (z_score, percentile, raw_extracted_json etc.) que não
+ * são essenciais pra triagem operacional.
+ *
+ * `regional_distribution` é JSONB no banco; tratamos como `unknown` pra
+ * não acoplar a estrutura JSON. A spec do E4.6 explicita que esse campo
+ * NÃO é obrigatório.
+ */
+export interface CoachConsoleDexaResult {
+  assessment_id: string;
+  fat_mass_kg: number | null;
+  fat_pct: number | null;
+  lean_mass_kg: number | null;
+  visceral_fat_g: number | null;
+  android_gynoid_ratio: number | null;
+  appendicular_lean_mass_kg: number | null;
+  imma_baumgartner: number | null;
+  fmi: number | null;
+  bmr_harris_benedict_kcal: number | null;
+  bmr_mifflin_stjeor_kcal: number | null;
+  conclusion_text: string | null;
+  scan_pdf_storage_path: string | null;
+  scan_pdf_url: string | null;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // Categorias de avaliação (5) — derivadas de ASSESSMENT_TYPE_METADATA
 // ────────────────────────────────────────────────────────────────────────────
@@ -301,13 +329,15 @@ export function deriveQuestionnaireAlerts(
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
- * Tipos de alerta da fila. Prioridade #4 do plano ("DEXA sem PDF/conclusão")
- * fica pro E4.3 — exige buscar `dexa_results`, fora do escopo de dados do E4.1.
+ * Tipos de alerta da fila. Prioridade #4 (`dexa_pending`) foi adicionada
+ * pelo E4.6 — depende de `dexa_results` e fica entre `assessment_incomplete`
+ * (#3) e `student_no_assessment` (#5).
  */
 export type ActionQueueAlertType =
   | "parq_blocked" //          prioridade 1
   | "questionnaire_pending" // prioridade 2
   | "assessment_incomplete" // prioridade 3
+  | "dexa_pending" //          prioridade 4
   | "student_no_assessment" // prioridade 5
   | "adherence_risk"; //       prioridade 6
 
@@ -315,9 +345,20 @@ const PRIORITY: Record<ActionQueueAlertType, number> = {
   parq_blocked: 1,
   questionnaire_pending: 2,
   assessment_incomplete: 3,
+  dexa_pending: 4,
   student_no_assessment: 5,
   adherence_risk: 6,
 };
+
+/**
+ * Sub-razão do alerta `dexa_pending` (E4.6). Mapeada pela UI pra microcopy
+ * dinâmica ("DEXA aguardando laudo" / "DEXA sem PDF anexado" / "DEXA
+ * incompleto"). `null` no derive significa "sem alerta".
+ */
+export type DexaPendingReason =
+  | "awaiting_pdf_and_data" //   sem row em dexa_results
+  | "missing_pdf" //             tem row, mas sem PDF
+  | "incomplete_data"; //        tem PDF, mas faltam campos essenciais
 
 export interface ActionQueueItem {
   priority: number;
@@ -328,15 +369,86 @@ export interface ActionQueueItem {
   assessmentType: AssessmentType | null;
   status: AssessmentStatus | null;
   assessmentDate: string | null;
+  /**
+   * Preenchido somente em itens `dexa_pending` (E4.6). Para outros
+   * alertTypes, `null`. Permite a UI escolher a microcopy correta sem
+   * recomputar a razão do alerta.
+   */
+  dexaPendingReason?: DexaPendingReason | null;
 }
 
 export interface DeriveActionQueueInput {
   students: readonly CoachConsoleStudent[];
   assessments: readonly CoachConsoleAssessment[];
   responses: readonly CoachConsoleQuestionnaire[];
+  /**
+   * E4.6 — opcional pra compatibilidade. Quando ausente/undefined, os
+   * alertas `dexa_pending` continuam sendo emitidos com razão
+   * `awaiting_pdf_and_data` (mais conservador: trata como se nenhum
+   * `dexa_results` existisse).
+   */
+  dexaResults?: readonly CoachConsoleDexaResult[];
 }
 
 const QUESTIONNAIRE_TYPE: AssessmentType = "questionnaire_precision12";
+const DEXA_TYPE: AssessmentType = "dexa";
+
+/**
+ * Campos essenciais de `dexa_results` para considerar a avaliação "documentada"
+ * (E4.6 spec). `regional_distribution` foi propositalmente NÃO incluído nesta
+ * etapa — fica como melhoria futura quando o fluxo de extração JSON estiver
+ * estável. PDF é tratado separadamente em `hasDexaPdf`.
+ */
+const DEXA_ESSENTIAL_NUMERIC_FIELDS = [
+  "fat_mass_kg",
+  "fat_pct",
+  "lean_mass_kg",
+  "visceral_fat_g",
+  "android_gynoid_ratio",
+  "appendicular_lean_mass_kg",
+  "imma_baumgartner",
+  "fmi",
+  "bmr_harris_benedict_kcal",
+  "bmr_mifflin_stjeor_kcal",
+] as const satisfies readonly (keyof CoachConsoleDexaResult)[];
+
+function hasDexaPdf(result: CoachConsoleDexaResult): boolean {
+  const path = result.scan_pdf_storage_path?.trim() ?? "";
+  const url = result.scan_pdf_url?.trim() ?? "";
+  return path.length > 0 || url.length > 0;
+}
+
+function hasDexaEssentialData(result: CoachConsoleDexaResult): boolean {
+  for (const field of DEXA_ESSENTIAL_NUMERIC_FIELDS) {
+    const value = result[field];
+    if (value === null || value === undefined) return false;
+  }
+  const conclusion = result.conclusion_text?.trim() ?? "";
+  if (conclusion.length === 0) return false;
+  return true;
+}
+
+/**
+ * Decide se uma avaliação DEXA precisa de atenção do coach.
+ *
+ * Casos (E4.6 spec):
+ *   - Sem `dexa_results` → `"awaiting_pdf_and_data"` (laudo nunca chegou).
+ *   - Com row, sem PDF (nenhum dos dois campos) → `"missing_pdf"`.
+ *   - Com PDF, faltando campos essenciais → `"incomplete_data"`.
+ *   - Tudo presente → `null` (sem alerta).
+ *
+ * PDF tem precedência sobre dados: se faltar PDF, o reason é
+ * `"missing_pdf"` mesmo que os dados também estejam faltando — o coach
+ * resolve o PDF primeiro e o resto pode estar lá ou virá com ele.
+ */
+export function deriveDexaPendingReason(
+  result: CoachConsoleDexaResult | null | undefined,
+): DexaPendingReason | null {
+  if (!result) return "awaiting_pdf_and_data";
+  if (!hasDexaPdf(result)) return "missing_pdf";
+  if (!hasDexaEssentialData(result)) return "incomplete_data";
+  return null;
+}
 
 /**
  * Fila priorizada de ação do coach. Cada assessment gera no máximo 1 item,
@@ -350,10 +462,13 @@ const QUESTIONNAIRE_TYPE: AssessmentType = "questionnaire_precision12";
 export function deriveActionQueue(
   input: DeriveActionQueueInput,
 ): ActionQueueItem[] {
-  const { students, assessments, responses } = input;
+  const { students, assessments, responses, dexaResults } = input;
   const studentById = new Map(students.map((s) => [s.id, s]));
   const responseByAssessment = new Map(
     responses.map((r) => [r.assessment_id, r]),
+  );
+  const dexaResultByAssessment = new Map(
+    (dexaResults ?? []).map((r) => [r.assessment_id, r]),
   );
   const items: ActionQueueItem[] = [];
 
@@ -371,6 +486,7 @@ export function deriveActionQueue(
       assessmentDate: assessment.assessment_date,
     };
     const isQuestionnaire = assessment.assessment_type === QUESTIONNAIRE_TYPE;
+    const isDexa = assessment.assessment_type === DEXA_TYPE;
     const response = responseByAssessment.get(assessment.id);
 
     if (
@@ -381,6 +497,7 @@ export function deriveActionQueue(
         ...base,
         alertType: "parq_blocked",
         priority: PRIORITY.parq_blocked,
+        dexaPendingReason: null,
       });
     } else if (
       isQuestionnaire &&
@@ -391,12 +508,32 @@ export function deriveActionQueue(
         ...base,
         alertType: "questionnaire_pending",
         priority: PRIORITY.questionnaire_pending,
+        dexaPendingReason: null,
       });
+    } else if (isDexa && assessment.status === "in_progress") {
+      // E4.6 — DEXA in_progress recebe alerta especializado dexa_pending
+      // (prio 4) com razão dinâmica, em vez do genérico assessment_incomplete.
+      // Quando o assessment está documentado por completo, deriveDexaPendingReason
+      // retorna null → nenhum item é emitido (mesmo com status in_progress, a UI
+      // pode considerar concluído pendendo só de marcação manual; sem alerta
+      // operacional). `aborted`/`completed` nunca caem aqui.
+      const reason = deriveDexaPendingReason(
+        dexaResultByAssessment.get(assessment.id),
+      );
+      if (reason !== null) {
+        items.push({
+          ...base,
+          alertType: "dexa_pending",
+          priority: PRIORITY.dexa_pending,
+          dexaPendingReason: reason,
+        });
+      }
     } else if (!isQuestionnaire && assessment.status === "in_progress") {
       items.push({
         ...base,
         alertType: "assessment_incomplete",
         priority: PRIORITY.assessment_incomplete,
+        dexaPendingReason: null,
       });
     } else if (isQuestionnaire && response) {
       const hasAdherenceRisk = deriveQuestionnaireAlerts(response).some(
@@ -407,6 +544,7 @@ export function deriveActionQueue(
           ...base,
           alertType: "adherence_risk",
           priority: PRIORITY.adherence_risk,
+          dexaPendingReason: null,
         });
       }
     }
@@ -427,6 +565,7 @@ export function deriveActionQueue(
         assessmentType: null,
         status: null,
         assessmentDate: null,
+        dexaPendingReason: null,
       });
     }
   }

@@ -21,6 +21,7 @@ import {
   deriveActionQueue,
   deriveActiveLinkAssessmentIds,
   deriveAssessmentStatusCounts,
+  deriveDexaPendingReason,
   deriveQuestionnaireAlerts,
   deriveStudentProgress,
   filterActionQueue,
@@ -28,6 +29,7 @@ import {
   isSmokeStudent,
   type ActionQueueItem,
   type CoachConsoleAssessment,
+  type CoachConsoleDexaResult,
   type CoachConsoleLink,
   type CoachConsoleQuestionnaire,
   type CoachConsoleStudent,
@@ -373,7 +375,7 @@ describe("deriveActionQueue", () => {
     const queue = deriveActionQueue({
       students: [student()],
       assessments: [
-        assessment({ id: "a1", assessment_type: "dexa", status: "in_progress" }),
+        assessment({ id: "a1", assessment_type: "handgrip", status: "in_progress" }),
       ],
       responses: [],
     });
@@ -447,7 +449,7 @@ describe("deriveActionQueue", () => {
         student({ id: "s3" }),
       ],
       assessments: [
-        assessment({ id: "a3", student_id: "s3", assessment_type: "dexa", status: "in_progress" }),
+        assessment({ id: "a3", student_id: "s3", assessment_type: "handgrip", status: "in_progress" }),
         assessment({
           id: "a1",
           student_id: "s1",
@@ -466,7 +468,7 @@ describe("deriveActionQueue", () => {
       students: [student({ id: "s1" })],
       assessments: [
         assessment({ id: "a1", student_id: "s1", status: "completed" }),
-        assessment({ id: "a2", student_id: "ghost", assessment_type: "dexa", status: "in_progress" }),
+        assessment({ id: "a2", student_id: "ghost", assessment_type: "handgrip", status: "in_progress" }),
       ],
       responses: [],
     });
@@ -1035,5 +1037,275 @@ describe("canRevokeQuestionnaireLink", () => {
         withActive,
       ),
     ).toBe(false);
+  });
+});
+
+// ── 9. deriveDexaPendingReason + DEXA #4 na fila (E4.6) ─────────────────────
+
+/** DEXA result completo — fixture base; testes negativos sobrescrevem campos. */
+function completeDexaResult(
+  overrides: Partial<CoachConsoleDexaResult> = {},
+): CoachConsoleDexaResult {
+  return {
+    assessment_id: "a-dexa-1",
+    fat_mass_kg: 25.5,
+    fat_pct: 28.4,
+    lean_mass_kg: 58.2,
+    visceral_fat_g: 420.0,
+    android_gynoid_ratio: 0.95,
+    appendicular_lean_mass_kg: 22.1,
+    imma_baumgartner: 7.4,
+    fmi: 8.2,
+    bmr_harris_benedict_kcal: 1620,
+    bmr_mifflin_stjeor_kcal: 1585,
+    conclusion_text: "Composição corporal dentro da faixa de referência.",
+    scan_pdf_storage_path: "dexa-pdfs/aluno-x/2026-05-13.pdf",
+    scan_pdf_url: null,
+    ...overrides,
+  };
+}
+
+describe("deriveDexaPendingReason (E4.6)", () => {
+  it("retorna awaiting_pdf_and_data quando NÃO há row em dexa_results", () => {
+    expect(deriveDexaPendingReason(null)).toBe("awaiting_pdf_and_data");
+    expect(deriveDexaPendingReason(undefined)).toBe("awaiting_pdf_and_data");
+  });
+
+  it("retorna missing_pdf quando dexa_results existe mas sem PDF (storage_path E url null)", () => {
+    expect(
+      deriveDexaPendingReason(
+        completeDexaResult({ scan_pdf_storage_path: null, scan_pdf_url: null }),
+      ),
+    ).toBe("missing_pdf");
+  });
+
+  it("missing_pdf tem precedência sobre incomplete_data", () => {
+    expect(
+      deriveDexaPendingReason(
+        completeDexaResult({
+          scan_pdf_storage_path: null,
+          scan_pdf_url: null,
+          fat_mass_kg: null,
+          conclusion_text: null,
+        }),
+      ),
+    ).toBe("missing_pdf");
+  });
+
+  it("aceita scan_pdf_url sozinho como PDF presente", () => {
+    expect(
+      deriveDexaPendingReason(
+        completeDexaResult({
+          scan_pdf_storage_path: null,
+          scan_pdf_url: "https://example.com/laudo.pdf",
+        }),
+      ),
+    ).toBe(null);
+  });
+
+  it("retorna incomplete_data quando PDF está presente mas falta campo numérico essencial", () => {
+    for (const field of [
+      "fat_mass_kg",
+      "fat_pct",
+      "lean_mass_kg",
+      "visceral_fat_g",
+      "android_gynoid_ratio",
+      "appendicular_lean_mass_kg",
+      "imma_baumgartner",
+      "fmi",
+      "bmr_harris_benedict_kcal",
+      "bmr_mifflin_stjeor_kcal",
+    ] as const) {
+      const overrides = { [field]: null } as Partial<CoachConsoleDexaResult>;
+      expect(deriveDexaPendingReason(completeDexaResult(overrides))).toBe(
+        "incomplete_data",
+      );
+    }
+  });
+
+  it("retorna incomplete_data quando conclusion_text está vazio/só whitespace", () => {
+    expect(
+      deriveDexaPendingReason(completeDexaResult({ conclusion_text: null })),
+    ).toBe("incomplete_data");
+    expect(
+      deriveDexaPendingReason(completeDexaResult({ conclusion_text: "   " })),
+    ).toBe("incomplete_data");
+  });
+
+  it("retorna null (sem alerta) quando tudo está documentado", () => {
+    expect(deriveDexaPendingReason(completeDexaResult())).toBe(null);
+  });
+
+  it("scan_pdf_storage_path com whitespace-only é tratado como ausente", () => {
+    expect(
+      deriveDexaPendingReason(
+        completeDexaResult({
+          scan_pdf_storage_path: "   ",
+          scan_pdf_url: null,
+        }),
+      ),
+    ).toBe("missing_pdf");
+  });
+});
+
+describe("deriveActionQueue + DEXA #4 (E4.6)", () => {
+  it("DEXA aluno sem assessment → NÃO gera dexa_pending (só student_no_assessment)", () => {
+    const queue = deriveActionQueue({
+      students: [student({ id: "s1" })],
+      assessments: [],
+      responses: [],
+      dexaResults: [],
+    });
+    expect(queue.map((i) => i.alertType)).toEqual(["student_no_assessment"]);
+  });
+
+  it("DEXA in_progress SEM row em dexa_results → dexa_pending + reason awaiting_pdf_and_data", () => {
+    const queue = deriveActionQueue({
+      students: [student()],
+      assessments: [
+        assessment({ id: "a1", assessment_type: "dexa", status: "in_progress" }),
+      ],
+      responses: [],
+      dexaResults: [],
+    });
+    expect(queue).toHaveLength(1);
+    expect(queue[0].alertType).toBe("dexa_pending");
+    expect(queue[0].priority).toBe(4);
+    expect(queue[0].dexaPendingReason).toBe("awaiting_pdf_and_data");
+  });
+
+  it("DEXA in_progress com row mas SEM PDF → reason missing_pdf", () => {
+    const queue = deriveActionQueue({
+      students: [student()],
+      assessments: [
+        assessment({ id: "a1", assessment_type: "dexa", status: "in_progress" }),
+      ],
+      responses: [],
+      dexaResults: [
+        completeDexaResult({
+          assessment_id: "a1",
+          scan_pdf_storage_path: null,
+          scan_pdf_url: null,
+        }),
+      ],
+    });
+    expect(queue[0].alertType).toBe("dexa_pending");
+    expect(queue[0].dexaPendingReason).toBe("missing_pdf");
+  });
+
+  it("DEXA in_progress com PDF mas faltando dados essenciais → reason incomplete_data", () => {
+    const queue = deriveActionQueue({
+      students: [student()],
+      assessments: [
+        assessment({ id: "a1", assessment_type: "dexa", status: "in_progress" }),
+      ],
+      responses: [],
+      dexaResults: [
+        completeDexaResult({ assessment_id: "a1", fmi: null }),
+      ],
+    });
+    expect(queue[0].alertType).toBe("dexa_pending");
+    expect(queue[0].dexaPendingReason).toBe("incomplete_data");
+  });
+
+  it("DEXA in_progress totalmente documentada → NENHUM item na fila", () => {
+    const queue = deriveActionQueue({
+      students: [student()],
+      assessments: [
+        assessment({ id: "a1", assessment_type: "dexa", status: "in_progress" }),
+      ],
+      responses: [],
+      dexaResults: [completeDexaResult({ assessment_id: "a1" })],
+    });
+    expect(queue).toEqual([]);
+  });
+
+  it("DEXA completed (com ou sem documentação) → NÃO gera alerta", () => {
+    const queue = deriveActionQueue({
+      students: [student()],
+      assessments: [
+        assessment({ id: "a1", assessment_type: "dexa", status: "completed" }),
+      ],
+      responses: [],
+      dexaResults: [],
+    });
+    expect(queue).toEqual([]);
+  });
+
+  it("DEXA aborted → NÃO gera alerta", () => {
+    const queue = deriveActionQueue({
+      students: [student()],
+      assessments: [
+        assessment({ id: "a1", assessment_type: "dexa", status: "aborted" }),
+      ],
+      responses: [],
+      dexaResults: [],
+    });
+    expect(queue).toEqual([]);
+  });
+
+  it("DEXA dexa_pending fica entre assessment_incomplete (prio 3) e student_no_assessment (prio 5)", () => {
+    const queue = deriveActionQueue({
+      students: [
+        student({ id: "s1" }),
+        student({ id: "s2" }),
+        student({ id: "s3" }),
+        student({ id: "s4" }),
+      ],
+      assessments: [
+        assessment({
+          id: "a1",
+          student_id: "s1",
+          assessment_type: "handgrip",
+          status: "in_progress",
+        }),
+        assessment({
+          id: "a2",
+          student_id: "s2",
+          assessment_type: "dexa",
+          status: "in_progress",
+        }),
+        // s3 tem completed → não gera nada
+        assessment({
+          id: "a3",
+          student_id: "s3",
+          assessment_type: "handgrip",
+          status: "completed",
+        }),
+        // s4 não tem assessment → gera student_no_assessment (prio 5)
+      ],
+      responses: [],
+      dexaResults: [],
+    });
+    expect(queue.map((i) => ({ a: i.alertType, p: i.priority }))).toEqual([
+      { a: "assessment_incomplete", p: 3 },
+      { a: "dexa_pending", p: 4 },
+      { a: "student_no_assessment", p: 5 },
+    ]);
+  });
+
+  it("dexaResults omitido (undefined) → DEXA in_progress assume awaiting_pdf_and_data", () => {
+    const queue = deriveActionQueue({
+      students: [student()],
+      assessments: [
+        assessment({ id: "a1", assessment_type: "dexa", status: "in_progress" }),
+      ],
+      responses: [],
+      // dexaResults intencionalmente omitido
+    });
+    expect(queue[0].alertType).toBe("dexa_pending");
+    expect(queue[0].dexaPendingReason).toBe("awaiting_pdf_and_data");
+  });
+
+  it("DEXA NUNCA recai em assessment_incomplete (mesmo sem dexaResults input)", () => {
+    const queue = deriveActionQueue({
+      students: [student()],
+      assessments: [
+        assessment({ id: "a1", assessment_type: "dexa", status: "in_progress" }),
+      ],
+      responses: [],
+      dexaResults: [],
+    });
+    expect(queue.find((i) => i.alertType === "assessment_incomplete")).toBeUndefined();
   });
 });
