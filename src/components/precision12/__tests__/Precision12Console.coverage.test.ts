@@ -568,3 +568,47 @@ describe("E4.5 revoke-precision12-questionnaire-link edge fn — security invari
     expect(revokeEdgeSource).toContain("revoked_at: nowIso");
   });
 });
+
+describe("E4.6 Precision12 — DEXA alert wiring", () => {
+  it("Filtros: ALERT_TYPE_OPTIONS inclui dexa_pending com label 'DEXA pendente'", () => {
+    expect(precision12FiltersSource).toContain(
+      'value: "dexa_pending", label: "DEXA pendente"',
+    );
+  });
+
+  it("ActionQueue: ALERT_LABEL.dexa_pending = 'DEXA pendente'", () => {
+    expect(precision12ActionQueueSource).toMatch(
+      /dexa_pending:\s*["']DEXA pendente["']/,
+    );
+  });
+
+  it("ActionQueue: tem variant pra dexa_pending (qualquer um dos válidos)", () => {
+    // Garantia que o Record<ActionQueueAlertType, ...> está completo.
+    expect(precision12ActionQueueSource).toMatch(
+      /dexa_pending:\s*["'](?:default|secondary|destructive|outline)["']/,
+    );
+  });
+
+  it("ActionQueue: DEXA_REASON_LABEL mapeia as 3 razões da spec", () => {
+    expect(precision12ActionQueueSource).toContain("awaiting_pdf_and_data");
+    expect(precision12ActionQueueSource).toContain("missing_pdf");
+    expect(precision12ActionQueueSource).toContain("incomplete_data");
+    expect(precision12ActionQueueSource).toContain("DEXA aguardando laudo");
+    expect(precision12ActionQueueSource).toContain("DEXA sem PDF anexado");
+    expect(precision12ActionQueueSource).toContain("DEXA incompleto");
+  });
+
+  it("ActionQueue: subLabel usa DEXA_REASON_LABEL quando alertType === 'dexa_pending'", () => {
+    expect(precision12ActionQueueSource).toMatch(
+      /alertType\s*===\s*["']dexa_pending["']\s*&&\s*item\.dexaPendingReason/,
+    );
+    expect(precision12ActionQueueSource).toContain("DEXA_REASON_LABEL");
+  });
+
+  it("ActionQueue: continua sem mutation/insert/update/delete/upsert (alerta é read-only)", () => {
+    expect(precision12ActionQueueSource).not.toMatch(
+      /supabase\.[a-z]+\.(insert|update|delete|upsert)/,
+    );
+    expect(precision12ActionQueueSource).not.toMatch(/supabase\.rpc\(/);
+  });
+});

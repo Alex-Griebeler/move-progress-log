@@ -38,6 +38,7 @@ const ALERT_TYPE_OPTIONS: { value: ActionQueueAlertType | "all"; label: string }
   { value: "parq_blocked", label: "PAR-Q bloqueado" },
   { value: "questionnaire_pending", label: "Questionário pendente" },
   { value: "assessment_incomplete", label: "Avaliação incompleta" },
+  { value: "dexa_pending", label: "DEXA pendente" },
   { value: "student_no_assessment", label: "Sem avaliação no ciclo" },
   { value: "adherence_risk", label: "Possível risco de adesão" },
 ];
