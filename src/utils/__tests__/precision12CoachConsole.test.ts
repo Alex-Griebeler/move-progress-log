@@ -11,14 +11,22 @@ import { describe, expect, it } from "vitest";
 import {
   ADHERENCE_RISK_MIN_FLAGS,
   ASSESSMENT_CATEGORIES,
+  DEFAULT_PRECISION12_FILTERS,
   categoryOf,
+  countHiddenSmokeStudents,
   deriveActionQueue,
   deriveAssessmentStatusCounts,
   deriveQuestionnaireAlerts,
   deriveStudentProgress,
+  filterActionQueue,
+  filterStudentsForProgress,
+  isSmokeStudent,
+  type ActionQueueItem,
   type CoachConsoleAssessment,
   type CoachConsoleQuestionnaire,
   type CoachConsoleStudent,
+  type Precision12Filters,
+  type StudentProgress,
 } from "../precision12CoachConsole";
 
 // ── Fixture builders ─────────────────────────────────────────────────────────
@@ -457,5 +465,281 @@ describe("deriveActionQueue", () => {
       responses: [],
     });
     expect(queue).toEqual([]);
+  });
+});
+
+// ── 5. Filtros (E4.3a) ────────────────────────────────────────────────────────
+
+function filters(
+  overrides: Partial<Precision12Filters> = {},
+): Precision12Filters {
+  return { ...DEFAULT_PRECISION12_FILTERS, ...overrides };
+}
+
+function queueItem(
+  overrides: Partial<ActionQueueItem> = {},
+): ActionQueueItem {
+  return {
+    priority: 1,
+    alertType: "parq_blocked",
+    studentId: "s1",
+    studentName: "Aluno Teste",
+    assessmentId: "a1",
+    assessmentType: "questionnaire_precision12",
+    status: "blocked",
+    assessmentDate: "2026-05-01",
+    ...overrides,
+  };
+}
+
+describe("DEFAULT_PRECISION12_FILTERS", () => {
+  it("padrão oculta dados de smoke", () => {
+    expect(DEFAULT_PRECISION12_FILTERS.hideTestData).toBe(true);
+    expect(DEFAULT_PRECISION12_FILTERS.alertType).toBe("all");
+    expect(DEFAULT_PRECISION12_FILTERS.progressStatus).toBe("all");
+    expect(DEFAULT_PRECISION12_FILTERS.searchQuery).toBe("");
+  });
+});
+
+describe("isSmokeStudent", () => {
+  it("identifica prefixos SMOKE/TEST", () => {
+    expect(isSmokeStudent({ name: "SMOKE João Teste" })).toBe(true);
+    expect(isSmokeStudent({ name: "TEST Beta" })).toBe(true);
+    expect(isSmokeStudent({ name: "[TEST] Charlie" })).toBe(true);
+    expect(isSmokeStudent({ name: "smoke alpha" })).toBe(true); // case-insensitive
+  });
+
+  it("identifica substring SMOKE E3 (legado)", () => {
+    expect(isSmokeStudent({ name: "Aluno SMOKE E3 cleanup" })).toBe(true);
+  });
+
+  it("não confunde nomes reais", () => {
+    expect(isSmokeStudent({ name: "Smokey Robinson" })).toBe(false);
+    expect(isSmokeStudent({ name: "Tester Joaquim" })).toBe(false);
+    expect(isSmokeStudent({ name: "Maria Silva" })).toBe(false);
+    expect(isSmokeStudent({ name: "" })).toBe(false);
+    expect(isSmokeStudent({ name: "   " })).toBe(false);
+  });
+});
+
+describe("countHiddenSmokeStudents", () => {
+  it("retorna 0 quando hideTestData=false", () => {
+    const list = [student({ name: "SMOKE A" }), student({ name: "Maria" })];
+    expect(countHiddenSmokeStudents(list, false)).toBe(0);
+  });
+
+  it("conta smoke quando hideTestData=true", () => {
+    const list = [
+      student({ id: "s1", name: "SMOKE A" }),
+      student({ id: "s2", name: "Maria" }),
+      student({ id: "s3", name: "TEST B" }),
+    ];
+    expect(countHiddenSmokeStudents(list, true)).toBe(2);
+  });
+});
+
+describe("filterActionQueue", () => {
+  const items: ActionQueueItem[] = [
+    queueItem({
+      alertType: "parq_blocked",
+      studentId: "s1",
+      studentName: "João Silva",
+    }),
+    queueItem({
+      alertType: "questionnaire_pending",
+      studentId: "s2",
+      studentName: "Maria",
+      assessmentId: "a2",
+      status: "in_progress",
+    }),
+    queueItem({
+      alertType: "adherence_risk",
+      studentId: "s3",
+      studentName: "SMOKE Carlos",
+      assessmentId: "a3",
+      status: "completed",
+    }),
+  ];
+
+  it("default mantém tudo exceto smoke", () => {
+    const out = filterActionQueue(items, filters());
+    expect(out.map((i) => i.studentId)).toEqual(["s1", "s2"]);
+  });
+
+  it("hideTestData=false mantém smoke", () => {
+    const out = filterActionQueue(items, filters({ hideTestData: false }));
+    expect(out.map((i) => i.studentId)).toEqual(["s1", "s2", "s3"]);
+  });
+
+  it("busca tolera acento/caixa", () => {
+    expect(
+      filterActionQueue(items, filters({ searchQuery: "joao" })).map(
+        (i) => i.studentId,
+      ),
+    ).toEqual(["s1"]);
+    expect(
+      filterActionQueue(items, filters({ searchQuery: "MARIA" })).map(
+        (i) => i.studentId,
+      ),
+    ).toEqual(["s2"]);
+  });
+
+  it("alertType filtra por tipo específico", () => {
+    expect(
+      filterActionQueue(
+        items,
+        filters({ alertType: "questionnaire_pending" }),
+      ).map((i) => i.studentId),
+    ).toEqual(["s2"]);
+  });
+
+  it("alertType=all preserva todos os tipos", () => {
+    const out = filterActionQueue(
+      items,
+      filters({ alertType: "all", hideTestData: false }),
+    );
+    expect(out).toHaveLength(3);
+  });
+
+  it("busca vazia (só espaços) não filtra", () => {
+    const out = filterActionQueue(items, filters({ searchQuery: "   " }));
+    expect(out.map((i) => i.studentId)).toEqual(["s1", "s2"]);
+  });
+
+  it("usa mapa de alunos pra detectar smoke mesmo se o nome do item divergir", () => {
+    const studentsById = new Map<string, CoachConsoleStudent>([
+      ["s2", student({ id: "s2", name: "SMOKE renamed" })],
+    ]);
+    const out = filterActionQueue(items, filters(), studentsById);
+    expect(out.map((i) => i.studentId)).toEqual(["s1"]);
+  });
+});
+
+describe("filterStudentsForProgress", () => {
+  const students: CoachConsoleStudent[] = [
+    student({ id: "s1", name: "João" }),
+    student({ id: "s2", name: "Maria" }),
+    student({ id: "s3", name: "SMOKE Carlos" }),
+  ];
+
+  function progress(
+    overrides: Partial<StudentProgress> = {},
+  ): StudentProgress {
+    return {
+      studentId: "s1",
+      categories: {
+        "VO₂": "missing",
+        "Força": "missing",
+        "Composição": "missing",
+        "Funcional": "missing",
+        "Anamnese": "missing",
+      },
+      completedCategories: 0,
+      totalCategories: 5,
+      ...overrides,
+    };
+  }
+
+  const studentProgress: StudentProgress[] = [
+    progress({ studentId: "s1", completedCategories: 0 }),
+    progress({
+      studentId: "s2",
+      categories: {
+        "VO₂": "missing",
+        "Força": "missing",
+        "Composição": "missing",
+        "Funcional": "missing",
+        "Anamnese": "done",
+      },
+      completedCategories: 1,
+    }),
+    progress({
+      studentId: "s3",
+      categories: {
+        "VO₂": "done",
+        "Força": "done",
+        "Composição": "missing",
+        "Funcional": "missing",
+        "Anamnese": "done",
+      },
+      completedCategories: 3,
+    }),
+  ];
+
+  it("default oculta smoke", () => {
+    const out = filterStudentsForProgress(
+      students,
+      studentProgress,
+      [],
+      filters(),
+    );
+    expect(out.map((s) => s.id)).toEqual(["s1", "s2"]);
+  });
+
+  it("hideTestData=false mostra smoke", () => {
+    const out = filterStudentsForProgress(
+      students,
+      studentProgress,
+      [],
+      filters({ hideTestData: false }),
+    );
+    expect(out.map((s) => s.id)).toEqual(["s1", "s2", "s3"]);
+  });
+
+  it("busca filtra por nome (case/diacritic-insensitive)", () => {
+    expect(
+      filterStudentsForProgress(
+        students,
+        studentProgress,
+        [],
+        filters({ searchQuery: "JOAO" }),
+      ).map((s) => s.id),
+    ).toEqual(["s1"]);
+  });
+
+  it("progressStatus=no_completed mantém só quem não completou nenhuma", () => {
+    const out = filterStudentsForProgress(
+      students,
+      studentProgress,
+      [],
+      filters({ progressStatus: "no_completed", hideTestData: false }),
+    );
+    expect(out.map((s) => s.id)).toEqual(["s1"]);
+  });
+
+  it("progressStatus=anamnese_done mantém só quem tem Anamnese done", () => {
+    const out = filterStudentsForProgress(
+      students,
+      studentProgress,
+      [],
+      filters({ progressStatus: "anamnese_done", hideTestData: false }),
+    );
+    expect(out.map((s) => s.id)).toEqual(["s2", "s3"]);
+  });
+
+  it("progressStatus=parq_blocked cruza com a fila", () => {
+    const queue: ActionQueueItem[] = [
+      queueItem({ alertType: "parq_blocked", studentId: "s2" }),
+    ];
+    const out = filterStudentsForProgress(
+      students,
+      studentProgress,
+      queue,
+      filters({ progressStatus: "parq_blocked", hideTestData: false }),
+    );
+    expect(out.map((s) => s.id)).toEqual(["s2"]);
+  });
+
+  it("combina filtros (search + progressStatus + hideTestData)", () => {
+    const out = filterStudentsForProgress(
+      students,
+      studentProgress,
+      [],
+      filters({
+        searchQuery: "maria",
+        progressStatus: "anamnese_done",
+      }),
+    );
+    expect(out.map((s) => s.id)).toEqual(["s2"]);
   });
 });

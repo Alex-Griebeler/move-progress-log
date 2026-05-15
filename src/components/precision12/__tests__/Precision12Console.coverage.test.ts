@@ -22,6 +22,9 @@ const coachConsoleSource = readFileSync(coachConsolePath, "utf-8");
 const precision12ConsolePath = resolve(__dirname, "../Precision12Console.tsx");
 const precision12ConsoleSource = readFileSync(precision12ConsolePath, "utf-8");
 
+const precision12FiltersPath = resolve(__dirname, "../Precision12Filters.tsx");
+const precision12FiltersSource = readFileSync(precision12FiltersPath, "utf-8");
+
 describe("E4.2 CoachConsole — sanity", () => {
   it("registra a tab 'precision12' no type Tab", () => {
     expect(coachConsoleSource).toMatch(
@@ -78,5 +81,81 @@ describe("E4.2 Precision12Console — sanity", () => {
   it("não introduz mutation (read-only nesta etapa)", () => {
     expect(precision12ConsoleSource).not.toContain("useMutation");
     expect(precision12ConsoleSource).not.toMatch(/supabase\.[a-z]+\.(insert|update|delete|upsert)/);
+  });
+});
+
+describe("E4.3a Precision12Console — filtros operacionais", () => {
+  it("importa e renderiza Precision12Filters", () => {
+    expect(precision12ConsoleSource).toContain(
+      'from "./Precision12Filters"',
+    );
+    expect(precision12ConsoleSource).toContain("<Precision12Filters");
+  });
+
+  it("usa DEFAULT_PRECISION12_FILTERS como estado inicial", () => {
+    expect(precision12ConsoleSource).toContain("DEFAULT_PRECISION12_FILTERS");
+    expect(precision12ConsoleSource).toMatch(
+      /useState<Precision12FiltersType>\(\s*DEFAULT_PRECISION12_FILTERS,?\s*\)/,
+    );
+  });
+
+  it("aplica filterActionQueue e filterStudentsForProgress", () => {
+    expect(precision12ConsoleSource).toContain("filterActionQueue");
+    expect(precision12ConsoleSource).toContain("filterStudentsForProgress");
+  });
+
+  it("memoiza derivações filtradas com useMemo", () => {
+    expect(precision12ConsoleSource).toContain("useMemo");
+  });
+
+  it("distingue empty-real de filter-empty na fila e na tabela", () => {
+    // Empty real (sem dado): tratado nos componentes filhos / no early return.
+    // Filter-empty: pelo console, comparando lengths.
+    expect(precision12ConsoleSource).toContain(
+      "data.actionQueue.length > 0 && filteredActionQueue.length === 0",
+    );
+    expect(precision12ConsoleSource).toContain(
+      "data.students.length > 0 && filteredStudents.length === 0",
+    );
+  });
+
+  it("expõe contador de smoke ocultos via countHiddenSmokeStudents", () => {
+    expect(precision12ConsoleSource).toContain("countHiddenSmokeStudents");
+    expect(precision12ConsoleSource).toContain("hiddenSmokeCount");
+  });
+
+  it("não introduz mutation (filtros são read-only)", () => {
+    expect(precision12ConsoleSource).not.toContain("useMutation");
+  });
+});
+
+describe("E4.3a Precision12Filters — sanity", () => {
+  it("expõe as 4 superfícies de filtro (search, alertType, progressStatus, hideTestData)", () => {
+    expect(precision12FiltersSource).toContain("searchQuery");
+    expect(precision12FiltersSource).toContain("alertType");
+    expect(precision12FiltersSource).toContain("progressStatus");
+    expect(precision12FiltersSource).toContain("hideTestData");
+  });
+
+  it("usa Input + Select + Switch do shadcn", () => {
+    expect(precision12FiltersSource).toContain(
+      'from "@/components/ui/input"',
+    );
+    expect(precision12FiltersSource).toContain(
+      'from "@/components/ui/select"',
+    );
+    expect(precision12FiltersSource).toContain(
+      'from "@/components/ui/switch"',
+    );
+  });
+
+  it("contém banner de smoke ocultos com microcopy explicativa", () => {
+    expect(precision12FiltersSource).toContain("Dados de teste ocultos");
+  });
+
+  it("é read-only — propagado via onFiltersChange (sem fetch/mutation)", () => {
+    expect(precision12FiltersSource).toContain("onFiltersChange");
+    expect(precision12FiltersSource).not.toContain("useMutation");
+    expect(precision12FiltersSource).not.toContain("supabase");
   });
 });

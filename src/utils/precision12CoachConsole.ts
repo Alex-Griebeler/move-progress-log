@@ -437,3 +437,148 @@ export function deriveActionQueue(
     return (a.assessmentDate ?? "").localeCompare(b.assessmentDate ?? "");
   });
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// 5. Filtros operacionais (E4.3a)
+//
+// Funções puras de filtragem usadas pela UI do Coach Console.
+// Princípio: KPIs permanecem GLOBAIS (não filtrados); só a fila de ação e a
+// tabela de progresso por aluno respondem aos filtros — assim o coach ainda
+// enxerga o panorama enquanto investiga subconjuntos.
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Filtro por status agregado na tabela de progresso. */
+export type ProgressStatusFilter =
+  | "all"
+  | "no_completed" //   aluno sem nenhuma categoria `done`
+  | "anamnese_done" //  aluno com Anamnese `done`
+  | "parq_blocked"; //  aluno com algum item parq_blocked na fila
+
+export interface Precision12Filters {
+  /** Busca textual por nome do aluno (case/diacritic-insensitive). */
+  searchQuery: string;
+  /** Filtro do tipo de alerta na fila. `all` mostra todos. */
+  alertType: ActionQueueAlertType | "all";
+  /** Filtro do status agregado na tabela de progresso. */
+  progressStatus: ProgressStatusFilter;
+  /** Quando true, oculta alunos de teste/smoke (default). */
+  hideTestData: boolean;
+}
+
+/**
+ * Default operacional: smoke oculto. Coach normalmente trabalha em produção;
+ * quem precisa ver smoke (QA, dev) liga o toggle.
+ */
+export const DEFAULT_PRECISION12_FILTERS: Precision12Filters = {
+  searchQuery: "",
+  alertType: "all",
+  progressStatus: "all",
+  hideTestData: true,
+};
+
+/**
+ * Heurística pra identificar aluno de smoke/teste. Match em prefixo `SMOKE `,
+ * `TEST ` ou `[TEST]`, e em substring `SMOKE E3` (legado do E3 cleanup).
+ * Conservadora — só nomes que o coach reconhece como teste.
+ */
+export function isSmokeStudent(student: { name: string }): boolean {
+  const name = (student.name ?? "").trim();
+  if (name.length === 0) return false;
+  const upper = name.toUpperCase();
+  return (
+    upper.startsWith("SMOKE ") ||
+    upper.startsWith("TEST ") ||
+    upper.startsWith("[TEST]") ||
+    upper.includes("SMOKE E3")
+  );
+}
+
+/**
+ * Conta quantos alunos de smoke estariam visíveis se o toggle estivesse
+ * desligado. Usado pelo banner "Dados de teste ocultos: N".
+ */
+export function countHiddenSmokeStudents(
+  students: readonly CoachConsoleStudent[],
+  hideTestData: boolean,
+): number {
+  if (!hideTestData) return 0;
+  return students.reduce(
+    (acc, s) => (isSmokeStudent(s) ? acc + 1 : acc),
+    0,
+  );
+}
+
+/**
+ * Normaliza texto pra busca tolerante a acentos/caixa.
+ * Ex.: "João" e "JOAO" batem na mesma query "joao".
+ */
+function normalizeForSearch(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+/** Filtra a fila de ação aplicando os filtros do console. */
+export function filterActionQueue(
+  items: readonly ActionQueueItem[],
+  filters: Precision12Filters,
+  studentsById?: ReadonlyMap<string, CoachConsoleStudent>,
+): ActionQueueItem[] {
+  const needle = normalizeForSearch(filters.searchQuery);
+  return items.filter((item) => {
+    if (filters.alertType !== "all" && item.alertType !== filters.alertType) {
+      return false;
+    }
+    if (filters.hideTestData) {
+      // Tenta resolver via mapa de alunos (mais confiável que name match).
+      const student = studentsById?.get(item.studentId);
+      const reference = student ?? { name: item.studentName };
+      if (isSmokeStudent(reference)) return false;
+    }
+    if (needle.length > 0) {
+      const hay = normalizeForSearch(item.studentName);
+      if (!hay.includes(needle)) return false;
+    }
+    return true;
+  });
+}
+
+/**
+ * Aplica filtros à lista de alunos pra tabela de progresso.
+ * O filtro `progressStatus` exige cruzar com `studentProgress` (no_completed,
+ * anamnese_done) e `actionQueue` (parq_blocked).
+ */
+export function filterStudentsForProgress(
+  students: readonly CoachConsoleStudent[],
+  studentProgress: readonly StudentProgress[],
+  actionQueue: readonly ActionQueueItem[],
+  filters: Precision12Filters,
+): CoachConsoleStudent[] {
+  const needle = normalizeForSearch(filters.searchQuery);
+  const progressById = new Map(studentProgress.map((p) => [p.studentId, p]));
+  const parqBlockedIds = new Set(
+    actionQueue
+      .filter((item) => item.alertType === "parq_blocked")
+      .map((item) => item.studentId),
+  );
+
+  return students.filter((student) => {
+    if (filters.hideTestData && isSmokeStudent(student)) return false;
+    if (needle.length > 0) {
+      if (!normalizeForSearch(student.name).includes(needle)) return false;
+    }
+    if (filters.progressStatus !== "all") {
+      const p = progressById.get(student.id);
+      if (filters.progressStatus === "no_completed") {
+        if (!p || p.completedCategories > 0) return false;
+      } else if (filters.progressStatus === "anamnese_done") {
+        if (!p || p.categories["Anamnese"] !== "done") return false;
+      } else if (filters.progressStatus === "parq_blocked") {
+        if (!parqBlockedIds.has(student.id)) return false;
+      }
+    }
+    return true;
+  });
+}
