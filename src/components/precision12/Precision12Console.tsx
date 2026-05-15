@@ -4,16 +4,29 @@
  * Wraps as 3 superfícies read-only (KPIs, fila de ação, progresso por aluno)
  * em torno do hook `usePrecision12CoachConsole`. Sem ações mutáveis nesta
  * etapa — só leitura e CTAs de navegação pra `/alunos/:id`.
+ *
+ * E4.3a — adicionados filtros operacionais (busca, tipo de alerta, status de
+ * progresso, ocultar dados de teste). KPIs continuam GLOBAIS — só fila e
+ * tabela respondem aos filtros, propositalmente (panorama vs. recorte).
  */
 
+import { useMemo, useState } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePrecision12CoachConsole } from "@/hooks/usePrecision12CoachConsole";
+import {
+  DEFAULT_PRECISION12_FILTERS,
+  countHiddenSmokeStudents,
+  filterActionQueue,
+  filterStudentsForProgress,
+  type Precision12Filters as Precision12FiltersType,
+} from "@/utils/precision12CoachConsole";
 
 import { Precision12ActionQueue } from "./Precision12ActionQueue";
+import { Precision12Filters } from "./Precision12Filters";
 import { Precision12KpiCards } from "./Precision12KpiCards";
 import { Precision12StudentProgressTable } from "./Precision12StudentProgressTable";
 
@@ -26,14 +39,63 @@ function LoadingSkeleton() {
           <Skeleton key={i} className="h-[88px] rounded-md" />
         ))}
       </div>
+      <Skeleton className="h-[120px] rounded-md" />
       <Skeleton className="h-[260px] rounded-md" />
       <Skeleton className="h-[200px] rounded-md" />
     </div>
   );
 }
 
+function FilteredEmpty({ label }: { label: string }) {
+  return (
+    <div
+      className="rounded-md border bg-muted/30 p-6 text-sm text-muted-foreground text-center"
+      role="status"
+      aria-live="polite"
+    >
+      {label}
+    </div>
+  );
+}
+
 export function Precision12Console() {
   const query = usePrecision12CoachConsole();
+  const [filters, setFilters] = useState<Precision12FiltersType>(
+    DEFAULT_PRECISION12_FILTERS,
+  );
+
+  const data = query.data;
+
+  // Derivações memoizadas pra evitar refazer trabalho a cada keystroke da busca.
+  const studentsById = useMemo(() => {
+    if (!data) return new Map<string, (typeof data.students)[number]>();
+    return new Map(data.students.map((s) => [s.id, s]));
+  }, [data]);
+
+  const hiddenSmokeCount = useMemo(
+    () =>
+      data ? countHiddenSmokeStudents(data.students, filters.hideTestData) : 0,
+    [data, filters.hideTestData],
+  );
+
+  const filteredActionQueue = useMemo(
+    () =>
+      data ? filterActionQueue(data.actionQueue, filters, studentsById) : [],
+    [data, filters, studentsById],
+  );
+
+  const filteredStudents = useMemo(
+    () =>
+      data
+        ? filterStudentsForProgress(
+            data.students,
+            data.studentProgress,
+            data.actionQueue,
+            filters,
+          )
+        : [],
+    [data, filters],
+  );
 
   if (query.isLoading) {
     return <LoadingSkeleton />;
@@ -62,7 +124,6 @@ export function Precision12Console() {
     );
   }
 
-  const data = query.data;
   if (!data || data.students.length === 0) {
     return (
       <div
@@ -79,6 +140,12 @@ export function Precision12Console() {
     <div className="space-y-6">
       <Precision12KpiCards data={data} />
 
+      <Precision12Filters
+        filters={filters}
+        onFiltersChange={setFilters}
+        hiddenSmokeCount={hiddenSmokeCount}
+      />
+
       <section aria-labelledby="precision12-queue-heading" className="space-y-2">
         <div className="flex items-baseline justify-between">
           <h3
@@ -91,7 +158,11 @@ export function Precision12Console() {
             Triagem operacional — não substitui avaliação clínica.
           </p>
         </div>
-        <Precision12ActionQueue items={data.actionQueue} />
+        {data.actionQueue.length > 0 && filteredActionQueue.length === 0 ? (
+          <FilteredEmpty label="Nenhuma ação corresponde aos filtros atuais." />
+        ) : (
+          <Precision12ActionQueue items={filteredActionQueue} />
+        )}
       </section>
 
       <section
@@ -104,10 +175,14 @@ export function Precision12Console() {
         >
           Progresso por aluno (5 categorias)
         </h3>
-        <Precision12StudentProgressTable
-          students={data.students}
-          progress={data.studentProgress}
-        />
+        {data.students.length > 0 && filteredStudents.length === 0 ? (
+          <FilteredEmpty label="Nenhum aluno corresponde aos filtros atuais." />
+        ) : (
+          <Precision12StudentProgressTable
+            students={filteredStudents}
+            progress={data.studentProgress}
+          />
+        )}
       </section>
     </div>
   );
