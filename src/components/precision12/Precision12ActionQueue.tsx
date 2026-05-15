@@ -24,9 +24,10 @@ import {
 } from "@/components/ui/table";
 import { ASSESSMENT_TYPE_METADATA } from "@/constants/assessmentProtocols";
 import type { AssessmentStatus, AssessmentType } from "@/types/assessment";
-import type {
-  ActionQueueAlertType,
-  ActionQueueItem,
+import {
+  buildPrecision12StudentDeepLink,
+  type ActionQueueAlertType,
+  type ActionQueueItem,
 } from "@/utils/precision12CoachConsole";
 
 interface Precision12ActionQueueProps {
@@ -141,7 +142,12 @@ export function Precision12ActionQueue({ items }: Precision12ActionQueueProps) {
                     size="sm"
                     aria-label={`Abrir ${item.studentName}`}
                   >
-                    <Link to={`/alunos/${item.studentId}`}>
+                    <Link
+                      to={buildPrecision12StudentDeepLink(
+                        item.studentId,
+                        item.assessmentId,
+                      )}
+                    >
                       Abrir
                       <ChevronRight className="ml-1 h-3.5 w-3.5" aria-hidden />
                     </Link>

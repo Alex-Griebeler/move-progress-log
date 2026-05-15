@@ -12,6 +12,8 @@ import {
   ADHERENCE_RISK_MIN_FLAGS,
   ASSESSMENT_CATEGORIES,
   DEFAULT_PRECISION12_FILTERS,
+  PRECISION12_ASSESSMENTS_TAB,
+  buildPrecision12StudentDeepLink,
   categoryOf,
   countHiddenSmokeStudents,
   deriveActionQueue,
@@ -741,5 +743,52 @@ describe("filterStudentsForProgress", () => {
       }),
     );
     expect(out.map((s) => s.id)).toEqual(["s2"]);
+  });
+});
+
+// ── 6. buildPrecision12StudentDeepLink (E4.3b) ────────────────────────────────
+
+describe("buildPrecision12StudentDeepLink", () => {
+  it("monta URL com tab=assessments sem assessmentId", () => {
+    expect(buildPrecision12StudentDeepLink("student-123")).toBe(
+      "/alunos/student-123?tab=assessments",
+    );
+  });
+
+  it("aceita null como assessmentId (mesmo comportamento que omitir)", () => {
+    expect(buildPrecision12StudentDeepLink("student-123", null)).toBe(
+      "/alunos/student-123?tab=assessments",
+    );
+  });
+
+  it("aceita undefined como assessmentId", () => {
+    expect(buildPrecision12StudentDeepLink("student-123", undefined)).toBe(
+      "/alunos/student-123?tab=assessments",
+    );
+  });
+
+  it("inclui assessmentId quando presente", () => {
+    expect(
+      buildPrecision12StudentDeepLink(
+        "student-123",
+        "assessment-abc",
+      ),
+    ).toBe("/alunos/student-123?tab=assessments&assessmentId=assessment-abc");
+  });
+
+  it("usa a constante PRECISION12_ASSESSMENTS_TAB como source-of-truth", () => {
+    // Sanity: helper sempre emite o tab declarado na constante exportada.
+    expect(PRECISION12_ASSESSMENTS_TAB).toBe("assessments");
+    expect(
+      buildPrecision12StudentDeepLink("s1").includes(
+        `tab=${PRECISION12_ASSESSMENTS_TAB}`,
+      ),
+    ).toBe(true);
+  });
+
+  it("é determinístico — mesma entrada produz mesma URL", () => {
+    const url1 = buildPrecision12StudentDeepLink("s1", "a1");
+    const url2 = buildPrecision12StudentDeepLink("s1", "a1");
+    expect(url1).toBe(url2);
   });
 });

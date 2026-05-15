@@ -582,3 +582,36 @@ export function filterStudentsForProgress(
     return true;
   });
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// 6. Deep links read-only (E4.3b)
+//
+// O Coach Console abre o aluno em `/alunos/:id` — esse helper monta a URL
+// já no contexto da aba "Avaliações", opcionalmente sinalizando qual
+// `assessmentId` deve abrir/destacar. Read-only, sem mutation: só compõe
+// uma URL determinística pra `react-router-dom`.
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Aba do StudentDetailPage que abre direto no contexto Precision 12. */
+export const PRECISION12_ASSESSMENTS_TAB = "assessments" as const;
+
+/**
+ * URL canônica pra abrir um aluno (E4.3b) no Coach Console.
+ *
+ * Formato:
+ *   /alunos/<studentId>?tab=assessments
+ *   /alunos/<studentId>?tab=assessments&assessmentId=<uuid>
+ *
+ * `assessmentId` é opcional: só sai na URL quando há um item específico de
+ * fila relacionado a uma assessment (parq_blocked, questionnaire_pending,
+ * assessment_incomplete, adherence_risk). CTAs por aluno (tabela de
+ * progresso) emitem só `tab=assessments`.
+ */
+export function buildPrecision12StudentDeepLink(
+  studentId: string,
+  assessmentId: string | null | undefined = null,
+): string {
+  const params = new URLSearchParams({ tab: PRECISION12_ASSESSMENTS_TAB });
+  if (assessmentId) params.set("assessmentId", assessmentId);
+  return `/alunos/${studentId}?${params.toString()}`;
+}

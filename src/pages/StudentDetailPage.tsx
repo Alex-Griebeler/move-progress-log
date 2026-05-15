@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
 import { useStudentById } from "@/hooks/useStudents";
 import { useStudentPrescriptions, useSessionsWithExercises } from "@/hooks/useStudentDetail";
@@ -63,11 +63,31 @@ type StudentExerciseOption = {
   exerciseLibraryId: string | null;
 };
 
+// E4.3b — Deep-link read-only: `?tab=<value>` na URL abre direto na aba
+// correspondente no primeiro render. Whitelist defensiva pra ignorar valores
+// inválidos; comportamento padrão (`training`) preservado quando o param
+// estiver ausente ou fora da whitelist.
+const VALID_STUDENT_DETAIL_TABS = new Set([
+  "training",
+  "overview",
+  "sessions",
+  "exercises",
+  "prescriptions",
+  "assessments",
+  "oura",
+]);
+
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const studentId = id ?? "";
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("training");
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const requested = searchParams.get("tab");
+    return requested && VALID_STUDENT_DETAIL_TABS.has(requested)
+      ? requested
+      : "training";
+  });
   const needsSessions = activeTab === "overview" || activeTab === "sessions" || activeTab === "exercises";
   const needsAssignments = activeTab === "overview" || activeTab === "prescriptions";
   const needsOuraHistory = activeTab === "training" || activeTab === "oura";

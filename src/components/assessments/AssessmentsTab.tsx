@@ -7,7 +7,8 @@
  * Detalhe drill-down abre um painel read-only com os dados salvos.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronRight, Plus, Stethoscope } from "lucide-react";
@@ -60,6 +61,23 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const [filter, setFilter] = useState<CategoryFilter>("all");
+
+  // E4.3b — Deep-link read-only: `?assessmentId=<uuid>` na URL abre o sheet
+  // automaticamente após os assessments do aluno carregarem. Aplicado uma
+  // única vez (ref-guard) pra não reabrir o sheet quando o coach o fechar.
+  // Validado contra a lista carregada: assessmentId que não bate com nenhum
+  // assessment do aluno é simplesmente ignorado (defensivo).
+  const [searchParams] = useSearchParams();
+  const deepLinkApplied = useRef(false);
+  useEffect(() => {
+    if (deepLinkApplied.current) return;
+    if (!assessments) return;
+    const requested = searchParams.get("assessmentId");
+    if (requested && assessments.some((a) => a.id === requested)) {
+      setSelectedAssessmentId(requested);
+    }
+    deepLinkApplied.current = true;
+  }, [assessments, searchParams]);
 
   const filtered = useMemo(() => {
     if (!assessments) return [];
