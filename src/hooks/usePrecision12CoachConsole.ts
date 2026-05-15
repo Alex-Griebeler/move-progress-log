@@ -19,6 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ASSESSMENT_TYPES } from "@/types/assessment";
 import {
   deriveActionQueue,
+  deriveActiveLinkAssessmentIds,
   deriveAssessmentStatusCounts,
   deriveStudentProgress,
   type ActionQueueItem,
@@ -50,6 +51,12 @@ export interface Precision12CoachConsoleData
   statusCounts: AssessmentStatusCounts;
   studentProgress: StudentProgress[];
   actionQueue: ActionQueueItem[];
+  /**
+   * E4.5 — Conjunto de `assessment_id` com link ativo (não usado, não
+   * revogado, não expirado). Usado pela UI pra decidir se mostra o
+   * botão "Revogar link" na fila.
+   */
+  activeLinkAssessmentIds: Set<string>;
 }
 
 async function fetchCoachConsoleData(): Promise<Precision12CoachConsoleRaw> {
@@ -125,6 +132,7 @@ function deriveAll(
       assessments: raw.assessments,
       responses: raw.responses,
     }),
+    activeLinkAssessmentIds: deriveActiveLinkAssessmentIds(raw.links),
   };
 }
 

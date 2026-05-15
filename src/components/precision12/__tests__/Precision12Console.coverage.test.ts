@@ -43,6 +43,21 @@ const precision12ReissueDialogSource = readFileSync(
   "utf-8",
 );
 
+const precision12RevokeDialogPath = resolve(
+  __dirname,
+  "../Precision12RevokeLinkDialog.tsx",
+);
+const precision12RevokeDialogSource = readFileSync(
+  precision12RevokeDialogPath,
+  "utf-8",
+);
+
+const revokeEdgePath = resolve(
+  __dirname,
+  "../../../../supabase/functions/revoke-precision12-questionnaire-link/index.ts",
+);
+const revokeEdgeSource = readFileSync(revokeEdgePath, "utf-8");
+
 describe("E4.2 CoachConsole — sanity", () => {
   it("registra a tab 'precision12' no type Tab", () => {
     expect(coachConsoleSource).toMatch(
@@ -325,5 +340,225 @@ describe("E4.4 Precision12ReissueLinkDialog — controlled mutation", () => {
     expect(precision12ReissueDialogSource).toContain(
       '"_blank", "noopener,noreferrer"',
     );
+  });
+});
+
+describe("E4.5 Precision12ActionQueue — revoke UI integration", () => {
+  it("importa canRevokeQuestionnaireLink + Precision12RevokeLinkDialog", () => {
+    expect(precision12ActionQueueSource).toContain(
+      "canRevokeQuestionnaireLink",
+    );
+    expect(precision12ActionQueueSource).toContain(
+      'from "./Precision12RevokeLinkDialog"',
+    );
+  });
+
+  it("renderiza botão Revogar link condicionado por canRevoke + assessmentId", () => {
+    expect(precision12ActionQueueSource).toMatch(
+      /canRevokeQuestionnaireLink\(\s*item\s*,\s*activeLinkAssessmentIds\s*,?\s*\)/,
+    );
+    expect(precision12ActionQueueSource).toContain("Revogar link");
+    expect(precision12ActionQueueSource).toMatch(
+      /canRevoke\s*&&\s*item\.assessmentId\s*!==\s*null/,
+    );
+  });
+
+  it("o click do botão NÃO chama edge — só abre o dialog (setRevokeTarget)", () => {
+    expect(precision12ActionQueueSource).toMatch(
+      /onClick=\{\s*\(\)\s*=>\s*\n?\s*setRevokeTarget\(/,
+    );
+    expect(precision12ActionQueueSource).not.toContain(
+      "supabase.functions.invoke",
+    );
+  });
+
+  it("o dialog só monta quando há um target — close limpa o target", () => {
+    expect(precision12ActionQueueSource).toMatch(
+      /revokeTarget\s*&&\s*\(\s*\n?\s*<Precision12RevokeLinkDialog/,
+    );
+    expect(precision12ActionQueueSource).toMatch(
+      /if\s*\(!open\)\s*setRevokeTarget\(null\)/,
+    );
+  });
+
+  it("aceita prop activeLinkAssessmentIds (default vazio)", () => {
+    expect(precision12ActionQueueSource).toContain(
+      "activeLinkAssessmentIds",
+    );
+    expect(precision12ActionQueueSource).toContain(
+      "EMPTY_ACTIVE_LINK_IDS",
+    );
+  });
+});
+
+describe("E4.5 Precision12RevokeLinkDialog — controlled mutation", () => {
+  it("chama exclusivamente a edge function revoke-precision12-questionnaire-link", () => {
+    expect(precision12RevokeDialogSource).toContain(
+      'supabase.functions.invoke<RevokeLinkResponse>(\n        "revoke-precision12-questionnaire-link"',
+    );
+    expect(precision12RevokeDialogSource).not.toMatch(/supabase\.from\(/);
+    expect(precision12RevokeDialogSource).not.toMatch(
+      /supabase\.[a-z]+\.(insert|update|delete|upsert)/,
+    );
+    expect(precision12RevokeDialogSource).not.toMatch(/supabase\.rpc\(/);
+  });
+
+  it("envia exatamente { student_id, assessment_id } no body — sem extras", () => {
+    expect(precision12RevokeDialogSource).toContain(
+      "student_id: studentId,",
+    );
+    expect(precision12RevokeDialogSource).toContain(
+      "assessment_id: assessmentId,",
+    );
+    // Sem invite_url, sem token, sem frontend_origin (revoke não precisa de URL):
+    expect(precision12RevokeDialogSource).not.toContain(
+      "frontend_origin",
+    );
+  });
+
+  it("usa TanStack useMutation e invalida o cache do Coach Console no onSuccess", () => {
+    expect(precision12RevokeDialogSource).toContain("useMutation");
+    expect(precision12RevokeDialogSource).toMatch(
+      /queryKey:\s*\[\s*["']precision12["']\s*,\s*["']coach-console["']\s*\]/,
+    );
+    expect(precision12RevokeDialogSource).toMatch(
+      /queryKey:\s*\[\s*["']assessments["']\s*,\s*["']by-student["']\s*,\s*studentId\s*\]/,
+    );
+  });
+
+  it("exige confirmação explícita antes de chamar a edge", () => {
+    expect(precision12RevokeDialogSource).toMatch(
+      /const handleConfirm = \(\)\s*=>\s*\{[\s\S]*?mutation\.mutate\(/,
+    );
+    expect(precision12RevokeDialogSource).toContain(
+      "Revogar este link impedirá que o aluno responda por ele. Deseja continuar?",
+    );
+    expect(precision12RevokeDialogSource).toContain(
+      'aria-label="Confirmar revogação do link"',
+    );
+  });
+
+  it("cancelar / fechar o dialog NÃO dispara a mutação (mutation.mutate aparece 1 vez)", () => {
+    expect(precision12RevokeDialogSource).toMatch(
+      /const handleClose = \(\)\s*=>\s*\{[\s\S]*?onOpenChange\(false\)/,
+    );
+    const mutateCalls = (
+      precision12RevokeDialogSource.match(/mutation\.mutate\(/g) ?? []
+    ).length;
+    expect(mutateCalls).toBe(1);
+  });
+
+  it("traduz erro server-side 'Nenhum link ativo para revogar.'", () => {
+    expect(precision12RevokeDialogSource).toContain(
+      "Nenhum link ativo para revogar.",
+    );
+    expect(precision12RevokeDialogSource).toContain(
+      "Nenhum link ativo encontrado",
+    );
+  });
+
+  it("não persiste em localStorage/sessionStorage", () => {
+    expect(precision12RevokeDialogSource).not.toMatch(
+      /\blocalStorage\s*\.\s*(setItem|getItem|removeItem)\b/,
+    );
+    expect(precision12RevokeDialogSource).not.toMatch(
+      /\bsessionStorage\s*\.\s*(setItem|getItem|removeItem)\b/,
+    );
+    expect(precision12RevokeDialogSource).not.toMatch(
+      /\b(localStorage|sessionStorage)\s*\[/,
+    );
+  });
+
+  it("não loga token/link em console", () => {
+    expect(precision12RevokeDialogSource).not.toMatch(/console\.log\(/);
+    expect(precision12RevokeDialogSource).not.toMatch(
+      /console\.(info|warn|error|debug)\([^)]*\b(invite|token|invite_url|inviteUrl)\b/,
+    );
+  });
+
+  it("não introduz mutation direta de tabela / RPC", () => {
+    expect(precision12RevokeDialogSource).not.toMatch(/supabase\.from\(/);
+    expect(precision12RevokeDialogSource).not.toMatch(/supabase\.rpc\(/);
+  });
+
+  it("não expõe link/URL — revoke response não contém invite_url", () => {
+    // O contract da edge é { ok, revoked_at }; o dialog não deve referenciar
+    // navegação ou abrir link após revoke.
+    expect(precision12RevokeDialogSource).not.toContain("window.open");
+    expect(precision12RevokeDialogSource).not.toContain("navigator.clipboard");
+    expect(precision12RevokeDialogSource).not.toContain("invite_url");
+  });
+});
+
+describe("E4.5 revoke-precision12-questionnaire-link edge fn — security invariants", () => {
+  it("valida JWT antes de qualquer escrita (Authorization Bearer + auth.getUser)", () => {
+    expect(revokeEdgeSource).toContain('req.headers.get("Authorization")');
+    expect(revokeEdgeSource).toContain("Bearer ");
+    expect(revokeEdgeSource).toContain("userClient.auth.getUser()");
+    // Resposta 401 explícita caso falte JWT ou getUser falhe.
+    expect(revokeEdgeSource).toMatch(/jsonResponse\(\{\s*error:\s*"Unauthorized"\s*\}\s*,\s*401\)/);
+  });
+
+  it("checa role admin via user_roles antes de operar como service role", () => {
+    expect(revokeEdgeSource).toContain('"user_roles"');
+    expect(revokeEdgeSource).toMatch(/\.eq\(\s*"role"\s*,\s*"admin"\s*\)/);
+    expect(revokeEdgeSource).toContain("isAdmin");
+  });
+
+  it("valida ownership (admin OU trainer dono) antes do UPDATE", () => {
+    expect(revokeEdgeSource).toMatch(
+      /if\s*\(\s*!isAdmin\s*&&\s*student\.trainer_id\s*!==\s*user\.id\s*\)/,
+    );
+    expect(revokeEdgeSource).toMatch(/jsonResponse\([^,]*,\s*403\)/);
+  });
+
+  it("valida assessment_type === questionnaire_precision12", () => {
+    expect(revokeEdgeSource).toContain('"questionnaire_precision12"');
+    expect(revokeEdgeSource).toMatch(
+      /assessment\.assessment_type\s*!==\s*ASSESSMENT_TYPE/,
+    );
+  });
+
+  it("permite revogar APENAS quando status === in_progress (allowlist)", () => {
+    expect(revokeEdgeSource).toContain("REVOCABLE_ASSESSMENT_STATUSES");
+    expect(revokeEdgeSource).toMatch(
+      /new Set\(\s*\[\s*"in_progress"\s*\]\s*\)/,
+    );
+    expect(revokeEdgeSource).toMatch(
+      /!REVOCABLE_ASSESSMENT_STATUSES\.has\(assessment\.status\)/,
+    );
+  });
+
+  it("UPDATE só toca rows ATIVAS (used_at IS NULL AND revoked_at IS NULL)", () => {
+    expect(revokeEdgeSource).toMatch(
+      /\.update\(\{\s*revoked_at:\s*nowIso\s*\}\)/,
+    );
+    expect(revokeEdgeSource).toMatch(
+      /\.eq\(\s*"assessment_id"\s*,\s*assessmentId\s*\)/,
+    );
+    expect(revokeEdgeSource).toMatch(/\.is\(\s*"used_at"\s*,\s*null\s*\)/);
+    expect(revokeEdgeSource).toMatch(/\.is\(\s*"revoked_at"\s*,\s*null\s*\)/);
+  });
+
+  it("retorna 404 quando affectedCount === 0 (sem link ativo)", () => {
+    expect(revokeEdgeSource).toMatch(/affectedCount\s*===\s*0/);
+    expect(revokeEdgeSource).toContain("Nenhum link ativo para revogar.");
+  });
+
+  it("não cria assessment, não toca questionnaire_responses, não emite link novo", () => {
+    // Asserções strictly checam acessos a tabela / chamadas reais; comentários
+    // explicativos podem mencionar nomes (e.g. "Não toca questionnaire_responses").
+    expect(revokeEdgeSource).not.toContain(".insert(");
+    expect(revokeEdgeSource).not.toMatch(
+      /\.from\(\s*["']questionnaire_responses["']\s*\)/,
+    );
+    expect(revokeEdgeSource).not.toContain("invite_url");
+    expect(revokeEdgeSource).not.toContain("generateToken");
+    expect(revokeEdgeSource).not.toContain("token_hash");
+  });
+
+  it("retorna shape { ok: true, revoked_at }", () => {
+    expect(revokeEdgeSource).toMatch(/ok:\s*true/);
+    expect(revokeEdgeSource).toContain("revoked_at: nowIso");
   });
 });

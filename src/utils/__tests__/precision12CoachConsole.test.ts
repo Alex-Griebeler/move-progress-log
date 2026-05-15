@@ -15,9 +15,11 @@ import {
   PRECISION12_ASSESSMENTS_TAB,
   buildPrecision12StudentDeepLink,
   canReissueQuestionnaireLink,
+  canRevokeQuestionnaireLink,
   categoryOf,
   countHiddenSmokeStudents,
   deriveActionQueue,
+  deriveActiveLinkAssessmentIds,
   deriveAssessmentStatusCounts,
   deriveQuestionnaireAlerts,
   deriveStudentProgress,
@@ -26,6 +28,7 @@ import {
   isSmokeStudent,
   type ActionQueueItem,
   type CoachConsoleAssessment,
+  type CoachConsoleLink,
   type CoachConsoleQuestionnaire,
   type CoachConsoleStudent,
   type Precision12Filters,
@@ -873,6 +876,163 @@ describe("canReissueQuestionnaireLink", () => {
     expect(
       canReissueQuestionnaireLink(
         reissuableItem({ assessmentType: "handgrip" }),
+      ),
+    ).toBe(false);
+  });
+});
+
+// ── 8. deriveActiveLinkAssessmentIds + canRevokeQuestionnaireLink (E4.5) ─────
+
+function link(overrides: Partial<CoachConsoleLink> = {}): CoachConsoleLink {
+  return {
+    assessment_id: "a1",
+    used_at: null,
+    revoked_at: null,
+    expires_at: "2099-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function reissuableQueueItem(
+  overrides: Partial<ActionQueueItem> = {},
+): ActionQueueItem {
+  return {
+    priority: 2,
+    alertType: "questionnaire_pending",
+    studentId: "s1",
+    studentName: "Aluno Teste",
+    assessmentId: "a1",
+    assessmentType: "questionnaire_precision12",
+    status: "in_progress",
+    assessmentDate: "2026-05-01",
+    ...overrides,
+  };
+}
+
+describe("deriveActiveLinkAssessmentIds", () => {
+  const now = new Date("2026-05-15T12:00:00.000Z");
+
+  it("array vazio → set vazio", () => {
+    expect(deriveActiveLinkAssessmentIds([], now).size).toBe(0);
+  });
+
+  it("inclui só links com used_at=null AND revoked_at=null AND expires_at>now", () => {
+    const ids = deriveActiveLinkAssessmentIds(
+      [
+        link({ assessment_id: "a-active", expires_at: "2026-06-01T00:00:00.000Z" }),
+        link({ assessment_id: "a-used", used_at: "2026-05-10T00:00:00.000Z" }),
+        link({
+          assessment_id: "a-revoked",
+          revoked_at: "2026-05-11T00:00:00.000Z",
+        }),
+        link({ assessment_id: "a-expired", expires_at: "2026-05-01T00:00:00.000Z" }),
+      ],
+      now,
+    );
+    expect(Array.from(ids)).toEqual(["a-active"]);
+  });
+
+  it("expires_at exatamente igual a now NÃO é considerado ativo (<=)", () => {
+    const ids = deriveActiveLinkAssessmentIds(
+      [link({ assessment_id: "edge", expires_at: now.toISOString() })],
+      now,
+    );
+    expect(ids.has("edge")).toBe(false);
+  });
+
+  it("expires_at inválido / não-parseável é tratado como expirado", () => {
+    const ids = deriveActiveLinkAssessmentIds(
+      [link({ assessment_id: "bad", expires_at: "not-a-date" })],
+      now,
+    );
+    expect(ids.size).toBe(0);
+  });
+
+  it("deduplica via Set quando o mesmo assessment_id aparece em rows históricos", () => {
+    // Em produção o partial unique index proíbe 2 ativos, mas pode haver
+    // múltiplas rows históricas (revogadas/usadas) + 1 ativa.
+    const ids = deriveActiveLinkAssessmentIds(
+      [
+        link({ assessment_id: "a1", used_at: "2026-05-01T00:00:00.000Z" }),
+        link({ assessment_id: "a1", revoked_at: "2026-05-05T00:00:00.000Z" }),
+        link({ assessment_id: "a1", expires_at: "2099-01-01T00:00:00.000Z" }),
+      ],
+      now,
+    );
+    expect(ids.size).toBe(1);
+    expect(ids.has("a1")).toBe(true);
+  });
+});
+
+describe("canRevokeQuestionnaireLink", () => {
+  const withActive = new Set(["a1"]);
+  const noActive = new Set<string>();
+
+  it("true pra questionnaire_pending + in_progress + assessmentId + link ativo", () => {
+    expect(canRevokeQuestionnaireLink(reissuableQueueItem(), withActive)).toBe(
+      true,
+    );
+  });
+
+  it("false quando NÃO há link ativo (mesmo com todos os outros critérios)", () => {
+    expect(canRevokeQuestionnaireLink(reissuableQueueItem(), noActive)).toBe(
+      false,
+    );
+  });
+
+  it("false pra parq_blocked (mesmo com link ativo)", () => {
+    expect(
+      canRevokeQuestionnaireLink(
+        reissuableQueueItem({ alertType: "parq_blocked", status: "blocked" }),
+        withActive,
+      ),
+    ).toBe(false);
+  });
+
+  it("false pra status completed / aborted / blocked", () => {
+    for (const status of ["completed", "aborted", "blocked"] as const) {
+      expect(
+        canRevokeQuestionnaireLink(
+          reissuableQueueItem({ status }),
+          withActive,
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("false sem assessmentId", () => {
+    expect(
+      canRevokeQuestionnaireLink(
+        reissuableQueueItem({
+          alertType: "student_no_assessment",
+          assessmentId: null,
+          assessmentType: null,
+          status: null,
+        }),
+        withActive,
+      ),
+    ).toBe(false);
+  });
+
+  it("false pra outros alert types (adherence_risk, assessment_incomplete)", () => {
+    for (const alertType of [
+      "adherence_risk",
+      "assessment_incomplete",
+    ] as const) {
+      expect(
+        canRevokeQuestionnaireLink(
+          reissuableQueueItem({ alertType }),
+          withActive,
+        ),
+      ).toBe(false);
+    }
+  });
+
+  it("false pra assessmentType diferente de questionnaire_precision12", () => {
+    expect(
+      canRevokeQuestionnaireLink(
+        reissuableQueueItem({ assessmentType: "handgrip" }),
+        withActive,
       ),
     ).toBe(false);
   });

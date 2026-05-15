@@ -1,19 +1,23 @@
 /**
  * E4.2 — Fila de ação read-only do Coach Console Precision 12.
  * E4.4 — Adicionada ação controlada de reissue de link em itens
- *        `questionnaire_pending` (in_progress) — única mutação na fila.
+ *        `questionnaire_pending` (in_progress).
+ * E4.5 — Adicionada ação controlada de revogação avulsa de link, condicionada
+ *        à existência de link ativo no momento (via prop
+ *        `activeLinkAssessmentIds` derivada pelo hook E4.1).
  *
  * Tabela priorizada com os itens derivados pelo hook E4.1. Cada linha tem
- * uma CTA "Abrir" (navegação read-only) e, quando aplicável, uma ação de
- * "Reemitir link" que abre o `Precision12ReissueLinkDialog` (confirmação
- * obrigatória + edge function `create-precision12-questionnaire-link`).
+ * uma CTA "Abrir" (navegação read-only) e, quando aplicável, ações de
+ * "Reemitir link" (`Precision12ReissueLinkDialog`) e "Revogar link"
+ * (`Precision12RevokeLinkDialog`). Ambas as ações exigem confirmação
+ * explícita e mutam exclusivamente via edge function service-role.
  *
  * Microcopy: triagem operacional, NÃO diagnóstico.
  */
 
 import { useState } from "react";
 import { differenceInDays, parseISO } from "date-fns";
-import { ChevronRight, RefreshCw } from "lucide-react";
+import { Ban, ChevronRight, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -31,14 +35,22 @@ import type { AssessmentStatus, AssessmentType } from "@/types/assessment";
 import {
   buildPrecision12StudentDeepLink,
   canReissueQuestionnaireLink,
+  canRevokeQuestionnaireLink,
   type ActionQueueAlertType,
   type ActionQueueItem,
 } from "@/utils/precision12CoachConsole";
 
 import { Precision12ReissueLinkDialog } from "./Precision12ReissueLinkDialog";
+import { Precision12RevokeLinkDialog } from "./Precision12RevokeLinkDialog";
 
 interface Precision12ActionQueueProps {
   items: readonly ActionQueueItem[];
+  /**
+   * E4.5 — `assessment_id`s que têm link ativo (não usado, não revogado,
+   * não expirado). Quando vazio/undefined, o botão "Revogar link" não
+   * aparece (default: nenhum link ativo).
+   */
+  activeLinkAssessmentIds?: ReadonlySet<string>;
 }
 
 interface ReissueTarget {
@@ -46,6 +58,14 @@ interface ReissueTarget {
   studentName: string;
   assessmentId: string;
 }
+
+interface RevokeTarget {
+  studentId: string;
+  studentName: string;
+  assessmentId: string;
+}
+
+const EMPTY_ACTIVE_LINK_IDS: ReadonlySet<string> = new Set<string>();
 
 const ALERT_LABEL: Record<ActionQueueAlertType, string> = {
   parq_blocked: "PAR-Q bloqueado",
@@ -90,10 +110,14 @@ function assessmentTypeLabel(type: AssessmentType | null): string | null {
   return ASSESSMENT_TYPE_METADATA[type].label;
 }
 
-export function Precision12ActionQueue({ items }: Precision12ActionQueueProps) {
+export function Precision12ActionQueue({
+  items,
+  activeLinkAssessmentIds = EMPTY_ACTIVE_LINK_IDS,
+}: Precision12ActionQueueProps) {
   const [reissueTarget, setReissueTarget] = useState<ReissueTarget | null>(
     null,
   );
+  const [revokeTarget, setRevokeTarget] = useState<RevokeTarget | null>(null);
 
   if (items.length === 0) {
     return (
@@ -118,13 +142,17 @@ export function Precision12ActionQueue({ items }: Precision12ActionQueueProps) {
               <TableHead className="hidden md:table-cell">Status</TableHead>
               <TableHead className="hidden lg:table-cell">Data</TableHead>
               <TableHead className="hidden lg:table-cell">Idade</TableHead>
-              <TableHead className="w-[170px] text-right">Ações</TableHead>
+              <TableHead className="w-[260px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((item, index) => {
               const typeLabel = assessmentTypeLabel(item.assessmentType);
               const canReissue = canReissueQuestionnaireLink(item);
+              const canRevoke = canRevokeQuestionnaireLink(
+                item,
+                activeLinkAssessmentIds,
+              );
               return (
                 <TableRow
                   key={`${item.studentId}-${item.assessmentId ?? "no-assessment"}-${index}`}
@@ -155,7 +183,28 @@ export function Precision12ActionQueue({ items }: Precision12ActionQueueProps) {
                     {ageLabel(item.assessmentDate)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      {canRevoke && item.assessmentId !== null && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setRevokeTarget({
+                              studentId: item.studentId,
+                              studentName: item.studentName,
+                              assessmentId: item.assessmentId!,
+                            })
+                          }
+                          aria-label={`Revogar link do questionário de ${item.studentName}`}
+                        >
+                          <Ban
+                            className="mr-1 h-3.5 w-3.5"
+                            aria-hidden
+                          />
+                          Revogar link
+                        </Button>
+                      )}
                       {canReissue && item.assessmentId !== null && (
                         <Button
                           type="button"
@@ -214,6 +263,18 @@ export function Precision12ActionQueue({ items }: Precision12ActionQueueProps) {
           studentId={reissueTarget.studentId}
           studentName={reissueTarget.studentName}
           assessmentId={reissueTarget.assessmentId}
+        />
+      )}
+
+      {revokeTarget && (
+        <Precision12RevokeLinkDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) setRevokeTarget(null);
+          }}
+          studentId={revokeTarget.studentId}
+          studentName={revokeTarget.studentName}
+          assessmentId={revokeTarget.assessmentId}
         />
       )}
     </>

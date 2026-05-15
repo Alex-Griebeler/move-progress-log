@@ -648,3 +648,61 @@ export function canReissueQuestionnaireLink(item: ActionQueueItem): boolean {
     item.assessmentId !== null
   );
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// 8. Revogação manual de link (E4.5)
+//
+// Espelha o invariante do schema: link ativo = `used_at IS NULL AND
+// revoked_at IS NULL AND expires_at > now()`. Cliente computa o conjunto
+// de assessment_ids com link ativo a partir do snapshot já fetchado por
+// `usePrecision12CoachConsole`, sem segunda query.
+//
+// `canRevokeQuestionnaireLink` é defesa em profundidade do guard server-side
+// (`REVOCABLE_ASSESSMENT_STATUSES = {"in_progress"}` em
+// `revoke-precision12-questionnaire-link/index.ts`).
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Filtra os links fetched pelo hook e retorna o conjunto de `assessment_id`
+ * com link ATIVO (não usado, não revogado, não expirado). `now` é injetável
+ * pra teste determinístico.
+ */
+export function deriveActiveLinkAssessmentIds(
+  links: readonly CoachConsoleLink[],
+  now: Date = new Date(),
+): Set<string> {
+  const ids = new Set<string>();
+  const nowMs = now.getTime();
+  for (const link of links) {
+    if (link.used_at !== null) continue;
+    if (link.revoked_at !== null) continue;
+    // expires_at é NOT NULL no schema, mas tolerante a string vazia.
+    const expiresMs = Date.parse(link.expires_at);
+    if (Number.isNaN(expiresMs) || expiresMs <= nowMs) continue;
+    ids.add(link.assessment_id);
+  }
+  return ids;
+}
+
+/**
+ * Critérios pra exibir "Revogar link":
+ *   - item é alerta de questionário pendente (alertType `questionnaire_pending`)
+ *   - assessment é do tipo `questionnaire_precision12`
+ *   - status do assessment é `in_progress`
+ *   - existe assessmentId
+ *   - existe LINK ATIVO pra esse assessmentId (não usado, não revogado, não expirado)
+ *
+ * Diferença em relação a `canReissueQuestionnaireLink`: reissue funciona
+ * mesmo sem link ativo (a edge cria um do zero); revoke só faz sentido se
+ * há algo pra revogar.
+ */
+export function canRevokeQuestionnaireLink(
+  item: ActionQueueItem,
+  activeLinkAssessmentIds: ReadonlySet<string>,
+): boolean {
+  if (item.alertType !== "questionnaire_pending") return false;
+  if (item.assessmentType !== QUESTIONNAIRE_ASSESSMENT_TYPE) return false;
+  if (item.status !== "in_progress") return false;
+  if (item.assessmentId === null) return false;
+  return activeLinkAssessmentIds.has(item.assessmentId);
+}

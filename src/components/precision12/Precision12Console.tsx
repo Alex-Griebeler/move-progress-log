@@ -161,7 +161,10 @@ export function Precision12Console() {
         {data.actionQueue.length > 0 && filteredActionQueue.length === 0 ? (
           <FilteredEmpty label="Nenhuma ação corresponde aos filtros atuais." />
         ) : (
-          <Precision12ActionQueue items={filteredActionQueue} />
+          <Precision12ActionQueue
+            items={filteredActionQueue}
+            activeLinkAssessmentIds={data.activeLinkAssessmentIds}
+          />
         )}
       </section>
 
