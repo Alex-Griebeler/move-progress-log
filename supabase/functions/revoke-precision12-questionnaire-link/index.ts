@@ -184,14 +184,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    // 6. UPDATE: seta revoked_at = now() APENAS em rows ativas. Os filtros
+    // 6. UPDATE: seta revoked_at = now() APENAS em rows ativas do par
+    // (assessment_id, student_id) informados. Os filtros
     // `is("used_at", null) is("revoked_at", null)` garantem que links já
     // usados ou já revogados NUNCA são tocados — invariante crítica.
+    //
+    // O `.eq("student_id", studentId)` é defesa em profundidade: o guard
+    // anterior (linha ~166) já garante `assessment.student_id === studentId`,
+    // mas o filtro extra aqui torna a invariante explícita no próprio
+    // statement do UPDATE — bloqueia qualquer regressão futura onde a
+    // validação de ownership saia de sincronia com o write.
     const nowIso = new Date().toISOString();
     const { data: revokedRows, error: revokeError } = await adminClient
       .from("precision12_questionnaire_links")
       .update({ revoked_at: nowIso })
       .eq("assessment_id", assessmentId)
+      .eq("student_id", studentId)
       .is("used_at", null)
       .is("revoked_at", null)
       .select("id");

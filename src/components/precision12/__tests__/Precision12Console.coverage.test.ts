@@ -529,12 +529,18 @@ describe("E4.5 revoke-precision12-questionnaire-link edge fn — security invari
     );
   });
 
-  it("UPDATE só toca rows ATIVAS (used_at IS NULL AND revoked_at IS NULL)", () => {
+  it("UPDATE só toca rows ATIVAS (assessment_id + student_id + used_at IS NULL + revoked_at IS NULL)", () => {
     expect(revokeEdgeSource).toMatch(
       /\.update\(\{\s*revoked_at:\s*nowIso\s*\}\)/,
     );
     expect(revokeEdgeSource).toMatch(
       /\.eq\(\s*"assessment_id"\s*,\s*assessmentId\s*\)/,
+    );
+    // Defesa em profundidade — o spec da auditoria E4.5 exige filtro
+    // explícito por student_id no UPDATE, além da validação prévia de
+    // `assessment.student_id === studentId`.
+    expect(revokeEdgeSource).toMatch(
+      /\.eq\(\s*"student_id"\s*,\s*studentId\s*\)/,
     );
     expect(revokeEdgeSource).toMatch(/\.is\(\s*"used_at"\s*,\s*null\s*\)/);
     expect(revokeEdgeSource).toMatch(/\.is\(\s*"revoked_at"\s*,\s*null\s*\)/);
