@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import {
   ASSESSMENT_CATEGORIES,
+  buildPrecision12StudentDeepLink,
   type AssessmentCategory,
   type CategoryStatus,
   type CoachConsoleStudent,
@@ -156,7 +157,7 @@ export function Precision12StudentProgressTable({
                     size="sm"
                     aria-label={`Abrir ${student.name}`}
                   >
-                    <Link to={`/alunos/${student.id}`}>
+                    <Link to={buildPrecision12StudentDeepLink(student.id)}>
                       Abrir
                       <ChevronRight className="ml-1 h-3.5 w-3.5" aria-hidden />
                     </Link>
