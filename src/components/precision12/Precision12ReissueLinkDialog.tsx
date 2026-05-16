@@ -87,9 +87,14 @@ const REISSUE_CONFIRM_MESSAGE =
  * Erros do edge function que ganham tradução amigável. O texto vem do
  * `index.ts` da edge `create-precision12-questionnaire-link` (PR #136).
  */
+// E5.6b/N-1 (corrigido na auditoria): a mensagem amigável também usa
+// "gerar novo link" pra ficar consistente com o título do dialog
+// ("Gerar novo link do questionário") e o botão da fila ("Gerar novo link").
+// O texto do erro server-side em si NÃO muda (é contrato com a edge);
+// apenas a tradução para o coach.
 const SERVER_ERROR_FRIENDLY: Record<string, string> = {
   "Apenas avaliações 'in_progress' permitem reemissão.":
-    "Este questionário não permite reemissão de link.",
+    "Este questionário não permite gerar novo link.",
 };
 
 function friendlyErrorMessage(raw: string | undefined): string {

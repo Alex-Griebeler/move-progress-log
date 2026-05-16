@@ -15,11 +15,15 @@
  * Microcopy: triagem operacional, NÃO diagnóstico.
  *
  * E5.6b — UI/UX hardening da auditoria:
- *   F-1 altura de linha estável (sem flex-wrap; coluna w-[340px] comporta
- *       os 3 botões sem quebrar);
- *   F-2 botão "Revogar" diferenciado visualmente como destrutivo
- *       (border-destructive/40 + text-destructive) — antes era idêntico ao
- *       Reemitir, induzindo erro;
+ *   F-1 altura de linha estável (sem flex-wrap; coluna w-[380px] comporta
+ *       os 3 botões sem quebrar — medições reais: Abrir ~80px + Gerar
+ *       novo link ~140px + Revogar ~88px + gaps = ~316px, cabe em 348px
+ *       internos);
+ *   F-2 botão "Revogar" diferenciado visualmente como destrutivo com
+ *       cores LEGÍVEIS em tema dark (border-rose-500/40 + text-rose-300).
+ *       NÃO usa `text-destructive` porque em dark o token é vermelho
+ *       escuro (rgb 158,46,46) sobre bg-card (rgb 35,32,31) = contraste
+ *       2.22 — falha WCAG AA. rose-300 dá 8.56;
  *   F-3 ordem Abrir → Gerar novo link → Revogar (CTA navegacional primeiro,
  *       reparadora no meio, destrutiva isolada à direita);
  *   N-1 microcopy "Gerar novo link" alinhada com a CTA dentro do dialog
@@ -168,7 +172,7 @@ export function Precision12ActionQueue({
               <TableHead className="hidden md:table-cell">Status</TableHead>
               <TableHead className="hidden lg:table-cell">Data</TableHead>
               <TableHead className="hidden lg:table-cell">Idade</TableHead>
-              <TableHead className="w-[340px] text-right">Ações</TableHead>
+              <TableHead className="w-[380px] text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -269,7 +273,12 @@ export function Precision12ActionQueue({
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                          // E5.6b/F-2 (corrigido na auditoria): usa cores
+                          // explícitas rose-* em vez do token semântico
+                          // `destructive` porque em tema dark o token resolve
+                          // pra rgb(158,46,46), dando contraste 2.22 sobre
+                          // bg-card — falha WCAG AA. rose-300 dá 8.56.
+                          className="border-rose-500/50 text-rose-300 hover:border-rose-400 hover:bg-rose-500/10 hover:text-rose-200"
                           onClick={() =>
                             setRevokeTarget({
                               studentId: item.studentId,

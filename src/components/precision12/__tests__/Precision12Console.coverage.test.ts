@@ -316,11 +316,14 @@ describe("E4.4 Precision12ReissueLinkDialog — controlled mutation", () => {
   });
 
   it("traduz erro server-side 'Apenas avaliações in_progress permitem reemissão'", () => {
+    // O texto do erro server-side em si é contrato com a edge function e
+    // NÃO muda (continua "reemissão"). Apenas a tradução para o coach
+    // foi alinhada à microcopy E5.6b/N-1 ("gerar novo link").
     expect(precision12ReissueDialogSource).toContain(
       "Apenas avaliações 'in_progress' permitem reemissão.",
     );
     expect(precision12ReissueDialogSource).toContain(
-      "Este questionário não permite reemissão de link.",
+      "Este questionário não permite gerar novo link.",
     );
   });
 
@@ -637,11 +640,14 @@ describe("E4.6 Precision12 — DEXA alert wiring", () => {
 // ── E5.6b — UI/UX hardening (auditoria pós-E5.6a) ───────────────────────────
 
 describe("E5.6b — fila: F-1 altura estável + F-3 ordem + F-2 destrutivo diferenciado", () => {
-  it("F-1: coluna 'Ações' tem w-[340px] (não 260px) pra comportar os 3 botões sem flex-wrap", () => {
-    // Espaço interno = 340 - 16*2 (padding) = 308px; cabe Abrir + Gerar + Revogar (~308px).
-    expect(precision12ActionQueueSource).toContain('w-[340px] text-right');
-    // Defesa: a referência antiga 260px não pode reaparecer (regressão).
+  it("F-1: coluna 'Ações' tem w-[380px] pra comportar os 3 botões sem flex-wrap (corrigido na auditoria)", () => {
+    // Auditoria mediu botões reais: Abrir ~80px + Gerar novo link ~140px +
+    // Revogar ~88px + 2 gaps = ~316px. w-[340px] (interno 308px) NÃO cabia
+    // — gerava overflow horizontal. w-[380px] (interno 348px) dá folga.
+    expect(precision12ActionQueueSource).toContain('w-[380px] text-right');
+    // Defesa: tamanhos antigos não podem reaparecer (regressão).
     expect(precision12ActionQueueSource).not.toContain('w-[260px]');
+    expect(precision12ActionQueueSource).not.toContain('w-[340px] text-right');
   });
 
   it("F-1: container de ações NÃO usa flex-wrap (era o gerador da altura inconsistente 77→101px)", () => {
@@ -672,12 +678,20 @@ describe("E5.6b — fila: F-1 altura estável + F-3 ordem + F-2 destrutivo difer
     expect(revogarJsxIdx).toBeGreaterThan(gerarJsxIdx);
   });
 
-  it("F-2: botão Revogar tem classes destrutivas (border-destructive/text-destructive)", () => {
-    // Sem variant=destructive cheio (vermelho gritante), mas com sinalização
-    // visual clara via border + text destrutivos. Mantém peso visual menor
-    // que o dialog de confirmação, que sim usa vermelho cheio.
+  it("F-2: botão Revogar usa cores rose explícitas (LEGÍVEIS em dark, vs token destructive)", () => {
+    // Auditoria revelou que `text-destructive` em dark = rgb(158,46,46)
+    // sobre bg-card rgb(35,32,31) = contraste 2.22 (FALHA WCAG AA).
+    // Trocado por cores rose explícitas (rose-300 ~8.56 sobre bg-card).
+    // Sem variant=destructive cheio (vermelho gritante), mas com
+    // sinalização visual clara e legível.
     expect(precision12ActionQueueSource).toMatch(
-      /className=["']border-destructive\/40 text-destructive[\s\S]*?["']/,
+      /border-rose-500\/50/,
+    );
+    expect(precision12ActionQueueSource).toMatch(/text-rose-300/);
+    expect(precision12ActionQueueSource).toMatch(/hover:bg-rose-500\/10/);
+    // Defesa: não pode regredir pro token destructive (FALHA WCAG em dark).
+    expect(precision12ActionQueueSource).not.toMatch(
+      /className=["'][^"']*text-destructive[^"']*["']/,
     );
   });
 });
