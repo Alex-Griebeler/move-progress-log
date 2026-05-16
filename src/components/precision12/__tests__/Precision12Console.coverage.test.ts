@@ -377,10 +377,9 @@ describe("E4.5 Precision12ActionQueue — revoke UI integration", () => {
     expect(precision12ActionQueueSource).toMatch(
       /canRevokeQuestionnaireLink\(\s*item\s*,\s*activeLinkAssessmentIds\s*,?\s*\)/,
     );
-    // E5.6b/F-2: label simplificado pra "Revogar" (sem "link") — a coluna
-    // Ações precisa caber em w-[340px] sem quebrar; e visualmente o caráter
-    // destrutivo agora é sinalizado pelas classes (border-destructive/text-
-    // destructive), não pelo texto.
+    // E5.6b/E5.6c: label simplificado para "Revogar".
+    // A largura da coluna é validada nos testes F-1; o caráter destrutivo
+    // é sinalizado por classes rose explícitas, não por texto mais longo.
     expect(precision12ActionQueueSource).toMatch(/>\s*\n\s*Revogar\s*\n\s*</);
     expect(precision12ActionQueueSource).toMatch(
       /canRevoke\s*&&\s*item\.assessmentId\s*!==\s*null/,
