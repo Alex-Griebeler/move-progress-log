@@ -35,6 +35,15 @@ const listSource = readFileSync(listPath, "utf-8");
 const indexPath = resolve(__dirname, "../index.ts");
 const indexSource = readFileSync(indexPath, "utf-8");
 
+const previewPath = resolve(__dirname, "../Precision12EvidencePreview.tsx");
+const previewSource = readFileSync(previewPath, "utf-8");
+
+const consolePath = resolve(
+  __dirname,
+  "../../Precision12Console.tsx",
+);
+const consoleSource = readFileSync(consolePath, "utf-8");
+
 // ── EvidenceClaimCard: campos renderizados ───────────────────────────────────
 
 describe("E5.4 EvidenceClaimCard — campos renderizados", () => {
@@ -278,4 +287,71 @@ describe("E5.4 evidence/* — nenhum termo clínico proibido no chassi", () => {
       expect(allEvidenceSource.toLowerCase()).not.toContain(term);
     });
   }
+});
+
+// ── E5.5 Precision12EvidencePreview ─────────────────────────────────────────
+
+describe("E5.5 Precision12EvidencePreview", () => {
+  it("é exportado do barrel index", () => {
+    expect(indexSource).toContain(
+      'export { Precision12EvidencePreview } from "./Precision12EvidencePreview"',
+    );
+  });
+
+  it("consome dados JÁ carregados pelo hook (students + responses), sem nova query", () => {
+    expect(previewSource).toContain("students: readonly CoachConsoleStudent[]");
+    expect(previewSource).toContain(
+      "responses: readonly CoachConsoleQuestionnaire[]",
+    );
+    // Defesa: nenhum hook próprio.
+    expect(previewSource).not.toMatch(/\buseQuery\b/);
+    expect(previewSource).not.toMatch(/\buseMutation\b/);
+    expect(previewSource).not.toMatch(/\bsupabase\b/);
+    expect(previewSource).not.toMatch(/functions\.invoke/);
+  });
+
+  it("usa deriveEvidenceClaims (E5.3) + mapping E5.5", () => {
+    expect(previewSource).toContain("deriveEvidenceClaims");
+    expect(previewSource).toContain("mapQuestionnaireResponseToEvidenceInput");
+  });
+
+  it("renderiza EvidenceClaimList por grupo de response", () => {
+    expect(previewSource).toContain("<EvidenceClaimList");
+  });
+
+  it("expõe limitações conhecidas via <details> read-only", () => {
+    expect(previewSource).toContain("LIMITATIONS_NOT_COVERED_YET");
+    expect(previewSource).toMatch(/<details\b/);
+    expect(previewSource).toContain("Limitações conhecidas");
+  });
+
+  it("não introduz mutation / storage / window.open / navigate", () => {
+    expect(previewSource).not.toMatch(
+      /\.(insert|update|delete|upsert|rpc)\(/,
+    );
+    expect(previewSource).not.toMatch(/\b(localStorage|sessionStorage)\s*[.[]/);
+    expect(previewSource).not.toMatch(/\bwindow\.open\(/);
+    expect(previewSource).not.toMatch(/\buseNavigate\b/);
+  });
+});
+
+describe("E5.5 Precision12Console — integra Preview no fim do layout", () => {
+  it("importa Precision12EvidencePreview do barrel evidence", () => {
+    expect(consoleSource).toContain(
+      'import { Precision12EvidencePreview } from "./evidence"',
+    );
+  });
+
+  it("renderiza <Precision12EvidencePreview> passando data.students e data.responses", () => {
+    expect(consoleSource).toMatch(/<Precision12EvidencePreview\b/);
+    expect(consoleSource).toMatch(/students=\{data\.students\}/);
+    expect(consoleSource).toMatch(/responses=\{data\.responses\}/);
+  });
+
+  it("o bloco da preview tem heading com label 'Evidência clínica-operacional (preview)'", () => {
+    expect(consoleSource).toContain("Evidência clínica-operacional (preview)");
+    expect(consoleSource).toContain(
+      'aria-labelledby="precision12-evidence-preview-heading"',
+    );
+  });
 });
