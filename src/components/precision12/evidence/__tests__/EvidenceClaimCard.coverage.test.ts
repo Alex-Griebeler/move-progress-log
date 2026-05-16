@@ -35,6 +35,15 @@ const listSource = readFileSync(listPath, "utf-8");
 const indexPath = resolve(__dirname, "../index.ts");
 const indexSource = readFileSync(indexPath, "utf-8");
 
+const previewPath = resolve(__dirname, "../Precision12EvidencePreview.tsx");
+const previewSource = readFileSync(previewPath, "utf-8");
+
+const consolePath = resolve(
+  __dirname,
+  "../../Precision12Console.tsx",
+);
+const consoleSource = readFileSync(consolePath, "utf-8");
+
 // ── EvidenceClaimCard: campos renderizados ───────────────────────────────────
 
 describe("E5.4 EvidenceClaimCard — campos renderizados", () => {
@@ -278,4 +287,119 @@ describe("E5.4 evidence/* — nenhum termo clínico proibido no chassi", () => {
       expect(allEvidenceSource.toLowerCase()).not.toContain(term);
     });
   }
+});
+
+// ── E5.5 Precision12EvidencePreview ─────────────────────────────────────────
+
+describe("E5.5 Precision12EvidencePreview", () => {
+  it("é exportado do barrel index", () => {
+    expect(indexSource).toContain(
+      'export { Precision12EvidencePreview } from "./Precision12EvidencePreview"',
+    );
+  });
+
+  it("consome students + assessments + responses (todos do hook E4.1), sem nova query", () => {
+    expect(previewSource).toContain("students: readonly CoachConsoleStudent[]");
+    expect(previewSource).toContain(
+      "assessments: readonly CoachConsoleAssessment[]",
+    );
+    expect(previewSource).toContain(
+      "responses: readonly CoachConsoleQuestionnaire[]",
+    );
+    // Defesa: nenhum hook próprio.
+    expect(previewSource).not.toMatch(/\buseQuery\b/);
+    expect(previewSource).not.toMatch(/\buseMutation\b/);
+    expect(previewSource).not.toMatch(/\bsupabase\b/);
+    expect(previewSource).not.toMatch(/functions\.invoke/);
+  });
+
+  it("usa deriveEvidenceGroups (E5.5) — que por dentro chama derivation E5.3 + mapping", () => {
+    // O preview agora delega cross-join + derivação à função pura no
+    // utils. Isso preserva fast-refresh do componente e mantém os
+    // testes funcionais da lógica isolados em arquivo próprio.
+    expect(previewSource).toContain("deriveEvidenceGroups");
+  });
+
+  it("usa deriveEvidenceGroups importado do utils (cross-join puro fora do componente)", () => {
+    // Endurecido: a função de cross-join vive em
+    // src/utils/precision12EvidenceMapping.ts (testes funcionais próprios),
+    // pra não quebrar fast-refresh do componente. O preview apenas
+    // importa e consome.
+    expect(previewSource).toContain("deriveEvidenceGroups");
+    expect(previewSource).toMatch(
+      /import[\s\S]*deriveEvidenceGroups[\s\S]*from\s*"@\/utils\/precision12EvidenceMapping"/,
+    );
+    // Não pode declarar a função localmente.
+    expect(previewSource).not.toMatch(
+      /function\s+deriveEvidenceGroups\s*\(/,
+    );
+  });
+
+  it("renderiza EvidenceClaimList por grupo (de aluno)", () => {
+    expect(previewSource).toContain("<EvidenceClaimList");
+  });
+
+  it("expõe limitações conhecidas via <details> read-only", () => {
+    expect(previewSource).toContain("LIMITATIONS_NOT_COVERED_YET");
+    expect(previewSource).toMatch(/<details\b/);
+    expect(previewSource).toContain("Limitações conhecidas");
+  });
+
+  it("não introduz mutation / storage / window.open / navigate", () => {
+    expect(previewSource).not.toMatch(
+      /\.(insert|update|delete|upsert|rpc)\(/,
+    );
+    expect(previewSource).not.toMatch(/\b(localStorage|sessionStorage)\s*[.[]/);
+    expect(previewSource).not.toMatch(/\bwindow\.open\(/);
+    expect(previewSource).not.toMatch(/\buseNavigate\b/);
+  });
+
+  // ── Endurecido: feedback da auditoria PR #150 ────────────────────────────
+
+  it("usa nome do aluno na UI, não UUID técnico", () => {
+    // Cross-join real preenche studentName.
+    expect(previewSource).toContain("studentName");
+    expect(previewSource).toContain("{group.studentName}");
+    // O assessmentId não pode mais ser TEXTO visível no card. Permitido só
+    // como data-attribute técnico ou dentro de aria-label (não pra usuário).
+    expect(previewSource).not.toContain("{group.assessmentId}");
+    // Microcopy explícita "Aluno:" no header do grupo.
+    expect(previewSource).toContain("Aluno:");
+  });
+
+  it("não tem dead code / fake usage (void no body)", () => {
+    // Endurecido: spec da auditoria proibe `void students` e qualquer
+    // import sem uso real (ex.: indexResponsesByAssessmentId só usado como
+    // void). Preview deve consumir TUDO que importa, sem disfarce.
+    expect(previewSource).not.toMatch(/\bvoid\s+students\b/);
+    expect(previewSource).not.toMatch(/\bvoid\s+assessments\b/);
+    expect(previewSource).not.toMatch(/\bvoid\s+responses\b/);
+    expect(previewSource).not.toContain("indexResponsesByAssessmentId");
+  });
+
+  it("key da seção por grupo é studentId (estável, sem index)", () => {
+    expect(previewSource).toMatch(/key=\{group\.studentId\}/);
+  });
+});
+
+describe("E5.5 Precision12Console — integra Preview no fim do layout", () => {
+  it("importa Precision12EvidencePreview do barrel evidence", () => {
+    expect(consoleSource).toContain(
+      'import { Precision12EvidencePreview } from "./evidence"',
+    );
+  });
+
+  it("renderiza <Precision12EvidencePreview> passando data.students/assessments/responses", () => {
+    expect(consoleSource).toMatch(/<Precision12EvidencePreview\b/);
+    expect(consoleSource).toMatch(/students=\{data\.students\}/);
+    expect(consoleSource).toMatch(/assessments=\{data\.assessments\}/);
+    expect(consoleSource).toMatch(/responses=\{data\.responses\}/);
+  });
+
+  it("o bloco da preview tem heading com label 'Evidência clínica-operacional (preview)'", () => {
+    expect(consoleSource).toContain("Evidência clínica-operacional (preview)");
+    expect(consoleSource).toContain(
+      'aria-labelledby="precision12-evidence-preview-heading"',
+    );
+  });
 });

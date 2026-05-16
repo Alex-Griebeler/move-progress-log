@@ -29,6 +29,7 @@ import { Precision12ActionQueue } from "./Precision12ActionQueue";
 import { Precision12Filters } from "./Precision12Filters";
 import { Precision12KpiCards } from "./Precision12KpiCards";
 import { Precision12StudentProgressTable } from "./Precision12StudentProgressTable";
+import { Precision12EvidencePreview } from "./evidence";
 
 function LoadingSkeleton() {
   return (
@@ -186,6 +187,30 @@ export function Precision12Console() {
             progress={data.studentProgress}
           />
         )}
+      </section>
+
+      {/*
+        E5.5 — Preview read-only de evidências clínico-operacionais.
+        Consome `responses` e `students` JÁ carregados pelo hook E4.1
+        (zero query nova). Cobertura inicial: PAR-Q + Sono/Estresse/
+        Energia/Adesão. Demais domínios documentados como pendentes
+        dentro do próprio componente (limitações em `<details>`).
+      */}
+      <section
+        aria-labelledby="precision12-evidence-preview-heading"
+        className="space-y-2"
+      >
+        <h3
+          id="precision12-evidence-preview-heading"
+          className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+        >
+          Evidência clínica-operacional (preview)
+        </h3>
+        <Precision12EvidencePreview
+          students={data.students}
+          assessments={data.assessments}
+          responses={data.responses}
+        />
       </section>
     </div>
   );
