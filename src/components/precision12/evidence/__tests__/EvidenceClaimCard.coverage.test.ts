@@ -298,8 +298,11 @@ describe("E5.5 Precision12EvidencePreview", () => {
     );
   });
 
-  it("consome dados JÁ carregados pelo hook (students + responses), sem nova query", () => {
+  it("consome students + assessments + responses (todos do hook E4.1), sem nova query", () => {
     expect(previewSource).toContain("students: readonly CoachConsoleStudent[]");
+    expect(previewSource).toContain(
+      "assessments: readonly CoachConsoleAssessment[]",
+    );
     expect(previewSource).toContain(
       "responses: readonly CoachConsoleQuestionnaire[]",
     );
@@ -310,12 +313,29 @@ describe("E5.5 Precision12EvidencePreview", () => {
     expect(previewSource).not.toMatch(/functions\.invoke/);
   });
 
-  it("usa deriveEvidenceClaims (E5.3) + mapping E5.5", () => {
-    expect(previewSource).toContain("deriveEvidenceClaims");
-    expect(previewSource).toContain("mapQuestionnaireResponseToEvidenceInput");
+  it("usa deriveEvidenceGroups (E5.5) — que por dentro chama derivation E5.3 + mapping", () => {
+    // O preview agora delega cross-join + derivação à função pura no
+    // utils. Isso preserva fast-refresh do componente e mantém os
+    // testes funcionais da lógica isolados em arquivo próprio.
+    expect(previewSource).toContain("deriveEvidenceGroups");
   });
 
-  it("renderiza EvidenceClaimList por grupo de response", () => {
+  it("usa deriveEvidenceGroups importado do utils (cross-join puro fora do componente)", () => {
+    // Endurecido: a função de cross-join vive em
+    // src/utils/precision12EvidenceMapping.ts (testes funcionais próprios),
+    // pra não quebrar fast-refresh do componente. O preview apenas
+    // importa e consome.
+    expect(previewSource).toContain("deriveEvidenceGroups");
+    expect(previewSource).toMatch(
+      /import[\s\S]*deriveEvidenceGroups[\s\S]*from\s*"@\/utils\/precision12EvidenceMapping"/,
+    );
+    // Não pode declarar a função localmente.
+    expect(previewSource).not.toMatch(
+      /function\s+deriveEvidenceGroups\s*\(/,
+    );
+  });
+
+  it("renderiza EvidenceClaimList por grupo (de aluno)", () => {
     expect(previewSource).toContain("<EvidenceClaimList");
   });
 
@@ -333,6 +353,33 @@ describe("E5.5 Precision12EvidencePreview", () => {
     expect(previewSource).not.toMatch(/\bwindow\.open\(/);
     expect(previewSource).not.toMatch(/\buseNavigate\b/);
   });
+
+  // ── Endurecido: feedback da auditoria PR #150 ────────────────────────────
+
+  it("usa nome do aluno na UI, não UUID técnico", () => {
+    // Cross-join real preenche studentName.
+    expect(previewSource).toContain("studentName");
+    expect(previewSource).toContain("{group.studentName}");
+    // O assessmentId não pode mais ser TEXTO visível no card. Permitido só
+    // como data-attribute técnico ou dentro de aria-label (não pra usuário).
+    expect(previewSource).not.toContain("{group.assessmentId}");
+    // Microcopy explícita "Aluno:" no header do grupo.
+    expect(previewSource).toContain("Aluno:");
+  });
+
+  it("não tem dead code / fake usage (void no body)", () => {
+    // Endurecido: spec da auditoria proibe `void students` e qualquer
+    // import sem uso real (ex.: indexResponsesByAssessmentId só usado como
+    // void). Preview deve consumir TUDO que importa, sem disfarce.
+    expect(previewSource).not.toMatch(/\bvoid\s+students\b/);
+    expect(previewSource).not.toMatch(/\bvoid\s+assessments\b/);
+    expect(previewSource).not.toMatch(/\bvoid\s+responses\b/);
+    expect(previewSource).not.toContain("indexResponsesByAssessmentId");
+  });
+
+  it("key da seção por grupo é studentId (estável, sem index)", () => {
+    expect(previewSource).toMatch(/key=\{group\.studentId\}/);
+  });
 });
 
 describe("E5.5 Precision12Console — integra Preview no fim do layout", () => {
@@ -342,9 +389,10 @@ describe("E5.5 Precision12Console — integra Preview no fim do layout", () => {
     );
   });
 
-  it("renderiza <Precision12EvidencePreview> passando data.students e data.responses", () => {
+  it("renderiza <Precision12EvidencePreview> passando data.students/assessments/responses", () => {
     expect(consoleSource).toMatch(/<Precision12EvidencePreview\b/);
     expect(consoleSource).toMatch(/students=\{data\.students\}/);
+    expect(consoleSource).toMatch(/assessments=\{data\.assessments\}/);
     expect(consoleSource).toMatch(/responses=\{data\.responses\}/);
   });
 

@@ -28,9 +28,15 @@ import {
   ADHERENCE_RISK_BARRIERS,
   ADHERENCE_RISK_MIN_FLAGS,
   ADHERENCE_RISK_THRESHOLDS,
+  type CoachConsoleAssessment,
   type CoachConsoleQuestionnaire,
+  type CoachConsoleStudent,
 } from "./precision12CoachConsole";
-import type { Precision12EvidenceInput } from "./precision12EvidenceDerivation";
+import {
+  deriveEvidenceClaims,
+  type Precision12EvidenceInput,
+} from "./precision12EvidenceDerivation";
+import type { EvidenceClaim } from "./precision12Evidence";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Mapping helpers (PURE)
@@ -133,6 +139,76 @@ export function indexResponsesByAssessmentId(
     if (r.assessment_id) map.set(r.assessment_id, r);
   }
   return map;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Cross-join students + assessments + responses (E5.5)
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Resultado da derivação por aluno: agrupa N responses do mesmo aluno
+ * num único bloco de claims. Quando há múltiplas responses do mesmo
+ * aluno (raro, mas possível com reissue + retry), as claims são
+ * concatenadas na ordem original.
+ */
+export interface StudentEvidenceGroup {
+  studentId: string;
+  studentName: string;
+  claims: EvidenceClaim[];
+}
+
+/**
+ * Cruza `students` + `assessments` + `responses` e devolve grupos por
+ * aluno. Apenas alunos com pelo menos 1 claim entram no resultado.
+ *
+ * Defensivo:
+ *   - response sem `assessment_id` → ignorada
+ *   - assessment ausente (fila de Coach Console pode descartar assessments
+ *     fora do escopo) → ignorado
+ *   - student ausente (idem) → fallback para "(aluno desconhecido)"
+ *     mantendo `student_id` técnico, pra UI não engolir silenciosamente
+ *
+ * Pura (não faz fetch, não muta input nem catálogo).
+ */
+export function deriveEvidenceGroups({
+  students,
+  assessments,
+  responses,
+}: {
+  students: readonly CoachConsoleStudent[];
+  assessments: readonly CoachConsoleAssessment[];
+  responses: readonly CoachConsoleQuestionnaire[];
+}): StudentEvidenceGroup[] {
+  const studentById = new Map(students.map((s) => [s.id, s]));
+  const assessmentById = new Map(assessments.map((a) => [a.id, a]));
+
+  const byStudentId = new Map<string, StudentEvidenceGroup>();
+
+  for (const response of responses) {
+    if (!response.assessment_id) continue;
+    const assessment = assessmentById.get(response.assessment_id);
+    if (!assessment) continue;
+    const studentId = assessment.student_id;
+
+    const input: Precision12EvidenceInput =
+      mapQuestionnaireResponseToEvidenceInput(response);
+    const claims = deriveEvidenceClaims(input);
+    if (claims.length === 0) continue;
+
+    const existing = byStudentId.get(studentId);
+    if (existing) {
+      existing.claims = [...existing.claims, ...claims];
+      continue;
+    }
+    const student = studentById.get(studentId);
+    byStudentId.set(studentId, {
+      studentId,
+      studentName: student?.name ?? "(aluno desconhecido)",
+      claims,
+    });
+  }
+
+  return Array.from(byStudentId.values());
 }
 
 // ────────────────────────────────────────────────────────────────────────────

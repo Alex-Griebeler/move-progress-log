@@ -208,6 +208,7 @@ export function Precision12Console() {
         </h3>
         <Precision12EvidencePreview
           students={data.students}
+          assessments={data.assessments}
           responses={data.responses}
         />
       </section>
