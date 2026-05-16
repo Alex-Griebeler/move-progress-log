@@ -374,31 +374,31 @@ export const QUESTIONNAIRE_FIELDS_NOT_MAPPED_YET: ReadonlyArray<{
   {
     field: "consistency_self_rating",
     reason:
-      "Contribui pro riskFlagCount agregado (M-1) quando 'inconsistent'; sem claim individual no catálogo ainda.",
+      "Já conta como sinal no agregado de risco de adesão (mesma fila do coach); ainda sem card próprio no preview.",
   },
   {
     field: "life_stability",
     reason:
-      "Contribui pro riskFlagCount agregado (M-1) quando 'chaotic'; sem claim individual no catálogo ainda.",
+      "Já conta como sinal no agregado de risco de adesão (mesma fila do coach); ainda sem card próprio no preview.",
   },
   {
     field: "pain_status",
     reason:
-      "Contribui pro riskFlagCount agregado (M-1) quando ≠ 'none' e dispara clinical_attention no Console; sem claim individual no Evidence Layer (M-3 pendente).",
+      "Já conta como sinal no agregado de risco de adesão e também dispara 'atenção clínica' na fila; ainda sem card próprio no preview.",
   },
   {
     field: "uses_medications",
     reason:
-      "Dispara clinical_attention no Console (E4.1); sem claim individual no Evidence Layer (M-3 pendente).",
+      "Dispara 'atenção clínica' na fila do coach; ainda sem card próprio no preview (cobertura individual planejada).",
   },
   {
     field: "has_medical_condition",
     reason:
-      "Dispara clinical_attention no Console (E4.1); sem claim individual no Evidence Layer (M-3 pendente).",
+      "Dispara 'atenção clínica' na fila do coach; ainda sem card próprio no preview (cobertura individual planejada).",
   },
   {
     field: "injury_surgery_history",
     reason:
-      "Dispara clinical_attention no Console (E4.1) quando texto não-vazio; sem claim individual no Evidence Layer (M-3 pendente).",
+      "Dispara 'atenção clínica' na fila do coach quando preenchido; ainda sem card próprio no preview (cobertura individual planejada).",
   },
 ];

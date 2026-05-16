@@ -112,14 +112,16 @@ describe("deriveAdherenceFlagsFromResponse", () => {
   });
 
   it("pain_status !== 'none' dispara painFlag (M-1)", () => {
+    // Enum real do questionário (PAIN_STATUS_OPTIONS):
+    //   'daily' (dor no dia a dia), 'during_training' (dor ao treinar), 'none'.
     expect(
       deriveAdherenceFlagsFromResponse(
-        makeResponse({ pain_status: "mild" }),
+        makeResponse({ pain_status: "daily" }),
       ).painFlag,
     ).toBe(true);
     expect(
       deriveAdherenceFlagsFromResponse(
-        makeResponse({ pain_status: "severe" }),
+        makeResponse({ pain_status: "during_training" }),
       ).painFlag,
     ).toBe(true);
     // pain_status === 'none' não dispara.
@@ -145,20 +147,20 @@ describe("deriveAdherenceFlagsFromResponse", () => {
         primary_adherence_barrier: "motivation",
         consistency_self_rating: "inconsistent",
         life_stability: "chaotic",
-        pain_status: "moderate",
+        pain_status: "daily",
       }),
     );
     expect(all.riskFlagCount).toBe(7);
   });
 
-  it("aluno só com pain_status='mild' + consistency='inconsistent' → riskFlagCount 2 (cenário-chave M-1)", () => {
+  it("aluno só com pain_status='during_training' + consistency='inconsistent' → riskFlagCount 2 (cenário-chave M-1)", () => {
     // Antes do M-1, esse cenário disparava o alerta `adherence_risk` no
     // Console mas NÃO emitia a claim agregada no preview. Agora os dois
     // sistemas concordam — riskFlagCount >= 2 emite a claim.
     const flags = deriveAdherenceFlagsFromResponse(
       makeResponse({
         consistency_self_rating: "inconsistent",
-        pain_status: "mild",
+        pain_status: "during_training",
       }),
     );
     expect(flags.sleepFlag).toBe(false);
@@ -168,6 +170,19 @@ describe("deriveAdherenceFlagsFromResponse", () => {
     expect(flags.consistencyFlag).toBe(true);
     expect(flags.painFlag).toBe(true);
     expect(flags.riskFlagCount).toBe(2);
+  });
+
+  it("1 flag isolada das 3 novas (pain_status='daily') → riskFlagCount 1, abaixo do mínimo (M-1)", () => {
+    // Espelha o teste já existente para 1 flag isolada das 4 antigas,
+    // garantindo que o threshold ADHERENCE_RISK_MIN_FLAGS aplica
+    // uniformemente aos 7 sinais.
+    const flags = deriveAdherenceFlagsFromResponse(
+      makeResponse({ pain_status: "daily" }),
+    );
+    expect(flags.painFlag).toBe(true);
+    expect(flags.consistencyFlag).toBe(false);
+    expect(flags.lifeStabilityFlag).toBe(false);
+    expect(flags.riskFlagCount).toBe(1);
   });
 
   it("valores null em scores não disparam flag", () => {
@@ -271,13 +286,13 @@ describe("mapQuestionnaireResponseToEvidenceInput", () => {
 
   // ── E5.6a / M-1: integração com cenário-chave de paridade Console ↔ preview
   it(
-    "M-1: pain_status='mild' + consistency='inconsistent' → emite 'Risco de adesão (≥ 2 flags)' (paridade c/ Console)",
+    "M-1: pain_status='during_training' + consistency='inconsistent' → emite 'Risco de adesão (≥ 2 flags)' (paridade c/ Console)",
     () => {
       const input = mapQuestionnaireResponseToEvidenceInput(
         makeResponse({
           parq_blocked: false, // só pra ter PAR-Q cleared no resultado
           consistency_self_rating: "inconsistent",
-          pain_status: "mild",
+          pain_status: "during_training",
         }),
       );
       // Os 4 flags individuais (sleep/stress/energy/barrier) seguem false.
@@ -361,12 +376,14 @@ describe("QUESTIONNAIRE_FIELDS_NOT_MAPPED_YET (M-7)", () => {
     }
   });
 
-  it("os 3 primeiros campos referenciam M-1 (contribuem ao riskFlagCount)", () => {
-    // Esses 3 campos viram contribuição agregada de adesão pelo M-1.
-    const m1Fields = QUESTIONNAIRE_FIELDS_NOT_MAPPED_YET.filter((item) =>
-      item.reason.includes("M-1"),
+  it("os 3 primeiros campos sinalizam contribuição ao agregado de risco de adesão", () => {
+    // Esses 3 campos viram contribuição agregada de adesão (alinhado ao Console).
+    // O texto deve mencionar "agregado" / "fila do coach" pra que o coach
+    // entenda a relação sem precisar conhecer nomenclatura interna ("M-1").
+    const aggregatedFields = QUESTIONNAIRE_FIELDS_NOT_MAPPED_YET.filter(
+      (item) => item.reason.toLowerCase().includes("agregado"),
     ).map((item) => item.field);
-    expect(m1Fields).toEqual(
+    expect(aggregatedFields).toEqual(
       expect.arrayContaining([
         "consistency_self_rating",
         "life_stability",
@@ -375,16 +392,28 @@ describe("QUESTIONNAIRE_FIELDS_NOT_MAPPED_YET (M-7)", () => {
     );
   });
 
-  it("os 3 últimos campos referenciam M-3 (cobertura individual pendente)", () => {
-    const m3Fields = QUESTIONNAIRE_FIELDS_NOT_MAPPED_YET.filter((item) =>
-      item.reason.includes("M-3"),
+  it("os 3 últimos campos sinalizam disparo de 'atenção clínica' na fila", () => {
+    const clinicalAttentionFields = QUESTIONNAIRE_FIELDS_NOT_MAPPED_YET.filter(
+      (item) => item.reason.toLowerCase().includes("atenção clínica"),
     ).map((item) => item.field);
-    expect(m3Fields).toEqual(
+    expect(clinicalAttentionFields).toEqual(
       expect.arrayContaining([
+        "pain_status", // contribui pro agregado E dispara clinical_attention
         "uses_medications",
         "has_medical_condition",
         "injury_surgery_history",
       ]),
     );
+  });
+
+  it("nenhum reason exibe jargão interno tipo 'M-1', 'M-3' ou 'riskFlagCount' (texto vai pra UI do coach)", () => {
+    // O <details> "Limitações conhecidas" renderiza esses reasons literalmente
+    // no preview. Manter linguagem operacional, sem códigos internos.
+    for (const item of QUESTIONNAIRE_FIELDS_NOT_MAPPED_YET) {
+      expect(item.reason).not.toMatch(/\bM-[0-9]/);
+      expect(item.reason).not.toMatch(/riskFlagCount/);
+      expect(item.reason).not.toMatch(/E[0-9]\.[0-9]/);
+      expect(item.reason).not.toMatch(/clinical_attention/);
+    }
   });
 });

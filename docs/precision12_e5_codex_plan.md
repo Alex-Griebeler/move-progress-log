@@ -120,7 +120,7 @@ sem rotular doença.
 ### 2.5 Decisões abertas pra Codex
 
 1. **Wording exato**: o coach final é o Alex; texto precisa de revisão clínica/microcopy.
-2. **`pain_status` granular?** Hoje: 1 claim `watchful` quando ≠ none. Alternativa: 3 claims (`mild`/`moderate`/`severe`) com risco escalado (`watchful` → `actionable`). Decisão de produto.
+2. **`pain_status` granular?** Hoje: 1 claim `watchful` quando ≠ `none`. Alternativa: 2 claims separadas pelos códigos reais do enum (`PAIN_STATUS_OPTIONS` em `src/constants/precision12Questionnaire.ts`): `during_training` → `watchful` (dor só ao treinar — modificável com ajuste de carga) e `daily` → `actionable` (dor no dia a dia — requer revisão clínica antes de progressão). Decisão de produto.
 3. **`injury_surgery_history` vazio vs whitespace**: já tratamos com `.trim()`. Confirmar mesma semântica.
 4. **Ordem no orquestrador**: depois de DEXA? Antes de PAR-Q? Sugestão: **antes de PAR-Q** (porque PAR-Q é o "filtro mais forte" — vem por último, com `actionable` no topo após o sort por severidade).
 5. **Disclaimers BR vs internacionais**: usar fonte BR (CFM/CFEF/SBME) só se Codex confirmar relevância clínica direta.
