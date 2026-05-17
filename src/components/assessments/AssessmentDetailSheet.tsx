@@ -25,6 +25,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ASSESSMENT_TYPE_METADATA } from "@/constants/assessmentProtocols";
 import { useAssessment, type AssessmentWithChild } from "@/hooks/useAssessments";
 import type { AssessmentType } from "@/types/assessment";
+import { sanitizeAssessmentDebugPayload } from "@/utils/assessmentDebugSanitize";
+
+import { DexaPdfButton } from "./DexaPdfButton";
 
 interface AssessmentDetailSheetProps {
   assessmentId: string | null;
@@ -215,6 +218,20 @@ const renderDexa = (data: AssessmentWithChild) => {
 
   return (
     <div className="space-y-4">
+      {/*
+        PR-A — laudo DEXA é acessado via signed URL com TTL curto. O
+        componente cobre os dois estados (com PDF / sem PDF) sem expor o
+        `scan_pdf_storage_path` cru em DOM/debug/toast/console/storage.
+        O path técnico foi removido da grid de campos abaixo no PR-A e o
+        payload de debug é sanitizado por `sanitizeAssessmentDebugPayload`.
+      */}
+      <div className="space-y-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Laudo PDF
+        </p>
+        <DexaPdfButton storagePath={dexa.scan_pdf_storage_path} />
+      </div>
+
       <KeyValueGrid
         items={[
           ["Massa total", withUnit(dexa.total_mass_kg, "kg")],
@@ -231,7 +248,6 @@ const renderDexa = (data: AssessmentWithChild) => {
           ["Percentil gordura", dexa.fat_percentile],
           ["TMB Harris-Benedict", withUnit(dexa.bmr_harris_benedict_kcal, "kcal")],
           ["TMB Mifflin-St Jeor", withUnit(dexa.bmr_mifflin_stjeor_kcal, "kcal")],
-          ["PDF no storage", dexa.scan_pdf_storage_path],
           ["Método de extração", dexa.extraction_method],
         ]}
       />
@@ -456,7 +472,19 @@ export const AssessmentDetailSheet = ({
                 <Section title="Resultado específico">{renderSpecificResult(data)}</Section>
                 {renderCardiovascular(data)}
                 {renderSubjective(data)}
-                <JsonBlock title="Debug técnico (payload carregado)" value={data} />
+                {/*
+                  PR-A hardening — `data` é serializado pra debug aqui, mas
+                  contém `data.dexa.scan_pdf_storage_path` e
+                  `data.dexa.scan_pdf_url`, caminhos/URLs internos do bucket
+                  privado `dexa-pdfs` que jamais devem aparecer na UI
+                  (DOM/debug/toast/console/storage/URL do app). O sanitize
+                  redige esses dois campos preservando o resto do payload
+                  pra que o debug continue útil.
+                */}
+                <JsonBlock
+                  title="Debug técnico (payload carregado)"
+                  value={sanitizeAssessmentDebugPayload(data)}
+                />
               </>
             )}
           </div>
