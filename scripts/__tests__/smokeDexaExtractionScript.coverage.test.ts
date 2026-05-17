@@ -70,9 +70,14 @@ describe("smoke-dexa-extraction.mjs — micro-hardening", () => {
 
   it("PDFs reais aceitos só via argv (paths absolutos do usuário, nunca hardcoded)", () => {
     expect(code).toMatch(/process\.argv\.slice\(2\)/);
-    // Nenhum caminho absoluto típico de usuário (defesa contra
-    // commitar paths "/Users/.../DEXA Alex.pdf" no script).
-    expect(scriptSource).not.toMatch(/\/Users\/[^"\s]+\.pdf/);
-    expect(scriptSource).not.toMatch(/\/home\/[^"\s]+\.pdf/);
+    // Nenhum caminho absoluto típico de usuário hardcoded no script.
+    // O regex aceita espaços no path/nome do arquivo (ex.: "DEXA Alex.pdf"),
+    // que o regex anterior `[^"\s]+` deixava passar.
+    expect(scriptSource).not.toMatch(/\/Users\/[^"\n]+?\.pdf/);
+    expect(scriptSource).not.toMatch(/\/home\/[^"\n]+?\.pdf/);
+    // Bloqueia também nomes reais conhecidos, em qualquer contexto
+    // (comentário, jsdoc, string), com ou sem path absoluto.
+    expect(scriptSource).not.toMatch(/DEXA Alex/i);
+    expect(scriptSource).not.toMatch(/DEXA Ana Paula/i);
   });
 });

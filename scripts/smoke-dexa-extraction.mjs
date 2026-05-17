@@ -15,8 +15,8 @@
  *
  * Uso:
  *   OPENAI_API_KEY=sk-... node scripts/smoke-dexa-extraction.mjs \
- *     "/Users/alex/Downloads/DEXA Alex.pdf" \
- *     "/Users/alex/Downloads/DEXA Ana Paula.pdf"
+ *     "/path/to/dexa-sample-1.pdf" \
+ *     "/path/to/dexa-sample-2.pdf"
  *
  * Modelo (opcional):
  *   OPENAI_DEXA_EXTRACTION_MODEL=gpt-4.1 ...
@@ -256,8 +256,8 @@ async function extract(pdfPath, apiKey, model) {
 
 function reportOne(label, _file, result) {
   // Hardening: NÃO logamos basename(file) — mesmo o nome do arquivo
-  // local pode revelar nome do aluno (ex.: "DEXA Alex.pdf"). O label
-  // posicional ("PDF 1", "PDF 2") é suficiente pra correlacionar.
+  // local pode revelar identidade do aluno. O label posicional
+  // ("PDF 1", "PDF 2") é suficiente pra correlacionar.
   console.log(`\n=== ${label} ===`);
   if (!result.ok) {
     console.log(`  ✗ FAIL: status=${result.status} elapsed=${result.elapsed}ms`);
