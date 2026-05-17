@@ -12,13 +12,19 @@
  *   { "student_id": "<uuid>", "storage_path": "<path em dexa-pdfs>" }
  *
  * Auth:
- *   1. Authorization: Bearer <jwt>
- *   2. Valida user via anon client + auth.getUser()
- *   3. Cria service-role client SÓ depois de validar JWT
- *   4. Aceita: admin (user_roles.role='admin') OU trainer dono do aluno
- *   5. storage_path PRECISA começar com `${student_id}/` (defensivo,
- *      mesmo com RLS — defesa em profundidade)
- *   6. Object name precisa terminar em `.pdf`
+ *   `verify_jwt = false` no gateway (config.toml) pra liberar preflight
+ *   OPTIONS sem Authorization (CORS). O HANDLER aqui valida JWT em
+ *   código — mesmo padrão de oura-sync-all / validate-student-invite /
+ *   create-student-from-invite:
+ *     1. OPTIONS → 200 + CORS headers (sem auth);
+ *     2. POST exige Authorization: Bearer <jwt>;
+ *     3. Valida user via anon client + auth.getUser();
+ *     4. Cria service-role client SÓ depois de validar JWT;
+ *     5. Aceita: admin (user_roles.role='admin') OU trainer dono
+ *        do aluno;
+ *     6. storage_path PRECISA começar com `${student_id}/` (defensivo,
+ *        mesmo com RLS — defesa em profundidade);
+ *     7. Object name precisa terminar em `.pdf`.
  *
  * NÃO escreve em tabela nenhuma. NÃO gera signed URL. NÃO retorna
  * base64. NÃO loga PDF/path/token/prompt/response cru.
