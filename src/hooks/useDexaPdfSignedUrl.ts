@@ -41,6 +41,19 @@ export const DEXA_PDF_SIGNED_URL_TTL_SECONDS = 60;
  */
 export const DEXA_PDFS_BUCKET = "dexa-pdfs";
 
+/**
+ * Mensagem genérica fixa exposta pra UI quando a assinatura falha.
+ * Deliberadamente NÃO inclui `signError.message`, `err.message`, path do
+ * objeto, bucket name ou qualquer detalhe interno do storage — esses
+ * dados poderiam vazar pro DOM via toast/alert ou pra telemetria via
+ * captura de erro automática.
+ *
+ * Diagnóstico server-side continua disponível no Supabase Dashboard
+ * (logs do Storage API), que é onde esse tipo de detalhe pertence.
+ */
+export const DEXA_PDF_SIGNED_URL_GENERIC_ERROR =
+  "Não foi possível gerar o link do laudo.";
+
 export interface UseDexaPdfSignedUrlResult {
   /**
    * Assina o `storagePath` e devolve a URL. Devolve `null` se `storagePath`
@@ -79,22 +92,19 @@ export function useDexaPdfSignedUrl(): UseDexaPdfSignedUrlResult {
           .createSignedUrl(storagePath, DEXA_PDF_SIGNED_URL_TTL_SECONDS);
 
         if (signError || !data?.signedUrl) {
-          // Mensagem genérica pra UI; NÃO inclui o path do objeto pra
-          // evitar vazamento por toast/console em ambientes com logging
-          // agressivo no usuário final.
-          const message =
-            signError?.message ?? "Não foi possível gerar o link do laudo.";
-          setError(message);
+          // PR-A hardening: NÃO armazenamos `signError.message` no estado
+          // exportado. A mensagem do Supabase pode incluir o path do objeto
+          // ou o bucket name, e qualquer captura automática de erro
+          // (toast/telemetria) re-exibiria isso. Sempre genérica.
+          setError(DEXA_PDF_SIGNED_URL_GENERIC_ERROR);
           return null;
         }
 
         return data.signedUrl;
-      } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : "Não foi possível gerar o link do laudo.";
-        setError(message);
+      } catch {
+        // PR-A hardening: idem catch — `err.message` pode conter path,
+        // URL, stack trace ou querystring de token. Mensagem fixa.
+        setError(DEXA_PDF_SIGNED_URL_GENERIC_ERROR);
         return null;
       } finally {
         setIsLoading(false);

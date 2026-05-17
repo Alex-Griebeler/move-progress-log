@@ -39,6 +39,12 @@ const detailSheetPath = resolve(
 );
 const detailSheetSource = readFileSync(detailSheetPath, "utf-8");
 
+const sanitizerPath = resolve(
+  __dirname,
+  "../../utils/assessmentDebugSanitize.ts",
+);
+const sanitizerSource = readFileSync(sanitizerPath, "utf-8");
+
 // Strip de comentários — alguns asserts negativos pesquisam palavras-chave
 // que aparecem em comentários explicativos do hardening (ex.: "não logar").
 const stripComments = (src: string) =>
@@ -64,6 +70,53 @@ describe("useDexaPdfSignedUrl — contract", () => {
     expect(hookSource).toMatch(
       /createSignedUrl\(\s*storagePath\s*,\s*DEXA_PDF_SIGNED_URL_TTL_SECONDS\s*\)/,
     );
+  });
+
+  // ── PR-A hardening ────────────────────────────────────────────────────
+  it("exporta uma mensagem de erro GENÉRICA fixa (sem detalhes do Supabase)", () => {
+    expect(hookSource).toContain(
+      "export const DEXA_PDF_SIGNED_URL_GENERIC_ERROR",
+    );
+    // A mensagem em si não pode mencionar 'path', 'bucket', 'storage', etc.
+    expect(hookSource).toMatch(
+      /export const DEXA_PDF_SIGNED_URL_GENERIC_ERROR\s*=\s*\n?\s*"[^"]+"/,
+    );
+  });
+
+  it("NÃO armazena signError.message nem err.message no estado de erro", () => {
+    const code = stripComments(hookSource);
+    // Bloqueia qualquer captura de message vinda do Supabase / Error.
+    expect(code).not.toMatch(/setError\(\s*signError\.message/);
+    expect(code).not.toMatch(/setError\(\s*err\.message/);
+    expect(code).not.toMatch(/setError\(\s*error\.message/);
+    // Bloqueia também o ternário "signError?.message ?? '…'" que existia antes.
+    expect(code).not.toMatch(/signError\?\.message/);
+    // err.message como leitura (mesmo que não vá pro setError direto) também
+    // é proibida nesse arquivo — qualquer manipulação abre porta pra log.
+    expect(code).not.toMatch(/err\.message/);
+  });
+
+  it("setError SEMPRE recebe a constante genérica fixa", () => {
+    const code = stripComments(hookSource);
+    // Toda chamada setError(...) deve usar a constante; nada de literais
+    // ou expressões dinâmicas.
+    const setErrorCalls =
+      code.match(/setError\([^)]*\)/g)?.filter(
+        (call) => !call.includes("setError(null)"),
+      ) ?? [];
+    expect(setErrorCalls.length).toBeGreaterThan(0);
+    for (const call of setErrorCalls) {
+      expect(call).toContain("DEXA_PDF_SIGNED_URL_GENERIC_ERROR");
+    }
+  });
+
+  it("catch é vazio (sem bind do err) pra impedir vazamento acidental", () => {
+    const code = stripComments(hookSource);
+    // `catch (err)` permite alguém usar err em refactor; `catch {}` é
+    // explícito de que o erro foi descartado deliberadamente.
+    expect(code).toMatch(/}\s*catch\s*\{/);
+    expect(code).not.toMatch(/}\s*catch\s*\(\s*err\s*\)/);
+    expect(code).not.toMatch(/}\s*catch\s*\(\s*error\s*\)/);
   });
 
   it("opera apenas sobre o bucket dexa-pdfs (via constante)", () => {
@@ -168,7 +221,10 @@ describe("AssessmentDetailSheet — integra DexaPdfButton e não vaza path cru",
     expect(detailSheetSource).toContain('from "./DexaPdfButton"');
   });
 
-  it("renderiza <DexaPdfButton storagePath={dexa.scan_pdf_storage_path} /> na seção DEXA", () => {
+  it("DexaPdfButton continua recebendo storagePath={dexa.scan_pdf_storage_path}", () => {
+    // Garantia funcional do PR-A: o botão precisa do path REAL pra assinar
+    // a URL. O hardening cobre só a UI de debug e a mensagem de erro;
+    // o canal de assinatura permanece intacto.
     expect(detailSheetSource).toMatch(
       /<DexaPdfButton\s+storagePath=\{dexa\.scan_pdf_storage_path\}\s*\/>/,
     );
@@ -186,5 +242,90 @@ describe("AssessmentDetailSheet — integra DexaPdfButton e não vaza path cru",
   it("manteve a seção DEXA chamando renderDexa (não quebrou o pipeline existente)", () => {
     expect(detailSheetSource).toContain("const renderDexa = ");
     expect(detailSheetSource).toContain("data.dexa");
+  });
+
+  // ── PR-A hardening: JsonBlock 'Debug técnico' sanitizado ─────────────
+  it("NÃO existe <JsonBlock … value={data} … /> sem passar por sanitize", () => {
+    // Estrita: `value={data}` cru no debug serializaria
+    // `data.dexa.scan_pdf_storage_path` e `data.dexa.scan_pdf_url`. Deve
+    // sempre passar por `sanitizeAssessmentDebugPayload(data)`.
+    expect(detailSheetSource).not.toMatch(/<JsonBlock[\s\S]*?value=\{\s*data\s*\}/);
+  });
+
+  it("usa sanitizeAssessmentDebugPayload(data) no JsonBlock de debug", () => {
+    expect(detailSheetSource).toContain(
+      'from "@/utils/assessmentDebugSanitize"',
+    );
+    expect(detailSheetSource).toMatch(
+      /value=\{\s*sanitizeAssessmentDebugPayload\(\s*data\s*\)\s*\}/,
+    );
+  });
+});
+
+// ── Sanitizer: assessmentDebugSanitize ─────────────────────────────────────
+
+describe("assessmentDebugSanitize — contrato do helper", () => {
+  it("exporta REDACTED_SENTINEL + DEXA_SENSITIVE_FIELDS + sanitizeAssessmentDebugPayload", () => {
+    expect(sanitizerSource).toContain("export const REDACTED_SENTINEL");
+    expect(sanitizerSource).toContain("export const DEXA_SENSITIVE_FIELDS");
+    expect(sanitizerSource).toContain(
+      "export function sanitizeAssessmentDebugPayload",
+    );
+  });
+
+  it("lista canônica inclui scan_pdf_storage_path E scan_pdf_url", () => {
+    expect(sanitizerSource).toMatch(/"scan_pdf_storage_path"/);
+    expect(sanitizerSource).toMatch(/"scan_pdf_url"/);
+  });
+
+  it("é puro: deep-clone via JSON, sem mutate do input", () => {
+    expect(sanitizerSource).toContain("JSON.parse(JSON.stringify");
+  });
+
+  it("não toca em nada além de clone.dexa (cobertura intencional limitada)", () => {
+    // Defensivo: o sanitizer não pode silenciar campos de outras tabelas
+    // sem aviso. Garantimos por código que o único path tocado é `.dexa`.
+    expect(sanitizerSource).toMatch(/dexa\[field\]\s*=\s*REDACTED_SENTINEL/);
+    expect(sanitizerSource).not.toMatch(
+      /clone\[(?!"dexa")[^\]]+\]\s*=\s*REDACTED_SENTINEL/,
+    );
+  });
+
+  it("comportamento funcional: redige scan_pdf_storage_path e scan_pdf_url", async () => {
+    // Import dinâmico pra rodar o helper de fato (não só source).
+    const mod = await import("../../utils/assessmentDebugSanitize");
+    const input = {
+      assessment: { id: "a-1" },
+      dexa: {
+        fat_pct: 22.1,
+        scan_pdf_storage_path: "s-1/123-abc.pdf",
+        scan_pdf_url: "https://example/scan.pdf",
+      },
+    };
+    const out = mod.sanitizeAssessmentDebugPayload(input);
+    // Input intacto (imutabilidade).
+    expect(input.dexa.scan_pdf_storage_path).toBe("s-1/123-abc.pdf");
+    expect(input.dexa.scan_pdf_url).toBe("https://example/scan.pdf");
+    // Output redigido.
+    expect(out.dexa.scan_pdf_storage_path).toBe(mod.REDACTED_SENTINEL);
+    expect(out.dexa.scan_pdf_url).toBe(mod.REDACTED_SENTINEL);
+    // Outros campos do dexa preservados.
+    expect(out.dexa.fat_pct).toBe(22.1);
+    // Campos fora do dexa preservados.
+    expect(out.assessment).toEqual({ id: "a-1" });
+  });
+
+  it("comportamento funcional: payload null/undefined/sem dexa é devolvido sem mexer", async () => {
+    const mod = await import("../../utils/assessmentDebugSanitize");
+    expect(mod.sanitizeAssessmentDebugPayload(null)).toBeNull();
+    expect(mod.sanitizeAssessmentDebugPayload(undefined)).toBeUndefined();
+    expect(mod.sanitizeAssessmentDebugPayload({ vo2: { fc_peak: 180 } }))
+      .toEqual({ vo2: { fc_peak: 180 } });
+    // null/empty no campo sensível permanece null/empty (não vira [redacted]).
+    const out = mod.sanitizeAssessmentDebugPayload({
+      dexa: { scan_pdf_storage_path: null, scan_pdf_url: "" },
+    });
+    expect(out.dexa.scan_pdf_storage_path).toBeNull();
+    expect(out.dexa.scan_pdf_url).toBe("");
   });
 });
