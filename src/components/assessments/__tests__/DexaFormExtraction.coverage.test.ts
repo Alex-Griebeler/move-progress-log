@@ -275,6 +275,112 @@ describe("extract-dexa-pdf edge — contrato + segurança", () => {
   });
 });
 
+// ── Hardening pós-revisão do PR #159 ───────────────────────────────────────
+
+describe("extract-dexa-pdf edge — hardening pós-review", () => {
+  const code = stripComments(edgeSource);
+
+  it("Fix 1: NÃO loga studentId nem usa studentId.slice (zero identificador no log)", () => {
+    expect(code).not.toMatch(/studentId\.slice\(/);
+    // O log de sucesso virou neutro: `logSafe("ok", { ok: true })`.
+    expect(code).toMatch(/logSafe\(\s*"ok"\s*,\s*\{\s*ok:\s*true\s*\}\s*\)/);
+    expect(code).not.toMatch(/logSafe\(\s*"ok"\s*,\s*\{\s*studentId/);
+  });
+
+  it("Fix 1: nenhum logSafe carrega chaves PII (studentId, storagePath, path, bucket, token, prompt)", () => {
+    const logSafeCalls = code.match(/logSafe\([^)]+\)/g) ?? [];
+    for (const call of logSafeCalls) {
+      expect(call).not.toMatch(/studentId/);
+      expect(call).not.toMatch(/storagePath/);
+      expect(call).not.toMatch(/storage_path/);
+      expect(call).not.toMatch(/bucket/);
+      expect(call).not.toMatch(/token/);
+      expect(call).not.toMatch(/prompt/);
+      expect(call).not.toMatch(/base64/);
+    }
+  });
+
+  it("Fix 3: exporta normalizeEdgeExtraction e o handler USA ele", () => {
+    expect(code).toMatch(/export function normalizeEdgeExtraction\b/);
+    // Uso REAL no handler — não pode ficar só declarado.
+    expect(code).toMatch(
+      /const extraction = normalizeEdgeExtraction\(\s*aiResult\.parsed/,
+    );
+  });
+
+  it("Fix 3: o spread cru `...aiResult.parsed` foi REMOVIDO do handler", () => {
+    expect(code).not.toMatch(/\.\.\.aiResult\.parsed/);
+  });
+
+  it("Fix 3: lista de chaves proibidas DEXA_EDGE_FORBIDDEN_KEYS cobre todos os vetores", () => {
+    const forbidden = [
+      "base64",
+      "file_data",
+      "signedUrl",
+      "signed_url",
+      "storage_path",
+      "storagePath",
+      "bucket",
+      "pdfBytes",
+      "pdf_bytes",
+      "prompt",
+      "messages",
+      "input",
+      "output",
+      "raw_response",
+    ];
+    for (const key of forbidden) {
+      expect(edgeSource).toContain(`"${key}"`);
+    }
+  });
+
+  it("Fix 3: edge clampa confidence (clamp01) e trunca source_text/conclusion_text", () => {
+    expect(code).toMatch(/function clamp01\b/);
+    expect(code).toMatch(/DEXA_SOURCE_TEXT_MAX_CHARS\s*=\s*500/);
+    expect(code).toMatch(/DEXA_CONCLUSION_TEXT_MAX_CHARS\s*=\s*5000/);
+  });
+
+  it("Fix 3: normalizeEdgeExtraction faz deepStripForbidden no final", () => {
+    expect(code).toMatch(/function deepStripForbidden\b/);
+    expect(code).toMatch(
+      /return deepStripForbidden\(normalized\)/,
+    );
+  });
+
+  it("Fix 3: response é `{ ok: true, extraction }` (não vaza outras chaves do AI)", () => {
+    expect(code).toMatch(
+      /return jsonResponse\(\{\s*ok:\s*true\s*,\s*extraction\s*\}\)/,
+    );
+  });
+});
+
+// ── DexaForm — hardening do toast de erro ───────────────────────────────────
+
+describe("DexaForm — hardening do toast de erro de upload", () => {
+  const code = stripComments(dexaFormSource);
+
+  it("Fix 2: NÃO usa err.message/error.message/signError.message em notify.error", () => {
+    expect(code).not.toMatch(/err\.message/);
+    expect(code).not.toMatch(/error\.message/);
+    expect(code).not.toMatch(/signError\.message/);
+  });
+
+  it("Fix 2: usa constante DEXA_UPLOAD_GENERIC_ERROR_DESCRIPTION fixa", () => {
+    expect(code).toMatch(
+      /const DEXA_UPLOAD_GENERIC_ERROR_DESCRIPTION\s*=\s*\n?\s*"[^"]+"/,
+    );
+    expect(code).toMatch(
+      /description:\s*DEXA_UPLOAD_GENERIC_ERROR_DESCRIPTION/,
+    );
+  });
+
+  it("Fix 2: catch do submit é vazio (sem bind do err — defesa contra refactor)", () => {
+    // Procura especificamente o catch que vinha após o submit/save.
+    expect(code).toMatch(/}\s*catch\s*\{\s*\n\s*if\s*\(\s*!mutationStarted\s*\)/);
+    expect(code).not.toMatch(/catch\s*\(\s*err\s*\)\s*\{\s*\n\s*if\s*\(\s*!mutationStarted/);
+  });
+});
+
 // ── config.toml ────────────────────────────────────────────────────────────
 
 describe("config.toml — extract-dexa-pdf registrada com verify_jwt=true", () => {

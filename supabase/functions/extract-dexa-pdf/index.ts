@@ -65,6 +65,47 @@ const DEXA_NUMERIC_FIELDS = [
   "bmr_mifflin_stjeor_kcal",
 ] as const;
 
+// ────────────────────────────────────────────────────────────────────────────
+// Hardening: normalização da resposta da OpenAI ANTES de devolver pro
+// browser. Defesa em profundidade — o client também normaliza, mas a
+// edge é a primeira linha. Garante que mesmo um modelo que devolva
+// chaves extras (output, messages, base64, prompt, etc.) não vaze pra
+// fora desta função.
+// ────────────────────────────────────────────────────────────────────────────
+
+const DEXA_SOURCE_TEXT_MAX_CHARS = 500;
+const DEXA_CONCLUSION_TEXT_MAX_CHARS = 5000;
+
+/**
+ * Chaves PROIBIDAS no payload devolvido ao browser. Removidas
+ * recursivamente em qualquer nível antes do response. Lista expandida
+ * em relação ao sanitizer do client porque a IA pode devolver shape
+ * arbitrário no top-level.
+ */
+const DEXA_EDGE_FORBIDDEN_KEYS: readonly string[] = [
+  "base64",
+  "file_data",
+  "signedUrl",
+  "signed_url",
+  "storage_path",
+  "storagePath",
+  "bucket",
+  "pdfBytes",
+  "pdf_bytes",
+  "prompt",
+  "messages",
+  "input",
+  "output",
+  "raw_response",
+];
+
+/** Inteiros: TMB + percentil. Demais numéricos são float. */
+const DEXA_EDGE_INTEGER_FIELDS = new Set<string>([
+  "bmr_harris_benedict_kcal",
+  "bmr_mifflin_stjeor_kcal",
+  "fat_percentile",
+]);
+
 const DEXA_REGION_KEYS = [
   "trunk",
   "arms_right",
@@ -352,6 +393,175 @@ async function callOpenAiExtraction(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// normalizeEdgeExtraction — coerção + sanitização defensiva
+//
+// Por que duplicar o helper do frontend aqui (em vez de importar):
+//   * Deno edge runtime não compartilha bundler com o app React;
+//   * Manter um helper local mínimo evita pular o `import.meta` /
+//     resolution quirk do Deno;
+//   * Defesa em profundidade: client TAMBÉM normaliza (segunda camada).
+// ────────────────────────────────────────────────────────────────────────────
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
+function clamp01(v: unknown): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) return 0;
+  if (v < 0) return 0;
+  if (v > 1) return 1;
+  return v;
+}
+
+function coerceNullableString(v: unknown, maxLen: number): string | null {
+  if (typeof v !== "string") return null;
+  const trimmed = v.trim();
+  if (trimmed.length === 0) return null;
+  return trimmed.length > maxLen ? trimmed.slice(0, maxLen) : trimmed;
+}
+
+function coerceNullableNumber(v: unknown, isInteger: boolean): number | null {
+  if (v == null) return null;
+  if (typeof v !== "number" || !Number.isFinite(v)) return null;
+  return isInteger ? Math.round(v) : v;
+}
+
+function coerceNullablePage(v: unknown): number | null {
+  if (typeof v !== "number" || !Number.isFinite(v)) return null;
+  return Math.max(0, Math.trunc(v));
+}
+
+function coerceStringArray(v: unknown, maxItems = 50): string[] {
+  if (!Array.isArray(v)) return [];
+  const out: string[] = [];
+  for (const item of v) {
+    if (typeof item === "string") {
+      const trimmed = item.trim().slice(0, 200);
+      if (trimmed.length > 0) out.push(trimmed);
+      if (out.length >= maxItems) break;
+    }
+  }
+  return out;
+}
+
+function defaultField(): {
+  value: null;
+  confidence: number;
+  source_text: null;
+  page: null;
+} {
+  return { value: null, confidence: 0, source_text: null, page: null };
+}
+
+function normalizeNumericField(raw: unknown, isInteger: boolean) {
+  if (!isPlainObject(raw)) return defaultField();
+  return {
+    value: coerceNullableNumber(raw.value, isInteger),
+    confidence: clamp01(raw.confidence),
+    source_text: coerceNullableString(raw.source_text, DEXA_SOURCE_TEXT_MAX_CHARS),
+    page: coerceNullablePage(raw.page),
+  };
+}
+
+function normalizeConclusionField(raw: unknown) {
+  if (!isPlainObject(raw)) return defaultField();
+  return {
+    value: coerceNullableString(raw.value, DEXA_CONCLUSION_TEXT_MAX_CHARS),
+    confidence: clamp01(raw.confidence),
+    source_text: coerceNullableString(raw.source_text, DEXA_SOURCE_TEXT_MAX_CHARS),
+    page: coerceNullablePage(raw.page),
+  };
+}
+
+function normalizeRegionalField(raw: unknown) {
+  if (!isPlainObject(raw)) return defaultField();
+  const valueRaw = raw.value;
+  let value: Record<string, Record<string, number>> | null = null;
+  if (isPlainObject(valueRaw)) {
+    const cleaned: Record<string, Record<string, number>> = {};
+    for (const region of DEXA_REGION_KEYS) {
+      const regionRaw = (valueRaw as Record<string, unknown>)[region];
+      if (!isPlainObject(regionRaw)) continue;
+      const entry: Record<string, number> = {};
+      const fatPct = coerceNullableNumber(regionRaw.fat_pct, false);
+      const leanG = coerceNullableNumber(regionRaw.lean_mass_g, false);
+      const fatG = coerceNullableNumber(regionRaw.fat_mass_g, false);
+      if (fatPct != null) entry.fat_pct = fatPct;
+      if (leanG != null) entry.lean_mass_g = leanG;
+      if (fatG != null) entry.fat_mass_g = fatG;
+      if (Object.keys(entry).length > 0) cleaned[region] = entry;
+    }
+    if (Object.keys(cleaned).length > 0) value = cleaned;
+  }
+  return {
+    value,
+    confidence: clamp01(raw.confidence),
+    source_text: coerceNullableString(raw.source_text, DEXA_SOURCE_TEXT_MAX_CHARS),
+    page: coerceNullablePage(raw.page),
+  };
+}
+
+/**
+ * Remove recursivamente chaves proibidas em qualquer nível.
+ * Aplicado APÓS o `normalizeFields` por defesa em profundidade —
+ * mesmo que um campo legítimo herdasse uma chave perigosa, ela some.
+ */
+function deepStripForbidden(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(deepStripForbidden);
+  if (isPlainObject(value)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (DEXA_EDGE_FORBIDDEN_KEYS.includes(k)) continue;
+      out[k] = deepStripForbidden(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Pipeline da edge: coage o JSON cru da OpenAI no contrato esperado
+ * pelo browser, trunca textos longos, clampa confidences, descarta
+ * chaves desconhecidas, remove chaves proibidas em qualquer nível.
+ */
+export function normalizeEdgeExtraction(
+  raw: unknown,
+  model: string,
+  extractedAt: string,
+): Record<string, unknown> {
+  const obj = isPlainObject(raw) ? raw : {};
+  const fieldsRaw = isPlainObject(obj.fields) ? obj.fields : {};
+
+  const fields: Record<string, unknown> = {};
+  for (const fieldName of DEXA_NUMERIC_FIELDS) {
+    fields[fieldName] = normalizeNumericField(
+      (fieldsRaw as Record<string, unknown>)[fieldName],
+      DEXA_EDGE_INTEGER_FIELDS.has(fieldName),
+    );
+  }
+  fields.conclusion_text = normalizeConclusionField(
+    (fieldsRaw as Record<string, unknown>).conclusion_text,
+  );
+  fields.regional_distribution = normalizeRegionalField(
+    (fieldsRaw as Record<string, unknown>).regional_distribution,
+  );
+
+  const normalized = {
+    fields,
+    overall_confidence: clamp01(obj.overall_confidence),
+    missing_fields: coerceStringArray(obj.missing_fields),
+    warnings: coerceStringArray(obj.warnings),
+    model: coerceNullableString(model, 120) ?? "",
+    extracted_at: coerceNullableString(extractedAt, 64) ?? "",
+  };
+
+  // Última defesa: mesmo que algum sub-objeto preservado herdasse uma
+  // chave perigosa (improvável após o whitelist acima, mas defensivo
+  // contra refactor que abra `additionalProperties: true`).
+  return deepStripForbidden(normalized) as Record<string, unknown>;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Handler
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -469,15 +679,22 @@ Deno.serve(async (req) => {
       return errorResponse("Falha na extração automática", 502);
     }
 
-    // 8. Devolve só o JSON estruturado + metadata. SEM PDF, base64, path,
-    //    signed URL, prompt ou response cru.
-    const extraction = {
-      ...aiResult.parsed,
+    // 8. Devolve só o JSON estruturado + metadata. Passa pelo
+    //    `normalizeEdgeExtraction` ANTES de virar response — defesa em
+    //    profundidade que garante schema fixo, sem `...aiResult.parsed`
+    //    cru, sem chaves perigosas (base64/file_data/signed_url/
+    //    storage_path/bucket/prompt/messages/input/output/raw_response),
+    //    com `confidence` clampada e `source_text` truncado.
+    const extraction = normalizeEdgeExtraction(
+      aiResult.parsed,
       model,
-      extracted_at: new Date().toISOString(),
-    };
+      new Date().toISOString(),
+    );
 
-    logSafe("ok", { studentId: studentId.slice(0, 8) + "…" });
+    // Hardening: NÃO logamos studentId/path/PDF/base64/token/prompt/raw.
+    // Diagnóstico server-side fica nos logs do Supabase Storage / OpenAI,
+    // que já têm os IDs internos sem precisarmos duplicar aqui.
+    logSafe("ok", { ok: true });
 
     return jsonResponse({ ok: true, extraction });
   } catch {

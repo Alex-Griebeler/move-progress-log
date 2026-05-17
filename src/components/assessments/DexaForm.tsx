@@ -116,6 +116,21 @@ interface DexaFormProps {
 const parseNumber = (value: string): number | undefined =>
   value === "" ? undefined : Number(value);
 
+/**
+ * Mensagem genérica fixa pra falhas de upload do PDF / salvamento.
+ *
+ * Hardening (PR #159 follow-up): NÃO concatenamos `err.message`,
+ * `error.message` ou `signError.message` aqui — essas mensagens
+ * podem incluir path do bucket, querystring de token, hostname do
+ * Supabase ou stack trace, e qualquer captura automática (toast,
+ * Sentry, logging do browser) re-exibiria isso pro coach/cliente.
+ *
+ * Diagnóstico interno fica disponível server-side via Supabase
+ * Dashboard (logs do Storage).
+ */
+const DEXA_UPLOAD_GENERIC_ERROR_DESCRIPTION =
+  "Tente novamente. Se o problema persistir, verifique o PDF ou refaça o upload.";
+
 const REGIONS = [
   { key: "trunk", label: "Tronco" },
   { key: "arms_right", label: "Braço direito" },
@@ -370,10 +385,12 @@ export const DexaForm = ({
       setExtractionState(null);
       onOpenChange(false);
       onCreated?.(result.id);
-    } catch (err) {
+    } catch {
+      // Hardening: `err` deliberadamente não-bindado pra impedir refactor
+      // acidental que reintroduza `err.message` no toast.
       if (!mutationStarted) {
         notify.error("Erro no upload do PDF", {
-          description: err instanceof Error ? err.message : "Tente novamente",
+          description: DEXA_UPLOAD_GENERIC_ERROR_DESCRIPTION,
         });
       }
     } finally {
