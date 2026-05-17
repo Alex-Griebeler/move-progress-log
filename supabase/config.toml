@@ -96,6 +96,11 @@ verify_jwt = false
 [functions.smoke-health]
 verify_jwt = false
 
-# AI-assisted DEXA PDF extraction (draft fill only — never auto-saves)
+# AI-assisted DEXA PDF extraction (draft fill only — never auto-saves).
+# verify_jwt = false no GATEWAY pra liberar preflight OPTIONS sem
+# Authorization (sem isso, CORS preflight do browser quebra). O HANDLER
+# valida JWT em código (auth.getUser() com anon client antes de criar
+# o service-role client), mesmo padrão de oura-sync-all / oura-sync /
+# validate-student-invite / create-student-from-invite.
 [functions.extract-dexa-pdf]
-verify_jwt = true
+verify_jwt = false

@@ -383,10 +383,29 @@ describe("DexaForm — hardening do toast de erro de upload", () => {
 
 // ── config.toml ────────────────────────────────────────────────────────────
 
-describe("config.toml — extract-dexa-pdf registrada com verify_jwt=true", () => {
-  it("entry [functions.extract-dexa-pdf] presente", () => {
+describe("config.toml — extract-dexa-pdf registrada com verify_jwt=false", () => {
+  it("entry [functions.extract-dexa-pdf] tem verify_jwt = false (CORS preflight)", () => {
+    // Deliberadamente FALSE no gateway: a edge precisa aceitar OPTIONS
+    // sem Authorization pra que o browser consiga fazer preflight CORS.
+    // JWT continua validado em código pelo handler (auth.getUser).
+    // Mesmo padrão de oura-sync-all / validate-student-invite /
+    // create-student-from-invite.
     expect(configSource).toMatch(
+      /\[functions\.extract-dexa-pdf\]\s*\nverify_jwt = false/,
+    );
+    // Regressão guard: não pode reaparecer = true acidentalmente.
+    expect(configSource).not.toMatch(
       /\[functions\.extract-dexa-pdf\]\s*\nverify_jwt = true/,
     );
+  });
+
+  it("handler do extract-dexa-pdf valida JWT em código (defesa em profundidade)", () => {
+    // Sanity: mesmo com gateway sem verify_jwt, o handler PRECISA
+    // validar Authorization Bearer + auth.getUser() ANTES do
+    // service-role client. Esse teste é redundante com os outros
+    // (linha "Fix 1: nenhum logSafe...") mas mantém-se aqui como
+    // pareamento explícito ao config.toml.
+    expect(edgeSource).toContain('startsWith("Bearer ")');
+    expect(edgeSource).toContain("await userClient.auth.getUser()");
   });
 });
