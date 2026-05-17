@@ -26,6 +26,8 @@ import { ASSESSMENT_TYPE_METADATA } from "@/constants/assessmentProtocols";
 import { useAssessment, type AssessmentWithChild } from "@/hooks/useAssessments";
 import type { AssessmentType } from "@/types/assessment";
 
+import { DexaPdfButton } from "./DexaPdfButton";
+
 interface AssessmentDetailSheetProps {
   assessmentId: string | null;
   open: boolean;
@@ -215,6 +217,20 @@ const renderDexa = (data: AssessmentWithChild) => {
 
   return (
     <div className="space-y-4">
+      {/*
+        PR-A — laudo DEXA agora é acessado via signed URL com TTL curto.
+        O componente cobre os dois estados (com PDF / sem PDF) sem expor
+        o `scan_pdf_storage_path` cru pra UI. O path técnico continua
+        disponível na grid abaixo como metadata auxiliar (último item) pra
+        auditoria, mas a CTA principal é o botão acima.
+      */}
+      <div className="space-y-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Laudo PDF
+        </p>
+        <DexaPdfButton storagePath={dexa.scan_pdf_storage_path} />
+      </div>
+
       <KeyValueGrid
         items={[
           ["Massa total", withUnit(dexa.total_mass_kg, "kg")],
@@ -231,7 +247,6 @@ const renderDexa = (data: AssessmentWithChild) => {
           ["Percentil gordura", dexa.fat_percentile],
           ["TMB Harris-Benedict", withUnit(dexa.bmr_harris_benedict_kcal, "kcal")],
           ["TMB Mifflin-St Jeor", withUnit(dexa.bmr_mifflin_stjeor_kcal, "kcal")],
-          ["PDF no storage", dexa.scan_pdf_storage_path],
           ["Método de extração", dexa.extraction_method],
         ]}
       />
