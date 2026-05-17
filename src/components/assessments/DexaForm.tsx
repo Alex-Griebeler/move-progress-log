@@ -8,11 +8,15 @@
  *   4. (Opcional) preenche regional_distribution por região anatômica
  *   5. Submit → RPC `create_precision12_assessment` com kind="dexa"
  *
- * Extração via IA (OpenAI extrai raw_extracted_json do PDF + sugere
- * preenchimento) fica pra E5 — neste form, extraction_method = "manual".
+ * Extração automática via IA ainda não está implementada. Este form
+ * opera em modo manual: upload do PDF + preenchimento pelo coach com
+ * os dados da clínica parceira (`extraction_method = "manual"` no
+ * payload; `raw_extracted_json` permanece `null`). Quando a leitura
+ * automática chegar, este header passa a descrever o novo flag.
  *
  * Cores de visceral_fat_g (pra futuro): green <100g, amber 100-150g, red >150g.
- * Aqui só coleta valor; classificação fica em E5.
+ * Aqui só coleta valor; classificação visual será adicionada em etapa
+ * futura.
  */
 
 import { useState } from "react";
