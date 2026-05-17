@@ -23,7 +23,15 @@
  */
 
 import { readFileSync } from "node:fs";
-import { basename } from "node:path";
+
+/**
+ * Mensagem genérica fixa para o `main().catch`. Não inclui `e.message`
+ * porque a mensagem do erro pode revelar caminho do PDF local, hostname
+ * da OpenAI, token, querystring, stack trace ou qualquer pedaço de PII
+ * que vier do request/response.
+ */
+const SMOKE_GENERIC_FAILURE_MESSAGE =
+  "Smoke falhou. Verifique OPENAI_API_KEY, caminhos dos PDFs e conectividade.";
 
 const DEXA_NUMERIC_FIELDS = [
   "total_mass_kg",
@@ -246,10 +254,13 @@ async function extract(pdfPath, apiKey, model) {
   return { ok: true, elapsed, parsed };
 }
 
-function reportOne(label, file, result) {
-  console.log(`\n=== ${label} (${basename(file)}) ===`);
+function reportOne(label, _file, result) {
+  // Hardening: NÃO logamos basename(file) — mesmo o nome do arquivo
+  // local pode revelar nome do aluno (ex.: "DEXA Alex.pdf"). O label
+  // posicional ("PDF 1", "PDF 2") é suficiente pra correlacionar.
+  console.log(`\n=== ${label} ===`);
   if (!result.ok) {
-    console.log(`  ✗ FAIL: ${result.error} (status ${result.status}, ${result.elapsed}ms)`);
+    console.log(`  ✗ FAIL: status=${result.status} elapsed=${result.elapsed}ms`);
     return false;
   }
   const f = result.parsed.fields;
@@ -280,8 +291,17 @@ function reportOne(label, file, result) {
   console.log(
     `  core fields presentes: ${corePresent.length}/${CORE_FIELDS_REQUIRED.length} [${corePresent.join(", ")}]`,
   );
+  // Hardening: NÃO logamos o array `warnings` cru. Cada warning pode
+  // citar literalmente um trecho do laudo (ex.: nome do aluno, número
+  // específico, região anatômica). Mostramos só a contagem; o coach
+  // que precisar de detalhe inspeciona o JSON cru em outra ferramenta.
+  // `missing_fields` segue como contagem + nomes porque os nomes são
+  // chaves do schema (fixas, não-PII).
+  const warningsCount = Array.isArray(result.parsed.warnings)
+    ? result.parsed.warnings.length
+    : 0;
   console.log(`  missing_fields: [${(result.parsed.missing_fields ?? []).join(", ")}]`);
-  console.log(`  warnings: [${(result.parsed.warnings ?? []).join(" | ")}]`);
+  console.log(`  warnings_count: ${warningsCount}`);
   console.log(`  todos os campos (sem PII):`);
   console.table(summary);
   return coreOk;
@@ -316,7 +336,11 @@ async function main() {
   process.exit(allOk ? 0 : 1);
 }
 
-main().catch((e) => {
-  console.error("uncaught:", e.message ?? e);
+main().catch(() => {
+  // Hardening: NÃO bindamos `e` nem usamos `e.message`. A mensagem
+  // do Error pode incluir caminho do PDF local, hostname/path da
+  // OpenAI, querystring de token, stack ou response body. Mensagem
+  // fixa e genérica; diagnóstico fica nos logs da própria OpenAI.
+  console.error(SMOKE_GENERIC_FAILURE_MESSAGE);
   process.exit(2);
 });
