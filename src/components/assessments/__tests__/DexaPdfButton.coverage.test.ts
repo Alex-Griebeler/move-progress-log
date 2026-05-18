@@ -94,20 +94,50 @@ describe("DexaPdfButton — download explícito via <a download> (fix ERR_BLOCKE
     expect(code).toMatch(/document\.body\.removeChild\(\s*a\s*\)/);
   });
 
-  it("revoga o blob URL no finally (sucesso OU erro — não vaza memória)", () => {
+  it("revoga o blob URL no finally — atrasado se download disparou, imediato em erro", () => {
+    // Codex audit do PR #169: revogar IMEDIATAMENTE após `click()`
+    // (ou no `finally` síncrono logo depois) pode cancelar/
+    // instabilizar o download em alguns navegadores (Chromium-based
+    // com extensões de segurança). Pós-fix:
+    //   - sucesso (downloadTriggered === true) → revoga via
+    //     `setTimeout(() => URL.revokeObjectURL(urlToRevoke), DELAY)`
+    //   - erro antes do click (downloadTriggered === false) → revoga
+    //     imediatamente no finally
     expect(code).toMatch(/URL\.revokeObjectURL\(/);
-    // O revoke acontece dentro do `finally` bloco — garantia de
-    // execução em qualquer caminho.
+    // O finally contém AMBOS os caminhos (delayed + imediato).
     expect(code).toMatch(
-      /\}\s*finally\s*\{[\s\S]*?URL\.revokeObjectURL\(\s*blobUrl\s*\)/,
+      /\}\s*finally\s*\{[\s\S]*?downloadTriggered[\s\S]*?URL\.revokeObjectURL/,
     );
   });
 
-  it("setTimeout NÃO é usado pra revogar (não há aba consumindo — revoga já no finally)", () => {
-    // Diferente do PR #166 (que precisava de delay porque a aba
-    // estava renderizando o blob). Download dispara em instante, o
-    // browser segura o byte stream durante o save — revoga agora.
-    expect(code).not.toMatch(/setTimeout\([^)]*revokeObjectURL/);
+  it("usa setTimeout pra revogar APÓS download (não cancela o stream)", () => {
+    // Padrão obrigatório do fix: setTimeout(() => URL.revokeObjectURL(...),
+    // DEXA_PDF_BLOB_REVOKE_DELAY_MS). Regex tolerante a quebra de linha
+    // + trailing comma antes do `)` (estilo prettier).
+    expect(code).toMatch(
+      /setTimeout\(\s*\(\)\s*=>\s*URL\.revokeObjectURL\([^)]+\)\s*,\s*DEXA_PDF_BLOB_REVOKE_DELAY_MS\s*,?\s*\)/,
+    );
+    // E a constante de delay precisa existir (sanity).
+    expect(code).toMatch(/const\s+DEXA_PDF_BLOB_REVOKE_DELAY_MS\s*=/);
+  });
+
+  it("flag downloadTriggered distingue sucesso vs erro antes do click", () => {
+    // Sinal explícito no código: variável `downloadTriggered`, setada
+    // pra true logo após `a.click()`, consultada no finally.
+    expect(code).toMatch(/let\s+downloadTriggered\s*=\s*false/);
+    expect(code).toMatch(/downloadTriggered\s*=\s*true/);
+    // E o finally USA a flag pra decidir o branch de revoke.
+    expect(code).toMatch(
+      /\}\s*finally\s*\{[\s\S]*?if\s*\(\s*downloadTriggered\s*\)/,
+    );
+  });
+
+  it("se erro ocorrer ANTES do click, revoga IMEDIATAMENTE (zero memória vazada)", () => {
+    // O branch `else` do `if (downloadTriggered)` chama revoke
+    // direto, sem setTimeout.
+    expect(code).toMatch(
+      /if\s*\(\s*downloadTriggered\s*\)\s*\{[\s\S]*?setTimeout[\s\S]*?\}\s*else\s*\{[\s\S]*?URL\.revokeObjectURL\(\s*blobUrl\s*\)/,
+    );
   });
 
   it("se fetch/blob falhar, toast genérico (sem expor URL/path/token via err.message)", () => {
@@ -167,6 +197,13 @@ describe("DexaPdfButton — download explícito via <a download> (fix ERR_BLOCKE
   it("aria-label do botão reflete a ação real ('Baixar laudo DEXA')", () => {
     expect(code).toMatch(/aria-label="Baixar laudo DEXA"/);
     expect(code).not.toMatch(/aria-label="Abrir laudo DEXA[^"]*"/);
+  });
+
+  it("data-testid do botão é 'dexa-pdf-download' (renomeado do antigo 'dexa-pdf-open')", () => {
+    // Auditoria do PR #169 pediu rename do testid pra alinhar com a
+    // ação (download, não abrir).
+    expect(code).toMatch(/data-testid="dexa-pdf-download"/);
+    expect(code).not.toMatch(/data-testid="dexa-pdf-open"/);
   });
 
   it("storagePath vazio/null/undefined renderiza estado 'sem PDF' (zero botão exposto)", () => {
