@@ -104,3 +104,9 @@ verify_jwt = false
 # validate-student-invite / create-student-from-invite.
 [functions.extract-dexa-pdf]
 verify_jwt = false
+
+# Safe cleanup for unsaved DEXA PDF uploads. Gateway JWT verification is
+# disabled only to allow browser OPTIONS preflight; handler validates JWT,
+# ownership/admin role, path prefix, and refuses referenced PDFs.
+[functions.delete-dexa-temp-pdf]
+verify_jwt = false
