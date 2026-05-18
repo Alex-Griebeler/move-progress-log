@@ -141,17 +141,22 @@ const SCHEMA = {
               required: ["value", "confidence", "source_text", "page"],
               properties: {
                 value: {
+                  // Strict mode da OpenAI exige `required` cobrindo
+                  // TODAS as properties quando `additionalProperties:
+                  // false`. Espelha o fix da edge `extract-dexa-pdf`.
                   anyOf: [
                     { type: "null" },
                     {
                       type: "object",
                       additionalProperties: false,
+                      required: [...DEXA_REGION_KEYS],
                       properties: Object.fromEntries(
                         DEXA_REGION_KEYS.map((region) => [
                           region,
                           {
                             type: "object",
                             additionalProperties: false,
+                            required: ["fat_pct", "lean_mass_g", "fat_mass_g"],
                             properties: {
                               fat_pct: { type: ["number", "null"] },
                               lean_mass_g: { type: ["number", "null"] },
@@ -199,9 +204,13 @@ async function extract(pdfPath, apiKey, model) {
           {
             type: "input_file",
             filename: "dexa.pdf",
-            // OpenAI Responses API: `file_data` espera base64 PURO.
-            // Espelha o fix da edge `extract-dexa-pdf`.
-            file_data: base64,
+            // OpenAI Responses API: `file_data` espera DATA URL com
+            // o MIME prefix (`data:application/pdf;base64,...`).
+            // Espelha o fix da edge `extract-dexa-pdf`: o smoke real
+            // confirmou que base64 PURO é rejeitado com HTTP 400 /
+            // error.code="invalid_value", e que o formato data URL
+            // passa pela validação.
+            file_data: `data:application/pdf;base64,${base64}`,
           },
           {
             type: "input_text",
