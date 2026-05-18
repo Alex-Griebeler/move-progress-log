@@ -57,6 +57,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { notify } from "@/lib/notify";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,6 +85,12 @@ import {
 } from "@/utils/dexaPdfExtraction";
 
 // ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Sentinel pra mapear "vazio / não informado" no `Select` (radix exige
+ * value não-vazio em SelectItem). Convertemos pra `null` no onChange.
+ */
+const CLEAR_SELECT_VALUE = "__none";
 
 const formSchema = assessmentBaseSchema.extend({
   total_mass_kg: dexaSchema.shape.total_mass_kg,
@@ -453,7 +466,7 @@ export const DexaForm = ({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Base */}
-            <section className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-5">
               <FormField
                 control={form.control}
                 name="assessment_date"
@@ -470,6 +483,39 @@ export const DexaForm = ({
               {renderNumber("age_years", "Idade", { min: 0, max: 120, step: "1" })}
               {renderNumber("weight_kg", "Peso", { min: 0, max: 500, suffix: "kg" })}
               {renderNumber("height_cm", "Altura", { min: 0, max: 300, suffix: "cm" })}
+              <FormField
+                control={form.control}
+                name="sex"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sexo</FormLabel>
+                    <Select
+                      value={field.value ?? CLEAR_SELECT_VALUE}
+                      onValueChange={(v) =>
+                        field.onChange(
+                          v === CLEAR_SELECT_VALUE
+                            ? null
+                            : (v as "M" | "F"),
+                        )
+                      }
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="dexa-sex-trigger">
+                          <SelectValue placeholder="Não informado" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value={CLEAR_SELECT_VALUE}>
+                          Não informado
+                        </SelectItem>
+                        <SelectItem value="M">Masculino</SelectItem>
+                        <SelectItem value="F">Feminino</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </section>
 
             {/* Upload PDF */}
