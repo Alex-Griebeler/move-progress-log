@@ -162,10 +162,17 @@ interface OpenAiErrorDetails {
 interface ErrorMetadata {
   failure_code?: FailureCode;
   upstream_status?: number;
-  openai_code?: string | null;
-  openai_type?: string | null;
-  openai_param?: string | null;
-  openai_message?: string | null;
+  /**
+   * Campos sanitizados do erro upstream (OpenAI hoje, mas nome neutro
+   * pra ser consistente com `upstream_status`). Sempre strings curtas
+   * enumeradas (code/type/param) ou message truncada a
+   * OPENAI_ERROR_MESSAGE_MAX_CHARS — NUNCA body bruto, NUNCA payload
+   * de request, NUNCA prompt/base64/path/token.
+   */
+  upstream_code?: string | null;
+  upstream_type?: string | null;
+  upstream_param?: string | null;
+  upstream_message?: string | null;
 }
 
 function jsonResponse(payload: unknown, status = 200): Response {
@@ -182,22 +189,23 @@ function errorResponse(
   if (typeof metadata?.upstream_status === "number") {
     body.upstream_status = metadata.upstream_status;
   }
-  // Campos OpenAI sanitizados — incluídos APENAS quando presentes (não
-  // vazamos `openai_code: null` etc. no body se não houver dado real).
-  // Cada campo é uma string ENUMERÁVEL curta (code/type/param) ou uma
-  // mensagem TRUNCADA a OPENAI_ERROR_MESSAGE_MAX_CHARS. Nunca é o body
-  // bruto, nunca é o prompt, nunca é o conteúdo do PDF.
-  if (typeof metadata?.openai_code === "string" && metadata.openai_code) {
-    body.openai_code = metadata.openai_code;
+  // Campos sanitizados do erro upstream — incluídos APENAS quando
+  // presentes (não vazamos `upstream_code: null` etc. no body se não
+  // houver dado real). Cada campo é uma string ENUMERÁVEL curta
+  // (code/type/param) ou uma mensagem TRUNCADA a
+  // OPENAI_ERROR_MESSAGE_MAX_CHARS. Nunca é o body bruto, nunca é o
+  // prompt, nunca é o conteúdo do PDF.
+  if (typeof metadata?.upstream_code === "string" && metadata.upstream_code) {
+    body.upstream_code = metadata.upstream_code;
   }
-  if (typeof metadata?.openai_type === "string" && metadata.openai_type) {
-    body.openai_type = metadata.openai_type;
+  if (typeof metadata?.upstream_type === "string" && metadata.upstream_type) {
+    body.upstream_type = metadata.upstream_type;
   }
-  if (typeof metadata?.openai_param === "string" && metadata.openai_param) {
-    body.openai_param = metadata.openai_param;
+  if (typeof metadata?.upstream_param === "string" && metadata.upstream_param) {
+    body.upstream_param = metadata.upstream_param;
   }
-  if (typeof metadata?.openai_message === "string" && metadata.openai_message) {
-    body.openai_message = metadata.openai_message;
+  if (typeof metadata?.upstream_message === "string" && metadata.upstream_message) {
+    body.upstream_message = metadata.upstream_message;
   }
   return jsonResponse(body, status);
 }
@@ -457,14 +465,14 @@ async function callOpenAiExtraction(
           {
             type: "input_file",
             filename: "dexa.pdf",
-            // OpenAI Responses API: para `input_file` PDF, `file_data`
-            // espera DATA URL com o MIME prefix
-            // (`data:application/pdf;base64,...`). O smoke real pós PR
-            // #162 (com `failure_code` exposto) capturou
-            // `openai_http_error / upstream_status=400` com
-            // `error.code="invalid_value"` apontando justamente esse
-            // campo quando enviado como base64 puro. Voltamos ao formato
-            // data URL — que é o documentado oficialmente pra PDFs.
+            // Teste real da Responses API exigiu DATA URL com o MIME
+            // prefix (`data:application/pdf;base64,...`). Base64 puro
+            // foi rejeitado com `error.code="invalid_value"` em
+            // `input[0].content[0].file_data` — capturado via
+            // `failure_code` + `upstream_*` expostos no PR #162.
+            // Validado em produção com dois laudos reais (formato
+            // narrativo e formato visual/tabular), 11 e 14 campos
+            // extraídos respectivamente.
             file_data: `data:application/pdf;base64,${base64Pdf}`,
           },
           {
@@ -876,7 +884,7 @@ Deno.serve(async (req) => {
       // ao coach). `failure_code` + `upstream_status` no body são apenas
       // categorias enumeradas seguras pra triagem cega via Network tab —
       // sem prompt, sem base64, sem path, sem raw OpenAI response.
-      // Campos `openai_*` SÓ aparecem em `openai_http_error` quando o
+      // Campos `upstream_*` SÓ aparecem em `openai_http_error` quando o
       // body da OpenAI veio parseável — code/type/param enumerados curtos
       // + message truncada a OPENAI_ERROR_MESSAGE_MAX_CHARS chars.
       const openAiError =
@@ -884,10 +892,10 @@ Deno.serve(async (req) => {
       return errorResponse("Falha na extração automática", 502, {
         failure_code: aiResult.failure_code,
         upstream_status: aiResult.upstream_status,
-        openai_code: openAiError?.code ?? null,
-        openai_type: openAiError?.type ?? null,
-        openai_param: openAiError?.param ?? null,
-        openai_message: openAiError?.message ?? null,
+        upstream_code: openAiError?.code ?? null,
+        upstream_type: openAiError?.type ?? null,
+        upstream_param: openAiError?.param ?? null,
+        upstream_message: openAiError?.message ?? null,
       });
     }
 

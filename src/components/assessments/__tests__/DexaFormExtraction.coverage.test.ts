@@ -722,28 +722,41 @@ describe("extract-dexa-pdf edge — openai_error sanitizado (code/type/param/mes
     expect(openaiErrorLog).not.toMatch(/\bprompt\s*:/);
   });
 
-  it("errorResponse aceita openai_code/openai_type/openai_param/openai_message como metadata opcional", () => {
-    expect(code).toMatch(/openai_code\?:\s*string\s*\|\s*null/);
-    expect(code).toMatch(/openai_type\?:\s*string\s*\|\s*null/);
-    expect(code).toMatch(/openai_param\?:\s*string\s*\|\s*null/);
-    expect(code).toMatch(/openai_message\?:\s*string\s*\|\s*null/);
+  it("errorResponse aceita upstream_code/upstream_type/upstream_param/upstream_message como metadata opcional", () => {
+    // Naming `upstream_*` é consistente com `upstream_status` (PR #162)
+    // e provider-agnostic — facilita troca futura sem quebrar contrato.
+    expect(code).toMatch(/upstream_code\?:\s*string\s*\|\s*null/);
+    expect(code).toMatch(/upstream_type\?:\s*string\s*\|\s*null/);
+    expect(code).toMatch(/upstream_param\?:\s*string\s*\|\s*null/);
+    expect(code).toMatch(/upstream_message\?:\s*string\s*\|\s*null/);
   });
 
-  it("errorResponse SÓ inclui openai_* quando string não-vazia (guard contra null/undefined no body)", () => {
-    // Padrão: `if (typeof metadata?.openai_code === "string" && metadata.openai_code) ...`
+  it("errorResponse SÓ inclui upstream_* quando string não-vazia (guard contra null/undefined no body)", () => {
     expect(code).toMatch(
-      /if\s*\(\s*typeof\s+metadata\?\.openai_code\s*===\s*"string"\s+&&\s+metadata\.openai_code\s*\)/,
+      /if\s*\(\s*typeof\s+metadata\?\.upstream_code\s*===\s*"string"\s+&&\s+metadata\.upstream_code\s*\)/,
     );
     expect(code).toMatch(
-      /if\s*\(\s*typeof\s+metadata\?\.openai_message\s*===\s*"string"\s+&&\s+metadata\.openai_message\s*\)/,
+      /if\s*\(\s*typeof\s+metadata\?\.upstream_message\s*===\s*"string"\s+&&\s+metadata\.upstream_message\s*\)/,
     );
   });
 
-  it("handler propaga aiResult.openai_error.{code,type,param,message} pro errorResponse", () => {
-    expect(code).toMatch(/openai_code:\s*openAiError\?\.code\s*\?\?\s*null/);
-    expect(code).toMatch(/openai_type:\s*openAiError\?\.type\s*\?\?\s*null/);
-    expect(code).toMatch(/openai_param:\s*openAiError\?\.param\s*\?\?\s*null/);
-    expect(code).toMatch(/openai_message:\s*openAiError\?\.message\s*\?\?\s*null/);
+  it("handler propaga aiResult.openai_error.{code,type,param,message} pro errorResponse como upstream_*", () => {
+    expect(code).toMatch(/upstream_code:\s*openAiError\?\.code\s*\?\?\s*null/);
+    expect(code).toMatch(/upstream_type:\s*openAiError\?\.type\s*\?\?\s*null/);
+    expect(code).toMatch(/upstream_param:\s*openAiError\?\.param\s*\?\?\s*null/);
+    expect(code).toMatch(/upstream_message:\s*openAiError\?\.message\s*\?\?\s*null/);
+  });
+
+  it("upstream_message no body é TRUNCADA a 240 chars (OPENAI_ERROR_MESSAGE_MAX_CHARS)", () => {
+    // O truncamento real está em extractOpenAiErrorDetails. Garantimos
+    // que essa constante alimenta o caminho que vai pro upstream_message
+    // — ou seja, que o pipeline message→upstream_message não pula a
+    // truncagem.
+    expect(code).toMatch(/OPENAI_ERROR_MESSAGE_MAX_CHARS\s*=\s*240/);
+    const fnBlock = code.match(
+      /function extractOpenAiErrorDetails\([\s\S]*?\n\}/,
+    )?.[0] ?? "";
+    expect(fnBlock).toMatch(/(errFields|err)\.message[\s\S]*?OPENAI_ERROR_MESSAGE_MAX_CHARS/);
   });
 
   it("NUNCA retorna o body cru da OpenAI no response (zero echo de errBody/requestBody/data no errorResponse)", () => {
@@ -772,9 +785,9 @@ describe("extract-dexa-pdf edge — openai_error sanitizado (code/type/param/mes
   });
 });
 
-// ── DexaForm — toast permanece genérico (sem failure_code/openai_* visível) ─
+// ── DexaForm — toast permanece genérico (sem failure_code/upstream_* visível) ─
 
-describe("DexaForm — toast permanece genérico após introdução de failure_code/openai_*", () => {
+describe("DexaForm — toast permanece genérico após introdução de failure_code/upstream_*", () => {
   const code = stripComments(dexaFormSource);
 
   it("DexaForm NÃO lê failure_code/upstream_status do response da edge (toast não muda)", () => {
@@ -784,7 +797,14 @@ describe("DexaForm — toast permanece genérico após introdução de failure_c
     expect(code).not.toMatch(/\bupstream_status\b/);
   });
 
-  it("DexaForm NÃO lê openai_code/openai_type/openai_param/openai_message (zero exposição pro coach)", () => {
+  it("DexaForm NÃO lê upstream_code/upstream_type/upstream_param/upstream_message (zero exposição pro coach)", () => {
+    expect(code).not.toMatch(/\bupstream_code\b/);
+    expect(code).not.toMatch(/\bupstream_type\b/);
+    expect(code).not.toMatch(/\bupstream_param\b/);
+    expect(code).not.toMatch(/\bupstream_message\b/);
+  });
+
+  it("DexaForm tampouco lê os nomes antigos openai_* (guard regressão pré-rename)", () => {
     expect(code).not.toMatch(/\bopenai_code\b/);
     expect(code).not.toMatch(/\bopenai_type\b/);
     expect(code).not.toMatch(/\bopenai_param\b/);
