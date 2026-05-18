@@ -403,13 +403,29 @@ async function callOpenAiExtraction(
   }
 
   if (!response.ok) {
-    // NUNCA logar o body — pode incluir prompt ou path interno. Só status.
-    logSafe("openai_error", { status: response.status });
+    // Diagnóstico seguro: extraímos só os campos estruturados do erro
+    // OpenAI (code/type/param + mensagem truncada). NUNCA logamos prompt,
+    // file_data, base64 ou path. Mensagem é truncada a 240 chars.
+    let diag: { code?: string; type?: string; param?: string; message?: string } = {};
+    try {
+      const errBody = (await response.json()) as { error?: Record<string, unknown> };
+      const e = errBody?.error ?? {};
+      diag = {
+        code: typeof e.code === "string" ? e.code : undefined,
+        type: typeof e.type === "string" ? e.type : undefined,
+        param: typeof e.param === "string" ? e.param : undefined,
+        message: typeof e.message === "string" ? e.message.slice(0, 240) : undefined,
+      };
+    } catch {
+      // ignore — sem body parseável
+    }
+    logSafe("openai_error", { status: response.status, ...diag });
     return {
       ok: false,
       failure_code: "openai_http_error",
       upstream_status: response.status,
-    };
+      openai_error: diag,
+    } as CallOpenAiResult & { openai_error: typeof diag };
   }
 
   // Wrap response.json() — body corrompido/truncado vira
