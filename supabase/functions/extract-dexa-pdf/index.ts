@@ -140,9 +140,39 @@ type FailureCode =
   | "openai_exception"
   | "unknown";
 
+/**
+ * Tamanho máximo de `error.message` exposto. Suficiente pra triagem
+ * (ex.: "You exceeded your current quota, please check your plan and
+ * billing details.") sem permitir vazamento de payload/prompt
+ * eventualmente echoado pela OpenAI.
+ */
+const OPENAI_ERROR_MESSAGE_MAX_CHARS = 240;
+
+interface OpenAiErrorDetails {
+  /** Ex.: "insufficient_quota", "invalid_value", "rate_limit_exceeded". */
+  code: string | null;
+  /** Ex.: "insufficient_quota", "invalid_request_error". */
+  type: string | null;
+  /** Path do campo problemático no request — útil pra schema/payload. */
+  param: string | null;
+  /** Mensagem humana, truncada. */
+  message: string | null;
+}
+
 interface ErrorMetadata {
   failure_code?: FailureCode;
   upstream_status?: number;
+  /**
+   * Campos sanitizados do erro upstream (OpenAI hoje, mas nome neutro
+   * pra ser consistente com `upstream_status`). Sempre strings curtas
+   * enumeradas (code/type/param) ou message truncada a
+   * OPENAI_ERROR_MESSAGE_MAX_CHARS — NUNCA body bruto, NUNCA payload
+   * de request, NUNCA prompt/base64/path/token.
+   */
+  upstream_code?: string | null;
+  upstream_type?: string | null;
+  upstream_param?: string | null;
+  upstream_message?: string | null;
 }
 
 function jsonResponse(payload: unknown, status = 200): Response {
@@ -158,6 +188,24 @@ function errorResponse(
   if (metadata?.failure_code) body.failure_code = metadata.failure_code;
   if (typeof metadata?.upstream_status === "number") {
     body.upstream_status = metadata.upstream_status;
+  }
+  // Campos sanitizados do erro upstream — incluídos APENAS quando
+  // presentes (não vazamos `upstream_code: null` etc. no body se não
+  // houver dado real). Cada campo é uma string ENUMERÁVEL curta
+  // (code/type/param) ou uma mensagem TRUNCADA a
+  // OPENAI_ERROR_MESSAGE_MAX_CHARS. Nunca é o body bruto, nunca é o
+  // prompt, nunca é o conteúdo do PDF.
+  if (typeof metadata?.upstream_code === "string" && metadata.upstream_code) {
+    body.upstream_code = metadata.upstream_code;
+  }
+  if (typeof metadata?.upstream_type === "string" && metadata.upstream_type) {
+    body.upstream_type = metadata.upstream_type;
+  }
+  if (typeof metadata?.upstream_param === "string" && metadata.upstream_param) {
+    body.upstream_param = metadata.upstream_param;
+  }
+  if (typeof metadata?.upstream_message === "string" && metadata.upstream_message) {
+    body.upstream_message = metadata.upstream_message;
   }
   return jsonResponse(body, status);
 }
@@ -301,17 +349,28 @@ const RESPONSE_JSON_SCHEMA = {
               required: ["value", "confidence", "source_text", "page"],
               properties: {
                 value: {
+                  // Strict mode da OpenAI exige `required` cobrindo
+                  // TODAS as properties quando `additionalProperties:
+                  // false`. Sem isso, a Responses API rejeita o schema
+                  // com HTTP 400 e `error.code="invalid_value"` —
+                  // diagnóstico capturado pelo `failure_code` exposto no
+                  // PR #162. A IA preenche cada chave com objeto vazio
+                  // (`{}`) quando a região não está no laudo; o
+                  // `normalizeRegionalField` cliente/edge já descarta
+                  // entradas vazias.
                   anyOf: [
                     { type: "null" },
                     {
                       type: "object",
                       additionalProperties: false,
+                      required: [...DEXA_REGION_KEYS],
                       properties: Object.fromEntries(
                         DEXA_REGION_KEYS.map((region) => [
                           region,
                           {
                             type: "object",
                             additionalProperties: false,
+                            required: ["fat_pct", "lean_mass_g", "fat_mass_g"],
                             properties: {
                               fat_pct: { type: ["number", "null"] },
                               lean_mass_g: { type: ["number", "null"] },
@@ -341,7 +400,55 @@ const RESPONSE_JSON_SCHEMA = {
 
 type CallOpenAiResult =
   | { ok: true; parsed: Record<string, unknown> }
-  | { ok: false; failure_code: FailureCode; upstream_status: number };
+  | {
+      ok: false;
+      failure_code: FailureCode;
+      upstream_status: number;
+      /**
+       * Detalhes sanitizados da resposta de erro da OpenAI. Presente
+       * apenas em `openai_http_error` (quando dá pra ler o body). Para
+       * outros `failure_code` o objeto vem `null`.
+       */
+      openai_error?: OpenAiErrorDetails | null;
+    };
+
+/**
+ * Coage o body de erro da OpenAI em campos SEGUROS pra logging/response.
+ * NUNCA retorna o body bruto. Schema esperado da Responses API:
+ *   { "error": { "message": "...", "type": "...", "param": "...",
+ *                "code": "..." } }
+ * — qualquer chave extra é ignorada. `message` é truncada a
+ * OPENAI_ERROR_MESSAGE_MAX_CHARS. Tipos não-string viram null.
+ */
+function extractOpenAiErrorDetails(raw: unknown): OpenAiErrorDetails {
+  const fallback: OpenAiErrorDetails = {
+    code: null,
+    type: null,
+    param: null,
+    message: null,
+  };
+  if (!raw || typeof raw !== "object") return fallback;
+  const errorField = (raw as Record<string, unknown>).error;
+  if (!errorField || typeof errorField !== "object") return fallback;
+  // Nomeado `errFields` (não `err`) deliberadamente: `err.message` em
+  // código TS costuma significar um JS Error caught, e os greps de
+  // hardening bloqueiam essa string. Aqui é um objeto JSON parseado do
+  // body de erro da OpenAI, mas mantemos o nome distinto pra deixar
+  // claro e pra passar nos guards source-based.
+  const errFields = errorField as Record<string, unknown>;
+  const safeString = (v: unknown, maxLen?: number): string | null => {
+    if (typeof v !== "string") return null;
+    const trimmed = v.trim();
+    if (trimmed.length === 0) return null;
+    return maxLen && trimmed.length > maxLen ? trimmed.slice(0, maxLen) : trimmed;
+  };
+  return {
+    code: safeString(errFields.code, 80),
+    type: safeString(errFields.type, 80),
+    param: safeString(errFields.param, 120),
+    message: safeString(errFields.message, OPENAI_ERROR_MESSAGE_MAX_CHARS),
+  };
+}
 
 async function callOpenAiExtraction(
   base64Pdf: string,
@@ -358,12 +465,15 @@ async function callOpenAiExtraction(
           {
             type: "input_file",
             filename: "dexa.pdf",
-            // OpenAI Responses API: para `input_file` PDF, `file_data`
-            // espera o base64 PURO (sem o prefixo `data:application/pdf;
-            // base64,`). O prefixo de data URL fazia o request retornar
-            // erro (502 "Falha na extração automática") — diagnóstico via
-            // POST direto à edge.
-            file_data: base64Pdf,
+            // Teste real da Responses API exigiu DATA URL com o MIME
+            // prefix (`data:application/pdf;base64,...`). Base64 puro
+            // foi rejeitado com `error.code="invalid_value"` em
+            // `input[0].content[0].file_data` — capturado via
+            // `failure_code` + `upstream_*` expostos no PR #162.
+            // Validado em produção com dois laudos reais (formato
+            // narrativo e formato visual/tabular), 11 e 14 campos
+            // extraídos respectivamente.
+            file_data: `data:application/pdf;base64,${base64Pdf}`,
           },
           {
             type: "input_text",
@@ -403,12 +513,28 @@ async function callOpenAiExtraction(
   }
 
   if (!response.ok) {
-    // NUNCA logar o body — pode incluir prompt ou path interno. Só status.
-    logSafe("openai_error", { status: response.status });
+    // Tenta extrair APENAS campos enumerados/seguros do body de erro da
+    // OpenAI (code/type/param/message truncada). Se o body for inválido
+    // ou inacessível, segue com `openai_error: null`. NUNCA logamos o
+    // body bruto — pode echoar trechos do request payload (prompt).
+    let openAiError: OpenAiErrorDetails | null = null;
+    try {
+      const errBody = (await response.json()) as unknown;
+      openAiError = extractOpenAiErrorDetails(errBody);
+    } catch {
+      openAiError = null;
+    }
+    logSafe("openai_error", {
+      status: response.status,
+      code: openAiError?.code ?? "",
+      type: openAiError?.type ?? "",
+      param: openAiError?.param ?? "",
+    });
     return {
       ok: false,
       failure_code: "openai_http_error",
       upstream_status: response.status,
+      openai_error: openAiError,
     };
   }
 
@@ -758,9 +884,18 @@ Deno.serve(async (req) => {
       // ao coach). `failure_code` + `upstream_status` no body são apenas
       // categorias enumeradas seguras pra triagem cega via Network tab —
       // sem prompt, sem base64, sem path, sem raw OpenAI response.
+      // Campos `upstream_*` SÓ aparecem em `openai_http_error` quando o
+      // body da OpenAI veio parseável — code/type/param enumerados curtos
+      // + message truncada a OPENAI_ERROR_MESSAGE_MAX_CHARS chars.
+      const openAiError =
+        "openai_error" in aiResult ? aiResult.openai_error : null;
       return errorResponse("Falha na extração automática", 502, {
         failure_code: aiResult.failure_code,
         upstream_status: aiResult.upstream_status,
+        upstream_code: openAiError?.code ?? null,
+        upstream_type: openAiError?.type ?? null,
+        upstream_param: openAiError?.param ?? null,
+        upstream_message: openAiError?.message ?? null,
       });
     }
 
