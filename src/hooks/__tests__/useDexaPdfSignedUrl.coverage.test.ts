@@ -180,9 +180,17 @@ describe("DexaPdfButton — UX/segurança", () => {
     expect(buttonSource).toContain('data-testid="dexa-pdf-empty"');
   });
 
-  it("abre o PDF em nova aba com noopener,noreferrer (proteção tab-nabbing)", () => {
+  it("abre o PDF em nova aba via Blob URL local (não navega direto pro signedUrl)", () => {
+    // Bugfix 2026-05-18: extensões de privacy/adblock disparam
+    // ERR_BLOCKED_BY_CLIENT ao navegar pra `*.supabase.co`. Hoje o
+    // botão baixa via fetch → Blob → URL.createObjectURL e abre o
+    // BLOB URL (mesma origem), com noopener,noreferrer.
     expect(buttonSource).toMatch(
-      /window\.open\(\s*url\s*,\s*"_blank"\s*,\s*"noopener,noreferrer"\s*\)/,
+      /window\.open\(\s*blobUrl\s*,\s*["']_blank["']\s*,\s*["']noopener,noreferrer["']\s*\)/,
+    );
+    // Guard explícito: nunca abrir o signedUrl direto.
+    expect(buttonSource).not.toMatch(
+      /window\.open\(\s*signedUrl\s*,/,
     );
   });
 

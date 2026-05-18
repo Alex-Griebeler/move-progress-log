@@ -761,6 +761,49 @@ describe("extract-dexa-pdf edge — upstream_* sanitizado (code/type/param/messa
   });
 });
 
+// ── DexaForm — campo Sexo no bloco base (fix Sexo "—" no detail sheet) ───
+
+describe("DexaForm — campo Sexo renderizado e enviado no submit", () => {
+  it("renderiza o campo 'Sexo' no bloco inicial (junto de Data/Idade/Peso/Altura)", () => {
+    // O bloco base é o `<section>` com `grid sm:grid-cols-5` (4 antes
+    // do fix → 5 agora pra acomodar o Sexo).
+    expect(dexaFormSource).toMatch(/<FormLabel>Sexo<\/FormLabel>/);
+    expect(dexaFormSource).toMatch(/name="sex"/);
+    expect(dexaFormSource).toMatch(/data-testid="dexa-sex-trigger"/);
+  });
+
+  it("usa Select shadcn com placeholder 'Não informado' + opções M/F", () => {
+    expect(dexaFormSource).toMatch(/SelectValue\s+placeholder="Não informado"/);
+    expect(dexaFormSource).toMatch(/<SelectItem value="M">Masculino<\/SelectItem>/);
+    expect(dexaFormSource).toMatch(/<SelectItem value="F">Feminino<\/SelectItem>/);
+  });
+
+  it("mapeia 'Não informado' (CLEAR_SELECT_VALUE) ↔ null no field state", () => {
+    // Sentinel string pra Radix Select (que não aceita value === "").
+    expect(dexaFormSource).toMatch(
+      /const CLEAR_SELECT_VALUE\s*=\s*"__none"/,
+    );
+    // onChange null quando o usuário escolhe "Não informado":
+    expect(dexaFormSource).toMatch(
+      /v\s*===\s*CLEAR_SELECT_VALUE\s*\?\s*null\s*:\s*\(v\s+as\s+"M"\s*\|\s*"F"\)/,
+    );
+  });
+
+  it("preserva defaults?.sex no initial state do form (não sobrescreve sex de avaliação anterior)", () => {
+    expect(dexaFormSource).toMatch(/sex:\s*defaults\?\.sex\s*\?\?\s*null/);
+  });
+
+  it("submit envia sex: data.sex ?? null (compatível com schema base)", () => {
+    expect(dexaFormSource).toMatch(/sex:\s*data\.sex\s*\?\?\s*null/);
+  });
+
+  it("grid do bloco base é sm:grid-cols-5 (4 campos antigos + Sexo)", () => {
+    // Antes do fix: `sm:grid-cols-4` (Data/Idade/Peso/Altura).
+    // Pós-fix: `sm:grid-cols-5` (acomoda o Sexo).
+    expect(dexaFormSource).toMatch(/sm:grid-cols-5/);
+  });
+});
+
 // ── DexaForm — regional_distribution é OPCIONAL (não bloqueia submit) ─────
 
 describe("DexaForm — regional_distribution opcional / não-bloqueante", () => {
