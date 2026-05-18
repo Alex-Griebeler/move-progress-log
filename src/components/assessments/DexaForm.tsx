@@ -20,7 +20,7 @@
  * futura.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -144,6 +144,16 @@ const parseNumber = (value: string): number | undefined =>
 const DEXA_UPLOAD_GENERIC_ERROR_DESCRIPTION =
   "Tente novamente. Se o problema persistir, verifique o PDF ou refaça o upload.";
 
+/**
+ * Cleanup de PDF temporário (upload usado para leitura automática, mas ainda
+ * não salvo como `dexa_results.scan_pdf_storage_path`). Genérico por design:
+ * nunca expõe path/token/detalhe de Storage no toast.
+ */
+const DEXA_TEMP_PDF_CLEANUP_ERROR_TITLE =
+  "Não foi possível remover o PDF temporário";
+const DEXA_TEMP_PDF_CLEANUP_ERROR_DESCRIPTION =
+  "O arquivo pode ser limpo depois pela rotina de PDFs órfãos.";
+
 const REGIONS = [
   { key: "trunk", label: "Tronco" },
   { key: "arms_right", label: "Braço direito" },
@@ -190,6 +200,11 @@ export const DexaForm = ({
    * dois uploads + duas chamadas à edge.
    */
   const extractionInFlight = useRef(false);
+  /**
+   * Defesa contra cleanup indevido após submit bem-sucedido: se a avaliação
+   * foi persistida, o PDF deixa de ser temporário imediatamente.
+   */
+  const skipTemporaryPdfCleanupRef = useRef(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -228,6 +243,61 @@ export const DexaForm = ({
     },
   });
 
+  useEffect(() => {
+    if (open) {
+      skipTemporaryPdfCleanupRef.current = false;
+    }
+  }, [open]);
+
+  /**
+   * Remove do Storage APENAS o upload temporário que ainda não virou linha em
+   * `dexa_results`. A edge usa service role, mas só depois de validar JWT,
+   * ownership/admin e confirmar que o path NÃO está referenciado no banco.
+   */
+  const deleteTemporaryUploadedPdf = useCallback(
+    async (
+      storagePath: string | null | undefined,
+      opts?: { notifyOnFailure?: boolean },
+    ): Promise<boolean> => {
+      const path = storagePath?.trim();
+      if (!path) return true;
+
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "delete-dexa-temp-pdf",
+          {
+            body: { student_id: studentId, storage_path: path },
+          },
+        );
+        const ok =
+          !error &&
+          data != null &&
+          typeof data === "object" &&
+          (data as { ok?: unknown }).ok === true;
+        if (!ok && opts?.notifyOnFailure) {
+          notify.error(DEXA_TEMP_PDF_CLEANUP_ERROR_TITLE, {
+            description: DEXA_TEMP_PDF_CLEANUP_ERROR_DESCRIPTION,
+          });
+        }
+        return ok;
+      } catch {
+        if (opts?.notifyOnFailure) {
+          notify.error(DEXA_TEMP_PDF_CLEANUP_ERROR_TITLE, {
+            description: DEXA_TEMP_PDF_CLEANUP_ERROR_DESCRIPTION,
+          });
+        }
+        return false;
+      }
+    },
+    [studentId],
+  );
+
+  const clearPdfDraftState = useCallback(() => {
+    setPdfFile(null);
+    setUploadedPdfPath(null);
+    setExtractionState(null);
+  }, []);
+
   const handlePdfChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -240,23 +310,65 @@ export const DexaForm = ({
       return;
     }
 
-    // Trocou o arquivo → invalida path/extração anteriores. NÃO
-    // remove o objeto antigo do bucket (cleanup destrutivo fica como
-    // follow-up; risco de arquivo órfão se o coach abandonar a tela
-    // depois de extrair).
+    // Trocou o arquivo → invalida path/extração anteriores e tenta remover
+    // o upload temporário anterior (se já havia sido enviado para leitura).
+    const previousUploadedPath = uploadedPdfPath;
     setPdfFile(file);
     setUploadedPdfPath(null);
     setExtractionState(null);
+    if (previousUploadedPath) {
+      void deleteTemporaryUploadedPdf(previousUploadedPath, {
+        notifyOnFailure: true,
+      });
+    }
   };
 
   const removePdf = () => {
-    setPdfFile(null);
     // Preserva os campos preenchidos (manual ou extraídos): a regra de
     // produto é não destruir trabalho do coach sem confirmação. Só
-    // limpa metadata da extração.
-    setUploadedPdfPath(null);
-    setExtractionState(null);
+    // limpa PDF/metadata da extração e remove o upload temporário, se existir.
+    const pathToDelete = uploadedPdfPath;
+    clearPdfDraftState();
+    if (pathToDelete) {
+      void deleteTemporaryUploadedPdf(pathToDelete, {
+        notifyOnFailure: true,
+      });
+    }
   };
+
+  const discardDraftAndClose = useCallback(() => {
+    if (skipTemporaryPdfCleanupRef.current) {
+      skipTemporaryPdfCleanupRef.current = false;
+      onOpenChange(false);
+      return;
+    }
+
+    const pathToDelete = uploadedPdfPath;
+    clearPdfDraftState();
+    if (pathToDelete) {
+      void deleteTemporaryUploadedPdf(pathToDelete, {
+        notifyOnFailure: false,
+      });
+    }
+    onOpenChange(false);
+  }, [
+    clearPdfDraftState,
+    deleteTemporaryUploadedPdf,
+    onOpenChange,
+    uploadedPdfPath,
+  ]);
+
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (!nextOpen) {
+        discardDraftAndClose();
+        return;
+      }
+      skipTemporaryPdfCleanupRef.current = false;
+      onOpenChange(true);
+    },
+    [discardDraftAndClose, onOpenChange],
+  );
 
   /**
    * Faz upload do PDF se ainda não foi feito. Retorna o storage path.
@@ -420,6 +532,7 @@ export const DexaForm = ({
       setPdfFile(null);
       setUploadedPdfPath(null);
       setExtractionState(null);
+      skipTemporaryPdfCleanupRef.current = true;
       onOpenChange(false);
       onCreated?.(result.id);
     } catch {
@@ -475,7 +588,7 @@ export const DexaForm = ({
   );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>DEXA — composição corporal</DialogTitle>
@@ -840,7 +953,7 @@ export const DexaForm = ({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={discardDraftAndClose}
                 disabled={isSaving || isUploading}
               >
                 Cancelar
