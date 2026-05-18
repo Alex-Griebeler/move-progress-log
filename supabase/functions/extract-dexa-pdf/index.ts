@@ -306,12 +306,14 @@ const RESPONSE_JSON_SCHEMA = {
                     {
                       type: "object",
                       additionalProperties: false,
+                      required: [...DEXA_REGION_KEYS],
                       properties: Object.fromEntries(
                         DEXA_REGION_KEYS.map((region) => [
                           region,
                           {
                             type: "object",
                             additionalProperties: false,
+                            required: ["fat_pct", "lean_mass_g", "fat_mass_g"],
                             properties: {
                               fat_pct: { type: ["number", "null"] },
                               lean_mass_g: { type: ["number", "null"] },
@@ -358,12 +360,11 @@ async function callOpenAiExtraction(
           {
             type: "input_file",
             filename: "dexa.pdf",
-            // OpenAI Responses API: para `input_file` PDF, `file_data`
-            // espera o base64 PURO (sem o prefixo `data:application/pdf;
-            // base64,`). O prefixo de data URL fazia o request retornar
-            // erro (502 "Falha na extração automática") — diagnóstico via
-            // POST direto à edge.
-            file_data: base64Pdf,
+            // OpenAI Responses API: `file_data` exige data URL
+            // (`data:application/pdf;base64,...`). Diagnóstico real
+            // (smoke 2026-05-18) mostrou que base64 puro retorna
+            // 400 invalid_value em `input[0].content[0].file_data`.
+            file_data: `data:application/pdf;base64,${base64Pdf}`,
           },
           {
             type: "input_text",
@@ -403,8 +404,23 @@ async function callOpenAiExtraction(
   }
 
   if (!response.ok) {
-    // NUNCA logar o body — pode incluir prompt ou path interno. Só status.
-    logSafe("openai_error", { status: response.status });
+    // Diagnóstico seguro: extraímos só os campos estruturados do erro
+    // OpenAI (code/type/param + mensagem truncada). NUNCA logamos prompt,
+    // file_data, base64 ou path. Mensagem é truncada a 240 chars.
+    let diag: { code?: string; type?: string; param?: string; message?: string } = {};
+    try {
+      const errBody = (await response.json()) as { error?: Record<string, unknown> };
+      const e = errBody?.error ?? {};
+      diag = {
+        code: typeof e.code === "string" ? e.code : undefined,
+        type: typeof e.type === "string" ? e.type : undefined,
+        param: typeof e.param === "string" ? e.param : undefined,
+        message: typeof e.message === "string" ? e.message.slice(0, 240) : undefined,
+      };
+    } catch {
+      // ignore — sem body parseável
+    }
+    logSafe("openai_error", { status: response.status, ...diag });
     return {
       ok: false,
       failure_code: "openai_http_error",
