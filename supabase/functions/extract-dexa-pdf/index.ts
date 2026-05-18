@@ -358,12 +358,11 @@ async function callOpenAiExtraction(
           {
             type: "input_file",
             filename: "dexa.pdf",
-            // OpenAI Responses API: para `input_file` PDF, `file_data`
-            // espera o base64 PURO (sem o prefixo `data:application/pdf;
-            // base64,`). O prefixo de data URL fazia o request retornar
-            // erro (502 "Falha na extração automática") — diagnóstico via
-            // POST direto à edge.
-            file_data: base64Pdf,
+            // OpenAI Responses API: `file_data` exige data URL
+            // (`data:application/pdf;base64,...`). Diagnóstico real
+            // (smoke 2026-05-18) mostrou que base64 puro retorna
+            // 400 invalid_value em `input[0].content[0].file_data`.
+            file_data: `data:application/pdf;base64,${base64Pdf}`,
           },
           {
             type: "input_text",
@@ -424,8 +423,7 @@ async function callOpenAiExtraction(
       ok: false,
       failure_code: "openai_http_error",
       upstream_status: response.status,
-      openai_error: diag,
-    } as CallOpenAiResult & { openai_error: typeof diag };
+    };
   }
 
   // Wrap response.json() — body corrompido/truncado vira
