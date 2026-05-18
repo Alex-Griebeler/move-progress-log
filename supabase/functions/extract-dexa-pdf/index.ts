@@ -306,12 +306,14 @@ const RESPONSE_JSON_SCHEMA = {
                     {
                       type: "object",
                       additionalProperties: false,
+                      required: [...DEXA_REGION_KEYS],
                       properties: Object.fromEntries(
                         DEXA_REGION_KEYS.map((region) => [
                           region,
                           {
                             type: "object",
                             additionalProperties: false,
+                            required: ["fat_pct", "lean_mass_g", "fat_mass_g"],
                             properties: {
                               fat_pct: { type: ["number", "null"] },
                               lean_mass_g: { type: ["number", "null"] },
