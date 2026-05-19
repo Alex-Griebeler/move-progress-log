@@ -185,14 +185,18 @@ export function ManualSessionEntry({
     });
   };
 
-  // Handler centralizado: expande shorthand + calcula load_kg numa única atualização
+  // Handler centralizado: expande shorthand + calcula load_kg numa única atualização.
+  // Passa exercise_name como contexto pro calculator — ativa landmine/barra bilateral
+  // (ver `src/utils/loadCalculation.ts`).
   const handleLoadBlur = (studentId: string, exerciseIndex: number) => {
     const exercise = studentExercises[studentId]?.[exerciseIndex];
     if (!exercise?.load_breakdown) return;
 
     const expanded = expandLoadShorthand(exercise.load_breakdown);
     const student = selectedStudents.find(s => s.id === studentId);
-    const calculatedLoad = calculateLoadFromBreakdown(expanded, student?.weight_kg);
+    const calculatedLoad = calculateLoadFromBreakdown(expanded, student?.weight_kg, {
+      exerciseName: exercise.exercise_name ?? null,
+    });
 
     setStudentExercises(prev => {
       const updated = { ...prev };

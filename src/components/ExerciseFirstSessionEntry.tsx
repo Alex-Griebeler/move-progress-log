@@ -199,7 +199,11 @@ export function ExerciseFirstSessionEntry({
 
       const expanded = expandLoadShorthand(entry.load_breakdown);
       const student = selectedStudents.find((s) => s.id === studentId);
-      const loadKg = calculateLoadFromBreakdown(expanded, student?.weight_kg);
+      // Passa exercise_name como contexto — ativa heurísticas de landmine /
+      // barra bilateral no calculator. Ver `src/utils/loadCalculation.ts`.
+      const loadKg = calculateLoadFromBreakdown(expanded, student?.weight_kg, {
+        exerciseName: entry.exercise_name ?? null,
+      });
 
       setData((prev) => ({
         ...prev,

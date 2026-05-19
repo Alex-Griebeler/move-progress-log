@@ -20,7 +20,12 @@ describe('ExerciseFirstSessionEntry — cockpit de carga por exercício', () => 
   it('mantém Carga parcial como origem do cálculo automático no blur', () => {
     expect(code).toContain('const handleLoadBlur = useCallback');
     expect(code).toContain('const expanded = expandLoadShorthand(entry.load_breakdown);');
-    expect(code).toContain('const loadKg = calculateLoadFromBreakdown(expanded, student?.weight_kg);');
+    // Calculator agora recebe `exerciseName` como contexto pra ativar
+    // heurísticas de landmine / barra bilateral. A chamada quebra em
+    // múltiplas linhas; checamos os 3 argumentos.
+    expect(code).toMatch(
+      /const loadKg = calculateLoadFromBreakdown\(\s*expanded,\s*student\?\.weight_kg,\s*\{\s*\n?\s*exerciseName:\s*entry\.exercise_name\s*\?\?\s*null,?\s*\n?\s*\}\s*\);/,
+    );
     expect(code).toMatch(/load_breakdown:\s*expanded,[\s\S]*load_kg:\s*loadKg,[\s\S]*load_kg_manual_override:\s*false/);
   });
 

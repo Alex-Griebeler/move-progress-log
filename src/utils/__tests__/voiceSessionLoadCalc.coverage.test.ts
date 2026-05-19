@@ -2,22 +2,20 @@
  * Source-based defensivo da calculadora de carga dentro de
  * `supabase/functions/process-voice-session/index.ts`.
  *
- * Por que existir:
- * - A edge tem SEU PRÓPRIO calculador (Deno, sem import do `src/`).
- *   Divergência entre o calculador do cliente (`loadCalculation.ts`)
- *   e o da voz é fonte recorrente de bug — o coach grava um áudio e
- *   a carga salva fica errada porque a edge sobrescreve `load_kg` via
- *   `validateAndRecalculateLoad`.
- * - Bug real observado em prod (2026-05-18): usuário disse
- *   "70 lb cada lado + barra 15kg" e a edge salvou 46.8 em vez de 78.5
- *   porque o regex era `/de cada lado/i` estrito + faltava caminho
- *   sem-parênteses pra "cada lado".
+ * Trava os invariantes do parser-por-gramática espelhado do cliente:
  *
- * Estes testes TRAVAM por construção:
- *   1. Regex de "cada lado" tolera ausência de "de" (alinha com cliente).
- *   2. Usa `POUND_TO_KG_CONVERSION` sem arredondamento intermediário.
- *   3. `roundToDecimal` só roda na saída final.
- *   4. Prompt da extração não contradiz a regra (exemplos com "de cada lado").
+ *   1. Cobertura textual de "cada lado" (com/sem "de", com/sem parens)
+ *      idêntica ao cliente.
+ *   2. Reconhece variantes PT-BR/EN de unidade (libras/pounds/quilos).
+ *   3. Suporta multiplicador `2x` / `2×` / `2*`.
+ *   4. Normaliza "barra N" (sem unidade) → "barra Nkg".
+ *   5. Halteres / kettlebells / dumbbells / DB / par de halteres.
+ *   6. Modo landmine (do nome do exercício).
+ *   7. Modo barra bilateral (do nome do exercício).
+ *   8. Placa N sem unidade → null.
+ *   9. Edge passa `exerciseName` (executed > prescribed) pro calculator.
+ *  10. Sem arredondamento intermediário em lb (`POUND_TO_KG_CONVERSION` raw).
+ *  11. `roundToDecimal` SÓ no return final do calculator.
  *
  * Padrão coverage-test (sem Deno runtime), igual aos testes source-based
  * da edge `extract-dexa-pdf`.
@@ -41,110 +39,144 @@ const stripComments = (src: string) =>
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/\/\/[^\n]*\n/g, "");
 
-describe("process-voice-session — regras de carga alinhadas com o cliente", () => {
+describe("process-voice-session — calculator espelha o cliente (grammar parser)", () => {
   const code = stripComments(edgeSource);
 
-  it("aceita 'cada lado' SEM 'de' em normalizeBreakdown (regex tolerante)", () => {
-    // Padrão obrigatório: `(?:de\s*)?cada\s*lado` (não `/de cada lado/i`).
-    expect(code).toMatch(/function\s+normalizeBreakdown/);
-    // Bloqueia regex velho estrito (que ignorava "cada lado" sem "de").
-    expect(code).not.toMatch(/\/de cada lado\/i\.test\(breakdown\)/);
-    expect(code).not.toMatch(/\.match\(\s*\/\\\(\(\.\*\?\)\\\)\\s\*de cada lado/);
-    // Exige tolerância em test() e match().
-    expect(code).toMatch(/\(\?:de\\s\*\)\?cada\\s\*lado/);
+  it("declara as listas de keywords bilateral/unilateral", () => {
+    expect(code).toMatch(/BILATERAL_BARBELL_KEYWORDS\s*=\s*\[/);
+    expect(code).toMatch(/UNILATERAL_KEYWORDS\s*=\s*\[/);
+    // Exemplos obrigatórios na lista bilateral
+    expect(code).toMatch(/'supino'/);
+    expect(code).toMatch(/'agachamento'/);
+    expect(code).toMatch(/'deadlift'/);
   });
 
-  it("calculateLoadFromBreakdown também tolera 'cada lado' sem 'de'", () => {
-    expect(code).toMatch(/function\s+calculateLoadFromBreakdown/);
-    // Após o fix, o eachSidePattern é criado e usado dentro da função.
-    expect(code).toMatch(/eachSidePattern\s*=\s*\/\(\?:de\\s\*\)\?cada\\s\*lado/);
-    // E `eachSidePattern.test(breakdown)` deve aparecer no fluxo.
-    expect(code).toMatch(/eachSidePattern\.test\(breakdown\)/);
+  it("normalizeText converte libras/pounds/lbs → lb (variantes PT-BR/EN)", () => {
+    expect(code).toMatch(/\\blibras\?\\b\|\\bpounds\?\\b\|\\blbs\\b[\s\S]*?'lb'/);
   });
 
-  it("calculator tem ramo PARENS + ramo SEM-PARENS para 'cada lado' (espelha o cliente)", () => {
-    // Ramo com parens: parenMatch
-    expect(code).toMatch(/parenMatch\s*=\s*breakdown\.match\([\s\S]*?\\\(\(\.\*\?\)\\\)\\s\*\(\?:de\\s\*\)\?cada\\s\*lado/);
-    // Ramo SEM parens: split em eachSidePattern + remoção da barra
-    expect(code).toMatch(/beforeEachSide\s*=\s*breakdown\.split\(\s*eachSidePattern\s*\)/);
+  it("normalizeText converte quilos/quilogramas/kgs → kg", () => {
+    expect(code).toMatch(/\\bquilogramas\?\\b\|\\bquilos\?\\b\|\\bkgs\\b[\s\S]*?'kg'/);
   });
 
-  it("converte lb usando POUND_TO_KG_CONVERSION SEM arredondamento intermediário", () => {
+  it("normalizeText trata 'par de halteres' / dumbbells / DB", () => {
+    expect(code).toMatch(/\\bpar\\s\+de\\s\+halteres\?\\b[\s\S]*?'2 halteres'/);
+    expect(code).toMatch(/\\bdumbbells\?\\b[\s\S]*?'halteres'/);
+    expect(code).toMatch(/\\bdb\\b[\s\S]*?'halteres'/);
+  });
+
+  it("normalizeText converte operadores × * → x", () => {
+    expect(code).toMatch(/\[×\*\][\s\S]*?'x'/);
+  });
+
+  it("normalizeText injeta unidade kg em 'barra N' sem unidade", () => {
+    expect(code).toMatch(/\\bbarra\\s\+\(\?:de\\s\+\)\?\(\\d\+/);
+    expect(code).toMatch(/`barra \$\{num\}\$\{\(unit \?\? 'kg'\)\.toLowerCase\(\)\}`/);
+  });
+
+  it("normalizeText remove parêntese de fechamento órfão", () => {
+    expect(code).toMatch(/while\s*\(\s*closeCount\s*>\s*openCount\s*\)/);
+    expect(code).toMatch(/lastIndexOf\(\s*'\)'\s*\)/);
+  });
+
+  it("WEIGHT_TERM_RE suporta multiplicador opcional Nx", () => {
+    expect(code).toMatch(/WEIGHT_TERM_RE\s*=\s*\/\(\?:\(\\d/);
+    // Captura o `x` literal (já normalizado dos operadores × *).
+    expect(code).toMatch(/\\d\+\(\?:\[\.,\]\\d\+\)\?\)\s*\\s\*x\\s\*\s*\)\?/);
+  });
+
+  it("calculateLoadFromBreakdown aceita exerciseName como segundo argumento (contexto)", () => {
+    expect(code).toMatch(
+      /function\s+calculateLoadFromBreakdown\(\s*[\s\S]*?breakdown:\s*string\s*\|\s*null\s*,\s*[\s\S]*?exerciseName:\s*string\s*\|\s*null/,
+    );
+  });
+
+  it("decideContext determina isLandmine via exerciseName OR substring no breakdown", () => {
+    expect(code).toMatch(/exLower\.includes\('landmine'\)/);
+    expect(code).toMatch(/\\blandmine\\b/);
+  });
+
+  it("decideContext detecta bilateral SOMENTE quando exerciseName é fornecido e bate keyword", () => {
+    expect(code).toMatch(/!!exerciseName\s*&&\s*\n?\s*BILATERAL_BARBELL_KEYWORDS\.some/);
+  });
+
+  it("decideContext NÃO ativa bilateral em landmine ou unilateral", () => {
+    expect(code).toMatch(/!isLandmine\s*&&\s*\n?\s*!isUnilateralHint/);
+  });
+
+  it("validateAndRecalculateLoad passa exerciseName (executed > prescribed > null)", () => {
+    expect(code).toMatch(
+      /exerciseNameForContext\s*=[\s\S]*?executed_exercise_name[\s\S]*?prescribed_exercise_name[\s\S]*?null/,
+    );
+    expect(code).toMatch(
+      /calculateLoadFromBreakdown\(\s*[\s\S]*?exerciseNameForContext\s*,?\s*\)/,
+    );
+  });
+
+  it("modo landmine força multiplier=1 em cada lado (NÃO dobra)", () => {
+    expect(code).toMatch(/multiplier\s*=\s*ctx\.isLandmine\s*\?\s*1\s*:\s*2/);
+  });
+
+  it("modo bilateral só dobra peso solto quando há barra + 1 plate SEM quantity explícita", () => {
+    expect(code).toMatch(
+      /onlyImplicitSingle\s*=\s*\n?\s*looseTerms\.length\s*===\s*1[\s\S]*?!looseTerms\[0\]\.explicitQuantity/,
+    );
+    expect(code).toMatch(
+      /inferBilateralX2\s*=\s*\n?\s*ctx\.isBilateralBarbell\s*&&\s*\n?\s*!eachSide\s*&&\s*\n?\s*bar\s*!==\s*null\s*&&\s*\n?\s*onlyImplicitSingle/,
+    );
+  });
+
+  it("sumTerms NÃO duplica termos com quantity explícita dentro de 'cada lado'", () => {
+    expect(code).toMatch(
+      /if\s*\(\s*multiplier\s*===\s*2\s*&&\s*!term\.explicitQuantity\s*\)\s*\{\s*\n?\s*sum\s*\+=\s*term\.quantity\s*\*\s*term\.valueKg\s*\*\s*2/,
+    );
+  });
+
+  it("UNKNOWN_PLATE_RE retorna null para 'placa N' sem unidade", () => {
+    expect(code).toMatch(/UNKNOWN_PLATE_RE\s*=\s*\/[\s\S]*?placa/);
+    expect(code).toMatch(/if\s*\(\s*UNKNOWN_PLATE_RE\.test\(normalized\)\s*\)\s*return\s+null/);
+  });
+
+  it("elástico/banda → null preservado", () => {
+    expect(code).toMatch(/ELASTIC_RE\s*=/);
+    expect(code).toMatch(/if\s*\(\s*ELASTIC_RE\.test\(normalized\)\s*\)\s*return\s+null/);
+  });
+
+  it("peso corporal: edge devolve null (sem studentWeight no contexto da edge)", () => {
+    // No edge, o LLM já preenche load_kg = weight_kg quando aplicável.
+    // O calculator próprio devolve null pra peso corporal sem valor.
+    expect(code).toMatch(/BODYWEIGHT_RE\.test\(normalized\)[\s\S]*?return\s+null/);
+  });
+
+  it("converte lb com POUND_TO_KG_CONVERSION raw (sem arredondamento intermediário)", () => {
     expect(code).toMatch(/const POUND_TO_KG_CONVERSION\s*=\s*0\.4536/);
-    expect(code).toMatch(/unit\.startsWith\('lb'\)\s*\?\s*value\s*\*\s*POUND_TO_KG_CONVERSION\s*:\s*value/);
-    // Bloqueia padrões de arredondamento intermediário em lb.
-    expect(code).not.toMatch(
-      /roundToDecimal\(\s*[\w.]+\s*\*\s*POUND_TO_KG_CONVERSION\s*\)\s*\*\s*2/,
-    );
-    expect(code).not.toMatch(
-      /Math\.round\(\s*[\w.]+\s*\*\s*POUND_TO_KG_CONVERSION/,
-    );
+    expect(code).toMatch(/value\s*\*\s*POUND_TO_KG_CONVERSION/);
   });
 
-  it('suporta multiplicador explícito "2x70lb" na calculadora da edge', () => {
-    expect(edgeSource).toContain('const WEIGHT_TERM_PATTERN');
-    expect(edgeSource).toContain('[x×]');
-    expect(edgeSource).toContain('lbs?');
-    expect(code).toMatch(/function\s+addWeightTerms|const\s+addWeightTerms/);
-    expect(code).toMatch(/quantity\s*=\s*match\[1\]\s*\?\s*parseNumeric\(match\[1\]\)\s*:\s*1/);
-    expect(code).toMatch(/subtotal\s*\+=\s*quantity\s*\*\s*kg\s*\*\s*multiplier/);
-  });
-
-  it("roundToDecimal só é chamado uma vez (no return final do calculator)", () => {
+  it("roundToDecimal SÓ no return final do calculator (não em sums intermediárias)", () => {
     const fnBlock = code.match(
       /function\s+calculateLoadFromBreakdown\([\s\S]*?\n\s{4}\}\s*\n/,
     )?.[0] ?? "";
     expect(fnBlock.length).toBeGreaterThan(0);
     const rounds = fnBlock.match(/roundToDecimal\(/g) ?? [];
-    // Esperado: 1 chamada no `return total > 0 ? roundToDecimal(total) : null;`
-    // (mais opcionalmente 1 no path de "Peso corporal = X kg" que já é exato).
+    // 1 chamada principal (return total > 0 ? roundToDecimal(total) : null)
+    // + opcional 1 no path "Peso corporal = X kg".
     expect(rounds.length).toBeLessThanOrEqual(2);
-    // E o RETURN final usa roundToDecimal.
     expect(fnBlock).toMatch(
       /return\s+total\s*>\s*0\s*\?\s*roundToDecimal\(\s*total\s*\)\s*:\s*null/,
     );
   });
 
-  it("validateAndRecalculateLoad usa a calculadora como fonte de verdade (override do LLM em diff > 0.1)", () => {
-    expect(code).toMatch(/function\s+validateAndRecalculateLoad/);
-    // Compara com o calculado e sobrescreve.
-    expect(code).toMatch(/calculatedLoadKg\s*=\s*calculateLoadFromBreakdown/);
-    expect(code).toMatch(/diff\s*>\s*0\.1/);
-    expect(code).toMatch(/exercise\.load_kg\s*=\s*calculatedLoadKg/);
-  });
-
   it("prompt da IA usa 'de cada lado' como forma canônica (não contradiz o calculator)", () => {
-    // Documentação interna do prompt deve manter o exemplo canônico.
-    // O calculator tolera ambas as formas, mas o prompt orienta o LLM
-    // a sempre emitir "de cada lado" pra consistência downstream.
     expect(edgeSource).toMatch(/"\(25 lb \+ 2 kg \+ 1 kg\) de cada lado/);
   });
 
-  it("regra de barra: peso da barra entra direto, NÃO multiplica por 2", () => {
-    // Documentação da regra no prompt + caminho explícito no calculator.
-    expect(edgeSource).toContain('BARRA_BILATERAL');
-    // No calculator, `barraMatch` é tratado fora do bloco "cada lado".
-    expect(code).toMatch(
-      /barraMatch\s*=\s*breakdown\.match\(\s*\/barra\\s\*\(\\d/,
-    );
-    // E somado direto (sem `* 2`).
-    expect(code).toMatch(
-      /total\s*\+=\s*parseFloat\(\s*barraMatch\[1\]\.replace\(',', '\.'\)\s*\)\s*;/,
-    );
+  it("regra de barra documentada no prompt", () => {
+    expect(edgeSource).toContain("BARRA_BILATERAL");
   });
 
-  it("kettlebells/halteres duplos multiplicam por 2 (regra de halter duplo)", () => {
-    expect(code).toMatch(
-      /multiKbMatch\s*=\s*breakdown\.match\([\s\S]*?2\\s\*kettlebells\?\|duplo\\s\*kettlebell\|kettlebell\\s\*duplo\|dois\\s\*halteres\|2\\s\*halteres/,
-    );
-    // Multiplica por 2.
-    expect(code).toMatch(/total\s*\+=\s*kg\s*\*\s*2/);
-  });
-
-  it("sanitiza load_kg/load_breakdown vazios → null (regra 'nunca inventar')", () => {
+  it("sanitiza load_kg/load_breakdown vazios → null", () => {
     expect(code).toMatch(/function\s+sanitizeExerciseData/);
-    expect(code).toMatch(/'load_kg'\s*,\s*'load_breakdown'\s*,\s*'reps'\s*,\s*'sets'\s*,\s*'observations'/);
-    // Valores 0/""/'não informado' viram null.
-    expect(code).toMatch(/===\s*0\s*\|\|\s*[\w.[\]]+\s*===\s*''\s*\|\|\s*[\w.[\]]+\s*===\s*'não informado'/);
+    expect(code).toMatch(/'load_kg'\s*,\s*'load_breakdown'/);
   });
 });

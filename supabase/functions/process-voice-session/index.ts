@@ -748,77 +748,234 @@ FORMATO DE SAÍDA:
     }
 
     // Função auxiliar para calcular carga (ROBUSTA)
-    function calculateLoadFromBreakdown(breakdown: string | null): number | null {
-      if (!breakdown) return null;
-      
-      try {
-        // 1. DETECTAR PESO CORPORAL COM VALOR
-        const bodyCorporalWithValue = breakdown.match(/Peso corporal\s*=\s*(\d+(?:\.\d+)?)\s*kg/i);
-        if (bodyCorporalWithValue) {
-          return roundToDecimal(parseFloat(bodyCorporalWithValue[1]));
+    // ════════════════════════════════════════════════════════════════
+    // calculateLoadFromBreakdown — parser por GRAMÁTICA DE COMPONENTES
+    //
+    // Espelho do cliente em `src/utils/loadCalculation.ts`. Deno não
+    // importa do bundle do app, então mantemos cópia textual. Qualquer
+    // mudança na semântica DEVE ser aplicada nos DOIS lugares.
+    //
+    // Aceita `exerciseName` opcional para ativar heurísticas de contexto
+    // (landmine, barra bilateral) — extraído do payload do LLM via
+    // `exercise.executed_exercise_name` ou `exercise.prescribed_exercise_name`.
+    // ════════════════════════════════════════════════════════════════
+
+    const BILATERAL_BARBELL_KEYWORDS = [
+      'supino',
+      'agachamento',
+      'levantamento terra',
+      'deadlift',
+      'remada com barra',
+      'remada curvada',
+      'bench press',
+      'barra fixa',
+      'press militar',
+      'desenvolvimento com barra',
+      'stiff',
+      'front squat',
+      'back squat',
+      'high bar',
+      'low bar',
+    ];
+
+    const UNILATERAL_KEYWORDS = [
+      'unilateral',
+      'um braço',
+      'um lado',
+      'uma mão',
+      'single arm',
+      'single leg',
+    ];
+
+    const BODYWEIGHT_WITH_VALUE_RE = /peso\s*corporal\s*=\s*(\d+(?:[.,]\d+)?)\s*kg/i;
+    const BODYWEIGHT_RE = /peso\s*corporal/i;
+    const ELASTIC_RE = /\bel[áa]stico\b|\bbanda\b|\belastic\b|\bband\b/i;
+    const UNKNOWN_PLATE_RE = /\bplaca\s+\d+(?!\s*(?:kg|lb|x))\b/i;
+    const WEIGHT_TERM_RE = /(?:(\d+(?:[.,]\d+)?)\s*x\s*)?(\d+(?:[.,]\d+)?)\s*(kg|lb)\b/gi;
+    const BAR_RE = /\bbarra\s+(\d+(?:[.,]\d+)?)\s*(kg|lb)\b/i;
+    const DUAL_IMPLEMENT_RE =
+      /\b(\d+)\s*(?:halteres?|kettlebells?)\s+(?:de\s+)?(\d+(?:[.,]\d+)?)\s*(kg|lb)\b|\b(?:duplo\s*kettlebell|kettlebell\s*duplo)\s+(?:de\s+)?(\d+(?:[.,]\d+)?)\s*(kg|lb)\b/i;
+
+    function normalizeText(input: string): string {
+      let t = input.toLowerCase();
+      t = t.replace(/[×*]/g, 'x');
+      t = t.replace(/\blibras?\b|\bpounds?\b|\blbs\b/gi, 'lb');
+      t = t.replace(/\bquilogramas?\b|\bquilos?\b|\bkgs\b/gi, 'kg');
+      t = t.replace(/\bpar\s+de\s+halteres?\b/gi, '2 halteres');
+      t = t.replace(/\bdumbbells?\b/gi, 'halteres');
+      t = t.replace(/\bdb\b/gi, 'halteres');
+      t = t.replace(/\bdois\b/gi, '2');
+      t = t.replace(
+        /\bbarra\s+(?:de\s+)?(\d+(?:[.,]\d+)?)(?:\s*(kg|lb))?\b/gi,
+        (_m, num: string, unit?: string) => `barra ${num}${(unit ?? 'kg').toLowerCase()}`,
+      );
+      let openCount = 0;
+      let closeCount = 0;
+      for (const ch of t) {
+        if (ch === '(') openCount += 1;
+        if (ch === ')') closeCount += 1;
+      }
+      while (closeCount > openCount) {
+        const lastIdx = t.lastIndexOf(')');
+        if (lastIdx < 0) break;
+        t = t.slice(0, lastIdx) + t.slice(lastIdx + 1);
+        closeCount -= 1;
+      }
+      return t;
+    }
+
+    function decideContext(normalizedText: string, exerciseName: string | null) {
+      const exLower = (exerciseName ?? '').toLowerCase();
+      const isLandmine =
+        exLower.includes('landmine') || /\blandmine\b/.test(normalizedText);
+      const isUnilateralHint =
+        UNILATERAL_KEYWORDS.some((k) => exLower.includes(k)) ||
+        UNILATERAL_KEYWORDS.some((k) => normalizedText.includes(k));
+      const isBilateralBarbell =
+        !isLandmine &&
+        !isUnilateralHint &&
+        !!exerciseName &&
+        BILATERAL_BARBELL_KEYWORDS.some((k) => exLower.includes(k));
+      return { isLandmine, isBilateralBarbell, isUnilateralHint };
+    }
+
+    type WeightTerm = { quantity: number; explicitQuantity: boolean; valueKg: number };
+
+    function extractWeightTerms(content: string): WeightTerm[] {
+      const out: WeightTerm[] = [];
+      WEIGHT_TERM_RE.lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = WEIGHT_TERM_RE.exec(content)) !== null) {
+        const hasQuantity = Boolean(match[1]);
+        const quantity = hasQuantity ? parseFloat(match[1]!.replace(',', '.')) : 1;
+        const value = parseFloat(match[2].replace(',', '.'));
+        const unit = match[3].toLowerCase();
+        const valueKg = unit === 'lb' ? value * POUND_TO_KG_CONVERSION : value;
+        out.push({ quantity, explicitQuantity: hasQuantity, valueKg });
+      }
+      return out;
+    }
+
+    function extractBar(text: string): { kg: number; range: [number, number] } | null {
+      const m = text.match(BAR_RE);
+      if (!m || m.index === undefined) return null;
+      const value = parseFloat(m[1].replace(',', '.'));
+      const unit = m[2].toLowerCase();
+      const kg = unit === 'lb' ? value * POUND_TO_KG_CONVERSION : value;
+      return { kg, range: [m.index, m.index + m[0].length] };
+    }
+
+    function extractDualImplement(text: string): { kg: number; range: [number, number] } | null {
+      const m = text.match(DUAL_IMPLEMENT_RE);
+      if (!m || m.index === undefined) return null;
+      let value: number;
+      let unit: string;
+      if (m[1]) {
+        const declaredQty = parseInt(m[1], 10);
+        if (declaredQty < 2) return null;
+        value = parseFloat(m[2].replace(',', '.'));
+        unit = m[3].toLowerCase();
+      } else {
+        value = parseFloat(m[4].replace(',', '.'));
+        unit = m[5].toLowerCase();
+      }
+      const kgEach = unit === 'lb' ? value * POUND_TO_KG_CONVERSION : value;
+      return { kg: kgEach * 2, range: [m.index, m.index + m[0].length] };
+    }
+
+    function extractEachSide(text: string): { innerContent: string; range: [number, number] } | null {
+      const parenRe = /\(([^()]*)\)\s*(?:de\s+)?cada\s+lado/i;
+      const parenMatch = text.match(parenRe);
+      if (parenMatch && parenMatch.index !== undefined) {
+        return {
+          innerContent: parenMatch[1],
+          range: [parenMatch.index, parenMatch.index + parenMatch[0].length],
+        };
+      }
+      const eachSideRe = /(?:de\s+)?cada\s+lado/i;
+      const m = text.match(eachSideRe);
+      if (!m || m.index === undefined) return null;
+      const phraseEnd = m.index + m[0].length;
+      let start = 0;
+      const slice = text.slice(0, m.index);
+      const barMatchBefore = slice.match(BAR_RE);
+      if (barMatchBefore && barMatchBefore.index !== undefined) {
+        start = barMatchBefore.index + barMatchBefore[0].length;
+      }
+      const innerContent = text.slice(start, m.index).trim();
+      return { innerContent, range: [start, phraseEnd] };
+    }
+
+    function sumTerms(terms: WeightTerm[], multiplier: 1 | 2): number {
+      let sum = 0;
+      for (const term of terms) {
+        if (multiplier === 2 && !term.explicitQuantity) {
+          sum += term.quantity * term.valueKg * 2;
+        } else {
+          sum += term.quantity * term.valueKg;
         }
-        
-        // 2. DETECTAR PESO CORPORAL SEM VALOR
-        if (/Peso corporal/i.test(breakdown) && !/\d/.test(breakdown)) {
+      }
+      return sum;
+    }
+
+    function removeRange(text: string, range: [number, number]): string {
+      return text.slice(0, range[0]) + ' ' + text.slice(range[1]);
+    }
+
+    function calculateLoadFromBreakdown(
+      breakdown: string | null,
+      exerciseName: string | null = null,
+    ): number | null {
+      if (!breakdown || !breakdown.trim()) return null;
+      try {
+        const normalized = normalizeText(breakdown.trim());
+        const ctx = decideContext(normalized, exerciseName);
+
+        // Early returns
+        const bwMatch = normalized.match(BODYWEIGHT_WITH_VALUE_RE);
+        if (bwMatch) {
+          return roundToDecimal(parseFloat(bwMatch[1].replace(',', '.')));
+        }
+        if (BODYWEIGHT_RE.test(normalized) && !bwMatch) {
+          // Edge não tem studentWeight — devolve null (mesmo path antigo).
           return null;
         }
-        
-        // 3. DETECTAR ELÁSTICOS/BANDAS
-        const hasOnlyElastic = /^(elástico|banda|elastic)/i.test(breakdown.trim()) && !/\d+\s*(kg|lb)/i.test(breakdown);
-        if (hasOnlyElastic) return null;
-        
+        if (ELASTIC_RE.test(normalized)) return null;
+        if (UNKNOWN_PLATE_RE.test(normalized)) return null;
+
+        let remaining = normalized;
         let total = 0;
-        let processedEachSide = false;
 
-        // 4. DETECTAR "CADA LADO" (com OU sem "de", com OU sem
-        //    parênteses) — tolerância alinhada com o cliente em
-        //    `src/utils/loadCalculation.ts`. Antes do fix, regex
-        //    `/de cada lado/i` estrito cancelava o multiplicador por 2
-        //    quando o LLM/usuário omitia o "de" (ex.: "70 lb cada lado
-        //    + barra 15kg" virava 46.8 em vez de 78.5).
-        const eachSidePattern = /(?:de\s*)?cada\s*lado/i;
-        if (eachSidePattern.test(breakdown)) {
-          processedEachSide = true;
-          const parenMatch = breakdown.match(/\((.*?)\)\s*(?:de\s*)?cada\s*lado/i);
-          if (parenMatch) {
-            // Formato canônico com parênteses: "(... + ...) de cada lado"
-            const content = parenMatch[1];
+        const eachSide = extractEachSide(remaining);
+        if (eachSide) {
+          const innerTerms = extractWeightTerms(eachSide.innerContent);
+          const multiplier = ctx.isLandmine ? 1 : 2;
+          total += sumTerms(innerTerms, multiplier as 1 | 2);
+          remaining = removeRange(remaining, eachSide.range);
+        }
 
-            // Suporta "70 lb", "2x70lb" e "2 x 70 lb". Sem
-            // arredondamento intermediário — `roundToDecimal` só no return.
-            total += addWeightTerms(content, 2);
-          } else {
-            // Formato sem parênteses: "70 lb cada lado + barra 15kg".
-            // Multiplica TUDO antes do "cada lado" por 2, exceto barra
-            // (extraída separadamente abaixo no passo 6).
-            const beforeEachSide = breakdown.split(eachSidePattern)[0] ?? '';
-            const contentWithoutBarra = beforeEachSide.replace(
-              /barra\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*kg/gi,
-              '',
-            );
-
-            total += addWeightTerms(contentWithoutBarra, 2);
+        if (!ctx.isUnilateralHint) {
+          const dual = extractDualImplement(remaining);
+          if (dual) {
+            total += dual.kg;
+            remaining = removeRange(remaining, dual.range);
           }
         }
 
-        // 5. DETECTAR KETTLEBELLS/HALTERES DUPLOS (multiplicar por 2)
-        const multiKbMatch = breakdown.match(/(2\s*kettlebells?|duplo\s*kettlebell|kettlebell\s*duplo|dois\s*halteres|2\s*halteres).*?(\d+(?:[.,]\d+)?)\s*(kg|lb)/i);
-        if (multiKbMatch && !processedEachSide) {
-          const value = parseFloat(multiKbMatch[2].replace(',', '.'));
-          const unit = multiKbMatch[3].toLowerCase();
-          const kg = unit === 'lb' ? value * POUND_TO_KG_CONVERSION : value;
-          total += kg * 2;
+        const bar = extractBar(remaining);
+        if (bar) {
+          total += bar.kg;
+          remaining = removeRange(remaining, bar.range);
         }
 
-        // 6. EXTRAIR PESO DA BARRA (sempre soma direta, mesmo em "cada lado")
-        const barraMatch = breakdown.match(/barra\s*(\d+(?:[.,]\d+)?)\s*kg/i);
-        if (barraMatch) {
-          total += parseFloat(barraMatch[1].replace(',', '.'));
-        }
-
-        // 7. PESOS SIMPLES (sem "cada lado" nem "duplo")
-        if (!processedEachSide && !multiKbMatch) {
-          total += addWeightTerms(breakdown, 1, { ignoreBarra: true });
+        const looseTerms = extractWeightTerms(remaining);
+        if (looseTerms.length > 0) {
+          const onlyImplicitSingle =
+            looseTerms.length === 1 && !looseTerms[0].explicitQuantity;
+          const inferBilateralX2 =
+            ctx.isBilateralBarbell && !eachSide && bar !== null && onlyImplicitSingle;
+          const multiplier: 1 | 2 = inferBilateralX2 ? 2 : 1;
+          total += sumTerms(looseTerms, multiplier);
         }
 
         return total > 0 ? roundToDecimal(total) : null;
@@ -847,7 +1004,17 @@ FORMATO DE SAÍDA:
       }
       
       exercise.load_breakdown = normalizeBreakdown(exercise.load_breakdown as string);
-      const calculatedLoadKg = calculateLoadFromBreakdown(exercise.load_breakdown as string);
+      // Passa o nome do exercício como contexto para o calculator —
+      // ativa heurísticas de landmine / barra bilateral. Usa
+      // executed_exercise_name (preferido) com fallback pra prescribed_exercise_name.
+      const exerciseNameForContext =
+        (exercise.executed_exercise_name as string | undefined) ??
+        (exercise.prescribed_exercise_name as string | undefined) ??
+        null;
+      const calculatedLoadKg = calculateLoadFromBreakdown(
+        exercise.load_breakdown as string,
+        exerciseNameForContext,
+      );
       
       if (exercise.load_kg === null || exercise.load_kg === undefined) {
         exercise.load_kg = calculatedLoadKg;
