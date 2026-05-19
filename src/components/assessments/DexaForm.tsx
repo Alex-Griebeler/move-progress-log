@@ -427,7 +427,7 @@ export const DexaForm = ({
       );
       const currentValues = Object.fromEntries(
         DEXA_EXTRACTION_FIELDS.map((field) => [field, form.getValues(field as never)]),
-      ) as Record<DexaExtractionFieldName, unknown>;
+      ) as unknown as Record<DexaExtractionFieldName, never>;
       const result = applyDexaExtractionToEmptyFields(currentValues, extraction);
       // Aplica cada campo via react-hook-form (mantém validation/dirty).
       for (const fieldName of result.appliedFields) {
@@ -520,7 +520,7 @@ export const DexaForm = ({
             scan_pdf_url: null,
             regional_distribution: data.regional_distribution ?? null,
             conclusion_text: data.conclusion_text || null,
-            raw_extracted_json: sanitizedExtraction,
+            raw_extracted_json: sanitizedExtraction as unknown as never,
             extraction_confidence: usedExtraction
               ? sanitizedExtraction?.overall_confidence ?? null
               : null,
