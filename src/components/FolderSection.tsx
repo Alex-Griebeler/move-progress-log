@@ -49,13 +49,16 @@ export function FolderSection({
   const folderName = folder?.name || "Sem Pasta";
   const isNoFolder = !folder;
 
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef, isOver, active } = useDroppable({
     id: folderId,
     data: {
       type: 'folder',
       folderId: folder?.id || null,
     }
   });
+
+  // A folder being dragged can be dropped here to move it to the root.
+  const isFolderDrag = active?.data?.current?.type === 'folder';
 
   return (
     <div className="space-y-3">
@@ -130,8 +133,10 @@ export function FolderSection({
         <div className="space-y-4 pl-7">
           {prescriptions.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">
-              {isNoFolder 
-                ? "Nenhuma prescrição sem pasta" 
+              {isNoFolder
+                ? isFolderDrag
+                  ? "Solte aqui para mover a pasta para a raiz"
+                  : "Nenhuma prescrição sem pasta"
                 : "Arraste prescrições para esta pasta"}
             </p>
           ) : (
