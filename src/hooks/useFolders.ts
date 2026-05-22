@@ -56,6 +56,27 @@ const buildFolderTree = (folders: PrescriptionFolder[]): PrescriptionFolder[] =>
   return rootFolders;
 };
 
+/**
+ * Relative height of a folder's subtree (0 when it has no children).
+ * Used to predict whether a move would exceed MAX_FOLDER_DEPTH.
+ */
+export const getFolderSubtreeHeight = (folder: PrescriptionFolder): number => {
+  if (!folder.children || folder.children.length === 0) return 0;
+  return 1 + Math.max(...folder.children.map(getFolderSubtreeHeight));
+};
+
+/**
+ * Ids of every descendant folder (children, grandchildren, ...). Used to
+ * block dropping a folder into itself or one of its own descendants.
+ */
+export const getDescendantFolderIds = (folder: PrescriptionFolder): string[] => {
+  if (!folder.children || folder.children.length === 0) return [];
+  return folder.children.flatMap((child) => [
+    child.id,
+    ...getDescendantFolderIds(child),
+  ]);
+};
+
 // Fetch all folders for current trainer (returns hierarchical structure)
 export const useFolders = () => {
   return useQuery({
@@ -209,6 +230,42 @@ export const useReorderFolders = () => {
     },
     onError: (error: Error) => {
       notify.error("Erro ao reordenar pastas", {
+        description: buildErrorDescription(error, i18n.errors.unknown),
+      });
+    },
+  });
+};
+
+// Move a folder (and its whole subtree) to a new parent, or to the root.
+// Delegates to the move_prescription_folder RPC, which is the authority for
+// ownership, cycle and depth validation; frontend guards are UX-only.
+export const useMoveFolder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      folderId,
+      newParentId = null,
+      orderIndex = null,
+    }: {
+      folderId: string;
+      newParentId?: string | null;
+      orderIndex?: number | null;
+    }) => {
+      const { error } = await supabase.rpc("move_prescription_folder", {
+        p_folder_id: folderId,
+        p_new_parent_id: newParentId,
+        p_order_index: orderIndex,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["prescription-folders"] });
+      queryClient.invalidateQueries({ queryKey: ["prescriptions"] });
+    },
+    onError: (error: Error) => {
+      notify.error("Erro ao mover pasta", {
         description: buildErrorDescription(error, i18n.errors.unknown),
       });
     },

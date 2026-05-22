@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { usePrescriptions, useDeletePrescription } from "@/hooks/usePrescriptions";
-import { useFolders, useMovePrescription, useReorderPrescriptions, useDeleteFolder, PrescriptionFolder } from "@/hooks/useFolders";
+import { useFolders, useMovePrescription, useReorderPrescriptions, useDeleteFolder, useMoveFolder, getDescendantFolderIds, PrescriptionFolder } from "@/hooks/useFolders";
 import { usePrescriptionSearch } from "@/hooks/usePrescriptionSearch";
 import { usePrescriptionsStagnantFilter } from "@/hooks/usePrescriptionsStagnantFilter";
 import { CreatePrescriptionDialog } from "@/components/CreatePrescriptionDialog";
@@ -33,7 +33,7 @@ import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
-import { DndContext, DragEndEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragStartEvent, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import {
   AlertDialog,
@@ -55,6 +55,7 @@ export default function PrescriptionsPage() {
   const { data: folders } = useFolders();
   const movePrescription = useMovePrescription();
   const reorderPrescriptions = useReorderPrescriptions();
+  const moveFolder = useMoveFolder();
   const deleteFolder = useDeleteFolder();
   const deletePrescription = useDeletePrescription();
 
@@ -127,6 +128,9 @@ export default function PrescriptionsPage() {
 
   // Expanded folders state (persist which folders are open)
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+
+  // Type of the item currently being dragged (drives the root drop target).
+  const [activeDragType, setActiveDragType] = useState<"folder" | "prescription" | null>(null);
 
   // Drag and drop sensors - configuração mais permissiva
   const sensors = useSensors(
@@ -265,10 +269,53 @@ export default function PrescriptionsPage() {
     setPrescriptionToDelete(null);
   };
 
+  const handleDragStart = (event: DragStartEvent) => {
+    const type = event.active.data.current?.type;
+    setActiveDragType(
+      type === "folder" ? "folder" : type === "prescription" ? "prescription" : null
+    );
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveDragType(null);
 
-    if (!over || !prescriptions) return;
+    if (!over) return;
+
+    const overData = over.data.current;
+
+    // --- Folder drag: re-parent the folder, or move it to the root ---
+    if (active.data.current?.type === 'folder') {
+      const folderId = active.data.current.folderId as string;
+      // A folder can only be dropped on a folder/root drop target.
+      if (!folderId || overData?.type !== 'folder') return;
+
+      const newParentId = (overData.folderId as string | null) ?? null;
+      // No-op: dropped on itself.
+      if (newParentId === folderId) return;
+
+      // UX guard: skip an obviously-invalid drop into a descendant. The
+      // move_prescription_folder RPC re-validates server-side regardless.
+      const draggedFolder = allFoldersFlat.find(f => f.id === folderId);
+      if (
+        newParentId &&
+        draggedFolder &&
+        getDescendantFolderIds(draggedFolder).includes(newParentId)
+      ) {
+        return;
+      }
+
+      await moveFolder.mutateAsync({ folderId, newParentId });
+
+      // Auto-expand the destination so the moved folder is visible.
+      if (newParentId) {
+        setExpandedFolders(prev => new Set(prev).add(newParentId));
+      }
+      return;
+    }
+
+    // --- Prescription drag: existing move/reorder behavior ---
+    if (!prescriptions) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
@@ -277,15 +324,14 @@ export default function PrescriptionsPage() {
     if (!activePrescription) return;
 
     // Check if dropped on a folder
-    const overData = over.data.current;
     if (overData?.type === 'folder') {
       const targetFolderId = overData.folderId;
-      
+
       // Get prescriptions in target folder
       const targetFolderPrescriptions = prescriptions.filter(
         p => (targetFolderId ? p.folder_id === targetFolderId : !p.folder_id)
       );
-      
+
       const maxOrder = targetFolderPrescriptions.length > 0
         ? Math.max(...targetFolderPrescriptions.map(p => p.order_index))
         : -1;
@@ -295,16 +341,15 @@ export default function PrescriptionsPage() {
         folderId: targetFolderId,
         orderIndex: maxOrder + 1,
       });
-      
+
       return;
     }
 
     // Reordering within same folder
     if (activeId !== overId) {
-      const activePrescription = prescriptions.find(p => p.id === activeId);
       const overPrescription = prescriptions.find(p => p.id === overId);
 
-      if (!activePrescription || !overPrescription) return;
+      if (!overPrescription) return;
 
       // Only allow reordering within same folder
       if (activePrescription.folder_id !== overPrescription.folder_id) return;
@@ -317,7 +362,7 @@ export default function PrescriptionsPage() {
       const newIndex = folderPrescriptions.findIndex(p => p.id === overId);
 
       const reordered = arrayMove(folderPrescriptions, oldIndex, newIndex);
-      
+
       // Update order_index for all affected prescriptions
       const updates = reordered.map((prescription, index) => ({
         id: prescription.id,
@@ -457,7 +502,9 @@ export default function PrescriptionsPage() {
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveDragType(null)}
           >
             <div className="space-y-lg">
               {/* Hierarchical folder tree */}
@@ -479,8 +526,9 @@ export default function PrescriptionsPage() {
                 />
               )}
 
-              {/* Prescriptions without folder */}
-              {noFolderPrescriptions.length > 0 && (
+              {/* Prescriptions without folder — also the root drop target
+                  while a folder is being dragged. */}
+              {(noFolderPrescriptions.length > 0 || activeDragType === 'folder') && (
                 <FolderSection
                   folder={null}
                   prescriptions={noFolderPrescriptions}
