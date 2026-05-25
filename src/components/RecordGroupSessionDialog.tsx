@@ -936,7 +936,10 @@ export function RecordGroupSessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleCloseAttempt}>
-      <DialogContent forceMount className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        forceMount
+        className="max-w-7xl max-h-[90vh] overflow-y-auto"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {dialogState === 'context-setup' && NAV_LABELS.recordGroupSession}

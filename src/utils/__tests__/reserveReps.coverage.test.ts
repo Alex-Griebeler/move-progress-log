@@ -88,20 +88,23 @@ describe("ExerciseFirstSessionEntry — UI da coluna PSE (manual por exercício)
     expect(code).not.toMatch(/reserve_reps:\s*ex\.rir\s*\|\|\s*""/);
   });
 
-  it("renderiza label 'PSE' (não 'Reserva', 'RR' ou 'RIR') no header e no campo", () => {
-    expect(exerciseFirstSource).toMatch(/>\s*PSE\s*</);
-    expect(exerciseFirstSource).toMatch(/<TableHead[^>]*>PSE<\/TableHead>/);
+  it("renderiza label 'PSE' (não 'Reserva', 'RR' ou 'RIR') no campo", () => {
+    // Apos a refatoracao de UX, o layout passou a ser card em todos os
+    // viewports — nao ha mais <TableHead>. O contrato visual e: aparece
+    // o label "PSE" dentro de um <label> do card, e nada de "Reserva",
+    // "RR" ou "RIR" em label/heading do componente.
+    expect(exerciseFirstSource).toMatch(/<label[^>]*>\s*PSE\s*<\/label>/);
     // Bloqueia regressão de naming.
-    expect(exerciseFirstSource).not.toMatch(/<TableHead[^>]*>Reserva</);
     expect(exerciseFirstSource).not.toMatch(/<label[^>]*>\s*Reserva\s*</);
-    expect(exerciseFirstSource).not.toMatch(/>\s*RR\s*</);
-    expect(exerciseFirstSource).not.toMatch(/<TableHead[^>]*>RIR</);
+    expect(exerciseFirstSource).not.toMatch(/<label[^>]*>\s*RR\s*</);
+    expect(exerciseFirstSource).not.toMatch(/<label[^>]*>\s*RIR\s*</);
   });
 
-  it("renderiza campo editável PSE tanto no mobile quanto no desktop", () => {
-    // Pelo menos 2 inputs/textfields ligados a reserve_reps (mobile + desktop).
+  it("renderiza campo editável PSE no card único de todos os viewports", () => {
+    // Apos a refatoracao, ha um unico layout (card) servindo todos os
+    // viewports — antes existia duplicacao mobile + desktop (>= 2).
     const reserveInputs = code.match(/value=\{entry\.reserve_reps[^}]*\}/g) ?? [];
-    expect(reserveInputs.length).toBeGreaterThanOrEqual(2);
+    expect(reserveInputs.length).toBeGreaterThanOrEqual(1);
   });
 
   it("mostra reserve_reps da última carga como 'PSE X' (não mais 'Res. X')", () => {

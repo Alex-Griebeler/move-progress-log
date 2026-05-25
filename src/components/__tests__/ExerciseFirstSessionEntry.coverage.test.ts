@@ -31,10 +31,11 @@ describe('ExerciseFirstSessionEntry — cockpit de carga por exercício', () => 
 
   it('torna Total editável no modo por exercício sem remover o cálculo automático', () => {
     expect(code).toContain('const handleManualLoadKgChange = useCallback');
-    // Largura ajustada de w-[96px] → w-[104px] pra acomodar inputs
-    // numéricos com center-align e text-sm (PR de readability).
-    // Regex tolerante: aceita qualquer w-[Npx] desde que >= 96.
-    expect(code).toMatch(/<TableHead className="w-\[(?:9[6-9]|1[0-9]{2})px\]">Total<\/TableHead>/);
+    // Apos a refatoracao de UX, o layout passou a ser card em todos os
+    // viewports — nao ha mais <TableHead>. O contrato preservado e:
+    // existe um label "Total" no card, com Input numerico editavel
+    // ligado a handleManualLoadKgChange e flag de override.
+    expect(code).toMatch(/<label[^>]*>\s*Total\s*<\/label>/);
     expect(code).toMatch(/type="number"[\s\S]*step="0\.1"[\s\S]*value=\{entry\.load_kg \?\? ""\}[\s\S]*handleManualLoadKgChange\(student\.id, exerciseIndex, e\.target\.value\)/);
     expect(code).toMatch(/load_kg_manual_override:\s*true/);
   });
@@ -50,11 +51,13 @@ describe('ExerciseFirstSessionEntry — cockpit de carga por exercício', () => 
     expect(submitBlock?.[0]).not.toContain('load_kg_manual_override');
   });
 
-  it('promove a última carga para coluna própria no desktop', () => {
-    expect(code).toContain('<TableHead className="w-[180px]">Última carga</TableHead>');
-    expect(code).toContain('Usar última carga deste aluno');
-    expect(code).toContain('Usar');
+  it('mostra a última carga como bloco próprio dentro do card', () => {
+    // Apos a refatoracao de UX, nao existe mais coluna de tabela — a
+    // ultima carga aparece num bloco dedicado no card (rounded-lg
+    // bg-muted) com botao "Repetir" que chama handleRepeatLastLoad.
     expect(code).toContain('last.load_breakdown ? compressLoadShorthand(last.load_breakdown) : "—"');
+    expect(code).toMatch(/Última:\s*\{last\.load_breakdown/);
+    expect(code).toMatch(/handleRepeatLastLoad\(student\.id\)/);
   });
 
   it('copiar carga anterior e aplicar para todos preserva a marcação de override sem persistir metadado novo', () => {

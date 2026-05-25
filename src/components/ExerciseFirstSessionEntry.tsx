@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import {
   ChevronLeft,
   ChevronRight,
@@ -36,14 +38,6 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { notify } from "@/lib/notify";
 import { logger } from "@/utils/logger";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 interface PrescriptionExercise {
   id: string;
@@ -659,14 +653,21 @@ export function ExerciseFirstSessionEntry({
           </div>
 
           <div className="col-span-2">
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor={`obs-${student.id}-${exerciseIndex}`}
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
               Observações
             </label>
-            <Input
+            <Textarea
+              id={`obs-${student.id}-${exerciseIndex}`}
               value={entry.observations}
-              onChange={(e) => updateField(student.id, exerciseIndex, "observations", e.target.value)}
+              onChange={(e) =>
+                updateField(student.id, exerciseIndex, "observations", e.target.value)
+              }
               placeholder="dor, técnica, ajuste..."
-              className="min-h-11 text-base"
+              rows={2}
+              className="min-h-[5rem] resize-y text-base"
             />
           </div>
         </div>
@@ -683,7 +684,9 @@ export function ExerciseFirstSessionEntry({
   }
 
   return (
-    <div className="space-y-4">
+    <>
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6 lg:items-start">
+        <div className="space-y-4 lg:min-w-0">
       {/* Draft autosave indicator. Mirrors ManualSessionEntry so the
           coach has the same affordances in both manual modes. */}
       {(lastSaved || isSaving) && (
@@ -766,7 +769,9 @@ export function ExerciseFirstSessionEntry({
         </Button>
       </div>
 
-      {/* Students table */}
+      {/* Students cards — single card-based layout in all viewports.
+          Each card has full-width fields so observations is comfortable
+          (was previously squeezed inside a desktop-only Table). */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center justify-between">
@@ -782,228 +787,8 @@ export function ExerciseFirstSessionEntry({
             </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-3 sm:p-4 lg:p-0">
-          <div className="space-y-3 lg:hidden">
-            {selectedStudents.map(renderTouchStudentCard)}
-          </div>
-
-          <div className="hidden overflow-x-auto lg:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[120px]">Aluno</TableHead>
-                  <TableHead className="w-[180px]">Última carga</TableHead>
-                  <TableHead className="w-[140px]">Exercício</TableHead>
-                  <TableHead className="w-[140px]">Carga parcial</TableHead>
-                  <TableHead className="w-[104px]">Total</TableHead>
-                  <TableHead className="w-[88px]">Reps</TableHead>
-                  <TableHead className="w-[104px]">PSE</TableHead>
-                  <TableHead>Obs</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {selectedStudents.map((student, studentIdx) => {
-                  const entry = data[student.id]?.[exerciseIndex];
-                  if (!entry) return null;
-                  const last = getLastSession(student.id, entry.exercise_name, entry.exercise_library_id);
-                  const deviation = hasLoadDeviation(student.id, exerciseIndex);
-
-                  return (
-                    <TableRow key={student.id} className="align-top">
-                      <TableCell className="py-2">
-                        <div>
-                          <p className="font-medium text-sm truncate max-w-[110px]">
-                            {student.name.split(" ")[0]}
-                          </p>
-                        </div>
-                      </TableCell>
-
-                      <TableCell className="py-2">
-                        {last ? (
-                          <div className="space-y-1 rounded-md bg-muted/45 p-2">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="truncate text-[11px] font-medium">
-                                  {last.load_breakdown ? compressLoadShorthand(last.load_breakdown) : "—"}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {last.load_kg ?? "—"} kg · {last.reps ?? "—"} reps
-                                  {last.reserve_reps && ` · PSE ${last.reserve_reps}`}
-                                  {last.date && (
-                                    <span className="ml-1">
-                                      · {formatDistanceToNow(new Date(last.date), {
-                                        addSuffix: false,
-                                        locale: ptBR,
-                                      })}
-                                    </span>
-                                  )}
-                                </p>
-                              </div>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-1.5 text-[10px]"
-                                    onClick={() => handleRepeatLastLoad(student.id)}
-                                  >
-                                    <RefreshCw className="mr-1 h-3 w-3" />
-                                    Usar
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Usar última carga deste aluno</TooltipContent>
-                              </Tooltip>
-                            </div>
-                            {last.observations && (
-                              <p className="truncate text-[9px] italic text-muted-foreground/70" title={last.observations}>
-                                {last.observations}
-                              </p>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="py-2">
-                        <div className="flex items-center gap-1">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="text-xs max-w-[130px] truncate cursor-default">
-                                {entry.exercise_name}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-[300px]">
-                              {entry.exercise_name}
-                            </TooltipContent>
-                          </Tooltip>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 p-0 shrink-0"
-                            onClick={() => openSubstitution(student.id)}
-                            title="Substituir exercício"
-                          >
-                            <BookOpen className="h-3 w-3" />
-                          </Button>
-                        </div>
-                        {entry.exercise_name !== currentPrescribed.exercise_name && (
-                          <Badge variant="outline" className="text-[9px] mt-0.5">
-                            substituído
-                          </Badge>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="py-2">
-                        <Input
-                          ref={(el) => {
-                            if (!inputRefs.current[studentIdx])
-                              inputRefs.current[studentIdx] = [null, null, null, null, null];
-                            inputRefs.current[studentIdx][0] = el;
-                          }}
-                          value={entry.load_breakdown}
-                          onChange={(e) =>
-                            updateField(student.id, exerciseIndex, "load_breakdown", e.target.value)
-                          }
-                          onBlur={() => handleLoadBlur(student.id, exerciseIndex)}
-                          onKeyDown={(e) => handleKeyDown(e, studentIdx, 0)}
-                          placeholder="2x24, KB32, 10cl b15"
-                          className={`h-8 text-xs ${
-                            deviation
-                              ? "border-amber-500 focus-visible:ring-amber-500"
-                              : !isLoadExemptCategory(entry.exercise_name) && !entry.load_breakdown
-                              ? "border-destructive/50"
-                              : ""
-                          }`}
-                        />
-                        {deviation && (
-                          <p className="text-[9px] text-amber-600 flex items-center gap-0.5 mt-0.5">
-                            <AlertTriangle className="h-2.5 w-2.5" />
-                            Desvio &gt;30%
-                          </p>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="py-2">
-                        <Input
-                          ref={(el) => {
-                            if (!inputRefs.current[studentIdx])
-                              inputRefs.current[studentIdx] = [null, null, null, null, null];
-                            inputRefs.current[studentIdx][1] = el;
-                          }}
-                          type="number"
-                          step="0.1"
-                          inputMode="decimal"
-                          value={entry.load_kg ?? ""}
-                          onChange={(e) => handleManualLoadKgChange(student.id, exerciseIndex, e.target.value)}
-                          onKeyDown={(e) => handleKeyDown(e, studentIdx, 1)}
-                          placeholder="—"
-                          className="number-input-clean h-8 min-w-[82px] px-2 text-center font-mono text-sm"
-                        />
-                        {entry.load_kg_manual_override && (
-                          <p className="mt-0.5 text-[9px] text-muted-foreground">manual</p>
-                        )}
-                      </TableCell>
-
-                      <TableCell className="py-2">
-                        <Input
-                          ref={(el) => {
-                            if (!inputRefs.current[studentIdx])
-                              inputRefs.current[studentIdx] = [null, null, null, null, null];
-                            inputRefs.current[studentIdx][2] = el;
-                          }}
-                          type="number"
-                          value={entry.reps || ""}
-                          onChange={(e) =>
-                            updateField(
-                              student.id,
-                              exerciseIndex,
-                              "reps",
-                              parseInt(e.target.value) || 0
-                            )
-                          }
-                          onKeyDown={(e) => handleKeyDown(e, studentIdx, 2)}
-                          min={1}
-                          className={`number-input-clean h-8 min-w-[64px] px-2 text-center text-sm ${
-                            entry.reps <= 0 ? "border-destructive/50" : ""
-                          }`}
-                        />
-                      </TableCell>
-
-                      <TableCell className="py-2">
-                        <Input
-                          value={entry.reserve_reps}
-                          onChange={(e) =>
-                            updateField(student.id, exerciseIndex, "reserve_reps", e.target.value)
-                          }
-                          onKeyDown={(e) => handleKeyDown(e, studentIdx, 3)}
-                          placeholder="2-3"
-                          className="h-8 text-xs"
-                        />
-                      </TableCell>
-
-                      <TableCell className="py-2">
-                        <Input
-                          ref={(el) => {
-                            if (!inputRefs.current[studentIdx])
-                              inputRefs.current[studentIdx] = [null, null, null, null, null];
-                            inputRefs.current[studentIdx][4] = el;
-                          }}
-                          value={entry.observations}
-                          onChange={(e) =>
-                            updateField(student.id, exerciseIndex, "observations", e.target.value)
-                          }
-                          onKeyDown={(e) => handleKeyDown(e, studentIdx, 4)}
-                          placeholder="obs..."
-                          className="h-8 text-xs"
-                        />
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+        <CardContent className="space-y-3 p-3 sm:p-4">
+          {selectedStudents.map(renderTouchStudentCard)}
         </CardContent>
       </Card>
 
@@ -1129,6 +914,60 @@ export function ExerciseFirstSessionEntry({
         onOpenChange={setHistoryDialogOpen}
         onRestoreDraft={handleRestoreFromHistory}
       />
-    </div>
+        </div>
+
+        {/* Workout sidebar — full prescription order. Sticky on lg+ so the
+            coach keeps the whole routine in sight while logging the current
+            exercise. Hidden on smaller viewports (mobile already has the
+            chevrons + dot pager at the bottom). */}
+        <aside
+          aria-label="Roteiro do treino"
+          className="hidden lg:block lg:sticky lg:top-2 lg:max-h-[calc(90vh-6rem)] lg:overflow-y-auto rounded-lg border bg-card p-4 shadow-sm"
+        >
+          <h4 className="mb-3 text-sm font-semibold">Roteiro do treino</h4>
+          <ol className="space-y-1.5">
+            {prescriptionExercises.map((px, idx) => {
+              const isCurrent = idx === exerciseIndex;
+              return (
+                <li key={px.id}>
+                  <button
+                    type="button"
+                    onClick={() => setExerciseIndex(idx)}
+                    aria-current={isCurrent ? "step" : undefined}
+                    aria-label={`Ir para exercício ${idx + 1}: ${px.exercise_name}`}
+                    className={cn(
+                      "w-full rounded-md border px-3 py-2 text-left transition-colors focus-visible-ring",
+                      isCurrent
+                        ? "border-primary bg-primary/10"
+                        : "border-transparent hover:bg-muted/60",
+                    )}
+                  >
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[11px] font-mono text-muted-foreground">
+                        {String(idx + 1).padStart(2, "0")}.
+                      </span>
+                      <span className="text-sm font-medium leading-snug">
+                        {px.exercise_name}
+                      </span>
+                    </div>
+                    <p className="ml-6 mt-0.5 text-xs text-muted-foreground">
+                      {px.sets}×{px.reps}
+                      {px.pse && ` · PSE ${px.pse}`}
+                      {px.rir && ` · Reserva ${px.rir}`}
+                      {px.training_method && ` · ${px.training_method}`}
+                    </p>
+                    {px.observations && (
+                      <p className="ml-6 mt-0.5 line-clamp-2 text-[11px] italic text-muted-foreground/80">
+                        {px.observations}
+                      </p>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </aside>
+      </div>
+    </>
   );
 }
