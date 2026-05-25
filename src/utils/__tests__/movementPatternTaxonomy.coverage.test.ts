@@ -18,7 +18,7 @@
  * Mesmo padrão dos demais *.coverage.test.ts (readFileSync + asserts no
  * fonte) — sem render DOM, sem Postgres.
  */
-import { readFileSync, readdirSync } from "fs";
+import { readFileSync } from "fs";
 import { dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import { describe, expect, it } from "vitest";
@@ -305,37 +305,19 @@ describe("Nível Fabrik / sem regressão do Boyle textual", () => {
   });
 });
 
-describe("Scope guard — zero migration e zero edge function neste PR", () => {
-  const migrationsDir = resolve(__dirname, "../../../supabase/migrations");
-  const functionsDir = resolve(__dirname, "../../../supabase/functions");
-
-  it("nenhuma migration nova com data de 2026-05-25 ou depois citando movement_pattern/STRENGTH_SUBCATEGORIES", () => {
-    // O PR de auditoria/refino não escreve nenhuma migration. Bloqueia
-    // qualquer drift acidental (e.g., backfill esquecido).
-    const files = readdirSync(migrationsDir);
-    const violators = files.filter((f) => {
-      if (!/^20260525\d{6}/.test(f) && !/^2026052[6-9]/.test(f) && !/^20260[6-9]/.test(f) && !/^2026[1-9]/.test(f) && !/^202[7-9]/.test(f)) {
-        return false;
-      }
-      const body = readFileSync(resolve(migrationsDir, f), "utf-8");
-      return (
-        /movement_pattern\s*=/i.test(body) &&
-        /\b(agachamento_bilateral|base_assimetrica|passada_deslocamento|dobradica_quadril|flexao_joelho)\b/.test(
-          body,
-        )
-      );
-    });
-    expect(violators).toEqual([]);
-  });
+describe("Scope guard — backToBasics permanece isolado do schema", () => {
+  // Nota: o guard que vetava migrations citando os padrões novos
+  // (presente no PR #192) era escopado a aquele PR — vide
+  // "Scope guard ... neste PR". O follow-up de backfill (PR #193) faz
+  // exatamente esse tipo de UPDATE de forma controlada, então o guard
+  // foi removido. Os asserts abaixo continuam protegendo backToBasics
+  // contra coupling com Supabase types ou edge function paths.
 
   it("backToBasics.ts não importa types do Supabase (não toca schema)", () => {
     expect(backToBasicsSrc).not.toMatch(/from\s+["']@\/integrations\/supabase\/types["']/);
   });
 
   it("os arquivos modificados não disparam writes a edge functions", () => {
-    // Heurística simples — se o PR tocasse edge functions, mudaria
-    // supabase/functions/**/index.ts. Aqui só checamos que os imports do
-    // backToBasics estão consistentes (sem referências a paths de edge).
     expect(backToBasicsSrc).not.toMatch(
       /from\s+["']\.\.\/\.\.\/supabase\/functions/,
     );
