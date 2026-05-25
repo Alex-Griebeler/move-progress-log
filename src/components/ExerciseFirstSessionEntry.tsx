@@ -13,12 +13,21 @@ import {
   AlertTriangle,
   Copy,
   RefreshCw,
+  History,
+  Trash,
 } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
+import { DraftHistoryDialog } from "./DraftHistoryDialog";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
 import { expandLoadShorthand, compressLoadShorthand } from "@/utils/loadShorthand";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { useExerciseLastSession, type LastSessionData } from "@/hooks/useExerciseLastSession";
+import { useSessionDraft } from "@/hooks/useSessionDraft";
+import type { SessionDraft } from "@/hooks/useSessionDraftHistory";
+import {
+  exerciseFirstDataToDraftStudentExercises,
+  draftStudentExercisesToExerciseFirstData,
+} from "@/utils/exerciseFirstDraftConversion";
 import {
   buildExerciseLastSessionKey,
   normalizeExerciseSessionName,
@@ -92,14 +101,31 @@ const parseManualLoadKg = (value: string): number | null => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+// Conversores entre o estado interno (mapa por índice) e a forma canônica
+// do rascunho compartilhado vivem em `src/utils/exerciseFirstDraftConversion`
+// para serem testáveis sem arrastar dependências de browser deste arquivo.
+
 export function ExerciseFirstSessionEntry({
   prescriptionExercises,
   selectedStudents,
+  date,
+  time,
+  trainer,
+  prescriptionId,
   onSave,
   onCancel,
 }: ExerciseFirstSessionEntryProps) {
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Draft autosave (localStorage via shared hook). Use a mode-specific
+  // entityId so we don't collide with the per-student manual flow, which
+  // uses the default key.
+  const draftEntityId = `exercise-first-${prescriptionId ?? "no-prescription"}`;
+  const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } =
+    useSessionDraft(draftEntityId);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const draftRestoredRef = useRef(false);
 
   // Data: studentId → exerciseIndex → ExerciseData
   const [data, setData] = useState<Record<string, Record<number, ExerciseData>>>(() => {
@@ -162,6 +188,73 @@ export function ExerciseFirstSessionEntry({
   useEffect(() => {
     inputRefs.current = selectedStudents.map(() => [null, null, null, null, null]);
   }, [selectedStudents]);
+
+  // Restore draft once per mount when one exists in localStorage. Walks
+  // the draft's studentExercises and merges into `data`; prescription
+  // defaults fill any gap (e.g. when students/prescription changed).
+  useEffect(() => {
+    if (
+      draftRestoredRef.current ||
+      !draft?.studentExercises ||
+      Object.keys(draft.studentExercises).length === 0 ||
+      selectedStudents.length === 0 ||
+      prescriptionExercises.length === 0
+    ) {
+      return;
+    }
+    setData(
+      draftStudentExercisesToExerciseFirstData(
+        draft.studentExercises,
+        selectedStudents,
+        prescriptionExercises,
+      ),
+    );
+    setExerciseIndex(0);
+    draftRestoredRef.current = true;
+  }, [draft, selectedStudents, prescriptionExercises]);
+
+  // Auto-save on any meaningful change. Mirrors ManualSessionEntry's guard
+  // (skip until `data` has been initialized).
+  useEffect(() => {
+    if (Object.keys(data).length === 0) return;
+    saveDraft({
+      date,
+      time,
+      trainer,
+      prescriptionId,
+      selectedStudents,
+      studentExercises: exerciseFirstDataToDraftStudentExercises(
+        data,
+        selectedStudents,
+        prescriptionExercises,
+      ),
+    });
+  }, [
+    data,
+    date,
+    time,
+    trainer,
+    prescriptionId,
+    selectedStudents,
+    prescriptionExercises,
+    saveDraft,
+  ]);
+
+  // Restore from the history dialog: same converter as the on-mount restore.
+  const handleRestoreFromHistory = useCallback(
+    (historicalDraft: SessionDraft) => {
+      restoreDraft(historicalDraft);
+      setData(
+        draftStudentExercisesToExerciseFirstData(
+          historicalDraft.studentExercises,
+          selectedStudents,
+          prescriptionExercises,
+        ),
+      );
+      setExerciseIndex(0);
+    },
+    [restoreDraft, selectedStudents, prescriptionExercises],
+  );
 
   const getLastSession = useCallback(
     (
@@ -403,6 +496,9 @@ export function ExerciseFirstSessionEntry({
         }),
       }));
       await onSave({ studentExercises });
+      // Clear the draft only after the parent confirmed success. If onSave
+      // throws, the draft stays so the user does not lose work.
+      clearDraft();
     } catch (error: unknown) {
       logger.warn("ExerciseFirstSessionEntry save failed", error);
       // Error handling is delegated to parent.
@@ -588,6 +684,48 @@ export function ExerciseFirstSessionEntry({
 
   return (
     <div className="space-y-4">
+      {/* Draft autosave indicator. Mirrors ManualSessionEntry so the
+          coach has the same affordances in both manual modes. */}
+      {(lastSaved || isSaving) && (
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg text-sm">
+          <div className="flex items-center gap-2">
+            {isSaving ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                <span className="text-muted-foreground">Salvando rascunho...</span>
+              </>
+            ) : lastSaved ? (
+              <>
+                <Save className="h-3 w-3 text-green-600" />
+                <span className="text-muted-foreground">
+                  Rascunho salvo {formatDistanceToNow(lastSaved, { addSuffix: true, locale: ptBR })}
+                </span>
+              </>
+            ) : null}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setHistoryDialogOpen(true)}
+              className="text-xs gap-1"
+            >
+              <History className="h-3 w-3" />
+              Histórico
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearDraft}
+              className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash className="h-3 w-3 mr-1" />
+              Limpar rascunho
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Exercise navigation */}
       <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
         <Button
@@ -983,6 +1121,13 @@ export function ExerciseFirstSessionEntry({
         autoSuggest={false}
         initialCategory={selectionTarget?.category}
         initialMovementPattern={selectionTarget?.movementPattern}
+      />
+
+      {/* Draft history dialog — shared with ManualSessionEntry. */}
+      <DraftHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        onRestoreDraft={handleRestoreFromHistory}
       />
     </div>
   );
