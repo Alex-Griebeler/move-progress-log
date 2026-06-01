@@ -24,6 +24,7 @@ import {
   LEVEL_OPTIONS,
   STRENGTH_SUBCATEGORIES,
   POTENCIA_SUBCATEGORIES,
+  LMF_SUBCATEGORIES,
   STABILITY_POSITION_OPTIONS,
   SURFACE_MODIFIER_OPTIONS,
 } from "@/constants/backToBasics";
@@ -48,17 +49,6 @@ const CORE_SUBCATEGORIES: Record<string, string> = {
   ativacao_gluteo: "Ativação Glúteo",
   ativacao_ombro: "Ativação Ombro",
   estabilizacao: "Estabilização",
-};
-
-const LMF_SUBCATEGORIES: Record<string, string> = {
-  adutores: "Adutores",
-  gluteos: "Glúteos",
-  quadriceps: "Quadríceps",
-  isquiotibiais: "Isquiotibiais",
-  panturrilha: "Panturrilha",
-  coluna: "Coluna",
-  ombro: "Ombro",
-  pe: "Pé",
 };
 
 const LEGACY_REVIEW_PAGE_SIZE = 25;

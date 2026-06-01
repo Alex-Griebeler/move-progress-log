@@ -274,6 +274,25 @@ export const CORE_ATIVACAO_SUBCATEGORIES = {
   respiracao_pressao_iap: "Respiração / pressão intra-abdominal",
 } as const;
 
+/**
+ * Subcategorias de Liberação Miofascial (LMF), agrupadas por região
+ * anatômica trabalhada. Fonte única — antes era duplicada localmente em
+ * `src/pages/ExerciseReviewPage.tsx`, agora consolidada aqui pra evitar
+ * drift entre páginas que precisam do mesmo vocabulário.
+ */
+export const LMF_SUBCATEGORIES = {
+  adutores: "Adutores",
+  gluteos: "Glúteos",
+  quadriceps: "Quadríceps",
+  isquiotibiais: "Isquiotibiais",
+  panturrilha: "Panturrilha",
+  coluna: "Coluna",
+  ombro: "Ombro",
+  pe: "Pé",
+} as const;
+
+export type LMFSubcategory = keyof typeof LMF_SUBCATEGORIES;
+
 // Categorias elegíveis para condicionamento metabólico
 export const CONDICIONAMENTO_ELIGIBLE_CATEGORIES: ExerciseCategory[] = [
   "core_ativacao",
