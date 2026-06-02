@@ -5,10 +5,11 @@ name: main-watcher
 # aplica migrations no deploy — foi por aí que entraram role BYPASSRLS e
 # migration duplicada, sem PR.
 #
-# v1.1: NÃO alerta em merges de PR já revisados. Um squash/merge produz um
-# commit em `main` associado ao PR; detectamos via
-# listPullRequestsAssociatedWithCommit e PULAMOS. Só classificamos/alertamos
-# quando o commit NÃO tem PR associado (commit direto na lane não-gerenciada).
+# v1.1: NÃO alerta em merges de PR já revisados — só em commit direto.
+# v1.2: corrige o race de indexação do listPullRequestsAssociatedWithCommit
+# (que abriu falso-positivo no merge do #203). Detecção determinística via
+# "(#N)" no título do commit de merge + verificação de PR merged, com a
+# associação por API como fallback com retry.
 
 on:
   push:
@@ -28,14 +29,57 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            // v1.2: dois sinais, pra fechar o race de indexação do
+            // listPullRequestsAssociatedWithCommit (que causou falso-positivo
+            // no merge do #203 — a associação ainda não estava pronta).
+            //
+            // SINAL 1 (determinístico, imune ao race): o título do commit de
+            // merge do GitHub termina em "(#N)". Pegamos N, buscamos o PR e
+            // confirmamos que está MERGED e que o merge_commit_sha bate com
+            // este SHA — isso prova que é genuinamente o merge deste PR
+            // (não dá pra forjar com um "(#N)" qualquer no texto).
+            //
+            // SINAL 2 (fallback p/ fluxos sem "(#N)" no título): associação por
+            // API com retry, pra dar tempo de indexar.
             const { owner, repo } = context.repo;
-            const commit_sha = context.sha;
-            const { data: pulls } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-              owner, repo, commit_sha,
-            });
-            const hasPR = pulls.length > 0;
-            core.info(`Commit ${commit_sha.slice(0, 7)} → PRs associados: ${pulls.length}` +
-              (hasPR ? ` (#${pulls.map((p) => p.number).join(', #')})` : " (commit direto, sem PR)"));
+            const sha = context.sha;
+            const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+            let hasPR = false;
+            let why = "";
+
+            const msg = context.payload.head_commit?.message || "";
+            const m = msg.match(/\(#(\d+)\)/);
+            if (m) {
+              try {
+                const { data: pr } = await github.rest.pulls.get({
+                  owner, repo, pull_number: Number(m[1]),
+                });
+                if (pr.merged === true && pr.merge_commit_sha === sha) {
+                  hasPR = true;
+                  why = `título referencia PR #${m[1]} (merged, merge_commit_sha bate)`;
+                } else if (pr.merged === true) {
+                  // merged mas SHA não bate (ex.: rebase) — ainda é PR revisado.
+                  hasPR = true;
+                  why = `título referencia PR #${m[1]} (merged; sha não-exato, provável rebase)`;
+                }
+              } catch (e) {
+                core.info(`PR #${m[1]} não pôde ser lido: ${e.message}`);
+              }
+            }
+
+            // Fallback: associação direta com até 3 tentativas (5s entre elas).
+            for (let i = 0; i < 3 && !hasPR; i++) {
+              if (i > 0) await sleep(5000);
+              const { data: pulls } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner, repo, commit_sha: sha,
+              });
+              if (pulls.length > 0) {
+                hasPR = true;
+                why = `associação por API: #${pulls.map((p) => p.number).join(", #")}`;
+              }
+            }
+
+            core.info(`Commit ${sha.slice(0, 7)} → has_pr=${hasPR} ${why || "(commit direto, sem PR)"}`);
             core.setOutput('has_pr', hasPR ? 'true' : 'false');
 
       - name: Pular (merge de PR revisado)
