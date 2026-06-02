@@ -40,18 +40,12 @@ jobs:
           git diff --name-status "origin/${BASE_REF}...HEAD" > changed.txt
           echo "----- arquivos alterados -----"
           cat changed.txt
-          if grep -qE '(^|/)package-lock\.json$' changed.txt; then
-            git diff "origin/${BASE_REF}...HEAD" -- package-lock.json > lock.diff || true
-          else
-            : > lock.diff
-          fi
 
       - name: Classificar risco
         id: classify
         run: |
           npx --yes tsx scripts/classify-pr-risk.ts \
             --files-from changed.txt \
-            --lockfile-diff lock.diff \
             --markdown-out comment.md > result.json
           echo "----- result.json -----"
           cat result.json

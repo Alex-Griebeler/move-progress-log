@@ -65,28 +65,45 @@ jobs:
           HEAD_SHA=$(gh pr view "$PR" --json headRefOid -q .headRefOid)
           git fetch origin "$BASE_REF" "$HEAD_SHA" || true
           git diff --name-status "origin/${BASE_REF}...${HEAD_SHA}" > changed.txt
-          if grep -qE '(^|/)package-lock\.json$' changed.txt; then
-            git diff "origin/${BASE_REF}...${HEAD_SHA}" -- package-lock.json > lock.diff || true
-          else
-            : > lock.diff
-          fi
-          npx --yes tsx scripts/classify-pr-risk.ts --files-from changed.txt --lockfile-diff lock.diff > result.json
+          npx --yes tsx scripts/classify-pr-risk.ts --files-from changed.txt > result.json
           RISK=$(node -e "process.stdout.write(require('./result.json').risk)")
           echo "risk=$RISK" >> "$GITHUB_OUTPUT"
 
-      - name: Mergear se safe-auto + checks verdes
-        if: steps.pr.outputs.skip == 'false' && steps.reclassify.outputs.risk == 'safe-auto'
+      - name: Pré-flight FAIL-CLOSED — exigir branch protection (quality-gate + classify)
+        id: bp
+        if: steps.pr.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Sem required status checks, `gh pr merge --auto` mergeia imediato.
+          # Então só prosseguimos se a branch protection de `main` exigir
+          # explicitamente quality-gate E classify. Qualquer falha de leitura
+          # (sem proteção, sem permissão, etc.) => fail-closed (ok=false).
+          set +e
+          CTX=$(gh api "repos/${GITHUB_REPOSITORY}/branches/main/protection" \
+            --jq '[.required_status_checks.checks[]?.context, .required_status_checks.contexts[]?] | unique | join(",")' 2>/dev/null)
+          echo "required status checks em main: ${CTX:-<nenhum/sem-leitura>}"
+          if echo "$CTX" | grep -q "quality-gate" && echo "$CTX" | grep -q "classify"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Branch protection não exige quality-gate + classify (ou não pôde ser lida). Auto-merge ABORTADO (fail-closed). Configure branch protection antes de habilitar."
+          fi
+
+      - name: Mergear se safe-auto + branch protection ok
+        if: steps.pr.outputs.skip == 'false' && steps.reclassify.outputs.risk == 'safe-auto' && steps.bp.outputs.ok == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ steps.pr.outputs.number }}
         run: |
-          echo "Re-classificação: safe-auto. Habilitando auto-merge (squash) quando os checks passarem."
-          # --auto deixa o GitHub mergear assim que os required checks ficarem verdes
-          # (respeita branch protection). Não força merge imediato.
+          echo "Re-classificação: safe-auto + branch protection exige quality-gate/classify."
+          # --auto: o GitHub mergeia só quando os required checks passarem
+          # (respeita a branch protection já validada acima). Não força merge imediato.
           gh pr merge "$PR" --squash --auto
 
       - name: Registrar quando NÃO mergear
-        if: steps.pr.outputs.skip == 'false' && steps.reclassify.outputs.risk != 'safe-auto'
+        if: steps.pr.outputs.skip == 'false' && (steps.reclassify.outputs.risk != 'safe-auto' || steps.bp.outputs.ok != 'true')
         env:
           RISK: ${{ steps.reclassify.outputs.risk }}
-        run: echo "Re-classificação deu '$RISK' (não safe-auto) — auto-merge não age."
+          BP: ${{ steps.bp.outputs.ok }}
+        run: echo "Auto-merge não age — risk='$RISK' (precisa safe-auto), branchProtectionOk='$BP' (precisa true)."

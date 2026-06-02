@@ -3,11 +3,7 @@
  * Servem também como EXEMPLOS DE CLASSIFICAÇÃO executáveis (deliverable).
  */
 import { describe, expect, it } from "vitest";
-import {
-  classifyRisk,
-  detectLockfileMajorBump,
-  type ChangedFile,
-} from "../classify-pr-risk";
+import { classifyRisk, type ChangedFile } from "../classify-pr-risk";
 
 const f = (path: string, status = "M"): ChangedFile => ({ path, status });
 
@@ -37,11 +33,6 @@ describe("classify-pr-risk — safe-auto (allowlist estreita)", () => {
     expect(classifyRisk([f("src/utils/__tests__/foo.coverage.test.ts", "M")]).risk).toBe("needs-human");
   });
 
-  it("package-lock.json sozinho → safe-auto", () => {
-    const r = classifyRisk([f("package-lock.json", "M")]);
-    expect(r.risk).toBe("safe-auto");
-    expect(r.autoMergeEligible).toBe(true);
-  });
 });
 
 describe("classify-pr-risk — needs-human (alto risco)", () => {
@@ -50,11 +41,18 @@ describe("classify-pr-risk — needs-human (alto risco)", () => {
     ["supabase/functions/oura-callback/index.ts", "edge function"],
     ["src/integrations/supabase/types.ts", "supabase types"],
     ["package.json", "deps declaradas"],
+    ["package-lock.json", "lockfile de deps (sem semver-parser em v1)"],
     ["src/components/AddExerciseDialog.tsx", "componente app (default-deny)"],
     ["supabase/functions/_shared/rls-policy.sql", "rls"],
     ["src/hooks/useOuraConnection.ts", "oura"],
   ])("%s → needs-human", (path) => {
     expect(classifyRisk([f(path)]).risk).toBe("needs-human");
+  });
+
+  it("package-lock.json sozinho NÃO é mais safe-auto (v1: deps = needs-human)", () => {
+    const r = classifyRisk([f("package-lock.json", "M")]);
+    expect(r.risk).toBe("needs-human");
+    expect(r.autoMergeEligible).toBe(false);
   });
 
   it("deleção de qualquer arquivo → needs-human", () => {
@@ -85,24 +83,5 @@ describe("classify-pr-risk — PR misto nunca é safe-auto", () => {
 
   it("teste safe + secret bloqueado → blocked (prioridade máxima)", () => {
     expect(classifyRisk([f("a.test.ts", "A"), f(".env", "A")]).risk).toBe("blocked");
-  });
-});
-
-describe("detectLockfileMajorBump — fail-safe", () => {
-  it("sem diff → não suspeita", () => {
-    expect(detectLockfileMajorBump("").suspected).toBe(false);
-  });
-
-  it("bump de patch balanceado (4.0.18→4.1.8) → não suspeita major", () => {
-    const diff = `-      "version": "4.0.18"\n+      "version": "4.1.8"`;
-    expect(detectLockfileMajorBump(diff).suspected).toBe(false);
-  });
-
-  it("major desbalanceado (1.x→2.x) → suspeita e força needs-human", () => {
-    const diff = `-      "version": "1.7.0"\n+      "version": "2.1.0"`;
-    expect(detectLockfileMajorBump(diff).suspected).toBe(true);
-    const r = classifyRisk([f("package-lock.json", "M")], { lockfileDiff: diff });
-    expect(r.risk).toBe("needs-human");
-    expect(r.advisories.join(" ")).toMatch(/major/i);
   });
 });

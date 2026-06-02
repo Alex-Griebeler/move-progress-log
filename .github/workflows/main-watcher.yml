@@ -43,16 +43,11 @@ jobs:
           echo "range=$RANGE"
           git diff --name-status $RANGE > changed.txt || git show --name-status --format= "$AFTER" > changed.txt
           cat changed.txt
-          if grep -qE '(^|/)package-lock\.json$' changed.txt; then
-            git diff $RANGE -- package-lock.json > lock.diff 2>/dev/null || : > lock.diff
-          else
-            : > lock.diff
-          fi
 
       - name: Classificar push direto
         id: classify
         run: |
-          npx --yes tsx scripts/classify-pr-risk.ts --files-from changed.txt --lockfile-diff lock.diff --markdown-out watch.md > result.json || true
+          npx --yes tsx scripts/classify-pr-risk.ts --files-from changed.txt --markdown-out watch.md > result.json || true
           if [ -f result.json ]; then
             RISK=$(node -e "process.stdout.write(require('./result.json').risk)")
           else

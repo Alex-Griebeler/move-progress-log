@@ -73,6 +73,11 @@ const NEEDS_HUMAN_PATTERNS: Array<{ re: RegExp; rule: string }> = [
   { re: /(auth|oauth|oura|token|callback)/i, rule: "auth/Oura/OAuth/token" },
   { re: /storage/i, rule: "storage" },
   { re: /(^|\/)package\.json$/, rule: "package.json (dependências)" },
+  // Lockfile é needs-human em v1: não há semver-parser confiável por pacote.
+  // Um detector por multiset de majors é falso-seguro — o caso compensado
+  // (A: 1.x→2.x + B: 2.x→1.x) passaria como safe-auto. safe-auto de deps
+  // fica pra v2 com parser real por pacote.
+  { re: /(^|\/)package-lock\.json$/, rule: "lockfile de deps (needs-human em v1; sem semver-parser por pacote)" },
   { re: /supabase\/.*types\.ts$|integrations\/supabase\/types/i, rule: "Supabase types" },
   // Módulos sensíveis Fabrik (dados clínicos / prescrição / carga / voz).
   { re: /(dexa|assessment|prescription|prescricao|relatorio|report)/i, rule: "prescrição/DEXA/relatório" },
@@ -86,7 +91,6 @@ const SAFE_PATTERNS: Array<{ re: RegExp; rule: string; addedOnly?: boolean }> = 
   { re: /^docs\//i, rule: "documentação (docs/)" },
   { re: /(^|\/)__tests__\/.*\.(test|spec|coverage\.test)\.[cm]?[jt]sx?$/i, rule: "arquivo de teste", addedOnly: true },
   { re: /\.(test|spec)\.[cm]?[jt]sx?$/i, rule: "arquivo de teste", addedOnly: true },
-  { re: /^package-lock\.json$/, rule: "lockfile (somente)" },
 ];
 
 const ADD_STATUS = new Set(["A"]);
@@ -129,50 +133,13 @@ function matchFile(file: ChangedFile): FileVerdict {
   return { path, status, level: "needs-human", rule: "path não reconhecido (default-deny)" };
 }
 
-/**
- * Detector best-effort de major bump no diff do package-lock.json.
- * Fail-safe: se há QUALQUER dúvida de major, sinaliza (advisory) e força
- * needs-human. Pareamento exato old↔new por pacote é complexo; aqui usamos
- * a heurística conservadora de comparar o multiset de "majors" removidos vs
- * adicionados — divergência => possível major.
- */
-export function detectLockfileMajorBump(lockfileDiff: string): {
-  suspected: boolean;
-  detail: string;
-} {
-  if (!lockfileDiff) return { suspected: false, detail: "" };
-  const majorsOf = (sign: "+" | "-") => {
-    const re = new RegExp(`^\\${sign}\\s*"version":\\s*"(\\d+)\\.`, "gm");
-    const counts: Record<string, number> = {};
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(lockfileDiff)) !== null) {
-      counts[m[1]] = (counts[m[1]] ?? 0) + 1;
-    }
-    return counts;
-  };
-  const removed = majorsOf("-");
-  const added = majorsOf("+");
-  const majors = new Set([...Object.keys(removed), ...Object.keys(added)]);
-  for (const maj of majors) {
-    if ((removed[maj] ?? 0) !== (added[maj] ?? 0)) {
-      return {
-        suspected: true,
-        detail: `desbalanço no major ${maj}.x (removidos=${removed[maj] ?? 0}, adicionados=${added[maj] ?? 0})`,
-      };
-    }
-  }
-  return { suspected: false, detail: "" };
-}
+// NOTA: a v1 NÃO tem detector de major bump no lockfile. Um detector por
+// multiset de majors é falso-seguro (caso compensado 1.x→2.x + 2.x→1.x
+// passaria). Em vez de fingir segurança, o lockfile é classificado como
+// needs-human (ver NEEDS_HUMAN_PATTERNS). safe-auto de deps fica pra v2 com
+// um parser real por pacote.
 
-export interface ClassifyOptions {
-  /** Diff bruto do package-lock.json, se houver, para o detector de major. */
-  lockfileDiff?: string;
-}
-
-export function classifyRisk(
-  files: ChangedFile[],
-  opts: ClassifyOptions = {},
-): RiskResult {
+export function classifyRisk(files: ChangedFile[]): RiskResult {
   const reasons: string[] = [];
   const advisories: string[] = [];
   const gatesRequired = [
@@ -211,15 +178,6 @@ export function classifyRisk(
     );
   }
 
-  // Major bump no lockfile → fail-safe needs-human + advisory.
-  let forcedByDeps = false;
-  if (opts.lockfileDiff) {
-    const mb = detectLockfileMajorBump(opts.lockfileDiff);
-    if (mb.suspected) {
-      forcedByDeps = true;
-      advisories.push(`Possível major bump no package-lock.json: ${mb.detail}. Forçando needs-human.`);
-    }
-  }
 
   let risk: RiskLevel;
   if (anyBlocked) {
@@ -227,7 +185,7 @@ export function classifyRisk(
     reasons.push(
       "Contém path bloqueado (secret/Vault/.env/credencial) — replanejar antes de mergear.",
     );
-  } else if (anyNeedsHuman || !allSafe || forcedByDeps) {
+  } else if (anyNeedsHuman || !allSafe) {
     risk = "needs-human";
   } else {
     risk = "safe-auto";
@@ -289,7 +247,7 @@ export function renderMarkdown(result: RiskResult): string {
 // ──────────────────────────────────────────────────────────────────────────
 // CLI
 //   node/tsx scripts/classify-pr-risk.ts --files-from <name-status.txt> \
-//        [--lockfile-diff <lock.diff>] [--markdown-out <comment.md>]
+//        [--markdown-out <comment.md>]
 //   `name-status.txt` no formato de `git diff --name-status base...head`.
 //   Imprime o JSON do resultado no stdout.
 // ──────────────────────────────────────────────────────────────────────────
@@ -319,14 +277,12 @@ async function main() {
 
   const filesFrom = getArg("--files-from");
   if (!filesFrom) {
-    console.error("Uso: classify-pr-risk.ts --files-from <name-status.txt> [--lockfile-diff <f>] [--markdown-out <f>]");
+    console.error("Uso: classify-pr-risk.ts --files-from <name-status.txt> [--markdown-out <f>]");
     process.exit(2);
   }
   const files = parseNameStatus(readFileSync(filesFrom, "utf-8"));
-  const lockfileDiffPath = getArg("--lockfile-diff");
-  const lockfileDiff = lockfileDiffPath ? readFileSync(lockfileDiffPath, "utf-8") : "";
 
-  const result = classifyRisk(files, { lockfileDiff });
+  const result = classifyRisk(files);
 
   const mdOut = getArg("--markdown-out");
   if (mdOut) writeFileSync(mdOut, renderMarkdown(result), "utf-8");
@@ -356,10 +312,10 @@ if (isCli) {
  * 2. "Refactor sem mudança de contrato" NÃO é safe-auto — os testes do repo
  *    são majoritariamente source-based (regex no fonte) e não pegam regressão
  *    de comportamento.
- * 3. Detector de major bump no lockfile é heurístico (multiset de majors).
- *    Fail-safe (over-flag), mas não substitui um semver-diff real. Por isso,
- *    e por precaução, AUTO-MERGE DE DEPS deve permanecer desligado até existir
- *    um guard de major dedicado.
+ * 3. DEPS (package.json e package-lock.json) são needs-human em v1. NÃO há
+ *    detector de major bump — um por multiset de majors é falso-seguro (caso
+ *    compensado 1.x→2.x + 2.x→1.x passaria). safe-auto de deps só com um
+ *    parser real por pacote (v2).
  * 4. O classificador roda na lane de PR. Commits diretos no `main` (ex.:
  *    Lovable/gpt-engineer-app bot) NÃO passam por aqui — são cobertos pelo
  *    `main-watcher.yml`.
