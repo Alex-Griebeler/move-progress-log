@@ -24,6 +24,7 @@ import {
   LEVEL_OPTIONS,
   STRENGTH_SUBCATEGORIES,
   POTENCIA_SUBCATEGORIES,
+  LMF_SUBCATEGORIES,
   STABILITY_POSITION_OPTIONS,
   SURFACE_MODIFIER_OPTIONS,
 } from "@/constants/backToBasics";
@@ -50,16 +51,10 @@ const CORE_SUBCATEGORIES: Record<string, string> = {
   estabilizacao: "Estabilização",
 };
 
-const LMF_SUBCATEGORIES: Record<string, string> = {
-  adutores: "Adutores",
-  gluteos: "Glúteos",
-  quadriceps: "Quadríceps",
-  isquiotibiais: "Isquiotibiais",
-  panturrilha: "Panturrilha",
-  coluna: "Coluna",
-  ombro: "Ombro",
-  pe: "Pé",
-};
+// LMF_SUBCATEGORIES consolidado em @/constants/backToBasics (fonte canônica).
+// CORE_SUBCATEGORIES local permanece intacto de propósito nesta rodada —
+// a divergência CORE_SUBCATEGORIES vs CORE_ATIVACAO_SUBCATEGORIES é tratada
+// numa fase separada (auditoria CORE), não aqui.
 
 const LEGACY_REVIEW_PAGE_SIZE = 25;
 
