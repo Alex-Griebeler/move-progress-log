@@ -1,0 +1,98 @@
+name: risk-classifier
+
+# Classifica o risco de cada PR (default-deny) e aplica UMA label de tier.
+# Só ESTE workflow aplica/gerencia as labels de tier — agentes não devem
+# se auto-carimbar. A cada run, removemos as labels de tier e aplicamos a
+# que o classificador calculou, então a verdade é sempre do classificador.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: risk-classifier-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history p/ diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Computar arquivos alterados (name-status)
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=0 || git fetch origin "$BASE_REF"
+          git diff --name-status "origin/${BASE_REF}...HEAD" > changed.txt
+          echo "----- arquivos alterados -----"
+          cat changed.txt
+          if grep -qE '(^|/)package-lock\.json$' changed.txt; then
+            git diff "origin/${BASE_REF}...HEAD" -- package-lock.json > lock.diff || true
+          else
+            : > lock.diff
+          fi
+
+      - name: Classificar risco
+        id: classify
+        run: |
+          npx --yes tsx scripts/classify-pr-risk.ts \
+            --files-from changed.txt \
+            --lockfile-diff lock.diff \
+            --markdown-out comment.md > result.json
+          echo "----- result.json -----"
+          cat result.json
+          RISK=$(node -e "process.stdout.write(require('./result.json').risk)")
+          echo "risk=$RISK" >> "$GITHUB_OUTPUT"
+
+      - name: Garantir labels de tier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create safe-auto  --color 0E8A16 --description "Auto-merge elegível se CI verde" 2>/dev/null || true
+          gh label create needs-human --color FBCA04 --description "Requer aprovação humana" 2>/dev/null || true
+          gh label create blocked     --color B60205 --description "Replanejar antes de mergear" 2>/dev/null || true
+          gh label create ai-reviewed  --color 5319E7 --description "Revisado por agente (Claude/Codex)" 2>/dev/null || true
+
+      - name: Aplicar label (remove as demais; classificador é a verdade)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          RISK: ${{ steps.classify.outputs.risk }}
+        run: |
+          for L in safe-auto needs-human blocked; do
+            if [ "$L" != "$RISK" ]; then
+              gh pr edit "$PR" --remove-label "$L" 2>/dev/null || true
+            fi
+          done
+          gh pr edit "$PR" --add-label "$RISK"
+
+      - name: Comentar resumo no PR (upsert)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('comment.md', 'utf8')
+              + '\n<!-- risk-classifier-marker -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.payload.pull_request.number;
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number });
+            const prev = comments.find(c => c.body && c.body.includes('<!-- risk-classifier-marker -->'));
+            if (prev) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: prev.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
