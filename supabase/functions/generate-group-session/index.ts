@@ -1554,7 +1554,10 @@ serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", userData.user.id)
-      .in("role", ["admin", "trainer"])
+      // moderator is the canonical trainer role (admin-create-user only creates
+      // admin/moderator); "trainer" kept for legacy compat. Group-session
+      // generation is a trainer feature on /prescricoes. See Action 3.
+      .in("role", ["admin", "moderator", "trainer"])
       .limit(1);
 
     if (roleError) {

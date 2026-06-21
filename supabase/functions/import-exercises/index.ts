@@ -337,13 +337,15 @@ Deno.serve(async (req: Request) => {
                    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
                    const supabase = createClient(supabaseUrl, serviceKey);
 
-      // Auth check (required): service_role OR authenticated admin/trainer
+      // Auth check (required): service_role OR authenticated admin.
+      // Admin-only tool (UI is behind AdminRoute); the legacy "trainer" role had
+      // no real access path, so this is tightened to admin only. See Action 3.
       const authResult = await authenticateServiceRoleOrUserRole(req, {
         corsHeaders,
-        allowedRoles: ["admin", "trainer"],
+        allowedRoles: ["admin"],
         missingAuthMessage: "Missing or invalid authorization header",
         invalidTokenMessage: "Unauthorized",
-        forbiddenMessage: "Forbidden: admin or trainer required",
+        forbiddenMessage: "Forbidden: admin required",
       });
       if (authResult instanceof Response) {
         return authResult;

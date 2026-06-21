@@ -141,7 +141,9 @@ serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      .in("role", ["admin", "trainer"])
+      // Admin-only tool (UI is behind AdminRoute). The legacy "trainer" role had
+      // no real access path, so this is tightened to admin only. See Action 3.
+      .in("role", ["admin"])
       .limit(1);
 
     if (roleError) {
@@ -153,7 +155,7 @@ serve(async (req) => {
 
     if (!roleData || roleData.length === 0) {
       return new Response(
-        JSON.stringify({ success: false, error: "Acesso restrito a treinadores e admins" }),
+        JSON.stringify({ success: false, error: "Acesso restrito a administradores" }),
         { headers: jsonHeaders, status: 403 }
       );
     }
