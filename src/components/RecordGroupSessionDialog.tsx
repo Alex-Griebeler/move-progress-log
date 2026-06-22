@@ -809,7 +809,13 @@ export function RecordGroupSessionDialog({
         if (sessionError) throw sessionError;
         const exercisesToInsert = session.exercises.map((ex) => ({ session_id: workoutSession.id, exercise_library_id: ex.exercise_library_id ?? null, exercise_name: ex.executed_exercise_name, sets: ex.sets, reps: ex.reps, reserve_reps: ex.reserve_reps || null, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown, observations: ex.observations || null }));
         const { error: exercisesError } = await supabase.from("exercises").insert(exercisesToInsert);
-        if (exercisesError) throw exercisesError;
+        if (exercisesError) {
+          // Atomicidade (#5): reverte a sessão recém-criada deste aluno se os
+          // exercícios falharem, evitando sessão órfã (sem exercícios).
+          const { error: rollbackError } = await supabase.from("workout_sessions").delete().eq("id", workoutSession.id);
+          if (rollbackError) logger.error("Falha ao reverter sessão órfã (grupo manual):", rollbackError);
+          throw exercisesError;
+        }
       }
       
       notify.success("Sessões registradas com sucesso", { description: `${sessionsToCreate.length} sessão(ões) criada(s) manualmente` });
