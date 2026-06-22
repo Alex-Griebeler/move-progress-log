@@ -138,6 +138,7 @@ const mapExercisesToInsert = (
     load_description: exercise.load_description ?? null,
     load_breakdown: exercise.load_breakdown ?? null,
     observations: exercise.observations ?? null,
+    is_best_set: exercise.is_best_set ?? false,
   }));
 
 const createSessionWithDirectInsert = async (params: {
