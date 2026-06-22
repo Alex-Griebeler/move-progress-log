@@ -405,6 +405,7 @@ export const useCreateGroupWorkoutSessions = () => {
               load_kg: ex.load_kg,
               load_breakdown: ex.load_breakdown,
               observations: finalObservations || null,
+              is_best_set: ex.is_best_set ?? false,
             };
           });
           assertExercisesHaveLibraryIds(exercisesPayload);
