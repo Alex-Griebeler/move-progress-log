@@ -55,6 +55,7 @@ type SessionExercisePayload = {
   load_description?: string | null;
   load_breakdown?: string | null;
   observations?: string | null;
+  is_best_set?: boolean | null;
 };
 type GroupSessionCreationResult = {
   student: string;
