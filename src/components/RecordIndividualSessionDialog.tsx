@@ -347,6 +347,9 @@ export function RecordIndividualSessionDialog({
 
     try {
       let sessionId: string;
+      // Atomicidade (#5): só guarda o id quando criamos uma sessão NOVA, para
+      // poder reverter sessão órfã sem afetar o fluxo de reabertura.
+      let createdSessionId: string | null = null;
       if (isReopening && existingSessionId) {
         const { error: deleteExercisesError } = await supabase
           .from('exercises')
@@ -362,6 +365,7 @@ export function RecordIndividualSessionDialog({
         const { data: session, error: sessionError } = await supabase.from('workout_sessions').insert({ student_id: studentId, prescription_id: selectedPrescriptionId, date, time, trainer_name: trainerName, is_finalized: true, session_type: 'individual' }).select('id').single();
         if (sessionError) throw sessionError;
         sessionId = session.id;
+        createdSessionId = session.id;
       }
 
       const exercises = editableExercises.map(ex => ({
@@ -376,7 +380,15 @@ export function RecordIndividualSessionDialog({
         is_best_set: ex.is_best_set,
       }));
       const { error: exercisesError } = await supabase.from('exercises').insert(exercises);
-      if (exercisesError) throw exercisesError;
+      if (exercisesError) {
+        // Atomicidade (#5): exercícios falharam numa sessão recém-criada → remove
+        // a sessão órfã (sem exercícios) antes de propagar o erro.
+        if (createdSessionId) {
+          const { error: rollbackError } = await supabase.from('workout_sessions').delete().eq('id', createdSessionId);
+          if (rollbackError) logger.error('Falha ao reverter sessão órfã (individual):', rollbackError);
+        }
+        throw exercisesError;
+      }
 
       if (accumulatedRecordings.length > 0) {
         const audioSegments = accumulatedRecordings
