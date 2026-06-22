@@ -55,6 +55,7 @@ type SessionExercisePayload = {
   load_description?: string | null;
   load_breakdown?: string | null;
   observations?: string | null;
+  is_best_set?: boolean | null;
 };
 type GroupSessionCreationResult = {
   student: string;
@@ -137,6 +138,7 @@ const mapExercisesToInsert = (
     load_description: exercise.load_description ?? null,
     load_breakdown: exercise.load_breakdown ?? null,
     observations: exercise.observations ?? null,
+    is_best_set: exercise.is_best_set ?? false,
   }));
 
 const createSessionWithDirectInsert = async (params: {
@@ -276,6 +278,7 @@ export const useCreateWorkoutSession = () => {
         load_description?: string;
         load_breakdown?: string;
         observations?: string;
+        is_best_set?: boolean;
       }>;
     }) => {
       const exercisesPayload = data.exercises.map((ex) => ({
@@ -288,6 +291,7 @@ export const useCreateWorkoutSession = () => {
         load_description: ex.load_description ?? null,
         load_breakdown: ex.load_breakdown ?? null,
         observations: ex.observations ?? null,
+        is_best_set: ex.is_best_set ?? false,
       }));
       assertExercisesHaveLibraryIds(exercisesPayload);
 
@@ -403,6 +407,7 @@ export const useCreateGroupWorkoutSessions = () => {
               load_kg: ex.load_kg,
               load_breakdown: ex.load_breakdown,
               observations: finalObservations || null,
+              is_best_set: ex.is_best_set ?? false,
             };
           });
           assertExercisesHaveLibraryIds(exercisesPayload);
