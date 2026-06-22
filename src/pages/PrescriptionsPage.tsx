@@ -31,6 +31,7 @@ import { PrescriptionCardSkeleton } from "@/components/skeletons/PrescriptionCar
 import EmptyState from "@/components/EmptyState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { useIsModerator } from "@/hooks/useUserRole";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { notify } from "@/lib/notify";
 import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
@@ -114,6 +115,10 @@ export default function PrescriptionsPage() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [recordGroupDialogOpen, setRecordGroupDialogOpen] = useState(false);
   const [generateSessionDialogOpen, setGenerateSessionDialogOpen] = useState(false);
+  // Gerar sessão em grupo é ação de treinador (a edge generate-group-session só
+  // aceita admin/moderator). Esconde o gatilho para aluno (user) — o backend já
+  // retorna 403; isto evita expor um botão que sempre falharia.
+  const { isModerator: canGenerateGroupSession } = useIsModerator();
   const [createSubfolderDialogOpen, setCreateSubfolderDialogOpen] = useState(false);
   const [renameFolderDialogOpen, setRenameFolderDialogOpen] = useState(false);
   const [deleteFolderDialogOpen, setDeleteFolderDialogOpen] = useState(false);
@@ -435,15 +440,17 @@ export default function PrescriptionsPage() {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            <Button
-              onClick={() => setGenerateSessionDialogOpen(true)}
-              variant="outline"
-              className="gap-2"
-              aria-label="Gerar sessão com IA"
-            >
-              <Sparkles className="h-4 w-4" />
-              Gerar com IA
-            </Button>
+            {canGenerateGroupSession && (
+              <Button
+                onClick={() => setGenerateSessionDialogOpen(true)}
+                variant="outline"
+                className="gap-2"
+                aria-label="Gerar sessão com IA"
+              >
+                <Sparkles className="h-4 w-4" />
+                Gerar com IA
+              </Button>
+            )}
 
             <Button
               onClick={() => setImportWordDialogOpen(true)}
