@@ -21,11 +21,7 @@ export const useWhoopConnection = (studentId: string) => {
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      // whoop_* tables are new; generated Database types don't include them yet
-      // (Lovable regenerates on merge). Query via an untyped view.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const client = supabase as any;
-      const { data, error } = await client
+      const { data, error } = await supabase
         .from("whoop_connections")
         .select(WHOOP_CONNECTION_SELECT)
         .eq("student_id", studentId)

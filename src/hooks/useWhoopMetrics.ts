@@ -40,11 +40,7 @@ export const useWhoopMetrics = (studentId: string, limit?: number) => {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      // whoop_* tables are new; the generated Database types don't include them
-      // yet (Lovable regenerates them on merge). Query via an untyped view.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const client = supabase as any;
-      const { data, error } = await client
+      const { data, error } = await supabase
         .from("whoop_metrics")
         .select(WHOOP_METRICS_SELECT)
         .eq("student_id", studentId)
