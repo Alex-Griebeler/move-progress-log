@@ -4,7 +4,7 @@ import { authenticateServiceRoleOrUserRole } from "../_shared/auth.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -19,29 +19,19 @@ Deno.serve(async (req) => {
   const { supabaseUrl, supabaseServiceKey } = auth;
   const admin = createClient(supabaseUrl, supabaseServiceKey);
 
-  // Upsert cron_service_role_key into vault
-  const { data: existing } = await admin
-    .schema("vault" as never)
-    .from("secrets" as never)
-    .select("id")
-    .eq("name", "cron_service_role_key")
-    .maybeSingle();
+  const { error } = await admin.rpc("_bootstrap_upsert_vault_secret" as never, {
+    p_name: "cron_service_role_key",
+    p_value: supabaseServiceKey,
+  } as never);
 
-  let action = "created";
-  if (existing) {
-    await admin.rpc("_bootstrap_update_vault_secret" as never, {
-      p_name: "cron_service_role_key",
-      p_value: supabaseServiceKey,
-    });
-    action = "updated";
-  } else {
-    await admin.rpc("_bootstrap_create_vault_secret" as never, {
-      p_name: "cron_service_role_key",
-      p_value: supabaseServiceKey,
+  if (error) {
+    return new Response(JSON.stringify({ ok: false, error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
-  return new Response(JSON.stringify({ ok: true, action }), {
+  return new Response(JSON.stringify({ ok: true }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
