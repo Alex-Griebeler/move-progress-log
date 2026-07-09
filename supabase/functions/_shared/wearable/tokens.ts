@@ -6,6 +6,20 @@ export interface OAuthTokens {
   expires_in: number;
 }
 
+// Thrown on non-2xx from the provider's OAuth token endpoint. Exposes the HTTP
+// status so callers can distinguish permanent auth failures (400/401 →
+// invalid_grant, revoked/rotated) from transient ones (5xx, 429, network).
+export class TokenHttpError extends Error {
+  status: number;
+  body: string;
+  constructor(kind: string, status: number, body: string) {
+    super(`${kind} failed: ${status}${body ? ` | ${body.slice(0, 200)}` : ""}`);
+    this.name = "TokenHttpError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
 // Refresh an access token using the provider's OAuth token endpoint.
 // WHOOP requires `scope=offline` on refresh to keep issuing refresh tokens.
 export async function refreshAccessToken(cfg: ProviderConfig, refreshToken: string): Promise<OAuthTokens> {
@@ -20,7 +34,10 @@ export async function refreshAccessToken(cfg: ProviderConfig, refreshToken: stri
       scope: "offline",
     }).toString(),
   });
-  if (!res.ok) throw new Error(`token refresh failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new TokenHttpError("token refresh", res.status, body);
+  }
   return await res.json();
 }
 
@@ -37,7 +54,10 @@ export async function exchangeCode(cfg: ProviderConfig, code: string, redirectUr
       client_secret: Deno.env.get(cfg.secretEnv.clientSecret) ?? "",
     }).toString(),
   });
-  if (!res.ok) throw new Error(`token exchange failed: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new TokenHttpError("token exchange", res.status, body);
+  }
   return await res.json();
 }
 
