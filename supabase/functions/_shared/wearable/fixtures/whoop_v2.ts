@@ -27,6 +27,36 @@ export const RECOVERIES = [
   },
 ];
 
+export const WORKOUTS = [
+  {
+    id: "7e8f13d1-6c1b-4a52-9d0e-2b4f8a91c303",
+    cycle_id: 93845,
+    user_id: 10129,
+    start: "2026-07-06T14:10:00.000Z",
+    end: "2026-07-06T15:05:00.000Z",
+    sport_name: "weightlifting",
+    score_state: "SCORED",
+    score: {
+      strain: 8.2,
+      average_heart_rate: 121,
+      max_heart_rate: 158,
+      kilojoule: 1650.4,
+      percent_recorded: 100,
+    },
+  },
+  {
+    // PENDING_SCORE workout: no score object yet — mapper must not throw and
+    // must upsert with null score fields (re-sync fills them once scored).
+    id: "b2a4c6e8-0f1d-4e3a-8c5b-7d9f1a3c5e70",
+    cycle_id: 93845,
+    user_id: 10129,
+    start: "2026-07-06T22:30:00.000Z",
+    end: "2026-07-06T23:00:00.000Z",
+    sport_name: "running",
+    score_state: "PENDING_SCORE",
+  },
+];
+
 export const SLEEPS = [
   {
     id: "ecfc6a15-4661-442f-a9a4-f160dd7afae8",

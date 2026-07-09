@@ -81,3 +81,37 @@ export function assembleDailyMetrics(
     };
   });
 }
+
+// Row shape for public.whoop_workouts (UNIQUE (student_id, whoop_workout_id)).
+export interface WhoopWorkoutRow {
+  student_id?: string;
+  whoop_workout_id: string;
+  sport_name: string | null;
+  start_datetime: string | null;
+  end_datetime: string | null;
+  strain: number | null;
+  average_heart_rate: number | null;
+  max_heart_rate: number | null;
+  kilojoules: number | null;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Normalizes WHOOP v2 workout records into whoop_workouts rows. Records
+// without a UUID id are skipped (whoop_workout_id is a uuid column — one
+// malformed id would abort the whole upsert); PENDING_SCORE / UNSCORABLE
+// workouts keep null score fields and get filled on a later sync.
+export function mapWorkouts(workouts: Rec[]): WhoopWorkoutRow[] {
+  return workouts
+    .filter((w) => typeof w.id === "string" && UUID_RE.test(w.id))
+    .map((w) => ({
+      whoop_workout_id: w.id,
+      sport_name: w.sport_name ?? null,
+      start_datetime: w.start ?? null,
+      end_datetime: w.end ?? null,
+      strain: w.score?.strain ?? null,
+      average_heart_rate: w.score?.average_heart_rate ?? null,
+      max_heart_rate: w.score?.max_heart_rate ?? null,
+      kilojoules: w.score?.kilojoule ?? null,
+    }));
+}

@@ -1,8 +1,8 @@
 import { assertEquals } from "jsr:@std/assert";
 import { syncStudent } from "./sync.ts";
-import { CYCLES, RECOVERIES, SLEEPS } from "../_shared/wearable/fixtures/whoop_v2.ts";
+import { CYCLES, RECOVERIES, SLEEPS, WORKOUTS } from "../_shared/wearable/fixtures/whoop_v2.ts";
 
-Deno.test("syncStudent maps fixtures → one whoop_metrics upsert + success log", async () => {
+Deno.test("syncStudent maps fixtures → whoop_metrics + whoop_workouts upserts + success log", async () => {
   // deno-lint-ignore no-explicit-any
   const calls: { upserts: any[]; logs: any[] } = { upserts: [], logs: [] };
   const supa = {
@@ -23,18 +23,33 @@ Deno.test("syncStudent maps fixtures → one whoop_metrics upsert + success log"
   };
 
   const res = await syncStudent(
-    { supa, fetchCollections: () => Promise.resolve({ cycles: CYCLES, recoveries: RECOVERIES, sleeps: SLEEPS, workouts: [] }) },
+    { supa, fetchCollections: () => Promise.resolve({ cycles: CYCLES, recoveries: RECOVERIES, sleeps: SLEEPS, workouts: WORKOUTS }) },
     { student_id: "s1", start: "2026-06-07", end: "2026-07-07", accessToken: "a" },
   );
 
   assertEquals(res.synced, 1);
+  assertEquals(res.workouts_synced, 2);
   assertEquals(calls.upserts[0].table, "whoop_metrics");
   assertEquals(calls.upserts[0].opts.onConflict, "student_id,date");
   assertEquals(calls.upserts[0].rows[0].recovery_score, 66);
   assertEquals(calls.upserts[0].rows[0].student_id, "s1");
+  // Scored workouts: plain upsert (overwrites on re-sync).
+  assertEquals(calls.upserts[1].table, "whoop_workouts");
+  assertEquals(calls.upserts[1].opts.onConflict, "student_id,whoop_workout_id");
+  assertEquals(calls.upserts[1].opts.ignoreDuplicates, undefined);
+  assertEquals(calls.upserts[1].rows.length, 1);
+  assertEquals(calls.upserts[1].rows[0].whoop_workout_id, "7e8f13d1-6c1b-4a52-9d0e-2b4f8a91c303");
+  assertEquals(calls.upserts[1].rows[0].strain, 8.2);
+  assertEquals(calls.upserts[1].rows[0].student_id, "s1");
+  // Unscored workouts: insert-if-new only, never overwrite a persisted score.
+  assertEquals(calls.upserts[2].table, "whoop_workouts");
+  assertEquals(calls.upserts[2].opts.ignoreDuplicates, true);
+  assertEquals(calls.upserts[2].rows.length, 1);
+  assertEquals(calls.upserts[2].rows[0].strain, null); // PENDING_SCORE kept, nulls
   assertEquals(calls.logs[0].table, "whoop_sync_logs");
   assertEquals(calls.logs[0].row.status, "success");
   assertEquals(calls.logs[0].row.metrics_synced, 1);
+  assertEquals(calls.logs[0].row.workouts_synced, 2);
 });
 
 Deno.test("syncStudent logs a failure row and rethrows when the fetch fails", async () => {

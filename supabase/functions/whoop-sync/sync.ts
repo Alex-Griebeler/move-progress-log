@@ -1,4 +1,4 @@
-import { assembleDailyMetrics } from '../_shared/wearable/mapWhoop.ts';
+import { assembleDailyMetrics, mapWorkouts } from '../_shared/wearable/mapWhoop.ts';
 import { WHOOP } from '../_shared/wearable/providerConfig.ts';
 
 // deno-lint-ignore no-explicit-any
@@ -47,23 +47,43 @@ export interface SyncDeps {
   fetchCollections: (token: string, start: string, end: string) => Promise<Collections>;
 }
 
-// Fetch → map (cycle-join) → upsert whoop_metrics → log. The fetch layer is
-// injected so the whole path is unit-tested against fixtures (no device).
+// Fetch → map (cycle-join + workouts) → upsert whoop_metrics/whoop_workouts →
+// log. The fetch layer is injected so the whole path is unit-tested against
+// fixtures (no device).
 export async function syncStudent(
   deps: SyncDeps,
   args: { student_id: string; start: string; end: string; accessToken: string },
-): Promise<{ synced: number }> {
+): Promise<{ synced: number; workouts_synced: number }> {
   const { supa } = deps;
   try {
-    const { cycles, recoveries, sleeps } = await deps.fetchCollections(args.accessToken, args.start, args.end);
+    const { cycles, recoveries, sleeps, workouts } = await deps.fetchCollections(args.accessToken, args.start, args.end);
     const rows = assembleDailyMetrics(cycles, recoveries, sleeps, 'America/Sao_Paulo')
       .map((r) => ({ ...r, student_id: args.student_id }));
     if (rows.length) {
       const { error } = await supa.from('whoop_metrics').upsert(rows, { onConflict: 'student_id,date' });
       if (error) throw error;
     }
-    await supa.from('whoop_sync_logs').insert({ student_id: args.student_id, status: 'success', metrics_synced: rows.length });
-    return { synced: rows.length };
+    const workoutRows = mapWorkouts(workouts).map((w) => ({ ...w, student_id: args.student_id }));
+    // Scored workouts overwrite on re-sync; unscored ones (PENDING_SCORE etc.,
+    // all score fields null) only insert if new, so a score-less re-send can
+    // never null-out a score already persisted.
+    const scored = workoutRows.filter((w) => w.strain !== null || w.average_heart_rate !== null || w.max_heart_rate !== null || w.kilojoules !== null);
+    const unscored = workoutRows.filter((w) => !scored.includes(w));
+    if (scored.length) {
+      const { error } = await supa.from('whoop_workouts').upsert(scored, { onConflict: 'student_id,whoop_workout_id' });
+      if (error) throw error;
+    }
+    if (unscored.length) {
+      const { error } = await supa.from('whoop_workouts').upsert(unscored, { onConflict: 'student_id,whoop_workout_id', ignoreDuplicates: true });
+      if (error) throw error;
+    }
+    await supa.from('whoop_sync_logs').insert({
+      student_id: args.student_id,
+      status: 'success',
+      metrics_synced: rows.length,
+      workouts_synced: workoutRows.length,
+    });
+    return { synced: rows.length, workouts_synced: workoutRows.length };
   } catch (e) {
     await supa.from('whoop_sync_logs').insert({ student_id: args.student_id, status: 'failed', error_message: String(e) });
     throw e;
