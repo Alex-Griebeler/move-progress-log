@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert";
-import { syncStudent } from "./sync.ts";
+import { errorMessage, syncStudent } from "./sync.ts";
 import { CYCLES, RECOVERIES, SLEEPS, WORKOUTS } from "../_shared/wearable/fixtures/whoop_v2.ts";
 
 Deno.test("syncStudent maps fixtures → whoop_metrics + whoop_workouts upserts + success log", async () => {
@@ -76,4 +76,36 @@ Deno.test("syncStudent logs a failure row and rethrows when the fetch fails", as
   }
   assertEquals(threw, true);
   assertEquals(logs[0].status, "failed");
+});
+
+Deno.test("errorMessage extracts PostgrestError fields instead of [object Object]", () => {
+  assertEquals(
+    errorMessage({ code: "21000", message: "ON CONFLICT DO UPDATE command cannot affect row a second time", details: null, hint: "Ensure no duplicates" }),
+    "21000 | ON CONFLICT DO UPDATE command cannot affect row a second time | Ensure no duplicates",
+  );
+  assertEquals(errorMessage(new Error("boom")), "boom");
+  assertEquals(errorMessage("plain"), "plain");
+});
+
+Deno.test("syncStudent logs a readable error_message when the upsert fails with a PostgrestError", async () => {
+  // deno-lint-ignore no-explicit-any
+  const logs: any[] = [];
+  const supa = {
+    from(table: string) {
+      return {
+        upsert() { return Promise.resolve({ error: { code: "21000", message: "dup", hint: null, details: null } }); },
+        // deno-lint-ignore no-explicit-any
+        insert(row: any) { logs.push(row); return Promise.resolve({ error: null }); },
+      };
+    },
+  };
+  let threw = false;
+  try {
+    await syncStudent(
+      { supa, fetchCollections: () => Promise.resolve({ cycles: CYCLES, recoveries: RECOVERIES, sleeps: SLEEPS, workouts: [] }) },
+      { student_id: "s1", start: "x", end: "y", accessToken: "a" },
+    );
+  } catch (_e) { threw = true; }
+  assertEquals(threw, true);
+  assertEquals(logs[0].error_message, "21000 | dup");
 });

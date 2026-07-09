@@ -41,6 +41,19 @@ export async function fetchCollectionsReal(accessToken: string, start: string, e
   return { cycles, recoveries, sleeps, workouts };
 }
 
+// PostgrestError is a plain object (not an Error): String(e) yields
+// "[object Object]". Extract something greppable instead.
+// deno-lint-ignore no-explicit-any
+export function errorMessage(e: any): string {
+  if (e instanceof Error) return e.message;
+  if (e && typeof e === 'object') {
+    const parts = [e.code, e.message, e.details, e.hint].filter(Boolean);
+    if (parts.length) return parts.join(' | ');
+    try { return JSON.stringify(e); } catch { /* fallthrough */ }
+  }
+  return String(e);
+}
+
 export interface SyncDeps {
   // deno-lint-ignore no-explicit-any
   supa: any;
@@ -85,7 +98,7 @@ export async function syncStudent(
     });
     return { synced: rows.length, workouts_synced: workoutRows.length };
   } catch (e) {
-    await supa.from('whoop_sync_logs').insert({ student_id: args.student_id, status: 'failed', error_message: String(e) });
+    await supa.from('whoop_sync_logs').insert({ student_id: args.student_id, status: 'failed', error_message: errorMessage(e) });
     throw e;
   }
 }

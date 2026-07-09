@@ -44,7 +44,27 @@ export function assembleDailyMetrics(
   const sleepById = new Map<string, Rec>(sleeps.map((s) => [s.id, s]));
   const sleepByCycle = new Map<number, Rec>(sleeps.map((s) => [s.cycle_id, s]));
 
-  return cycles.map((c) => {
+  // whoop_metrics is UNIQUE (student_id, date): two cycles whose start falls
+  // on the same local day (a cycle crossing local midnight, then the next one
+  // starting that evening) would produce duplicate dates and abort the whole
+  // batched upsert with Postgres 21000 ("ON CONFLICT DO UPDATE command cannot
+  // affect row a second time" — hit with real WHOOP data on 2026-07-09).
+  // Per local day keep the cycle that HAS a recovery (that one describes the
+  // day's readiness); among equals, the most recent start wins. Cycles with
+  // unparseable start are dropped (nothing to key the date on).
+  const startMs = (c: Rec): number => Date.parse(String(c?.start ?? ''));
+  const byDay = new Map<string, Rec>();
+  for (const c of cycles) {
+    if (!Number.isFinite(startMs(c))) continue;
+    const day = dateInTz(c.start, tz);
+    const prev = byDay.get(day);
+    if (!prev) { byDay.set(day, c); continue; }
+    const cScore = recByCycle.has(c.id) ? 1 : 0;
+    const prevScore = recByCycle.has(prev.id) ? 1 : 0;
+    if (cScore > prevScore || (cScore === prevScore && startMs(c) > startMs(prev))) byDay.set(day, c);
+  }
+
+  return Array.from(byDay.values()).map((c) => {
     const rec = recByCycle.get(c.id);
     const sleep = (rec?.sleep_id && sleepById.get(rec.sleep_id)) || sleepByCycle.get(c.id);
     const rs = rec?.score ?? {};

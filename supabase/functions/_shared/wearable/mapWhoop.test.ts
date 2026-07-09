@@ -51,6 +51,34 @@ Deno.test("mapWorkouts keeps PENDING_SCORE workouts with null score fields", () 
   assertEquals(pending.kilojoules, null);
 });
 
+Deno.test("assembleDailyMetrics dedupes cycles landing on the same local day (keeps most recent)", () => {
+  // Real-data regression (2026-07-09): a cycle crossing local midnight plus the
+  // next cycle starting the same local evening -> duplicate (student_id, date)
+  // -> Postgres 21000 aborts the whole batched upsert.
+  const earlier = { id: 93844, user_id: 10129, start: "2026-07-06T02:00:00.000Z", end: "2026-07-06T06:00:00.000Z", score: { strain: 3.1, kilojoule: 1200 } };
+  const rows = assembleDailyMetrics([earlier, ...CYCLES], RECOVERIES, SLEEPS, "America/Sao_Paulo");
+  const dates = rows.map((r) => r.date);
+  assertEquals(new Set(dates).size, dates.length); // no duplicate dates
+  const day = rows.find((r) => r.date === "2026-07-06");
+  assertEquals(day?.cycle_id, 93845); // most recent cycle of the day wins
+  assertEquals(day?.day_strain, 12.4);
+});
+
+Deno.test("assembleDailyMetrics prefers the cycle WITH a recovery on duplicate days", () => {
+  // 93846 is newer but unscored; 93845 has the recovery -> 93845 wins the day.
+  const newerUnscored = { id: 93846, user_id: 10129, start: "2026-07-06T20:00:00.000Z", end: null, score: { strain: 1.2, kilojoule: 300 } };
+  const rows = assembleDailyMetrics([...CYCLES, newerUnscored], RECOVERIES, SLEEPS, "America/Sao_Paulo");
+  const day = rows.find((r) => r.date === "2026-07-06");
+  assertEquals(day?.cycle_id, 93845);
+  assertEquals(day?.recovery_score, 66);
+});
+
+Deno.test("assembleDailyMetrics drops cycles with unparseable start", () => {
+  const rows = assembleDailyMetrics([{ id: 1, start: null }, { id: 2 }, ...CYCLES], RECOVERIES, SLEEPS, "America/Sao_Paulo");
+  assertEquals(rows.length, 1);
+  assertEquals(rows[0].cycle_id, 93845);
+});
+
 Deno.test("mapWorkouts skips records without a UUID id (uuid column, nothing to key upsert on)", () => {
   const rows = mapWorkouts([{ sport_name: "rowing" }, { id: "not-a-uuid", sport_name: "cycling" }, ...WORKOUTS]);
   assertEquals(rows.length, 2);

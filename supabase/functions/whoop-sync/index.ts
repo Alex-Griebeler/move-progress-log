@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { authenticateServiceRoleOrUserRole } from '../_shared/auth.ts';
 import { WHOOP } from '../_shared/wearable/providerConfig.ts';
 import { getAccessToken, refreshAccessToken, storeTokens } from '../_shared/wearable/tokens.ts';
-import { fetchCollectionsReal, syncStudent } from './sync.ts';
+import { errorMessage, fetchCollectionsReal, syncStudent } from './sync.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,8 +86,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ success: true, ...result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('Error in whoop-sync:', error);
-    return jsonResponse({ error: message }, 500);
+    return jsonResponse({ error: errorMessage(error) }, 500);
   }
 });
