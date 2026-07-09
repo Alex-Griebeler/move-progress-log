@@ -3083,6 +3083,227 @@ export type Database = {
         }
         Relationships: []
       }
+      whoop_connections: {
+        Row: {
+          access_token: string
+          connected_at: string | null
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          refresh_token: string
+          student_id: string
+          token_expires_at: string
+          updated_at: string
+          whoop_user_id: number | null
+        }
+        Insert: {
+          access_token?: string
+          connected_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          refresh_token?: string
+          student_id: string
+          token_expires_at: string
+          updated_at?: string
+          whoop_user_id?: number | null
+        }
+        Update: {
+          access_token?: string
+          connected_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          refresh_token?: string
+          student_id?: string
+          token_expires_at?: string
+          updated_at?: string
+          whoop_user_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whoop_connections_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: true
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whoop_metrics: {
+        Row: {
+          awake_time: number | null
+          created_at: string | null
+          cycle_id: number | null
+          date: string
+          day_strain: number | null
+          deep_sleep_duration: number | null
+          disturbance_count: number | null
+          hrv_rmssd: number | null
+          id: string
+          kilojoules: number | null
+          light_sleep_duration: number | null
+          recovery_score: number | null
+          rem_sleep_duration: number | null
+          respiratory_rate: number | null
+          resting_heart_rate: number | null
+          score_state: string | null
+          skin_temp: number | null
+          sleep_efficiency: number | null
+          sleep_performance: number | null
+          spo2: number | null
+          student_id: string
+          total_sleep_duration: number | null
+          updated_at: string
+        }
+        Insert: {
+          awake_time?: number | null
+          created_at?: string | null
+          cycle_id?: number | null
+          date: string
+          day_strain?: number | null
+          deep_sleep_duration?: number | null
+          disturbance_count?: number | null
+          hrv_rmssd?: number | null
+          id?: string
+          kilojoules?: number | null
+          light_sleep_duration?: number | null
+          recovery_score?: number | null
+          rem_sleep_duration?: number | null
+          respiratory_rate?: number | null
+          resting_heart_rate?: number | null
+          score_state?: string | null
+          skin_temp?: number | null
+          sleep_efficiency?: number | null
+          sleep_performance?: number | null
+          spo2?: number | null
+          student_id: string
+          total_sleep_duration?: number | null
+          updated_at?: string
+        }
+        Update: {
+          awake_time?: number | null
+          created_at?: string | null
+          cycle_id?: number | null
+          date?: string
+          day_strain?: number | null
+          deep_sleep_duration?: number | null
+          disturbance_count?: number | null
+          hrv_rmssd?: number | null
+          id?: string
+          kilojoules?: number | null
+          light_sleep_duration?: number | null
+          recovery_score?: number | null
+          rem_sleep_duration?: number | null
+          respiratory_rate?: number | null
+          resting_heart_rate?: number | null
+          score_state?: string | null
+          skin_temp?: number | null
+          sleep_efficiency?: number | null
+          sleep_performance?: number | null
+          spo2?: number | null
+          student_id?: string
+          total_sleep_duration?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whoop_metrics_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whoop_sync_logs: {
+        Row: {
+          attempt_number: number | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          metrics_synced: number | null
+          status: string
+          student_id: string
+        }
+        Insert: {
+          attempt_number?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metrics_synced?: number | null
+          status: string
+          student_id: string
+        }
+        Update: {
+          attempt_number?: number | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metrics_synced?: number | null
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whoop_sync_logs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whoop_workouts: {
+        Row: {
+          average_heart_rate: number | null
+          created_at: string | null
+          end_datetime: string | null
+          id: string
+          kilojoules: number | null
+          max_heart_rate: number | null
+          sport_name: string | null
+          start_datetime: string | null
+          strain: number | null
+          student_id: string
+          whoop_workout_id: string
+        }
+        Insert: {
+          average_heart_rate?: number | null
+          created_at?: string | null
+          end_datetime?: string | null
+          id?: string
+          kilojoules?: number | null
+          max_heart_rate?: number | null
+          sport_name?: string | null
+          start_datetime?: string | null
+          strain?: number | null
+          student_id: string
+          whoop_workout_id: string
+        }
+        Update: {
+          average_heart_rate?: number | null
+          created_at?: string | null
+          end_datetime?: string | null
+          id?: string
+          kilojoules?: number | null
+          max_heart_rate?: number | null
+          sport_name?: string | null
+          start_datetime?: string | null
+          strain?: number | null
+          student_id?: string
+          whoop_workout_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whoop_workouts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workout_prescriptions: {
         Row: {
           created_at: string
@@ -3355,6 +3576,14 @@ export type Database = {
         Args: { p_student_id: string }
         Returns: string
       }
+      get_whoop_access_token: {
+        Args: { p_student_id: string }
+        Returns: string
+      }
+      get_whoop_refresh_token: {
+        Args: { p_student_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3412,6 +3641,15 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       store_oura_tokens: {
+        Args: {
+          p_access_token: string
+          p_refresh_token: string
+          p_student_id: string
+          p_token_expires_at: string
+        }
+        Returns: undefined
+      }
+      store_whoop_tokens: {
         Args: {
           p_access_token: string
           p_refresh_token: string
