@@ -1,8 +1,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { authenticateServiceRoleOrUserRole } from '../_shared/auth.ts';
-import { WHOOP } from '../_shared/wearable/providerConfig.ts';
-import { getAccessToken, refreshAccessToken, storeTokens } from '../_shared/wearable/tokens.ts';
+import { getAccessToken } from '../_shared/wearable/tokens.ts';
 import { errorMessage, fetchCollectionsReal, syncStudent } from './sync.ts';
+import { ensureAccessToken, validateWindow } from './handler.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -45,6 +45,9 @@ Deno.serve(async (req) => {
     const student_id = typeof body.student_id === 'string' ? body.student_id.trim() : '';
     if (!student_id || !UUID_RE.test(student_id)) return jsonResponse({ error: 'student_id inválido' }, 400);
 
+    const window = validateWindow(body);
+    if ('error' in window) return jsonResponse({ error: window.error }, 400);
+
     const supa = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: conn, error: connErr } = await supa
@@ -53,34 +56,18 @@ Deno.serve(async (req) => {
       .eq('student_id', student_id)
       .maybeSingle();
     if (connErr || !conn) return jsonResponse({ error: 'Nenhuma conexão Whoop encontrada' }, 404);
+    if (!conn.is_active) return jsonResponse({ error: 'Conexão Whoop inativa' }, 409);
 
-    // Access token — refresh if missing or within 60s of expiry.
-    let accessToken = await getAccessToken(supa, 'whoop', student_id);
-    const skewMs = 60_000;
-    const expMs = conn.token_expires_at ? new Date(conn.token_expires_at as string).getTime() : 0;
-    if (!accessToken || !Number.isFinite(expMs) || Date.now() + skewMs >= expMs) {
-      const { data: refreshTok } = await supa.rpc('get_whoop_refresh_token', { p_student_id: student_id });
-      if (!refreshTok) return jsonResponse({ error: 'Falha ao recuperar refresh token' }, 500);
-      const refreshed = await refreshAccessToken(WHOOP, refreshTok as string);
-      const newExp = new Date();
-      newExp.setSeconds(newExp.getSeconds() + (refreshed.expires_in ?? 3600));
-      await storeTokens(supa, 'whoop', student_id, {
-        access_token: refreshed.access_token,
-        refresh_token: refreshed.refresh_token,
-        expires_at: newExp.toISOString(),
-      });
-      await supa.from('whoop_connections').update({ token_expires_at: newExp.toISOString() }).eq('student_id', student_id);
-      accessToken = refreshed.access_token;
-    }
-
-    // Window: default last 30 days.
-    const end = (typeof body.end === 'string' && body.end) || new Date().toISOString();
-    const start = (typeof body.start === 'string' && body.start) ||
-      new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    const currentAccessToken = await getAccessToken(supa, 'whoop', student_id);
+    const refresh = await ensureAccessToken(
+      { supa },
+      { student_id, tokenExpiresAt: (conn.token_expires_at as string | null) ?? null, currentAccessToken },
+    );
+    if (!refresh.ok) return jsonResponse({ error: refresh.error, permanent: refresh.permanent }, refresh.status);
 
     const result = await syncStudent(
       { supa, fetchCollections: fetchCollectionsReal },
-      { student_id, start, end, accessToken: accessToken as string },
+      { student_id, start: window.start, end: window.end, accessToken: refresh.accessToken },
     );
     await supa.from('whoop_connections').update({ last_sync_at: new Date().toISOString() }).eq('student_id', student_id);
 
@@ -90,3 +77,4 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: errorMessage(error) }, 500);
   }
 });
+
