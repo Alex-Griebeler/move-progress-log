@@ -31,12 +31,33 @@ Deno.test("validateWindow accepts a valid <=90d window", () => {
   assertEquals(r.start.startsWith("2026-06-01"), true);
 });
 
-Deno.test("isPermanentTokenFailure: 400/401 permanent, 5xx/429 transient", () => {
-  assertEquals(isPermanentTokenFailure(new TokenHttpError("t", 400, "invalid_grant")), true);
-  assertEquals(isPermanentTokenFailure(new TokenHttpError("t", 401, "unauthorized")), true);
+Deno.test("isPermanentTokenFailure: only invalid_grant is permanent", () => {
+  assertEquals(isPermanentTokenFailure(new TokenHttpError("t", 400, JSON.stringify({ error: "invalid_grant" }))), true);
+  assertEquals(isPermanentTokenFailure(new TokenHttpError("t", 401, JSON.stringify({ error: "invalid_grant" }))), true);
+  assertEquals(isPermanentTokenFailure(new TokenHttpError("t", 401, "invalid_grant: token revoked")), true);
+  // invalid_client (bad env secret) MUST be transient — a config regression
+  // must not deactivate healthy connections one by one.
+  assertEquals(isPermanentTokenFailure(new TokenHttpError("t", 401, JSON.stringify({ error: "invalid_client" }))), false);
+  assertEquals(isPermanentTokenFailure(new TokenHttpError("t", 400, JSON.stringify({ error: "invalid_request" }))), false);
+  assertEquals(isPermanentTokenFailure(new TokenHttpError("t", 401, "<html>proxy error</html>")), false);
   assertEquals(isPermanentTokenFailure(new TokenHttpError("t", 429, "rate")), false);
   assertEquals(isPermanentTokenFailure(new TokenHttpError("t", 503, "down")), false);
   assertEquals(isPermanentTokenFailure(new Error("network")), false);
+});
+
+Deno.test("TokenHttpError.message never contains the raw body; body stays on .body", () => {
+  const raw = JSON.stringify({ error: "invalid_grant", error_description: "leaky secret abc123 SHOULD NOT LEAK" });
+  const err = new TokenHttpError("token refresh", 401, raw);
+  assertEquals(err.errorCode, "invalid_grant");
+  assertEquals(err.message.includes("SHOULD NOT LEAK"), false);
+  assertEquals(err.message.includes("abc123"), false);
+  assertEquals(err.message, "token refresh failed: 401 invalid_grant");
+  assertEquals(err.body, raw);
+  // Non-JSON body → no errorCode, message keeps only the status.
+  const err2 = new TokenHttpError("token refresh", 500, "<html>internal error stack trace secret</html>");
+  assertEquals(err2.errorCode, null);
+  assertEquals(err2.message, "token refresh failed: 500");
+  assertEquals(err2.message.includes("stack trace"), false);
 });
 
 // Minimal fluent stub for the Supabase client used by handler.ts.
