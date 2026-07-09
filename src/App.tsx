@@ -29,6 +29,7 @@ const ExercisesLibraryPage = lazy(() => import("./pages/ExercisesLibraryPage"));
 const PrescriptionsPage = lazy(() => import("./pages/PrescriptionsPage"));
 const RecoveryProtocolsPage = lazy(() => import("./pages/RecoveryProtocolsPage"));
 const AdminDiagnosticsPage = lazy(() => import("./pages/AdminDiagnosticsPage"));
+const WhoopDiagnosticsPage = lazy(() => import("./pages/WhoopDiagnosticsPage"));
 const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
 const ExerciseReviewPage = lazy(() => import("./pages/ExerciseReviewPage"));
 const StudentReportsPage = lazy(() => import("./pages/StudentReportsPage"));
@@ -38,6 +39,7 @@ const StudentOnboardingPage = lazy(() => import("./pages/StudentOnboardingPage")
 const OnboardingSuccessPage = lazy(() => import("./pages/OnboardingSuccessPage"));
 const OuraErrorPage = lazy(() => import("./pages/OuraErrorPage"));
 const OuraConnectPage = lazy(() => import("./pages/OuraConnectPage"));
+const WhoopConnectPage = lazy(() => import("./pages/WhoopConnectPage"));
 const PrecisionQuestionnairePage = lazy(() => import("./pages/PrecisionQuestionnairePage"));
 const LegalPage = lazy(() => import("./pages/LegalPage"));
 const AIBuilderPage = lazy(() => import("./features/ai-builder/AIBuilderPage"));
@@ -79,6 +81,7 @@ const App = () => {
                   <Route path={ROUTES.onboardingSuccess} element={<OnboardingSuccessPage />} />
                   <Route path={ROUTES.ouraError} element={<OuraErrorPage />} />
                   <Route path="/oura-connect/:token" element={<OuraConnectPage />} />
+                  <Route path="/whoop-connect/:token" element={<WhoopConnectPage />} />
                   <Route path="/precision-questionnaire/:token" element={<PrecisionQuestionnairePage />} />
                   <Route path={ROUTES.terms} element={<LegalPage variant="terms" />} />
                   <Route path={ROUTES.privacy} element={<LegalPage variant="privacy" />} />
@@ -108,6 +111,7 @@ const App = () => {
                                   <Route path="/prescricoes" element={<PrescriptionsPage />} />
                                   <Route path="/protocolos" element={<RecoveryProtocolsPage />} />
                                   <Route path="/admin/diagnostico-oura" element={<AdminRoute><AdminDiagnosticsPage /></AdminRoute>} />
+                                  <Route path="/admin/diagnostico-whoop" element={<AdminRoute><WhoopDiagnosticsPage /></AdminRoute>} />
                                   <Route path="/admin/usuarios" element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
                                   <Route path={ROUTES.adminExerciseReview} element={<AdminRoute><ExerciseReviewPage /></AdminRoute>} />
                                   <Route path="/ai-builder" element={<AdminRoute><AIBuilderPage /></AdminRoute>} />
