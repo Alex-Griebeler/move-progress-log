@@ -3225,6 +3225,7 @@ export type Database = {
           metrics_synced: number | null
           status: string
           student_id: string
+          workouts_synced: number | null
         }
         Insert: {
           attempt_number?: number | null
@@ -3234,6 +3235,7 @@ export type Database = {
           metrics_synced?: number | null
           status: string
           student_id: string
+          workouts_synced?: number | null
         }
         Update: {
           attempt_number?: number | null
@@ -3243,6 +3245,7 @@ export type Database = {
           metrics_synced?: number | null
           status?: string
           student_id?: string
+          workouts_synced?: number | null
         }
         Relationships: [
           {
