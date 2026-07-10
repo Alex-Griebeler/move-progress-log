@@ -11,6 +11,11 @@ export default function WhoopErrorPage() {
   const reason = searchParams.get("reason");
 
   const errorMessages: Record<string, { title: string; description: string; suggestion: string }> = {
+    access_denied: {
+      title: "Autorização Negada",
+      description: "Você não autorizou o acesso aos seus dados do Whoop.",
+      suggestion: "Sem essa autorização não conseguimos sincronizar seus dados. Se mudou de ideia, tente novamente e aprove o acesso na tela do Whoop."
+    },
     token_exchange: {
       title: "Autorização Não Concluída",
       description: "Não conseguimos completar a autorização com o Whoop.",

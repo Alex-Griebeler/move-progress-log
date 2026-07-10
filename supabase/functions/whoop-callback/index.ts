@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { resolveFrontendUrl as sharedResolveFrontendUrl } from '../_shared/frontendOrigin.ts';
-import { claimInvite, parseState, releaseInvite } from '../_shared/wearable/oauthState.ts';
+import { claimInvite, parseState, peekInviteToken, releaseInvite } from '../_shared/wearable/oauthState.ts';
 import { exchangeCode } from '../_shared/wearable/tokens.ts';
 import { WHOOP } from '../_shared/wearable/providerConfig.ts';
 
@@ -29,7 +29,8 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
-    if (!code || !state) {
+    const oauthError = url.searchParams.get('error');
+    if (!state || (!code && !oauthError)) {
       return new Response('Missing authorization code or state', { status: 400 });
     }
 
@@ -45,6 +46,26 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supa = createClient(supabaseUrl ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
+    const frontendUrl = sharedResolveFrontendUrl(req, decodeBase64Url(encodedOrigin));
+    if (!frontendUrl) {
+      return new Response('Frontend URL inválida para callback Whoop', { status: 400 });
+    }
+
+    const errorUrl = (reason: string, inviteToken: string | null): string => {
+      const params = new URLSearchParams({ student_id, reason });
+      if (inviteToken) params.set('invite_token', inviteToken);
+      return `${frontendUrl}/onboarding/whoop-error?${params.toString()}`;
+    };
+
+    // Student denied on Whoop's consent screen: redirect back with
+    // error=access_denied and no code. The invite is never claimed on this
+    // path, so peek its token read-only to let the error page offer retry.
+    if (!code) {
+      const reason = oauthError === 'access_denied' ? 'access_denied' : 'default';
+      const inviteToken = await peekInviteToken(supa, invite_id, student_id);
+      return Response.redirect(errorUrl(reason, inviteToken), 302);
+    }
+
     // Atomically claim the invite (replay/expiry/race protection) before exchange.
     let invite;
     try {
@@ -54,13 +75,6 @@ Deno.serve(async (req) => {
     }
 
     const redirectUri = `${supabaseUrl}/functions/v1/whoop-callback`;
-    const frontendUrl = sharedResolveFrontendUrl(req, decodeBase64Url(encodedOrigin));
-    if (!frontendUrl) {
-      return new Response('Frontend URL inválida para callback Whoop', { status: 400 });
-    }
-
-    const errorUrl = (reason: string): string =>
-      `${frontendUrl}/onboarding/whoop-error?${new URLSearchParams({ student_id, invite_token: invite.invite_token, reason }).toString()}`;
 
     let tokens;
     try {
@@ -68,7 +82,7 @@ Deno.serve(async (req) => {
     } catch (e) {
       console.error('Whoop token exchange failed:', String(e));
       await releaseInvite(supa, invite_id);
-      return Response.redirect(errorUrl('token_exchange'), 302);
+      return Response.redirect(errorUrl('token_exchange', invite.invite_token), 302);
     }
 
     const expiresAt = new Date();
@@ -83,7 +97,7 @@ Deno.serve(async (req) => {
     if (storeErr) {
       console.error('Failed to save Whoop connection:', storeErr);
       await releaseInvite(supa, invite_id);
-      return Response.redirect(errorUrl('database'), 302);
+      return Response.redirect(errorUrl('database', invite.invite_token), 302);
     }
 
     await supa.from('student_invites').update({ used_at: new Date().toISOString() }).eq('id', invite_id);

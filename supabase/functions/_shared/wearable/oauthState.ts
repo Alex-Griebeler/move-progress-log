@@ -59,3 +59,26 @@ export async function claimInvite(supa: any, invite_id: string, student_id: stri
 export async function releaseInvite(supa: any, invite_id: string): Promise<void> {
   await supa.from("student_invites").update({ is_used: false }).eq("id", invite_id);
 }
+
+// Read-only token lookup for the deny path (provider redirected back with
+// error= and no code): the invite was never claimed there, so the error page
+// can only offer "try again" if we peek the token. Same validity rules as
+// claimInvite — mismatch/used/expired all return null so an attacker replaying
+// a crafted state cannot harvest tokens of spent or foreign invites.
+// deno-lint-ignore no-explicit-any
+export async function peekInviteToken(supa: any, invite_id: string, student_id: string): Promise<string | null> {
+  try {
+    const { data: invite, error } = await supa
+      .from("student_invites")
+      .select("invite_token, created_student_id, expires_at, is_used")
+      .eq("id", invite_id)
+      .single();
+    if (error || !invite) return null;
+    if (invite.created_student_id && invite.created_student_id !== student_id) return null;
+    if (invite.is_used === true) return null;
+    if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) return null;
+    return invite.invite_token ?? null;
+  } catch (_e) {
+    return null;
+  }
+}

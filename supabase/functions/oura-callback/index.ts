@@ -1,4 +1,5 @@
 import { resolveFrontendUrl as sharedResolveFrontendUrl } from '../_shared/frontendOrigin.ts';
+import { peekInviteToken } from '../_shared/wearable/oauthState.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,13 +48,12 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
     const state = url.searchParams.get('state');
+    const oauthError = url.searchParams.get('error');
 
-    if (!code || !state) {
+    if (!state || (!code && !oauthError)) {
       console.error('Missing code or state');
       return new Response('Missing authorization code or state', { status: 400 });
     }
-
-    console.log('Oura callback - code received');
 
     // Parse state to get student_id and invite_id (+ optional frontend origin)
     const [student_id, invite_id, encodedFrontendOrigin] = state.split(':');
@@ -89,6 +89,32 @@ Deno.serve(async (req) => {
       supabaseUrl ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // OCB-03: Derive frontend URL from trusted state origin first, then
+    // fallback. Resolved before the invite claim so the deny path below (and a
+    // misconfigured origin) never burns the invite.
+    const frontendUrl = resolveFrontendUrl(req, encodedFrontendOrigin);
+    if (!frontendUrl) {
+      console.error('Invalid frontend URL resolution for Oura callback');
+      return new Response('Frontend URL inválida para callback Oura', { status: 400 });
+    }
+
+    const buildOuraErrorUrl = (reason: string, inviteToken: string | null): string => {
+      const params = new URLSearchParams({ student_id, reason });
+      if (inviteToken) params.set('invite_token', inviteToken);
+      return `${frontendUrl}/onboarding/oura-error?${params.toString()}`;
+    };
+
+    // Student denied on Oura's consent screen: redirect back with
+    // error=access_denied and no code. The invite is never claimed on this
+    // path, so peek its token read-only to let the error page offer retry.
+    if (!code) {
+      const reason = oauthError === 'access_denied' ? 'access_denied' : 'default';
+      const inviteToken = await peekInviteToken(supabaseValidationClient, invite_id, student_id);
+      return Response.redirect(buildOuraErrorUrl(reason, inviteToken), 302);
+    }
+
+    console.log('Oura callback - code received');
 
     // Validate that this invite exists and belongs to this student.
     const { data: invite, error: inviteError } = await supabaseValidationClient
@@ -154,22 +180,6 @@ Deno.serve(async (req) => {
     const ouraClientId = Deno.env.get('OURA_CLIENT_ID');
     const ouraClientSecret = Deno.env.get('OURA_CLIENT_SECRET');
     const redirectUri = `${supabaseUrl}/functions/v1/oura-callback`;
-    
-    // OCB-03: Derive frontend URL from trusted state origin first, then fallback
-    const frontendUrl = resolveFrontendUrl(req, encodedFrontendOrigin);
-    if (!frontendUrl) {
-      console.error('Invalid frontend URL resolution for Oura callback');
-      return new Response('Frontend URL inválida para callback Oura', { status: 400 });
-    }
-
-    const buildOuraErrorUrl = (reason: string): string => {
-      const params = new URLSearchParams({
-        student_id,
-        invite_token: validatedInvite.invite_token,
-        reason,
-      });
-      return `${frontendUrl}/onboarding/oura-error?${params.toString()}`;
-    };
 
     const releaseInviteForRetry = async (reason: string) => {
       const { error: releaseError } = await supabaseValidationClient
@@ -226,7 +236,7 @@ Deno.serve(async (req) => {
       });
 
       await releaseInviteForRetry('token_exchange');
-      return Response.redirect(buildOuraErrorUrl('token_exchange'), 302);
+      return Response.redirect(buildOuraErrorUrl('token_exchange', validatedInvite.invite_token), 302);
     }
 
     const tokenData = await tokenResponse.json();
@@ -251,7 +261,7 @@ Deno.serve(async (req) => {
       console.error('Failed to save Oura connection:', insertError);
       
       await releaseInviteForRetry('database');
-      return Response.redirect(buildOuraErrorUrl('database'), 302);
+      return Response.redirect(buildOuraErrorUrl('database', validatedInvite.invite_token), 302);
     }
 
     console.log(`Oura connection saved for student ${student_id}`);
