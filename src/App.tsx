@@ -38,6 +38,7 @@ const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
 const StudentOnboardingPage = lazy(() => import("./pages/StudentOnboardingPage"));
 const OnboardingSuccessPage = lazy(() => import("./pages/OnboardingSuccessPage"));
 const OuraErrorPage = lazy(() => import("./pages/OuraErrorPage"));
+const WhoopErrorPage = lazy(() => import("./pages/WhoopErrorPage"));
 const OuraConnectPage = lazy(() => import("./pages/OuraConnectPage"));
 const WhoopConnectPage = lazy(() => import("./pages/WhoopConnectPage"));
 const PrecisionQuestionnairePage = lazy(() => import("./pages/PrecisionQuestionnairePage"));
@@ -80,6 +81,7 @@ const App = () => {
                   <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
                   <Route path={ROUTES.onboardingSuccess} element={<OnboardingSuccessPage />} />
                   <Route path={ROUTES.ouraError} element={<OuraErrorPage />} />
+                  <Route path={ROUTES.whoopError} element={<WhoopErrorPage />} />
                   <Route path="/oura-connect/:token" element={<OuraConnectPage />} />
                   <Route path="/whoop-connect/:token" element={<WhoopConnectPage />} />
                   <Route path="/precision-questionnaire/:token" element={<PrecisionQuestionnairePage />} />
