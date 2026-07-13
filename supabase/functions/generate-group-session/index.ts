@@ -158,12 +158,17 @@ interface GeneratedWorkout {
 // ============================================================================
 
 const SESSION_PATTERN_GROUPS: Record<string, string[]> = {
-  lower_knee: ["dominancia_joelho", "lunge"],
-  lower_hip: ["cadeia_posterior"],
-  upper_push: ["empurrar"],
-  upper_pull: ["puxar"],
-  carry: ["carregar"],
+  lower_knee: ["agachamento_bilateral", "agachamento_unilateral", "base_assimetrica", "passada_deslocamento", "flexao_joelho", "dominancia_joelho", "lunge"],
+  lower_hip: ["dobradica_quadril", "cadeia_posterior"],
+  upper_push: ["empurrar_horizontal", "empurrar_vertical", "empurrar"],
+  upper_pull: ["puxar_horizontal", "puxar_vertical", "puxar"],
+  carry: ["carregamento", "carregar"],
 };
+
+const HINGE_HEAVY_PATTERNS = new Set(SESSION_PATTERN_GROUPS.lower_hip);
+const UPPER_BODY_PATTERNS = new Set([...SESSION_PATTERN_GROUPS.upper_push, ...SESSION_PATTERN_GROUPS.upper_pull]);
+const sumPatternCounts = (counts: Record<string, number>, patterns: string[]) =>
+  patterns.reduce((sum, pattern) => sum + (counts[pattern] || 0), 0);
 
 const VALENCE_CONFIG: Record<string, { sets: string; reps: string; interval: number; pse: string; restBetweenRounds?: number }> = {
   potencia: { sets: "3-4", reps: "3-5", interval: 120, pse: "7-8" },
@@ -199,6 +204,17 @@ const CORE_PLANE_DISTRIBUTION: Record<string, string[]> = {
 
 // v14.5: Mapa de padrão BP1 → tipos de mobilidade relevantes
 const BP1_MOBILITY_SUBCATEGORIES: Record<string, string[]> = {
+  agachamento_bilateral: ["quadril", "tornozelo", "joelho"],
+  agachamento_unilateral: ["quadril", "tornozelo", "joelho"],
+  base_assimetrica: ["quadril", "tornozelo", "joelho"],
+  passada_deslocamento: ["quadril", "tornozelo", "joelho"],
+  flexao_joelho: ["joelho", "isquiotibiais"],
+  dobradica_quadril: ["quadril", "isquiotibiais", "coluna"],
+  empurrar_horizontal: ["ombro", "toracica", "escapular"],
+  empurrar_vertical: ["ombro", "toracica", "escapular"],
+  puxar_horizontal: ["ombro", "toracica", "escapular"],
+  puxar_vertical: ["ombro", "toracica", "escapular"],
+  carregamento: ["ombro", "quadril", "coluna"],
   dominancia_joelho: ["quadril", "tornozelo", "joelho"],
   cadeia_posterior: ["quadril", "isquiotibiais", "coluna"],
   lunge: ["quadril", "tornozelo", "joelho"],
@@ -876,8 +892,8 @@ function buildMainBlocks(
     bp3Pool = applyLumbarFilter(bp3Pool, sessionSelectedExercises);
     if (isMetcon) bp3Pool = filterForMetcon(bp3Pool);
 
-    // BP3: Lunge + supplementary pattern
-    const bp3Lower = selectExercisesByPattern(bp3Pool, ["lunge"], 1, excludeIds);
+    // BP3: Lower knee + supplementary pattern
+    const bp3Lower = selectExercisesByPattern(bp3Pool, SESSION_PATTERN_GROUPS.lower_knee, 1, excludeIds);
     bp3Lower.forEach((ex) => { excludeIds.add(ex.id); sessionSelectedExercises.push(ex); if (ex.movement_pattern) coveredPatterns.push(ex.movement_pattern); });
 
     // Add a supplementary upper or carry
@@ -932,7 +948,7 @@ function buildFinalizerPhase(
   warnings: string[]
 ): SessionPhase | null {
   let carryPool = exercises.filter(
-    (ex) => ex.movement_pattern === "carregar" && !excludeIds.has(ex.id)
+    (ex) => ex.movement_pattern != null && SESSION_PATTERN_GROUPS.carry.includes(ex.movement_pattern) && !excludeIds.has(ex.id)
   );
   carryPool = applyLumbarFilter(carryPool, sessionSelectedExercises);
 
@@ -1129,8 +1145,8 @@ function collectCrossSessionStats(
           // Track prime movers (via movement_pattern as proxy)
           stats.primeMoversPerSession[slot].add(pattern);
 
-          // F1 extended: count hinge heavy (LOM>=4 + cadeia_posterior)
-          if (pattern === "cadeia_posterior" && (libEx.lumbar_demand || 0) >= 4) {
+          // F1 extended: count hinge heavy (LOM>=4 + lower hip patterns)
+          if (HINGE_HEAVY_PATTERNS.has(pattern) && (libEx.lumbar_demand || 0) >= 4) {
             stats.hingeHeavyCount++;
           }
 
@@ -1143,7 +1159,7 @@ function collectCrossSessionStats(
           if ((libEx.knee_dominance || 0) >= 4) {
             stats.jointStress.joelho += setCount;
           }
-          if (["empurrar", "puxar"].includes(pattern) && (libEx.axial_load || 0) >= 3) {
+          if (UPPER_BODY_PATTERNS.has(pattern) && (libEx.axial_load || 0) >= 3) {
             stats.jointStress.ombro += setCount;
           }
           if ((libEx.lumbar_demand || 0) >= 3) {
@@ -1172,10 +1188,10 @@ function validateDominanceBalance(
   weeklySessions: number,
   warnings: string[]
 ): void {
-  const push = stats.patternSets["empurrar"] || 0;
-  const pull = stats.patternSets["puxar"] || 0;
-  const knee = (stats.patternSets["dominancia_joelho"] || 0) + (stats.patternSets["lunge"] || 0);
-  const hip = stats.patternSets["cadeia_posterior"] || 0;
+  const push = sumPatternCounts(stats.patternSets, SESSION_PATTERN_GROUPS.upper_push);
+  const pull = sumPatternCounts(stats.patternSets, SESSION_PATTERN_GROUPS.upper_pull);
+  const knee = sumPatternCounts(stats.patternSets, SESSION_PATTERN_GROUPS.lower_knee);
+  const hip = sumPatternCounts(stats.patternSets, SESSION_PATTERN_GROUPS.lower_hip);
 
   // Minimum weekly sets per movement pattern
   const minSetsPerPattern =
@@ -1467,7 +1483,10 @@ function generateSingleWorkout(
   const warnings: string[] = [];
   const finalizerPhase = buildFinalizerPhase(exercises, excludeIds, volumeMultiplier, config.valences, sessionSelectedExercises, warnings);
   if (finalizerPhase && finalizerPhase.blocks.length > 0) {
-    coveredPatterns.push("carregar");
+    const finalizerPattern = finalizerPhase.blocks
+      .flatMap((block) => block.exercises)
+      .find((ex) => ex.movementPattern)?.movementPattern;
+    if (finalizerPattern) coveredPatterns.push(finalizerPattern);
   }
 
   // Phase 9: Closing by valence
@@ -1708,7 +1727,7 @@ serve(async (req) => {
     validatePrimeMoverOverlap(crossStats, warnings);
     validateNeuralAndJointControl(crossStats, warnings);
 
-    const carryCount = patternsBalance["carregar"] || 0;
+    const carryCount = sumPatternCounts(patternsBalance, SESSION_PATTERN_GROUPS.carry);
     if (carryCount < 2) {
       warnings.push(`Carry: apenas ${carryCount}x/semana. Recomendado mínimo 2x/semana.`);
     }
