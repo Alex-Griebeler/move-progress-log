@@ -436,6 +436,7 @@ export const MOVEMENT_PLANES = {
 export const CONTRACTION_TYPES = {
   "Concêntrica": "Concêntrica",
   "Excêntrica": "Excêntrica",
+  "Concêntrica-Excêntrica": "Concêntrica-Excêntrica",
   "Isométrica": "Isométrica",
   "Pliométrica / Potência": "Pliométrica / Potência",
   "Mista": "Mista",
