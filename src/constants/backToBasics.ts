@@ -424,9 +424,9 @@ export type ExercisePosition = StabilityPosition;
 // ============================================================================
 
 export const MOVEMENT_PLANES = {
-  sagittal: "Sagital",
+  sagital: "Sagital",
   frontal: "Frontal",
-  transverse: "Transverso",
+  transverso: "Transverso",
 } as const;
 
 // ============================================================================
