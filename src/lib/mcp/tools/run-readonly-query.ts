@@ -87,6 +87,10 @@ function validateReadOnly(sql: string): string | null {
   return null;
 }
 
+// Deno is available at runtime inside the emitted edge function; the app-side
+// TS build doesn't know that type, so read it through globalThis.
+declare const Deno: { env: { get(name: string): string | undefined } };
+
 function supabaseForUser(ctx: ToolContext) {
   const url = Deno.env.get("SUPABASE_URL")!;
   const anon = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
