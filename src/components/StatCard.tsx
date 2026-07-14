@@ -34,10 +34,10 @@ const TONE_VALUE_CLASS: Record<StatCardTone, string> = {
 };
 
 const TONE_ICON_CLASS: Record<StatCardTone, string> = {
-  default: "bg-secondary text-primary",
-  success: "bg-success/10 text-success",
-  warning: "bg-warning/10 text-warning",
-  danger: "bg-destructive/10 text-destructive",
+  default: "bg-secondary text-white",
+  success: "bg-secondary text-white",
+  warning: "bg-secondary text-white",
+  danger: "bg-secondary text-white",
 };
 
 const StatCard = ({
