@@ -31,6 +31,13 @@ export default function AuthPage() {
   const [show2FAVerify, setShow2FAVerify] = useState(false);
   const [mfaFactorId, setMfaFactorId] = useState<string>('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextParam = searchParams.get("next");
+  // Only accept same-origin relative paths (must start with "/" and not "//")
+  const safeNext = nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")
+    ? nextParam
+    : null;
+  const postLoginTarget = safeNext ?? POST_LOGIN_ROUTE;
   const { toast } = useToast();
   const { checkPasswordSecurity, checking } = usePasswordSecurity();
 
