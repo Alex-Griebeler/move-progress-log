@@ -27,10 +27,10 @@ interface StatCardProps {
 }
 
 const TONE_VALUE_CLASS: Record<StatCardTone, string> = {
-  default: "text-foreground",
-  success: "text-success",
-  warning: "text-warning",
-  danger: "text-destructive",
+  default: "text-white",
+  success: "text-white",
+  warning: "text-white",
+  danger: "text-white",
 };
 
 const TONE_ICON_CLASS: Record<StatCardTone, string> = {
