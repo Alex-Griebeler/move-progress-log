@@ -318,7 +318,7 @@ export default function AuthPage() {
         title: "Login realizado com sucesso",
         description: "Redirecionando para o sistema...",
       });
-      navigate(POST_LOGIN_ROUTE);
+      navigate(postLoginTarget);
     }
   };
 
