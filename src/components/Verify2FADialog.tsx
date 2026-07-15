@@ -44,7 +44,7 @@ export const Verify2FADialog = ({ open, onOpenChange, factorId, redirectTo }: Ve
 
       toast.success('Login realizado com sucesso!');
       onOpenChange(false);
-      navigate(POST_LOGIN_ROUTE);
+      navigate(redirectTo ?? POST_LOGIN_ROUTE);
     } catch (error: unknown) {
       logger.error('Error verifying 2FA code:', error);
       toast.error('Código incorreto', {
