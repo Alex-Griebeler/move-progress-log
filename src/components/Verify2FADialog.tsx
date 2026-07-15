@@ -15,9 +15,11 @@ interface Verify2FADialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   factorId: string;
+  /** Where to send the user after a successful verification. Defaults to POST_LOGIN_ROUTE. */
+  redirectTo?: string;
 }
 
-export const Verify2FADialog = ({ open, onOpenChange, factorId }: Verify2FADialogProps) => {
+export const Verify2FADialog = ({ open, onOpenChange, factorId, redirectTo }: Verify2FADialogProps) => {
   const [verificationCode, setVerificationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
