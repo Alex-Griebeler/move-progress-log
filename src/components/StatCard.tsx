@@ -26,18 +26,20 @@ interface StatCardProps {
   tone?: StatCardTone;
 }
 
+// Neutral, theme-adaptive tokens: no color, but readable in both dark and light.
+// (`text-foreground` inverts with theme; `text-white` broke light mode.)
 const TONE_VALUE_CLASS: Record<StatCardTone, string> = {
-  default: "text-white",
-  success: "text-white",
-  warning: "text-white",
-  danger: "text-white",
+  default: "text-foreground",
+  success: "text-foreground",
+  warning: "text-foreground",
+  danger: "text-foreground",
 };
 
 const TONE_ICON_CLASS: Record<StatCardTone, string> = {
-  default: "bg-secondary text-white",
-  success: "bg-secondary text-white",
-  warning: "bg-secondary text-white",
-  danger: "bg-secondary text-white",
+  default: "bg-secondary text-foreground",
+  success: "bg-secondary text-foreground",
+  warning: "bg-secondary text-foreground",
+  danger: "bg-secondary text-foreground",
 };
 
 const StatCard = ({
