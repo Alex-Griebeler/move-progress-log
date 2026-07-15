@@ -637,6 +637,7 @@ export default function AuthPage() {
         open={show2FAVerify}
         onOpenChange={setShow2FAVerify}
         factorId={mfaFactorId}
+        redirectTo={postLoginTarget}
       />
     </div>
   );
