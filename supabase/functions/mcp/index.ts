@@ -91,6 +91,9 @@ function validateReadOnly(sql) {
 function supabaseForUser(ctx) {
   const url = Deno.env.get("SUPABASE_URL");
   const anon = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+  if (!url || !anon) {
+    throw new Error("Missing SUPABASE_URL / SUPABASE_ANON_KEY env for MCP run_readonly_query");
+  }
   return createClient(url, anon, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false }
