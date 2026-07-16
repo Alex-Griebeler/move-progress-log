@@ -92,8 +92,11 @@ function validateReadOnly(sql: string): string | null {
 declare const Deno: { env: { get(name: string): string | undefined } };
 
 function supabaseForUser(ctx: ToolContext) {
-  const url = Deno.env.get("SUPABASE_URL")!;
-  const anon = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
+  const url = Deno.env.get("SUPABASE_URL");
+  const anon = Deno.env.get("SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+  if (!url || !anon) {
+    throw new Error("Missing SUPABASE_URL / SUPABASE_ANON_KEY env for MCP run_readonly_query");
+  }
   return createClient(url, anon, {
     global: { headers: { Authorization: `Bearer ${ctx.getToken()}` } },
     auth: { persistSession: false, autoRefreshToken: false },
@@ -111,7 +114,7 @@ export default defineTool({
     sql: z.string().min(1).describe("A single SELECT/WITH/EXPLAIN SELECT statement. No trailing semicolons required; multi-statement input is rejected."),
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
-  handler: async ({ sql }, ctx) => {
+  handler: async ({ sql }: { sql: string }, ctx: ToolContext) => {
     if (!ctx.isAuthenticated()) {
       return { content: [{ type: "text", text: "Not authenticated" }], isError: true };
     }
