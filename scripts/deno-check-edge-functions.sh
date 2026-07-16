@@ -130,6 +130,7 @@ fail_lines=()
 
 for file in "${ENTRYPOINTS[@]}"; do
   fn="$(basename "$(dirname "$file")")"
+  if [[ "$fn" == "mcp" ]]; then continue; fi  # bundle gerado pelo mcpPlugin (fonte em src/lib/mcp); nao lintar/typecheckar bundle
   checked=$((checked + 1))
 
   out="$(NO_COLOR=1 deno check -q "${LOCK_ARGS[@]}" "$file" 2>&1)"
