@@ -741,6 +741,18 @@ function buildCorePhase(
  * v14.5 G5 — cada BP tem 2 exercícios em superset
  * Aplica filtros F1 (lombar), F3 (metcon), All-out, Anti-Metcon
  */
+/**
+ * Pool para os blocos compound de FORÇA (BP1/BP2/BP3). Exclui potência: sob a
+ * taxonomia "forma × qualidade", exercícios balísticos (kettlebell swing, push
+ * press) são potencia_pliometria mas MANTÊM o padrão de forma (dobradica_quadril,
+ * empurrar_vertical), então a seleção por movement_pattern os pegaria pro bloco
+ * de força. A parte explosiva é servida à parte pelo abridor de pliometria
+ * (category === "potencia_pliometria"). Filtro NEGATIVO de propósito: preserva
+ * linhas legadas/sem categoria que ainda têm movement_pattern.
+ */
+const strengthCompoundPool = (exercises: Exercise[]): Exercise[] =>
+  exercises.filter((ex) => ex.category !== "potencia_pliometria");
+
 function buildMainBlocks(
   exercises: Exercise[],
   valences: string[],
@@ -767,7 +779,7 @@ function buildMainBlocks(
   const adjustedSets1 = applyVolumeMultiplier(config1.sets, volumeMultiplier);
   const pse1 = clampPseForNonMetcon(config1.pse, isMetcon);
 
-  let pool1 = [...exercises];
+  let pool1 = strengthCompoundPool(exercises);
   pool1 = applyLumbarFilter(pool1, sessionSelectedExercises);
   if (isMetcon) pool1 = filterForMetcon(pool1);
 
@@ -838,7 +850,7 @@ function buildMainBlocks(
   const adjustedSets2 = applyVolumeMultiplier(config2.sets, volumeMultiplier);
   const pse2 = clampPseForNonMetcon(config2.pse, isMetcon);
 
-  let pool2 = [...exercises];
+  let pool2 = strengthCompoundPool(exercises);
   pool2 = applyLumbarFilter(pool2, sessionSelectedExercises);
   if (isMetcon) pool2 = filterForMetcon(pool2);
 
@@ -888,7 +900,7 @@ function buildMainBlocks(
       }],
     });
 
-    let bp3Pool = [...exercises];
+    let bp3Pool = strengthCompoundPool(exercises);
     bp3Pool = applyLumbarFilter(bp3Pool, sessionSelectedExercises);
     if (isMetcon) bp3Pool = filterForMetcon(bp3Pool);
 
