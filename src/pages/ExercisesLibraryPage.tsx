@@ -37,6 +37,7 @@ import {
   useDeleteExercise,
   ExerciseLibrary,
   MOVEMENT_PATTERNS,
+  POWER_MOVEMENT_PATTERNS,
   getMovementPatternLabel,
   isLegacyMovementPattern,
   LATERALITY_OPTIONS,
@@ -198,8 +199,12 @@ export default function ExercisesLibraryPage() {
                   setFilters((prev) => ({ 
                     ...prev, 
                     category: value === "all" ? undefined : value,
-                    // Limpar filtros dependentes quando categoria muda
-                    movement_pattern: value === "forca_hipertrofia" ? prev.movement_pattern : undefined,
+                    // Limpar filtros dependentes quando categoria muda.
+                    // Força e potência têm padrão de movimento (contrato forma×qualidade).
+                    movement_pattern:
+                      value === "forca_hipertrofia" || value === "potencia_pliometria"
+                        ? prev.movement_pattern
+                        : undefined,
                     subcategory: undefined,
                   }))
                 }
@@ -245,8 +250,9 @@ export default function ExercisesLibraryPage() {
               )}
             </summary>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-md pt-md mt-md border-t border-border/50">
-              {/* Padrão de Movimento — só aparece para Força/Hipertrofia */}
-              {filters.category === "forca_hipertrofia" && (
+              {/* Padrão de Movimento — Força e Potência (contrato forma×qualidade) */}
+              {(filters.category === "forca_hipertrofia" ||
+                filters.category === "potencia_pliometria") && (
                 <div className="space-y-xs">
                   <label className="text-sm font-medium">Padrão de Movimento</label>
                   <Select
@@ -262,7 +268,11 @@ export default function ExercisesLibraryPage() {
                     <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todos</SelectItem>
-                      {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
+                      {Object.entries(
+                        filters.category === "potencia_pliometria"
+                          ? POWER_MOVEMENT_PATTERNS
+                          : MOVEMENT_PATTERNS,
+                      ).map(([key, label]) => (
                         <SelectItem key={key} value={key}>{label}</SelectItem>
                       ))}
                     </SelectContent>
