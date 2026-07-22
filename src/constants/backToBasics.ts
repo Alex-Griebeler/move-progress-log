@@ -90,6 +90,25 @@ export const LEGACY_MOVEMENT_PATTERNS = {
 
 export type LegacyMovementPattern = keyof typeof LEGACY_MOVEMENT_PATTERNS;
 
+// ============================================================================
+// PADRÕES DE POTÊNCIA (forma dos gestos balísticos/explosivos)
+// Contrato "forma × qualidade": o padrão descreve a FORMA do movimento; a
+// categoria (potencia_pliometria) descreve a QUALIDADE treinada. Estes valores
+// já existem em `exercises_library.movement_pattern` — aqui viram canônicos
+// (label amigável em badges + auto-fill de categoria). São eixo próprio, à parte
+// dos 11 de força em MOVEMENT_PATTERNS.
+// ============================================================================
+
+export const POWER_MOVEMENT_PATTERNS = {
+  salto_pliometria: "Salto / Pliometria",
+  arremesso: "Arremesso",
+  levantamento_potencia: "Levantamento de potência",
+  rotacao_potencia: "Rotação de potência",
+  tecnica_locomocao: "Técnica de locomoção",
+} as const;
+
+export type PowerMovementPattern = keyof typeof POWER_MOVEMENT_PATTERNS;
+
 /**
  * Mapa unificado padrão → label para lookups de display (badges, diagnostics,
  * SessionDetail). Resolve novos e legados; o caller faz o sufixo "(legado)"
@@ -97,6 +116,7 @@ export type LegacyMovementPattern = keyof typeof LEGACY_MOVEMENT_PATTERNS;
  */
 export const MOVEMENT_PATTERN_LABELS: Record<string, string> = {
   ...MOVEMENT_PATTERNS,
+  ...POWER_MOVEMENT_PATTERNS,
   ...LEGACY_MOVEMENT_PATTERNS,
 };
 
@@ -148,6 +168,15 @@ export const PATTERN_TO_CATEGORY: Record<string, ExerciseCategory> = {
   cadeia_posterior: "forca_hipertrofia",
   lunge: "forca_hipertrofia",
   carregar: "forca_hipertrofia",
+  // Potência — forma balística/explosiva → categoria potência (auto-fill).
+  // Os padrões compartilhados (dobradica_quadril, empurrar_vertical) FICAM em
+  // força acima de propósito: a maioria é força (deadlift, press); nos poucos
+  // balísticos (swing, push press) o treinador troca a categoria na mão.
+  salto_pliometria: "potencia_pliometria",
+  arremesso: "potencia_pliometria",
+  levantamento_potencia: "potencia_pliometria",
+  rotacao_potencia: "potencia_pliometria",
+  tecnica_locomocao: "potencia_pliometria",
 };
 
 // ============================================================================
