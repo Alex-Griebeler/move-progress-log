@@ -21,6 +21,7 @@ import { AlertTriangle } from "lucide-react";
 import {
   useUpdateExercise,
   MOVEMENT_PATTERNS,
+  POWER_MOVEMENT_PATTERNS,
   LEGACY_MOVEMENT_PATTERNS,
   MOVEMENT_PATTERN_HELP_TEXT,
   LATERALITY_OPTIONS,
@@ -238,6 +239,12 @@ export const EditExerciseLibraryDialog = ({
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
                       {Object.entries(MOVEMENT_PATTERNS).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                      {/* Padrões de potência (forma balística/explosiva). */}
+                      {Object.entries(POWER_MOVEMENT_PATTERNS).map(([key, label]) => (
                         <SelectItem key={key} value={key}>
                           {label}
                         </SelectItem>

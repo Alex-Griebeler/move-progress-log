@@ -25,6 +25,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   MOVEMENT_PATTERNS,
+  POWER_MOVEMENT_PATTERNS,
   LEGACY_MOVEMENT_PATTERNS,
   MOVEMENT_PATTERN_LABELS,
   MOVEMENT_PATTERN_HELP_TEXT,
@@ -136,6 +137,55 @@ describe("LEGACY_MOVEMENT_PATTERNS — back-compat", () => {
     expect(isLegacyMovementPattern(null)).toBe(false);
     expect(isLegacyMovementPattern(undefined)).toBe(false);
     expect(isLegacyMovementPattern("foo_bar_inventado")).toBe(false);
+  });
+});
+
+const EXPECTED_POWER_PATTERNS = [
+  { key: "salto_pliometria", label: "Salto / Pliometria" },
+  { key: "arremesso", label: "Arremesso" },
+  { key: "levantamento_potencia", label: "Levantamento de potência" },
+  { key: "rotacao_potencia", label: "Rotação de potência" },
+  { key: "tecnica_locomocao", label: "Técnica de locomoção" },
+] as const;
+
+describe("POWER_MOVEMENT_PATTERNS — forma dos gestos de potência (contrato forma × qualidade)", () => {
+  it("tem exatamente os 5 padrões de potência com os labels esperados", () => {
+    const keys = Object.keys(POWER_MOVEMENT_PATTERNS).sort();
+    expect(keys).toEqual(EXPECTED_POWER_PATTERNS.map((p) => p.key).sort());
+    for (const { key, label } of EXPECTED_POWER_PATTERNS) {
+      expect(
+        POWER_MOVEMENT_PATTERNS[key as keyof typeof POWER_MOVEMENT_PATTERNS],
+      ).toBe(label);
+    }
+  });
+
+  it("é eixo à parte: nenhum padrão de potência aparece em MOVEMENT_PATTERNS (força)", () => {
+    for (const { key } of EXPECTED_POWER_PATTERNS) {
+      expect(key in MOVEMENT_PATTERNS).toBe(false);
+    }
+  });
+
+  it("PATTERN_TO_CATEGORY mapeia os 5 padrões de potência para potencia_pliometria", () => {
+    for (const { key } of EXPECTED_POWER_PATTERNS) {
+      expect(PATTERN_TO_CATEGORY[key]).toBe("potencia_pliometria");
+    }
+  });
+
+  it("os padrões compartilhados seguem em força no auto-fill (dobradica_quadril, empurrar_vertical)", () => {
+    expect(PATTERN_TO_CATEGORY.dobradica_quadril).toBe("forca_hipertrofia");
+    expect(PATTERN_TO_CATEGORY.empurrar_vertical).toBe("forca_hipertrofia");
+  });
+
+  it("MOVEMENT_PATTERN_LABELS e getMovementPatternLabel resolvem os padrões de potência", () => {
+    for (const { key, label } of EXPECTED_POWER_PATTERNS) {
+      expect(MOVEMENT_PATTERN_LABELS[key]).toBe(label);
+      expect(getMovementPatternLabel(key)).toBe(label);
+    }
+  });
+
+  it("os diálogos Add e Edit renderizam o select de POWER_MOVEMENT_PATTERNS", () => {
+    expect(addDialogSrc).toMatch(/Object\.entries\(POWER_MOVEMENT_PATTERNS\)\.map/);
+    expect(editDialogSrc).toMatch(/Object\.entries\(POWER_MOVEMENT_PATTERNS\)\.map/);
   });
 });
 
