@@ -23,7 +23,6 @@ import {
   CONTRACTION_TYPES,
   LEVEL_OPTIONS,
   STRENGTH_SUBCATEGORIES,
-  POTENCIA_SUBCATEGORIES,
   LMF_SUBCATEGORIES,
   CORE_ATIVACAO_SUBCATEGORIES,
   LEGACY_CORE_SUBCATEGORIES,
@@ -179,7 +178,12 @@ const ExerciseReviewPage = () => {
       const categoryMatch = categoryFilter === "all" || ex.category === categoryFilter;
       if (!categoryMatch) return false;
 
-      const hasMissing = (field: MissingField) => !ex[field];
+      // Potência não usa subcategoria (Opção A: forma=movement_pattern,
+      // plano=movement_plane, lado=laterality) — não conta como campo faltante.
+      const hasMissing = (field: MissingField) =>
+        field === "subcategory" && ex.category === "potencia_pliometria"
+          ? false
+          : !ex[field];
 
       if (missingFieldFilter === "all") {
         return hasMissing("subcategory") || hasMissing("movement_plane") || hasMissing("level") || hasMissing("laterality") || hasMissing("contraction_type") || hasMissing("emphasis") || hasMissing("stability_position") || hasMissing("surface_modifier");
@@ -195,7 +199,10 @@ const ExerciseReviewPage = () => {
     for (const ex of exercises) {
       if (ex.category === "mobilidade" || ex.category === "respiracao") continue;
       const cat = ex.category || "sem_categoria";
-      const missing = ["subcategory", "movement_plane", "level", "laterality", "contraction_type", "emphasis", "stability_position", "surface_modifier"]
+      // Potência não usa subcategoria (Opção A) — não conta como faltante.
+      const fields = ["movement_plane", "level", "laterality", "contraction_type", "emphasis", "stability_position", "surface_modifier"];
+      if (ex.category !== "potencia_pliometria") fields.unshift("subcategory");
+      const missing = fields
         .filter((f) => !ex[f as keyof typeof ex]).length;
       if (missing > 0) counts[cat] = (counts[cat] || 0) + 1;
     }
@@ -221,7 +228,7 @@ const ExerciseReviewPage = () => {
     if (category === "forca_hipertrofia" && movementPattern && STRENGTH_SUBCATEGORIES[movementPattern]) {
       return STRENGTH_SUBCATEGORIES[movementPattern];
     }
-    if (category === "potencia_pliometria") return POTENCIA_SUBCATEGORIES;
+    if (category === "potencia_pliometria") return null; // potência não usa subcategoria (Opção A)
     if (category === "core_ativacao") return CORE_SUBCATEGORY_OPTIONS;
     if (category === "lmf") return LMF_SUBCATEGORIES;
     return null;
