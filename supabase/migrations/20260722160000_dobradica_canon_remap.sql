@@ -142,3 +142,8 @@ WHERE category='forca_hipertrofia' AND movement_pattern='dobradica_quadril' AND 
 UPDATE public.exercises_library SET subcategory='rdl_stiff'
 WHERE category='forca_hipertrofia' AND movement_pattern='dobradica_quadril' AND name='RDL unilateral'
   AND subcategory IS DISTINCT FROM 'rdl_stiff';
+
+-- Rack Pull (deadlift parcial, estava com subcategoria vazia) -> deadlift
+UPDATE public.exercises_library SET subcategory='deadlift'
+WHERE category='forca_hipertrofia' AND movement_pattern='dobradica_quadril' AND name='Rack Pull'
+  AND subcategory IS DISTINCT FROM 'deadlift';
