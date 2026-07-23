@@ -267,9 +267,10 @@ export const STRENGTH_SUBCATEGORIES: Record<string, Record<string, string>> = {
     curtsy: "Curtsy",
   },
   dobradica_quadril: {
-    bilateral: "Bilateral",
-    unilateral: "Unilateral",
+    deadlift: "Deadlift",
+    rdl_stiff: "RDL / Stiff",
     ponte_hip_thrust: "Ponte / Hip thrust",
+    hinge_tecnico: "Hinge técnico",
   },
   flexao_joelho: {
     nordica: "Nórdica",
