@@ -147,3 +147,9 @@ WHERE category='forca_hipertrofia' AND movement_pattern='dobradica_quadril' AND 
 UPDATE public.exercises_library SET subcategory='deadlift'
 WHERE category='forca_hipertrofia' AND movement_pattern='dobradica_quadril' AND name='Rack Pull'
   AND subcategory IS DISTINCT FROM 'deadlift';
+
+-- Nordic curl: e flexao_joelho, mas carregava o typo 'dobradura_quadril' da
+-- dobradica. Canon do flexao_joelho -> 'nordica'. (Pego na auditoria do Codex.)
+UPDATE public.exercises_library SET subcategory='nordica'
+WHERE name='Nordic curl' AND movement_pattern='flexao_joelho'
+  AND subcategory IS DISTINCT FROM 'nordica';
