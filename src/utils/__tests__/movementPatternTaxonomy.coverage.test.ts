@@ -216,12 +216,13 @@ describe("STRENGTH_SUBCATEGORIES — variações mínimas dos padrões novos", (
     expect(map.curtsy).toBe("Curtsy");
   });
 
-  it("dobradica_quadril cobre bilateral/unilateral/ponte_hip_thrust (RDL/stiff/ponte vão aqui)", () => {
+  it("dobradica_quadril cobre deadlift/rdl_stiff/ponte_hip_thrust/hinge_tecnico (bi/uni vive no laterality)", () => {
     const map = STRENGTH_SUBCATEGORIES.dobradica_quadril;
     expect(map).toBeDefined();
-    expect(map.bilateral).toBe("Bilateral");
-    expect(map.unilateral).toBe("Unilateral");
+    expect(map.deadlift).toBe("Deadlift");
+    expect(map.rdl_stiff).toBe("RDL / Stiff");
     expect(map.ponte_hip_thrust).toBe("Ponte / Hip thrust");
+    expect(map.hinge_tecnico).toBe("Hinge técnico");
   });
 
   it("flexao_joelho cobre nórdica/leg curl/sliding curl (não-hinge)", () => {
