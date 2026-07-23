@@ -49,7 +49,6 @@ import {
   EXERCISE_DIMENSIONS,
   BOYLE_SCORE_SCALE,
   STRENGTH_SUBCATEGORIES,
-  POTENCIA_SUBCATEGORIES,
   STABILITY_POSITION_OPTIONS,
   ExerciseFilters,
 } from "@/hooks/useExercisesLibrary";
@@ -284,9 +283,9 @@ export default function ExercisesLibraryPage() {
                 let subcatOptions: Record<string, string> | null = null;
                 if (filters.category === "forca_hipertrofia" && filters.movement_pattern && STRENGTH_SUBCATEGORIES[filters.movement_pattern]) {
                   subcatOptions = STRENGTH_SUBCATEGORIES[filters.movement_pattern];
-                } else if (filters.category === "potencia_pliometria") {
-                  subcatOptions = POTENCIA_SUBCATEGORIES;
                 }
+                // Potência não usa subcategoria (Opção A): forma=movement_pattern,
+                // plano=movement_plane, lado=laterality — sem select de subcategoria.
                 if (!subcatOptions) return null;
                 return (
                   <div className="space-y-xs">

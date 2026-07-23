@@ -279,13 +279,6 @@ export const STRENGTH_SUBCATEGORIES: Record<string, Record<string, string>> = {
   },
 };
 
-/** Subcategorias para Potência & Pliometria */
-export const POTENCIA_SUBCATEGORIES = {
-  potencia: "Potência",
-  pliometria: "Pliometria",
-  locomocao: "Locomoção",
-} as const;
-
 /**
  * Subcategorias controladas para Core & Ativação.
  *
