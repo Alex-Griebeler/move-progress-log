@@ -167,8 +167,8 @@ export const ExerciseDistributionDiagnostic = () => {
                     <Badge variant="outline">{count}</Badge>
                   </div>
 
-                  {/* Movement patterns (only for força) */}
-                  {cat === "forca_hipertrofia" && patternMap && (
+                  {/* Movement patterns — força e potência (contrato forma×qualidade) */}
+                  {(cat === "forca_hipertrofia" || cat === "potencia_pliometria") && patternMap && (
                     <div className="pl-4 space-y-1">
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Padrões de Movimento</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
