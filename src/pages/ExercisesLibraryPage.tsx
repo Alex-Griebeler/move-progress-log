@@ -22,13 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Trash2, Filter, X, Database, Search, MoreVertical, AlertTriangle, Video, Zap, ChevronDown } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Plus, Pencil, Trash2, Filter, X, Database, Search, AlertTriangle, Video, Zap, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { AddExerciseDialog } from "@/components/AddExerciseDialog";
 import { EditExerciseLibraryDialog } from "@/components/EditExerciseLibraryDialog";
@@ -77,6 +71,7 @@ export default function ExercisesLibraryPage() {
   const [filters, setFilters] = useState<ExerciseFilters>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [editingExercise, setEditingExercise] = useState<ExerciseLibrary | null>(null);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
 
   const { data: exercises, isLoading, refetch } = useExercisesLibrary({
@@ -117,7 +112,11 @@ export default function ExercisesLibraryPage() {
         breadcrumbs={[{ label: NAV_LABELS.exercises }]}
         actions={
           <div className="flex gap-xs">
-            <AddExerciseDialog />
+            <Button onClick={() => setAddDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Adicionar Exercício
+            </Button>
+            <AddExerciseDialog externalOpen={addDialogOpen} onExternalOpenChange={setAddDialogOpen} />
           </div>
         }
       />
@@ -391,7 +390,7 @@ export default function ExercisesLibraryPage() {
             }}
             secondaryAction={{
               label: "Adicionar exercício",
-              onClick: () => document.querySelector('[aria-label="Adicionar Exercício"]')?.dispatchEvent(new Event('click', { bubbles: true })),
+              onClick: () => setAddDialogOpen(true),
             }}
           />
         ) : (
@@ -401,7 +400,7 @@ export default function ExercisesLibraryPage() {
             description="Adicione seus exercícios personalizados — o seed automático foi removido por usar taxonomia legada. Uma biblioteca bem organizada facilita a criação de prescrições eficazes."
             primaryAction={{
               label: "Adicionar Exercício",
-              onClick: () => document.querySelector('[aria-label="Adicionar Exercício"]')?.dispatchEvent(new Event('click', { bubbles: true }))
+              onClick: () => setAddDialogOpen(true)
             }}
           />
         )
