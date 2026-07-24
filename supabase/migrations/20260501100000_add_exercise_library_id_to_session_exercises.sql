@@ -29,7 +29,10 @@ ON public.exercises(exercise_library_id);
 WITH unique_library_names AS (
   SELECT
     lower(trim(name)) AS normalized_name,
-    min(id) AS exercise_library_id,
+    -- FIX 2026-07-24: Postgres nao tem agregado min(uuid) (42883) — a migracao
+    -- falhava inteira e o backfill NUNCA rodou. Com HAVING count(*)=1 o pick e
+    -- degenerado; min(id::text)::uuid e deterministico e valido.
+    min(id::text)::uuid AS exercise_library_id,
     count(*) AS match_count
   FROM public.exercises_library
   WHERE name IS NOT NULL
