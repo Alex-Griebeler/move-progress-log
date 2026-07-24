@@ -172,7 +172,9 @@ const sumPatternCounts = (counts: Record<string, number>, patterns: string[]) =>
 
 const VALENCE_CONFIG: Record<string, { sets: string; reps: string; interval: number; pse: string; restBetweenRounds?: number }> = {
   potencia: { sets: "3-4", reps: "3-5", interval: 120, pse: "7-8" },
-  forca: { sets: "4-5", reps: "4-6", interval: 90, pse: "8-9" },
+  // sets 3-4 (era 4-5): decisão do dono 2026-07-24 — com 4-5 a sessão de força
+  // fechava em 23 sets de trabalho vs teto 20 (adulto); upper 4 fecha em ~19.
+  forca: { sets: "3-4", reps: "4-6", interval: 90, pse: "8-9" },
   hipertrofia: { sets: "3-4", reps: "8-12", interval: 60, pse: "7-8" },
   // G-08: interval 45s (was 30s — too low for metcon PSE 6-7), restBetweenRounds for EMOM/AMRAP
   condicionamento: { sets: "3", reps: "12-15", interval: 45, pse: "6-7", restBetweenRounds: 90 },
