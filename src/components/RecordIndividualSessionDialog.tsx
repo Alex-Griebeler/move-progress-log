@@ -507,10 +507,16 @@ export function RecordIndividualSessionDialog({
                     }
                     if (session.exercises) {
                       session.exercises.forEach(ex => {
+                        // A edge de voz retorna executed_exercise_name + load_breakdown
+                        // (obrigatórios no schema); mapear só ex.name descartava o nome
+                        // real e a carga extraída (auditoria R3 #5).
+                        const voiceEx = ex as typeof ex & { executed_exercise_name?: string; load_breakdown?: string };
                         allExercises.push({
                           exercise_library_id: ex.exercise_library_id ?? null,
-                          executed_exercise_name: ex.name, reps: ex.reps ?? null, load_kg: ex.load_kg ?? null,
-                          load_breakdown: '', observations: ex.observations ?? null, is_best_set: false,
+                          executed_exercise_name: voiceEx.executed_exercise_name ?? ex.name ?? '',
+                          reps: ex.reps ?? null, load_kg: ex.load_kg ?? null,
+                          load_breakdown: voiceEx.load_breakdown ?? '',
+                          observations: ex.observations ?? null, is_best_set: false,
                         });
                       });
                     }

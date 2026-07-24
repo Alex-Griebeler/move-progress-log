@@ -50,6 +50,7 @@ import {
   BOYLE_SCORE_SCALE,
   STRENGTH_SUBCATEGORIES,
   STABILITY_POSITION_OPTIONS,
+  SURFACE_MODIFIER_OPTIONS,
   ExerciseFilters,
 } from "@/hooks/useExercisesLibrary";
 import { toast } from "sonner";
@@ -202,9 +203,9 @@ export default function ExercisesLibraryPage() {
             <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
               <Filter className="h-3.5 w-3.5" />
               Mais filtros
-              {[filters.movement_pattern, filters.subcategory, filters.laterality, filters.movement_plane, filters.contraction_type, filters.stability_position].filter(Boolean).length > 0 && (
+              {[filters.movement_pattern, filters.subcategory, filters.laterality, filters.movement_plane, filters.contraction_type, filters.stability_position, filters.surface_modifier].filter(Boolean).length > 0 && (
                 <span className="text-xs ml-1">
-                  ({[filters.movement_pattern, filters.subcategory, filters.laterality, filters.movement_plane, filters.contraction_type, filters.stability_position].filter(Boolean).length} ativos)
+                  ({[filters.movement_pattern, filters.subcategory, filters.laterality, filters.movement_plane, filters.contraction_type, filters.stability_position, filters.surface_modifier].filter(Boolean).length} ativos)
                 </span>
               )}
             </summary>
@@ -333,6 +334,24 @@ export default function ExercisesLibraryPage() {
                   <SelectContent>
                     <SelectItem value="all">Todas</SelectItem>
                     {Object.entries(STABILITY_POSITION_OPTIONS).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-xs">
+                <label className="text-sm font-medium">Superfície</label>
+                <Select
+                  value={filters.surface_modifier || "all"}
+                  onValueChange={(value) =>
+                    setFilters((prev) => ({ ...prev, surface_modifier: value === "all" ? undefined : value }))
+                  }
+                >
+                  <SelectTrigger><SelectValue placeholder="Todas" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    {Object.entries(SURFACE_MODIFIER_OPTIONS).map(([key, label]) => (
                       <SelectItem key={key} value={key}>{label}</SelectItem>
                     ))}
                   </SelectContent>

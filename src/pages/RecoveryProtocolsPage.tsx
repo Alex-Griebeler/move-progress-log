@@ -26,7 +26,7 @@ const RecoveryProtocolsPage = () => {
   });
 
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
-  const { data: protocols, isLoading } = useRecoveryProtocols(selectedCategory);
+  const { data: protocols, isLoading, isError, refetch } = useRecoveryProtocols(selectedCategory);
 
   const categories = ["Termoterapia", "Respiração", "Mindfulness", "Atividade Leve"];
 
@@ -57,11 +57,18 @@ const RecoveryProtocolsPage = () => {
             </Card>
           ))}
         </div>
+      ) : isError ? (
+        <EmptyState
+          icon={<Heart className="h-6 w-6" />}
+          title="Erro ao carregar protocolos"
+          description="Não foi possível buscar os protocolos de recuperação. Verifique a conexão e tente novamente."
+          primaryAction={{ label: "Tentar novamente", onClick: () => refetch() }}
+        />
       ) : !protocols || protocols.length === 0 ? (
         <EmptyState
           icon={<Heart className="h-6 w-6" />}
-          title="Carregando protocolos de recuperação"
-          description="Os protocolos baseados em evidências científicas para otimização da recuperação e performance estão sendo carregados."
+          title="Nenhum protocolo cadastrado"
+          description="Os protocolos de recuperação aparecem aqui quando cadastrados."
         />
       ) : (
         <Tabs defaultValue="all" className="space-y-6">
