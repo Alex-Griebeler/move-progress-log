@@ -3452,6 +3452,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assert_staff: { Args: never; Returns: undefined }
       calc_oura_baseline: {
         Args: { p_days?: number; p_student_id: string }
         Returns: {
