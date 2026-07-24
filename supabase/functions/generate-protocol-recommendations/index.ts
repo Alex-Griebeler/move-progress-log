@@ -193,7 +193,10 @@ serve(async (req) => {
       );
     }
 
-    const { data: baselineRows, error: baselineError } = await supabase.rpc("calc_oura_baseline", {
+    // Hardening R5: calc_oura_baseline agora exige role trainer/admin via
+    // assert_staff() — chamar com o client AUTENTICADO (a ownership do aluno já
+    // foi validada acima); o client service tem auth.uid() NULL e falharia.
+    const { data: baselineRows, error: baselineError } = await supabaseAuth.rpc("calc_oura_baseline", {
       p_student_id: student_id,
       p_days: 14,
     });
