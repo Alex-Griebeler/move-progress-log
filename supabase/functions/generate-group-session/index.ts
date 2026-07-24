@@ -1142,9 +1142,24 @@ function calcPatternsBalance(workouts: GeneratedWorkout[]): Record<string, numbe
 }
 
 /** v14.5 G4: Count effective sets per session */
+/**
+ * Fases de TRABALHO da sessão (BP1/BP2/Complementar/Finalizador). Mobilidade
+ * (3×1 set técnico), core biplanar, LMF e respiração são preparo/acessório —
+ * fora dos "sets de trabalho" e do enriquecimento LLM (têm notes próprias).
+ */
+const MAIN_WORK_PHASES = new Set<string>([
+  SESSION_STRUCTURE.phases.bp1.name,
+  SESSION_STRUCTURE.phases.bp2.name,
+  SESSION_STRUCTURE.phases.bp3.name,
+  SESSION_STRUCTURE.phases.finalizador.name,
+]);
+
 function countEffectiveSets(workout: GeneratedWorkout): number {
   let total = 0;
   for (const phase of workout.phases) {
+    // "Sets de trabalho": só blocos principais + finalizador. Contar mobilidade
+    // e core inflava a métrica (30-42 vs teto 20) e o warning disparava sempre.
+    if (!MAIN_WORK_PHASES.has(phase.name)) continue;
     for (const block of phase.blocks) {
       if (block.method === "respiracao" || block.method === "autoliberacao") continue;
       for (const ex of block.exercises) {
@@ -1396,13 +1411,16 @@ function validateNeuralAndJointControl(
 // LLM ENRICHMENT
 // ============================================================================
 
-async function enrichWithLLM(workouts: GeneratedWorkout[]): Promise<void> {
+async function enrichWithLLM(workouts: GeneratedWorkout[]): Promise<string | null> {
   const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) return;
+  if (!apiKey) return "Enriquecimento IA pulado: LOVABLE_API_KEY ausente (cues/mindfulness não gerados).";
 
   try {
+    // Só exercícios das fases de trabalho: cue de execução importa no
+    // levantamento principal; LMF/mobilidade/core têm notes templated. Com o
+    // pool cheio, mandar TODOS (~45) pro LLM levava a geração a 60-90s.
     const exerciseList = workouts.flatMap((w) =>
-      w.phases.flatMap((p) =>
+      w.phases.filter((p) => MAIN_WORK_PHASES.has(p.name)).flatMap((p) =>
         p.blocks.flatMap((b) =>
           b.exercises.map((ex) => ({
             workoutSlot: w.slot,
@@ -1418,6 +1436,7 @@ async function enrichWithLLM(workouts: GeneratedWorkout[]): Promise<void> {
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
+      signal: AbortSignal.timeout(60_000), // não deixar o LLM segurar a geração indefinidamente
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
@@ -1486,12 +1505,12 @@ Frases motivacionais: inspiradoras, alinhadas com a filosofia Body & Mind Fitnes
 
     if (!response.ok) {
       console.error("LLM enrichment failed:", response.status);
-      return;
+      return `Enriquecimento IA falhou (HTTP ${response.status}) — sessão gerada sem cues/mindfulness.`;
     }
 
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) return;
+    if (!toolCall) return "Enriquecimento IA sem resposta estruturada — sessão gerada sem cues/mindfulness.";
 
     const enrichment = JSON.parse(toolCall.function.arguments);
 
@@ -1518,8 +1537,13 @@ Frases motivacionais: inspiradoras, alinhadas com a filosofia Body & Mind Fitnes
         }
       }
     }
+    return null;
   } catch (err) {
     console.error("LLM enrichment error:", err);
+    const isTimeout = err instanceof Error && err.name === "TimeoutError";
+    return isTimeout
+      ? "Enriquecimento IA excedeu 60s (timeout) — sessão gerada sem cues/mindfulness."
+      : "Enriquecimento IA falhou — sessão gerada sem cues/mindfulness.";
   }
 }
 
@@ -1578,9 +1602,15 @@ function generateSingleWorkout(
 
   // Collect all covered patterns
   const allCoveredPatterns = new Set<string>(coveredPatterns);
+  // Fases acessórias: mapToGeneratedExercise usa category como fallback de
+  // movementPattern, então sem o filtro o coveredPatterns ganhava "lmf",
+  // "core_ativacao", "mobilidade" como se fossem padrões de movimento.
+  const CATEGORY_FALLBACKS = new Set(["lmf", "core_ativacao", "mobilidade", "respiracao", "condicionamento_metabolico", "unknown"]);
   [openingPhase, mobilityPhase, corePhase].forEach((phase) => {
     phase.blocks.forEach((block) => {
-      block.exercises.forEach((ex) => allCoveredPatterns.add(ex.movementPattern));
+      block.exercises.forEach((ex) => {
+        if (!CATEGORY_FALLBACKS.has(ex.movementPattern)) allCoveredPatterns.add(ex.movementPattern);
+      });
     });
   });
 
@@ -1821,7 +1851,8 @@ serve(async (req) => {
 
     // G-02: Enrich with LLM (non-blocking, adds warning if fails)
     try {
-      await enrichWithLLM(workouts);
+      const enrichmentWarning = await enrichWithLLM(workouts);
+      if (enrichmentWarning) warnings.push(enrichmentWarning);
     } catch (enrichError) {
       warnings.push('Enriquecimento por IA indisponível nesta geração. Cues de execução não foram adicionados.');
     }
