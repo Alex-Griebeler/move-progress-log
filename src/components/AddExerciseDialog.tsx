@@ -242,7 +242,7 @@ export const AddExerciseDialog = ({
       video_url: videoUrl.trim() || null,
       risk_level: riskLevel && riskLevel !== "none" ? riskLevel : null,
       category: category && category !== "none" ? category : null,
-      subcategory: subcategory.trim() || null,
+      subcategory: category === "potencia_pliometria" ? null : subcategory.trim() || null,
       plyometric_phase: plyometricPhase ? parseInt(plyometricPhase) : null,
       default_sets: defaultSets.trim() || null,
       default_reps: defaultReps.trim() || null,
@@ -669,6 +669,16 @@ export const AddExerciseDialog = ({
                         ? (CORE_ATIVACAO_SUBCATEGORIES as Record<string, string>)
                         : null;
                     const map = strengthMap || coreMap;
+                    if (category === "potencia_pliometria") {
+                      // Opção A: potência não usa subcategoria (forma no padrão,
+                      // plano em movement_plane, lado em laterality).
+                      return (
+                        <p className="text-xs text-muted-foreground">
+                          Potência não usa subcategoria — classifique pela forma no
+                          Padrão de Movimento.
+                        </p>
+                      );
+                    }
                     if (!map) {
                       return (
                         <Input

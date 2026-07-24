@@ -28,7 +28,7 @@ describe("generate-group-session — equipamento por família", () => {
     expect(src).toMatch(/function inventoryFamily\(/);
     expect(src).toMatch(/kb:\s*"kettlebell"/);
     expect(src).toMatch(/db:\s*"halter"/);
-    expect(src).toMatch(/\\d\+\(\[\.,\]\\d\+\)\?\\s\*kg|\d\+.*kg/); // regex de strip de peso presente
+    expect(src).toContain("(kg|cm)"); // strip de peso (kg) e tamanho (cm) presente
   });
 
   it("é fail-open para família fora do dicionário (inventário incompleto não filtra)", () => {

@@ -470,12 +470,23 @@ const EQUIPMENT_ALIASES: Record<string, string> = {
   trx: "trx", "fita de suspensao": "trx", "fita de suspensão": "trx",
   band: "banda elastica", banda: "banda elastica", "banda elastica": "banda elastica",
   "banda elástica": "banda elastica", super_band: "banda elastica", "super band": "banda elastica",
-  mini_band: "banda elastica", "mini band": "banda elastica", miniband: "banda elastica",
+  // Mini band é família PRÓPRIA no inventário (Mini Band Leve/Média/Pesada) —
+  // não colapsar em banda elástica, senão marcar mini bands indisponíveis não filtra.
+  mini_band: "mini band", "mini band": "mini band", miniband: "mini band",
+  caixa: "box jump", box: "box jump", "box jump": "box jump",
+  bola: "bola suíça", bola_suica: "bola suíça", "bola suíça": "bola suíça", "swiss ball": "bola suíça",
+  rolo: "foam roller", foam_roller: "foam roller", "foam roller": "foam roller",
+  lacrosse: "bola de lacrosse", bola_lacrosse: "bola de lacrosse", "bola de lacrosse": "bola de lacrosse",
+  air_bike: "air bike", "air bike": "air bike",
+  step: "step",
+  // polia, argolas, banco, slide/slideboard, anilha, bastão, corda naval, trenó:
+  // a Fabrik TEM, mas não estão no equipment_inventory → ficam FORA do dicionário
+  // de propósito (fail-open) até o inventário cadastrá-los.
 };
 
 /** nome do inventário -> família (remove peso "8kg"/variante e aplica aliases) */
 function inventoryFamily(name: string): string {
-  const base = name.toLowerCase().replace(/\s*\d+([.,]\d+)?\s*kg\b/g, "").trim()
+  const base = name.toLowerCase().replace(/\s*\d+([.,]\d+)?\s*(kg|cm)\b/g, "").trim()
     .replace(/\s+(olimpica|olímpica|hexagonal|leve|media|média|pesada|forte)$/g, "").trim();
   return EQUIPMENT_ALIASES[base] ?? base;
 }
@@ -1712,14 +1723,15 @@ serve(async (req) => {
     exercises = filterByRisk(exercises, input.groupLevel);
     const beforeEquipmentFilter = exercises.length;
     exercises = filterByAvailableEquipment(exercises, availableEquipment);
+    let equipmentFilterWarning: string | null = null;
     if (beforeEquipmentFilter > 0 && exercises.length / beforeEquipmentFilter < 0.7) {
       // Anti-silêncio: se o filtro de equipamento derrubar >30% do pool, avisa —
       // foi exatamente o modo de falha do bug de vocabulário (112/909 sobreviviam).
-      console.warn(
-        `[equipment-filter] pool ${beforeEquipmentFilter} -> ${exercises.length} ` +
-        `(${Math.round((1 - exercises.length / beforeEquipmentFilter) * 100)}% filtrado). ` +
-        `Verifique equipment_inventory vs equipment_required.`
-      );
+      equipmentFilterWarning =
+        `Filtro de equipamento reduziu o pool de ${beforeEquipmentFilter} para ${exercises.length} exercícios ` +
+        `(${Math.round((1 - exercises.length / beforeEquipmentFilter) * 100)}%). ` +
+        `Verifique equipment_inventory vs equipment_required.`;
+      console.warn(`[equipment-filter] ${equipmentFilterWarning}`);
     }
 
     // Phase 4: Apply audience preset filters
@@ -1760,6 +1772,7 @@ serve(async (req) => {
     const volumeMultiplier = Math.min(rawVolumeMultiplier, audienceConfig.volumeMultiplierCap);
     const workouts: GeneratedWorkout[] = [];
     const warnings: string[] = [];
+    if (equipmentFilterWarning) warnings.push(equipmentFilterWarning);
 
     // Phase 4: Add audience restrictions as info
     if (audiencePreset !== "adulto") {

@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { getMovementPatternLabel } from "@/constants/backToBasics";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -193,17 +194,10 @@ function ProgressionTimeline({ mesocycle }: { mesocycle: GeneratedMesocycle }) {
 
 function PatternsBalance({ mesocycle }: { mesocycle: GeneratedMesocycle }) {
   const balance = mesocycle.metadata.totalPatternsBalance || {};
-  const patternLabels: Record<string, string> = {
-    empurrar: "Push",
-    puxar: "Pull",
-    dominancia_joelho: "Joelho",
-    cadeia_posterior: "Quadril",
-    lunge: "Lunge",
-    carregar: "Carry",
-  };
-
+  // Labels canônicos (v2 + potência + legados) via mapa único — a whitelist
+  // legada (empurrar/puxar/...) filtrava FORA todos os padrões atuais e o
+  // balanço sumia. Mostra tudo que o gerador reportar.
   const entries = Object.entries(balance)
-    .filter(([key]) => key in patternLabels)
     .sort((a, b) => b[1] - a[1]);
 
   if (entries.length === 0) return null;
@@ -222,7 +216,7 @@ function PatternsBalance({ mesocycle }: { mesocycle: GeneratedMesocycle }) {
         {entries.map(([pattern, count]) => (
           <div key={pattern} className="flex items-center gap-3">
             <span className="text-xs w-16 text-right text-muted-foreground">
-              {patternLabels[pattern] || pattern}
+              {getMovementPatternLabel(pattern) ?? pattern}
             </span>
             <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
               <div
