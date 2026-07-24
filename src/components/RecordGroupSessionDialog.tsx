@@ -31,6 +31,10 @@ import { logger } from "@/utils/logger";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { formatSessionTime, getCurrentSessionTimeHHmm } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
+import {
+  normalizeExerciseLibraryMatchName,
+  type ExerciseLibraryMatch,
+} from "@/utils/exerciseLibraryMatching";
 import { format } from "date-fns";
 
 // Shared types, utilities & components
@@ -1082,6 +1086,25 @@ export function RecordGroupSessionDialog({
                   selectedStudents={selectedStudents.map(s => ({ id: s.id, name: s.name, weight_kg: s.weight_kg }))}
                   date={date} time={time}
                   onComplete={(segments) => {
+                    // Auditoria R3 #3: a edge de voz não devolve exercise_library_id;
+                    // sem resolução, TODO exercício ditado caía na validação
+                    // "selecione um exercício cadastrado" e exigia remap manual.
+                    // O LLM enxerga os nomes da prescrição, então casar por nome
+                    // normalizado contra a própria prescrição resolve o caso real.
+                    const prescLibByName = new Map<string, ExerciseLibraryMatch>();
+                    for (const pex of prescriptionDetails?.exercises || []) {
+                      if (!pex.exercise_library_id || !pex.exercise_name) continue;
+                      const key = normalizeExerciseLibraryMatchName(pex.exercise_name);
+                      if (key) prescLibByName.set(key, { id: pex.exercise_library_id, name: pex.exercise_name });
+                    }
+                    const resolveByPrescriptionName = (...names: Array<string | undefined>): string | null => {
+                      for (const n of names) {
+                        if (!n) continue;
+                        const hit = prescLibByName.get(normalizeExerciseLibraryMatchName(n));
+                        if (hit) return hit.id;
+                      }
+                      return null;
+                    };
                     // Map raw audio data to typed SessionExercise/GroupObservation
                     const mapRawExercise = (raw: {
                       name?: string;
@@ -1094,7 +1117,8 @@ export function RecordGroupSessionDialog({
                       observations?: string | null;
                     }): SessionExercise => ({
                       executed_exercise_name: raw.executed_exercise_name ?? raw.name ?? '',
-                      exercise_library_id: raw.exercise_library_id ?? null,
+                      exercise_library_id: raw.exercise_library_id
+                        ?? resolveByPrescriptionName(raw.executed_exercise_name, raw.name),
                       reps: raw.reps ?? null,
                       reserve_reps: raw.reserve_reps ?? null,
                       load_kg: raw.load_kg ?? null,

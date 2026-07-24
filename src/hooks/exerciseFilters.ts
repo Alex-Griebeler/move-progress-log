@@ -9,6 +9,7 @@ export interface ExerciseFilters {
   subcategory?: string;
   risk_level?: string;
   stability_position?: string;
+  surface_modifier?: string;
 }
 
 const normalizeFilterValue = (value: string | undefined): string | undefined => {
@@ -37,6 +38,7 @@ export const sanitizeExerciseFilters = (filters?: ExerciseFilters): ExerciseFilt
     subcategory: normalizeFilterValue(filters.subcategory),
     risk_level: normalizeFilterValue(filters.risk_level),
     stability_position: normalizeFilterValue(filters.stability_position),
+    surface_modifier: normalizeFilterValue(filters.surface_modifier),
   };
 };
 

@@ -170,6 +170,9 @@ export const useExercisesLibrary = (filters?: ExerciseFilters) => {
         if (normalizedFilters.stability_position) {
           query = query.eq("stability_position", normalizedFilters.stability_position);
         }
+        if (normalizedFilters.surface_modifier) {
+          query = query.eq("surface_modifier", normalizedFilters.surface_modifier);
+        }
 
         return query;
       };
