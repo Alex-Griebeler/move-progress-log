@@ -12,6 +12,7 @@ import { SessionContextForm } from "./SessionContextForm";
 import { usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { Mic, Save, BookOpen } from "lucide-react";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
@@ -350,7 +351,21 @@ export function RecordIndividualSessionDialog({
       // Atomicidade (#5): só guarda o id quando criamos uma sessão NOVA, para
       // poder reverter sessão órfã sem afetar o fluxo de reabertura.
       let createdSessionId: string | null = null;
+      // Auditoria R3: snapshot dos exercícios antigos antes do delete — se o
+      // insert novo falhar, restauramos (a ordem delete→insert sem snapshot
+      // deixava a sessão reaberta SEM exercício nenhum).
+      let staleExercisesSnapshot: TablesInsert<"exercises">[] = [];
       if (isReopening && existingSessionId) {
+        const { data: staleRows, error: staleFetchError } = await supabase
+          .from('exercises')
+          .select('*')
+          .eq('session_id', existingSessionId);
+        if (staleFetchError) throw staleFetchError;
+        staleExercisesSnapshot = (staleRows || []).map((row) => {
+          const { id: _id, created_at: _c, updated_at: _u, ...clone } = row as Record<string, unknown>;
+          return clone as TablesInsert<"exercises">;
+        });
+
         const { error: deleteExercisesError } = await supabase
           .from('exercises')
           .delete()
@@ -386,6 +401,17 @@ export function RecordIndividualSessionDialog({
         if (createdSessionId) {
           const { error: rollbackError } = await supabase.from('workout_sessions').delete().eq('id', createdSessionId);
           if (rollbackError) logger.error('Falha ao reverter sessão órfã (individual):', rollbackError);
+        }
+        // Auditoria R3: reabertura → restaura o snapshot antigo pra não deixar
+        // a sessão vazia (best-effort; se o restore falhar, avisa).
+        if (isReopening && staleExercisesSnapshot.length > 0) {
+          const { error: restoreError } = await supabase.from('exercises').insert(staleExercisesSnapshot);
+          if (restoreError) {
+            logger.error('Falha ao restaurar exercícios antigos (individual):', restoreError);
+            notify.error("Sessão ficou sem exercícios", { description: "Falha ao salvar os novos E ao restaurar os antigos. Recupere manualmente." });
+          } else {
+            notify.warning("Novos exercícios não salvos", { description: "Os exercícios anteriores da sessão foram restaurados." });
+          }
         }
         throw exercisesError;
       }

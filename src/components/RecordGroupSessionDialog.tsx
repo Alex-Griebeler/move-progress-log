@@ -645,35 +645,23 @@ export function RecordGroupSessionDialog({
   const handleSave = async () => {
     if (mergedStudents.length === 0 || !effectivePrescriptionId) return;
 
+    // Reabertura: captura os IDs antigos ANTES, mas só deleta DEPOIS do create
+    // novo ter sucesso — a ordem antiga (delete→create) perdia o histórico se
+    // qualquer criação falhasse no meio (achado CRÍTICO da auditoria R3).
+    let staleSessionIds: string[] = [];
     if (isReopening && reopenDate && normalizedReopenTime) {
-      try {
-        const { data: existingSessions, error: existingSessionsError } = await supabase
-          .from('workout_sessions')
-          .select('id')
-          .eq('prescription_id', effectivePrescriptionId)
-          .eq('date', reopenDate)
-          .eq('time', normalizedReopenTime);
-        if (existingSessionsError) throw existingSessionsError;
-
-        if (existingSessions && existingSessions.length > 0) {
-          const sessionIds = existingSessions.map(s => s.id);
-          const { error: deleteExercisesError } = await supabase
-            .from('exercises')
-            .delete()
-            .in('session_id', sessionIds);
-          if (deleteExercisesError) throw deleteExercisesError;
-
-          const { error: deleteSessionsError } = await supabase
-            .from('workout_sessions')
-            .delete()
-            .in('id', sessionIds);
-          if (deleteSessionsError) throw deleteSessionsError;
-        }
-      } catch (error) {
-        logger.error('Erro ao deletar sessões antigas:', error);
-        notify.error("Erro ao consolidar dados", { description: "Não foi possível atualizar as sessões existentes." });
+      const { data: existingSessions, error: existingSessionsError } = await supabase
+        .from('workout_sessions')
+        .select('id')
+        .eq('prescription_id', effectivePrescriptionId)
+        .eq('date', reopenDate)
+        .eq('time', normalizedReopenTime);
+      if (existingSessionsError) {
+        logger.error('Erro ao localizar sessões antigas:', existingSessionsError);
+        notify.error("Erro ao consolidar dados", { description: "Não foi possível localizar as sessões existentes." });
         return;
       }
+      staleSessionIds = (existingSessions || []).map(s => s.id);
     }
 
     const sessionsToSave: GroupSessionToSave[] = mergedStudents.map(merged => {
@@ -683,6 +671,24 @@ export function RecordGroupSessionDialog({
     }).filter((s): s is GroupSessionToSave => s !== null);
 
     await createGroupSessions.mutateAsync({ prescriptionId: effectivePrescriptionId, date, time, sessions: sessionsToSave });
+
+    // Sessões novas criadas com sucesso — agora sim remover as antigas (por ID
+    // capturado; se a limpeza falhar, sobra duplicata recuperável, nunca perda).
+    if (staleSessionIds.length > 0) {
+      const { error: deleteExercisesError } = await supabase
+        .from('exercises')
+        .delete()
+        .in('session_id', staleSessionIds);
+      const { error: deleteSessionsError } = deleteExercisesError
+        ? { error: deleteExercisesError }
+        : await supabase.from('workout_sessions').delete().in('id', staleSessionIds);
+      if (deleteExercisesError || deleteSessionsError) {
+        logger.error('Erro ao remover sessões antigas pós-consolidação:', deleteExercisesError || deleteSessionsError);
+        notify.warning("Consolidação com pendência", {
+          description: "As novas sessões foram salvas, mas as antigas não foram removidas — podem aparecer duplicadas. Remova-as manualmente.",
+        });
+      }
+    }
 
     const sessionLookupStudentIds = selectedStudents.map((student) => student.id);
     const { data: savedSessions, error: savedSessionsError } = await supabase
