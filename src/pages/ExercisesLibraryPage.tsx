@@ -49,11 +49,9 @@ import {
   EXERCISE_DIMENSIONS,
   BOYLE_SCORE_SCALE,
   STRENGTH_SUBCATEGORIES,
-  POTENCIA_SUBCATEGORIES,
   STABILITY_POSITION_OPTIONS,
   ExerciseFilters,
 } from "@/hooks/useExercisesLibrary";
-import { populateExercisesLibrary } from "@/utils/populateExercises";
 import { toast } from "sonner";
 import { logger } from "@/utils/logger";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -79,34 +77,12 @@ export default function ExercisesLibraryPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingExercise, setEditingExercise] = useState<ExerciseLibrary | null>(null);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
-  const [isPopulating, setIsPopulating] = useState(false);
 
   const { data: exercises, isLoading, refetch } = useExercisesLibrary({
     ...filters,
     search: searchTerm.trim() || undefined,
   });
   const deleteExercise = useDeleteExercise();
-
-  const handlePopulateDatabase = async () => {
-    setIsPopulating(true);
-    try {
-      const result = await populateExercisesLibrary();
-      
-      if (result.success) {
-        toast.success(
-          `${result.added} exercícios adicionados com sucesso! ${result.skipped} já existiam.`
-        );
-        refetch();
-      } else {
-        toast.error("Erro ao popular banco de dados");
-      }
-    } catch (error) {
-      logger.error("Erro ao popular banco:", error);
-      toast.error("Erro ao popular banco de dados");
-    } finally {
-      setIsPopulating(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (deletingExerciseId) {
@@ -140,23 +116,6 @@ export default function ExercisesLibraryPage() {
         breadcrumbs={[{ label: NAV_LABELS.exercises }]}
         actions={
           <div className="flex gap-xs">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Ações secundárias">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-popover">
-                <DropdownMenuItem
-                  onClick={handlePopulateDatabase}
-                  disabled={isPopulating}
-                  className="gap-xs"
-                >
-                  <Database className="h-4 w-4" />
-                  {isPopulating ? "Importando..." : NAV_LABELS.importExercises}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
             <AddExerciseDialog />
           </div>
         }
@@ -284,9 +243,9 @@ export default function ExercisesLibraryPage() {
                 let subcatOptions: Record<string, string> | null = null;
                 if (filters.category === "forca_hipertrofia" && filters.movement_pattern && STRENGTH_SUBCATEGORIES[filters.movement_pattern]) {
                   subcatOptions = STRENGTH_SUBCATEGORIES[filters.movement_pattern];
-                } else if (filters.category === "potencia_pliometria") {
-                  subcatOptions = POTENCIA_SUBCATEGORIES;
                 }
+                // Potência não usa subcategoria (Opção A): forma=movement_pattern,
+                // plano=movement_plane, lado=laterality — sem select de subcategoria.
                 if (!subcatOptions) return null;
                 return (
                   <div className="space-y-xs">
@@ -420,10 +379,10 @@ export default function ExercisesLibraryPage() {
           <EmptyState
             icon={<Database className="h-6 w-6" />}
             title="Biblioteca de exercícios vazia"
-            description="Comece sua biblioteca importando exercícios pré-configurados ou adicione seus próprios exercícios personalizados. Uma biblioteca bem organizada facilita a criação de prescrições eficazes."
+            description="Adicione seus exercícios personalizados — o seed automático foi removido por usar taxonomia legada. Uma biblioteca bem organizada facilita a criação de prescrições eficazes."
             primaryAction={{
-              label: "Importar Exercícios",
-              onClick: handlePopulateDatabase
+              label: "Adicionar Exercício",
+              onClick: () => document.querySelector('[aria-label="Adicionar Exercício"]')?.dispatchEvent(new Event('click', { bubbles: true }))
             }}
           />
         )

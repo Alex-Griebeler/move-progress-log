@@ -19,7 +19,7 @@ const corsHeaders = {
 const requestSchema = z.object({
   exerciseId: z.string().uuid('ID de exercício inválido'),
   exerciseName: z.string().min(1).max(200),
-  movementPattern: z.string().min(1).max(100),
+  movementPattern: z.string().max(100).nullable().optional(), // exercicio sem padrao (mobilidade etc.) tambem pode pedir alternativa
   movementPlane: z.string().max(100).optional(),
   laterality: z.string().max(100).optional(),
   functionalGroup: z.string().max(100).optional(),
@@ -28,7 +28,7 @@ const requestSchema = z.object({
   availableExercises: z.array(z.object({
     id: z.string().uuid(),
     name: z.string(),
-    movement_pattern: z.string(),
+    movement_pattern: z.string().nullable(), // biblioteca tem null (mobilidade/LMF/core) — nao rejeitar o payload inteiro
     movement_plane: z.string().nullable(),
     laterality: z.string().nullable(),
     numeric_level: z.number().nullable().optional(),
@@ -173,7 +173,7 @@ serve(async (req) => {
 
     const userPrompt = `Exercício principal:
 - Nome: ${exerciseName}
-- Padrão de movimento: ${movementPattern}${groupContext}
+- Padrão de movimento: ${movementPattern ?? "sem padrão definido"}${groupContext}
 - Plano de movimento: ${movementPlane || "não especificado"}
 - Lateralidade: ${laterality || "não especificado"}${levelContext}
 

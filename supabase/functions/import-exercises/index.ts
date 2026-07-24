@@ -485,6 +485,10 @@ Deno.serve(async (req: Request) => {
                                  } else if (subcategoria) {
                                                record.subcategory = subcategoria;
                                  }
+                                 // Contrato de taxonomia (Opção A): potência NÃO usa subcategoria —
+                                 // forma vive em movement_pattern, plano em movement_plane. Import não
+                                 // pode reintroduzir sujeira pós-limpeza.
+                                 if (record.category === "potencia_pliometria") record.subcategory = null;
 
                                  // Additional fields
                                  const base = getField(ex, "Base", "base") as string | undefined;
@@ -659,7 +663,8 @@ Deno.serve(async (req: Request) => {
                                                movement_pattern: ex.movement_pattern || null,
                                                functional_group: ex.movement_pattern || null,
                                                category: ex.category,
-                                               subcategory: ex.subcategory,
+                                               // Opção A: potência sem subcategoria (import não reintroduz sujeira)
+                                               subcategory: ex.category === "potencia_pliometria" ? null : ex.subcategory,
                                                laterality,
                                                numeric_level: ex.nivel || null,
                                                boyle_score: ex.nivel ? (ex.nivel <= 2 ? 1 : ex.nivel <= 4 ? 2 : ex.nivel <= 6 ? 3 : ex.nivel <= 8 ? 4 : 5) : null,

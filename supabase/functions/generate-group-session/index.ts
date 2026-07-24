@@ -443,11 +443,76 @@ function filterByRisk(exercises: Exercise[], groupLevel: string): Exercise[] {
   });
 }
 
+// ============================================================================
+// EQUIPAMENTO — normalização por FAMÍLIA
+// Bug histórico: `equipment_inventory.name` guarda itens POR PESO/variante
+// ("kettlebell 8kg", "barra olímpica") enquanto `equipment_required` usa tokens
+// GENÉRICOS ("kb", "barra", "super_band", "nenhum"). O match por igualdade
+// exata casava 3 de 84 tokens e deixava só ~112/909 exercícios no pool
+// (sessões anêmicas: BP sem upper, sem BP2, sem carry). Regras:
+//   * peso corporal ("nenhum", "peso_corporal", ...) => sempre disponível
+//   * inventário e requisito são reduzidos à FAMÍLIA (strip de peso/variante + aliases)
+//   * família requisitada FORA do dicionário => fail-open (não filtra) — inventário
+//     incompleto não pode matar exercício silenciosamente
+// ============================================================================
+
+const BODYWEIGHT_TOKENS = new Set(["nenhum", "peso_corporal", "peso corporal", "bodyweight", "sem equipamento"]);
+
+/** requisito genérico -> família canônica */
+const EQUIPMENT_ALIASES: Record<string, string> = {
+  kb: "kettlebell", kettlebell: "kettlebell", kettlebells: "kettlebell",
+  db: "halter", halter: "halter", halteres: "halter", dumbbell: "halter",
+  barra: "barra", barbell: "barra", "trap bar": "barra", "barra hexagonal": "barra",
+  landmine: "landmine",
+  "medicine ball": "medicine ball", medball: "medicine ball", meb: "medicine ball",
+  "slam ball": "slam ball",
+  "sand bag": "sand bag", sandbag: "sand bag",
+  trx: "trx", "fita de suspensao": "trx", "fita de suspensão": "trx",
+  band: "banda elastica", banda: "banda elastica", "banda elastica": "banda elastica",
+  "banda elástica": "banda elastica", super_band: "banda elastica", "super band": "banda elastica",
+  // Mini band é família PRÓPRIA no inventário (Mini Band Leve/Média/Pesada) —
+  // não colapsar em banda elástica, senão marcar mini bands indisponíveis não filtra.
+  mini_band: "mini band", "mini band": "mini band", miniband: "mini band",
+  caixa: "box jump", box: "box jump", "box jump": "box jump",
+  bola: "bola suíça", bola_suica: "bola suíça", "bola suíça": "bola suíça", "swiss ball": "bola suíça",
+  rolo: "foam roller", foam_roller: "foam roller", "foam roller": "foam roller",
+  lacrosse: "bola de lacrosse", bola_lacrosse: "bola de lacrosse", "bola de lacrosse": "bola de lacrosse",
+  air_bike: "air bike", "air bike": "air bike",
+  step: "step",
+  // polia, argolas, banco, slide/slideboard, anilha, bastão, corda naval, trenó:
+  // a Fabrik TEM, mas não estão no equipment_inventory → ficam FORA do dicionário
+  // de propósito (fail-open) até o inventário cadastrá-los.
+};
+
+/** nome do inventário -> família (remove peso "8kg"/variante e aplica aliases) */
+function inventoryFamily(name: string): string {
+  const base = name.toLowerCase().replace(/\s*\d+([.,]\d+)?\s*(kg|cm)\b/g, "").trim()
+    .replace(/\s+(olimpica|olímpica|hexagonal|leve|media|média|pesada|forte)$/g, "").trim();
+  return EQUIPMENT_ALIASES[base] ?? base;
+}
+
+function requiredFamily(token: string): string | null {
+  const t = token.toLowerCase().trim();
+  if (BODYWEIGHT_TOKENS.has(t)) return null; // sempre disponível
+  return EQUIPMENT_ALIASES[t] ?? t;
+}
+
 function filterByAvailableEquipment(exercises: Exercise[], availableEquipment: Set<string>): Exercise[] {
   if (availableEquipment.size === 0) return exercises;
+  const families = new Set<string>();
+  for (const item of availableEquipment) families.add(inventoryFamily(item));
+  const knownFamilies = new Set<string>(Object.values(EQUIPMENT_ALIASES));
   return exercises.filter((ex) => {
     if (!ex.equipment_required || ex.equipment_required.length === 0) return true;
-    return ex.equipment_required.every((eq) => availableEquipment.has(eq.toLowerCase()));
+    return ex.equipment_required.every((eq) => {
+      const fam = requiredFamily(eq);
+      if (fam === null) return true;      // peso corporal — sempre disponível
+      if (families.has(fam)) return true; // família presente no inventário
+      // fail-open: família fora do dicionário (polia, argolas, banco, caixa,
+      // slide, bola...) não filtra — inventário incompleto não pode matar
+      // exercício silenciosamente. Só filtra família CONHECIDA e ausente.
+      return !knownFamilies.has(fam);
+    });
   });
 }
 
@@ -1656,7 +1721,18 @@ serve(async (req) => {
     // Apply filters
     let exercises = filterByLevel(allExercises || [], input.groupLevel);
     exercises = filterByRisk(exercises, input.groupLevel);
+    const beforeEquipmentFilter = exercises.length;
     exercises = filterByAvailableEquipment(exercises, availableEquipment);
+    let equipmentFilterWarning: string | null = null;
+    if (beforeEquipmentFilter > 0 && exercises.length / beforeEquipmentFilter < 0.7) {
+      // Anti-silêncio: se o filtro de equipamento derrubar >30% do pool, avisa —
+      // foi exatamente o modo de falha do bug de vocabulário (112/909 sobreviviam).
+      equipmentFilterWarning =
+        `Filtro de equipamento reduziu o pool de ${beforeEquipmentFilter} para ${exercises.length} exercícios ` +
+        `(${Math.round((1 - exercises.length / beforeEquipmentFilter) * 100)}%). ` +
+        `Verifique equipment_inventory vs equipment_required.`;
+      console.warn(`[equipment-filter] ${equipmentFilterWarning}`);
+    }
 
     // Phase 4: Apply audience preset filters
     exercises = applyAudienceFilters(exercises, audiencePreset);
@@ -1696,6 +1772,7 @@ serve(async (req) => {
     const volumeMultiplier = Math.min(rawVolumeMultiplier, audienceConfig.volumeMultiplierCap);
     const workouts: GeneratedWorkout[] = [];
     const warnings: string[] = [];
+    if (equipmentFilterWarning) warnings.push(equipmentFilterWarning);
 
     // Phase 4: Add audience restrictions as info
     if (audiencePreset !== "adulto") {
