@@ -1214,16 +1214,21 @@ function collectCrossSessionStats(
           if (!libEx) continue;
 
           // Count sets per pattern
-          const pattern = libEx.movement_pattern || "unknown";
+          const pattern = libEx.movement_pattern;
           const setParts = genEx.sets.split("-").map(Number);
           const setCount = setParts.some(isNaN) ? 3 : setParts[setParts.length - 1];
-          stats.patternSets[pattern] = (stats.patternSets[pattern] || 0) + setCount;
-
-          // Track prime movers (via movement_pattern as proxy)
-          stats.primeMoversPerSession[slot].add(pattern);
+          // Exercícios SEM padrão (LMF, mobilidade, core, respiração) são
+          // acessórios/preparo, não prime movers: ficam FORA do balanço por
+          // padrão e do cross-session (o "unknown" gerava warning falso), mas
+          // CONTINUAM na contabilidade de estresse articular/lombar abaixo.
+          if (pattern) {
+            stats.patternSets[pattern] = (stats.patternSets[pattern] || 0) + setCount;
+            // Track prime movers (via movement_pattern as proxy)
+            stats.primeMoversPerSession[slot].add(pattern);
+          }
 
           // F1 extended: count hinge heavy (LOM>=4 + lower hip patterns)
-          if (HINGE_HEAVY_PATTERNS.has(pattern) && (libEx.lumbar_demand || 0) >= 4) {
+          if (pattern && HINGE_HEAVY_PATTERNS.has(pattern) && (libEx.lumbar_demand || 0) >= 4) {
             stats.hingeHeavyCount++;
           }
 
@@ -1236,7 +1241,7 @@ function collectCrossSessionStats(
           if ((libEx.knee_dominance || 0) >= 4) {
             stats.jointStress.joelho += setCount;
           }
-          if (UPPER_BODY_PATTERNS.has(pattern) && (libEx.axial_load || 0) >= 3) {
+          if (pattern && UPPER_BODY_PATTERNS.has(pattern) && (libEx.axial_load || 0) >= 3) {
             stats.jointStress.ombro += setCount;
           }
           if ((libEx.lumbar_demand || 0) >= 3) {
@@ -1533,28 +1538,21 @@ function generateSingleWorkout(
   const excludeIds = new Set(globalExcludeIds);
   const sessionSelectedExercises: Exercise[] = [];
 
-  // Step 1: Build main blocks first (to determine BP1 pattern for mobility)
-  // We need to peek at what BP1 will select to inform mobility
-  // Determine likely BP1 pattern based on available exercises
-  const kneePool = exercises.filter(
-    (ex) => ex.movement_pattern && SESSION_PATTERN_GROUPS.lower_knee.includes(ex.movement_pattern) && !excludeIds.has(ex.id)
-  );
-  // G-01: Random selection instead of deterministic kneePool[0]
-  const likelyBp1Pattern = kneePool.length > 0 ? kneePool[Math.floor(Math.random() * kneePool.length)].movement_pattern : null;
-
   // Phase 1: Opening (Resp + LMF)
   const openingPhase = buildOpeningPhase(exercises, excludeIds, config.valences, breathingProtocols);
-
-  // Phase 2: Mobility specific to BP1
-  const mobilityPhase = buildMobilityPhase(exercises, excludeIds, likelyBp1Pattern);
 
   // Phase 3: Core biplanar
   const corePhase = buildCorePhase(exercises, excludeIds, config.slot);
 
-  // Phase 4-7: Main blocks (BP1 + BP2 + BP3)
+  // Phase 4-7: Main blocks (BP1 + BP2 + BP3) — selecionados ANTES da mobilidade
+  // pra usarmos o padrão REAL do BP1 (o "likelyBp1Pattern" aleatório antigo podia
+  // preparar mobilidade para um padrão diferente do que o BP1 de fato sorteou).
   const { phases: mainPhases, coveredPatterns, bp1Pattern } = buildMainBlocks(
     exercises, config.valences, groupLevel, excludeIds, volumeMultiplier, sessionSelectedExercises
   );
+
+  // Phase 2 (montada depois, exibida antes): Mobilidade específica ao BP1 real
+  const mobilityPhase = buildMobilityPhase(exercises, excludeIds, bp1Pattern);
 
   // Phase 8: Finalizer (Carry)
   const warnings: string[] = [];
