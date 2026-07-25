@@ -147,10 +147,15 @@ export const EditStudentDialog = ({ student, open, onOpenChange }: EditStudentDi
       // Upload avatar if changed
       if (avatarFile) {
         loader.update(i18n.feedback.uploading);
-        
+
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData.user) {
+          throw new Error(i18n.modules.upload.error);
+        }
+
         const fileExt = avatarFile.name.split('.').pop();
-        const fileName = `${student.id}-${Date.now()}.${fileExt}`;
-        
+        const fileName = `${userData.user.id}/${student.id}-${Date.now()}.${fileExt}`;
+
         const { error: uploadError } = await supabase.storage
           .from('student-avatars')
           .upload(fileName, avatarFile, { upsert: true });
