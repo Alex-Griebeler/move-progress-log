@@ -141,11 +141,16 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
       // Upload avatar if provided
       if (avatarFile) {
         loader.update(i18n.feedback.uploading);
-        
+
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData.user) {
+          throw new Error(i18n.modules.upload.error);
+        }
+
         const tempId = crypto.randomUUID();
         const fileExt = avatarFile.name.split('.').pop();
-        const fileName = `${tempId}-${Date.now()}.${fileExt}`;
-        
+        const fileName = `${userData.user.id}/${tempId}-${Date.now()}.${fileExt}`;
+
         const { error: uploadError } = await supabase.storage
           .from('student-avatars')
           .upload(fileName, avatarFile);
