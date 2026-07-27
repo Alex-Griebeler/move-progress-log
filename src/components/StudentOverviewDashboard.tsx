@@ -255,11 +255,16 @@ export const StudentOverviewDashboard = ({
           subtitle={monthlyGoal ? `Meta: ${monthlyGoal} sessões/mês` : undefined}
           progress={monthlyProgress}
           badge={
-            monthlyGoal && sessionsThisMonth >= monthlyGoal 
-              ? "🎯 Meta atingida!" 
-              : sessionsThisMonth >= (monthlyGoal || 0) * 0.75 
-                ? "🔥 Quase lá!" 
-                : undefined
+            // Sem meta definida não há o que celebrar — antes o fallback
+            // (monthlyGoal || 0) * 0.75 fazia todo aluno sem meta ganhar
+            // "Quase lá!" com 0 sessões.
+            !monthlyGoal
+              ? undefined
+              : sessionsThisMonth >= monthlyGoal
+                ? "🎯 Meta atingida!"
+                : sessionsThisMonth >= monthlyGoal * 0.75
+                  ? "🔥 Quase lá!"
+                  : undefined
           }
         />
         <StatCard

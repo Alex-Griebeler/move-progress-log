@@ -599,7 +599,11 @@ const PersonalizedTrainingDashboard = ({
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Nível de Fadiga</span>
-              <span className="font-semibold capitalize">{recommendation.fatigueLevel}</span>
+              <span className="font-semibold">
+                {{ low: "Baixo", moderate: "Moderado", high: "Alto" }[
+                  recommendation.fatigueLevel
+                ] ?? recommendation.fatigueLevel}
+              </span>
             </div>
           </div>
         </Card>

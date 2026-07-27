@@ -136,7 +136,8 @@ export const NAV_LABELS = {
   tabPrescriptions: "Prescrições",
   tabAssessments: "Avaliações",
   tabOura: "Oura - Histórico",
-  
+  tabWhoop: "Whoop",
+
   // Stats cards (Dashboard KPIs — operacionais)
   statInactive7d: "Sem treinar há 7+ dias",
   statFrequencyDropping: "Frequência caindo",

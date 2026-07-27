@@ -130,9 +130,11 @@ export const OuraActivityCard = ({ metrics }: OuraActivityCardProps) => {
             </p>
           </div>
           <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">Equivalente Caminhada</p>
+            <p className="text-sm text-muted-foreground">MET-minutos</p>
             <p className="text-xl font-semibold">
-              {metrics.met_minutes !== null ? `${(metrics.met_minutes / 1000).toFixed(1)} km` : "—"}
+              {/* Valor cru da API — a antiga divisão por 1000 rotulada como
+                  "km de caminhada" não tinha significado físico. */}
+              {metrics.met_minutes !== null ? `${Math.round(metrics.met_minutes)}` : "—"}
             </p>
           </div>
         </div>

@@ -15,7 +15,7 @@ export function StudentObservationsCard({ studentId }: StudentObservationsCardPr
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: observations, isLoading } = useQuery({
+  const { data: observations, isLoading, isError, refetch } = useQuery({
     queryKey: ['student-observations', studentId],
     enabled: !!studentId,
     staleTime: 60 * 1000,
@@ -96,6 +96,29 @@ export function StudentObservationsCard({ studentId }: StudentObservationsCardPr
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">Carregando observações...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Erro NUNCA vira "nenhuma observação registrada" — falso negativo clínico:
+  // o coach acharia que o aluno não tem restrição quando a query só falhou.
+  if (isError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            Observações Clínicas Importantes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-destructive">
+            Não foi possível carregar as observações clínicas.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            Tentar novamente
+          </Button>
         </CardContent>
       </Card>
     );
