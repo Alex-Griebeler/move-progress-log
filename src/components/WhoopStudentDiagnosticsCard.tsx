@@ -46,7 +46,9 @@ export const WhoopStudentDiagnosticsCard = ({ studentId, studentName }: WhoopStu
             <div>
               <span className="text-muted-foreground">Recovery</span>
               <br />
-              <span className="font-medium">{latest.recovery_score ?? "—"}%</span>
+              <span className="font-medium">
+                {latest.recovery_score !== null ? `${latest.recovery_score}%` : "—"}
+              </span>
             </div>
             <div>
               <span className="text-muted-foreground">Strain</span>

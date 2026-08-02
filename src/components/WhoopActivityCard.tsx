@@ -64,7 +64,8 @@ export const WhoopActivityCard = ({ metrics }: WhoopActivityCardProps) => {
             <div>
               <p className="text-xs text-muted-foreground">HRV / FC repouso</p>
               <p className="text-sm font-medium">
-                {formatHrv(metrics.hrv_rmssd)} ms · {metrics.resting_heart_rate ?? "—"} bpm
+                {metrics.hrv_rmssd !== null ? `${formatHrv(metrics.hrv_rmssd)} ms` : "—"} ·{" "}
+                {metrics.resting_heart_rate !== null ? `${metrics.resting_heart_rate} bpm` : "—"}
               </p>
             </div>
           </div>
@@ -73,7 +74,8 @@ export const WhoopActivityCard = ({ metrics }: WhoopActivityCardProps) => {
             <div>
               <p className="text-xs text-muted-foreground">Sono</p>
               <p className="text-sm font-medium">
-                {formatTime(metrics.total_sleep_duration)} · {metrics.sleep_performance ?? "—"}%
+                {formatTime(metrics.total_sleep_duration)} ·{" "}
+                {metrics.sleep_performance !== null ? `${metrics.sleep_performance}%` : "—"}
               </p>
             </div>
           </div>

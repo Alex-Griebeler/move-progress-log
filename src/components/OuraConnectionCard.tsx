@@ -23,7 +23,6 @@ import {
 } from "@/hooks/useOuraConnection";
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOfflineDetection } from "@/hooks/useOfflineDetection";
-import { useOuraTestSync } from "@/hooks/useOuraTestSync";
 import { SendOuraConnectDialog } from "@/components/SendOuraConnectDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -48,7 +47,6 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
   const { data: latestMetrics } = useLatestOuraMetrics(studentId);
   const syncOura = useSyncOura();
   const disconnectOura = useDisconnectOura();
-  const testSync = useOuraTestSync();
   const isOnline = useOfflineDetection();
 
   const handleSync = () => {
@@ -277,21 +275,10 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
                   )}
                 </Button>
                 
-                <Button
-                  variant="outline"
-                  onClick={() => testSync.mutate(studentId)}
-                  disabled={testSync.isPending}
-                  aria-label="Testar sincronização com dados mock"
-                  title="🧪 Testar com dados mock do Oura para validar mapeamento de campos"
-                  className="px-3"
-                >
-                  {testSync.isPending ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <span className="text-lg">🧪</span>
-                  )}
-                </Button>
-                
+                {/* Botão de sync com dados MOCK removido da UI de produção —
+                    gravava dados fictícios em oura_metrics reais (que alimentam
+                    a recomendação de treino). O hook useOuraTestSync e a edge
+                    oura-sync-test continuam disponíveis pra debug via admin. */}
                 <Button
                   variant="destructive"
                   onClick={() => setShowDisconnectDialog(true)}
