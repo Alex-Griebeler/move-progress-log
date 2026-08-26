@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, Trash2, AlertCircle, User, Filter } from "lucide-react";
+import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, Trash2, AlertCircle, User, Filter, Pencil } from "lucide-react";
+import { describeAssignmentAdaptations } from "@/utils/assignmentAdaptations";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -79,6 +80,7 @@ const VALID_STUDENT_DETAIL_TABS = new Set([
   "prescriptions",
   "assessments",
   "oura",
+  "whoop",
 ]);
 
 const StudentDetailPage = () => {
@@ -269,7 +271,11 @@ const StudentDetailPage = () => {
                   <ArrowLeft className="h-5 w-5" />
                 </Button>
                 
-                <Avatar className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-primary/20 ring-offset-4 ring-offset-background transition-transform duration-300 hover:scale-105 cursor-pointer shrink-0">
+                <Avatar
+                  onClick={() => setEditStudentOpen(true)}
+                  aria-label="Editar dados do aluno"
+                  className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-primary/20 ring-offset-4 ring-offset-background transition-transform duration-300 hover:scale-105 cursor-pointer shrink-0"
+                >
                   <StudentAvatarImage avatarUrl={student.avatar_url} className="object-cover" />
                   <AvatarFallback className="text-2xl md:text-3xl font-bold">
                     {student.name.charAt(0)}
@@ -326,8 +332,27 @@ const StudentDetailPage = () => {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button 
-                        onClick={() => navigate(ROUTES.studentReports(id!))} 
+                      <Button
+                        onClick={() => setEditStudentOpen(true)}
+                        className="gap-2 w-full sm:w-auto"
+                        variant="outline"
+                        aria-label="Editar aluno"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        Editar
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Editar dados cadastrais do aluno</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        onClick={() => navigate(ROUTES.studentReports(id!))}
                         className="gap-2 w-full sm:w-auto"
                         variant="outline"
                         aria-label="Ver Relatórios"
@@ -375,6 +400,15 @@ const StudentDetailPage = () => {
             <span className="text-sm text-muted-foreground">
               Complete os seguintes campos para melhor análise: <strong className="text-foreground">{missingFields.join(', ')}</strong>
             </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 gap-2"
+              onClick={() => setEditStudentOpen(true)}
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              Completar cadastro
+            </Button>
           </AlertDescription>
         </Alert>
       )}
@@ -406,7 +440,7 @@ const StudentDetailPage = () => {
             {NAV_LABELS.tabOura}
           </TabsTrigger>
           <TabsTrigger className="min-h-11 min-w-max px-4" value="whoop">
-            Whoop
+            {NAV_LABELS.tabWhoop}
           </TabsTrigger>
         </TabsList>
 
@@ -499,9 +533,12 @@ const StudentDetailPage = () => {
                   return session.session_type === sessionTypeFilter;
                 })
                 .map((session) => {
+                // Mesma fórmula do SessionDetailDialog (load × sets × reps) —
+                // fórmulas divergentes mostrariam volumes diferentes pra mesma
+                // sessão quando o card passar a exibir o valor.
                 const totalVolume = session.exercises?.reduce((sum, ex) => {
-                  const volume = ex.reps && ex.load_kg 
-                    ? ex.reps * ex.load_kg 
+                  const volume = ex.reps && ex.sets && ex.load_kg
+                    ? ex.load_kg * ex.sets * ex.reps
                     : 0;
                   return sum + volume;
                 }, 0) || 0;
@@ -622,7 +659,11 @@ const StudentDetailPage = () => {
                   <CardHeader>
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <CardTitle>{assignment.prescription?.name}</CardTitle>
+                        <CardTitle>
+                          {assignment.prescription?.name ?? (
+                            <span className="text-muted-foreground">Prescrição removida</span>
+                          )}
+                        </CardTitle>
                         {assignment.prescription?.objective && (
                           <p className="text-sm text-muted-foreground mt-1">
                             {assignment.prescription.objective}
@@ -630,9 +671,11 @@ const StudentDetailPage = () => {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary">
-                          {formatSessionDate(assignment.start_date)}
-                        </Badge>
+                        {assignment.start_date && (
+                          <Badge variant="secondary">
+                            {formatSessionDate(assignment.start_date)}
+                          </Badge>
+                        )}
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -666,11 +709,11 @@ const StudentDetailPage = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {assignment.custom_adaptations && (
+                    {describeAssignmentAdaptations(assignment.custom_adaptations) && (
                       <div className="mb-2">
-                        <span className="font-semibold text-sm">Adaptações:</span>
+                        <span className="font-semibold text-sm">Agenda:</span>
                         <p className="text-sm text-muted-foreground">
-                          {JSON.stringify(assignment.custom_adaptations)}
+                          {describeAssignmentAdaptations(assignment.custom_adaptations)}
                         </p>
                       </div>
                     )}
@@ -705,7 +748,7 @@ const StudentDetailPage = () => {
                 : null,
               weight_kg: student.weight_kg ?? null,
               height_cm: student.height_cm ?? null,
-              sex: null,
+              sex: student.sex === "M" || student.sex === "F" ? student.sex : null,
             }}
           />
         </TabsContent>

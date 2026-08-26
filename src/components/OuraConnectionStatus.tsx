@@ -14,11 +14,14 @@ export const OuraConnectionStatus = ({ studentId, hasConnection }: OuraConnectio
     return null;
   }
 
-  // Se tem conexão mas não tem métricas, pode haver problema
+  // Se tem conexão mas não tem métricas (ou nenhuma linha ainda), aguardando
+  // sync. O guard de !metrics evita crash: `metrics?.x === null` é false pra
+  // undefined e o código seguia pra `metrics.readiness_score` sem objeto.
   if (
-    metrics?.readiness_score === null &&
-    metrics?.sleep_score === null &&
-    metrics?.activity_score === null
+    !metrics ||
+    (metrics.readiness_score === null &&
+      metrics.sleep_score === null &&
+      metrics.activity_score === null)
   ) {
     return (
       <Alert variant="default" className="border-amber-200 bg-amber-50">

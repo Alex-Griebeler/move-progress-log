@@ -57,7 +57,7 @@ type CategoryFilter = (typeof ALL_CATEGORIES)[number];
 // ────────────────────────────────────────────────────────────────────────────
 
 export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabProps) => {
-  const { data: assessments, isLoading } = useAssessmentsByStudent(studentId);
+  const { data: assessments, isLoading, isError, refetch } = useAssessmentsByStudent(studentId);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const [filter, setFilter] = useState<CategoryFilter>("all");
@@ -105,6 +105,25 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-24 w-full" />
       </div>
+    );
+  }
+
+  // Erro de rede/RLS não pode virar "Nenhuma avaliação ainda" + CTA de criar —
+  // falso negativo clínico e convite a duplicar avaliação existente.
+  if (isError) {
+    return (
+      <Card className="flex flex-col items-center gap-3 p-12 text-center">
+        <Stethoscope className="h-10 w-10 text-destructive/60" />
+        <div>
+          <p className="font-semibold">Não foi possível carregar as avaliações</p>
+          <p className="text-sm text-muted-foreground">
+            Verifique a conexão e tente de novo.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          Tentar novamente
+        </Button>
+      </Card>
     );
   }
 
