@@ -25,6 +25,7 @@ import {
 import { Plus, Pencil, Trash2, Filter, X, Database, Search, AlertTriangle, Video, Zap, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { AddExerciseDialog } from "@/components/AddExerciseDialog";
+import { ExerciseName } from "@/components/ExerciseName";
 import { EditExerciseLibraryDialog } from "@/components/EditExerciseLibraryDialog";
 import {
   useExercisesLibrary,
@@ -412,7 +413,7 @@ export default function ExercisesLibraryPage() {
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg">{exercise.name}</CardTitle>
+                      <CardTitle className="text-lg"><ExerciseName name={exercise.name} /></CardTitle>
                       {exercise.video_url && (
                         <span title="Possui vídeo"><Video className="h-4 w-4 text-primary" /></span>
                       )}

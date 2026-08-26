@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
+import { siglasInNames } from "@/constants/exerciseSiglas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X, Monitor } from "lucide-react";
@@ -189,8 +190,17 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="px-10 py-4 text-center shrink-0 border-t border-border">
+      {/* Footer — legenda de siglas (dicionário canônico) + atalho */}
+      <div className="px-10 py-4 text-center shrink-0 border-t border-border space-y-1">
+        {(() => {
+          const legenda = siglasInNames(exercises.map((ex) => ex.exercise_name));
+          if (legenda.length === 0) return null;
+          return (
+            <p className="text-sm text-muted-foreground/80">
+              {legenda.map(([sigla, significado]) => `${sigla} = ${significado}`).join("  ·  ")}
+            </p>
+          );
+        })()}
         <p className="text-sm text-muted-foreground/60">
           Pressione ESC para sair do modo TV
         </p>
