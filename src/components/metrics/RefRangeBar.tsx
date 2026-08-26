@@ -39,18 +39,23 @@ export const RefRangeBar = ({ bands, value, min, max, className }: RefRangeBarPr
 
   return (
     <div className={cn("space-y-1.5", className)}>
-      <div className="relative flex h-2.5 overflow-hidden rounded-full">
-        {bands.map((b) => (
-          <div
-            key={b.label}
-            className={cn("h-full", TONE_BG[b.tone])}
-            style={{ width: `${pct(b.to) - pct(b.from)}%` }}
-          />
-        ))}
-        {value !== null && (
+      {/* Marcador vive no wrapper (fora do overflow-hidden do trilho) pra
+          não ser cortado em value === max; bandas em posição ABSOLUTA por
+          `from` — flex empacotaria errado faixas não-contíguas. */}
+      <div className="relative h-2.5">
+        <div className="absolute inset-0 overflow-hidden rounded-full bg-muted">
+          {bands.map((b) => (
+            <div
+              key={b.label}
+              className={cn("absolute inset-y-0", TONE_BG[b.tone])}
+              style={{ left: `${pct(b.from)}%`, width: `${pct(b.to) - pct(b.from)}%` }}
+            />
+          ))}
+        </div>
+        {value !== null && Number.isFinite(value) && (
           <div
             aria-label={`valor: ${value}`}
-            className="absolute -top-0.5 h-3.5 w-0.5 rounded-full bg-foreground"
+            className="absolute -top-0.5 h-3.5 w-0.5 -translate-x-1/2 rounded-full bg-foreground"
             style={{ left: `${pct(value)}%` }}
           />
         )}

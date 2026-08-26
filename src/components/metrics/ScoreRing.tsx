@@ -39,14 +39,19 @@ export const ScoreRing = ({
 }: ScoreRingProps) => {
   const s = SIZES[size];
   const circumference = 2 * Math.PI * s.radius;
-  const clamped = value === null ? 0 : Math.max(0, Math.min(100, value));
-  const dash = (clamped / 100) * circumference;
+  // Normaliza UMA vez: não-finito vira "sem dado"; fora de 0-100 é clampado
+  // — arco, número exibido e aria-label sempre contam a mesma história.
+  const score =
+    value !== null && Number.isFinite(value)
+      ? Math.round(Math.max(0, Math.min(100, value)))
+      : null;
+  const dash = ((score ?? 0) / 100) * circumference;
   const center = s.box / 2;
 
   return (
     <div
       role="img"
-      aria-label={label ? `${label}: ${value ?? "sem dado"}` : String(value ?? "sem dado")}
+      aria-label={label ? `${label}: ${score ?? "sem dado"}` : String(score ?? "sem dado")}
       className={cn("relative inline-flex shrink-0", className)}
       style={{ width: s.box, height: s.box }}
     >
@@ -59,7 +64,7 @@ export const ScoreRing = ({
           strokeWidth={s.stroke}
           className="stroke-muted"
         />
-        {value !== null && (
+        {score !== null && (
           <circle
             cx={center}
             cy={center}
@@ -74,7 +79,7 @@ export const ScoreRing = ({
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className={cn("font-bold leading-none text-foreground", s.number)}>
-          {value ?? "—"}
+          {score ?? "—"}
         </span>
         {label && size === "hero" && (
           <span className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">

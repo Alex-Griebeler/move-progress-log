@@ -21,6 +21,16 @@ describe("smoke renderToString", () => {
     expect(renderToString(h(ScoreRing, { value: null }))).toContain("—");
   });
 
+  it("ScoreRing normaliza fora-de-faixa e não-finito (fix pós-review)", () => {
+    // Texto, arco e aria contam a mesma história: 120 → 100; NaN → sem dado.
+    const over = renderToString(h(ScoreRing, { value: 120 }));
+    expect(over).toContain(">100<");
+    expect(over).not.toContain("120");
+    const nan = renderToString(h(ScoreRing, { value: NaN }));
+    expect(nan).toContain("—");
+    expect(nan).not.toContain("NaN");
+  });
+
   it("MetricTile completo e vazio", () => {
     const full = renderToString(
       h(MetricTile, {
@@ -54,6 +64,18 @@ describe("smoke renderToString", () => {
     ];
     expect(renderToString(h(RefRangeBar, { bands, value: 8.5, min: 0, max: 10 }))).toContain("Alerta");
     expect(() => renderToString(h(RefRangeBar, { bands, value: null, min: 0, max: 10 }))).not.toThrow();
+  });
+
+  it("RefRangeBar posiciona banda por `from` absoluto (fix pós-review: flex empacotava errado faixas não-contíguas)", () => {
+    // Bandas NÃO-contíguas: a segunda começa em 6, não onde a primeira termina.
+    const gapped = [
+      { label: "Baixo", from: 0, to: 3, tone: "destructive" as const },
+      { label: "Alto", from: 6, to: 10, tone: "success" as const },
+    ];
+    const out = renderToString(h(RefRangeBar, { bands: gapped, value: 10, min: 0, max: 10 }));
+    expect(out).toContain("left:60%");
+    // Marcador em value === max presente (não clipado pelo trilho).
+    expect(out).toContain("left:100%");
   });
 
   it("DataErrorState com retry omitido (SSR não tem handler)", () => {
