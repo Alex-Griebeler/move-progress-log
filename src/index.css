@@ -160,6 +160,15 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 20 10% 15%;
     --sidebar-border: 25 8% 88%;
     --sidebar-ring: 7 39% 46%;
+
+    /* Séries de gráfico (chart-1..5) — paleta categórica validada por
+       acessibilidade (banda de luminosidade, croma, separação CVD, piso de
+       visão normal, contraste >=3:1) sobre o fundo claro real do app. */
+    --chart-1: 8 43% 45%;
+    --chart-2: 206 62% 44%;
+    --chart-3: 54 73% 31%;
+    --chart-4: 256 31% 51%;
+    --chart-5: 165 75% 29%;
   }
 
   /* ========================================
@@ -240,6 +249,14 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 30 10% 90%;
     --sidebar-border: 20 5% 18%;
     --sidebar-ring: 7 50% 55%;
+
+    /* Séries de gráfico — passos próprios do dark (não é flip automático),
+       validados sobre o fundo escuro real do app. */
+    --chart-1: 8 45% 55%;
+    --chart-2: 199 51% 50%;
+    --chart-3: 54 42% 44%;
+    --chart-4: 255 37% 63%;
+    --chart-5: 166 47% 43%;
   }
 }
 
