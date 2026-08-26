@@ -10,7 +10,8 @@ import { daysAgo } from "@/utils/relativeDate";
  *   tratado como fechado — linhas antigas sem o campo) e recovery não-nulo.
  * - Oura: só dias com readiness não-nulo.
  * - Vence o dado mais RECENTE; empate de data → Oura (dispositivo canônico).
- * - `isStale` a partir de 2 dias (48h) — a UI marca com tom de alerta.
+ * - `isStale` a partir de 2 dias de CALENDÁRIO (não 48h literais) — a UI
+ *   marca com tom de alerta.
  *
  * A RECOMENDAÇÃO de treino continua Oura-only (useTrainingRecommendation é
  * 100% Oura); este contrato alimenta apenas o anel/zona/fonte do hero.
@@ -46,7 +47,7 @@ export const recoveryZone = (score: number): RecoverySnapshot["zone"] => {
 const latestOura = (rows: OuraLike[]): OuraLike | null =>
   rows
     .filter((r) => r.readiness_score !== null)
-    .sort((a, b) => (a.date < b.date ? 1 : -1))[0] ?? null;
+    .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
 
 const latestWhoop = (rows: WhoopLike[]): WhoopLike | null =>
   rows
@@ -55,7 +56,7 @@ const latestWhoop = (rows: WhoopLike[]): WhoopLike | null =>
         r.recovery_score !== null &&
         (r.score_state === null || r.score_state === "SCORED"),
     )
-    .sort((a, b) => (a.date < b.date ? 1 : -1))[0] ?? null;
+    .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
 
 export const buildRecoverySnapshot = (
   ouraMetrics: OuraLike[] | null | undefined,

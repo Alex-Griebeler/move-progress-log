@@ -67,7 +67,7 @@ describe("agnóstico de wearable", () => {
   });
 
   it("página propaga loading/erro pro dashboard", () => {
-    expect(page).toContain("isLoading={loadingOuraMetrics || loadingWhoopMetrics}");
+    expect(page).toContain("isLoading={loadingOuraMetrics || loadingWhoopMetrics || loadingLatestOura}");
     expect(page).toContain("isError={ouraMetricsError || whoopMetricsError}");
   });
 });
@@ -81,5 +81,24 @@ describe("motor de recomendação intocado (Oura-only nesta fase)", () => {
 
   it("aluno só-Whoop recebe nota explícita (recomendação usa Oura)", () => {
     expect(dash).toContain("recomendação automática de treino usa dados do Oura");
+  });
+});
+
+describe("coerência de fontes (fix pós-review Codex)", () => {
+  it("conteúdo Oura é gateado quando o hero é Whoop", () => {
+    expect(dash).toContain("const ouraIsCurrent");
+    expect(dash).toContain("ouraIsCurrent && Boolean(latestMetrics && recommendation)");
+  });
+
+  it("card de carga vazio tem a MESMA guarda do cheio", () => {
+    const emptyGuard = dash.match(/hasOuraRecommendation && loadSuggestions && loadSuggestions\.length === 0/);
+    const fullGuard = dash.match(/hasOuraRecommendation && loadSuggestions && loadSuggestions\.length > 0/);
+    expect(emptyGuard).not.toBeNull();
+    expect(fullGuard).not.toBeNull();
+  });
+
+  it("sort do snapshot usa localeCompare (contrato correto p/ datas iguais)", () => {
+    expect(snapshotUtil.match(/localeCompare/g)?.length).toBe(2);
+    expect(snapshotUtil).not.toContain("a.date < b.date ? 1 : -1");
   });
 });

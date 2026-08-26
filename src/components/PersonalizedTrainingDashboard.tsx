@@ -177,7 +177,7 @@ const PersonalizedTrainingDashboard = ({
       <Card className="p-6">
         <div className="text-center text-muted-foreground">
           <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Sem dados de wearable para {studentName} — conecte Oura ou Whoop na aba correspondente para gerar o painel do dia.</p>
+          <p>Ainda não há dados de recuperação para {studentName}. Se o wearable já estiver conectado, aguarde a próxima sincronização; caso contrário, conecte Oura ou Whoop na aba correspondente.</p>
         </div>
       </Card>
     );
@@ -200,14 +200,18 @@ const PersonalizedTrainingDashboard = ({
     return { text: `${rounded > 0 ? "+" : ""}${rounded} vs 30d`, direction, positive };
   };
 
-  const hasOuraRecommendation = Boolean(latestMetrics && recommendation);
+  // Conteúdo derivado de Oura (recomendação, carga, protocolos, alertas e
+  // fisiologia Oura) SÓ renderiza quando o próprio hero é Oura — senão a
+  // tela misturaria hero Whoop de hoje com análise de um Oura antigo.
+  const ouraIsCurrent = snapshot.source === "oura";
+  const hasOuraRecommendation = ouraIsCurrent && Boolean(latestMetrics && recommendation);
   const sleepDuration = latestMetrics ? formatDuration(latestMetrics.total_sleep_duration) : null;
   const hasAcuteHrv = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hrv > 0;
   const hasAcuteHr = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hr_day > 0;
 
   // Fisiologia de hoje: só métricas PRESENTES entram na grade.
   const physiology: Array<{ key: string; tile: JSX.Element }> = [];
-  if (latestMetrics?.sleep_score != null) {
+  if (ouraIsCurrent && latestMetrics?.sleep_score != null) {
     physiology.push({
       key: "sono",
       tile: (
@@ -220,7 +224,7 @@ const PersonalizedTrainingDashboard = ({
       ),
     });
   }
-  if (latestMetrics?.average_sleep_hrv != null) {
+  if (ouraIsCurrent && latestMetrics?.average_sleep_hrv != null) {
     physiology.push({
       key: "hrv",
       tile: (
@@ -233,7 +237,7 @@ const PersonalizedTrainingDashboard = ({
       ),
     });
   }
-  if (latestMetrics?.resting_heart_rate != null) {
+  if (ouraIsCurrent && latestMetrics?.resting_heart_rate != null) {
     physiology.push({
       key: "fcr",
       tile: (
@@ -247,7 +251,7 @@ const PersonalizedTrainingDashboard = ({
       ),
     });
   }
-  if (latestMetrics?.temperature_deviation != null) {
+  if (ouraIsCurrent && latestMetrics?.temperature_deviation != null) {
     const t = latestMetrics.temperature_deviation;
     physiology.push({
       key: "temp",
@@ -262,7 +266,7 @@ const PersonalizedTrainingDashboard = ({
       ),
     });
   }
-  if (latestMetrics?.activity_score != null) {
+  if (ouraIsCurrent && latestMetrics?.activity_score != null) {
     physiology.push({
       key: "atividade",
       tile: (
@@ -278,7 +282,7 @@ const PersonalizedTrainingDashboard = ({
       ),
     });
   }
-  if (hasAcuteHrv && latestAcuteMetrics?.hrv_night_min != null) {
+  if (ouraIsCurrent && hasAcuteHrv && latestAcuteMetrics?.hrv_night_min != null) {
     physiology.push({
       key: "hrv-aguda",
       tile: (
@@ -290,7 +294,7 @@ const PersonalizedTrainingDashboard = ({
       ),
     });
   }
-  if (hasAcuteHr && latestAcuteMetrics?.hr_day_avg != null) {
+  if (ouraIsCurrent && hasAcuteHr && latestAcuteMetrics?.hr_day_avg != null) {
     physiology.push({
       key: "fc-dia",
       tile: (
@@ -368,7 +372,7 @@ const PersonalizedTrainingDashboard = ({
             )}
           </div>
         </div>
-        {recommendation?.overrideApplied && (
+        {hasOuraRecommendation && recommendation?.overrideApplied && (
           <Alert className="mt-4 border-warning/40 bg-warning/10">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
@@ -379,7 +383,7 @@ const PersonalizedTrainingDashboard = ({
       </Card>
 
       {/* Sugestão de carga — o dado mais acionável do coach, logo após o hero */}
-      {loadSuggestions && loadSuggestions.length > 0 && recommendation && (
+      {hasOuraRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold">Sugestão Assistida de Carga</h3>
@@ -451,7 +455,7 @@ const PersonalizedTrainingDashboard = ({
           </div>
         </Card>
       )}
-      {loadSuggestions && loadSuggestions.length === 0 && (
+      {hasOuraRecommendation && loadSuggestions && loadSuggestions.length === 0 && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
@@ -461,7 +465,7 @@ const PersonalizedTrainingDashboard = ({
       )}
 
       {/* Protocolos prioritários (readiness crítico) */}
-      {recommendation?.priorityProtocols && recommendation.priorityProtocols.length > 0 && (
+      {hasOuraRecommendation && recommendation?.priorityProtocols && recommendation.priorityProtocols.length > 0 && (
         <Card className="p-6 border-2 border-destructive/50 bg-destructive/5">
           <div className="flex items-center space-x-2 mb-4">
             <AlertCircle className="w-6 h-6 text-destructive" />
@@ -516,7 +520,7 @@ const PersonalizedTrainingDashboard = ({
       )}
 
       {/* Alertas do motor */}
-      {recommendation && recommendation.alerts.length > 0 && (
+      {hasOuraRecommendation && recommendation && recommendation.alerts.length > 0 && (
         <div className="space-y-3">
           {recommendation.alerts.map((alert, idx) => (
             <Alert key={idx} variant={alert.level === 'CRITICAL' ? 'destructive' : 'default'}>
