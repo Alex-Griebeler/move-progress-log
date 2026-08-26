@@ -7,7 +7,8 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
 interface TrainingAlternative {
-  emoji: string;
+  /** Opcional desde o redesign (coerência visual: sem emoji como UI). */
+  emoji?: string;
   type: string;
   description: string;
 }
