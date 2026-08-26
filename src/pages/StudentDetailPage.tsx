@@ -97,7 +97,9 @@ const StudentDetailPage = () => {
   const needsSessions = activeTab === "overview" || activeTab === "sessions" || activeTab === "exercises";
   const needsAssignments = activeTab === "overview" || activeTab === "prescriptions";
   const needsOuraHistory = activeTab === "training" || activeTab === "oura";
-  const needsWhoop = activeTab === "whoop";
+  // training também precisa do Whoop: o hero de recuperação é agnóstico de
+  // wearable (RecoverySnapshot) — aluno só-Whoop deixa de ver a aba vazia.
+  const needsWhoop = activeTab === "whoop" || activeTab === "training";
   const needsLatestOura =
     activeTab === "training" || activeTab === "overview" || activeTab === "oura";
 
@@ -108,13 +110,13 @@ const StudentDetailPage = () => {
   const { data: assignments, isLoading: loadingAssignments } = useStudentPrescriptions(
     needsAssignments ? studentId : ""
   );
-  const { data: ouraMetrics, isLoading: loadingOuraMetrics } = useOuraMetrics(
+  const { data: ouraMetrics, isLoading: loadingOuraMetrics, isError: ouraMetricsError } = useOuraMetrics(
     needsOuraHistory ? studentId : "",
     30
   );
   const { data: latestOuraMetrics } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
   const { data: ouraConnection } = useOuraConnection(studentId);
-  const { data: whoopMetrics } = useWhoopMetrics(needsWhoop ? studentId : "", 7);
+  const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", 7);
   const { data: whoopConnection } = useWhoopConnection(studentId);
   const disconnectWhoop = useDisconnectWhoop();
   const [whoopDialogOpen, setWhoopDialogOpen] = useState(false);
@@ -448,8 +450,12 @@ const StudentDetailPage = () => {
           <PersonalizedTrainingDashboard
             latestMetrics={latestOuraMetrics}
             recentMetrics={ouraMetrics || []}
+            whoopMetrics={whoopMetrics || []}
             studentName={student.name}
             studentId={student.id}
+            maxHeartRate={student.max_heart_rate}
+            isLoading={loadingOuraMetrics || loadingWhoopMetrics}
+            isError={ouraMetricsError || whoopMetricsError}
             onStartTraining={() => setRecordSessionOpen(true)}
           />
         </TabsContent>

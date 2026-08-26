@@ -3,40 +3,144 @@ import { Card } from "./ui/card";
 import { logger } from "@/utils/logger";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { AlertCircle, Activity, Heart, Moon, TrendingUp, Target, Zap } from "lucide-react";
+import { Skeleton } from "./ui/skeleton";
+import { AlertCircle, Activity, Target } from "lucide-react";
 import { OuraMetrics } from "@/hooks/useOuraMetrics";
+import { WhoopMetrics } from "@/hooks/useWhoopMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
 import { useOuraBaseline } from "@/hooks/useOuraBaseline";
 import { useLatestOuraAcuteMetrics } from "@/hooks/useOuraAcuteMetrics";
 import { useLoadSuggestions } from "@/hooks/useLoadSuggestions";
 import { useTrainingContext } from "@/contexts/TrainingContext";
 import { Alert, AlertDescription } from "./ui/alert";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "./ui/accordion";
+import TrainingZonesCard from "./TrainingZonesCard";
+import { ScoreRing, MetricTile, StaleBadge, DataErrorState } from "./metrics";
+import type { MetricDelta, MetricTone } from "./metrics";
+import { buildRecoverySnapshot } from "@/utils/recoverySnapshot";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "./ui/alert-dialog";
 
 interface PersonalizedTrainingDashboardProps {
   latestMetrics: OuraMetrics | null;
   recentMetrics: OuraMetrics[];
+  whoopMetrics?: WhoopMetrics[];
   studentName: string;
   studentId: string;
+  maxHeartRate?: number | null;
+  isLoading?: boolean;
+  isError?: boolean;
   onStartTraining?: () => void;
 }
+
+const ZONE_LABEL: Record<string, string> = {
+  green_high: "Verde Alta",
+  green: "Verde",
+  yellow: "Amarela",
+  orange: "Laranja",
+  red: "Vermelha",
+};
+
+const SOURCE_LABEL: Record<string, string> = {
+  last_valid: "Última carga válida",
+  best_recent_equivalent: "Melhor recente equivalente",
+  same_block: "Última do bloco atual",
+  fallback_keep: "Fallback manter carga",
+  insufficient: "Dados insuficientes",
+};
+
+const SNAPSHOT_TONE: Record<string, MetricTone> = {
+  alta: "success",
+  media: "warning",
+  baixa: "destructive",
+};
+
+const SNAPSHOT_ZONE_TEXT: Record<string, string> = {
+  alta: "Recuperação alta — pronta pra treinar pesado",
+  media: "Recuperação média — treino moderado",
+  baixa: "Recuperação baixa — priorizar recuperação",
+};
+
+const formatDuration = (seconds: number | null) => {
+  if (seconds === null) return null;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${hours}h ${minutes}min`;
+};
+
+const formatLoad = (value: number | null | undefined) => {
+  if (value === null || value === undefined) return "--";
+  return `${value.toFixed(1)} kg`;
+};
+
+const formatAdjustmentPercent = (value: number | null) => {
+  if (value === null) return "--";
+  return `${value > 0 ? "+" : ""}${value}%`;
+};
+
+const getSuggestionStatusLabel = (status: string) => {
+  if (status === "automatic") return "Sugestão automática";
+  if (status === "assisted") return "Sugestão assistida";
+  return "Dados insuficientes";
+};
+
+// Alternativas por faixa de readiness (conteúdo de domínio pré-existente;
+// apresentação sem emoji — coerência ratificada).
+const getTrainingAlternatives = (rs: number) => {
+  if (rs >= 85) {
+    return [
+      { type: "Desafio Máximo Recomendado", description: "Dia ideal para buscar recordes pessoais: recuperação completa." },
+      { type: "Treino Normal Intenso", description: "Alta intensidade com confiança — sistema nervoso e muscular prontos." },
+      { type: "Volume Alto", description: "Bom dia para treinos longos ou múltiplas sessões." },
+    ];
+  } else if (rs >= 65) {
+    return [
+      { type: "Treino Completo (Recomendado)", description: "Executar o treino programado normalmente, com cargas habituais." },
+      { type: "Redução Leve (10%)", description: "Se houver fadiga durante o treino, reduzir levemente volume ou intensidade." },
+      { type: "Foco Técnico", description: "Priorizar qualidade de movimento sobre carga máxima." },
+    ];
+  } else if (rs >= 45) {
+    return [
+      { type: "Redução Moderada (Recomendado)", description: "Reduzir 20-30% do volume ou intensidade — carga mais leve pra seguir progredindo." },
+      { type: "Recuperação Ativa", description: "Alternativa mais segura: mobilidade leve, yoga ou caminhada." },
+      { type: "Descanso Completo", description: "Com sintomas de overtraining (fadiga intensa, dor persistente), optar por descanso." },
+    ];
+  } else if (rs >= 25) {
+    return [
+      { type: "Recuperação Ativa (Recomendado)", description: "Movimento leve apenas: alongamento dinâmico, yoga suave ou caminhada de 20-30 min." },
+      { type: "Descanso Completo", description: "Com cansaço acentuado, priorizar descanso total — recuperação urgente." },
+      { type: "Protocolos de Recuperação", description: "Focar nos protocolos recomendados (crioterapia, respiração, mindfulness)." },
+    ];
+  }
+  return [
+    { type: "Descanso Obrigatório (CRÍTICO)", description: "Sistema nervoso severamente sobrecarregado: treinar hoje aumenta risco de lesão." },
+    { type: "Protocolos de Recuperação Urgente", description: "Focar 100% nos protocolos prioritários — efeito mensurável em 24-72h." },
+    { type: "Avaliação Médica", description: "Se o readiness crítico persistir por 3+ dias, considerar avaliação médica/fisioterapia." },
+  ];
+};
 
 const PersonalizedTrainingDashboard = ({
   latestMetrics,
   recentMetrics,
+  whoopMetrics = [],
   studentName,
   studentId,
-  onStartTraining
+  maxHeartRate,
+  isLoading = false,
+  isError = false,
+  onStartTraining,
 }: PersonalizedTrainingDashboardProps) => {
   const { baseline } = useOuraBaseline(studentId);
   const { data: latestAcuteMetrics } = useLatestOuraAcuteMetrics(studentId);
@@ -48,484 +152,300 @@ const PersonalizedTrainingDashboard = ({
   // AUD-003: Sincronizar alternativa selecionada com contexto global
   useEffect(() => {
     if (selectedAlternative && recommendation) {
-      // Aplicar alternativa selecionada à recomendação atual
       logger.log('Alternativa persistida:', selectedAlternative);
     }
   }, [selectedAlternative, recommendation]);
 
-  if (!latestMetrics || !recommendation) {
+  // HERO agnóstico de wearable: score mais recente entre Oura readiness e
+  // Whoop recovery (empate → Oura; Whoop PENDING_SCORE pulado).
+  const snapshot = buildRecoverySnapshot(recentMetrics, whoopMetrics);
+
+  // Contrato de estados: loading ≠ erro ≠ sem wearable (regra transversal).
+  if (isLoading && !snapshot) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-48 w-full rounded-lg" />
+        <Skeleton className="h-24 w-full rounded-lg" />
+      </div>
+    );
+  }
+  if (isError && !snapshot) {
+    return <DataErrorState what="os dados de recuperação" />;
+  }
+  if (!snapshot) {
     return (
       <Card className="p-6">
         <div className="text-center text-muted-foreground">
           <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Aguardando sincronização dos dados do Oura Ring para gerar recomendações personalizadas.</p>
+          <p>Sem dados de wearable para {studentName} — conecte Oura ou Whoop na aba correspondente para gerar o painel do dia.</p>
         </div>
       </Card>
     );
   }
 
-  const getScoreColor = (score: number | null) => {
-    if (score === null) return "secondary";
-    if (score >= 80) return "default";
-    if (score >= 65) return "outline";
-    return "destructive";
+  // Deltas vs baseline: SÓ HRV/FCR/sono, e só com baseline mínimo real
+  // (defaults populacionais não são "baseline da aluna").
+  const baselineDelta = (
+    current: number | null | undefined,
+    avg: number | null | undefined,
+    opts: { decimals?: number; lowerIsBetter?: boolean } = {},
+  ): MetricDelta | undefined => {
+    if (!baseline?.hasMinimumData) return undefined;
+    if (current === null || current === undefined || avg === null || avg === undefined) return undefined;
+    const diff = current - avg;
+    const rounded = Number(diff.toFixed(opts.decimals ?? 0));
+    if (rounded === 0) return { text: "na média 30d", direction: "flat" };
+    const direction = rounded > 0 ? "up" : "down";
+    const positive = opts.lowerIsBetter ? rounded < 0 : rounded > 0;
+    return { text: `${rounded > 0 ? "+" : ""}${rounded} vs 30d`, direction, positive };
   };
 
-  const formatDuration = (seconds: number | null) => {
-    if (seconds === null) return "--";
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${minutes}min`;
-  };
+  const hasOuraRecommendation = Boolean(latestMetrics && recommendation);
+  const sleepDuration = latestMetrics ? formatDuration(latestMetrics.total_sleep_duration) : null;
+  const hasAcuteHrv = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hrv > 0;
+  const hasAcuteHr = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hr_day > 0;
 
-  const formatValue = (
-    value: number | null | undefined,
-    unit?: string,
-    decimals = 1
-  ) => {
-    if (value === null || value === undefined) return "--";
-    return `${value.toFixed(decimals)}${unit ? ` ${unit}` : ""}`;
-  };
-
-  const formatAcuteDate = (value: string | null | undefined) => {
-    if (!value) return "--";
-    const normalized = value.trim();
-    const dateOnlyMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (dateOnlyMatch) {
-      const [, year, month, day] = dateOnlyMatch;
-      return `${day}/${month}/${year}`;
+  // Fisiologia de hoje: só métricas PRESENTES entram na grade.
+  const physiology: Array<{ key: string; tile: JSX.Element }> = [];
+  if (latestMetrics?.sleep_score != null) {
+    physiology.push({
+      key: "sono",
+      tile: (
+        <MetricTile
+          label="Sono"
+          value={latestMetrics.sleep_score}
+          delta={baselineDelta(latestMetrics.sleep_score, baseline?.avgSleepScore)}
+          footnote={sleepDuration ?? undefined}
+        />
+      ),
+    });
+  }
+  if (latestMetrics?.average_sleep_hrv != null) {
+    physiology.push({
+      key: "hrv",
+      tile: (
+        <MetricTile
+          label="HRV noturna"
+          value={Math.round(latestMetrics.average_sleep_hrv)}
+          unit="ms"
+          delta={baselineDelta(latestMetrics.average_sleep_hrv, baseline?.avgHRV)}
+        />
+      ),
+    });
+  }
+  if (latestMetrics?.resting_heart_rate != null) {
+    physiology.push({
+      key: "fcr",
+      tile: (
+        <MetricTile
+          label="FC repouso"
+          value={latestMetrics.resting_heart_rate}
+          unit="bpm"
+          delta={baselineDelta(latestMetrics.resting_heart_rate, baseline?.avgRHR, { lowerIsBetter: true })}
+          footnote="abaixo = melhor"
+        />
+      ),
+    });
+  }
+  if (latestMetrics?.temperature_deviation != null) {
+    const t = latestMetrics.temperature_deviation;
+    physiology.push({
+      key: "temp",
+      tile: (
+        <MetricTile
+          label="Temperatura"
+          value={`${t > 0 ? "+" : ""}${t.toFixed(1)}`}
+          unit="°C"
+          tone={Math.abs(t) >= 0.5 ? "warning" : "neutral"}
+          footnote="desvio vs pessoal"
+        />
+      ),
+    });
+  }
+  if (latestMetrics?.activity_score != null) {
+    physiology.push({
+      key: "atividade",
+      tile: (
+        <MetricTile
+          label="Atividade"
+          value={latestMetrics.activity_score}
+          footnote={
+            latestMetrics.steps !== null
+              ? `${latestMetrics.steps.toLocaleString("pt-BR")} passos`
+              : undefined
+          }
+        />
+      ),
+    });
+  }
+  if (hasAcuteHrv && latestAcuteMetrics?.hrv_night_min != null) {
+    physiology.push({
+      key: "hrv-aguda",
+      tile: (
+        <MetricTile
+          label="HRV mínima (noite)"
+          value={Math.round(latestAcuteMetrics.hrv_night_min)}
+          unit="ms"
+        />
+      ),
+    });
+  }
+  if (hasAcuteHr && latestAcuteMetrics?.hr_day_avg != null) {
+    physiology.push({
+      key: "fc-dia",
+      tile: (
+        <MetricTile
+          label="FC média (dia)"
+          value={Math.round(latestAcuteMetrics.hr_day_avg)}
+          unit="bpm"
+        />
+      ),
+    });
+  }
+  if (snapshot.source === "whoop") {
+    const w = whoopMetrics.find((m) => m.date === snapshot.date);
+    if (w?.day_strain != null) {
+      physiology.push({
+        key: "strain",
+        tile: <MetricTile label="Strain" value={w.day_strain.toFixed(1)} />,
+      });
     }
-
-    const parsed = parseISO(normalized.replace(" ", "T"));
-    if (Number.isNaN(parsed.getTime())) {
-      const fallback = new Date(normalized);
-      if (Number.isNaN(fallback.getTime())) {
-        return normalized;
-      }
-      return format(fallback, "dd/MM/yyyy", { locale: ptBR });
+    if (w?.hrv_rmssd != null) {
+      physiology.push({
+        key: "hrv-whoop",
+        tile: <MetricTile label="HRV" value={Math.round(w.hrv_rmssd)} unit="ms" />,
+      });
     }
-
-    return format(parsed, "dd/MM/yyyy", { locale: ptBR });
-  };
-
-  const hasAcuteHrvData =
-    !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hrv > 0;
-  const hasAcuteHeartRateData =
-    !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hr_day > 0;
-  const hasAcuteData = hasAcuteHrvData || hasAcuteHeartRateData;
-
-  const getTrainingAlternatives = (rs: number) => {
-    if (rs >= 85) {
-      return [
-        { 
-          emoji: "🔥",
-          type: "Desafio Máximo Recomendado", 
-          description: "Dia perfeito para buscar novos recordes pessoais! Seu corpo está totalmente recuperado." 
-        },
-        { 
-          emoji: "💪",
-          type: "Treino Normal Intenso", 
-          description: "Execute treinos de alta intensidade com confiança. Sistema nervoso e muscular prontos." 
-        },
-        { 
-          emoji: "🎯",
-          type: "Volume Alto", 
-          description: "Ótimo dia para treinos longos ou múltiplas sessões." 
-        }
-      ];
-    } else if (rs >= 65) {
-      return [
-        { 
-          emoji: "💪",
-          type: "Treino Completo (Recomendado)", 
-          description: "Execute o treino programado normalmente. Corpo bem recuperado para cargas habituais." 
-        },
-        { 
-          emoji: "⚡",
-          type: "Redução Leve (10%)", 
-          description: "Se sentir fadiga durante o treino, reduza levemente o volume ou intensidade." 
-        },
-        { 
-          emoji: "🧘",
-          type: "Foco Técnico", 
-          description: "Priorize qualidade de movimento sobre carga máxima." 
-        }
-      ];
-    } else if (rs >= 45) {
-      return [
-        { 
-          emoji: "⚠️",
-          type: "Redução Moderada (Recomendado)", 
-          description: "Reduza 20-30% do volume ou intensidade. Corpo precisa de carga mais leve para continuar progredindo." 
-        },
-        { 
-          emoji: "🚶",
-          type: "Recuperação Ativa", 
-          description: "Alternativa mais segura: mobilidade leve, yoga ou caminhada. Mantém movimento sem estresse adicional." 
-        },
-        { 
-          emoji: "❌",
-          type: "Descanso Completo", 
-          description: "Se sentir sintomas de overtraining (fadiga intensa, dor persistente), opte por descanso." 
-        }
-      ];
-    } else if (rs >= 25) {
-      return [
-        { 
-          emoji: "🚶",
-          type: "Recuperação Ativa (Recomendado)", 
-          description: "Movimento leve apenas: alongamento dinâmico, yoga suave ou caminhada de 20-30 min." 
-        },
-        { 
-          emoji: "🛌",
-          type: "Descanso Completo", 
-          description: "Se sentir muito cansado, priorize descanso total. Corpo precisa de recuperação urgente." 
-        },
-        { 
-          emoji: "🧊",
-          type: "Protocolos de Recuperação", 
-          description: "Foque nos protocolos recomendados abaixo (crioterapia, respiração, mindfulness)." 
-        }
-      ];
-    } else {
-      return [
-        { 
-          emoji: "🛑",
-          type: "Descanso Obrigatório (CRÍTICO)", 
-          description: "Seu sistema nervoso está severamente sobrecarregado. Treinar hoje aumenta risco de lesão e piora a recuperação." 
-        },
-        { 
-          emoji: "🧊",
-          type: "Protocolos de Recuperação Urgente", 
-          description: "Foque 100% nos 4 protocolos prioritários listados abaixo. Eles têm efeito mensurável em 24-72h." 
-        },
-        { 
-          emoji: "🩺",
-          type: "Avaliação Médica", 
-          description: "Se RS crítico persistir por 3+ dias, considere consultar médico/fisioterapeuta." 
-        }
-      ];
+    if (w?.resting_heart_rate != null) {
+      physiology.push({
+        key: "fcr-whoop",
+        tile: <MetricTile label="FC repouso" value={w.resting_heart_rate} unit="bpm" />,
+      });
     }
-  };
-
-  const zoneLabelMap: Record<string, string> = {
-    green_high: "Verde Alta",
-    green: "Verde",
-    yellow: "Amarela",
-    orange: "Laranja",
-    red: "Vermelha",
-  };
-
-  const sourceLabelMap: Record<string, string> = {
-    last_valid: "Última carga válida",
-    best_recent_equivalent: "Melhor recente equivalente",
-    same_block: "Última do bloco atual",
-    fallback_keep: "Fallback manter carga",
-    insufficient: "Dados insuficientes",
-  };
-
-  const formatLoad = (value: number | null | undefined) => {
-    if (value === null || value === undefined) return "--";
-    return `${value.toFixed(1)} kg`;
-  };
-
-  const formatAdjustmentPercent = (value: number | null) => {
-    if (value === null) return "--";
-    return `${value > 0 ? "+" : ""}${value}%`;
-  };
-
-  const getSuggestionStatusLabel = (status: string) => {
-    if (status === "automatic") return "Sugestão automática";
-    if (status === "assisted") return "Sugestão assistida";
-    return "Dados insuficientes";
-  };
+  }
 
   return (
     <div className="space-y-6">
-      {/* Status de Recuperação Principal */}
-      <Card className="p-6 bg-gradient-to-br from-background to-muted/20">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">
-              {recommendation.emoji} Olá, {studentName}!
-            </h2>
-            <p className="text-lg text-muted-foreground">{recommendation.reason}</p>
+      {/* HERO — um único score de recuperação, com fonte e data explícitas */}
+      <Card className="border-l-2 border-l-primary p-6">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+          <ScoreRing
+            value={snapshot.score}
+            label={snapshot.source === "oura" ? "prontidão" : "recovery"}
+            tone={SNAPSHOT_TONE[snapshot.zone]}
+          />
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="font-normal">
+                {SNAPSHOT_ZONE_TEXT[snapshot.zone]}
+              </Badge>
+              <StaleBadge
+                date={snapshot.date}
+                source={snapshot.source === "oura" ? "Oura" : "Whoop"}
+              />
+            </div>
+            {hasOuraRecommendation ? (
+              <>
+                <h3 className="text-2xl font-bold text-foreground">
+                  {recommendation!.trainingType}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {recommendation!.intensity} · {recommendation!.duration}
+                </p>
+                <div className="flex gap-3 pt-2">
+                  <Button onClick={() => onStartTraining?.()}>Iniciar Treino</Button>
+                  <Button variant="outline" onClick={() => setShowAlternatives(true)}>
+                    Ver Alternativas
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                A recomendação automática de treino usa dados do Oura — este aluno
+                está com Whoop. Use o score acima e o histórico da aba Whoop para
+                calibrar o treino do dia.
+              </p>
+            )}
           </div>
-          <Badge variant={getScoreColor(recommendation.recoveryScore)} className="text-lg px-4 py-2">
-            Recuperação: {recommendation.recoveryScore}/100
-          </Badge>
         </div>
-        {recommendation.overrideApplied && (
-          <Alert className="mt-2 border-amber-500/40 bg-amber-500/10">
+        {recommendation?.overrideApplied && (
+          <Alert className="mt-4 border-warning/40 bg-warning/10">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               Override agudo ativo: a zona de treino foi reduzida em 1 nível para proteção.
             </AlertDescription>
           </Alert>
         )}
-
-        {/* Scores Principais */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <div className="flex items-center space-x-3 p-4 rounded-lg bg-background border">
-            <Zap className={`w-8 h-8 ${latestMetrics.readiness_score !== null && latestMetrics.readiness_score >= 70 ? 'text-primary' : 'text-muted-foreground'}`} />
-            <div>
-              <p className="text-sm text-muted-foreground">Prontidão</p>
-              <p className="text-2xl font-bold">{latestMetrics.readiness_score ?? '--'}</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3 p-4 rounded-lg bg-background border">
-            <Moon className={`w-8 h-8 ${latestMetrics.sleep_score !== null && latestMetrics.sleep_score >= 70 ? 'text-primary' : 'text-muted-foreground'}`} />
-            <div>
-              <p className="text-sm text-muted-foreground">Sono</p>
-              <p className="text-2xl font-bold">{latestMetrics.sleep_score ?? '--'}</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3 p-4 rounded-lg bg-background border">
-            <Heart className={`w-8 h-8 ${latestMetrics.resting_heart_rate !== null ? 'text-primary' : 'text-muted-foreground'}`} />
-            <div>
-              <p className="text-sm text-muted-foreground">FCR</p>
-              <p className="text-2xl font-bold">
-                {latestMetrics.resting_heart_rate !== null ? (
-                  <>
-                    {latestMetrics.resting_heart_rate} <span className="text-sm">bpm</span>
-                  </>
-                ) : (
-                  "--"
-                )}
-              </p>
-            </div>
-          </div>
-        </div>
       </Card>
 
-      {/* Recomendação de Treino */}
-      <Card className="p-6">
-        <div className="flex items-center space-x-2 mb-4">
-          <Target className="w-6 h-6 text-primary" />
-          <h3 className="text-xl font-bold">Treino Recomendado para Hoje</h3>
-        </div>
-        
-        <div className="bg-muted/30 rounded-lg p-6 space-y-4">
-          <div>
-            <h4 className="text-2xl font-bold text-primary mb-2">{recommendation.trainingType}</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Intensidade</p>
-                <p className="text-lg font-semibold">{recommendation.intensity}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Duração</p>
-                <p className="text-lg font-semibold">{recommendation.duration}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2 pt-4 border-t">
-            <TrendingUp className="w-5 h-5 text-muted-foreground" />
-            <p className="text-sm">
-              Confiança da recomendação: <span className="font-semibold">{recommendation.confidence}%</span>
-            </p>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button 
-              className="flex-1"
-              onClick={() => onStartTraining?.()}
-            >
-              Iniciar Treino
-            </Button>
-            <Button 
-              variant="outline" 
-              className="flex-1"
-              onClick={() => setShowAlternatives(true)}
-            >
-              Ver Alternativas
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Protocolos Prioritários de Recuperação (RS < 25) */}
-      {recommendation.priorityProtocols && recommendation.priorityProtocols.length > 0 && (
-        <Card className="p-6 border-2 border-destructive/50 bg-destructive/5">
-          <div className="flex items-center space-x-2 mb-4">
-            <AlertCircle className="w-6 h-6 text-destructive" />
-            <h3 className="text-xl font-bold text-destructive">
-              Protocolos Prioritários de Recuperação
-            </h3>
-          </div>
-          
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription>
-              <strong>⚠️ Situação Crítica:</strong> Seu corpo precisa de recuperação urgente. 
-              Os protocolos abaixo são validados cientificamente e têm efeitos mensuráveis em 24-72h. 
-              Priorize-os hoje.
-            </AlertDescription>
-          </Alert>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recommendation.priorityProtocols.map((protocol) => (
-              <div 
-                key={protocol.order}
-                className="p-5 rounded-lg border-2 border-muted bg-background hover:border-primary/50 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className="text-lg font-bold">
-                      {protocol.order}
-                    </Badge>
-                    <h4 className="text-lg font-bold">{protocol.name}</h4>
-                  </div>
-                </div>
-                
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-muted-foreground">⏱️ Duração:</span>
-                    <span className="font-semibold">{protocol.duration}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-muted-foreground">🕐 Melhor Horário:</span>
-                    <span className="font-semibold">{protocol.timing}</span>
-                  </div>
-                  <div className="mt-3 pt-3 border-t">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {protocol.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6 p-4 bg-muted/30 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              <strong>💡 Dica:</strong> Estes protocolos foram selecionados com base em meta-análises 
-              peer-reviewed. Siga a ordem recomendada para máxima eficácia. Se o Readiness Score 
-              crítico persistir por 3+ dias, consulte um profissional de saúde.
-            </p>
-          </div>
-        </Card>
-      )}
-
-      {/* Alertas */}
-      {recommendation.alerts.length > 0 && (
-        <div className="space-y-3">
-          {recommendation.alerts.map((alert, idx) => (
-            <Alert 
-              key={idx} 
-              variant={alert.level === 'CRITICAL' ? 'destructive' : 'default'}
-            >
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{alert.message}</AlertDescription>
-            </Alert>
-          ))}
-        </div>
-      )}
-
-      {loadSuggestions && loadSuggestions.length > 0 && (
+      {/* Sugestão de carga — o dado mais acionável do coach, logo após o hero */}
+      {loadSuggestions && loadSuggestions.length > 0 && recommendation && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold">Sugestão Assistida de Carga</h3>
             <Badge variant="outline">
-              Zona {zoneLabelMap[recommendation.zone] ?? recommendation.zone}
+              Zona {ZONE_LABEL[recommendation.zone] ?? recommendation.zone}
             </Badge>
           </div>
-
           <p className="text-sm text-muted-foreground mb-4">
             Referência por histórico real do aluno. A sugestão deve ser validada pelo coach antes da execução.
           </p>
-
           <div className="space-y-3">
             {loadSuggestions.map((item) => (
               <div key={item.exerciseName} className="rounded-lg border p-4 bg-muted/20">
-                <div className="flex items-start justify-between gap-4 mb-3">
-                  <div>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
                     <h4 className="font-semibold">{item.exerciseName}</h4>
-                    <p className="text-xs text-muted-foreground">
-                      Referência: {formatLoad(item.referenceLoadKg)} @ {item.referenceReps ?? "--"} reps
+                    <p className="text-sm text-muted-foreground">
+                      {formatLoad(item.lastLoadKg)}
+                      <span className="mx-2 text-muted-foreground/60">→</span>
+                      <span className="font-semibold text-foreground">
+                        {formatLoad(item.suggestedLoadKg)}
+                      </span>
+                      {item.adjustmentPercent !== null && (
+                        <span className="ml-2 text-xs font-semibold text-primary">
+                          {formatAdjustmentPercent(item.adjustmentPercent)}
+                        </span>
+                      )}
                     </p>
                   </div>
                   <Badge variant={item.status === "insufficient" ? "destructive" : "secondary"}>
                     {getSuggestionStatusLabel(item.status)}
                   </Badge>
                 </div>
-
-                <div className="md:hidden space-y-3">
-                  <div className="rounded-md bg-background/70 border p-3">
-                    <p className="text-xs text-muted-foreground">Carga sugerida</p>
-                    <p className="text-2xl font-bold">{formatLoad(item.suggestedLoadKg)}</p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                    <span>Última: {formatLoad(item.lastLoadKg)}</span>
-                    <span>Reps: {item.referenceReps ?? "--"}</span>
-                    <span>Zona: {zoneLabelMap[recommendation.zone] ?? recommendation.zone}</span>
-                  </div>
-
-                  <details className="rounded-md border bg-background/50 px-3 py-2">
-                    <summary className="cursor-pointer text-sm font-medium text-primary">
-                      Ver detalhes da regra
-                    </summary>
-                    <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Regra aplicada</p>
-                        <p className="font-semibold">{item.ruleApplied}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Ajuste</p>
-                        <p className="font-semibold">{formatAdjustmentPercent(item.adjustmentPercent)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Incremento</p>
-                        <p className="font-semibold">{item.incrementKg} kg</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Fonte</p>
-                        <p className="font-semibold">{sourceLabelMap[item.source] ?? item.source}</p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 pt-1">
-                        {item.guardrails.includes("pain_recent") && (
-                          <Badge variant="destructive">Guardrail: dor recente</Badge>
-                        )}
-                        {item.guardrails.includes("technique_inconsistent") && (
-                          <Badge variant="outline">Guardrail: técnica inconsistente</Badge>
-                        )}
-                      </div>
+                <details className="mt-3 rounded-md border bg-background/50 px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-medium text-primary">
+                    Ver detalhes da regra
+                  </summary>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
+                    <div>
+                      <p className="text-muted-foreground">Regra aplicada</p>
+                      <p className="font-semibold">{item.ruleApplied}</p>
                     </div>
-                  </details>
-                </div>
-
-                <div className="hidden md:grid md:grid-cols-5 gap-2 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Última carga válida</p>
-                    <p className="font-semibold">{formatLoad(item.lastLoadKg)}</p>
+                    <div>
+                      <p className="text-muted-foreground">Referência</p>
+                      <p className="font-semibold">
+                        {formatLoad(item.referenceLoadKg)} @ {item.referenceReps ?? "--"} reps
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Incremento</p>
+                      <p className="font-semibold">{item.incrementKg} kg</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Fonte</p>
+                      <p className="font-semibold">{SOURCE_LABEL[item.source] ?? item.source}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Regra aplicada</p>
-                    <p className="font-semibold">{item.ruleApplied}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {item.guardrails.includes("pain_recent") && (
+                      <Badge variant="destructive">Guardrail: dor recente</Badge>
+                    )}
+                    {item.guardrails.includes("technique_inconsistent") && (
+                      <Badge variant="outline">Guardrail: técnica inconsistente</Badge>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Ajuste</p>
-                    <p className="font-semibold">{formatAdjustmentPercent(item.adjustmentPercent)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Carga sugerida</p>
-                    <p className="font-semibold">{formatLoad(item.suggestedLoadKg)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Incremento</p>
-                    <p className="font-semibold">{item.incrementKg} kg</p>
-                  </div>
-                </div>
-                <div className="mt-2 hidden md:flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>Fonte: {sourceLabelMap[item.source] ?? item.source}</span>
-                  {item.guardrails.includes("pain_recent") && (
-                    <Badge variant="destructive">Guardrail: dor recente</Badge>
-                  )}
-                  {item.guardrails.includes("technique_inconsistent") && (
-                    <Badge variant="outline">Guardrail: técnica inconsistente</Badge>
-                  )}
-                </div>
+                </details>
               </div>
             ))}
           </div>
@@ -540,182 +460,117 @@ const PersonalizedTrainingDashboard = ({
         </Card>
       )}
 
-      {/* Detalhes de Recuperação */}
-      <div
-        className={`grid grid-cols-1 md:grid-cols-2 ${
-          hasAcuteData ? "xl:grid-cols-4" : "xl:grid-cols-3"
-        } gap-4`}
-      >
-        <Card className="p-4">
-          <h4 className="font-semibold mb-3 flex items-center">
-            <Moon className="w-4 h-4 mr-2" />
-            Sono Ontem
-          </h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Duração Total</span>
-              <span className="font-semibold">{formatDuration(latestMetrics.total_sleep_duration)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Sono Profundo</span>
-              <span className="font-semibold">{formatDuration(latestMetrics.deep_sleep_duration)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Sono REM</span>
-              <span className="font-semibold">{formatDuration(latestMetrics.rem_sleep_duration)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Eficiência</span>
-              <span className="font-semibold">{latestMetrics.sleep_efficiency ? `${latestMetrics.sleep_efficiency}%` : '--'}</span>
-            </div>
+      {/* Protocolos prioritários (readiness crítico) */}
+      {recommendation?.priorityProtocols && recommendation.priorityProtocols.length > 0 && (
+        <Card className="p-6 border-2 border-destructive/50 bg-destructive/5">
+          <div className="flex items-center space-x-2 mb-4">
+            <AlertCircle className="w-6 h-6 text-destructive" />
+            <h3 className="text-xl font-bold text-destructive">
+              Protocolos Prioritários de Recuperação
+            </h3>
           </div>
-        </Card>
-
-        <Card className="p-4">
-          <h4 className="font-semibold mb-3 flex items-center">
-            <Heart className="w-4 h-4 mr-2" />
-            Sinais Vitais
-          </h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">HRV</span>
-              <span className="font-semibold">
-                {latestMetrics.average_sleep_hrv !== null ? `${latestMetrics.average_sleep_hrv.toFixed(1)} ms` : '--'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">FC Repouso</span>
-              <span className="font-semibold">
-                {latestMetrics.resting_heart_rate !== null ? `${latestMetrics.resting_heart_rate} bpm` : '--'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Temperatura</span>
-              <span className="font-semibold">
-                {latestMetrics.temperature_deviation !== null
-                  ? `${latestMetrics.temperature_deviation > 0 ? '+' : ''}${latestMetrics.temperature_deviation.toFixed(1)}°C`
-                  : '--'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Nível de Fadiga</span>
-              <span className="font-semibold">
-                {{ low: "Baixo", moderate: "Moderado", high: "Alto" }[
-                  recommendation.fatigueLevel
-                ] ?? recommendation.fatigueLevel}
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-4">
-          <h4 className="font-semibold mb-3 flex items-center">
-            <Activity className="w-4 h-4 mr-2" />
-            Atividade Recente
-          </h4>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Calorias Ativas</span>
-              <span className="font-semibold">
-                {latestMetrics.active_calories !== null ? `${latestMetrics.active_calories} kcal` : '--'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Passos</span>
-              <span className="font-semibold">
-                {latestMetrics.steps !== null ? latestMetrics.steps.toLocaleString() : '--'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Score Atividade</span>
-              <span className="font-semibold">{latestMetrics.activity_score ?? '--'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">MET Minutos</span>
-              <span className="font-semibold">{latestMetrics.met_minutes ?? '--'}</span>
-            </div>
-          </div>
-        </Card>
-
-        {hasAcuteData && (
-          <Card className="p-4">
-            <h4 className="font-semibold mb-3 flex items-center">
-              <Heart className="w-4 h-4 mr-2" />
-              Sinais Agudos (HRV/FC)
-            </h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Data</span>
-                <span className="font-semibold">
-                  {formatAcuteDate(latestAcuteMetrics?.date)}
-                </span>
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription>
+              <strong>Situação crítica:</strong> recuperação urgente necessária.
+              Os protocolos abaixo são validados cientificamente, com efeitos mensuráveis em 24-72h.
+            </AlertDescription>
+          </Alert>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {recommendation.priorityProtocols.map((protocol) => (
+              <div
+                key={protocol.order}
+                className="p-5 rounded-lg border-2 border-muted bg-background hover:border-primary/50 transition-colors"
+              >
+                <div className="flex items-center space-x-2 mb-3">
+                  <Badge variant="outline" className="text-lg font-bold">
+                    {protocol.order}
+                  </Badge>
+                  <h4 className="text-lg font-bold">{protocol.name}</h4>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Duração:</span>
+                    <span className="font-semibold">{protocol.duration}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Melhor horário:</span>
+                    <span className="font-semibold">{protocol.timing}</span>
+                  </div>
+                  <div className="mt-3 pt-3 border-t">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {protocol.description}
+                    </p>
+                  </div>
+                </div>
               </div>
+            ))}
+          </div>
+          <div className="mt-6 p-4 bg-muted/30 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              Protocolos selecionados com base em meta-análises peer-reviewed; seguir a
+              ordem recomendada. Se o readiness crítico persistir por 3+ dias, encaminhar
+              a profissional de saúde.
+            </p>
+          </div>
+        </Card>
+      )}
 
-              {hasAcuteHrvData ? (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">HRV Último Bloco</span>
-                    <span className="font-semibold">
-                      {formatValue(latestAcuteMetrics?.hrv_night_last, "ms", 1)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">HRV Mínimo Noite</span>
-                    <span className="font-semibold">
-                      {formatValue(latestAcuteMetrics?.hrv_night_min, "ms", 1)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Amostras HRV</span>
-                    <span className="font-semibold">
-                      {latestAcuteMetrics?.samples_count_hrv ?? "--"}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  HRV aguda indisponível nesta conta Oura.
-                </p>
-              )}
+      {/* Alertas do motor */}
+      {recommendation && recommendation.alerts.length > 0 && (
+        <div className="space-y-3">
+          {recommendation.alerts.map((alert, idx) => (
+            <Alert key={idx} variant={alert.level === 'CRITICAL' ? 'destructive' : 'default'}>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{alert.message}</AlertDescription>
+            </Alert>
+          ))}
+        </div>
+      )}
 
-              {hasAcuteHeartRateData ? (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">FC Média Dia</span>
-                    <span className="font-semibold">
-                      {formatValue(latestAcuteMetrics?.hr_day_avg, "bpm", 0)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Amostras FC Dia</span>
-                    <span className="font-semibold">
-                      {latestAcuteMetrics?.samples_count_hr_day ?? "--"}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  FC aguda indisponível nesta conta Oura.
-                </p>
-              )}
-            </div>
-          </Card>
-        )}
-      </div>
+      {/* Fisiologia de hoje — só métricas presentes; deltas vs baseline 30d */}
+      {physiology.length > 0 && (
+        <div>
+          <h3 className="mb-3 flex items-center gap-2 text-base font-semibold">
+            <Activity className="h-4 w-4 text-primary" />
+            Fisiologia de hoje
+          </h3>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+            {physiology.map((p) => (
+              <div key={p.key}>{p.tile}</div>
+            ))}
+          </div>
+        </div>
+      )}
 
-      {/* Dialog de Alternativas de Treino */}
+      {/* Zonas de FC — referência estática, colapsada */}
+      {maxHeartRate ? (
+        <Accordion type="single" collapsible>
+          <AccordionItem value="zonas" className="rounded-lg border px-4">
+            <AccordionTrigger className="text-sm font-semibold">
+              <span className="flex items-center gap-2">
+                <Target className="h-4 w-4 text-primary" />
+                Zonas de frequência cardíaca (FCmáx {maxHeartRate} bpm)
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <TrainingZonesCard maxHeartRate={maxHeartRate} />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      ) : null}
+
+      {/* Dialog de alternativas */}
       <AlertDialog open={showAlternatives} onOpenChange={setShowAlternatives}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>🎯 Alternativas de Treino</AlertDialogTitle>
+            <AlertDialogTitle>Alternativas de Treino</AlertDialogTitle>
             <AlertDialogDescription>
-              Com base no seu Readiness Score de <strong>{recommendation.recoveryScore}</strong>, 
-              aqui estão as opções disponíveis:
+              Com base no readiness de <strong>{recommendation?.recoveryScore ?? snapshot.score}</strong>,
+              estas são as opções:
             </AlertDialogDescription>
           </AlertDialogHeader>
-          
           <div className="space-y-3 my-4">
-            {getTrainingAlternatives(recommendation.recoveryScore).map((alt, idx) => (
+            {getTrainingAlternatives(recommendation?.recoveryScore ?? snapshot.score).map((alt, idx) => (
               <button
                 key={idx}
                 onClick={() => {
@@ -725,17 +580,11 @@ const PersonalizedTrainingDashboard = ({
                 className="w-full p-4 border rounded-lg hover:bg-muted/50 transition-colors text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 aria-label={`Selecionar alternativa: ${alt.type}`}
               >
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl" aria-hidden="true">{alt.emoji}</span>
-                  <div>
-                    <h4 className="font-semibold text-base">{alt.type}</h4>
-                    <p className="text-sm text-muted-foreground mt-1">{alt.description}</p>
-                  </div>
-                </div>
+                <h4 className="font-semibold text-base">{alt.type}</h4>
+                <p className="text-sm text-muted-foreground mt-1">{alt.description}</p>
               </button>
             ))}
           </div>
-          
           <AlertDialogFooter>
             <AlertDialogAction>Entendi</AlertDialogAction>
           </AlertDialogFooter>
