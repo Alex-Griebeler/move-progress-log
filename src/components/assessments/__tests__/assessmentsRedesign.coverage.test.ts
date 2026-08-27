@@ -1,0 +1,226 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+/**
+ * Cobertura do redesign da aba Avaliações (PR-8b).
+ *
+ * Asserts miram CHAMADAS e IMPORTS, nunca palavras soltas — um comentário
+ * mencionando o mesmo termo já derrubou testes assim antes.
+ */
+
+const read = (relative: string) =>
+  readFileSync(join(__dirname, "..", relative), "utf8");
+
+const TAB = read("AssessmentsTab.tsx");
+const CARD = read("AssessmentResultCard.tsx");
+const HERO = read("AssessmentHero.tsx");
+const SHEET = read("AssessmentDetailSheet.tsx");
+const HOOK = readFileSync(join(__dirname, "../../../hooks/useAssessments.ts"), "utf8");
+
+describe("lista traz o resultado, não só o tipo do teste", () => {
+  it("o select da lista embute as 5 tabelas filhas numa query só", () => {
+    expect(HOOK).toMatch(/ASSESSMENT_LIST_SELECT/);
+    for (const rel of [
+      "vo2_assessment_details(",
+      "handgrip_results(",
+      "dexa_results(",
+      "sit_to_stand_results(",
+      "questionnaire_responses(",
+    ]) {
+      expect(HOOK).toContain(rel);
+    }
+  });
+
+  it("a query da lista usa o select novo (não o antigo, sem resultados)", () => {
+    expect(HOOK).toMatch(/\.select\(ASSESSMENT_LIST_SELECT\)/);
+  });
+
+  it("relação 1:1 embutida é normalizada (PostgREST devolve objeto OU array)", () => {
+    expect(HOOK).toMatch(/const normalizeEmbedded/);
+    expect(HOOK).toMatch(/Array\.isArray\(value\)/);
+  });
+
+  it("a aba renderiza o card de resultado", () => {
+    expect(TAB).toMatch(/import .*AssessmentResultCard.* from "\.\/AssessmentResultCard"/);
+    expect(TAB).toMatch(/<AssessmentResultCard/);
+  });
+
+  it("classifica com as faixas seedadas via os hooks de referência", () => {
+    expect(TAB).toMatch(/from "@\/hooks\/useReferenceRanges"/);
+    expect(TAB).toMatch(/useVo2ReferenceRanges\(\)/);
+    expect(TAB).toMatch(/useHandgripReferenceRanges\(\)/);
+    expect(TAB).toMatch(/useSitToStandReferenceRanges\(\)/);
+    expect(TAB).toMatch(/classifyAssessmentValue\(/);
+  });
+
+  it("o Δ é calculado sobre a lista INTEIRA, não sobre a filtrada", () => {
+    // O useMemo do enriquecimento não pode depender de `filter` nem de
+    // `filtered`: se dependesse, trocar de categoria mudaria a base de
+    // comparação e o mesmo teste mostraria Δ diferente por aba aberta.
+    const match = TAB.match(/const enriched = useMemo\(([\s\S]*?)\n {2}\}, \[([^\]]*)\]\);/);
+    expect(match).not.toBeNull();
+    const [, body, deps] = match!;
+    expect(body).toMatch(/computeAssessmentDeltas\(/);
+    expect(body).toMatch(/const rows = assessments \?\? \[\]/);
+    expect(deps).not.toMatch(/\bfilter(ed)?\b/);
+  });
+
+  it("contagem por categoria é memoizada (era O(6n) dentro do JSX)", () => {
+    expect(TAB).toMatch(/const categoryCounts = useMemo/);
+    expect(TAB).not.toMatch(/\{cat === "all"\s*\?\s*assessments\.length\s*:\s*assessments\.filter/);
+  });
+
+  it("continua sem mutation na aba (regra travada desde a E4.3b)", () => {
+    expect(TAB).not.toContain("useMutation");
+  });
+
+  it("o estado do sheet e o guard de deep-link resetam ao trocar de aluno", () => {
+    expect(TAB).toMatch(/const lastStudentId = useRef\(studentId\)/);
+    expect(TAB).toMatch(/deepLinkApplied\.current = false/);
+    expect(TAB).toMatch(/setSelectedAssessmentId\(null\)/);
+  });
+
+  it("o Δ compara protocolos IGUAIS: o bucket é o assessment_type exato", () => {
+    // Os 5 tipos de VO₂ colapsam num kind só — agrupar por kind compararia
+    // uma bike submáxima com uma esteira máxima.
+    expect(TAB).toMatch(/const deltaBucket = a\.assessment_type \?\? kind/);
+    expect(TAB).toMatch(/points\.get\(deltaBucket\)/);
+    expect(TAB).not.toMatch(/points\.get\(kind\)!/);
+  });
+});
+
+describe("precisão exibida não contradiz a faixa classificada", () => {
+  it("VO₂ e preensão exibem até 2 casas (fronteiras têm passo 0.01)", () => {
+    const SUMMARY = readFileSync(join(__dirname, "../../../utils/assessmentSummary.ts"), "utf8");
+    const vo2Case = SUMMARY.slice(SUMMARY.indexOf('case "vo2":'), SUMMARY.indexOf('case "handgrip":'));
+    expect(vo2Case).toMatch(/decimals: 2/);
+    const hgCase = SUMMARY.slice(SUMMARY.indexOf('case "handgrip":'), SUMMARY.indexOf('case "dexa":'));
+    expect(hgCase).toMatch(/decimals: 2/);
+  });
+
+  it("card e hero formatam pelo mesmo helper (sem toFixed solto)", () => {
+    expect(CARD).toMatch(/formatAssessmentValue\(value!, decimals\)/);
+    expect(HERO).toMatch(/formatAssessmentValue\(value!, decimals\)/);
+    expect(CARD).not.toMatch(/value!\.toFixed\(/);
+    expect(HERO).not.toMatch(/value!\.toFixed\(/);
+  });
+});
+
+describe("erro de régua ≠ faixa etária não coberta", () => {
+  it("a LISTA também sinaliza régua indisponível (não só o sheet)", () => {
+    expect(TAB).toMatch(/const rangesFailed =/);
+    expect(TAB).toMatch(/\{rangesFailed && \(/);
+    expect(TAB).toMatch(/Não foi possível carregar parte das tabelas de referência/);
+  });
+
+  it("o sheet trata isError dos hooks de referência", () => {
+    expect(SHEET).toMatch(/isError: vo2RangesError/);
+    expect(SHEET).toMatch(/const rangesFailed =/);
+    expect(SHEET).toMatch(/Não foi possível carregar a tabela de referência/);
+  });
+
+  it("classificação armazenada saiu do grid (o hero mostra a canônica)", () => {
+    expect(SHEET).not.toMatch(/\["Classificação", vo2\.vo2_classification\]/);
+    expect(SHEET).not.toMatch(/\["Classificação", srt\.classification\]/);
+  });
+});
+
+describe("card: direção do 'melhor' por métrica", () => {
+  it("usa higherIsBetter em vez de assumir que subir é bom", () => {
+    expect(CARD).toMatch(/higherIsBetter/);
+    expect(CARD).toMatch(/deltaIsGood/);
+  });
+
+  it("delta zero — ou métrica sem direção definida — não ganha cor", () => {
+    expect(CARD).toMatch(/delta === 0 \|\| higherIsBetter === null/);
+  });
+
+  it("valor ausente não vira zero na tela", () => {
+    expect(CARD).toMatch(/value !== null && Number\.isFinite\(value\)/);
+  });
+});
+
+describe("ressalva de protocolo é visível e acessível (não só tooltip)", () => {
+  it("aparece como texto ao lado da classificação, não como asterisco com title", () => {
+    expect(CARD).toMatch(/\(orientativa\)/);
+    expect(CARD).not.toMatch(/title="Protocolo diferente/);
+  });
+
+  it("o aria-label do card carrega a ressalva pra leitor de tela", () => {
+    expect(CARD).toMatch(/Classificação orientativa/);
+  });
+});
+
+describe("auditabilidade da idade usada na classificação", () => {
+  it("o detalhe mostra a idade NA DATA do teste quando diverge do snapshot", () => {
+    expect(SHEET).toMatch(/"Idade na data do teste"/);
+    expect(SHEET).toMatch(/hero\.subject\.ageYears !== assessment\.age_years/);
+  });
+
+  it("datas incompatíveis têm rótulo e motivo próprios (não 'idade não registrada')", () => {
+    expect(SHEET).toMatch(/"Idade \(datas incompatíveis\)"/);
+    expect(SHEET).toMatch(/subject\.source === "inconsistent"/);
+    expect(SHEET).toMatch(/anterior à data de nascimento/);
+  });
+
+  it("o grid do detalhe usa a MESMA precisão do hero nas métricas com régua", () => {
+    // Sem isso o mesmo sheet mostraria 32,09 no herói e 32.1 no grid.
+    expect(SHEET).toMatch(/const withPreciseUnit =/);
+    expect(SHEET).toMatch(/\["VO₂ final", withPreciseUnit\(/);
+    expect(SHEET).toMatch(/withPreciseUnit\(rightMean, "kg"\)/);
+  });
+});
+
+describe("hero: barra de referência só onde existe régua", () => {
+  it("a barra é condicionada a hasReference", () => {
+    expect(HERO).toMatch(/hasReference \? buildReferenceBands\(/);
+    expect(HERO).toMatch(/\{bands && <RefRangeBar/);
+  });
+
+  it("diz POR QUE não classificou em vez de ficar mudo", () => {
+    expect(HERO).toMatch(/unclassifiedReason/);
+    expect(SHEET).toMatch(/unclassifiedReason = /);
+  });
+
+  it("hero some quando não há valor (não renderiza card vazio)", () => {
+    expect(HERO).toMatch(/if \(!hasValue\) return null/);
+  });
+});
+
+describe("sheet: comparador clínico correto e debug protegido", () => {
+  it("handgrip é comparado pela média das 3 da direita, não por best_kg", () => {
+    expect(SHEET).toMatch(/rightHandMeanKg\(handgrip\.right_kg_attempts\)/);
+    expect(SHEET).toMatch(/"Média direita \(comparador\)"/);
+  });
+
+  it("o payload de debug fica DENTRO do gate de admin (não só na mesma página)", () => {
+    expect(SHEET).toMatch(/useUserRole\(\)/);
+    // Assert estrutural: o JsonBlock de debug tem que estar aninhado no
+    // bloco `{isAdmin && (...)}`. Procurar os dois separadamente passaria
+    // mesmo se estivessem em pontos não relacionados do arquivo.
+    expect(SHEET).toMatch(
+      /\{isAdmin && \(\s*<JsonBlock[\s\S]{0,200}?value=\{sanitizeAssessmentDebugPayload\(data\)\}[\s\S]{0,80}?\)\}/,
+    );
+  });
+
+  it("a ressalva de protocolo aparece só fora do padrão da norma", () => {
+    expect(SHEET).toMatch(/!modality\.matchesReferenceProtocol \? VO2_REFERENCE_NOTE : null/);
+  });
+
+  it("a classificação resolve sexo/idade pelo util (snapshot + cadastro)", () => {
+    expect(SHEET).toMatch(/resolveAssessmentSubject\(\{/);
+    expect(SHEET).toMatch(/snapshotSex: assessment\.sex/);
+    expect(SHEET).toMatch(/snapshotAgeYears: assessment\.age_years/);
+    expect(SHEET).toMatch(/studentBirthDate: studentBirthDate/);
+  });
+
+  it("o gráfico de FC por estágio rotula estágio, não data", () => {
+    expect(SHEET).toMatch(/labelFormatter=\{\(k\) => `Estágio \$\{k\}`\}/);
+    expect(SHEET).toMatch(/stage\.hr_final/);
+  });
+
+  it("o gráfico só aparece quando há alguma FC registrada", () => {
+    expect(SHEET).toMatch(/some\(\(stage\) => stage\.hr_final !== null\)/);
+  });
+});

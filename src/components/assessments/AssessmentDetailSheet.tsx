@@ -8,7 +8,7 @@
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Activity, ClipboardList, FileText } from "lucide-react";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -24,30 +24,45 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ASSESSMENT_TYPE_METADATA } from "@/constants/assessmentProtocols";
 import { useAssessment, type AssessmentWithChild } from "@/hooks/useAssessments";
+import {
+  useHandgripReferenceRanges,
+  useSitToStandReferenceRanges,
+  useVo2ReferenceRanges,
+} from "@/hooks/useReferenceRanges";
+import { useUserRole } from "@/hooks/useUserRole";
 import type { AssessmentType } from "@/types/assessment";
 import { sanitizeAssessmentDebugPayload } from "@/utils/assessmentDebugSanitize";
+import { resolveAssessmentSubject } from "@/utils/assessmentSubject";
+import {
+  assessmentStatusLabel,
+  assessmentStatusVariant,
+} from "@/utils/assessmentStatus";
+import {
+  classifyAssessmentKind,
+  classifyAssessmentValue,
+  extractKeyResult,
+  formatAssessmentValue,
+  rightHandMeanKg,
+  vo2Modality,
+  VO2_REFERENCE_NOTE,
+} from "@/utils/assessmentSummary";
+import { filterRangesBySexAge, filterSitToStandByAge } from "@/utils/classification";
+import type { RangeRowLike } from "@/utils/referenceBands";
 
+import { LazyChart } from "@/components/LazyChart";
+import { TrendChart } from "@/components/metrics";
+
+import { AssessmentHero } from "./AssessmentHero";
 import { DexaPdfButton } from "./DexaPdfButton";
 
 interface AssessmentDetailSheetProps {
   assessmentId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Cadastro do aluno — fallback quando a avaliação não tem snapshot. */
+  studentSex?: "M" | "F" | null;
+  studentBirthDate?: string | null;
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  in_progress: "Em andamento",
-  completed: "Completa",
-  aborted: "Abortada",
-  blocked: "Bloqueada (PAR-Q)",
-};
-
-const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  completed: "default",
-  in_progress: "secondary",
-  aborted: "outline",
-  blocked: "destructive",
-};
 
 const STOP_REASON_LABELS: Record<string, string> = {
   pse_10: "PSE 10",
@@ -87,6 +102,18 @@ const formatValue = (value: unknown, suffix = "") => {
 
 const withUnit = (value: number | null | undefined, unit: string) =>
   value === null || value === undefined ? null : `${formatValue(value)} ${unit}`;
+
+/**
+ * Mesma precisão do hero (até 2 casas, sem zeros à direita inúteis).
+ *
+ * `formatValue` arredonda tudo pra 1 casa, o que faria o MESMO sheet mostrar
+ * "32,09" no herói e "32.1" logo abaixo, no grid — com a classificação
+ * calculada em cima de 32,09. Métrica que tem faixa de referência usa este.
+ */
+const withPreciseUnit = (value: number | null | undefined, unit: string, decimals = 2) =>
+  value === null || value === undefined
+    ? null
+    : `${formatAssessmentValue(value, decimals)} ${unit}`;
 
 const Field = ({ label, value }: { label: string; value: unknown }) => (
   <div className="min-w-0 rounded-md border bg-muted/20 p-3">
@@ -139,8 +166,7 @@ const renderVo2 = (data: AssessmentWithChild) => {
     <div className="space-y-4">
       <KeyValueGrid
         items={[
-          ["VO₂ final", withUnit(vo2.vo2_final, "ml/kg/min")],
-          ["Classificação", vo2.vo2_classification],
+          ["VO₂ final", withPreciseUnit(vo2.vo2_final, "ml/kg/min")],
           ["FC pico", withUnit(vo2.fc_peak, "bpm")],
           ["FCmáx prevista", withUnit(vo2.fc_max_predicted, "bpm")],
           ["Recuperação 1 min", withUnit(vo2.recovery_drop_1min, "bpm")],
@@ -157,6 +183,27 @@ const renderVo2 = (data: AssessmentWithChild) => {
 
       {data.bike_stages && data.bike_stages.length > 0 && (
         <Section title="Estágios da bike">
+          {/*
+            FC por estágio: a curva mostra de relance se a resposta
+            cardíaca acompanhou o incremento de carga. `date` aqui é o
+            número do estágio, não uma data — daí o labelFormatter.
+          */}
+          {data.bike_stages.some((stage) => stage.hr_final !== null) && (
+            <LazyChart height={160}>
+              <TrendChart
+                data={data.bike_stages.map((stage) => ({
+                  date: String(stage.stage_order),
+                  value: stage.hr_final ?? null,
+                }))}
+                kind="line"
+                series={2}
+                height={160}
+                valueFormatter={(v) => `${v} bpm`}
+                labelFormatter={(k) => `Estágio ${k}`}
+              />
+            </LazyChart>
+          )}
+
           <div className="overflow-x-auto rounded-md border">
             <table className="w-full min-w-[720px] text-sm">
               <thead className="bg-muted/40 text-xs text-muted-foreground">
@@ -197,14 +244,19 @@ const renderHandgrip = (data: AssessmentWithChild) => {
   const handgrip = data.handgrip;
   if (!handgrip) return <EmptyChildMessage />;
 
+  // A norma Mathiowetz compara a MÉDIA das 3 tentativas da mão direita —
+  // por isso ela aparece primeiro e rotulada como o comparador. `best_kg`
+  // (maior das duas mãos) continua visível, mas não é o que classifica.
+  const rightMean = rightHandMeanKg(handgrip.right_kg_attempts);
+
   return (
     <KeyValueGrid
       items={[
+        ["Média direita (comparador)", withPreciseUnit(rightMean, "kg")],
         ["Mão dominante", handgrip.dominant_hand === "right" ? "Direita" : handgrip.dominant_hand === "left" ? "Esquerda" : null],
-        ["Direita", withUnit(handgrip.right_kg, "kg")],
-        ["Esquerda", withUnit(handgrip.left_kg, "kg")],
+        ["Melhor direita", withUnit(handgrip.right_kg, "kg")],
+        ["Melhor esquerda", withUnit(handgrip.left_kg, "kg")],
         ["Melhor geral", withUnit(handgrip.best_kg, "kg")],
-        ["Classificação", handgrip.classification],
         ["Tentativas direita", handgrip.right_kg_attempts],
         ["Tentativas esquerda", handgrip.left_kg_attempts],
       ]}
@@ -275,7 +327,6 @@ const renderSitToStand = (data: AssessmentWithChild) => {
           ["Sentar", srt.sit_score],
           ["Levantar", srt.rise_score],
           ["Total", srt.total_score],
-          ["Classificação", srt.classification],
           ["Instabilidades ao sentar", srt.sit_instabilities],
           ["Instabilidades ao levantar", srt.rise_instabilities],
           ["Notas", srt.notes],
@@ -386,12 +437,115 @@ export const AssessmentDetailSheet = ({
   assessmentId,
   open,
   onOpenChange,
+  studentSex,
+  studentBirthDate,
 }: AssessmentDetailSheetProps) => {
   const { data, isLoading, isError, error } = useAssessment(open ? assessmentId : null);
   const assessment = data?.assessment;
   const meta = assessment
     ? ASSESSMENT_TYPE_METADATA[assessment.assessment_type as AssessmentType]
     : null;
+
+  const { isAdmin } = useUserRole();
+  const { data: vo2Ranges, isError: vo2RangesError } = useVo2ReferenceRanges();
+  const { data: handgripRanges, isError: handgripRangesError } = useHandgripReferenceRanges();
+  const { data: sitToStandRanges, isError: sitToStandRangesError } =
+    useSitToStandReferenceRanges();
+
+  const hero = useMemo(() => {
+    if (!data || !assessment) return null;
+    const kind = classifyAssessmentKind(assessment.assessment_type);
+    const keyResult = extractKeyResult(kind, {
+      vo2Final: data.vo2?.vo2_final ?? null,
+      rightKgAttempts: data.handgrip?.right_kg_attempts ?? null,
+      fatPct: data.dexa?.fat_pct ?? null,
+      sitToStandTotal: data.sit_to_stand?.total_score ?? null,
+    });
+    if (keyResult.value === null) return null;
+
+    const subject = resolveAssessmentSubject({
+      snapshotSex: assessment.sex,
+      snapshotAgeYears: assessment.age_years,
+      assessmentDate: assessment.assessment_date,
+      studentSex: studentSex ?? null,
+      studentBirthDate: studentBirthDate ?? null,
+    });
+    const classification = classifyAssessmentValue(kind, keyResult.value, subject, {
+      vo2: vo2Ranges,
+      handgrip: handgripRanges,
+      sitToStand: sitToStandRanges,
+    });
+
+    // Faixas do sujeito, no formato genérico da barra.
+    let ranges: RangeRowLike[] = [];
+    if (kind === "vo2") {
+      ranges = filterRangesBySexAge(vo2Ranges ?? [], subject.sex, subject.ageYears).map((r) => ({
+        classification: r.classification,
+        min: r.vo2_min,
+        max: r.vo2_max,
+      }));
+    } else if (kind === "handgrip") {
+      ranges = filterRangesBySexAge(handgripRanges ?? [], subject.sex, subject.ageYears).map(
+        (r) => ({ classification: r.classification, min: r.kg_min, max: r.kg_max }),
+      );
+    } else if (kind === "sit_to_stand") {
+      ranges = filterSitToStandByAge(sitToStandRanges ?? [], subject.ageYears).map((r) => ({
+        classification: r.classification,
+        min: r.score_min,
+        max: r.score_max,
+      }));
+    }
+
+    // Motivo explícito quando não classifica — sem isso o coach não sabe se
+    // o problema é o teste, o cadastro do aluno ou a cobertura da tabela.
+    const rangesFailed =
+      (kind === "vo2" && vo2RangesError) ||
+      (kind === "handgrip" && handgripRangesError) ||
+      (kind === "sit_to_stand" && sitToStandRangesError);
+
+    let unclassifiedReason: string | null = null;
+    if (!classification && keyResult.hasReference) {
+      if (subject.source === "inconsistent") {
+        unclassifiedReason =
+          "Sem classificação: a data da avaliação é anterior à data de nascimento do aluno. Confira o cadastro.";
+      } else if (rangesFailed) {
+        // Falha de rede/RLS não pode virar "a tabela não cobre esta idade":
+        // são causas diferentes e levam o coach a conclusões diferentes.
+        unclassifiedReason =
+          "Não foi possível carregar a tabela de referência. O resultado está correto; só a classificação ficou indisponível.";
+      } else if (kind !== "sit_to_stand" && !subject.sex) {
+        unclassifiedReason = "Sem classificação: o sexo não está registrado na avaliação nem no cadastro do aluno.";
+      } else if (subject.ageYears === null) {
+        unclassifiedReason = "Sem classificação: a idade não está registrada na avaliação nem no cadastro do aluno.";
+      } else if (ranges.length === 0) {
+        unclassifiedReason = `Sem classificação: a tabela de referência não cobre ${subject.ageYears} anos.`;
+      } else {
+        unclassifiedReason = "Sem classificação para este resultado.";
+      }
+    }
+
+    const modality = vo2Modality(assessment.assessment_type);
+    return {
+      keyResult,
+      classification,
+      ranges,
+      subject,
+      unclassifiedReason,
+      protocolNote:
+        kind === "vo2" && !modality.matchesReferenceProtocol ? VO2_REFERENCE_NOTE : null,
+    };
+  }, [
+    data,
+    assessment,
+    studentSex,
+    studentBirthDate,
+    vo2Ranges,
+    handgripRanges,
+    sitToStandRanges,
+    vo2RangesError,
+    handgripRangesError,
+    sitToStandRangesError,
+  ]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -438,8 +592,8 @@ export const AssessmentDetailSheet = ({
                 <section className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline">{meta?.category ?? "Avaliação"}</Badge>
-                    <Badge variant={STATUS_VARIANTS[assessment.status] ?? "outline"}>
-                      {STATUS_LABELS[assessment.status] ?? assessment.status}
+                    <Badge variant={assessmentStatusVariant(assessment.status)}>
+                      {assessmentStatusLabel(assessment.status)}
                     </Badge>
                     {meta?.application && (
                       <Badge variant="secondary">
@@ -451,7 +605,21 @@ export const AssessmentDetailSheet = ({
                   <KeyValueGrid
                     items={[
                       ["Data", formatDate(assessment.assessment_date)],
-                      ["Idade", withUnit(assessment.age_years, "anos")],
+                      // A classificação usa a idade NA DATA do teste, que pode
+                      // divergir do snapshot (gravado com a idade atual). Sem
+                      // mostrar a usada, não dá pra auditar qual régua valeu.
+                      hero?.subject.source === "inconsistent"
+                        ? [
+                            "Idade (datas incompatíveis)",
+                            withUnit(assessment.age_years, "anos"),
+                          ]
+                        : hero?.subject.ageYears != null &&
+                            hero.subject.ageYears !== assessment.age_years
+                          ? [
+                              "Idade na data do teste",
+                              withUnit(hero.subject.ageYears, "anos"),
+                            ]
+                          : ["Idade", withUnit(assessment.age_years, "anos")],
                       ["Peso", withUnit(assessment.weight_kg, "kg")],
                       ["Altura", withUnit(assessment.height_cm, "cm")],
                       ["Sexo", assessment.sex],
@@ -469,6 +637,16 @@ export const AssessmentDetailSheet = ({
                   )}
                 </section>
 
+                {hero && (
+                  <AssessmentHero
+                    keyResult={hero.keyResult}
+                    classification={hero.classification}
+                    ranges={hero.ranges}
+                    unclassifiedReason={hero.unclassifiedReason}
+                    protocolNote={hero.protocolNote}
+                  />
+                )}
+
                 <Section title="Resultado específico">{renderSpecificResult(data)}</Section>
                 {renderCardiovascular(data)}
                 {renderSubjective(data)}
@@ -481,10 +659,12 @@ export const AssessmentDetailSheet = ({
                   redige esses dois campos preservando o resto do payload
                   pra que o debug continue útil.
                 */}
-                <JsonBlock
-                  title="Debug técnico (payload carregado)"
-                  value={sanitizeAssessmentDebugPayload(data)}
-                />
+                {isAdmin && (
+                  <JsonBlock
+                    title="Debug técnico (payload carregado)"
+                    value={sanitizeAssessmentDebugPayload(data)}
+                  />
+                )}
               </>
             )}
           </div>

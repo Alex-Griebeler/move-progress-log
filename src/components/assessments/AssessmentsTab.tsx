@@ -4,14 +4,17 @@
  * Lista todas as avaliações do aluno, agrupadas/filtráveis por
  * categoria, com botão "Nova avaliação" abrindo o wizard.
  *
- * Detalhe drill-down abre um painel read-only com os dados salvos.
+ * Redesign PR-8b: cada card mostra o RESULTADO (número-chave, classificação
+ * contra as faixas seedadas e variação vs a avaliação anterior do mesmo
+ * tipo), não só o tipo do teste e o status. Detalhe drill-down abre um
+ * painel read-only com os dados salvos.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronRight, Plus, Stethoscope } from "lucide-react";
+import { Plus, Stethoscope } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,16 +22,33 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { ASSESSMENT_TYPE_METADATA } from "@/constants/assessmentProtocols";
-import { useAssessmentsByStudent } from "@/hooks/useAssessments";
-import type { Assessment, AssessmentType } from "@/types/assessment";
+import { useAssessmentsByStudent, type AssessmentListRow } from "@/hooks/useAssessments";
+import {
+  useHandgripReferenceRanges,
+  useSitToStandReferenceRanges,
+  useVo2ReferenceRanges,
+} from "@/hooks/useReferenceRanges";
+import type { AssessmentType } from "@/types/assessment";
+import { computeAssessmentDeltas } from "@/utils/assessmentTrends";
+import { resolveAssessmentSubject } from "@/utils/assessmentSubject";
+import {
+  classifyAssessmentKind,
+  classifyAssessmentValue,
+  extractKeyResult,
+  questionnaireSummary,
+  vo2Modality,
+  type AssessmentKind,
+} from "@/utils/assessmentSummary";
 
 import { CreateAssessmentWizard } from "./CreateAssessmentWizard";
 import { AssessmentDetailSheet } from "./AssessmentDetailSheet";
+import { AssessmentResultCard } from "./AssessmentResultCard";
 
 // ────────────────────────────────────────────────────────────────────────────
 
 interface AssessmentsTabProps {
   studentId: string;
+  studentBirthDate?: string | null;
   studentDefaults?: {
     age_years?: number | null;
     weight_kg?: number | null;
@@ -37,30 +57,42 @@ interface AssessmentsTabProps {
   };
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  in_progress: "Em andamento",
-  completed: "Completa",
-  aborted: "Abortada",
-  blocked: "Bloqueada (PAR-Q)",
-};
-
-const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  completed: "default",
-  in_progress: "secondary",
-  aborted: "outline",
-  blocked: "destructive",
-};
-
 const ALL_CATEGORIES = ["all", "VO₂", "Força", "Composição", "Funcional", "Anamnese"] as const;
 type CategoryFilter = (typeof ALL_CATEGORIES)[number];
 
+/** Extrai os campos-resultado das relações embutidas pra forma normalizada. */
+const detailsOf = (a: AssessmentListRow) => ({
+  vo2Final: a.vo2_assessment_details?.vo2_final ?? null,
+  rightKgAttempts: a.handgrip_results?.right_kg_attempts ?? null,
+  fatPct: a.dexa_results?.fat_pct ?? null,
+  sitToStandTotal: a.sit_to_stand_results?.total_score ?? null,
+  parqBlocked: a.questionnaire_responses?.parq_blocked ?? null,
+  questionnaireCompleted: a.questionnaire_responses?.submitted_at != null,
+});
+
 // ────────────────────────────────────────────────────────────────────────────
 
-export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabProps) => {
+export const AssessmentsTab = ({
+  studentId,
+  studentBirthDate,
+  studentDefaults,
+}: AssessmentsTabProps) => {
   const { data: assessments, isLoading, isError, refetch } = useAssessmentsByStudent(studentId);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const [filter, setFilter] = useState<CategoryFilter>("all");
+
+  // Réguas de classificação (PR-8a). Cache longo: mudam só num reseed.
+  const vo2RangesQuery = useVo2ReferenceRanges();
+  const handgripRangesQuery = useHandgripReferenceRanges();
+  const sitToStandRangesQuery = useSitToStandReferenceRanges();
+  const { data: vo2Ranges } = vo2RangesQuery;
+  const { data: handgripRanges } = handgripRangesQuery;
+  const { data: sitToStandRanges } = sitToStandRangesQuery;
+  // Sem isso, régua que falhou é indistinguível de aluno sem faixa aplicável:
+  // os cards simplesmente ficariam sem classificação, para sempre e em silêncio.
+  const rangesFailed =
+    vo2RangesQuery.isError || handgripRangesQuery.isError || sitToStandRangesQuery.isError;
 
   // E4.3b — Deep-link read-only: `?assessmentId=<uuid>` na URL abre o sheet
   // automaticamente após os assessments do aluno carregarem. Aplicado uma
@@ -69,6 +101,18 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
   // assessment do aluno é simplesmente ignorado (defensivo).
   const [searchParams] = useSearchParams();
   const deepLinkApplied = useRef(false);
+  // Trocar de aluno sem desmontar o componente (navegação entre fichas)
+  // deixaria o sheet do aluno anterior aberto e o guard já consumido — o
+  // deep-link do novo aluno seria ignorado e a avaliação antiga apareceria
+  // reclassificada com o sexo/nascimento do aluno novo.
+  const lastStudentId = useRef(studentId);
+  useEffect(() => {
+    if (lastStudentId.current !== studentId) {
+      lastStudentId.current = studentId;
+      deepLinkApplied.current = false;
+      setSelectedAssessmentId(null);
+    }
+  }, [studentId]);
   useEffect(() => {
     if (deepLinkApplied.current) return;
     if (!assessments) return;
@@ -78,6 +122,92 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
     }
     deepLinkApplied.current = true;
   }, [assessments, searchParams]);
+
+  /**
+   * Enriquece cada avaliação com resultado-chave, classificação e Δ.
+   *
+   * O Δ é calculado POR TIPO sobre a lista inteira — nunca sobre a lista
+   * filtrada, senão trocar de filtro mudaria a base de comparação e o mesmo
+   * teste mostraria variações diferentes conforme a aba aberta.
+   */
+  const enriched = useMemo(() => {
+    const rows = assessments ?? [];
+    const byId = new Map<
+      string,
+      {
+        kind: AssessmentKind;
+        keyResult: ReturnType<typeof extractKeyResult>;
+        classification: string | null;
+        delta: number | null;
+        comparedTo: string | null;
+        hasProtocolCaveat: boolean;
+      }
+    >();
+
+    // 1ª passada: resultado-chave + classificação, por avaliação.
+    // Bucket do Δ é o assessment_type EXATO, não o kind: os 5 protocolos de
+    // VO₂ colapsam num kind só, e comparar uma bike submáxima com uma esteira
+    // máxima seria comparar medidas de protocolos diferentes.
+    const points = new Map<string, { id: string; date: string; value: number | null; createdAt?: string | null }[]>();
+    for (const a of rows) {
+      const kind = classifyAssessmentKind(a.assessment_type);
+      const keyResult = extractKeyResult(kind, detailsOf(a));
+      const subject = resolveAssessmentSubject({
+        snapshotSex: a.sex,
+        snapshotAgeYears: a.age_years,
+        assessmentDate: a.assessment_date,
+        studentSex: studentDefaults?.sex ?? null,
+        studentBirthDate: studentBirthDate ?? null,
+      });
+      const classification = classifyAssessmentValue(kind, keyResult.value, subject, {
+        vo2: vo2Ranges,
+        handgrip: handgripRanges,
+        sitToStand: sitToStandRanges,
+      });
+      const modality = vo2Modality(a.assessment_type);
+
+      byId.set(a.id, {
+        kind,
+        keyResult,
+        classification,
+        delta: null,
+        comparedTo: null,
+        hasProtocolCaveat: kind === "vo2" && !modality.matchesReferenceProtocol,
+      });
+
+      const deltaBucket = a.assessment_type ?? kind;
+      if (!points.has(deltaBucket)) points.set(deltaBucket, []);
+      points.get(deltaBucket)!.push({
+        id: a.id,
+        date: a.assessment_date,
+        value: keyResult.value,
+        createdAt: a.created_at,
+        status: a.status,
+      });
+    }
+
+    // 2ª passada: Δ dentro de cada tipo.
+    for (const list of points.values()) {
+      for (const d of computeAssessmentDeltas(list)) {
+        const entry = byId.get(d.id);
+        if (entry) {
+          entry.delta = d.delta;
+          entry.comparedTo = d.comparedTo;
+        }
+      }
+    }
+
+    return byId;
+  }, [assessments, studentDefaults?.sex, studentBirthDate, vo2Ranges, handgripRanges, sitToStandRanges]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const a of assessments ?? []) {
+      const category = ASSESSMENT_TYPE_METADATA[a.assessment_type as AssessmentType]?.category;
+      if (category) counts.set(category, (counts.get(category) ?? 0) + 1);
+    }
+    return counts;
+  }, [assessments]);
 
   const filtered = useMemo(() => {
     if (!assessments) return [];
@@ -89,7 +219,7 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
   }, [assessments, filter]);
 
   const groupedByDate = useMemo(() => {
-    const groups = new Map<string, Assessment[]>();
+    const groups = new Map<string, AssessmentListRow[]>();
     for (const a of filtered) {
       const key = a.assessment_date;
       if (!groups.has(key)) groups.set(key, []);
@@ -182,6 +312,7 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
             size="sm"
             variant={filter === cat ? "default" : "outline"}
             onClick={() => setFilter(cat)}
+            aria-pressed={filter === cat}
             className="h-8 text-xs"
           >
             {cat === "all" ? "Todas" : cat}
@@ -189,17 +320,19 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
               variant={filter === cat ? "secondary" : "outline"}
               className="ml-1.5 text-[10px]"
             >
-              {cat === "all"
-                ? assessments.length
-                : assessments.filter(
-                    (a) =>
-                      ASSESSMENT_TYPE_METADATA[a.assessment_type as AssessmentType]
-                        ?.category === cat,
-                  ).length}
+              {cat === "all" ? assessments.length : (categoryCounts.get(cat) ?? 0)}
             </Badge>
           </Button>
         ))}
       </div>
+
+      {rangesFailed && (
+        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+          Não foi possível carregar parte das tabelas de referência. Os
+          resultados abaixo estão corretos; algumas classificações podem
+          ficar indisponíveis.
+        </p>
+      )}
 
       {/* Lista agrupada por data */}
       {groupedByDate.length === 0 ? (
@@ -217,38 +350,28 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
                 {items.map((a) => {
                   const meta =
                     ASSESSMENT_TYPE_METADATA[a.assessment_type as AssessmentType];
+                  const e = enriched.get(a.id);
+                  if (!e) return null;
                   return (
-                    <button
+                    <AssessmentResultCard
                       key={a.id}
-                      type="button"
-                      className="block w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      typeLabel={meta?.label ?? a.assessment_type}
+                      category={meta?.category ?? "?"}
+                      kind={e.kind}
+                      status={a.status}
+                      notes={a.notes}
+                      keyResult={e.keyResult}
+                      classification={e.classification}
+                      delta={e.delta}
+                      comparedTo={e.comparedTo}
+                      hasProtocolCaveat={e.hasProtocolCaveat}
+                      statusSummary={
+                        e.kind === "questionnaire"
+                          ? questionnaireSummary(detailsOf(a), a.status)
+                          : null
+                      }
                       onClick={() => setSelectedAssessmentId(a.id)}
-                      aria-label={`Abrir detalhes de ${meta?.label ?? a.assessment_type}`}
-                    >
-                      <Card className="flex cursor-pointer items-center justify-between gap-3 p-3 transition-colors hover:bg-muted/30">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm truncate">
-                              {meta?.label ?? a.assessment_type}
-                            </span>
-                            <Badge variant="outline" className="text-[10px]">
-                              {meta?.category ?? "?"}
-                            </Badge>
-                          </div>
-                          {a.notes && (
-                            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-                              {a.notes}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          <Badge variant={STATUS_VARIANTS[a.status] ?? "outline"}>
-                            {STATUS_LABELS[a.status] ?? a.status}
-                          </Badge>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                      </Card>
-                    </button>
+                    />
                   );
                 })}
               </div>
@@ -265,6 +388,8 @@ export const AssessmentsTab = ({ studentId, studentDefaults }: AssessmentsTabPro
       />
       <AssessmentDetailSheet
         assessmentId={selectedAssessmentId}
+        studentSex={studentDefaults?.sex ?? null}
+        studentBirthDate={studentBirthDate ?? null}
         open={selectedAssessmentId !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedAssessmentId(null);
