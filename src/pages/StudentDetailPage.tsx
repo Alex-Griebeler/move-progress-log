@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, AlertCircle, User, Filter, Pencil } from "lucide-react";
 import { PrescriptionsTabContent } from "@/components/student-detail/PrescriptionsTabContent";
 import { OuraTabContent } from "@/components/student-detail/OuraTabContent";
+import { WhoopTabContent } from "@/components/student-detail/WhoopTabContent";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -18,8 +19,6 @@ import WorkoutCard from "@/components/WorkoutCard";
 import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
 import TrainingZonesCard from "@/components/TrainingZonesCard";
 import ProtocolRecommendationsCard from "@/components/ProtocolRecommendationsCard";
-import { WhoopActivityCard } from "@/components/WhoopActivityCard";
-import { SendWhoopConnectDialog } from "@/components/SendWhoopConnectDialog";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import PersonalizedTrainingDashboard from "@/components/PersonalizedTrainingDashboard";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
@@ -30,7 +29,6 @@ import { StudentOverviewDashboard } from "@/components/StudentOverviewDashboard"
 import { AssessmentsTab } from "@/components/assessments/AssessmentsTab";
 import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useWhoopMetrics } from "@/hooks/useWhoopMetrics";
-import { useWhoopConnection, useDisconnectWhoop } from "@/hooks/useWhoopConnection";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState, useMemo, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -87,9 +85,9 @@ const StudentDetailPage = () => {
   const needsAssignments = activeTab === "overview" || activeTab === "prescriptions";
   // A aba Oura busca os próprios dados (janela de calendário no OuraTabContent).
   const needsOuraHistory = activeTab === "training";
-  // training também precisa do Whoop: o hero de recuperação é agnóstico de
-  // wearable (RecoverySnapshot) — aluno só-Whoop deixa de ver a aba vazia.
-  const needsWhoop = activeTab === "whoop" || activeTab === "training";
+  // O hero do training é agnóstico de wearable (RecoverySnapshot); a aba
+  // Whoop busca a própria janela no WhoopTabContent.
+  const needsWhoop = activeTab === "training";
   const needsLatestOura =
     activeTab === "training" || activeTab === "overview" || activeTab === "oura";
 
@@ -107,9 +105,6 @@ const StudentDetailPage = () => {
   const { data: latestOuraMetrics, isLoading: loadingLatestOura } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
   const { data: ouraConnection } = useOuraConnection(studentId);
   const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", 7);
-  const { data: whoopConnection } = useWhoopConnection(studentId);
-  const disconnectWhoop = useDisconnectWhoop();
-  const [whoopDialogOpen, setWhoopDialogOpen] = useState(false);
   const { isAdmin } = useIsAdmin();
   const [selectedExerciseKey, setSelectedExerciseKey] = useState<string | null>(null);
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
@@ -682,76 +677,10 @@ const StudentDetailPage = () => {
         </TabsContent>
 
         <TabsContent value="whoop" className="space-y-6 animate-fade-in">
-          <div>
-            <h3 className="text-2xl font-bold">Whoop</h3>
-            <p className="text-muted-foreground">Recuperação, esforço (strain) e sono</p>
-          </div>
-
-          {whoopConnection ? (
-            <>
-              <Card>
-                <CardContent className="flex items-center justify-between py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Activity className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Whoop conectado</p>
-                      <p className="text-sm text-muted-foreground">
-                        {whoopConnection.last_sync_at
-                          ? `Última sincronização: ${new Date(whoopConnection.last_sync_at).toLocaleDateString("pt-BR")}`
-                          : "Aguardando primeira sincronização"}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => disconnectWhoop.mutate(studentId)}
-                    disabled={disconnectWhoop.isPending}
-                  >
-                    Desconectar
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {whoopMetrics && whoopMetrics.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {whoopMetrics.map((m) => (
-                    <WhoopActivityCard key={m.id} metrics={m} />
-                  ))}
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <Activity className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">Ainda não há dados do Whoop disponíveis</p>
-                    <p className="text-sm text-muted-foreground mt-2">Os dados aparecem após a primeira sincronização.</p>
-                  </CardContent>
-                </Card>
-              )}
-            </>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <Activity className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="font-medium">Whoop não conectado</p>
-                <p className="text-sm text-muted-foreground mt-2 mb-4">
-                  Gere um link para o aluno autorizar o compartilhamento dos dados do Whoop.
-                </p>
-                <Button onClick={() => setWhoopDialogOpen(true)}>
-                  <Activity className="h-4 w-4 mr-2" />
-                  Conectar Whoop
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          <SendWhoopConnectDialog
-            open={whoopDialogOpen}
-            onOpenChange={setWhoopDialogOpen}
-            studentId={id!}
+          <WhoopTabContent
+            studentId={studentId}
             studentName={student?.name ?? "Aluno"}
+            isAdmin={isAdmin}
           />
         </TabsContent>
       </Tabs>

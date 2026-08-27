@@ -57,3 +57,45 @@ export const useDisconnectWhoop = () => {
     },
   });
 };
+
+
+/**
+ * Sync manual do Whoop (PR-5b) — espelho do padrão useSyncOura: mutation
+ * separada invocando a edge `whoop-sync` (auth: admin), com timeout e
+ * invalidação por prefixo. A edge decide a janela de datas.
+ */
+export const useSyncWhoop = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (studentId: string) => {
+      if (!navigator.onLine) {
+        throw new Error("Você está offline. Conecte-se à internet para sincronizar.");
+      }
+      const timeoutMs = 60_000;
+      const invocation = supabase.functions.invoke("whoop-sync", {
+        body: { student_id: studentId },
+      });
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Tempo esgotado ao sincronizar o Whoop.")), timeoutMs),
+      );
+      const { data, error } = await Promise.race([invocation, timeout]);
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async (_data, studentId) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["whoop-metrics", studentId] }),
+        queryClient.invalidateQueries({ queryKey: ["whoop-connection", studentId] }),
+      ]);
+      notify.success("Whoop sincronizado", {
+        description: "Métricas atualizadas a partir da API do Whoop.",
+      });
+    },
+    onError: (error) => {
+      notify.error("Erro ao sincronizar o Whoop", {
+        description: buildErrorDescription(error, "Tente novamente em instantes."),
+      });
+    },
+  });
+};

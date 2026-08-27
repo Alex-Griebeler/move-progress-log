@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { spCutoff, spToday } from "@/hooks/useOuraMetrics";
 
 export interface WhoopMetrics {
   id: string;
@@ -31,21 +32,45 @@ const WHOOP_METRICS_SELECT =
   "day_strain, kilojoules, sleep_performance, sleep_efficiency, respiratory_rate, total_sleep_duration, " +
   "deep_sleep_duration, rem_sleep_duration, light_sleep_duration, awake_time, disturbance_count, score_state, created_at";
 
-export const useWhoopMetrics = (studentId: string, limit?: number) => {
+export interface WhoopMetricsWindow {
+  /** Janela de CALENDÁRIO: hoje (America/Sao_Paulo) + (days−1) dias anteriores. */
+  days: 7 | 30 | 90;
+}
+
+// 2ª forma (redesign PR-5b, mesmo contrato do Oura): {days} = janela de
+// calendário via .gte/.lte; key distinta inclui o dia corrente (SP) pra
+// virada de meia-noite. Leitura pura (invariante RLS de wearables).
+export const useWhoopMetrics = (
+  studentId: string,
+  limitOrWindow?: number | WhoopMetricsWindow,
+) => {
+  const isWindow = typeof limitOrWindow === "object" && limitOrWindow !== null;
+  const limit = isWindow ? undefined : limitOrWindow;
+  const days = isWindow ? limitOrWindow.days : undefined;
+
   return useQuery({
-    queryKey: ["whoop-metrics", studentId, limit],
+    queryKey: days
+      ? ["whoop-metrics", studentId, "days", days, spToday()]
+      : ["whoop-metrics", studentId, limit],
     enabled: !!studentId,
     staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("whoop_metrics")
         .select(WHOOP_METRICS_SELECT)
         .eq("student_id", studentId)
-        .order("date", { ascending: false })
-        .limit(limit ?? 365);
+        .order("date", { ascending: false });
+
+      if (days) {
+        query = query.gte("date", spCutoff(days)).lte("date", spToday()).limit(days);
+      } else {
+        query = query.limit(limit ?? 365);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return ((data || []) as unknown) as WhoopMetrics[];
