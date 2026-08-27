@@ -13,7 +13,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatRelativeDay } from "@/utils/relativeDate";
-import type { AssessmentKind, KeyResult } from "@/utils/assessmentSummary";
+import {
+  formatAssessmentValue,
+  type AssessmentKind,
+  type KeyResult,
+} from "@/utils/assessmentSummary";
 import { toneForClassification } from "@/utils/referenceBands";
 import {
   assessmentStatusLabel,
@@ -105,7 +109,7 @@ export const AssessmentResultCard = ({
           {hasValue ? (
             <div className="text-right">
               <div className="text-lg font-semibold leading-none tabular-nums">
-                {value!.toFixed(decimals)}
+                {formatAssessmentValue(value!, decimals)}
                 <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">
                   {unit}
                 </span>
@@ -134,7 +138,7 @@ export const AssessmentResultCard = ({
                     title={comparedTo ? `vs ${formatRelativeDay(comparedTo)}` : undefined}
                   >
                     {delta > 0 ? "+" : ""}
-                    {delta.toFixed(decimals)}
+                    {formatAssessmentValue(delta, decimals)}
                   </span>
                 )}
               </div>

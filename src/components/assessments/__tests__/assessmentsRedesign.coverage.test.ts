@@ -74,6 +74,44 @@ describe("lista traz o resultado, não só o tipo do teste", () => {
   it("continua sem mutation na aba (regra travada desde a E4.3b)", () => {
     expect(TAB).not.toContain("useMutation");
   });
+
+  it("o Δ compara protocolos IGUAIS: o bucket é o assessment_type exato", () => {
+    // Os 5 tipos de VO₂ colapsam num kind só — agrupar por kind compararia
+    // uma bike submáxima com uma esteira máxima.
+    expect(TAB).toMatch(/const deltaBucket = a\.assessment_type \?\? kind/);
+    expect(TAB).toMatch(/points\.get\(deltaBucket\)/);
+    expect(TAB).not.toMatch(/points\.get\(kind\)!/);
+  });
+});
+
+describe("precisão exibida não contradiz a faixa classificada", () => {
+  it("VO₂ e preensão exibem até 2 casas (fronteiras têm passo 0.01)", () => {
+    const SUMMARY = readFileSync(join(__dirname, "../../../utils/assessmentSummary.ts"), "utf8");
+    const vo2Case = SUMMARY.slice(SUMMARY.indexOf('case "vo2":'), SUMMARY.indexOf('case "handgrip":'));
+    expect(vo2Case).toMatch(/decimals: 2/);
+    const hgCase = SUMMARY.slice(SUMMARY.indexOf('case "handgrip":'), SUMMARY.indexOf('case "dexa":'));
+    expect(hgCase).toMatch(/decimals: 2/);
+  });
+
+  it("card e hero formatam pelo mesmo helper (sem toFixed solto)", () => {
+    expect(CARD).toMatch(/formatAssessmentValue\(value!, decimals\)/);
+    expect(HERO).toMatch(/formatAssessmentValue\(value!, decimals\)/);
+    expect(CARD).not.toMatch(/value!\.toFixed\(/);
+    expect(HERO).not.toMatch(/value!\.toFixed\(/);
+  });
+});
+
+describe("erro de régua ≠ faixa etária não coberta", () => {
+  it("o sheet trata isError dos hooks de referência", () => {
+    expect(SHEET).toMatch(/isError: vo2RangesError/);
+    expect(SHEET).toMatch(/const rangesFailed =/);
+    expect(SHEET).toMatch(/Não foi possível carregar a tabela de referência/);
+  });
+
+  it("classificação armazenada saiu do grid (o hero mostra a canônica)", () => {
+    expect(SHEET).not.toMatch(/\["Classificação", vo2\.vo2_classification\]/);
+    expect(SHEET).not.toMatch(/\["Classificação", srt\.classification\]/);
+  });
 });
 
 describe("card: direção do 'melhor' por métrica", () => {
@@ -113,11 +151,14 @@ describe("sheet: comparador clínico correto e debug protegido", () => {
     expect(SHEET).toMatch(/"Média direita \(comparador\)"/);
   });
 
-  it("o payload de debug fica atrás do gate de admin", () => {
-    expect(SHEET).toMatch(/\{isAdmin && \(/);
+  it("o payload de debug fica DENTRO do gate de admin (não só na mesma página)", () => {
     expect(SHEET).toMatch(/useUserRole\(\)/);
-    // e continua sanitizado (regra do PR-A)
-    expect(SHEET).toMatch(/value=\{sanitizeAssessmentDebugPayload\(data\)\}/);
+    // Assert estrutural: o JsonBlock de debug tem que estar aninhado no
+    // bloco `{isAdmin && (...)}`. Procurar os dois separadamente passaria
+    // mesmo se estivessem em pontos não relacionados do arquivo.
+    expect(SHEET).toMatch(
+      /\{isAdmin && \(\s*<JsonBlock[\s\S]{0,200}?value=\{sanitizeAssessmentDebugPayload\(data\)\}[\s\S]{0,80}?\)\}/,
+    );
   });
 
   it("a ressalva de protocolo aparece só fora do padrão da norma", () => {

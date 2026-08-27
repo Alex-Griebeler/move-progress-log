@@ -126,7 +126,10 @@ export const AssessmentsTab = ({
     >();
 
     // 1ª passada: resultado-chave + classificação, por avaliação.
-    const points = new Map<AssessmentKind, { id: string; date: string; value: number | null; createdAt?: string | null }[]>();
+    // Bucket do Δ é o assessment_type EXATO, não o kind: os 5 protocolos de
+    // VO₂ colapsam num kind só, e comparar uma bike submáxima com uma esteira
+    // máxima seria comparar medidas de protocolos diferentes.
+    const points = new Map<string, { id: string; date: string; value: number | null; createdAt?: string | null }[]>();
     for (const a of rows) {
       const kind = classifyAssessmentKind(a.assessment_type);
       const keyResult = extractKeyResult(kind, detailsOf(a));
@@ -153,8 +156,9 @@ export const AssessmentsTab = ({
         hasProtocolCaveat: kind === "vo2" && !modality.matchesReferenceProtocol,
       });
 
-      if (!points.has(kind)) points.set(kind, []);
-      points.get(kind)!.push({
+      const deltaBucket = a.assessment_type ?? kind;
+      if (!points.has(deltaBucket)) points.set(deltaBucket, []);
+      points.get(deltaBucket)!.push({
         id: a.id,
         date: a.assessment_date,
         value: keyResult.value,

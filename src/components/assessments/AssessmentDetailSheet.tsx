@@ -154,7 +154,6 @@ const renderVo2 = (data: AssessmentWithChild) => {
       <KeyValueGrid
         items={[
           ["VO₂ final", withUnit(vo2.vo2_final, "ml/kg/min")],
-          ["Classificação", vo2.vo2_classification],
           ["FC pico", withUnit(vo2.fc_peak, "bpm")],
           ["FCmáx prevista", withUnit(vo2.fc_max_predicted, "bpm")],
           ["Recuperação 1 min", withUnit(vo2.recovery_drop_1min, "bpm")],
@@ -315,7 +314,6 @@ const renderSitToStand = (data: AssessmentWithChild) => {
           ["Sentar", srt.sit_score],
           ["Levantar", srt.rise_score],
           ["Total", srt.total_score],
-          ["Classificação", srt.classification],
           ["Instabilidades ao sentar", srt.sit_instabilities],
           ["Instabilidades ao levantar", srt.rise_instabilities],
           ["Notas", srt.notes],
@@ -436,9 +434,10 @@ export const AssessmentDetailSheet = ({
     : null;
 
   const { isAdmin } = useUserRole();
-  const { data: vo2Ranges } = useVo2ReferenceRanges();
-  const { data: handgripRanges } = useHandgripReferenceRanges();
-  const { data: sitToStandRanges } = useSitToStandReferenceRanges();
+  const { data: vo2Ranges, isError: vo2RangesError } = useVo2ReferenceRanges();
+  const { data: handgripRanges, isError: handgripRangesError } = useHandgripReferenceRanges();
+  const { data: sitToStandRanges, isError: sitToStandRangesError } =
+    useSitToStandReferenceRanges();
 
   const hero = useMemo(() => {
     if (!data || !assessment) return null;
@@ -486,9 +485,19 @@ export const AssessmentDetailSheet = ({
 
     // Motivo explícito quando não classifica — sem isso o coach não sabe se
     // o problema é o teste, o cadastro do aluno ou a cobertura da tabela.
+    const rangesFailed =
+      (kind === "vo2" && vo2RangesError) ||
+      (kind === "handgrip" && handgripRangesError) ||
+      (kind === "sit_to_stand" && sitToStandRangesError);
+
     let unclassifiedReason: string | null = null;
     if (!classification && keyResult.hasReference) {
-      if (kind !== "sit_to_stand" && !subject.sex) {
+      if (rangesFailed) {
+        // Falha de rede/RLS não pode virar "a tabela não cobre esta idade":
+        // são causas diferentes e levam o coach a conclusões diferentes.
+        unclassifiedReason =
+          "Não foi possível carregar a tabela de referência. O resultado está correto; só a classificação ficou indisponível.";
+      } else if (kind !== "sit_to_stand" && !subject.sex) {
         unclassifiedReason = "Sem classificação: o sexo não está registrado na avaliação nem no cadastro do aluno.";
       } else if (subject.ageYears === null) {
         unclassifiedReason = "Sem classificação: a idade não está registrada na avaliação nem no cadastro do aluno.";
@@ -508,7 +517,18 @@ export const AssessmentDetailSheet = ({
       protocolNote:
         kind === "vo2" && !modality.matchesReferenceProtocol ? VO2_REFERENCE_NOTE : null,
     };
-  }, [data, assessment, studentSex, studentBirthDate, vo2Ranges, handgripRanges, sitToStandRanges]);
+  }, [
+    data,
+    assessment,
+    studentSex,
+    studentBirthDate,
+    vo2Ranges,
+    handgripRanges,
+    sitToStandRanges,
+    vo2RangesError,
+    handgripRangesError,
+    sitToStandRangesError,
+  ]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

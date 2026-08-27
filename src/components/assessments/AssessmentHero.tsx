@@ -14,7 +14,7 @@ import { RefRangeBar } from "@/components/metrics";
 import { cn } from "@/lib/utils";
 import { buildReferenceBands, toneForClassification } from "@/utils/referenceBands";
 import type { RangeRowLike } from "@/utils/referenceBands";
-import type { KeyResult } from "@/utils/assessmentSummary";
+import { formatAssessmentValue, type KeyResult } from "@/utils/assessmentSummary";
 
 const TONE_TEXT: Record<string, string> = {
   success: "text-success",
@@ -57,7 +57,7 @@ export const AssessmentHero = ({
             {metricLabel}
           </p>
           <p className="mt-1 text-3xl font-semibold leading-none tabular-nums">
-            {value!.toFixed(decimals)}
+            {formatAssessmentValue(value!, decimals)}
             <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span>
           </p>
         </div>

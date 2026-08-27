@@ -109,11 +109,16 @@ export const KIND_LABEL: Record<AssessmentKind, string> = {
  * mão direita pela média de 3, e o máximo inflaria a classificação.
  * Sem tentativas registradas → null (mostra o número sem rótulo de classe).
  */
+export const HANDGRIP_REQUIRED_ATTEMPTS = 3;
+
 export const rightHandMeanKg = (attempts?: (number | null)[] | null): number | null => {
   const valid = (attempts ?? []).filter(
     (a): a is number => typeof a === "number" && Number.isFinite(a) && a >= 0,
   );
-  if (valid.length === 0) return null;
+  // O protocolo normativo é a média de TRÊS tentativas. Com menos que isso o
+  // dado está incompleto: a média de duas não é o comparador de Mathiowetz,
+  // e classificar por ela seria inventar rigor que a medida não tem.
+  if (valid.length < HANDGRIP_REQUIRED_ATTEMPTS) return null;
   const mean = valid.reduce((sum, a) => sum + a, 0) / valid.length;
   return Math.round(mean * 100) / 100;
 };
@@ -134,6 +139,13 @@ export interface KeyResult {
   unit: string;
   /** Nome curto da métrica ("VO₂ máx"), não do teste. */
   metricLabel: string;
+  /**
+   * Precisão MÁXIMA de exibição (zeros à direita são omitidos).
+   *
+   * VO₂ e preensão usam 2 casas porque as fronteiras das faixas têm passo
+   * 0.01: exibir 32.09 como "32.1" mostraria, ao lado do rótulo "Muito
+   * Fraco", exatamente o número onde começa "Fraco".
+   */
   decimals: number;
   /** Se o tipo tem faixas de referência (define se cabe RefRangeBar). */
   hasReference: boolean;
@@ -148,14 +160,14 @@ export const extractKeyResult = (
   const base = { hasReference: KINDS_WITH_REFERENCE.has(kind), higherIsBetter: true };
   switch (kind) {
     case "vo2":
-      return { ...base, value: details.vo2Final ?? null, unit: "ml/kg/min", metricLabel: "VO₂ máx", decimals: 1 };
+      return { ...base, value: details.vo2Final ?? null, unit: "ml/kg/min", metricLabel: "VO₂ máx", decimals: 2 };
     case "handgrip":
       return {
         ...base,
         value: rightHandMeanKg(details.rightKgAttempts),
         unit: "kg",
         metricLabel: "Preensão (média, direita)",
-        decimals: 1,
+        decimals: 2,
       };
     case "dexa":
       return {
@@ -213,6 +225,16 @@ export const classifyAssessmentValue = (
       return null;
   }
 };
+
+/**
+ * Formata um valor com até `decimals` casas, sem zeros à direita inúteis:
+ * 42.4 → "42,4", 32.09 → "32,09". Assim a precisão aparece só quando existe,
+ * e o número mostrado nunca contradiz a faixa em que ele foi classificado.
+ */
+export const formatAssessmentValue = (value: number, decimals: number): string =>
+  Number(value.toFixed(decimals)).toLocaleString("pt-BR", {
+    maximumFractionDigits: decimals,
+  });
 
 /** Texto de estado pro questionário, que não tem número comparável. */
 export const questionnaireSummary = (

@@ -43,8 +43,9 @@ describe("rightHandMeanKg (comparador ratificado: média das 3 da direita)", () 
     expect(rightHandMeanKg([30, 31, 33])).toBe(31.33);
   });
 
-  it("ignora nulos e usa as tentativas presentes", () => {
-    expect(rightHandMeanKg([30, null, 34])).toBe(32);
+  it("menos de 3 tentativas válidas → null (a média de 2 não é o comparador)", () => {
+    expect(rightHandMeanKg([30, null, 34])).toBeNull();
+    expect(rightHandMeanKg([30, 34])).toBeNull();
   });
 
   it("sem tentativas → null (não cai no máximo, que inflaria a classe)", () => {
@@ -53,13 +54,18 @@ describe("rightHandMeanKg (comparador ratificado: média das 3 da direita)", () 
     expect(rightHandMeanKg([null, null, null])).toBeNull();
   });
 
-  it("descarta valores não-finitos e negativos", () => {
-    expect(rightHandMeanKg([Number.NaN, 30, 30])).toBe(30);
-    expect(rightHandMeanKg([-5, 30, 30])).toBe(30);
+  it("descarta valores não-finitos e negativos antes de exigir as 3", () => {
+    expect(rightHandMeanKg([Number.NaN, 30, 30])).toBeNull(); // sobraram 2
+    expect(rightHandMeanKg([Number.NaN, 30, 30, 30])).toBe(30); // sobraram 3
+    expect(rightHandMeanKg([-5, 30, 30, 30])).toBe(30);
   });
 
   it("tentativa zero real conta na média (bodyweight/limitação)", () => {
     expect(rightHandMeanKg([0, 30, 30])).toBe(20);
+  });
+
+  it("exatamente 3 é o caso normal do protocolo", () => {
+    expect(rightHandMeanKg([30, 31, 33])).toBe(31.33);
   });
 });
 
