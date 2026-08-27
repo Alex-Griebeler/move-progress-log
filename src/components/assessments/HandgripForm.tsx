@@ -174,9 +174,9 @@ export const HandgripForm = ({
         <DialogHeader>
           <DialogTitle>Preensão palmar (Mathiowetz 1985)</DialogTitle>
           <DialogDescription>
-            3 tentativas com cada mão. O sistema usa o maior valor de cada
-            lado como força máxima da mão; o melhor entre as duas mãos
-            é usado pra classificação Mathiowetz.
+            3 tentativas com cada mão. O sistema guarda o maior valor de cada
+            lado como força máxima da mão; a classificação Mathiowetz usa a
+            média das 3 tentativas da mão direita.
           </DialogDescription>
         </DialogHeader>
 

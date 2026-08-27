@@ -221,16 +221,19 @@ describe("SQL commitado espelha o fixture (anti-dessincronização)", () => {
     );
     for (const r of VO2_SEED) {
       expect(sql).toContain(
-        `('${r.id}', '${r.sex}', ${r.age_min}, ${r.age_max}, '${r.classification}', ${r.vo2_min.toFixed(2)}, ${r.vo2_max.toFixed(2)},`,
+        `('${r.id}', '${r.sex}', ${r.age_min}, ${r.age_max}, '${r.classification}', ${r.vo2_min.toFixed(2)}, ${r.vo2_max.toFixed(2)}, '${r.source}')`,
       );
     }
     for (const r of HANDGRIP_SEED) {
       expect(sql).toContain(
-        `('${r.id}', '${r.sex}', ${r.age_min}, ${r.age_max}, '${r.classification}', ${r.kg_min.toFixed(2)}, ${r.kg_max.toFixed(2)},`,
+        `('${r.id}', '${r.sex}', ${r.age_min}, ${r.age_max}, '${r.classification}', ${r.kg_min.toFixed(2)}, ${r.kg_max.toFixed(2)}, '${r.source}')`,
       );
     }
-    // exatamente 2 inserts, nas duas tabelas certas
+    // exatamente 2 inserts, nas duas tabelas certas, e NENHUMA tupla extra:
+    // as tuplas dos inserts usam indentação de 2 espaços (as do pre/poscheck
+    // usam 4), então a contagem tem que bater exatamente com o fixture
     expect(sql.match(/insert into public\.vo2_reference_ranges/g)).toHaveLength(1);
     expect(sql.match(/insert into public\.handgrip_reference_ranges/g)).toHaveLength(1);
+    expect(sql.match(/^  \('/gm)).toHaveLength(VO2_SEED.length + HANDGRIP_SEED.length);
   });
 });

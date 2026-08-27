@@ -76,9 +76,12 @@ export interface SitToStandReferenceRange {
  * sexo/idade do aluno. Retorna `null` se nenhum range bater (faixa etária
  * fora das seedadas).
  *
- * O valor é arredondado internamente a 2 casas (precisão do banco): as
- * bandas são contíguas com passo 0.01, então um valor computado em float
- * (ex.: 32.095, antes de ser persistido em numeric(5,2)) cairia no vão.
+ * O valor é arredondado internamente a 2 casas pra nenhum float computado
+ * cair no vão de 0.01 entre bandas. NOTA: Math.round sobre float binário
+ * pode divergir do arredondamento decimal do numeric(5,2) em meio-centavo
+ * exato (ex.: 34.495 → 34.49 aqui, 34.50 no banco) — irrelevante na prática
+ * porque os formulários usam passo 0.1, mas não trate isto como réplica
+ * exata do banco.
  *
  * @param vo2 VO₂ em ml/kg/min.
  * @param ranges Faixas já filtradas por sex + age (subset relevante).

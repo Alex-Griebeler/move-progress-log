@@ -244,20 +244,22 @@ begin
   select count(*) into vo2_ok
   from public.vo2_reference_ranges t
   join (values
-${vo2Rows.map((r) => `    ('${r.id}'::uuid, '${r.sex}', ${r.age_min}, ${r.age_max}, '${esc(r.classification)}', ${r.vo2_min.toFixed(2)}::numeric, ${r.vo2_max.toFixed(2)}::numeric)`).join(",\n")}
-  ) as seed(id, sex, age_min, age_max, classification, vo2_min, vo2_max)
+${vo2Rows.map((r) => `    ('${r.id}'::uuid, '${r.sex}', ${r.age_min}, ${r.age_max}, '${esc(r.classification)}', ${r.vo2_min.toFixed(2)}::numeric, ${r.vo2_max.toFixed(2)}::numeric, '${esc(r.source)}')`).join(",\n")}
+  ) as seed(id, sex, age_min, age_max, classification, vo2_min, vo2_max, source)
     on t.id = seed.id and t.sex = seed.sex and t.age_min = seed.age_min
    and t.age_max = seed.age_max and t.classification = seed.classification
-   and t.vo2_min = seed.vo2_min and t.vo2_max = seed.vo2_max;
+   and t.vo2_min = seed.vo2_min and t.vo2_max = seed.vo2_max
+   and t.source = seed.source;
 
   select count(*) into hg_ok
   from public.handgrip_reference_ranges t
   join (values
-${hgRows.map((r) => `    ('${r.id}'::uuid, '${r.sex}', ${r.age_min}, ${r.age_max}, '${esc(r.classification)}', ${r.kg_min.toFixed(2)}::numeric, ${r.kg_max.toFixed(2)}::numeric)`).join(",\n")}
-  ) as seed(id, sex, age_min, age_max, classification, kg_min, kg_max)
+${hgRows.map((r) => `    ('${r.id}'::uuid, '${r.sex}', ${r.age_min}, ${r.age_max}, '${esc(r.classification)}', ${r.kg_min.toFixed(2)}::numeric, ${r.kg_max.toFixed(2)}::numeric, '${esc(r.source)}')`).join(",\n")}
+  ) as seed(id, sex, age_min, age_max, classification, kg_min, kg_max, source)
     on t.id = seed.id and t.sex = seed.sex and t.age_min = seed.age_min
    and t.age_max = seed.age_max and t.classification = seed.classification
-   and t.kg_min = seed.kg_min and t.kg_max = seed.kg_max;
+   and t.kg_min = seed.kg_min and t.kg_max = seed.kg_max
+   and t.source = seed.source;
 
   if vo2_ok <> ${vo2Rows.length} or hg_ok <> ${hgRows.length} then
     raise exception 'POSCHECK FATAL: banco diverge do seed — vo2 %/${vo2Rows.length}, handgrip %/${hgRows.length} linhas idênticas. Alguma linha está faltando ou existe com valores diferentes (ON CONFLICT preservou); comparar pelos ids do cabeçalho.', vo2_ok, hg_ok;
