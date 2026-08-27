@@ -38,8 +38,7 @@ describe("SessionCard (novo, da ficha)", () => {
 
   it("Δ% vs sessão anterior do mesmo tipo (null sem base)", () => {
     expect(card).toContain("volumeDeltaPercent");
-    expect(tab).toContain("volumeDeltas");
-    expect(tab).toContain("a.date.localeCompare(b.date)");
+    expect(tab).toContain("computeVolumeDeltas");
   });
 
   it("ações portadas 1:1, incluindo confirm de finalizar", () => {
@@ -55,14 +54,15 @@ describe("SessionCard (novo, da ficha)", () => {
 });
 
 describe("SessionsTabContent", () => {
-  it("strip de tendência: frequência 8 semanas + volume semanal", () => {
+  it("strip de tendência: frequência 8 semanas + volume semanal (via util)", () => {
     expect(tab).toContain("WeekBars");
     expect(tab).toContain("Volume por semana");
-    expect(tab).toContain("weeksBack = 7");
+    expect(tab).toContain("weeklyAggregates(all, 8)");
   });
 
-  it("futuro não conta na strip", () => {
-    expect(tab).toContain("endOfToday");
+  it("futuro não conta na strip (na util)", () => {
+    const util = read("../../utils/sessionTrends.ts");
+    expect(util).toContain("endOfToday");
   });
 
   it("agrupamento por semana", () => {
@@ -70,8 +70,9 @@ describe("SessionsTabContent", () => {
     expect(tab).toContain("mondayOf");
   });
 
-  it("fórmula única de volume (load × sets × reps)", () => {
-    expect(tab).toContain("ex.load_kg * ex.sets * ex.reps");
+  it("fórmula única de volume (load × sets × reps) na util", () => {
+    const util = read("../../utils/sessionTrends.ts");
+    expect(util).toContain("ex.load_kg * ex.sets * ex.reps");
   });
 
   it("erro ≠ vazio com retry; chips com aria-pressed", () => {
@@ -93,5 +94,24 @@ describe("integração", () => {
 
   it("WorkoutCard segue existindo intocado (dashboard)", () => {
     expect(workoutCard).toContain("WorkoutCardProps");
+  });
+});
+
+describe("fixes pós-review Codex (PR-6)", () => {
+  it("deltas e semanas vêm da util PURA testada comportamentalmente", () => {
+    expect(tab).toContain('from "@/utils/sessionTrends"');
+    expect(tab).toContain("computeVolumeDeltas(all)");
+    expect(tab).toContain("weeklyAggregates(all, 8)");
+  });
+
+  it("empate de data ordena por hora+id na util", () => {
+    const util = read("../../utils/sessionTrends.ts");
+    expect(util).toContain('(a.time ?? "").localeCompare(b.time ?? "")');
+    expect(util).toContain("a.id.localeCompare(b.id)");
+  });
+
+  it("semana sem sessão = zero real, não null", () => {
+    expect(tab).toContain("value: w.totalVolumeKg");
+    expect(tab).not.toContain("? Math.round(weekVolume) : null");
   });
 });

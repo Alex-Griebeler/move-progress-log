@@ -10,6 +10,7 @@ import { DataErrorState, WeekBars, TrendChart } from "@/components/metrics";
 import type { WeekBarPoint, TrendPoint } from "@/components/metrics";
 import { LazyChart } from "@/components/LazyChart";
 import { formatSessionTime } from "@/utils/sessionTime";
+import { sessionVolume, computeVolumeDeltas, weeklyAggregates, mondayOf } from "@/utils/sessionTrends";
 import { parseLocalDate } from "@/utils/relativeDate";
 import type { useSessionsWithExercises } from "@/hooks/useStudentDetail";
 
@@ -31,18 +32,6 @@ interface SessionsTabContentProps {
   onReopen: (sessionId: string) => void;
   onFinalize: (sessionId: string) => void;
 }
-
-/** Fórmula única (PR-0): load × sets × reps. */
-const sessionVolume = (s: Session): number =>
-  s.exercises?.reduce((sum, ex) => {
-    const volume = ex.reps && ex.sets && ex.load_kg ? ex.load_kg * ex.sets * ex.reps : 0;
-    return sum + volume;
-  }, 0) ?? 0;
-
-const mondayOf = (d: Date): Date => {
-  const dayOfWeek = (d.getDay() + 6) % 7;
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() - dayOfWeek);
-};
 
 /**
  * Aba Sessões da ficha (PR-6): strip de tendência (frequência + volume por
@@ -70,58 +59,23 @@ export const SessionsTabContent = ({
     [all, typeFilter],
   );
 
-  // Δ% de volume vs a sessão anterior do MESMO tipo (base < 0 dias não conta).
-  const volumeDeltas = useMemo(() => {
-    const byType = new Map<string, Session[]>();
-    for (const s of all) {
-      const list = byType.get(s.session_type) ?? [];
-      list.push(s);
-      byType.set(s.session_type, list);
-    }
-    const deltas = new Map<string, number | null>();
-    for (const list of byType.values()) {
-      const asc = [...list].sort((a, b) => a.date.localeCompare(b.date));
-      for (let i = 0; i < asc.length; i++) {
-        const current = sessionVolume(asc[i]);
-        const previous = i > 0 ? sessionVolume(asc[i - 1]) : 0;
-        deltas.set(
-          asc[i].id,
-          i > 0 && previous > 0 && current > 0
-            ? Math.round(((current - previous) / previous) * 100)
-            : null,
-        );
-      }
-    }
-    return deltas;
-  }, [all]);
+  // Δ% de volume vs a sessão anterior do MESMO tipo (util pura testada:
+  // empate de data resolve por hora, depois id).
+  const volumeDeltas = useMemo(() => computeVolumeDeltas(all), [all]);
 
-  // Strip: últimas 8 semanas (frequência) + volume semanal.
+  // Strip: últimas 8 semanas (frequência + volume). Semana sem sessão tem
+  // volume ZERO real (sabemos que não houve treino) — nunca null/ausente.
   const { weekBars, volumeTrend } = useMemo(() => {
-    const now = new Date();
-    const currentMonday = mondayOf(now);
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const bars: WeekBarPoint[] = [];
-    const volume: TrendPoint[] = [];
-    for (let weeksBack = 7; weeksBack >= 0; weeksBack--) {
-      const start = new Date(currentMonday);
-      start.setDate(start.getDate() - weeksBack * 7);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 7);
-      const weekSessions = all.filter((s) => {
-        const d = parseLocalDate(s.date);
-        return d >= start && d < end && d < endOfToday;
-      });
-      bars.push({
-        label: format(start, "dd/MM"),
-        value: weekSessions.length,
-        target: weeklyTarget ?? undefined,
-      });
-      const weekVolume = weekSessions.reduce((sum, s) => sum + sessionVolume(s), 0);
-      volume.push({
-        date: format(start, "yyyy-MM-dd"),
-        value: weekSessions.length > 0 ? Math.round(weekVolume) : null,
-      });
-    }
+    const aggregates = weeklyAggregates(all, 8);
+    const bars: WeekBarPoint[] = aggregates.map((w) => ({
+      label: format(w.weekStart, "dd/MM"),
+      value: w.sessionCount,
+      target: weeklyTarget ?? undefined,
+    }));
+    const volume: TrendPoint[] = aggregates.map((w) => ({
+      date: format(w.weekStart, "yyyy-MM-dd"),
+      value: w.totalVolumeKg,
+    }));
     return { weekBars: bars, volumeTrend: volume };
   }, [all, weeklyTarget]);
 
