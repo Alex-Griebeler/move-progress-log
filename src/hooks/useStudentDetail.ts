@@ -31,7 +31,8 @@ const STUDENT_SESSIONS_WITH_EXERCISES_SELECT = `
     load_kg,
     sets,
     reps,
-    observations
+    observations,
+    exercises_library(movement_pattern)
   )
 `;
 

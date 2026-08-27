@@ -11,12 +11,12 @@ import { PrescriptionsTabContent } from "@/components/student-detail/Prescriptio
 import { OuraTabContent } from "@/components/student-detail/OuraTabContent";
 import { WhoopTabContent } from "@/components/student-detail/WhoopTabContent";
 import { SessionsTabContent } from "@/components/student-detail/SessionsTabContent";
+import { ExercisesTabContent } from "@/components/student-detail/ExercisesTabContent";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StudentAvatarImage } from "@/components/StudentAvatarImage";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
 import TrainingZonesCard from "@/components/TrainingZonesCard";
 import ProtocolRecommendationsCard from "@/components/ProtocolRecommendationsCard";
 import { useIsAdmin } from "@/hooks/useUserRole";
@@ -47,13 +47,6 @@ import { getObjectiveLabel } from "@/constants/objectives";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
 import { formatFitnessLevel } from "@/utils/formatStudent";
-import { normalizeExerciseSessionName } from "@/utils/exerciseSessionKeys";
-
-type StudentExerciseOption = {
-  key: string;
-  name: string;
-  exerciseLibraryId: string | null;
-};
 
 // E4.3b — Deep-link read-only: `?tab=<value>` na URL abre direto na aba
 // correspondente no primeiro render. Whitelist defensiva pra ignorar valores
@@ -106,7 +99,6 @@ const StudentDetailPage = () => {
   const { data: ouraConnection } = useOuraConnection(studentId);
   const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", 7);
   const { isAdmin } = useIsAdmin();
-  const [selectedExerciseKey, setSelectedExerciseKey] = useState<string | null>(null);
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
@@ -167,45 +159,7 @@ const StudentDetailPage = () => {
     );
   }
 
-  // Get unique exercises from all sessions. Prefer the stable library id and keep name fallback for legacy rows.
-  const allSessionExercises =
-    sessions?.flatMap((session) => session.exercises || []).filter((exercise) => exercise.exercise_name) || [];
-  const canonicalOptionsByName = new Map<string, StudentExerciseOption>();
-  const uniqueExerciseOptionsByKey = new Map<string, StudentExerciseOption>();
 
-  allSessionExercises.forEach((exercise) => {
-    if (!exercise.exercise_library_id) return;
-    const normalizedName = normalizeExerciseSessionName(exercise.exercise_name);
-    const option = {
-      key: `id:${exercise.exercise_library_id}`,
-      name: exercise.exercise_name,
-      exerciseLibraryId: exercise.exercise_library_id,
-    };
-    uniqueExerciseOptionsByKey.set(option.key, option);
-    if (!canonicalOptionsByName.has(normalizedName)) {
-      canonicalOptionsByName.set(normalizedName, option);
-    }
-  });
-
-  allSessionExercises.forEach((exercise) => {
-    if (exercise.exercise_library_id) return;
-    const normalizedName = normalizeExerciseSessionName(exercise.exercise_name);
-    if (canonicalOptionsByName.has(normalizedName)) return;
-    const key = `name:${normalizedName}`;
-    if (!uniqueExerciseOptionsByKey.has(key)) {
-      uniqueExerciseOptionsByKey.set(key, {
-        key,
-        name: exercise.exercise_name,
-        exerciseLibraryId: null,
-      });
-    }
-  });
-
-  const uniqueExercises = Array.from(uniqueExerciseOptionsByKey.values()).sort((a, b) =>
-    a.name.localeCompare(b.name)
-  );
-  const selectedExerciseOption =
-    uniqueExercises.find((exercise) => exercise.key === selectedExerciseKey) ?? null;
 
   // Check for missing student data
   const getMissingFields = () => {
@@ -479,35 +433,13 @@ const StudentDetailPage = () => {
         </TabsContent>
 
         <TabsContent value="exercises" className="space-y-4 animate-fade-in">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold mb-2">Selecione um exercício para ver o histórico:</h3>
-            <div className="flex flex-wrap gap-2">
-              {uniqueExercises.map((exercise) => (
-                <Button
-                  key={exercise.key}
-                  variant={selectedExerciseKey === exercise.key ? "default" : "outline"}
-                  onClick={() => setSelectedExerciseKey(exercise.key)}
-                >
-                  {exercise.name}
-                </Button>
-              ))}
-            </div>
-          </div>
-
-          {selectedExerciseOption ? (
-            <ExerciseHistoryCard
-              studentId={id!}
-              exerciseName={selectedExerciseOption.name}
-              exerciseLibraryId={selectedExerciseOption.exerciseLibraryId}
-            />
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Selecione um exercício acima para ver o histórico</p>
-              </CardContent>
-            </Card>
-          )}
+          <ExercisesTabContent
+            studentId={studentId}
+            sessions={sessions}
+            isLoading={loadingSessions}
+            isError={sessionsError}
+            refetch={refetchSessions}
+          />
         </TabsContent>
 
         <TabsContent value="prescriptions" className="space-y-4 animate-fade-in">
