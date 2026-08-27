@@ -62,8 +62,8 @@ describe("agnóstico de wearable", () => {
     expect(snapshotUtil).toContain("whoop.date > oura.date");
   });
 
-  it("página busca Whoop também na aba training", () => {
-    expect(page).toMatch(/needsWhoop = activeTab === "whoop" \|\| activeTab === "training"/);
+  it("página busca Whoop na aba training (a aba whoop se auto-serve desde o 5b)", () => {
+    expect(page).toMatch(/needsWhoop = activeTab === "training"/);
   });
 
   it("página propaga loading/erro pro dashboard", () => {

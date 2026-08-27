@@ -76,7 +76,7 @@ export interface OuraMetricsWindow {
 export const spToday = (): string =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
-const spCutoff = (days: number): string => {
+export const spCutoff = (days: number): string => {
   const [y, m, d] = spToday().split("-").map(Number);
   const cutoff = new Date(Date.UTC(y, m - 1, d - (days - 1)));
   return cutoff.toISOString().slice(0, 10);
