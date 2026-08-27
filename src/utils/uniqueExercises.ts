@@ -27,11 +27,24 @@ export const countUniqueExercises = (
     ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - (opts.days - 1)).getTime()
     : null;
 
+  // Duas passadas (mesma consolidação da aba Exercícios): linha legada SEM
+  // library_id não pode contar separado de outra COM id e mesmo nome.
+  const nameToId = new Map<string, string>();
+  for (const session of sessions) {
+    for (const ex of session.exercises ?? []) {
+      if (ex.exercise_library_id) {
+        const norm = normalizeExerciseSessionName(ex.exercise_name);
+        if (!nameToId.has(norm)) nameToId.set(norm, ex.exercise_library_id);
+      }
+    }
+  }
+
   const keys = new Set<string>();
   for (const session of sessions) {
     if (cutoff !== null && parseLocalDate(session.date).getTime() < cutoff) continue;
     for (const ex of session.exercises ?? []) {
-      keys.add(ex.exercise_library_id ?? normalizeExerciseSessionName(ex.exercise_name));
+      const norm = normalizeExerciseSessionName(ex.exercise_name);
+      keys.add(ex.exercise_library_id ?? nameToId.get(norm) ?? norm);
     }
   }
   return keys.size;

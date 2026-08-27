@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +28,10 @@ export function StudentObservationsCard({
   // clínica não pode sumir pra sempre num browser). Observações com resolve
   // continuam sempre visíveis.
   const [medicalSectionDismissed, setMedicalSectionDismissed] = useState(false);
+  // Reset ao trocar de aluno — o dismiss não pode vazar entre fichas.
+  useEffect(() => {
+    setMedicalSectionDismissed(false);
+  }, [studentId]);
   const hasMedicalSection =
     Boolean(limitations || injuryHistory) && !medicalSectionDismissed;
   const { toast } = useToast();
@@ -103,45 +107,6 @@ export function StudentObservationsCard({
     return category.charAt(0).toUpperCase();
   };
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-yellow-500" />
-            Observações Clínicas Importantes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Carregando observações...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Erro NUNCA vira "nenhuma observação registrada" — falso negativo clínico:
-  // o coach acharia que o aluno não tem restrição quando a query só falhou.
-  if (isError) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-yellow-500" />
-            Observações Clínicas Importantes
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <p className="text-sm text-destructive">
-            Não foi possível carregar as observações clínicas.
-          </p>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            Tentar novamente
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
 
   const medicalSection = hasMedicalSection ? (
     <div className="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3">
@@ -169,6 +134,49 @@ export function StudentObservationsCard({
       )}
     </div>
   ) : null;
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            Observações Clínicas Importantes
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {medicalSection}
+          <p className="text-sm text-muted-foreground">Carregando observações...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Erro NUNCA vira "nenhuma observação registrada" — falso negativo clínico:
+  // o coach acharia que o aluno não tem restrição quando a query só falhou.
+  if (isError) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-500" />
+            Observações Clínicas Importantes
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {medicalSection}
+          <p className="text-sm text-destructive">
+            Não foi possível carregar as observações clínicas.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => refetch()}>
+            Tentar novamente
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+
 
   return (
     <Card>

@@ -31,7 +31,6 @@ import { OuraConnectionStatus } from "@/components/OuraConnectionStatus";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecommendationDialog";
 import PersonalizedTrainingDashboard from "@/components/PersonalizedTrainingDashboard";
-import { StudentObservationsCard } from "@/components/StudentObservationsCard";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
 import { SessionDetailDialog } from "@/components/SessionDetailDialog";

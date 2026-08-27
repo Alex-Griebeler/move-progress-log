@@ -95,3 +95,24 @@ describe("estrutura", () => {
     expect(page).toContain("isLoading={loadingSessions || loadingAssignments}");
   });
 });
+
+describe("fixes pós-review Codex", () => {
+  it("seção clínica fixa renderiza também nos branches de loading e erro", () => {
+    // medicalSection definida ANTES dos early returns e presente 3×.
+    expect(obsCard.match(/\{medicalSection\}/g)?.length).toBe(3);
+  });
+
+  it("dismiss reseta ao trocar de aluno", () => {
+    expect(obsCard).toMatch(/setMedicalSectionDismissed\(false\);\s*\}, \[studentId\]\)/);
+  });
+
+  it("util canônica consolida linha legada sem id com linha com id (2 passadas)", () => {
+    const util = read("../../utils/uniqueExercises.ts");
+    expect(util).toContain("nameToId");
+  });
+
+  it("sessões futuras não inflam adesão/semana/última sessão", () => {
+    expect(overview.match(/endOfToday/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(overview).toContain("s.date <= today");
+  });
+});

@@ -133,7 +133,12 @@ export const StudentOverviewDashboard = ({
     if (!sessions) return 0;
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    return sessions.filter((s) => parseLocalDate(s.date) >= firstDayOfMonth).length;
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return sessions.filter((s) => {
+      const d = parseLocalDate(s.date);
+      // Sessão agendada no futuro não conta como adesão realizada.
+      return d >= firstDayOfMonth && d < endOfToday;
+    }).length;
   }, [sessions]);
 
   // Meta mensal honesta: semanas reais por mês (~4,33), não ×4.
@@ -146,7 +151,10 @@ export const StudentOverviewDashboard = ({
 
   const lastSessionDate = useMemo(() => {
     if (!sessions?.length) return null;
-    return sessions.reduce((max, s) => (s.date > max ? s.date : max), sessions[0].date);
+    const today = format(new Date(), "yyyy-MM-dd");
+    const past = sessions.filter((s) => s.date <= today);
+    if (!past.length) return null;
+    return past.reduce((max, s) => (s.date > max ? s.date : max), past[0].date);
   }, [sessions]);
 
   // Frequência das últimas 4 semanas (semana civil iniciando na segunda).
@@ -161,9 +169,10 @@ export const StudentOverviewDashboard = ({
       start.setDate(start.getDate() - weeksBack * 7);
       const end = new Date(start);
       end.setDate(end.getDate() + 7);
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
       const value = (sessions ?? []).filter((s) => {
         const d = parseLocalDate(s.date);
-        return d >= start && d < end;
+        return d >= start && d < end && d < endOfToday;
       }).length;
       return {
         label: format(start, "dd/MM"),
