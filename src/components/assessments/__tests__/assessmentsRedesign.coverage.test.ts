@@ -75,6 +75,12 @@ describe("lista traz o resultado, não só o tipo do teste", () => {
     expect(TAB).not.toContain("useMutation");
   });
 
+  it("o estado do sheet e o guard de deep-link resetam ao trocar de aluno", () => {
+    expect(TAB).toMatch(/const lastStudentId = useRef\(studentId\)/);
+    expect(TAB).toMatch(/deepLinkApplied\.current = false/);
+    expect(TAB).toMatch(/setSelectedAssessmentId\(null\)/);
+  });
+
   it("o Δ compara protocolos IGUAIS: o bucket é o assessment_type exato", () => {
     // Os 5 tipos de VO₂ colapsam num kind só — agrupar por kind compararia
     // uma bike submáxima com uma esteira máxima.
@@ -102,6 +108,12 @@ describe("precisão exibida não contradiz a faixa classificada", () => {
 });
 
 describe("erro de régua ≠ faixa etária não coberta", () => {
+  it("a LISTA também sinaliza régua indisponível (não só o sheet)", () => {
+    expect(TAB).toMatch(/const rangesFailed =/);
+    expect(TAB).toMatch(/\{rangesFailed && \(/);
+    expect(TAB).toMatch(/Não foi possível carregar as tabelas de referência/);
+  });
+
   it("o sheet trata isError dos hooks de referência", () => {
     expect(SHEET).toMatch(/isError: vo2RangesError/);
     expect(SHEET).toMatch(/const rangesFailed =/);
@@ -120,8 +132,8 @@ describe("card: direção do 'melhor' por métrica", () => {
     expect(CARD).toMatch(/deltaIsGood/);
   });
 
-  it("delta zero não pinta de verde nem de vermelho", () => {
-    expect(CARD).toMatch(/delta === 0\s*\?\s*null/);
+  it("delta zero — ou métrica sem direção definida — não ganha cor", () => {
+    expect(CARD).toMatch(/delta === 0 \|\| higherIsBetter === null/);
   });
 
   it("valor ausente não vira zero na tela", () => {
@@ -165,10 +177,11 @@ describe("sheet: comparador clínico correto e debug protegido", () => {
     expect(SHEET).toMatch(/!modality\.matchesReferenceProtocol \? VO2_REFERENCE_NOTE : null/);
   });
 
-  it("o sujeito da classificação prefere o snapshot da avaliação", () => {
+  it("a classificação resolve sexo/idade pelo util (snapshot + cadastro)", () => {
     expect(SHEET).toMatch(/resolveAssessmentSubject\(\{/);
     expect(SHEET).toMatch(/snapshotSex: assessment\.sex/);
     expect(SHEET).toMatch(/snapshotAgeYears: assessment\.age_years/);
+    expect(SHEET).toMatch(/studentBirthDate: studentBirthDate/);
   });
 
   it("o gráfico de FC por estágio rotula estágio, não data", () => {

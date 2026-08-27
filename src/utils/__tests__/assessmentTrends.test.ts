@@ -92,6 +92,35 @@ describe("computeAssessmentDeltas", () => {
     expect(r[0].delta).toBe(0.3);
   });
 
+  it("avaliação ABORTADA com valor não vira base de comparação", () => {
+    const r = computeAssessmentDeltas([
+      { id: "a", date: "2026-01-10", value: 40, status: "completed" },
+      { id: "b", date: "2026-04-10", value: 20, status: "aborted" },
+      { id: "c", date: "2026-07-10", value: 44, status: "completed" },
+    ]);
+    const c = r.find((x) => x.id === "c")!;
+    expect(c.delta).toBe(4); // vs a de janeiro, não +24 vs a abortada
+    expect(c.comparedTo).toBe("2026-01-10");
+  });
+
+  it("avaliação em andamento também não é base nem ganha delta", () => {
+    const r = computeAssessmentDeltas([
+      { id: "a", date: "2026-01-10", value: 40, status: "completed" },
+      { id: "b", date: "2026-04-10", value: 50, status: "in_progress" },
+    ]);
+    const b = r.find((x) => x.id === "b")!;
+    expect(b.value).toBeNull();
+    expect(b.delta).toBeNull();
+  });
+
+  it("sem status informado, o ponto conta (compatibilidade)", () => {
+    const r = computeAssessmentDeltas([
+      { id: "a", date: "2026-01-10", value: 40 },
+      { id: "b", date: "2026-04-10", value: 44 },
+    ]);
+    expect(r[0].delta).toBe(4);
+  });
+
   it("lista vazia não explode", () => {
     expect(computeAssessmentDeltas([])).toEqual([]);
   });

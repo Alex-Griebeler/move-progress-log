@@ -83,12 +83,19 @@ describe("extractKeyResult", () => {
     expect(r.hasReference).toBe(true);
   });
 
-  it("DEXA usa % de gordura e menor é melhor", () => {
+  it("DEXA: sem faixa-alvo, a direção do 'melhor' fica indefinida (Δ neutro)", () => {
     const r = extractKeyResult("dexa", { fatPct: 28.4 });
     expect(r.value).toBe(28.4);
     expect(r.unit).toBe("%");
-    expect(r.higherIsBetter).toBe(false);
+    // null, não false: cair % de gordura pode ser ganho OU perda dependendo
+    // de quanto já era — sem régua, o app não emite julgamento.
+    expect(r.higherIsBetter).toBeNull();
     expect(r.hasReference).toBe(false); // sem tabela seedada
+  });
+
+  it("métricas com régua declaram direção (VO₂/preensão: mais é melhor)", () => {
+    expect(extractKeyResult("vo2", { vo2Final: 40 }).higherIsBetter).toBe(true);
+    expect(extractKeyResult("handgrip", { rightKgAttempts: [30, 30, 30] }).higherIsBetter).toBe(true);
   });
 
   it("sit-to-stand usa o escore total sobre 10 e tem faixa", () => {
@@ -167,8 +174,21 @@ describe("questionnaireSummary", () => {
     expect(s.label).toMatch(/liberação médica/i);
   });
 
-  it("completo e sem PAR-Q bloqueado", () => {
-    expect(questionnaireSummary({ parqBlocked: false }, "completed").tone).toBe("success");
+  it("'sem impedimentos' exige submissão E parq_blocked explicitamente false", () => {
+    expect(
+      questionnaireSummary({ parqBlocked: false, questionnaireCompleted: true }, "completed").tone,
+    ).toBe("success");
+  });
+
+  it("status completed sem respostas registradas NÃO afirma liberação", () => {
+    // relação ausente: parqBlocked e questionnaireCompleted vêm null/false
+    const semRespostas = questionnaireSummary({}, "completed");
+    expect(semRespostas.tone).toBe("warning");
+    expect(semRespostas.label).not.toMatch(/sem impedimentos/i);
+
+    // submetido, mas sem a flag do PAR-Q avaliada
+    const semFlag = questionnaireSummary({ questionnaireCompleted: true }, "completed");
+    expect(semFlag.tone).toBe("warning");
   });
 
   it("em progresso e interrompido têm rótulos distintos", () => {

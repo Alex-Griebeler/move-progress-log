@@ -35,15 +35,24 @@ describe("buildReferenceBands", () => {
     expect(r.min).toBeGreaterThanOrEqual(0);
   });
 
-  it("bandas cobrem o domínio sem estourar as bordas", () => {
+  it("as bandas guardam os limites CLÍNICOS reais, não o recorte visual", () => {
+    // A barra imprime "label from–to" no rótulo: recortar aqui faria a tela
+    // dizer que "Muito Fraco" começa em 23,55 quando começa em 0.
     const r = buildReferenceBands(VO2_M_20_29, 45)!;
     expect(r.bands).toHaveLength(6);
-    expect(r.bands[0].from).toBe(r.min);
-    expect(r.bands[r.bands.length - 1].to).toBe(r.max);
-    for (const b of r.bands) {
-      expect(b.from).toBeGreaterThanOrEqual(r.min);
-      expect(b.to).toBeLessThanOrEqual(r.max);
-    }
+    expect(r.bands[0].from).toBe(0);
+    expect(r.bands[0].to).toBe(32.09);
+    expect(r.bands[r.bands.length - 1].to).toBe(120);
+    // e o domínio de exibição continua recortado
+    expect(r.min).toBeGreaterThan(0);
+    expect(r.max).toBeLessThan(120);
+  });
+
+  it("os limites das bandas espelham exatamente as linhas do banco", () => {
+    const r = buildReferenceBands(VO2_M_20_29, 45)!;
+    expect(r.bands.map((b) => [b.from, b.to])).toEqual(
+      VO2_M_20_29.map((row) => [row.min, row.max]),
+    );
   });
 
   it("preserva a ordem e os rótulos das classes", () => {

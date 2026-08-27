@@ -81,10 +81,14 @@ export const buildReferenceBands = (
     if (value > max) max = value + margin * 0.5;
   }
 
+  // Limites REAIS, não recortados: a RefRangeBar imprime "label from–to" no
+  // rótulo, então recortar aqui faria a tela dizer que "Muito Fraco" começa
+  // em 23,55 quando a faixa real começa em 0. O posicionamento já é clampado
+  // pelo próprio componente, então o recorte visual sai de graça.
   const bands: RefBand[] = sorted.map((r) => ({
     label: r.classification,
-    from: Math.max(min, r.min),
-    to: Math.min(max, r.max),
+    from: r.min,
+    to: r.max,
     tone: toneForClassification(r.classification),
   }));
 

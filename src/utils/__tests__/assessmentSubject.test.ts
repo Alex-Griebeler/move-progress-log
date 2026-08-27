@@ -31,15 +31,38 @@ describe("ageOnDate", () => {
 });
 
 describe("resolveAssessmentSubject", () => {
-  it("snapshot completo vence o cadastro do aluno", () => {
+  it("sexo do snapshot vence o cadastro; idade vem do nascimento quando dá", () => {
     const s = resolveAssessmentSubject({
       snapshotSex: "F",
       snapshotAgeYears: 34,
       assessmentDate: "2026-01-10",
       studentSex: "M",
-      studentBirthDate: "1950-01-01",
+      studentBirthDate: "1990-01-01",
+    });
+    expect(s.sex).toBe("F");
+    expect(s.ageYears).toBe(36); // idade em 2026-01-10, não o snapshot 34
+    expect(s.source).toBe("derived");
+  });
+
+  it("sem nascimento, o snapshot é usado como está", () => {
+    const s = resolveAssessmentSubject({
+      snapshotSex: "F",
+      snapshotAgeYears: 34,
+      assessmentDate: "2026-01-10",
     });
     expect(s).toEqual({ sex: "F", ageYears: 34, source: "snapshot" });
+  });
+
+  it("avaliação RETROATIVA usa a faixa etária da época, não a de hoje", () => {
+    // O formulário grava a idade ATUAL no snapshot mesmo quando o coach
+    // registra um teste antigo — por isso o cálculo por nascimento vence.
+    const s = resolveAssessmentSubject({
+      snapshotSex: "M",
+      snapshotAgeYears: 51, // idade em 2026, gravada por engano
+      assessmentDate: "2020-03-01",
+      studentBirthDate: "1975-06-15",
+    });
+    expect(s.ageYears).toBe(44); // 44 em março/2020 (aniversário em junho)
   });
 
   it("sem snapshot: deriva do cadastro usando a idade NA DATA da avaliação", () => {
@@ -61,7 +84,6 @@ describe("resolveAssessmentSubject", () => {
       snapshotSex: null,
       studentSex: "M",
       assessmentDate: "2026-01-10",
-      studentBirthDate: "1986-01-01",
     });
     expect(s).toEqual({ sex: "M", ageYears: 40, source: "derived" });
   });

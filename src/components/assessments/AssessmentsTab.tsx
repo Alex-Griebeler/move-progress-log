@@ -83,9 +83,16 @@ export const AssessmentsTab = ({
   const [filter, setFilter] = useState<CategoryFilter>("all");
 
   // Réguas de classificação (PR-8a). Cache longo: mudam só num reseed.
-  const { data: vo2Ranges } = useVo2ReferenceRanges();
-  const { data: handgripRanges } = useHandgripReferenceRanges();
-  const { data: sitToStandRanges } = useSitToStandReferenceRanges();
+  const vo2RangesQuery = useVo2ReferenceRanges();
+  const handgripRangesQuery = useHandgripReferenceRanges();
+  const sitToStandRangesQuery = useSitToStandReferenceRanges();
+  const { data: vo2Ranges } = vo2RangesQuery;
+  const { data: handgripRanges } = handgripRangesQuery;
+  const { data: sitToStandRanges } = sitToStandRangesQuery;
+  // Sem isso, régua que falhou é indistinguível de aluno sem faixa aplicável:
+  // os cards simplesmente ficariam sem classificação, para sempre e em silêncio.
+  const rangesFailed =
+    vo2RangesQuery.isError || handgripRangesQuery.isError || sitToStandRangesQuery.isError;
 
   // E4.3b — Deep-link read-only: `?assessmentId=<uuid>` na URL abre o sheet
   // automaticamente após os assessments do aluno carregarem. Aplicado uma
@@ -94,6 +101,18 @@ export const AssessmentsTab = ({
   // assessment do aluno é simplesmente ignorado (defensivo).
   const [searchParams] = useSearchParams();
   const deepLinkApplied = useRef(false);
+  // Trocar de aluno sem desmontar o componente (navegação entre fichas)
+  // deixaria o sheet do aluno anterior aberto e o guard já consumido — o
+  // deep-link do novo aluno seria ignorado e a avaliação antiga apareceria
+  // reclassificada com o sexo/nascimento do aluno novo.
+  const lastStudentId = useRef(studentId);
+  useEffect(() => {
+    if (lastStudentId.current !== studentId) {
+      lastStudentId.current = studentId;
+      deepLinkApplied.current = false;
+      setSelectedAssessmentId(null);
+    }
+  }, [studentId]);
   useEffect(() => {
     if (deepLinkApplied.current) return;
     if (!assessments) return;
@@ -163,6 +182,7 @@ export const AssessmentsTab = ({
         date: a.assessment_date,
         value: keyResult.value,
         createdAt: a.created_at,
+        status: a.status,
       });
     }
 
@@ -305,6 +325,13 @@ export const AssessmentsTab = ({
           </Button>
         ))}
       </div>
+
+      {rangesFailed && (
+        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+          Não foi possível carregar as tabelas de referência. Os resultados
+          abaixo estão corretos, mas ficam sem classificação.
+        </p>
+      )}
 
       {/* Lista agrupada por data */}
       {groupedByDate.length === 0 ? (

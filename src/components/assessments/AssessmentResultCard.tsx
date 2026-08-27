@@ -68,10 +68,15 @@ export const AssessmentResultCard = ({
   const { value, unit, decimals, higherIsBetter } = keyResult;
   const hasValue = value !== null && Number.isFinite(value);
 
-  // Direção do "melhor" muda por métrica: cair 2 pontos de gordura é ganho,
-  // cair 2 ml/kg/min de VO₂ é perda. Sem isso o verde mentiria no DEXA.
+  // Direção do "melhor" muda por métrica — e às vezes não existe: sem uma
+  // faixa-alvo, dizer que % de gordura caindo é "bom" seria opinião. Nesses
+  // casos `higherIsBetter` é null e a variação aparece sem cor.
   const deltaIsGood =
-    delta === null || delta === 0 ? null : higherIsBetter ? delta > 0 : delta < 0;
+    delta === null || delta === 0 || higherIsBetter === null
+      ? null
+      : higherIsBetter
+        ? delta > 0
+        : delta < 0;
 
   return (
     <button

@@ -16,6 +16,12 @@ export interface AssessmentPointLike {
   value: number | null;
   /** Desempate quando duas avaliações caem no mesmo dia. */
   createdAt?: string | null;
+  /**
+   * Status da avaliação. Só `completed` entra na série: um teste abortado
+   * na metade pode ter deixado um número no banco, e usá-lo como base de
+   * comparação produziria variações inventadas.
+   */
+  status?: string | null;
 }
 
 export interface AssessmentDelta {
@@ -49,9 +55,15 @@ export const computeAssessmentDeltas = (
 ): AssessmentDelta[] => {
   const asc = [...points].sort(chronological);
 
+  // `status` ausente é tratado como concluído: chamadores legados que não
+  // informam status seguem funcionando como antes.
+  const isComplete = (p: AssessmentPointLike) =>
+    p.status == null || p.status.toLowerCase() === "completed";
+
   let lastValid: { date: string; value: number } | null = null;
   const withDeltas = asc.map((p): AssessmentDelta => {
-    const value = typeof p.value === "number" && Number.isFinite(p.value) ? p.value : null;
+    const value =
+      typeof p.value === "number" && Number.isFinite(p.value) && isComplete(p) ? p.value : null;
 
     let delta: number | null = null;
     let deltaPercent: number | null = null;

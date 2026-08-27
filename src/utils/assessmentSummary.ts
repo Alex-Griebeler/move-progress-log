@@ -149,8 +149,12 @@ export interface KeyResult {
   decimals: number;
   /** Se o tipo tem faixas de referência (define se cabe RefRangeBar). */
   hasReference: boolean;
-  /** Direção do "melhor": para % de gordura, menor é melhor. */
-  higherIsBetter: boolean;
+  /**
+   * Direção do "melhor" — só definida onde existe régua que sustente o
+   * julgamento. `null` = a variação é mostrada sem cor: sem faixa-alvo,
+   * afirmar que descer é bom (ou ruim) seria opinião, não dado.
+   */
+  higherIsBetter: boolean | null;
 }
 
 export const extractKeyResult = (
@@ -176,7 +180,9 @@ export const extractKeyResult = (
         unit: "%",
         metricLabel: "Gordura corporal",
         decimals: 1,
-        higherIsBetter: false,
+        // % de gordura não tem faixa-alvo seedada: cair pode ser ganho ou
+        // perda dependendo de quanto já era. Δ fica neutro.
+        higherIsBetter: null,
       };
     case "sit_to_stand":
       return { ...base, value: details.sitToStandTotal ?? null, unit: "/10", metricLabel: "Escore total", decimals: 1 };
@@ -245,7 +251,17 @@ export const questionnaireSummary = (
     return { label: "PAR-Q: liberação médica recomendada", tone: "destructive" };
   }
   const s = (status ?? "").toLowerCase();
-  if (s === "completed") return { label: "Respondido — sem impedimentos no PAR-Q", tone: "success" };
+
+  // "Sem impedimentos" é uma afirmação CLÍNICA: só pode sair daqui com
+  // submissão registrada E `parq_blocked` explicitamente false. Um status
+  // "completed" na avaliação-mãe, sozinho, não prova que o aluno respondeu
+  // (a relação pode nem existir) — dizer que está liberado seria inventar.
+  if (s === "completed") {
+    if (details.questionnaireCompleted && details.parqBlocked === false) {
+      return { label: "Respondido — sem impedimentos no PAR-Q", tone: "success" };
+    }
+    return { label: "Marcado como completo, sem respostas registradas", tone: "warning" };
+  }
   if (s === "aborted") return { label: "Interrompido", tone: "neutral" };
   return { label: "Em preenchimento", tone: "warning" };
 };

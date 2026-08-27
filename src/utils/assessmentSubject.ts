@@ -8,12 +8,17 @@ import { parseLocalDate } from "@/utils/relativeDate";
  * `age_years`) justamente pra não mudar de classe quando o aluno faz
  * aniversário — mas avaliações antigas foram gravadas sem ele.
  *
- * Ordem: snapshot da avaliação → derivado do cadastro do aluno. O derivado
- * usa a idade **na data da avaliação** (calculada do nascimento), não a idade
- * de hoje — um teste de 2 anos atrás pertence à faixa etária de então.
+ * SEXO: snapshot da avaliação → cadastro do aluno.
  *
- * `source` acompanha o resultado pra UI poder sinalizar quando o dado não
- * veio do snapshot original.
+ * IDADE: o cálculo a partir do nascimento VENCE o snapshot quando a data de
+ * nascimento existe. Parece contraintuitivo — o snapshot deveria ser a
+ * verdade do momento —, mas ele é preenchido com a idade ATUAL do aluno no
+ * instante em que o formulário abre e não é reajustado quando o coach muda
+ * `assessment_date` para uma data retroativa. Um teste de 2020 registrado
+ * hoje gravaria a idade de 2026 e cairia na faixa etária errada. A idade
+ * derivada de (nascimento, data do teste) é a que vem de dois fatos.
+ *
+ * `source` acompanha o resultado pra UI poder sinalizar a procedência.
  */
 
 export type SubjectSex = "M" | "F";
@@ -70,13 +75,16 @@ export const resolveAssessmentSubject = (
       : null;
 
   const sex = snapSex ?? normalizeSex(input.studentSex);
-  const ageYears =
-    snapAge ??
-    (input.studentBirthDate && input.assessmentDate
+
+  const derivedAge =
+    input.studentBirthDate && input.assessmentDate
       ? ageOnDate(input.studentBirthDate, input.assessmentDate)
-      : null);
+      : null;
+  const ageYears = derivedAge ?? snapAge;
 
   if (sex === null && ageYears === null) return { sex, ageYears, source: "unknown" };
-  const source = snapSex !== null && snapAge !== null ? "snapshot" : "derived";
+  const source = snapSex !== null && derivedAge === null && snapAge !== null
+    ? "snapshot"
+    : "derived";
   return { sex, ageYears, source };
 };
