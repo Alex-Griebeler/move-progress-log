@@ -157,6 +157,19 @@ describe("auditabilidade da idade usada na classificação", () => {
     expect(SHEET).toMatch(/"Idade na data do teste"/);
     expect(SHEET).toMatch(/hero\.subject\.ageYears !== assessment\.age_years/);
   });
+
+  it("datas incompatíveis têm rótulo e motivo próprios (não 'idade não registrada')", () => {
+    expect(SHEET).toMatch(/"Idade \(datas incompatíveis\)"/);
+    expect(SHEET).toMatch(/subject\.source === "inconsistent"/);
+    expect(SHEET).toMatch(/anterior à data de nascimento/);
+  });
+
+  it("o grid do detalhe usa a MESMA precisão do hero nas métricas com régua", () => {
+    // Sem isso o mesmo sheet mostraria 32,09 no herói e 32.1 no grid.
+    expect(SHEET).toMatch(/const withPreciseUnit =/);
+    expect(SHEET).toMatch(/\["VO₂ final", withPreciseUnit\(/);
+    expect(SHEET).toMatch(/withPreciseUnit\(rightMean, "kg"\)/);
+  });
 });
 
 describe("hero: barra de referência só onde existe régua", () => {

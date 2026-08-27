@@ -67,6 +67,12 @@ describe("rightHandMeanKg (comparador ratificado: média das 3 da direita)", () 
   it("exatamente 3 é o caso normal do protocolo", () => {
     expect(rightHandMeanKg([30, 31, 33])).toBe(31.33);
   });
+
+  it("MAIS de 3 tentativas também não classifica (não é o comparador da norma)", () => {
+    // O array do banco não tem cardinalidade fixa: importação ou dado
+    // histórico pode trazer 4. A média das 4 não é a média de 3.
+    expect(rightHandMeanKg([30, 31, 32, 100])).toBeNull();
+  });
 });
 
 describe("extractKeyResult", () => {

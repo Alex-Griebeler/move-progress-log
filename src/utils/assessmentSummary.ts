@@ -115,10 +115,11 @@ export const rightHandMeanKg = (attempts?: (number | null)[] | null): number | n
   const valid = (attempts ?? []).filter(
     (a): a is number => typeof a === "number" && Number.isFinite(a) && a >= 0,
   );
-  // O protocolo normativo é a média de TRÊS tentativas. Com menos que isso o
-  // dado está incompleto: a média de duas não é o comparador de Mathiowetz,
-  // e classificar por ela seria inventar rigor que a medida não tem.
-  if (valid.length < HANDGRIP_REQUIRED_ATTEMPTS) return null;
+  // O protocolo normativo é a média de EXATAMENTE três tentativas. Menos que
+  // isso é dado incompleto; mais que isso (importação, dado histórico — o
+  // array do banco não tem cardinalidade fixa) não é o comparador de
+  // Mathiowetz. Nos dois casos, melhor não classificar do que fingir rigor.
+  if (valid.length !== HANDGRIP_REQUIRED_ATTEMPTS) return null;
   const mean = valid.reduce((sum, a) => sum + a, 0) / valid.length;
   return Math.round(mean * 100) / 100;
 };

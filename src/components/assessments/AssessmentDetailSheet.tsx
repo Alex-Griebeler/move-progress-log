@@ -41,6 +41,7 @@ import {
   classifyAssessmentKind,
   classifyAssessmentValue,
   extractKeyResult,
+  formatAssessmentValue,
   rightHandMeanKg,
   vo2Modality,
   VO2_REFERENCE_NOTE,
@@ -102,6 +103,18 @@ const formatValue = (value: unknown, suffix = "") => {
 const withUnit = (value: number | null | undefined, unit: string) =>
   value === null || value === undefined ? null : `${formatValue(value)} ${unit}`;
 
+/**
+ * Mesma precisão do hero (até 2 casas, sem zeros à direita inúteis).
+ *
+ * `formatValue` arredonda tudo pra 1 casa, o que faria o MESMO sheet mostrar
+ * "32,09" no herói e "32.1" logo abaixo, no grid — com a classificação
+ * calculada em cima de 32,09. Métrica que tem faixa de referência usa este.
+ */
+const withPreciseUnit = (value: number | null | undefined, unit: string, decimals = 2) =>
+  value === null || value === undefined
+    ? null
+    : `${formatAssessmentValue(value, decimals)} ${unit}`;
+
 const Field = ({ label, value }: { label: string; value: unknown }) => (
   <div className="min-w-0 rounded-md border bg-muted/20 p-3">
     <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
@@ -153,7 +166,7 @@ const renderVo2 = (data: AssessmentWithChild) => {
     <div className="space-y-4">
       <KeyValueGrid
         items={[
-          ["VO₂ final", withUnit(vo2.vo2_final, "ml/kg/min")],
+          ["VO₂ final", withPreciseUnit(vo2.vo2_final, "ml/kg/min")],
           ["FC pico", withUnit(vo2.fc_peak, "bpm")],
           ["FCmáx prevista", withUnit(vo2.fc_max_predicted, "bpm")],
           ["Recuperação 1 min", withUnit(vo2.recovery_drop_1min, "bpm")],
@@ -239,7 +252,7 @@ const renderHandgrip = (data: AssessmentWithChild) => {
   return (
     <KeyValueGrid
       items={[
-        ["Média direita (comparador)", withUnit(rightMean, "kg")],
+        ["Média direita (comparador)", withPreciseUnit(rightMean, "kg")],
         ["Mão dominante", handgrip.dominant_hand === "right" ? "Direita" : handgrip.dominant_hand === "left" ? "Esquerda" : null],
         ["Melhor direita", withUnit(handgrip.right_kg, "kg")],
         ["Melhor esquerda", withUnit(handgrip.left_kg, "kg")],
@@ -492,7 +505,10 @@ export const AssessmentDetailSheet = ({
 
     let unclassifiedReason: string | null = null;
     if (!classification && keyResult.hasReference) {
-      if (rangesFailed) {
+      if (subject.source === "inconsistent") {
+        unclassifiedReason =
+          "Sem classificação: a data da avaliação é anterior à data de nascimento do aluno. Confira o cadastro.";
+      } else if (rangesFailed) {
         // Falha de rede/RLS não pode virar "a tabela não cobre esta idade":
         // são causas diferentes e levam o coach a conclusões diferentes.
         unclassifiedReason =
@@ -592,13 +608,18 @@ export const AssessmentDetailSheet = ({
                       // A classificação usa a idade NA DATA do teste, que pode
                       // divergir do snapshot (gravado com a idade atual). Sem
                       // mostrar a usada, não dá pra auditar qual régua valeu.
-                      hero?.subject.ageYears != null &&
-                      hero.subject.ageYears !== assessment.age_years
+                      hero?.subject.source === "inconsistent"
                         ? [
-                            "Idade na data do teste",
-                            withUnit(hero.subject.ageYears, "anos"),
+                            "Idade (datas incompatíveis)",
+                            withUnit(assessment.age_years, "anos"),
                           ]
-                        : ["Idade", withUnit(assessment.age_years, "anos")],
+                        : hero?.subject.ageYears != null &&
+                            hero.subject.ageYears !== assessment.age_years
+                          ? [
+                              "Idade na data do teste",
+                              withUnit(hero.subject.ageYears, "anos"),
+                            ]
+                          : ["Idade", withUnit(assessment.age_years, "anos")],
                       ["Peso", withUnit(assessment.weight_kg, "kg")],
                       ["Altura", withUnit(assessment.height_cm, "cm")],
                       ["Sexo", assessment.sex],

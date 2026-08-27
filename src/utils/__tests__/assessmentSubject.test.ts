@@ -123,6 +123,9 @@ describe("resolveAssessmentSubject", () => {
       studentBirthDate: "2000-01-01",
     });
     expect(s.ageYears).toBeNull();
+    // estado próprio: a UI precisa dizer "datas incompatíveis", não
+    // "idade não registrada" — o cadastro é que precisa de conserto
+    expect(s.source).toBe("inconsistent");
   });
 
   it("idade zero é válida (não confundir com ausente)", () => {

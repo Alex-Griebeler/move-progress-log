@@ -37,8 +37,12 @@ export interface AssessmentSubjectInput {
 export interface AssessmentSubject {
   sex: SubjectSex | null;
   ageYears: number | null;
-  /** "snapshot" = ambos do snapshot; "derived" = algo veio do cadastro. */
-  source: "snapshot" | "derived" | "unknown";
+  /**
+   * "snapshot" = veio do snapshot da avaliação; "derived" = algo veio do
+   * cadastro; "inconsistent" = nascimento e data do teste se contradizem
+   * (avaliação anterior ao nascimento, data inválida); "unknown" = falta tudo.
+   */
+  source: "snapshot" | "derived" | "inconsistent" | "unknown";
 }
 
 const normalizeSex = (value?: string | null): SubjectSex | null => {
@@ -86,7 +90,9 @@ export const resolveAssessmentSubject = (
   // inválida. Cair no snapshot aí classificaria em cima de dado incoerente;
   // melhor não classificar e deixar a UI dizer que falta idade.
   const ageYears = canDerive ? derivedAge : snapAge;
+  const inconsistent = canDerive && derivedAge === null;
 
+  if (inconsistent) return { sex, ageYears: null, source: "inconsistent" };
   if (sex === null && ageYears === null) return { sex, ageYears, source: "unknown" };
   const source =
     snapSex !== null && !canDerive && snapAge !== null ? "snapshot" : "derived";
