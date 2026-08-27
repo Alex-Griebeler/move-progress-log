@@ -72,8 +72,16 @@ export interface SitToStandReferenceRange {
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
- * Classifica VO₂ máx baseado em faixa ACSM 2018 pra sexo/idade do aluno.
- * Retorna `null` se nenhum range bater (faixa etária fora das seedadas).
+ * Classifica VO₂ máx baseado nas faixas seedadas (FRIEND 2015/ACSM) pra
+ * sexo/idade do aluno. Retorna `null` se nenhum range bater (faixa etária
+ * fora das seedadas).
+ *
+ * O valor é arredondado internamente a 2 casas pra nenhum float computado
+ * cair no vão de 0.01 entre bandas. NOTA: Math.round sobre float binário
+ * pode divergir do arredondamento decimal do numeric(5,2) em meio-centavo
+ * exato (ex.: 34.495 → 34.49 aqui, 34.50 no banco) — irrelevante na prática
+ * porque os formulários usam passo 0.1, mas não trate isto como réplica
+ * exata do banco.
  *
  * @param vo2 VO₂ em ml/kg/min.
  * @param ranges Faixas já filtradas por sex + age (subset relevante).
@@ -83,23 +91,35 @@ export function classifyVo2(
   ranges: Vo2ReferenceRange[],
 ): Vo2Classification | null {
   if (!Number.isFinite(vo2) || vo2 < 0) return null;
+  const value = Math.round(vo2 * 100) / 100;
   const hit = ranges.find(
-    (r) => vo2 >= r.vo2_min && vo2 <= r.vo2_max,
+    (r) => value >= r.vo2_min && value <= r.vo2_max,
   );
   return hit?.classification ?? null;
 }
 
 /**
- * Classifica handgrip strength (Mathiowetz 1985) baseado na MAIOR das 3
- * tentativas (best_kg na tabela).
+ * Classifica handgrip strength contra as normas de Mathiowetz 1985.
+ *
+ * IMPORTANTE: as faixas seedadas são da mão DIREITA e o protocolo normativo
+ * usa a MÉDIA das 3 tentativas (Mathiowetz 1985, conclusão 2: "the average
+ * of three trials should be used") — o chamador deve passar
+ * `mean(right_kg_attempts)`, NÃO `best_kg` das duas mãos nem o máximo da
+ * direita, que deslocariam a classificação pra cima. Válido independente de
+ * dominância: Mathiowetz mostrou diferença mínima entre destros e canhotos
+ * quando comparados POR MÃO.
+ *
+ * O valor é arredondado internamente a 2 casas: as bandas são contíguas com
+ * passo 0.01, então uma média com dízima (ex.: 91/3) cairia no vão sem isso.
  */
 export function classifyHandgrip(
-  bestKg: number,
+  rightKgMean: number,
   ranges: HandgripReferenceRange[],
 ): HandgripClassification | null {
-  if (!Number.isFinite(bestKg) || bestKg < 0) return null;
+  if (!Number.isFinite(rightKgMean) || rightKgMean < 0) return null;
+  const value = Math.round(rightKgMean * 100) / 100;
   const hit = ranges.find(
-    (r) => bestKg >= r.kg_min && bestKg <= r.kg_max,
+    (r) => value >= r.kg_min && value <= r.kg_max,
   );
   return hit?.classification ?? null;
 }
