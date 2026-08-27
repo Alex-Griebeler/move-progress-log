@@ -112,7 +112,9 @@ describe("fixes pós-review Codex (5b)", () => {
   it("sync com AbortController real (não Promise.race que vaza o invoke)", () => {
     expect(connHook).toContain("AbortController");
     expect(connHook).toContain("clearTimeout(timeoutId)");
-    expect(connHook).not.toContain("Promise.race");
+    // A PALAVRA aparece em comentário explicando a decisão — o que não
+    // pode existir é a CHAMADA.
+    expect(connHook).not.toContain("Promise.race([");
   });
 
   it("footer não afirma 'desconectado' durante o loading da conexão", () => {
