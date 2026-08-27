@@ -56,8 +56,12 @@ export const MetricTile = ({
         ? "text-success"
         : "text-destructive";
 
+  // `h-full` + coluna flex: num grid, os tiles de uma linha têm alturas de
+  // conteúdo diferentes (só alguns têm footnote ou sparkline). Sem isso, o
+  // item do grid estica mas o CARD dentro dele não, e a linha fica com
+  // cards de tamanhos distintos e buracos embaixo dos menores.
   return (
-    <div className={cn("rounded-lg border bg-card p-3.5", className)}>
+    <div className={cn("flex h-full flex-col rounded-lg border bg-card p-3.5", className)}>
       <p className="text-[10.5px] font-medium uppercase tracking-widest text-muted-foreground">
         {label}
       </p>
@@ -76,7 +80,7 @@ export const MetricTile = ({
         )}
       </div>
       {children}
-      {footnote && <p className="mt-1.5 text-xs text-muted-foreground">{footnote}</p>}
+      {footnote && <p className="mt-auto pt-1.5 text-xs text-muted-foreground">{footnote}</p>}
     </div>
   );
 };

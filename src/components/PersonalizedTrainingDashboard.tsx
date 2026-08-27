@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { logger } from "@/utils/logger";
 import { Badge } from "./ui/badge";
@@ -540,7 +540,7 @@ const PersonalizedTrainingDashboard = ({
           </h3>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
             {physiology.map((p) => (
-              <div key={p.key}>{p.tile}</div>
+              <Fragment key={p.key}>{p.tile}</Fragment>
             ))}
           </div>
         </div>
