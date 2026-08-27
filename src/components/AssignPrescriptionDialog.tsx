@@ -39,7 +39,9 @@ export function AssignPrescriptionDialog({
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
 
   useEffect(() => {
-    if (open && initialStudentIds && initialStudentIds.length > 0) {
+    // Prop AUSENTE = comportamento legado (preserva seleção); lista vazia
+    // é valor válido e LIMPA a seleção — por isso `!== undefined`, não truthy.
+    if (open && initialStudentIds !== undefined) {
       setSelectedStudents(initialStudentIds);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- só na transição de abertura

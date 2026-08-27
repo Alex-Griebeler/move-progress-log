@@ -174,7 +174,12 @@ export const PrescriptionsTabContent = ({
   refetch,
 }: PrescriptionsTabContentProps) => {
   const deleteAssignment = useDeletePrescriptionAssignment();
-  const { data: prescriptions, isLoading: loadingPrescriptions } = usePrescriptions();
+  const {
+    data: prescriptions,
+    isLoading: loadingPrescriptions,
+    isError: prescriptionsError,
+    refetch: refetchPrescriptions,
+  } = usePrescriptions();
   const [previewPrescriptionId, setPreviewPrescriptionId] = useState<string | null>(null);
   const [assignPrescriptionId, setAssignPrescriptionId] = useState<string>("");
   const [assignOpen, setAssignOpen] = useState(false);
@@ -208,9 +213,20 @@ export const PrescriptionsTabContent = ({
 
   const hasAny = (assignments?.length ?? 0) > 0;
 
-  const assignCta = (
+  const assignCta = prescriptionsError ? (
+    <div className="flex items-center gap-3 text-sm text-destructive">
+      <span>Não foi possível carregar o catálogo de prescrições.</span>
+      <Button variant="outline" size="sm" onClick={() => refetchPrescriptions()}>
+        Tentar novamente
+      </Button>
+    </div>
+  ) : (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <Select value={assignPrescriptionId} onValueChange={setAssignPrescriptionId}>
+      <Select
+        value={assignPrescriptionId}
+        onValueChange={setAssignPrescriptionId}
+        disabled={loadingPrescriptions}
+      >
         <SelectTrigger className="sm:w-72" aria-label="Escolher prescrição para atribuir">
           <SelectValue
             placeholder={loadingPrescriptions ? "Carregando prescrições..." : "Escolher prescrição..."}

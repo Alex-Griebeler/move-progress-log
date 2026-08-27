@@ -84,3 +84,15 @@ describe("CTA student-scoped (prop aditiva no dialog)", () => {
     expect(tab).toContain("initialStudentIds={[studentId]}");
   });
 });
+
+describe("fixes pós-review Codex", () => {
+  it("prop [] reaplicada (limpa seleção): condição é !== undefined, não truthy", () => {
+    expect(dialog).toContain("initialStudentIds !== undefined");
+    expect(dialog).not.toContain("initialStudentIds && initialStudentIds.length > 0");
+  });
+
+  it("catálogo de prescrições com erro → retry; select desabilitado no loading", () => {
+    expect(tab).toContain("refetchPrescriptions");
+    expect(tab).toContain("disabled={loadingPrescriptions}");
+  });
+});
