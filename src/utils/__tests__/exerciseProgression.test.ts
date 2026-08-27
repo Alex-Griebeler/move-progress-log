@@ -79,3 +79,11 @@ describe("progressionStats", () => {
     expect(stats.volume4wKg).toBe(0);
   });
 });
+
+describe("fix pós-review Codex (PR-7)", () => {
+  it("primeiro top-set com carga ZERO real também é PR (consistente com o tile)", () => {
+    const s = buildTopSetSeries([entry("2026-08-03", 0), entry("2026-08-10", 20)]);
+    expect(s[0].isPr).toBe(true);
+    expect(s[1].isPr).toBe(true);
+  });
+});

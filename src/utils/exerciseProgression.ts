@@ -31,9 +31,11 @@ export const buildTopSetSeries = (history: HistoryEntryLike[]): TopSetPoint[] =>
     }
   }
   const asc = Array.from(byDate.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  let runningMax = 0;
+  // null (não 0): carga zero REAL (bodyweight) no primeiro registro também
+  // é recorde — inicializar em 0 o excluía enquanto o tile de PR o mostrava.
+  let runningMax: number | null = null;
   return asc.map(([date, value]) => {
-    const isPr = value !== null && value > runningMax;
+    const isPr = value !== null && (runningMax === null || value > runningMax);
     if (isPr) runningMax = value!;
     return { date, value, isPr };
   });
