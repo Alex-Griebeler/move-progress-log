@@ -76,7 +76,7 @@ describe("CTA student-scoped (prop aditiva no dialog)", () => {
   });
 
   it("aplicada só na transição de abertura (dep [open])", () => {
-    expect(dialog).toMatch(/if \(open && initialStudentIds && initialStudentIds\.length > 0\)/);
+    expect(dialog).toMatch(/if \(open && initialStudentIds !== undefined\)/);
     expect(dialog).toMatch(/\}, \[open\]\);/);
   });
 
