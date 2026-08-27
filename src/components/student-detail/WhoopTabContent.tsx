@@ -87,7 +87,7 @@ const chartTooltipStyle = {
 export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabContentProps) => {
   const [period, setPeriod] = useState<Period>(30);
   const [connectOpen, setConnectOpen] = useState(false);
-  const { data: connection, isLoading: loadingConnection } = useWhoopConnection(studentId);
+  const { data: connection, isLoading: loadingConnection, isError: connectionError, refetch: refetchConnection } = useWhoopConnection(studentId);
   const { data: metrics, isLoading, isError, refetch } = useWhoopMetrics(studentId, {
     days: period,
   });
@@ -209,6 +209,10 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
         <Skeleton className="h-48 w-full rounded-lg" />
       </div>
     );
+  } else if (connectionError) {
+    // Falha ao CONSULTAR a conexão não é desconexão — mostrar "Conectar"
+    // aqui levaria o coach a gerar novo OAuth pra aluna ainda conectada.
+    body = <DataErrorState what="o status da conexão Whoop" onRetry={() => refetchConnection()} />;
   } else if (isError) {
     body = <DataErrorState what="as métricas do Whoop" onRetry={() => refetch()} />;
   } else if (!connection) {
@@ -355,7 +359,7 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-card">
                   <tr className="border-b text-left text-[10.5px] uppercase tracking-widest text-muted-foreground">
-                    {["Dia", "Recovery", "Strain", "HRV", "FCR", "Sono", "Efic.", "FR", "SpO2", "Temp. pele", "Despertares", ""].map((h) => (
+                    {["Dia", "Recovery", "Strain", "HRV", "FCR", "Sono", "Efic.", "FR", "SpO2", "Temp. pele", "Despertares", "Status"].map((h) => (
                       <th key={h} className="px-4 py-2 font-medium">{h}</th>
                     ))}
                   </tr>
@@ -378,6 +382,11 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
                         {m.score_state === "PENDING_SCORE" && (
                           <Badge variant="outline" className="font-normal text-muted-foreground">
                             processando
+                          </Badge>
+                        )}
+                        {m.score_state === "UNSCORABLE" && (
+                          <Badge variant="outline" className="font-normal text-warning">
+                            não pontuável
                           </Badge>
                         )}
                       </td>

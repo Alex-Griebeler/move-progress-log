@@ -121,3 +121,19 @@ describe("fixes pós-review Codex (5b)", () => {
     expect(tab).toContain("{loadingConnection ? (");
   });
 });
+
+describe("fixes pós-revisão FRIA (5b)", () => {
+  it("erro na query da conexão ≠ desconectado (nunca oferecer novo OAuth por falha de rede)", () => {
+    expect(tab).toContain("connectionError");
+    expect(tab).toContain("o status da conexão Whoop");
+  });
+
+  it("UNSCORABLE distinto de sem-dado", () => {
+    expect(tab).toContain('"UNSCORABLE"');
+    expect(tab).toContain("não pontuável");
+  });
+
+  it("coluna de status com cabeçalho", () => {
+    expect(tab).toContain('"Despertares", "Status"');
+  });
+});
