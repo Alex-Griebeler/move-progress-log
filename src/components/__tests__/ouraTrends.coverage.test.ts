@@ -95,3 +95,22 @@ describe("página", () => {
     expect(page).not.toContain("OuraStressCard");
   });
 });
+
+describe("fixes pós-review Codex", () => {
+  it("janela com teto (.lte hoje) e limit exato (banco tem UNIQUE por dia)", () => {
+    expect(hook).toContain('.lte("date", spToday())');
+    expect(hook).toContain(".limit(days)");
+    expect(hook).not.toContain("days + 7");
+  });
+
+  it("séries densificadas por dia da janela (buraco não comprime o eixo)", () => {
+    expect(tab).toContain("spWindowDates");
+    expect(tab).toContain("windowDates.map");
+  });
+
+  it("header e rodapé acessíveis em TODOS os estados (erro não esconde sync/protocolos)", () => {
+    expect(tab).toContain("let body: ReactNode;");
+    expect(tab).toContain("{body}");
+    expect(tab).toContain("{footer}");
+  });
+});

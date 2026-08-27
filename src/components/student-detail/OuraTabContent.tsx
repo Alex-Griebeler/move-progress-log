@@ -22,7 +22,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useOuraMetrics, OuraMetrics } from "@/hooks/useOuraMetrics";
+import { useOuraMetrics, spWindowDates, OuraMetrics } from "@/hooks/useOuraMetrics";
 import { OuraConnectionCard } from "@/components/OuraConnectionCard";
 import { OuraConnectionStatus } from "@/components/OuraConnectionStatus";
 import { OuraApiDiagnosticsCard } from "@/components/OuraApiDiagnosticsCard";
@@ -78,11 +78,18 @@ const summaryLabel = (raw: string | null) => {
   return DAY_SUMMARY_LABEL[raw.toLowerCase()] ?? raw;
 };
 
-/** Série ascendente por data pro TrendChart. */
-const toTrend = (rows: OuraMetrics[], pick: (m: OuraMetrics) => number | null): TrendPoint[] =>
-  [...rows]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((m) => ({ date: m.date, value: pick(m) }));
+/** Série DENSIFICADA: uma categoria por dia da janela (dia sem linha no
+ * banco vira valor null) — sem isso, um buraco de 10 dias ocuparia o mesmo
+ * espaço visual de 1 dia no eixo categórico. */
+const toTrend = (
+  windowDates: string[],
+  byDate: Map<string, OuraMetrics>,
+  pick: (m: OuraMetrics) => number | null,
+): TrendPoint[] =>
+  windowDates.map((date) => {
+    const m = byDate.get(date);
+    return { date, value: m ? pick(m) : null };
+  });
 
 /** Último dia que tem o campo pedido preenchido. */
 const latestWith = (rows: OuraMetrics[], pick: (m: OuraMetrics) => number | null): OuraMetrics | null =>
@@ -159,38 +166,48 @@ export const OuraTabContent = ({
   });
 
   const rows = useMemo(() => metrics ?? [], [metrics]);
+  const windowDates = useMemo(() => spWindowDates(period), [period]);
+  const byDate = useMemo(() => {
+    const map = new Map<string, OuraMetrics>();
+    for (const m of rows) map.set(m.date, m);
+    return map;
+  }, [rows]);
   const latestScored = latestWith(rows, (m) => m.readiness_score);
 
   const sleepPhases = useMemo(
     () =>
-      [...rows]
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .filter(
-          (m) =>
-            m.deep_sleep_duration !== null ||
-            m.light_sleep_duration !== null ||
-            m.rem_sleep_duration !== null,
-        )
-        .map((m) => ({
-          date: shortDay(m.date),
-          Profundo: Number(((m.deep_sleep_duration ?? 0) / 3600).toFixed(2)),
-          Leve: Number(((m.light_sleep_duration ?? 0) / 3600).toFixed(2)),
-          REM: Number(((m.rem_sleep_duration ?? 0) / 3600).toFixed(2)),
-        })),
-    [rows],
+      windowDates.map((date) => {
+        const m = byDate.get(date);
+        return {
+          date: shortDay(date),
+          Profundo: Number((((m?.deep_sleep_duration ?? 0)) / 3600).toFixed(2)),
+          Leve: Number((((m?.light_sleep_duration ?? 0)) / 3600).toFixed(2)),
+          REM: Number((((m?.rem_sleep_duration ?? 0)) / 3600).toFixed(2)),
+        };
+      }),
+    [windowDates, byDate],
+  );
+  const hasSleepPhases = rows.some(
+    (m) =>
+      m.deep_sleep_duration !== null ||
+      m.light_sleep_duration !== null ||
+      m.rem_sleep_duration !== null,
   );
 
   const stressBalance = useMemo(
     () =>
-      [...rows]
-        .sort((a, b) => a.date.localeCompare(b.date))
-        .filter((m) => m.stress_high_time !== null || m.recovery_high_time !== null)
-        .map((m) => ({
-          date: shortDay(m.date),
-          "Estresse alto": Math.round((m.stress_high_time ?? 0) / 60),
-          "Recuperação alta": Math.round((m.recovery_high_time ?? 0) / 60),
-        })),
-    [rows],
+      windowDates.map((date) => {
+        const m = byDate.get(date);
+        return {
+          date: shortDay(date),
+          "Estresse alto": Math.round((m?.stress_high_time ?? 0) / 60),
+          "Recuperação alta": Math.round((m?.recovery_high_time ?? 0) / 60),
+        };
+      }),
+    [windowDates, byDate],
+  );
+  const hasStressData = rows.some(
+    (m) => m.stress_high_time !== null || m.recovery_high_time !== null,
   );
 
   const periodToggle = (
@@ -231,46 +248,46 @@ export const OuraTabContent = ({
     </Accordion>
   );
 
+  // Header (toggle+protocolo manual) e rodapé (conexão/diag/protocolos)
+  // ficam acessíveis em TODOS os estados — erro de métricas não pode
+  // esconder o botão de sincronizar nem o fluxo de protocolos.
+  let body: ReactNode;
   if (isLoading) {
-    return (
+    body = (
       <div className="space-y-4">
         <Skeleton className="h-40 w-full rounded-lg" />
         <Skeleton className="h-48 w-full rounded-lg" />
       </div>
     );
-  }
-  if (isError) {
-    return <DataErrorState what="as métricas do Oura" onRetry={() => refetch()} />;
-  }
-
-  if (rows.length === 0) {
-    return (
-      <div className="space-y-4">
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Activity className="mb-4 h-12 w-12 text-muted-foreground" />
-            {hasConnection ? (
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  Oura conectado, sem dados no período selecionado. Os dados são
-                  processados após o aluno acordar e sincronizar o anel — use o
-                  Sincronizar em "Conexão e diagnóstico" abaixo.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <>
-                <p className="text-muted-foreground">Nenhuma métrica do Oura disponível</p>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Conecte o Oura do aluno em "Conexão e diagnóstico" abaixo.
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        {footer}
-      </div>
+  } else if (isError) {
+    body = <DataErrorState what="as métricas do Oura" onRetry={() => refetch()} />;
+  } else if (rows.length === 0) {
+    body = (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-12">
+          <Activity className="mb-4 h-12 w-12 text-muted-foreground" />
+          {hasConnection ? (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Oura conectado, sem dados no período selecionado. Os dados são
+                processados após o aluno acordar e sincronizar o anel — use o
+                Sincronizar em "Conexão e diagnóstico" abaixo.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              <p className="text-muted-foreground">Nenhuma métrica do Oura disponível</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Conecte o Oura do aluno em "Conexão e diagnóstico" abaixo.
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
     );
+  } else {
+    body = null;
   }
 
   return (
@@ -280,6 +297,9 @@ export const OuraTabContent = ({
         <ManualProtocolRecommendationDialog studentId={studentId} />
       </div>
 
+      {body}
+
+      {body === null && (
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview">Resumo</TabsTrigger>
@@ -330,7 +350,7 @@ export const OuraTabContent = ({
               </p>
               <LazyChart height={180}>
                 <TrendChart
-                  data={toTrend(rows, (m) => m.readiness_score)}
+                  data={toTrend(windowDates, byDate, (m) => m.readiness_score)}
                   kind="line"
                   series={1}
                   height={180}
@@ -390,7 +410,7 @@ export const OuraTabContent = ({
               </p>
               <LazyChart height={180}>
                 <TrendChart
-                  data={toTrend(rows, (m) => m.activity_score)}
+                  data={toTrend(windowDates, byDate, (m) => m.activity_score)}
                   kind="line"
                   series={2}
                   height={180}
@@ -441,7 +461,7 @@ export const OuraTabContent = ({
               </div>
             ) : null;
           })()}
-          {sleepPhases.length > 0 && (
+          {hasSleepPhases && (
             <Card>
               <CardContent className="p-4">
                 <p className="mb-2 text-[10.5px] uppercase tracking-widest text-muted-foreground">
@@ -481,7 +501,7 @@ export const OuraTabContent = ({
 
         {/* ESTRESSE — balanço por dia em barras empilhadas (mata o gráfico-por-dia) */}
         <TabsContent value="stress" className="mt-6 space-y-4 animate-fade-in">
-          {stressBalance.length > 0 ? (
+          {hasStressData ? (
             <Card>
               <CardContent className="p-4">
                 <p className="mb-2 text-[10.5px] uppercase tracking-widest text-muted-foreground">
@@ -537,7 +557,7 @@ export const OuraTabContent = ({
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <MetricTile
                   label="SpO2 médio (sono)"
-                  value={latestSpo2?.spo2_average !== null && latestSpo2 ? `${latestSpo2.spo2_average.toFixed(1)}%` : null}
+                  value={latestSpo2?.spo2_average != null ? `${latestSpo2.spo2_average.toFixed(1)}%` : null}
                   tone={
                     latestSpo2?.spo2_average != null && latestSpo2.spo2_average < 95
                       ? "warning"
@@ -573,7 +593,7 @@ export const OuraTabContent = ({
               </p>
               <LazyChart height={180}>
                 <TrendChart
-                  data={toTrend(rows, (m) => m.spo2_average)}
+                  data={toTrend(windowDates, byDate, (m) => m.spo2_average)}
                   kind="line"
                   series={5}
                   height={180}
@@ -594,6 +614,7 @@ export const OuraTabContent = ({
           />
         </TabsContent>
       </Tabs>
+      )}
 
       {footer}
     </div>

@@ -73,13 +73,25 @@ export interface OuraMetricsWindow {
 }
 
 /** Data de hoje (date-only) no fuso do estúdio. */
-const spToday = (): string =>
+export const spToday = (): string =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
 const spCutoff = (days: number): string => {
   const [y, m, d] = spToday().split("-").map(Number);
   const cutoff = new Date(Date.UTC(y, m - 1, d - (days - 1)));
   return cutoff.toISOString().slice(0, 10);
+};
+
+/** Todas as datas da janela [hoje−(days−1), hoje] em SP, ASCENDENTE —
+ * densifica eixos de gráfico (dia sem linha no banco vira categoria vazia,
+ * senão um buraco de 10 dias ocupa o mesmo espaço visual de 1 dia). */
+export const spWindowDates = (days: number): string[] => {
+  const [y, m, d] = spToday().split("-").map(Number);
+  const out: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    out.push(new Date(Date.UTC(y, m - 1, d - i)).toISOString().slice(0, 10));
+  }
+  return out;
 };
 
 // AUD-F03: Histórico com paginação e deduplicação.
@@ -111,7 +123,8 @@ export const useOuraMetrics = (
         .order("date", { ascending: false });
 
       if (days) {
-        query = query.gte("date", spCutoff(days)).limit(days + 7);
+        // Teto .lte: registro com data futura não entra nem consome o limite.
+        query = query.gte("date", spCutoff(days)).lte("date", spToday()).limit(days);
       } else if (limit) {
         query = query.limit(limit);
       } else {
