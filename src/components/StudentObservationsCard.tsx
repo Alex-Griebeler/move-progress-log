@@ -1,17 +1,35 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, Check, Calendar } from "lucide-react";
+import { AlertTriangle, Check, Calendar, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { buildErrorDescription } from "@/utils/errorParsing";
 
 interface StudentObservationsCardProps {
   studentId: string;
+  /**
+   * Seção clínica fixa do cadastro (PR-4: card clínico ÚNICO — antes eram
+   * dois cards concorrentes na overview, um vazio em cima e um dismissível
+   * pra sempre via localStorage embaixo). Opcional e retrocompatível.
+   */
+  limitations?: string | null;
+  injuryHistory?: string | null;
 }
 
-export function StudentObservationsCard({ studentId }: StudentObservationsCardProps) {
+export function StudentObservationsCard({
+  studentId,
+  limitations,
+  injuryHistory,
+}: StudentObservationsCardProps) {
+  // Dismiss POR SESSÃO da seção fixa (state, nunca localStorage — segurança
+  // clínica não pode sumir pra sempre num browser). Observações com resolve
+  // continuam sempre visíveis.
+  const [medicalSectionDismissed, setMedicalSectionDismissed] = useState(false);
+  const hasMedicalSection =
+    Boolean(limitations || injuryHistory) && !medicalSectionDismissed;
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -124,6 +142,34 @@ export function StudentObservationsCard({ studentId }: StudentObservationsCardPr
     );
   }
 
+
+  const medicalSection = hasMedicalSection ? (
+    <div className="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="text-sm font-semibold">Limitações e histórico de lesões</h4>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-muted-foreground"
+          onClick={() => setMedicalSectionDismissed(true)}
+          aria-label="Recolher nesta sessão"
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      {limitations && (
+        <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/90">
+          <span className="font-medium">Limitações:</span> {limitations}
+        </p>
+      )}
+      {injuryHistory && (
+        <p className="mt-1 whitespace-pre-wrap text-sm text-foreground/90">
+          <span className="font-medium">Lesões:</span> {injuryHistory}
+        </p>
+      )}
+    </div>
+  ) : null;
+
   return (
     <Card>
       <CardHeader>
@@ -133,6 +179,7 @@ export function StudentObservationsCard({ studentId }: StudentObservationsCardPr
         </CardTitle>
       </CardHeader>
       <CardContent>
+        {medicalSection}
         {!observations || observations.length === 0 ? (
           <p className="text-muted-foreground text-sm">Nenhuma observação registrada</p>
         ) : (

@@ -466,6 +466,7 @@ const StudentDetailPage = () => {
             latestOuraMetrics={latestOuraMetrics}
             ouraConnection={ouraConnection}
             onNavigateToOura={() => setActiveTab("oura")}
+            isLoading={loadingSessions || loadingAssignments}
           />
         </TabsContent>
 
