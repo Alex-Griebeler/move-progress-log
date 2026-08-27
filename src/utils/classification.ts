@@ -72,8 +72,13 @@ export interface SitToStandReferenceRange {
 // ────────────────────────────────────────────────────────────────────────────
 
 /**
- * Classifica VO₂ máx baseado em faixa ACSM 2018 pra sexo/idade do aluno.
- * Retorna `null` se nenhum range bater (faixa etária fora das seedadas).
+ * Classifica VO₂ máx baseado nas faixas seedadas (FRIEND 2015/ACSM) pra
+ * sexo/idade do aluno. Retorna `null` se nenhum range bater (faixa etária
+ * fora das seedadas).
+ *
+ * O valor é arredondado internamente a 2 casas (precisão do banco): as
+ * bandas são contíguas com passo 0.01, então um valor computado em float
+ * (ex.: 32.095, antes de ser persistido em numeric(5,2)) cairia no vão.
  *
  * @param vo2 VO₂ em ml/kg/min.
  * @param ranges Faixas já filtradas por sex + age (subset relevante).
@@ -83,8 +88,9 @@ export function classifyVo2(
   ranges: Vo2ReferenceRange[],
 ): Vo2Classification | null {
   if (!Number.isFinite(vo2) || vo2 < 0) return null;
+  const value = Math.round(vo2 * 100) / 100;
   const hit = ranges.find(
-    (r) => vo2 >= r.vo2_min && vo2 <= r.vo2_max,
+    (r) => value >= r.vo2_min && value <= r.vo2_max,
   );
   return hit?.classification ?? null;
 }

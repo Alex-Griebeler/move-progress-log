@@ -232,22 +232,37 @@ values
 ${hgValues}
 on conflict (id) do nothing;
 
--- Verificação pós-insert: garante que TODAS as linhas do seed existem no banco
--- (pega aplicação parcial; não valida valores de linhas pré-existentes com
--- mesmo id — cenário coberto pelo precheck + rollback por id documentado).
+-- Verificação pós-insert: compara TODAS as colunas de TODAS as linhas do seed
+-- contra o banco. Pega aplicação parcial E linha pré-existente com o mesmo id
+-- mas valores divergentes (que o ON CONFLICT DO NOTHING teria preservado em
+-- silêncio). Reaplicar só declara "Seed OK" se o banco bater 100% com o seed.
 do $$
 declare
   vo2_ok int;
   hg_ok int;
 begin
-  select count(*) into vo2_ok from public.vo2_reference_ranges
-   where id in (${vo2Rows.map((r) => `'${r.id}'`).join(", ")});
-  select count(*) into hg_ok from public.handgrip_reference_ranges
-   where id in (${hgRows.map((r) => `'${r.id}'`).join(", ")});
+  select count(*) into vo2_ok
+  from public.vo2_reference_ranges t
+  join (values
+${vo2Rows.map((r) => `    ('${r.id}'::uuid, '${r.sex}', ${r.age_min}, ${r.age_max}, '${esc(r.classification)}', ${r.vo2_min.toFixed(2)}::numeric, ${r.vo2_max.toFixed(2)}::numeric)`).join(",\n")}
+  ) as seed(id, sex, age_min, age_max, classification, vo2_min, vo2_max)
+    on t.id = seed.id and t.sex = seed.sex and t.age_min = seed.age_min
+   and t.age_max = seed.age_max and t.classification = seed.classification
+   and t.vo2_min = seed.vo2_min and t.vo2_max = seed.vo2_max;
+
+  select count(*) into hg_ok
+  from public.handgrip_reference_ranges t
+  join (values
+${hgRows.map((r) => `    ('${r.id}'::uuid, '${r.sex}', ${r.age_min}, ${r.age_max}, '${esc(r.classification)}', ${r.kg_min.toFixed(2)}::numeric, ${r.kg_max.toFixed(2)}::numeric)`).join(",\n")}
+  ) as seed(id, sex, age_min, age_max, classification, kg_min, kg_max)
+    on t.id = seed.id and t.sex = seed.sex and t.age_min = seed.age_min
+   and t.age_max = seed.age_max and t.classification = seed.classification
+   and t.kg_min = seed.kg_min and t.kg_max = seed.kg_max;
+
   if vo2_ok <> ${vo2Rows.length} or hg_ok <> ${hgRows.length} then
-    raise exception 'POSCHECK FATAL: seed incompleto — vo2 %/${vo2Rows.length}, handgrip %/${hgRows.length}', vo2_ok, hg_ok;
+    raise exception 'POSCHECK FATAL: banco diverge do seed — vo2 %/${vo2Rows.length}, handgrip %/${hgRows.length} linhas idênticas. Alguma linha está faltando ou existe com valores diferentes (ON CONFLICT preservou); comparar pelos ids do cabeçalho.', vo2_ok, hg_ok;
   end if;
-  raise notice 'Seed OK: % linhas vo2 + % linhas handgrip presentes', vo2_ok, hg_ok;
+  raise notice 'Seed OK: % linhas vo2 + % linhas handgrip conferidas coluna a coluna', vo2_ok, hg_ok;
 end $$;
 `;
 

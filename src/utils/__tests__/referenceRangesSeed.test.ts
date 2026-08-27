@@ -187,8 +187,50 @@ describe("integração com os classificadores (semântica de fronteira)", () => 
     expect(classifyHandgrip(108.6 / 3, subset)).toBe("Baixo");
   });
 
-  it("teto: VO₂ 119 e grip 149 ainda classificam no topo", () => {
-    expect(classifyVo2(119, filterRangesBySexAge(VO2_SEED, "F", 30))).toBe("Superior");
-    expect(classifyHandgrip(149, filterRangesBySexAge(HANDGRIP_SEED, "M", 60))).toBe("Muito Alto");
+  it("teto EXATO classifica; acima do teto → null", () => {
+    expect(classifyVo2(120, filterRangesBySexAge(VO2_SEED, "F", 30))).toBe("Superior");
+    expect(classifyVo2(120.01, filterRangesBySexAge(VO2_SEED, "F", 30))).toBeNull();
+    expect(classifyHandgrip(150, filterRangesBySexAge(HANDGRIP_SEED, "M", 60))).toBe("Muito Alto");
+    expect(classifyHandgrip(150.01, filterRangesBySexAge(HANDGRIP_SEED, "M", 60))).toBeNull();
+  });
+
+  it("entrada inválida contra as faixas seedadas → null (NaN, Infinity, negativo)", () => {
+    const vo2Subset = filterRangesBySexAge(VO2_SEED, "M", 40);
+    const hgSubset = filterRangesBySexAge(HANDGRIP_SEED, "F", 40);
+    for (const bad of [Number.NaN, Infinity, -Infinity, -0.01]) {
+      expect(classifyVo2(bad, vo2Subset)).toBeNull();
+      expect(classifyHandgrip(bad, hgSubset)).toBeNull();
+    }
+  });
+
+  it("VO₂ computado em float (não persistido) não cai no vão: 32.095 → arredonda e classifica", () => {
+    const subset = filterRangesBySexAge(VO2_SEED, "M", 25);
+    // M 20-29: Muito Fraco [0, 32.09], Fraco [32.10, …]. 32.095 → 32.1 → Fraco.
+    expect(classifyVo2(32.095, subset)).toBe("Fraco");
+    expect(classifyVo2(32.094, subset)).toBe("Muito Fraco");
+  });
+});
+
+describe("SQL commitado espelha o fixture (anti-dessincronização)", () => {
+  it("a migração contém exatamente as mesmas linhas do fixture", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const sql = readFileSync(
+      join(__dirname, "../../../supabase/migrations/20260827120000_seed_reference_ranges.sql"),
+      "utf8",
+    );
+    for (const r of VO2_SEED) {
+      expect(sql).toContain(
+        `('${r.id}', '${r.sex}', ${r.age_min}, ${r.age_max}, '${r.classification}', ${r.vo2_min.toFixed(2)}, ${r.vo2_max.toFixed(2)},`,
+      );
+    }
+    for (const r of HANDGRIP_SEED) {
+      expect(sql).toContain(
+        `('${r.id}', '${r.sex}', ${r.age_min}, ${r.age_max}, '${r.classification}', ${r.kg_min.toFixed(2)}, ${r.kg_max.toFixed(2)},`,
+      );
+    }
+    // exatamente 2 inserts, nas duas tabelas certas
+    expect(sql.match(/insert into public\.vo2_reference_ranges/g)).toHaveLength(1);
+    expect(sql.match(/insert into public\.handgrip_reference_ranges/g)).toHaveLength(1);
   });
 });

@@ -333,7 +333,8 @@ export const HandgripForm = ({
               <strong>Melhor geral:</strong>{" "}
               <span className="font-mono">{bestOverall.toFixed(1)} kg</span>{" "}
               <span className="text-muted-foreground text-xs">
-                (= best_kg armazenado no banco; usado pra classificação Mathiowetz)
+                (= best_kg armazenado no banco; a classificação Mathiowetz usa a
+                média das 3 tentativas da mão direita)
               </span>
             </div>
 
