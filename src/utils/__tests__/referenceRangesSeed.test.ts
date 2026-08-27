@@ -234,6 +234,6 @@ describe("SQL commitado espelha o fixture (anti-dessincronização)", () => {
     // usam 4), então a contagem tem que bater exatamente com o fixture
     expect(sql.match(/insert into public\.vo2_reference_ranges/g)).toHaveLength(1);
     expect(sql.match(/insert into public\.handgrip_reference_ranges/g)).toHaveLength(1);
-    expect(sql.match(/^  \('/gm)).toHaveLength(VO2_SEED.length + HANDGRIP_SEED.length);
+    expect(sql.match(/^ {2}\('/gm)).toHaveLength(VO2_SEED.length + HANDGRIP_SEED.length);
   });
 });
