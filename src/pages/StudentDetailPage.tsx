@@ -10,12 +10,12 @@ import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, 
 import { PrescriptionsTabContent } from "@/components/student-detail/PrescriptionsTabContent";
 import { OuraTabContent } from "@/components/student-detail/OuraTabContent";
 import { WhoopTabContent } from "@/components/student-detail/WhoopTabContent";
+import { SessionsTabContent } from "@/components/student-detail/SessionsTabContent";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StudentAvatarImage } from "@/components/StudentAvatarImage";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import WorkoutCard from "@/components/WorkoutCard";
 import ExerciseHistoryCard from "@/components/ExerciseHistoryCard";
 import TrainingZonesCard from "@/components/TrainingZonesCard";
 import ProtocolRecommendationsCard from "@/components/ProtocolRecommendationsCard";
@@ -92,7 +92,7 @@ const StudentDetailPage = () => {
     activeTab === "training" || activeTab === "overview" || activeTab === "oura";
 
   const { data: student, isLoading: loadingStudent } = useStudentById(id ?? null);
-  const { data: sessions, isLoading: loadingSessions } = useSessionsWithExercises(
+  const { data: sessions, isLoading: loadingSessions, isError: sessionsError, refetch: refetchSessions } = useSessionsWithExercises(
     needsSessions ? studentId : ""
   );
   const { data: assignments, isLoading: loadingAssignments, isError: assignmentsError, refetch: refetchAssignments } = useStudentPrescriptions(
@@ -110,7 +110,6 @@ const StudentDetailPage = () => {
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'individual' | 'group'>('all');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [editStudentOpen, setEditStudentOpen] = useState(false);
   const reopenSession = useReopenWorkoutSession();
@@ -457,155 +456,26 @@ const StudentDetailPage = () => {
         </TabsContent>
 
         <TabsContent value="sessions" className="space-y-4 animate-fade-in">
-          {/* Filtros de tipo de sessão */}
-          <Card className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Filtrar por tipo:</span>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={sessionTypeFilter === 'all' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSessionTypeFilter('all')}
-                  className="gap-1.5"
-                >
-                  Todas
-                  {sessions && (
-                    <Badge variant={sessionTypeFilter === 'all' ? 'secondary' : 'outline'} className="ml-1">
-                      {sessions.length}
-                    </Badge>
-                  )}
-                </Button>
-                <Button
-                  variant={sessionTypeFilter === 'individual' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSessionTypeFilter('individual')}
-                  className="gap-1.5"
-                >
-                  <User className="h-3.5 w-3.5" />
-                  Individual
-                  {sessions && (
-                    <Badge variant={sessionTypeFilter === 'individual' ? 'secondary' : 'outline'} className="ml-1">
-                      {sessions.filter(s => s.session_type === 'individual').length}
-                    </Badge>
-                  )}
-                </Button>
-                <Button
-                  variant={sessionTypeFilter === 'group' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSessionTypeFilter('group')}
-                  className="gap-1.5"
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  Grupo
-                  {sessions && (
-                    <Badge variant={sessionTypeFilter === 'group' ? 'secondary' : 'outline'} className="ml-1">
-                      {sessions.filter(s => s.session_type === 'group').length}
-                    </Badge>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </Card>
-
-          {loadingSessions ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-32" />
-              ))}
-            </div>
-          ) : sessions && sessions.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {sessions
-                .filter(session => {
-                  if (sessionTypeFilter === 'all') return true;
-                  return session.session_type === sessionTypeFilter;
-                })
-                .map((session) => {
-                // Mesma fórmula do SessionDetailDialog (load × sets × reps) —
-                // fórmulas divergentes mostrariam volumes diferentes pra mesma
-                // sessão quando o card passar a exibir o valor.
-                const totalVolume = session.exercises?.reduce((sum, ex) => {
-                  const volume = ex.reps && ex.sets && ex.load_kg
-                    ? ex.load_kg * ex.sets * ex.reps
-                    : 0;
-                  return sum + volume;
-                }, 0) || 0;
-
-                return (
-                  <WorkoutCard
-                    key={session.id}
-                    sessionId={session.id}
-                    name={session.workout_name || `Treino - ${formatSessionTime(session.time)}`}
-                    exercises={session.exercises?.length || 0}
-                    date={session.date}
-                    sessionType={session.session_type as 'individual' | 'group'}
-                    totalVolume={totalVolume}
-                    isFinalized={session.is_finalized}
-                    canReopen={session.can_reopen}
-                    onEdit={() => setEditingSessionId(session.id)}
-                    onReopen={() => {
-                      reopenSession.mutate(session.id, {
-                        onSuccess: () => {
-                          setSessionToReopen(session.id);
-                          setRecordSessionOpen(true);
-                        }
-                      });
-                    }}
-                    onFinalize={() => finalizeSession.mutate(session.id)}
-                    onClick={() => setSelectedSessionId(session.id)}
-                  />
-                );
-              })}
-            </div>
-          ) : sessionTypeFilter !== 'all' ? (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
-                <div className="rounded-full bg-muted p-4">
-                  <Calendar className="h-12 w-12 text-muted-foreground" />
-                </div>
-                <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold">
-                    Nenhuma sessão {sessionTypeFilter === 'individual' ? 'individual' : 'em grupo'} encontrada
-                  </h3>
-                  <p className="text-muted-foreground text-sm max-w-md">
-                    Não há sessões {sessionTypeFilter === 'individual' ? 'individuais' : 'em grupo'} registradas para este período
-                  </p>
-                </div>
-                <Button 
-                  variant="outline"
-                  onClick={() => setSessionTypeFilter('all')}
-                  className="gap-2 mt-4"
-                >
-                  Ver todas as sessões
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
-                <div className="rounded-full bg-primary/10 p-4">
-                  <Calendar className="h-12 w-12 text-primary" />
-                </div>
-                <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold">Nenhuma sessão registrada</h3>
-                  <p className="text-muted-foreground text-sm max-w-md">
-                    Comece registrando a primeira sessão de treino de {student.name}
-                  </p>
-                </div>
-                <Button 
-                  onClick={() => setRecordSessionOpen(true)}
-                  variant="default"
-                  className="gap-2 mt-4"
-                >
-                  <Mic className="h-4 w-4" />
-                  Registrar Primeira Sessão
-                </Button>
-              </CardContent>
-            </Card>
-          )}
+          <SessionsTabContent
+            studentName={student.name}
+            sessions={sessions}
+            isLoading={loadingSessions}
+            isError={sessionsError}
+            refetch={refetchSessions}
+            weeklyTarget={student.weekly_sessions_proposed}
+            onRecordSession={() => setRecordSessionOpen(true)}
+            onView={(sessionId) => setSelectedSessionId(sessionId)}
+            onEdit={(sessionId) => setEditingSessionId(sessionId)}
+            onReopen={(sessionId) => {
+              reopenSession.mutate(sessionId, {
+                onSuccess: () => {
+                  setSessionToReopen(sessionId);
+                  setRecordSessionOpen(true);
+                },
+              });
+            }}
+            onFinalize={(sessionId) => finalizeSession.mutate(sessionId)}
+          />
         </TabsContent>
 
         <TabsContent value="exercises" className="space-y-4 animate-fade-in">
