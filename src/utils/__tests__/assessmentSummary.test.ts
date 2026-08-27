@@ -196,6 +196,12 @@ describe("questionnaireSummary", () => {
     expect(questionnaireSummary({}, "aborted").label).toMatch(/interrompid/i);
   });
 
+  it("status 'blocked' mantém o bloqueio mesmo sem a relação carregada", () => {
+    const s = questionnaireSummary({}, "blocked");
+    expect(s.tone).toBe("destructive");
+    expect(s.label).toMatch(/liberação médica/i);
+  });
+
   it("status ausente não explode", () => {
     expect(questionnaireSummary({}, null).label).toBeTruthy();
   });

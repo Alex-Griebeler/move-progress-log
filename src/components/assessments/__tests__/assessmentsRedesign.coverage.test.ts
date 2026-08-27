@@ -111,7 +111,7 @@ describe("erro de régua ≠ faixa etária não coberta", () => {
   it("a LISTA também sinaliza régua indisponível (não só o sheet)", () => {
     expect(TAB).toMatch(/const rangesFailed =/);
     expect(TAB).toMatch(/\{rangesFailed && \(/);
-    expect(TAB).toMatch(/Não foi possível carregar as tabelas de referência/);
+    expect(TAB).toMatch(/Não foi possível carregar parte das tabelas de referência/);
   });
 
   it("o sheet trata isError dos hooks de referência", () => {
@@ -138,6 +138,24 @@ describe("card: direção do 'melhor' por métrica", () => {
 
   it("valor ausente não vira zero na tela", () => {
     expect(CARD).toMatch(/value !== null && Number\.isFinite\(value\)/);
+  });
+});
+
+describe("ressalva de protocolo é visível e acessível (não só tooltip)", () => {
+  it("aparece como texto ao lado da classificação, não como asterisco com title", () => {
+    expect(CARD).toMatch(/\(orientativa\)/);
+    expect(CARD).not.toMatch(/title="Protocolo diferente/);
+  });
+
+  it("o aria-label do card carrega a ressalva pra leitor de tela", () => {
+    expect(CARD).toMatch(/Classificação orientativa/);
+  });
+});
+
+describe("auditabilidade da idade usada na classificação", () => {
+  it("o detalhe mostra a idade NA DATA do teste quando diverge do snapshot", () => {
+    expect(SHEET).toMatch(/"Idade na data do teste"/);
+    expect(SHEET).toMatch(/hero\.subject\.ageYears !== assessment\.age_years/);
   });
 });
 

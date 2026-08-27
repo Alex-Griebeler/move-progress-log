@@ -513,6 +513,7 @@ export const AssessmentDetailSheet = ({
       keyResult,
       classification,
       ranges,
+      subject,
       unclassifiedReason,
       protocolNote:
         kind === "vo2" && !modality.matchesReferenceProtocol ? VO2_REFERENCE_NOTE : null,
@@ -588,7 +589,16 @@ export const AssessmentDetailSheet = ({
                   <KeyValueGrid
                     items={[
                       ["Data", formatDate(assessment.assessment_date)],
-                      ["Idade", withUnit(assessment.age_years, "anos")],
+                      // A classificação usa a idade NA DATA do teste, que pode
+                      // divergir do snapshot (gravado com a idade atual). Sem
+                      // mostrar a usada, não dá pra auditar qual régua valeu.
+                      hero?.subject.ageYears != null &&
+                      hero.subject.ageYears !== assessment.age_years
+                        ? [
+                            "Idade na data do teste",
+                            withUnit(hero.subject.ageYears, "anos"),
+                          ]
+                        : ["Idade", withUnit(assessment.age_years, "anos")],
                       ["Peso", withUnit(assessment.weight_kg, "kg")],
                       ["Altura", withUnit(assessment.height_cm, "cm")],
                       ["Sexo", assessment.sex],

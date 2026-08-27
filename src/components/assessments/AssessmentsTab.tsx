@@ -328,8 +328,9 @@ export const AssessmentsTab = ({
 
       {rangesFailed && (
         <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
-          Não foi possível carregar as tabelas de referência. Os resultados
-          abaixo estão corretos, mas ficam sem classificação.
+          Não foi possível carregar parte das tabelas de referência. Os
+          resultados abaixo estão corretos; algumas classificações podem
+          ficar indisponíveis.
         </p>
       )}
 

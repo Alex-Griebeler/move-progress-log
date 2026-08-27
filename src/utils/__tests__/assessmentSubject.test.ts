@@ -113,6 +113,18 @@ describe("resolveAssessmentSubject", () => {
     expect(s.source).toBe("derived");
   });
 
+  it("nascimento incoerente com a data do teste NÃO cai no snapshot", () => {
+    // Avaliação anterior ao nascimento: os dois fatos brigam. Classificar em
+    // cima do snapshot aqui seria classificar sobre dado sabidamente errado.
+    const s = resolveAssessmentSubject({
+      snapshotSex: "M",
+      snapshotAgeYears: 40,
+      assessmentDate: "1999-01-01",
+      studentBirthDate: "2000-01-01",
+    });
+    expect(s.ageYears).toBeNull();
+  });
+
   it("idade zero é válida (não confundir com ausente)", () => {
     const s = resolveAssessmentSubject({ snapshotSex: "M", snapshotAgeYears: 0 });
     expect(s.ageYears).toBe(0);

@@ -252,6 +252,12 @@ export const questionnaireSummary = (
   }
   const s = (status ?? "").toLowerCase();
 
+  // Status `blocked` é o próprio gate do PAR-Q na avaliação-mãe: mesmo sem a
+  // relação carregada, o bloqueio não pode sumir da tela.
+  if (s === "blocked") {
+    return { label: "PAR-Q: liberação médica recomendada", tone: "destructive" };
+  }
+
   // "Sem impedimentos" é uma afirmação CLÍNICA: só pode sair daqui com
   // submissão registrada E `parq_blocked` explicitamente false. Um status
   // "completed" na avaliação-mãe, sozinho, não prova que o aluno respondeu

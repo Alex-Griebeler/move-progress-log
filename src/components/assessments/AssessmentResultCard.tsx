@@ -83,7 +83,11 @@ export const AssessmentResultCard = ({
       type="button"
       className="block w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={onClick}
-      aria-label={`Abrir detalhes de ${typeLabel}`}
+      aria-label={
+        hasProtocolCaveat && classification
+          ? `Abrir detalhes de ${typeLabel}. Classificação orientativa: o protocolo difere do usado na tabela de referência.`
+          : `Abrir detalhes de ${typeLabel}`
+      }
     >
       <Card className="flex cursor-pointer items-center justify-between gap-3 p-3 transition-colors hover:bg-muted/30">
         <div className="min-w-0 flex-1">
@@ -92,14 +96,7 @@ export const AssessmentResultCard = ({
             <Badge variant="outline" className="text-[10px]">
               {category}
             </Badge>
-            {hasProtocolCaveat && (
-              <span
-                className="text-[10px] text-muted-foreground"
-                title="Protocolo diferente do usado na tabela de referência"
-              >
-                *
-              </span>
-            )}
+
           </div>
           {statusSummary ? (
             <p className={cn("mt-0.5 text-xs", TONE_TEXT[statusSummary.tone] ?? "text-muted-foreground")}>
@@ -128,6 +125,17 @@ export const AssessmentResultCard = ({
                     )}
                   >
                     {classification}
+                    {/*
+                      A ressalva é a mitigação da decisão de classificar todos
+                      os protocolos com a régua de esteira máxima. Um asterisco
+                      com `title` não serve: em touch não há hover e o span não
+                      recebe foco. Texto visível, e repetido no aria-label.
+                    */}
+                    {hasProtocolCaveat && (
+                      <span className="ml-1 font-normal text-muted-foreground">
+                        (orientativa)
+                      </span>
+                    )}
                   </span>
                 )}
                 {delta !== null && (

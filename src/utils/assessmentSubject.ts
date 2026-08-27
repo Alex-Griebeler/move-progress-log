@@ -76,15 +76,19 @@ export const resolveAssessmentSubject = (
 
   const sex = snapSex ?? normalizeSex(input.studentSex);
 
-  const derivedAge =
-    input.studentBirthDate && input.assessmentDate
-      ? ageOnDate(input.studentBirthDate, input.assessmentDate)
-      : null;
-  const ageYears = derivedAge ?? snapAge;
+  const canDerive = Boolean(input.studentBirthDate && input.assessmentDate);
+  const derivedAge = canDerive
+    ? ageOnDate(input.studentBirthDate!, input.assessmentDate!)
+    : null;
+
+  // Quando dá pra derivar mas o cálculo falha, os dois fatos (nascimento e
+  // data do teste) estão em conflito — avaliação anterior ao nascimento, data
+  // inválida. Cair no snapshot aí classificaria em cima de dado incoerente;
+  // melhor não classificar e deixar a UI dizer que falta idade.
+  const ageYears = canDerive ? derivedAge : snapAge;
 
   if (sex === null && ageYears === null) return { sex, ageYears, source: "unknown" };
-  const source = snapSex !== null && derivedAge === null && snapAge !== null
-    ? "snapshot"
-    : "derived";
+  const source =
+    snapSex !== null && !canDerive && snapAge !== null ? "snapshot" : "derived";
   return { sex, ageYears, source };
 };
