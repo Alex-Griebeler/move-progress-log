@@ -92,19 +92,25 @@ export function classifyVo2(
 /**
  * Classifica handgrip strength contra as normas de Mathiowetz 1985.
  *
- * IMPORTANTE: as faixas seedadas são da mão DIREITA (Tabela 2 do paper) —
- * o chamador deve passar `right_kg` (maior das 3 tentativas da mão direita),
- * NÃO `best_kg` das duas mãos, que deslocaria a classificação pra cima.
- * Válido independente de dominância: Mathiowetz mostrou diferença mínima
- * entre destros e canhotos quando comparados POR MÃO.
+ * IMPORTANTE: as faixas seedadas são da mão DIREITA e o protocolo normativo
+ * usa a MÉDIA das 3 tentativas (Mathiowetz 1985, conclusão 2: "the average
+ * of three trials should be used") — o chamador deve passar
+ * `mean(right_kg_attempts)`, NÃO `best_kg` das duas mãos nem o máximo da
+ * direita, que deslocariam a classificação pra cima. Válido independente de
+ * dominância: Mathiowetz mostrou diferença mínima entre destros e canhotos
+ * quando comparados POR MÃO.
+ *
+ * O valor é arredondado internamente a 2 casas: as bandas são contíguas com
+ * passo 0.01, então uma média com dízima (ex.: 91/3) cairia no vão sem isso.
  */
 export function classifyHandgrip(
-  bestKg: number,
+  rightKgMean: number,
   ranges: HandgripReferenceRange[],
 ): HandgripClassification | null {
-  if (!Number.isFinite(bestKg) || bestKg < 0) return null;
+  if (!Number.isFinite(rightKgMean) || rightKgMean < 0) return null;
+  const value = Math.round(rightKgMean * 100) / 100;
   const hit = ranges.find(
-    (r) => bestKg >= r.kg_min && bestKg <= r.kg_max,
+    (r) => value >= r.kg_min && value <= r.kg_max,
   );
   return hit?.classification ?? null;
 }

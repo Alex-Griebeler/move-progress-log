@@ -178,6 +178,15 @@ describe("integração com os classificadores (semântica de fronteira)", () => 
     expect(classifyHandgrip(30, filterRangesBySexAge(HANDGRIP_SEED, "F", 18))).toBeNull();
   });
 
+  it("média com dízima não cai no vão de 0.01 entre bandas (arredondamento interno)", () => {
+    const subset = filterRangesBySexAge(HANDGRIP_SEED, "M", 22);
+    // M 20-24: Muito Baixo [0, 36.19], Baixo [36.2, ...]. Média (108.58+0+0)/3
+    // = 36.1933… fica entre 36.19 e 36.2 sem arredondar → arredonda pra 36.19.
+    expect(classifyHandgrip(108.58 / 3, subset)).toBe("Muito Baixo");
+    // 108.6/3 = 36.2000…01 em float → arredonda pra 36.2 → Baixo
+    expect(classifyHandgrip(108.6 / 3, subset)).toBe("Baixo");
+  });
+
   it("teto: VO₂ 119 e grip 149 ainda classificam no topo", () => {
     expect(classifyVo2(119, filterRangesBySexAge(VO2_SEED, "F", 30))).toBe("Superior");
     expect(classifyHandgrip(149, filterRangesBySexAge(HANDGRIP_SEED, "M", 60))).toBe("Muito Alto");

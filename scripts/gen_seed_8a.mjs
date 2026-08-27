@@ -6,7 +6,7 @@
  *  • VO₂: Kaminsky et al. 2015, Mayo Clin Proc 90(11):1515-23 (FRIEND registry,
  *    esteira, CPX). Tabela 3 — percentis 5/10/25/50/75/90/95 por sexo/década.
  *    DOI 10.1016/j.mayocp.2015.07.026. É a base da tabela do ACSM GETP 10ª ed (2018).
- *  • Handgrip: Mathiowetz et al. 1985, Arch Phys Med Rehabil 66:69-72.
+ *  • Handgrip: Mathiowetz et al. 1985, Arch Phys Med Rehabil 66:69-74.
  *    Tabela 2 — grip mão DIREITA, média±DP em LIBRAS, por sexo/faixa de 5 anos.
  *
  * DERIVAÇÕES DECLARADAS (sujeitas a ratificação do Alex):
@@ -14,7 +14,7 @@
  *    Muito Fraco <p10 · Fraco p10–p25 · Regular p25–p50 · Bom p50–p75 ·
  *    Excelente p75–p95 · Superior ≥p95. Teto 120 ml/kg/min.
  *  • Handgrip 5 classes por z-score sobre média±DP da mão direita
- *    (93% da amostra destra; app grava best_kg das duas mãos):
+ *    (93% da amostra destra; comparador = MÉDIA das 3 tentativas da mão direita):
  *    Muito Baixo <−2DP · Baixo −2DP..<−1DP · Médio −1DP..<+1DP ·
  *    Alto +1DP..<+2DP · Muito Alto >=+2DP. Conversão lb→kg ×0.45359237,
  *    fronteiras arredondadas a 1 decimal. Teto 150 kg (= teto do input no app).
@@ -102,7 +102,7 @@ const r2 = (x) => Math.round(x * 100) / 100;
 // "Derivação Fabrik": as CLASSES não são publicadas pelos autores — os dados
 // (percentis / média±DP) são deles; o mapeamento em bandas é regra nossa.
 const VO2_SOURCE = "Derivação Fabrik sobre FRIEND 2015 (Kaminsky, Mayo Clin Proc, DOI 10.1016/j.mayocp.2015.07.026; esteira/CPX máximo)";
-const HG_SOURCE = "Derivação Fabrik (bandas z-score) sobre Mathiowetz 1985 (Arch Phys Med Rehabil 66:69-72; mão DIREITA)";
+const HG_SOURCE = "Derivação Fabrik (bandas z-score) sobre Mathiowetz 1985 (Arch Phys Med Rehabil 66:69-74; mão DIREITA, média de 3 tentativas)";
 
 // ── Montagem das bandas ────────────────────────────────────────────────────
 const vo2Rows = [];
@@ -166,14 +166,15 @@ const sql = `-- ================================================================
 --   Alex, com viés conhecido (estimativas de bike tendem a subestimar).
 --
 -- handgrip_reference_ranges: ${hgRows.length} linhas — Mathiowetz et al. 1985 (Arch
---   Phys Med Rehabil 66:69-72), Tabela 2, mão DIREITA, média±DP em libras,
+--   Phys Med Rehabil 66:69-74), Tabela 2, mão DIREITA, média±DP em libras,
 --   convertido ×0.45359237 (fronteiras arredondadas a 1 decimal).
 --   Bandas z-score (DERIVAÇÃO FABRIK): Muito Baixo <−2DP · Baixo −2DP..<−1DP
 --   · Médio −1DP..<+1DP · Alto +1DP..<+2DP · Muito Alto >=+2DP.
 --   Faixa "75+" do paper => age_max 99 (amostra real ia até 94 anos;
 --   95–99 é extrapolação operacional documentada). Teto 150 kg (= teto de
 --   input do app). Idades <20 => sem classificação.
---   COMPARADOR: normas são da mão DIREITA — classificar right_kg contra elas
+--   COMPARADOR: normas são da mão DIREITA, protocolo = MÉDIA das 3 tentativas
+--   — classificar mean(right_kg_attempts) contra elas
 --   (válido independente de dominância: Mathiowetz mostrou diferença mínima
 --   entre destros e canhotos por MÃO). NÃO classificar best_kg das duas mãos.
 --
