@@ -1,14 +1,24 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dumbbell, Calendar, TrendingUp, Target, AlertCircle, Activity, X } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Activity } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Student } from "@/hooks/useStudents";
-import StatCard from "./StatCard";
-import TrainingZonesCard from "./TrainingZonesCard";
 import { StudentObservationsCard } from "./StudentObservationsCard";
 import ProtocolRecommendationsCard from "./ProtocolRecommendationsCard";
-import { useMemo, useState, useEffect } from "react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { ScoreRing, MetricTile, WeekBars } from "./metrics";
+import type { MetricTone, WeekBarPoint } from "./metrics";
+import { assignmentStatus } from "@/utils/assignmentStatus";
+import { countUniqueExercises } from "@/utils/uniqueExercises";
+import { formatRelativeDay, parseLocalDate } from "@/utils/relativeDate";
+import { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 interface SessionWithExercises {
@@ -17,7 +27,13 @@ interface SessionWithExercises {
   time: string;
   session_type: string;
   is_finalized?: boolean;
-  exercises?: Array<{ exercise_name: string; load_kg?: number | null; sets?: number | null; reps?: number | null }>;
+  exercises?: Array<{
+    exercise_name: string;
+    exercise_library_id?: string | null;
+    load_kg?: number | null;
+    sets?: number | null;
+    reps?: number | null;
+  }>;
 }
 
 interface PrescriptionAssignment {
@@ -49,6 +65,7 @@ interface StudentOverviewDashboardProps {
   latestOuraMetrics: OuraMetricsSnapshot | null;
   ouraConnection: OuraConnectionInfo | null;
   onNavigateToOura: () => void;
+  isLoading?: boolean;
 }
 
 // Animation variants
@@ -64,8 +81,8 @@ const containerVariants = {
 
 const cardVariants = {
   hidden: { y: 20, opacity: 0 },
-  visible: { 
-    y: 0, 
+  visible: {
+    y: 0,
     opacity: 1,
     transition: {
       type: "spring",
@@ -85,6 +102,12 @@ const reducedCardVariants = {
   visible: { y: 0, opacity: 1, transition: { duration: 0 } },
 };
 
+const adherenceTone = (percent: number): MetricTone => {
+  if (percent >= 75) return "success";
+  if (percent >= 40) return "warning";
+  return "destructive";
+};
+
 export const StudentOverviewDashboard = ({
   student,
   sessions,
@@ -92,260 +115,226 @@ export const StudentOverviewDashboard = ({
   latestOuraMetrics,
   ouraConnection,
   onNavigateToOura,
+  isLoading = false,
 }: StudentOverviewDashboardProps) => {
   const shouldReduceMotion = useReducedMotion();
   const activeContainerVariants = shouldReduceMotion ? reducedContainerVariants : containerVariants;
   const activeCardVariants = shouldReduceMotion ? reducedCardVariants : cardVariants;
-  // Medical alert dismiss state
-  const [medicalAlertDismissed, setMedicalAlertDismissed] = useState(false);
 
-  useEffect(() => {
-    const dismissed = localStorage.getItem(`medical-alert-dismissed-${student.id}`);
-    if (dismissed === 'true') {
-      setMedicalAlertDismissed(true);
-    }
-  }, [student.id]);
-
-  const handleDismissMedicalAlert = () => {
-    localStorage.setItem(`medical-alert-dismissed-${student.id}`, 'true');
-    setMedicalAlertDismissed(true);
-  };
-
-  // Format Oura date
   const ouraDateLabel = useMemo(() => {
     if (!latestOuraMetrics?.date) return null;
-    
     const date = parseISO(latestOuraMetrics.date);
     if (isToday(date)) return "Hoje";
     if (isYesterday(date)) return "Ontem";
     return format(date, "d 'de' MMMM", { locale: ptBR });
   }, [latestOuraMetrics?.date]);
 
-  // Key statistics
-  const totalSessions = useMemo(() => sessions?.length || 0, [sessions]);
-  
   const sessionsThisMonth = useMemo(() => {
     if (!sessions) return 0;
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    return sessions.filter(s => new Date(s.date) >= firstDayOfMonth).length;
+    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    return sessions.filter((s) => {
+      const d = parseLocalDate(s.date);
+      // Sessão agendada no futuro não conta como adesão realizada.
+      return d >= firstDayOfMonth && d < endOfToday;
+    }).length;
   }, [sessions]);
 
-  // Calculate monthly goal and progress
-  const monthlyGoal = student.weekly_sessions_proposed ? student.weekly_sessions_proposed * 4 : null;
-  const monthlyProgress = monthlyGoal ? (sessionsThisMonth / monthlyGoal) * 100 : undefined;
+  // Meta mensal honesta: semanas reais por mês (~4,33), não ×4.
+  const monthlyGoal = student.weekly_sessions_proposed
+    ? Math.round(student.weekly_sessions_proposed * 4.33)
+    : null;
+  const adherencePercent = monthlyGoal
+    ? Math.min(100, Math.round((sessionsThisMonth / monthlyGoal) * 100))
+    : null;
 
-  const uniqueExercises = useMemo(() => {
-    if (!sessions) return 0;
-    const exerciseNames = new Set<string>();
-    sessions.forEach(session => {
-      session.exercises?.forEach((ex) => {
-        exerciseNames.add(ex.exercise_name);
-      });
-    });
-    return exerciseNames.size;
-  }, [sessions]);
-
-  const activePrescriptions = useMemo(() => {
-    if (!assignments) return 0;
+  const lastSessionDate = useMemo(() => {
+    if (!sessions?.length) return null;
     const today = format(new Date(), "yyyy-MM-dd");
-    return assignments.filter(a => 
-      a.start_date <= today && (!a.end_date || a.end_date >= today)
-    ).length;
-  }, [assignments]);
+    const past = sessions.filter((s) => s.date <= today);
+    if (!past.length) return null;
+    return past.reduce((max, s) => (s.date > max ? s.date : max), past[0].date);
+  }, [sessions]);
+
+  // Frequência das últimas 4 semanas (semana civil iniciando na segunda).
+  const weekBars = useMemo<WeekBarPoint[]>(() => {
+    const now = new Date();
+    const dayOfWeek = (now.getDay() + 6) % 7; // 0 = segunda
+    const currentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+    const target = student.weekly_sessions_proposed ?? undefined;
+
+    return [3, 2, 1, 0].map((weeksBack) => {
+      const start = new Date(currentMonday);
+      start.setDate(start.getDate() - weeksBack * 7);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const value = (sessions ?? []).filter((s) => {
+        const d = parseLocalDate(s.date);
+        return d >= start && d < end && d < endOfToday;
+      }).length;
+      return {
+        label: format(start, "dd/MM"),
+        value,
+        target,
+      };
+    });
+  }, [sessions, student.weekly_sessions_proposed]);
+
+  const uniqueExercises30d = useMemo(
+    () => countUniqueExercises(sessions, { days: 30 }),
+    [sessions],
+  );
+
+  const activePrescriptions = useMemo(
+    () => (assignments ?? []).filter((a) => assignmentStatus(a) === "vigente").length,
+    [assignments],
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-32 w-full rounded-lg" />
+        <Skeleton className="h-40 w-full rounded-lg" />
+        <Skeleton className="h-24 w-full rounded-lg" />
+      </div>
+    );
+  }
 
   return (
-    <motion.div 
+    <motion.div
       variants={activeContainerVariants}
       initial="hidden"
       animate="visible"
       className="space-y-lg"
     >
-      {/* Oura Ring summary (compact to avoid duplicated dashboards) */}
+      {/* Card clínico ÚNICO no topo (observações com resolve + cadastro fixo) */}
       <motion.div variants={activeCardVariants}>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-sm">
-              <Activity className="h-5 w-5 text-primary" />
-              💍 Oura Ring
-            </CardTitle>
-            <CardDescription>
-              {ouraDateLabel || (ouraConnection?.is_active
-                ? "Conectado, aguardando dados"
-                : "Não conectado"
-              )}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {ouraConnection?.is_active ? (
-              latestOuraMetrics ? (
-                <>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-md">
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <p className="text-xs text-muted-foreground">Prontidão</p>
-                      <p className="text-lg font-semibold">{latestOuraMetrics.readiness_score ?? "--"}</p>
-                    </div>
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <p className="text-xs text-muted-foreground">Sono</p>
-                      <p className="text-lg font-semibold">{latestOuraMetrics.sleep_score ?? "--"}</p>
-                    </div>
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <p className="text-xs text-muted-foreground">Atividade</p>
-                      <p className="text-lg font-semibold">{latestOuraMetrics.activity_score ?? "--"}</p>
-                    </div>
-                    <div className="rounded-lg border bg-muted/20 p-3">
-                      <p className="text-xs text-muted-foreground">Estresse Alto</p>
-                      <p className="text-lg font-semibold">
-                        {latestOuraMetrics.stress_high_time !== null
-                          ? `${Math.round(latestOuraMetrics.stress_high_time / 60)} min`
-                          : "--"}
-                      </p>
-                    </div>
-                  </div>
+        <StudentObservationsCard
+          studentId={student.id}
+          limitations={student.limitations}
+          injuryHistory={student.injury_history}
+        />
+      </motion.div>
 
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                    <p className="text-xs text-muted-foreground">
-                      Dados completos e tendência detalhada ficam na aba Oura - Histórico.
-                    </p>
-                    <Button variant="outline" size="sm" onClick={onNavigateToOura}>
-                      Abrir Oura - Histórico
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-2 py-md">
-                  <p className="text-sm text-muted-foreground">
-                    Oura conectado, sem dados sincronizados no momento.
-                  </p>
-                  <Button variant="outline" size="sm" onClick={onNavigateToOura}>
-                    Abrir Oura - Histórico
-                  </Button>
-                </div>
-              )
+      {/* HERO: adesão do mês */}
+      <motion.div variants={activeCardVariants}>
+        <Card className="border-l-2 border-l-primary">
+          <CardContent className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
+            {adherencePercent !== null ? (
+              <ScoreRing
+                value={adherencePercent}
+                label="adesão"
+                tone={adherenceTone(adherencePercent)}
+              />
             ) : (
-              <button
-                onClick={onNavigateToOura}
-                className="w-full p-lg rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-all hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Activity className="h-10 w-10 mx-auto mb-sm text-muted-foreground" />
-                <p className="text-sm font-semibold">Conectar Oura Ring</p>
-                <p className="text-xs text-muted-foreground mt-xs">Clique para configurar</p>
-              </button>
+              <div className="flex h-[150px] w-[150px] shrink-0 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/30 text-center">
+                <span className="px-4 text-xs text-muted-foreground">sem meta semanal definida</span>
+              </div>
             )}
+            <div className="min-w-0 flex-1 space-y-1">
+              <h3 className="text-xl font-bold">
+                {sessionsThisMonth}
+                {monthlyGoal ? ` de ${monthlyGoal}` : ""} sessões este mês
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {monthlyGoal
+                  ? `Meta: ${student.weekly_sessions_proposed} por semana`
+                  : "Defina a meta semanal no cadastro do aluno para acompanhar a adesão."}
+              </p>
+              <div className="pt-2">
+                <p className="mb-1 text-[10.5px] uppercase tracking-widest text-muted-foreground">
+                  Últimas 4 semanas
+                </p>
+                <WeekBars weeks={weekBars} />
+              </div>
+            </div>
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Training Statistics - Rich Context */}
-      <motion.div 
+      {/* Tiles de suporte */}
+      <motion.div
         variants={activeCardVariants}
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md"
+        className="grid grid-cols-1 gap-3 md:grid-cols-3"
       >
-        <StatCard
-          title="Total de Sessões"
-          value={totalSessions}
-          icon={Dumbbell}
-          gradient
-          subtitle={`${sessionsThisMonth} este mês`}
+        <MetricTile
+          label="Última sessão"
+          value={lastSessionDate ? formatRelativeDay(lastSessionDate) : null}
+          footnote={lastSessionDate ? format(parseLocalDate(lastSessionDate), "dd/MM/yyyy") : "nenhuma sessão registrada"}
         />
-        <StatCard
-          title="Sessões este Mês"
-          value={sessionsThisMonth}
-          icon={Calendar}
-          subtitle={monthlyGoal ? `Meta: ${monthlyGoal} sessões/mês` : undefined}
-          progress={monthlyProgress}
-          badge={
-            // Sem meta definida não há o que celebrar — antes o fallback
-            // (monthlyGoal || 0) * 0.75 fazia todo aluno sem meta ganhar
-            // "Quase lá!" com 0 sessões.
-            !monthlyGoal
-              ? undefined
-              : sessionsThisMonth >= monthlyGoal
-                ? "🎯 Meta atingida!"
-                : sessionsThisMonth >= monthlyGoal * 0.75
-                  ? "🔥 Quase lá!"
-                  : undefined
-          }
+        <MetricTile
+          label="Exercícios únicos (30d)"
+          value={uniqueExercises30d}
+          footnote="variedade no último mês"
         />
-        <StatCard
-          title="Exercícios Únicos"
-          value={uniqueExercises}
-          icon={TrendingUp}
-          subtitle="Variedade no treinamento"
-          badge={uniqueExercises > 50 ? "💪 Alta variedade" : undefined}
-        />
-        <StatCard
-          title="Prescrições Ativas"
+        <MetricTile
+          label="Prescrições vigentes"
           value={activePrescriptions}
-          icon={Target}
-          subtitle="Planos de treino ativos"
+          footnote={activePrescriptions === 0 ? "nenhum plano ativo hoje" : undefined}
         />
       </motion.div>
 
-      {/* Important Observations */}
+      {/* Strip Oura compacto (glance + link; a análise vive nas abas donas) */}
       <motion.div variants={activeCardVariants}>
-        <StudentObservationsCard studentId={student.id} />
-      </motion.div>
-
-      {/* Training Zones and Protocol Recommendations */}
-      <motion.div 
-        variants={activeCardVariants}
-        className="grid grid-cols-1 lg:grid-cols-2 gap-md"
-      >
-        <TrainingZonesCard maxHeartRate={student.max_heart_rate} />
-        <ProtocolRecommendationsCard studentId={student.id} />
-      </motion.div>
-
-      {/* Medical Considerations - Premium Alert */}
-      {(student.limitations || student.injury_history) && !medicalAlertDismissed && (
-        <motion.div variants={activeCardVariants}>
-          <Card className="relative overflow-hidden border-2 border-warning/50 bg-gradient-to-br from-warning/5 via-background to-warning/5">
-            {/* Subtle Corner Shimmer */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-warning/20 via-transparent to-transparent motion-safe:animate-shimmer motion-reduce:hidden pointer-events-none" />
-            <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-warning/20 via-transparent to-transparent motion-safe:animate-shimmer motion-reduce:hidden pointer-events-none" />
-            
-            <CardHeader className="relative z-10">
-              <div className="flex items-start justify-between gap-md">
-                <CardTitle className="flex items-center gap-sm text-warning-foreground">
-                  <div className="p-2 bg-warning/20 rounded-full">
-                    <AlertCircle className="h-5 w-5 text-warning motion-safe:animate-pulse-slow" />
-                  </div>
-                  ⚠️ Considerações Médicas Importantes
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-muted-foreground hover:text-foreground hover:bg-warning/10"
-                  onClick={handleDismissMedicalAlert}
-                  aria-label="Dispensar alerta"
-                >
-                  <X className="h-4 w-4" />
+        {ouraConnection?.is_active ? (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center justify-between text-base">
+                <span className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-primary" />
+                  Oura {ouraDateLabel ? `· ${ouraDateLabel.toLowerCase()}` : "· aguardando dados"}
+                </span>
+                <Button variant="outline" size="sm" onClick={onNavigateToOura}>
+                  Abrir histórico
                 </Button>
-              </div>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-md relative z-10">
-              {student.limitations && (
-                <div className="p-md rounded-lg bg-background/70 border border-warning/30">
-                  <h4 className="text-sm font-semibold mb-sm text-warning-foreground flex items-center gap-xs">
-                    <AlertCircle className="h-4 w-4" />
-                    Limitações:
-                  </h4>
-                  <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{student.limitations}</p>
-                </div>
-              )}
-              {student.injury_history && (
-                <div className="p-md rounded-lg bg-background/70 border border-warning/30">
-                  <h4 className="text-sm font-semibold mb-sm text-warning-foreground flex items-center gap-xs">
-                    <AlertCircle className="h-4 w-4" />
-                    Histórico de Lesões:
-                  </h4>
-                  <p className="text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">{student.injury_history}</p>
-                </div>
-              )}
-            </CardContent>
+            {latestOuraMetrics && (
+              <CardContent className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <MetricTile label="Prontidão" value={latestOuraMetrics.readiness_score} />
+                <MetricTile label="Sono" value={latestOuraMetrics.sleep_score} />
+                <MetricTile label="Atividade" value={latestOuraMetrics.activity_score} />
+                <MetricTile
+                  label="Estresse alto"
+                  value={
+                    latestOuraMetrics.stress_high_time !== null
+                      ? `${Math.round(latestOuraMetrics.stress_high_time / 60)}`
+                      : null
+                  }
+                  unit="min"
+                />
+              </CardContent>
+            )}
           </Card>
-        </motion.div>
-      )}
+        ) : (
+          <button
+            onClick={onNavigateToOura}
+            className="flex w-full items-center justify-between rounded-lg border border-dashed border-muted-foreground/30 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+          >
+            <span className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Oura não conectado
+            </span>
+            <span className="font-medium text-primary">Conectar</span>
+          </button>
+        )}
+      </motion.div>
+
+      {/* Protocolos de recuperação — fluxo interativo preservado, colapsado */}
+      <motion.div variants={activeCardVariants}>
+        <Accordion type="single" collapsible>
+          <AccordionItem value="protocolos" className="rounded-lg border px-4">
+            <AccordionTrigger className="text-sm font-semibold">
+              Recomendações de recuperação
+            </AccordionTrigger>
+            <AccordionContent>
+              <ProtocolRecommendationsCard studentId={student.id} />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </motion.div>
     </motion.div>
   );
 };
