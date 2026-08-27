@@ -2,13 +2,12 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
 import { useStudentById } from "@/hooks/useStudents";
 import { useStudentPrescriptions, useSessionsWithExercises } from "@/hooks/useStudentDetail";
-import { useDeletePrescriptionAssignment } from "@/hooks/usePrescriptions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, Trash2, AlertCircle, User, Filter, Pencil } from "lucide-react";
-import { describeAssignmentAdaptations } from "@/utils/assignmentAdaptations";
+import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, AlertCircle, User, Filter, Pencil } from "lucide-react";
+import { PrescriptionsTabContent } from "@/components/student-detail/PrescriptionsTabContent";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -107,7 +106,7 @@ const StudentDetailPage = () => {
   const { data: sessions, isLoading: loadingSessions } = useSessionsWithExercises(
     needsSessions ? studentId : ""
   );
-  const { data: assignments, isLoading: loadingAssignments } = useStudentPrescriptions(
+  const { data: assignments, isLoading: loadingAssignments, isError: assignmentsError, refetch: refetchAssignments } = useStudentPrescriptions(
     needsAssignments ? studentId : ""
   );
   const { data: ouraMetrics, isLoading: loadingOuraMetrics, isError: ouraMetricsError } = useOuraMetrics(
@@ -128,7 +127,6 @@ const StudentDetailPage = () => {
   const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'individual' | 'group'>('all');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [editStudentOpen, setEditStudentOpen] = useState(false);
-  const deleteAssignment = useDeletePrescriptionAssignment();
   const reopenSession = useReopenWorkoutSession();
   const finalizeSession = useFinalizeWorkoutSession();
 
@@ -656,90 +654,13 @@ const StudentDetailPage = () => {
         </TabsContent>
 
         <TabsContent value="prescriptions" className="space-y-4 animate-fade-in">
-          {loadingAssignments ? (
-            <Skeleton className="h-32" />
-          ) : assignments && assignments.length > 0 ? (
-            <div className="grid gap-4">
-              {assignments.map((assignment) => (
-                <Card key={assignment.id}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <CardTitle>
-                          {assignment.prescription?.name ?? (
-                            <span className="text-muted-foreground">Prescrição removida</span>
-                          )}
-                        </CardTitle>
-                        {assignment.prescription?.objective && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {assignment.prescription.objective}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {assignment.start_date && (
-                          <Badge variant="secondary">
-                            {formatSessionDate(assignment.start_date)}
-                          </Badge>
-                        )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              aria-label="Excluir atribuição"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Tem certeza que deseja excluir esta atribuição de prescrição? Esta ação não pode ser desfeita.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => deleteAssignment.mutate(assignment.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Excluir
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {describeAssignmentAdaptations(assignment.custom_adaptations) && (
-                      <div className="mb-2">
-                        <span className="font-semibold text-sm">Agenda:</span>
-                        <p className="text-sm text-muted-foreground">
-                          {describeAssignmentAdaptations(assignment.custom_adaptations)}
-                        </p>
-                      </div>
-                    )}
-                    {assignment.end_date && (
-                      <div className="text-sm text-muted-foreground">
-                        Término: {formatSessionDate(assignment.end_date)}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Nenhuma prescrição atribuída</p>
-              </CardContent>
-            </Card>
-          )}
+          <PrescriptionsTabContent
+            studentId={studentId}
+            assignments={assignments}
+            isLoading={loadingAssignments}
+            isError={assignmentsError}
+            refetch={refetchAssignments}
+          />
         </TabsContent>
 
         <TabsContent value="assessments" className="space-y-4 animate-fade-in">

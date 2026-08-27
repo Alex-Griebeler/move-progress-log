@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -21,14 +21,31 @@ interface AssignPrescriptionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   prescriptionId: string | null;
+  /**
+   * Alunos pré-marcados ao ABRIR o dialog (fluxo student-scoped da ficha).
+   * Opcional e retrocompatível: sem a prop, comportamento idêntico ao atual.
+   * Reaplicada a cada abertura; nunca sobrescreve a seleção com o dialog
+   * já aberto (efeito dispara só na transição de `open`).
+   */
+  initialStudentIds?: string[];
 }
 
 export function AssignPrescriptionDialog({
   open,
   onOpenChange,
   prescriptionId,
+  initialStudentIds,
 }: AssignPrescriptionDialogProps) {
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Prop AUSENTE = comportamento legado (preserva seleção); lista vazia
+    // é valor válido e LIMPA a seleção — por isso `!== undefined`, não truthy.
+    if (open && initialStudentIds !== undefined) {
+      setSelectedStudents(initialStudentIds);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só na transição de abertura
+  }, [open]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>([]);
   const [time, setTime] = useState("");
