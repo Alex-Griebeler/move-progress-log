@@ -102,3 +102,20 @@ describe("página", () => {
     expect(page).not.toContain("WhoopActivityCard");
   });
 });
+
+describe("fixes pós-review Codex (5b)", () => {
+  it("requireScored SÓ no recovery — strain/sono de dia pendente são válidos", () => {
+    expect(tab).toContain("requireScored: true");
+    expect(tab.match(/requireScored: true/g)?.length).toBe(1);
+  });
+
+  it("sync com AbortController real (não Promise.race que vaza o invoke)", () => {
+    expect(connHook).toContain("AbortController");
+    expect(connHook).toContain("clearTimeout(timeoutId)");
+    expect(connHook).not.toContain("Promise.race");
+  });
+
+  it("footer não afirma 'desconectado' durante o loading da conexão", () => {
+    expect(tab).toContain("{loadingConnection ? (");
+  });
+});

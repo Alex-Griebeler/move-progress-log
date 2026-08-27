@@ -107,10 +107,17 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
   const latestPending = rows.find((m) => m.score_state === "PENDING_SCORE") ?? null;
 
   // Ausência de dado NUNCA vira zero (lição da revisão fria do 5a).
-  const toTrend = (pick: (m: WhoopMetrics) => number | null): TrendPoint[] =>
+  // requireScored só vale pro RECOVERY: strain e sono de um dia com score
+  // pendente são dados válidos (o Whoop fecha o recovery depois).
+  const toTrend = (
+    pick: (m: WhoopMetrics) => number | null,
+    opts: { requireScored?: boolean } = {},
+  ): TrendPoint[] =>
     windowDates.map((date) => {
       const m = byDate.get(date);
-      return { date, value: m && isScored(m) ? pick(m) : null };
+      if (!m) return { date, value: null };
+      if (opts.requireScored && !isScored(m)) return { date, value: null };
+      return { date, value: pick(m) };
     });
 
   const sleepStages = useMemo(
@@ -156,7 +163,9 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
       <AccordionItem value="conexao" className="rounded-lg border px-4">
         <AccordionTrigger className="text-sm font-semibold">Conexão Whoop</AccordionTrigger>
         <AccordionContent>
-          {connection ? (
+          {loadingConnection ? (
+            <Skeleton className="h-10 w-full rounded-md" />
+          ) : connection ? (
             <div className="flex flex-wrap items-center justify-between gap-3 py-1">
               <div>
                 <p className="font-medium">Whoop conectado</p>
@@ -289,7 +298,7 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
               </p>
               <LazyChart height={170}>
                 <TrendChart
-                  data={toTrend((m) => m.recovery_score)}
+                  data={toTrend((m) => m.recovery_score, { requireScored: true })}
                   kind="line"
                   series={1}
                   height={170}

@@ -72,16 +72,26 @@ export const useSyncWhoop = () => {
       if (!navigator.onLine) {
         throw new Error("Você está offline. Conecte-se à internet para sincronizar.");
       }
-      const timeoutMs = 60_000;
-      const invocation = supabase.functions.invoke("whoop-sync", {
-        body: { student_id: studentId },
-      });
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Tempo esgotado ao sincronizar o Whoop.")), timeoutMs),
-      );
-      const { data, error } = await Promise.race([invocation, timeout]);
-      if (error) throw error;
-      return data;
+      // AbortController de verdade (espelho do invokeWithTimeout do Oura):
+      // Promise.race deixaria o invoke perdedor rodando e concluindo depois
+      // do toast de erro, sem invalidar cache.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60_000);
+      try {
+        const { data, error } = await supabase.functions.invoke("whoop-sync", {
+          body: { student_id: studentId },
+          signal: controller.signal,
+        } as Record<string, unknown>);
+        clearTimeout(timeoutId);
+        if (error) throw error;
+        return data;
+      } catch (error: unknown) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === "AbortError") {
+          throw new Error("Tempo esgotado ao sincronizar o Whoop. Verifique a conexão.");
+        }
+        throw error;
+      }
     },
     onSuccess: async (_data, studentId) => {
       await Promise.all([
