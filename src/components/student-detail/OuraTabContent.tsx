@@ -22,7 +22,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useOuraMetrics, spWindowDates, OuraMetrics } from "@/hooks/useOuraMetrics";
+import { useOuraMetrics, spWindowDates, spToday, OuraMetrics } from "@/hooks/useOuraMetrics";
 import { OuraConnectionCard } from "@/components/OuraConnectionCard";
 import { OuraConnectionStatus } from "@/components/OuraConnectionStatus";
 import { OuraApiDiagnosticsCard } from "@/components/OuraApiDiagnosticsCard";
@@ -42,10 +42,12 @@ interface OuraTabContentProps {
   hasConnection: boolean;
 }
 
+// Mesmas faixas dos cards Oura existentes (>=85 ótimo / 70-84 intermediário
+// / <70 atenção) — o redesign não pode reinterpretar clinicamente o score.
 const scoreTone = (score: number | null) => {
   if (score === null) return "neutral" as const;
-  if (score >= 70) return "success" as const;
-  if (score >= 50) return "warning" as const;
+  if (score >= 85) return "success" as const;
+  if (score >= 70) return "warning" as const;
   return "destructive" as const;
 };
 
@@ -166,7 +168,8 @@ export const OuraTabContent = ({
   });
 
   const rows = useMemo(() => metrics ?? [], [metrics]);
-  const windowDates = useMemo(() => spWindowDates(period), [period]);
+  const today = spToday();
+  const windowDates = useMemo(() => spWindowDates(period), [period, today]);
   const byDate = useMemo(() => {
     const map = new Map<string, OuraMetrics>();
     for (const m of rows) map.set(m.date, m);
@@ -178,11 +181,15 @@ export const OuraTabContent = ({
     () =>
       windowDates.map((date) => {
         const m = byDate.get(date);
+        // Ausência de dado NUNCA vira zero (P1 da revisão fria): null = sem
+        // barra, a categoria só segura o lugar no eixo.
+        const hours = (v: number | null | undefined) =>
+          v === null || v === undefined ? null : Number((v / 3600).toFixed(2));
         return {
           date: shortDay(date),
-          Profundo: Number((((m?.deep_sleep_duration ?? 0)) / 3600).toFixed(2)),
-          Leve: Number((((m?.light_sleep_duration ?? 0)) / 3600).toFixed(2)),
-          REM: Number((((m?.rem_sleep_duration ?? 0)) / 3600).toFixed(2)),
+          Profundo: hours(m?.deep_sleep_duration),
+          Leve: hours(m?.light_sleep_duration),
+          REM: hours(m?.rem_sleep_duration),
         };
       }),
     [windowDates, byDate],
@@ -198,10 +205,12 @@ export const OuraTabContent = ({
     () =>
       windowDates.map((date) => {
         const m = byDate.get(date);
+        const mins = (v: number | null | undefined) =>
+          v === null || v === undefined ? null : Math.round(v / 60);
         return {
           date: shortDay(date),
-          "Estresse alto": Math.round((m?.stress_high_time ?? 0) / 60),
-          "Recuperação alta": Math.round((m?.recovery_high_time ?? 0) / 60),
+          "Estresse alto": mins(m?.stress_high_time),
+          "Recuperação alta": mins(m?.recovery_high_time),
         };
       }),
     [windowDates, byDate],
@@ -217,6 +226,7 @@ export const OuraTabContent = ({
           key={p}
           variant={period === p ? "secondary" : "outline"}
           size="sm"
+          aria-pressed={period === p}
           onClick={() => setPeriod(p)}
         >
           {p}d
@@ -419,6 +429,18 @@ export const OuraTabContent = ({
               </LazyChart>
             </CardContent>
           </Card>
+          {(() => {
+            const latest = latestWith(rows, (m) => m.sedentary_time);
+            return latest?.sedentary_time != null && latest.sedentary_time > 28800 ? (
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  Tempo sedentário elevado em {shortDay(latest.date)}:{" "}
+                  {fmtDuration(latest.sedentary_time)}. Considerar pausas ativas a cada hora.
+                </AlertDescription>
+              </Alert>
+            ) : null;
+          })()}
           <DayTable
             rows={rows}
             columns={[
@@ -431,7 +453,17 @@ export const OuraTabContent = ({
                 label: "Cal. ativas",
                 render: (m) => (m.active_calories !== null ? `${m.active_calories} kcal` : "—"),
               },
+              {
+                label: "Cal. totais",
+                render: (m) => (m.total_calories !== null ? `${m.total_calories} kcal` : "—"),
+              },
               { label: "MET-min", render: (m) => m.met_minutes ?? "—" },
+              { label: "Alta", render: (m) => fmtMin(m.high_activity_time) },
+              { label: "Média", render: (m) => fmtMin(m.medium_activity_time) },
+              { label: "Baixa", render: (m) => fmtMin(m.low_activity_time) },
+              { label: "Sedentário", render: (m) => fmtDuration(m.sedentary_time) },
+              { label: "Vol. treino", render: (m) => m.training_volume ?? "—" },
+              { label: "Freq. treino", render: (m) => m.training_frequency ?? "—" },
             ]}
           />
         </TabsContent>
@@ -491,9 +523,16 @@ export const OuraTabContent = ({
               { label: "Duração", render: (m) => fmtDuration(m.total_sleep_duration) },
               { label: "Profundo", render: (m) => fmtDuration(m.deep_sleep_duration) },
               { label: "REM", render: (m) => fmtDuration(m.rem_sleep_duration) },
+              { label: "Acordada", render: (m) => fmtMin(m.awake_time) },
+              { label: "Latência", render: (m) => fmtMin(m.sleep_latency) },
               {
                 label: "Efic.",
                 render: (m) => (m.sleep_efficiency !== null ? `${m.sleep_efficiency}%` : "—"),
+              },
+              {
+                label: "Resp. média",
+                render: (m) =>
+                  m.average_breath !== null ? `${m.average_breath.toFixed(1)}/min` : "—",
               },
             ]}
           />

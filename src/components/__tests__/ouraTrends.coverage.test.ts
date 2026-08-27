@@ -28,7 +28,7 @@ const page = read("../../pages/StudentDetailPage.tsx");
 
 describe("useOuraMetrics — janela de calendário", () => {
   it("opção {days} com .gte e key distinta", () => {
-    expect(hook).toContain('["oura-metrics", studentId, "days", days]');
+    expect(hook).toContain('["oura-metrics", studentId, "days", days, spToday()]');
     expect(hook).toContain('["oura-metrics", studentId, limit]');
     expect(hook).toContain('.gte("date", spCutoff(days))');
   });
@@ -112,5 +112,36 @@ describe("fixes pós-review Codex", () => {
     expect(tab).toContain("let body: ReactNode;");
     expect(tab).toContain("{body}");
     expect(tab).toContain("{footer}");
+  });
+});
+
+describe("fixes pós-revisão FRIA", () => {
+  it("ausência de dado nos gráficos vira null, nunca zero fabricado", () => {
+    const tabSrc = read("../student-detail/OuraTabContent.tsx");
+    expect(tabSrc).toContain("v === null || v === undefined ? null");
+    expect(tabSrc).not.toContain("deep_sleep_duration ?? 0");
+    expect(tabSrc).not.toContain("stress_high_time ?? 0");
+  });
+
+  it("faixas de score seguem o padrão vigente (85/70)", () => {
+    const tabSrc = read("../student-detail/OuraTabContent.tsx");
+    expect(tabSrc).toContain("score >= 85");
+    expect(tabSrc).toContain("score >= 70");
+  });
+
+  it("toggle de período com aria-pressed", () => {
+    const tabSrc = read("../student-detail/OuraTabContent.tsx");
+    expect(tabSrc).toContain("aria-pressed={period === p}");
+  });
+
+  it("virada de meia-noite: key da janela inclui o dia corrente", () => {
+    expect(hook).toContain('"days", days, spToday()');
+  });
+
+  it("métricas antigas seguem acessíveis (distribuição, treino, latência, respiração)", () => {
+    const tabSrc = read("../student-detail/OuraTabContent.tsx");
+    for (const f of ["total_calories", "high_activity_time", "sedentary_time", "training_volume", "sleep_latency", "average_breath", "awake_time"]) {
+      expect(tabSrc).toContain(f);
+    }
   });
 });

@@ -107,8 +107,10 @@ export const useOuraMetrics = (
   const days = isWindow ? limitOrWindow.days : undefined;
 
   return useQuery({
+    // A key da janela inclui o DIA corrente (SP): depois da meia-noite,
+    // qualquer re-render busca a janela nova em vez de servir a de ontem.
     queryKey: days
-      ? ["oura-metrics", studentId, "days", days]
+      ? ["oura-metrics", studentId, "days", days, spToday()]
       : ["oura-metrics", studentId, limit],
     enabled: !!studentId,
     staleTime: 60 * 1000,
