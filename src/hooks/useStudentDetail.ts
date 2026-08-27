@@ -30,7 +30,8 @@ const STUDENT_SESSIONS_WITH_EXERCISES_SELECT = `
     exercise_name,
     load_kg,
     sets,
-    reps
+    reps,
+    observations
   )
 `;
 
