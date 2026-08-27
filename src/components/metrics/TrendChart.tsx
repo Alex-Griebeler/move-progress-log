@@ -28,6 +28,11 @@ interface TrendChartProps {
   valueFormatter?: (v: number) => string;
   /** Domínio fixo (ex.: [0, 100] pra scores). */
   yDomain?: [number, number];
+  /**
+   * Rótulo do eixo X quando a série NÃO é temporal (ex.: estágios de um
+   * teste). Sem isso, `date` seria formatada como dd/MM e sairia inválida.
+   */
+  labelFormatter?: (key: string) => string;
 }
 
 const shortLabel = (date: string) => {
@@ -46,7 +51,9 @@ export const TrendChart = ({
   height = 160,
   valueFormatter = (v) => String(v),
   yDomain,
+  labelFormatter,
 }: TrendChartProps) => {
+  const xLabel = labelFormatter ?? shortLabel;
   const stroke = `hsl(var(--chart-${series}))`;
   const axisProps = {
     stroke: "hsl(var(--muted-foreground))",
@@ -60,7 +67,7 @@ export const TrendChart = ({
   const tooltip = (
     <Tooltip
       formatter={(v: number) => [valueFormatter(v), ""]}
-      labelFormatter={(l: string) => shortLabel(l)}
+      labelFormatter={(l: string) => xLabel(l)}
       contentStyle={{
         backgroundColor: "hsl(var(--card))",
         border: "1px solid hsl(var(--border))",
@@ -70,7 +77,7 @@ export const TrendChart = ({
       }}
     />
   );
-  const xAxis = <XAxis dataKey="date" tickFormatter={shortLabel} {...axisProps} minTickGap={24} />;
+  const xAxis = <XAxis dataKey="date" tickFormatter={xLabel} {...axisProps} minTickGap={24} />;
   const yAxis = <YAxis width={30} domain={yDomain ?? ["auto", "auto"]} {...axisProps} />;
 
   return (

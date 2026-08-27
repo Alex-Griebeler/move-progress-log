@@ -42,6 +42,49 @@ import type {
 const ASSESSMENT_SELECT =
   "id, student_id, trainer_id, professional_id, assessment_type, assessment_date, status, started_at, completed_at, age_years, weight_kg, height_cm, sex, notes, created_at, updated_at" as const;
 
+/**
+ * Select da LISTA (PR-8b): o mesmo cabeçalho + só o campo-resultado de cada
+ * tabela filha, embutido por PostgREST numa única ida ao banco.
+ *
+ * Sem isso a lista não tem número nenhum pra mostrar — era exatamente o que
+ * acontecia antes: cards que diziam o tipo do teste e nada do resultado.
+ * Só os campos usados no card entram aqui; o detalhe completo continua com
+ * `useAssessment`, que é carregado sob demanda ao abrir o sheet.
+ */
+const ASSESSMENT_LIST_SELECT = `${ASSESSMENT_SELECT},
+  vo2_assessment_details(vo2_final),
+  handgrip_results(right_kg_attempts, right_kg, best_kg),
+  dexa_results(fat_pct),
+  sit_to_stand_results(total_score),
+  questionnaire_responses(parq_blocked, submitted_at)` as const;
+
+/**
+ * Uma avaliação com o resultado-chave da sua tabela filha.
+ *
+ * PostgREST devolve relação 1:1 embutida como objeto ou null; algumas versões
+ * devolvem array de 0/1 elemento. `normalizeEmbedded` cobre as duas formas —
+ * um `.map()` cego sobre a resposta quebraria na virada de versão.
+ */
+export interface AssessmentListRow extends Assessment {
+  vo2_assessment_details: { vo2_final: number | null } | null;
+  handgrip_results: {
+    right_kg_attempts: number[] | null;
+    right_kg: number | null;
+    best_kg: number | null;
+  } | null;
+  dexa_results: { fat_pct: number | null } | null;
+  sit_to_stand_results: { total_score: number | null } | null;
+  questionnaire_responses: {
+    parq_blocked: boolean | null;
+    submitted_at: string | null;
+  } | null;
+}
+
+const normalizeEmbedded = <T>(value: T | T[] | null | undefined): T | null => {
+  if (Array.isArray(value)) return value.length > 0 ? value[0] : null;
+  return value ?? null;
+};
+
 type PublicTables = Database["public"]["Tables"];
 type TableInsert<T extends keyof PublicTables> = PublicTables[T]["Insert"];
 
@@ -88,24 +131,41 @@ export interface AssessmentWithChild {
 // ---------------------------------------------------------------------------
 
 /**
- * Lista todas as avaliações de um aluno, ordenadas por data desc.
- * Não traz tabelas filhas (use useAssessment pra detalhe).
+ * Lista todas as avaliações de um aluno, ordenadas por data desc, já com o
+ * resultado-chave de cada tabela filha embutido (PR-8b) — uma query só,
+ * sem N+1. O detalhe completo continua em `useAssessment`.
  */
 export const useAssessmentsByStudent = (studentId: string | null) => {
   return useQuery({
     queryKey: ["assessments", "by-student", studentId],
     enabled: !!studentId,
     staleTime: 60 * 1000,
-    queryFn: async () => {
+    queryFn: async (): Promise<AssessmentListRow[]> => {
       if (!studentId) return [];
       const { data, error } = await supabase
         .from("assessments")
-        .select(ASSESSMENT_SELECT)
+        .select(ASSESSMENT_LIST_SELECT)
         .eq("student_id", studentId)
         .order("assessment_date", { ascending: false })
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as Assessment[];
+
+      return ((data ?? []) as unknown as Record<string, unknown>[]).map((row) => ({
+        ...(row as unknown as Assessment),
+        vo2_assessment_details: normalizeEmbedded(
+          row.vo2_assessment_details as AssessmentListRow["vo2_assessment_details"],
+        ),
+        handgrip_results: normalizeEmbedded(
+          row.handgrip_results as AssessmentListRow["handgrip_results"],
+        ),
+        dexa_results: normalizeEmbedded(row.dexa_results as AssessmentListRow["dexa_results"]),
+        sit_to_stand_results: normalizeEmbedded(
+          row.sit_to_stand_results as AssessmentListRow["sit_to_stand_results"],
+        ),
+        questionnaire_responses: normalizeEmbedded(
+          row.questionnaire_responses as AssessmentListRow["questionnaire_responses"],
+        ),
+      }));
     },
   });
 };

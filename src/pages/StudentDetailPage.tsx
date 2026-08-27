@@ -455,6 +455,7 @@ const StudentDetailPage = () => {
         <TabsContent value="assessments" className="space-y-4 animate-fade-in">
           <AssessmentsTab
             studentId={id!}
+            studentBirthDate={student.birth_date ?? null}
             studentDefaults={{
               age_years: student.birth_date
                 ? Math.floor(
