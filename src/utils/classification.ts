@@ -90,8 +90,13 @@ export function classifyVo2(
 }
 
 /**
- * Classifica handgrip strength (Mathiowetz 1985) baseado na MAIOR das 3
- * tentativas (best_kg na tabela).
+ * Classifica handgrip strength contra as normas de Mathiowetz 1985.
+ *
+ * IMPORTANTE: as faixas seedadas são da mão DIREITA (Tabela 2 do paper) —
+ * o chamador deve passar `right_kg` (maior das 3 tentativas da mão direita),
+ * NÃO `best_kg` das duas mãos, que deslocaria a classificação pra cima.
+ * Válido independente de dominância: Mathiowetz mostrou diferença mínima
+ * entre destros e canhotos quando comparados POR MÃO.
  */
 export function classifyHandgrip(
   bestKg: number,
