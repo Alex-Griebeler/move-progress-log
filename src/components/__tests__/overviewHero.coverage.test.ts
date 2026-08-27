@@ -78,9 +78,10 @@ describe("estrutura", () => {
     expect(overview).not.toContain("TrainingZonesCard");
   });
 
-  it("ProtocolRecommendationsCard preservado em accordion", () => {
-    expect(overview).toContain("ProtocolRecommendationsCard");
-    expect(overview).toContain("AccordionTrigger");
+  it("ProtocolRecommendationsCard migrou INTACTO pra aba Oura (PR-5a)", () => {
+    expect(overview).not.toContain("ProtocolRecommendationsCard");
+    const ouraTab = read("../student-detail/OuraTabContent.tsx");
+    expect(ouraTab).toContain("ProtocolRecommendationsCard");
   });
 
   it("StatCard não é mais usado na overview (segue intocado no dashboard)", () => {

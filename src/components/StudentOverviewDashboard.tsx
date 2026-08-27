@@ -6,13 +6,6 @@ import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Student } from "@/hooks/useStudents";
 import { StudentObservationsCard } from "./StudentObservationsCard";
-import ProtocolRecommendationsCard from "./ProtocolRecommendationsCard";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { ScoreRing, MetricTile, WeekBars } from "./metrics";
 import type { MetricTone, WeekBarPoint } from "./metrics";
 import { assignmentStatus } from "@/utils/assignmentStatus";
@@ -322,19 +315,6 @@ export const StudentOverviewDashboard = ({
         )}
       </motion.div>
 
-      {/* Protocolos de recuperação — fluxo interativo preservado, colapsado */}
-      <motion.div variants={activeCardVariants}>
-        <Accordion type="single" collapsible>
-          <AccordionItem value="protocolos" className="rounded-lg border px-4">
-            <AccordionTrigger className="text-sm font-semibold">
-              Recomendações de recuperação
-            </AccordionTrigger>
-            <AccordionContent>
-              <ProtocolRecommendationsCard studentId={student.id} />
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </motion.div>
     </motion.div>
   );
 };

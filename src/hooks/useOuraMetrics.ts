@@ -67,10 +67,51 @@ const OURA_METRICS_SELECT = `
   vo2_max, resilience_level, created_at
 `;
 
-// AUD-F03: Histórico com paginação e deduplicação
-export const useOuraMetrics = (studentId: string, limit?: number) => {
+export interface OuraMetricsWindow {
+  /** Janela de CALENDÁRIO: hoje (America/Sao_Paulo) + (days−1) dias anteriores. */
+  days: 7 | 30 | 90;
+}
+
+/** Data de hoje (date-only) no fuso do estúdio. */
+export const spToday = (): string =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+
+const spCutoff = (days: number): string => {
+  const [y, m, d] = spToday().split("-").map(Number);
+  const cutoff = new Date(Date.UTC(y, m - 1, d - (days - 1)));
+  return cutoff.toISOString().slice(0, 10);
+};
+
+/** Todas as datas da janela [hoje−(days−1), hoje] em SP, ASCENDENTE —
+ * densifica eixos de gráfico (dia sem linha no banco vira categoria vazia,
+ * senão um buraco de 10 dias ocupa o mesmo espaço visual de 1 dia). */
+export const spWindowDates = (days: number): string[] => {
+  const [y, m, d] = spToday().split("-").map(Number);
+  const out: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    out.push(new Date(Date.UTC(y, m - 1, d - i)).toISOString().slice(0, 10));
+  }
+  return out;
+};
+
+// AUD-F03: Histórico com paginação e deduplicação.
+// 2ª forma (redesign PR-5a): `{ days }` = janela de calendário REAL via
+// .gte(date, cutoff) — o limite numérico é de LINHAS e, com lacunas de
+// sync, atravessa meses. Query keys distintas pra nunca colidirem no cache.
+export const useOuraMetrics = (
+  studentId: string,
+  limitOrWindow?: number | OuraMetricsWindow,
+) => {
+  const isWindow = typeof limitOrWindow === "object" && limitOrWindow !== null;
+  const limit = isWindow ? undefined : limitOrWindow;
+  const days = isWindow ? limitOrWindow.days : undefined;
+
   return useQuery({
-    queryKey: ["oura-metrics", studentId, limit],
+    // A key da janela inclui o DIA corrente (SP): depois da meia-noite,
+    // qualquer re-render busca a janela nova em vez de servir a de ontem.
+    queryKey: days
+      ? ["oura-metrics", studentId, "days", days, spToday()]
+      : ["oura-metrics", studentId, limit],
     enabled: !!studentId,
     staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000, // Manter em cache por 10 minutos
@@ -83,7 +124,10 @@ export const useOuraMetrics = (studentId: string, limit?: number) => {
         .eq("student_id", studentId)
         .order("date", { ascending: false });
 
-      if (limit) {
+      if (days) {
+        // Teto .lte: registro com data futura não entra nem consome o limite.
+        query = query.gte("date", spCutoff(days)).lte("date", spToday()).limit(days);
+      } else if (limit) {
         query = query.limit(limit);
       } else {
         query = query.limit(365);
