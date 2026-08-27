@@ -67,10 +67,37 @@ const OURA_METRICS_SELECT = `
   vo2_max, resilience_level, created_at
 `;
 
-// AUD-F03: Histórico com paginação e deduplicação
-export const useOuraMetrics = (studentId: string, limit?: number) => {
+export interface OuraMetricsWindow {
+  /** Janela de CALENDÁRIO: hoje (America/Sao_Paulo) + (days−1) dias anteriores. */
+  days: 7 | 30 | 90;
+}
+
+/** Data de hoje (date-only) no fuso do estúdio. */
+const spToday = (): string =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+
+const spCutoff = (days: number): string => {
+  const [y, m, d] = spToday().split("-").map(Number);
+  const cutoff = new Date(Date.UTC(y, m - 1, d - (days - 1)));
+  return cutoff.toISOString().slice(0, 10);
+};
+
+// AUD-F03: Histórico com paginação e deduplicação.
+// 2ª forma (redesign PR-5a): `{ days }` = janela de calendário REAL via
+// .gte(date, cutoff) — o limite numérico é de LINHAS e, com lacunas de
+// sync, atravessa meses. Query keys distintas pra nunca colidirem no cache.
+export const useOuraMetrics = (
+  studentId: string,
+  limitOrWindow?: number | OuraMetricsWindow,
+) => {
+  const isWindow = typeof limitOrWindow === "object" && limitOrWindow !== null;
+  const limit = isWindow ? undefined : limitOrWindow;
+  const days = isWindow ? limitOrWindow.days : undefined;
+
   return useQuery({
-    queryKey: ["oura-metrics", studentId, limit],
+    queryKey: days
+      ? ["oura-metrics", studentId, "days", days]
+      : ["oura-metrics", studentId, limit],
     enabled: !!studentId,
     staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000, // Manter em cache por 10 minutos
@@ -83,7 +110,9 @@ export const useOuraMetrics = (studentId: string, limit?: number) => {
         .eq("student_id", studentId)
         .order("date", { ascending: false });
 
-      if (limit) {
+      if (days) {
+        query = query.gte("date", spCutoff(days)).limit(days + 7);
+      } else if (limit) {
         query = query.limit(limit);
       } else {
         query = query.limit(365);
