@@ -45,6 +45,22 @@ describe("smoke renderToString", () => {
     expect(renderToString(h(MetricTile, { label: "HRV", value: null }))).toContain("—");
   });
 
+  it("MetricTile preenche a altura da linha do grid (tiles irmãos simétricos)", () => {
+    // Num grid, uns tiles têm footnote/sparkline e outros não. Sem h-full o
+    // card mantém a altura do próprio conteúdo e a linha fica desalinhada,
+    // com buraco embaixo dos menores.
+    const semFootnote = renderToString(h(MetricTile, { label: "FC média", value: 71 }));
+    const comFootnote = renderToString(
+      h(MetricTile, { label: "FC repouso", value: 65, footnote: "abaixo = melhor" }),
+    );
+    for (const out of [semFootnote, comFootnote]) {
+      expect(out).toMatch(/class="[^"]*h-full/);
+      expect(out).toMatch(/class="[^"]*flex-col/);
+    }
+    // e o footnote é ancorado no rodapé, pra alinhar entre tiles que o tenham
+    expect(comFootnote).toMatch(/class="[^"]*mt-auto/);
+  });
+
   it("WeekBars com meta atingida", () => {
     const out = renderToString(
       h(WeekBars, {
