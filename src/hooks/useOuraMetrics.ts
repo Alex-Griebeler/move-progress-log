@@ -102,9 +102,11 @@ export const useOuraMetrics = (
   studentId: string,
   limitOrWindow?: number | OuraMetricsWindow,
 ) => {
-  const isWindow = typeof limitOrWindow === "object" && limitOrWindow !== null;
-  const limit = isWindow ? undefined : limitOrWindow;
-  const days = isWindow ? limitOrWindow.days : undefined;
+  const limit = typeof limitOrWindow === "number" ? limitOrWindow : undefined;
+  const days =
+    typeof limitOrWindow === "object" && limitOrWindow !== null
+      ? limitOrWindow.days
+      : undefined;
 
   return useQuery({
     // A key da janela inclui o DIA corrente (SP): depois da meia-noite,

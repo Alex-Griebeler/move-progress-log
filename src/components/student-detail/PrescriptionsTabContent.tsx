@@ -31,6 +31,7 @@ import {
 import { FileText, Trash2, Eye, Plus } from "lucide-react";
 import { formatSessionDate } from "@/utils/sessionDate";
 import { describeAssignmentAdaptations } from "@/utils/assignmentAdaptations";
+import { mapAssignmentCustomAdaptations } from "@/hooks/prescriptionMappers";
 import { assignmentStatus, assignmentProgress, AssignmentStatus } from "@/utils/assignmentStatus";
 import { useDeletePrescriptionAssignment, usePrescriptions } from "@/hooks/usePrescriptions";
 import type { useStudentPrescriptions } from "@/hooks/useStudentDetail";
@@ -68,7 +69,9 @@ const AssignmentCard = ({
   onDelete: (assignmentId: string) => void;
 }) => {
   const progress = assignmentProgress(assignment);
-  const agenda = describeAssignmentAdaptations(assignment.custom_adaptations);
+  const agenda = describeAssignmentAdaptations(
+    mapAssignmentCustomAdaptations(assignment.custom_adaptations),
+  );
   const meta = STATUS_META[status];
 
   return (

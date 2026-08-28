@@ -44,9 +44,11 @@ export const useWhoopMetrics = (
   studentId: string,
   limitOrWindow?: number | WhoopMetricsWindow,
 ) => {
-  const isWindow = typeof limitOrWindow === "object" && limitOrWindow !== null;
-  const limit = isWindow ? undefined : limitOrWindow;
-  const days = isWindow ? limitOrWindow.days : undefined;
+  const limit = typeof limitOrWindow === "number" ? limitOrWindow : undefined;
+  const days =
+    typeof limitOrWindow === "object" && limitOrWindow !== null
+      ? limitOrWindow.days
+      : undefined;
 
   return useQuery({
     queryKey: days

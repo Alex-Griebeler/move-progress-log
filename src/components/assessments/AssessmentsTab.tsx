@@ -148,7 +148,7 @@ export const AssessmentsTab = ({
     // Bucket do Δ é o assessment_type EXATO, não o kind: os 5 protocolos de
     // VO₂ colapsam num kind só, e comparar uma bike submáxima com uma esteira
     // máxima seria comparar medidas de protocolos diferentes.
-    const points = new Map<string, { id: string; date: string; value: number | null; createdAt?: string | null }[]>();
+    const points = new Map<string, AssessmentPointLike[]>();
     for (const a of rows) {
       const kind = classifyAssessmentKind(a.assessment_type);
       const keyResult = extractKeyResult(kind, detailsOf(a));
