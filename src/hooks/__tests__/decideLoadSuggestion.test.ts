@@ -42,9 +42,13 @@ describe("decideLoadSuggestion — invariantes clínicos da revisão fria R4", (
     const d = decideLoadSuggestion({ ...base, loadDecision: "reduce", authorizedPercent: -20 });
     expect(d.suggestedLoadKg).toBe(30);
     expect(d.suggestedLoadKg!).toBeLessThan(40 * 0.81); // nunca acima do alvo
+    // rótulo honesto: o percentual exibido é o EFETIVO (−25), não o autorizado
+    expect(d.adjustmentPercent).toBe(-25);
   });
 
-  it("progressão NUNCA excede o autorizado: 8 kg +5% com incremento 5 → mantém 8... (chão)", () => {
+  it("progressão NUNCA excede o autorizado: 8 kg +5% com incremento 5 → EXATAMENTE 8", () => {
+    // O caso que a revisão fria pegou 2×: o 'manter' arredondado ao
+    // incremento dava 10 kg (+25% real). Manter = a referência EXATA.
     const d = decideLoadSuggestion({
       ...base,
       referenceLoadKg: 8,
@@ -52,10 +56,18 @@ describe("decideLoadSuggestion — invariantes clínicos da revisão fria R4", (
       loadDecision: "increase",
       authorizedPercent: 5,
     });
-    // 8.4 → chão 5 ≤ 8 → não representável → manter (nunca 10 kg / +25%)
-    expect(d.suggestedLoadKg).toBe(roundTo(8, 5));
+    expect(d.suggestedLoadKg).toBe(8);
     expect(d.adjustmentPercent).toBe(0);
     expect(d.ruleApplied).toMatch(/não representável/);
+  });
+
+  it("nenhum caminho sem progressão arredonda a referência pra cima", () => {
+    const casos = [
+      decideLoadSuggestion({ ...base, referenceLoadKg: 8, incrementKg: 5 }), // maintain
+      decideLoadSuggestion({ ...base, referenceLoadKg: 8, incrementKg: 5, loadDecision: "increase", authorizedPercent: 5, hasTechniqueWarning: true }),
+      decideLoadSuggestion({ ...base, referenceLoadKg: 8, incrementKg: 5, loadDecision: "increase", authorizedPercent: 5, criticalFlags: true }),
+    ];
+    for (const d of casos) expect(d.suggestedLoadKg).toBe(8);
   });
 
   it("progressão representável sobe pelo chão sem passar do teto", () => {
@@ -68,16 +80,18 @@ describe("decideLoadSuggestion — invariantes clínicos da revisão fria R4", (
     });
     expect(fino.suggestedLoadKg).toBe(42);
     expect(fino.suggestedLoadKg!).toBeLessThanOrEqual(40 * 1.05);
+    expect(fino.adjustmentPercent).toBe(5); // efetivo = autorizado quando exato
   });
 
   it("dor fora de bloqueio reduz com chão; técnica inconsistente trava progressão", () => {
     const dor = decideLoadSuggestion({ ...base, hasPainOrJointWarning: true });
-    expect(dor.suggestedLoadKg).toBe(30); // 32 → chão 2.5 = 30... 32/2.5=12.8→30
+    expect(dor.suggestedLoadKg).toBe(30);
+    expect(dor.adjustmentPercent).toBe(-25); // efetivo do chão, não o −20 nominal
     expect(dor.guardrails).toContain("pain_recent");
     const tec = decideLoadSuggestion({
       ...base, loadDecision: "increase", authorizedPercent: 5, hasTechniqueWarning: true,
     });
-    expect(tec.suggestedLoadKg).toBe(40);
+    expect(tec.suggestedLoadKg).toBe(40); // exata
     expect(tec.adjustmentPercent).toBe(0);
   });
 
@@ -87,7 +101,3 @@ describe("decideLoadSuggestion — invariantes clínicos da revisão fria R4", (
     expect(d.adjustmentPercent).toBe(0);
   });
 });
-
-function roundTo(v: number, inc: number) {
-  return Math.round(v / inc) * inc;
-}

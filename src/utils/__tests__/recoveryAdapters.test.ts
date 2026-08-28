@@ -170,6 +170,25 @@ describe("integração adapter → engine (fatia vertical Whoop)", () => {
   });
 });
 
+describe("agudas só do MESMO dia (R4)", () => {
+  it("acute com data divergente é ignorada — regras agudas viram not_evaluated", async () => {
+    const { ouraToRecoveryInput } = await import("../recoveryAdapters");
+    const metrics = {
+      date: "2026-08-28", readiness_score: 80, resting_heart_rate: 55,
+    } as never;
+    const acuteOntem = {
+      date: "2026-08-27", samples_count_hrv: 10, samples_count_hr_day: 10,
+      hrv_night_last: 20, hrv_night_min: 15, hr_day_max: 190, hr_day_avg: 120,
+    } as never;
+    const input = ouraToRecoveryInput(metrics, acuteOntem)!;
+    expect(input.acute).toBeUndefined(); // as agudas de ontem não vazam pra hoje
+
+    const acuteHoje = { ...(acuteOntem as object), date: "2026-08-28" } as never;
+    const inputHoje = ouraToRecoveryInput(metrics, acuteHoje)!;
+    expect(inputHoje.acute?.hrDayMaxBpm).toBe(190);
+  });
+});
+
 describe("ouraHistoryToRecoveryDays", () => {
   it("dia sem readiness ainda carrega calorias (fadiga), mas não conta score", () => {
     const days = ouraHistoryToRecoveryDays([

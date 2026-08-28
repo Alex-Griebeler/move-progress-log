@@ -316,6 +316,31 @@ describe("decisões clínicas da revisão fria (R4)", () => {
   });
 });
 
+describe("veto por CRITICAL fisiológico (R4)", () => {
+  it("score 90 com sono crítico NÃO libera máxima performance", () => {
+    const rec = computeRecoveryRecommendation(
+      { source: "oura", date: "2026-08-28", score: 90, restingHeartRateBpm: 58,
+        sleepDurationSeconds: 18000 }, // sono < 6h30 → CRITICAL
+      historyDays(10),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+    );
+    expect(rec.alerts.some((a) => a.metric === "sono" && a.level === "CRITICAL")).toBe(true);
+    expect(rec.zone).toBe("green"); // capado da zona 4
+    expect(rec.loadDecision).toBe("maintain");
+    expect(rec.alerts.some((a) => a.message.includes("sinal fisiológico crítico"))).toBe(true);
+  });
+
+  it("sem CRITICAL, zona 4 segue liberada", () => {
+    const rec = computeRecoveryRecommendation(
+      { source: "oura", date: "2026-08-28", score: 90, restingHeartRateBpm: 58,
+        sleepDurationSeconds: 27000 },
+      historyDays(10),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+    );
+    expect(rec.zone).toBe("green_high");
+  });
+});
+
 describe("auditoria evaluated/skipped", () => {
   it("Oura completo avalia tudo e não pula nada", () => {
     const oura: RecoveryDayInput = {

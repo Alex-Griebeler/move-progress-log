@@ -291,55 +291,6 @@ export function computeRecoveryRecommendation(
     });
   }
 
-  // ── PRESCRIÇÃO POR ZONA ──────────────────────────────────────────────────
-  let trainingType = "";
-  let intensity = "";
-  let duration = "";
-  let reason = "";
-  let emoji = "🟢";
-
-  if (zone === 4) {
-    trainingType = "Máxima Performance / Desafio";
-    intensity = "ALTA (80-95% FCMáx)";
-    duration = "45-60 minutos";
-    reason = "Excelente! Você está no auge. Oportunidade perfeita para desafios ou recordes pessoais (PRs).";
-    emoji = "💚";
-  } else if (zone === 3) {
-    trainingType = "Treino Normal Completo";
-    intensity = "MODERADA-ALTA (70-85% FCMáx)";
-    duration = "45-55 minutos";
-    reason = "Bom dia para treinar! Você está bem preparado para realizar o treino programado com confiança.";
-    emoji = "🟢";
-  } else if (zone === 2) {
-    trainingType = "Treino Reduzido 20%";
-    intensity = "MODERADA (60-75% FCMáx)";
-    duration = "35-45 minutos";
-    reason = "Dia moderado. Mantenha o treino programado, mas reduza volume e/ou intensidade em 20%.";
-    emoji = "🟡";
-  } else if (zone === 1) {
-    trainingType = "Recuperação Ativa / Muito Leve";
-    intensity = "BAIXA (30-50% FCMáx)";
-    duration = "20-30 minutos";
-    reason = "Dia de recuperação. Foco em atividades leves para restaurar o corpo sem estresse adicional.";
-    emoji = "🟠";
-  } else {
-    trainingType = "Descanso Completo / Repouso";
-    intensity = "MUITO BAIXA (0-20% FCMáx)";
-    duration = "Repouso total";
-    reason = "⚠️ SITUAÇÃO CRÍTICA: Seu corpo precisa de recuperação urgente. Treino NÃO é recomendado hoje. Foque nos protocolos de recuperação.";
-    emoji = "🔴";
-  }
-
-  let priorityProtocols: TrainingRecommendation["priorityProtocols"] = undefined;
-  if (zone === 0) {
-    priorityProtocols = [
-      { order: 1, name: "Contraste Térmico", duration: "15 minutos", timing: "Pós-treino ou manhã", description: "Alternância água quente/fria. Reduz inflamação e acelera recuperação muscular (efeitos mensuráveis em 24-48h)." },
-      { order: 2, name: "Crioterapia", duration: "10 minutos", timing: "Após atividade física", description: "Imersão em água fria. Reduz marcadores inflamatórios e acelera recuperação (efeitos em 24-72h)." },
-      { order: 3, name: "Coerência Cardíaca", duration: "10-15 minutos", timing: "Ao acordar", description: "Respiração 6 ciclos/min. Ativa sistema parassimpático e reduz cortisol imediatamente." },
-      { order: 4, name: "Grounding", duration: "10 minutos", timing: "Manhã", description: "Contato descalço com superfície natural. Reduz cortisol e inflamação (efeitos mensuráveis em 24-72h)." },
-    ];
-  }
-
   // ── REGRAS DE ALERTA (portáveis por disponibilidade de dado) ─────────────
 
   // HRV noturna vs baseline
@@ -455,6 +406,71 @@ export function computeRecoveryRecommendation(
         message: `🟡 FC média diária acima do esperado (${hrDayAvg.toFixed(0)} bpm). Priorize controle de intensidade na sessão.`,
       });
     }
+  }
+
+  // VETO POR CRITICAL (revisão fria R4): zona 4 prescreve 80-95% FCMáx e
+  // +5% de carga — coexistir com um alerta CRITICAL ("evite treinos de alta
+  // intensidade") seria a tela se contradizendo. Qualquer CRITICAL
+  // fisiológico rebaixa a progressão pra treino normal.
+  const hasCriticalPhysio = alerts.some(
+    (a) => a.kind === "fisiologico" && a.level === "CRITICAL",
+  );
+  if (zone === 4 && hasCriticalPhysio) {
+    zone = 3;
+    alerts.push({ kind: "onboarding", metric: null, shortLabel: null,
+      level: "INFO",
+      message:
+        "ℹ️ Progressão automática retida: há um sinal fisiológico crítico hoje — treino normal recomendado no lugar de máxima performance.",
+    });
+  }
+
+  // ── PRESCRIÇÃO POR ZONA ──────────────────────────────────────────────────
+  let trainingType = "";
+  let intensity = "";
+  let duration = "";
+  let reason = "";
+  let emoji = "🟢";
+
+  if (zone === 4) {
+    trainingType = "Máxima Performance / Desafio";
+    intensity = "ALTA (80-95% FCMáx)";
+    duration = "45-60 minutos";
+    reason = "Excelente! Você está no auge. Oportunidade perfeita para desafios ou recordes pessoais (PRs).";
+    emoji = "💚";
+  } else if (zone === 3) {
+    trainingType = "Treino Normal Completo";
+    intensity = "MODERADA-ALTA (70-85% FCMáx)";
+    duration = "45-55 minutos";
+    reason = "Bom dia para treinar! Você está bem preparado para realizar o treino programado com confiança.";
+    emoji = "🟢";
+  } else if (zone === 2) {
+    trainingType = "Treino Reduzido 20%";
+    intensity = "MODERADA (60-75% FCMáx)";
+    duration = "35-45 minutos";
+    reason = "Dia moderado. Mantenha o treino programado, mas reduza volume e/ou intensidade em 20%.";
+    emoji = "🟡";
+  } else if (zone === 1) {
+    trainingType = "Recuperação Ativa / Muito Leve";
+    intensity = "BAIXA (30-50% FCMáx)";
+    duration = "20-30 minutos";
+    reason = "Dia de recuperação. Foco em atividades leves para restaurar o corpo sem estresse adicional.";
+    emoji = "🟠";
+  } else {
+    trainingType = "Descanso Completo / Repouso";
+    intensity = "MUITO BAIXA (0-20% FCMáx)";
+    duration = "Repouso total";
+    reason = "⚠️ SITUAÇÃO CRÍTICA: Seu corpo precisa de recuperação urgente. Treino NÃO é recomendado hoje. Foque nos protocolos de recuperação.";
+    emoji = "🔴";
+  }
+
+  let priorityProtocols: TrainingRecommendation["priorityProtocols"] = undefined;
+  if (zone === 0) {
+    priorityProtocols = [
+      { order: 1, name: "Contraste Térmico", duration: "15 minutos", timing: "Pós-treino ou manhã", description: "Alternância água quente/fria. Reduz inflamação e acelera recuperação muscular (efeitos mensuráveis em 24-48h)." },
+      { order: 2, name: "Crioterapia", duration: "10 minutos", timing: "Após atividade física", description: "Imersão em água fria. Reduz marcadores inflamatórios e acelera recuperação (efeitos em 24-72h)." },
+      { order: 3, name: "Coerência Cardíaca", duration: "10-15 minutos", timing: "Ao acordar", description: "Respiração 6 ciclos/min. Ativa sistema parassimpático e reduz cortisol imediatamente." },
+      { order: 4, name: "Grounding", duration: "10 minutos", timing: "Manhã", description: "Contato descalço com superfície natural. Reduz cortisol e inflamação (efeitos mensuráveis em 24-72h)." },
+    ];
   }
 
   const confidence = recoveryScore;

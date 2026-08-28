@@ -50,11 +50,6 @@ const floorToIncrement = (value: number, increment: number): number => {
   return Math.floor(value / increment + 1e-9) * increment;
 };
 
-const roundToIncrementPure = (value: number, increment: number): number => {
-  if (!Number.isFinite(value) || !Number.isFinite(increment) || increment <= 0) return value;
-  return Math.round(value / increment) * increment;
-};
-
 export const decideLoadSuggestion = (
   input: LoadSuggestionDecisionInput,
 ): LoadSuggestionDecision => {
@@ -68,6 +63,9 @@ export const decideLoadSuggestion = (
     criticalFlags,
   } = input;
   const guardrails: string[] = [];
+
+  const effectivePercent = (suggested: number): number =>
+    Math.round((suggested / referenceLoadKg - 1) * 100);
 
   const safeReduction = (percent: number): number | null => {
     const target = referenceLoadKg * (1 + percent / 100);
@@ -93,7 +91,9 @@ export const decideLoadSuggestion = (
     const reduced = safeReduction(-20);
     return {
       suggestedLoadKg: reduced,
-      adjustmentPercent: reduced !== null ? -20 : null,
+      // percentual EFETIVO (o chão pode dar −25% quando o autorizado é −20;
+      // exibir o autorizado seria rótulo errado no prontuário)
+      adjustmentPercent: reduced !== null ? effectivePercent(reduced) : null,
       ruleApplied:
         reduced !== null
           ? "Dor/Desconforto recente: redução de segurança (-20%)"
@@ -105,7 +105,9 @@ export const decideLoadSuggestion = (
   if (loadDecision === "increase" && hasTechniqueWarning) {
     guardrails.push("technique_inconsistent");
     return {
-      suggestedLoadKg: roundToIncrementPure(referenceLoadKg, incrementKg),
+      // referência EXATA: é uma carga já executada — arredondar ao
+      // incremento podia AUMENTAR (8 kg → 10 kg) sob o rótulo "bloqueada"
+      suggestedLoadKg: referenceLoadKg,
       adjustmentPercent: 0,
       ruleApplied: "Técnica inconsistente recente: progressão bloqueada",
       guardrails,
@@ -119,13 +121,13 @@ export const decideLoadSuggestion = (
     if (floored > referenceLoadKg) {
       return {
         suggestedLoadKg: floored,
-        adjustmentPercent: authorized,
+        adjustmentPercent: effectivePercent(floored),
         ruleApplied: `Progressão +${authorized}%`,
         guardrails,
       };
     }
     return {
-      suggestedLoadKg: roundToIncrementPure(referenceLoadKg, incrementKg),
+      suggestedLoadKg: referenceLoadKg, // exata — nunca o degrau de cima
       adjustmentPercent: 0,
       ruleApplied: `Progressão +${authorized}% não representável no incremento de ${incrementKg} kg — manter carga`,
       guardrails,
@@ -137,7 +139,7 @@ export const decideLoadSuggestion = (
     const reduced = safeReduction(authorized);
     return {
       suggestedLoadKg: reduced,
-      adjustmentPercent: reduced !== null ? authorized : null,
+      adjustmentPercent: reduced !== null ? effectivePercent(reduced) : null,
       ruleApplied:
         reduced !== null
           ? `Redução ${authorized}%`
@@ -147,7 +149,7 @@ export const decideLoadSuggestion = (
   }
 
   return {
-    suggestedLoadKg: roundToIncrementPure(referenceLoadKg, incrementKg),
+    suggestedLoadKg: referenceLoadKg, // manter = manter, sem arredondar
     adjustmentPercent: 0,
     ruleApplied: "Manter carga planejada",
     guardrails,
