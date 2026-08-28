@@ -369,7 +369,9 @@ const PersonalizedTrainingDashboard = ({
 
   return (
     <div className="space-y-6">
-      {/* HERO — um único score de recuperação, com fonte e data explícitas */}
+      {/* HERO — um único score de recuperação. Fonte/data só aparecem quando
+          o dado está velho (decisão ratificada 28/08); o tom da zona e o
+          rótulo curto carregam a interpretação no fluxo normal. */}
       <Card className="border-l-2 border-l-primary p-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
           <ScoreRing

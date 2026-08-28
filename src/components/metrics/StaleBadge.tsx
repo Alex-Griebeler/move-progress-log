@@ -13,8 +13,12 @@ interface StaleBadgeProps {
 }
 
 /**
- * Badge de staleness: toda métrica-herói declara DE QUANDO é o dado
- * ("Oura · ontem"). Passa pra tom de alerta quando o dado envelhece.
+ * Badge de staleness: declara DE QUANDO é o dado ("Oura · ontem") e passa
+ * pra tom de alerta quando ele envelhece.
+ *
+ * Quem decide QUANDO renderizar é o call site: as abas Oura/Whoop mostram
+ * sempre; o hero de Treinamento só com dado de 2+ dias (decisão de produto
+ * ratificada em 28/08 — no fluxo normal a origem era ruído).
  */
 export const StaleBadge = ({
   date,

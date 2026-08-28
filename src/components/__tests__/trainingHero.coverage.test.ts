@@ -37,8 +37,11 @@ describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
     expect(dash).not.toMatch(/\{recommendation!\.intensity\} · \{recommendation!\.duration\}/);
   });
 
-  it("origem/data só quando o dado está velho (2+ dias)", () => {
+  it("origem/data só quando o dado está velho (2+ dias) — decisão de produto ratificada 28/08, NÃO é bug", () => {
     expect(dash).toMatch(/\{snapshot\.isStale && \(/);
+    // isStale usa a definição canônica do app (2 dias de calendário,
+    // recoverySnapshot.ts) — o call site não inventa limiar próprio
+    expect(dash).not.toMatch(/staleAfterDays=/);
   });
 
   it("a pilha de cards de alerta morreu; consolidação via partitionAlerts", () => {
