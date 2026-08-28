@@ -195,7 +195,7 @@ describe("sheet: comparador clínico correto e debug protegido", () => {
   });
 
   it("o payload de debug fica DENTRO do gate de admin (não só na mesma página)", () => {
-    expect(SHEET).toMatch(/useUserRole\(\)/);
+    expect(SHEET).toMatch(/useIsAdmin\(\)/);
     // Assert estrutural: o JsonBlock de debug tem que estar aninhado no
     // bloco `{isAdmin && (...)}`. Procurar os dois separadamente passaria
     // mesmo se estivessem em pontos não relacionados do arquivo.

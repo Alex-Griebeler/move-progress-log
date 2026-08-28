@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { OuraMetrics } from "./useOuraMetrics";
 import { OuraBaseline } from "./useOuraBaseline";
 import { OuraAcuteMetrics } from "./useOuraAcuteMetrics";
+import type { StructuredAlert } from "@/utils/attentionAlerts";
 
 export interface TrainingRecommendation {
   trainingType: string;
@@ -14,10 +15,7 @@ export interface TrainingRecommendation {
   loadAdjustmentPercent: number | null;
   overrideApplied: boolean;
   reason: string;
-  alerts: Array<{
-    level: 'INFO' | 'WARNING' | 'CRITICAL';
-    message: string;
-  }>;
+  alerts: StructuredAlert[];
   confidence: number;
   emoji: string;
   priorityProtocols?: Array<{
@@ -69,7 +67,7 @@ export function calculateTrainingRecommendation(
   const hasMinimumHistory = recentMetrics.length >= 7;
 
   if (!hasMinimumHistory && recentMetrics.length > 0) {
-    alerts.push({
+    alerts.push({ kind: 'onboarding', metric: null, shortLabel: null,
       level: 'INFO',
       message: `ℹ️ Histórico em construção: Coletamos ${recentMetrics.length} dias de dados. Para recomendações mais precisas, aguarde pelo menos 7 dias de sincronização.`
     });
@@ -77,7 +75,7 @@ export function calculateTrainingRecommendation(
 
   // Indicar se usando baseline real ou defaults
   if (!effectiveBaseline.hasMinimumData && effectiveBaseline.dataPoints > 0) {
-    alerts.push({
+    alerts.push({ kind: 'onboarding', metric: null, shortLabel: null,
       level: 'INFO',
       message: `ℹ️ Baseline em construção: ${effectiveBaseline.dataPoints} dias coletados. Usando valores de referência populacionais até atingir 7 dias.`
     });
@@ -128,7 +126,7 @@ export function calculateTrainingRecommendation(
   const overrideApplied = shouldDowngradeOneZone;
   if (shouldDowngradeOneZone) {
     zone = (zone - 1) as RecommendationZone;
-    alerts.push({
+    alerts.push({ kind: 'override', metric: null, shortLabel: null,
       level: "WARNING",
       message:
         "🟡 Override agudo aplicado: a recomendação foi reduzida em 1 zona para proteger recuperação e reduzir risco de sobrecarga.",
@@ -185,9 +183,9 @@ export function calculateTrainingRecommendation(
     metrics.average_sleep_hrv < effectiveBaseline.avgHRV * 0.85
   ) {
     if (metrics.average_sleep_hrv < effectiveBaseline.avgHRV * 0.70) {
-      alerts.push({ level: 'CRITICAL', message: '🔴 HRV criticamente baixa: Sinal forte de fadiga extrema ou possível doença. Seu corpo precisa de descanso. Se persistir, procure orientação médica.' });
+      alerts.push({ kind: 'fisiologico', metric: 'hrv_noturna', shortLabel: 'Muito abaixo do basal', level: 'CRITICAL', message: '🔴 HRV criticamente baixa: Sinal forte de fadiga extrema ou possível doença. Seu corpo precisa de descanso. Se persistir, procure orientação médica.' });
     } else {
-      alerts.push({ level: 'WARNING', message: '🟡 HRV abaixo do normal: Seu corpo pode estar sob estresse ou fadiga acumulada. Monitore sinais de cansaço e considere reduzir o esforço.' });
+      alerts.push({ kind: 'fisiologico', metric: 'hrv_noturna', shortLabel: 'Abaixo do basal', level: 'WARNING', message: '🟡 HRV abaixo do normal: Seu corpo pode estar sob estresse ou fadiga acumulada. Monitore sinais de cansaço e considere reduzir o esforço.' });
     }
   }
 
@@ -197,9 +195,9 @@ export function calculateTrainingRecommendation(
     metrics.resting_heart_rate > effectiveBaseline.avgRHR + 5
   ) {
     if (metrics.resting_heart_rate > effectiveBaseline.avgRHR + 10) {
-      alerts.push({ level: 'CRITICAL', message: '🔴 Frequência cardíaca em repouso muito elevada: Pode indicar inflamação, doença ou exaustão. Priorize o repouso e observe se há outros sintomas.' });
+      alerts.push({ kind: 'fisiologico', metric: 'fc_repouso', shortLabel: 'Muito acima do basal', level: 'CRITICAL', message: '🔴 Frequência cardíaca em repouso muito elevada: Pode indicar inflamação, doença ou exaustão. Priorize o repouso e observe se há outros sintomas.' });
     } else {
-      alerts.push({ level: 'WARNING', message: '🟡 Frequência cardíaca em repouso elevada: Indício de que seu corpo ainda está se recuperando. Reduza o ritmo hoje.' });
+      alerts.push({ kind: 'fisiologico', metric: 'fc_repouso', shortLabel: 'Acima do basal', level: 'WARNING', message: '🟡 Frequência cardíaca em repouso elevada: Indício de que seu corpo ainda está se recuperando. Reduza o ritmo hoje.' });
     }
   }
 
@@ -207,21 +205,21 @@ export function calculateTrainingRecommendation(
     typeof metrics.total_sleep_duration === "number" &&
     metrics.total_sleep_duration < goals.minSleepDurationThreshold
   ) {
-    alerts.push({ level: 'CRITICAL', message: '🔴 Sono insuficiente detectado: Sua capacidade de recuperação está comprometida. Evite treinos de alta intensidade e priorize descanso extra.' });
+    alerts.push({ kind: 'fisiologico', metric: 'sono', shortLabel: 'Duração insuficiente', level: 'CRITICAL', message: '🔴 Sono insuficiente detectado: Sua capacidade de recuperação está comprometida. Evite treinos de alta intensidade e priorize descanso extra.' });
   }
 
   if (
     typeof metrics.sleep_efficiency === "number" &&
     metrics.sleep_efficiency < goals.minSleepEfficiency
   ) {
-    alerts.push({ level: 'INFO', message: 'ℹ️ Eficiência do sono abaixo do ideal: Seu sono foi interrompido ou superficial. Tente melhorar seu ambiente e rotina de sono.' });
+    alerts.push({ kind: 'fisiologico', metric: 'eficiencia_sono', shortLabel: 'Eficiência baixa', level: 'INFO', message: 'ℹ️ Eficiência do sono abaixo do ideal: Seu sono foi interrompido ou superficial. Tente melhorar seu ambiente e rotina de sono.' });
   }
 
   if (
     typeof metrics.stress_high_time === "number" &&
     metrics.stress_high_time > 7200
   ) {
-    alerts.push({ level: 'WARNING', message: '🟡 Alto nível de estresse detectado: Mais de 2 horas em estado de estresse alto. Considere técnicas de relaxamento e recuperação.' });
+    alerts.push({ kind: 'fisiologico', metric: 'estresse', shortLabel: 'Estresse alto no dia', level: 'WARNING', message: '🟡 Alto nível de estresse detectado: Mais de 2 horas em estado de estresse alto. Considere técnicas de relaxamento e recuperação.' });
   }
 
   // 5. ALERTAS AGUDOS (intra-noite / intra-dia)
@@ -231,19 +229,19 @@ export function calculateTrainingRecommendation(
     const hrvMin = acuteMetrics.hrv_night_min;
 
     if (typeof hrvLast === "number" && hrvLast < baselineHrv * 0.7) {
-      alerts.push({
+      alerts.push({ kind: 'fisiologico', metric: 'hrv_aguda', shortLabel: 'Queda aguda forte',
         level: 'CRITICAL',
         message: `🔴 HRV aguda noturna muito baixa (último bloco: ${hrvLast.toFixed(1)} ms). Forte indicação de baixa recuperação hoje.`,
       });
     } else if (typeof hrvLast === "number" && hrvLast < baselineHrv * 0.85) {
-      alerts.push({
+      alerts.push({ kind: 'fisiologico', metric: 'hrv_aguda', shortLabel: 'Abaixo do basal',
         level: 'WARNING',
         message: `🟡 HRV aguda abaixo do basal (último bloco: ${hrvLast.toFixed(1)} ms). Considere reduzir carga e monitorar resposta.`,
       });
     }
 
     if (typeof hrvMin === "number" && hrvMin < baselineHrv * 0.55) {
-      alerts.push({
+      alerts.push({ kind: 'fisiologico', metric: 'hrv_aguda', shortLabel: 'Queda acentuada na noite',
         level: 'WARNING',
         message: `🟡 Queda acentuada de HRV durante a noite (mínimo: ${hrvMin.toFixed(1)} ms). Evite sessão de alta intensidade hoje.`,
       });
@@ -256,14 +254,14 @@ export function calculateTrainingRecommendation(
     const restingHr = metrics.resting_heart_rate;
 
     if (typeof hrDayMax === "number" && typeof restingHr === "number" && hrDayMax > restingHr + 55) {
-      alerts.push({
+      alerts.push({ kind: 'fisiologico', metric: 'fc_pico', shortLabel: 'Pico elevado',
         level: 'INFO',
         message: `ℹ️ Pico de FC do dia elevado (${hrDayMax} bpm). Contextualize com estresse/sono e ajuste o aquecimento.`,
       });
     }
 
     if (typeof hrDayAvg === "number" && typeof restingHr === "number" && hrDayAvg > restingHr + 18) {
-      alerts.push({
+      alerts.push({ kind: 'fisiologico', metric: 'fc_media_dia', shortLabel: 'Acima do esperado',
         level: 'WARNING',
         message: `🟡 FC média diária acima do esperado (${hrDayAvg.toFixed(0)} bpm). Priorize controle de intensidade na sessão.`,
       });

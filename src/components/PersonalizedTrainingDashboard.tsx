@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect } from "react";
+import { Fragment, cloneElement, useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { logger } from "@/utils/logger";
 import { Badge } from "./ui/badge";
@@ -23,6 +23,15 @@ import TrainingZonesCard from "./TrainingZonesCard";
 import { ScoreRing, MetricTile, StaleBadge, DataErrorState } from "./metrics";
 import type { MetricDelta, MetricTone } from "./metrics";
 import { buildRecoverySnapshot } from "@/utils/recoverySnapshot";
+import {
+  partitionAlerts,
+  stripAlertEmoji,
+  type AlertMetric,
+} from "@/utils/attentionAlerts";
+import {
+  SNAPSHOT_ZONE_SHORT,
+  formatPrescriptionLine,
+} from "@/utils/recommendationDisplay";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,12 +74,6 @@ const SNAPSHOT_TONE: Record<string, MetricTone> = {
   alta: "success",
   media: "warning",
   baixa: "destructive",
-};
-
-const SNAPSHOT_ZONE_TEXT: Record<string, string> = {
-  alta: "Recuperação alta — pronta pra treinar pesado",
-  media: "Recuperação média — treino moderado",
-  baixa: "Recuperação baixa — priorizar recuperação",
 };
 
 const formatDuration = (seconds: number | null) => {
@@ -210,10 +213,11 @@ const PersonalizedTrainingDashboard = ({
   const hasAcuteHr = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hr_day > 0;
 
   // Fisiologia de hoje: só métricas PRESENTES entram na grade.
-  const physiology: Array<{ key: string; tile: JSX.Element }> = [];
+  const physiology: Array<{ key: string; metric?: AlertMetric; tile: JSX.Element }> = [];
   if (ouraIsCurrent && latestMetrics?.sleep_score != null) {
     physiology.push({
       key: "sono",
+      metric: "sono",
       tile: (
         <MetricTile
           label="Sono"
@@ -227,6 +231,7 @@ const PersonalizedTrainingDashboard = ({
   if (ouraIsCurrent && latestMetrics?.average_sleep_hrv != null) {
     physiology.push({
       key: "hrv",
+      metric: "hrv_noturna",
       tile: (
         <MetricTile
           label="HRV noturna"
@@ -240,6 +245,7 @@ const PersonalizedTrainingDashboard = ({
   if (ouraIsCurrent && latestMetrics?.resting_heart_rate != null) {
     physiology.push({
       key: "fcr",
+      metric: "fc_repouso",
       tile: (
         <MetricTile
           label="FC repouso"
@@ -285,11 +291,20 @@ const PersonalizedTrainingDashboard = ({
   if (ouraIsCurrent && hasAcuteHrv && latestAcuteMetrics?.hrv_night_min != null) {
     physiology.push({
       key: "hrv-aguda",
+      metric: "hrv_aguda",
       tile: (
         <MetricTile
           label="HRV mínima (noite)"
           value={Math.round(latestAcuteMetrics.hrv_night_min)}
           unit="ms"
+          footnote={
+            // Os alertas de HRV aguda podem vir do ÚLTIMO BLOCO da noite,
+            // não só da mínima — sem esta linha, o tile marcaria atenção
+            // mostrando um número que não é o que disparou o sinal.
+            latestAcuteMetrics.hrv_night_last != null
+              ? `último bloco: ${Math.round(latestAcuteMetrics.hrv_night_last)} ms`
+              : undefined
+          }
         />
       ),
     });
@@ -297,10 +312,24 @@ const PersonalizedTrainingDashboard = ({
   if (ouraIsCurrent && hasAcuteHr && latestAcuteMetrics?.hr_day_avg != null) {
     physiology.push({
       key: "fc-dia",
+      metric: "fc_media_dia",
       tile: (
         <MetricTile
           label="FC média (dia)"
           value={Math.round(latestAcuteMetrics.hr_day_avg)}
+          unit="bpm"
+        />
+      ),
+    });
+  }
+  if (ouraIsCurrent && hasAcuteHr && latestAcuteMetrics?.hr_day_max != null) {
+    physiology.push({
+      key: "fc-pico",
+      metric: "fc_pico",
+      tile: (
+        <MetricTile
+          label="FC pico (dia)"
+          value={Math.round(latestAcuteMetrics.hr_day_max)}
           unit="bpm"
         />
       ),
@@ -328,9 +357,21 @@ const PersonalizedTrainingDashboard = ({
     }
   }
 
+  // Partição dos alertas (R1): só depois de montar os tiles do dia dá pra
+  // saber quais sinais têm tile pra morar e quais vão pro card consolidado.
+  const renderedTileMetrics = new Set<AlertMetric>(
+    physiology.flatMap((p) => (p.metric ? [p.metric] : [])),
+  );
+  const alertPartition = partitionAlerts(
+    hasOuraRecommendation && recommendation ? recommendation.alerts : [],
+    renderedTileMetrics,
+  );
+
   return (
     <div className="space-y-6">
-      {/* HERO — um único score de recuperação, com fonte e data explícitas */}
+      {/* HERO — um único score de recuperação. Fonte/data só aparecem quando
+          o dado está velho (decisão ratificada 28/08); o tom da zona e o
+          rótulo curto carregam a interpretação no fluxo normal. */}
       <Card className="border-l-2 border-l-primary p-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
           <ScoreRing
@@ -341,12 +382,16 @@ const PersonalizedTrainingDashboard = ({
           <div className="min-w-0 flex-1 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="font-normal">
-                {SNAPSHOT_ZONE_TEXT[snapshot.zone]}
+                {SNAPSHOT_ZONE_SHORT[snapshot.source][snapshot.zone]}
               </Badge>
-              <StaleBadge
-                date={snapshot.date}
-                source={snapshot.source === "oura" ? "Oura" : "Whoop"}
-              />
+              {/* Origem/data só quando o dado está velho (2+ dias) — aí ela
+                  vira informação de decisão; no fluxo normal era ruído. */}
+              {snapshot.isStale && (
+                <StaleBadge
+                  date={snapshot.date}
+                  source={snapshot.source === "oura" ? "Oura" : "Whoop"}
+                />
+              )}
             </div>
             {hasOuraRecommendation ? (
               <>
@@ -354,7 +399,7 @@ const PersonalizedTrainingDashboard = ({
                   {recommendation!.trainingType}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {recommendation!.intensity} · {recommendation!.duration}
+                  {formatPrescriptionLine(recommendation!.intensity, recommendation!.duration)}
                 </p>
                 <div className="flex gap-3 pt-2">
                   <Button onClick={() => onStartTraining?.()}>Iniciar Treino</Button>
@@ -372,14 +417,7 @@ const PersonalizedTrainingDashboard = ({
             )}
           </div>
         </div>
-        {hasOuraRecommendation && recommendation?.overrideApplied && (
-          <Alert className="mt-4 border-warning/40 bg-warning/10">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Override agudo ativo: a zona de treino foi reduzida em 1 nível para proteção.
-            </AlertDescription>
-          </Alert>
-        )}
+
       </Card>
 
       {/* Sugestão de carga — o dado mais acionável do coach, logo após o hero */}
@@ -519,14 +557,61 @@ const PersonalizedTrainingDashboard = ({
         </Card>
       )}
 
-      {/* Alertas do motor */}
-      {hasOuraRecommendation && recommendation && recommendation.alerts.length > 0 && (
-        <div className="space-y-3">
-          {recommendation.alerts.map((alert, idx) => (
-            <Alert key={idx} variant={alert.level === 'CRITICAL' ? 'destructive' : 'default'}>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{alert.message}</AlertDescription>
-            </Alert>
+      {/* Atenção hoje (R1): UM card consolidado no lugar da pilha de alertas.
+          Regra ratificada: aparece com qualquer CRITICAL, com 2+ sinais, ou
+          com sinal sem tile pra morar; 1 sinal leve vive só no tile. */}
+      {alertPartition.showAttentionCard && (
+        <Card
+          role="region"
+          aria-labelledby="attention-today-title"
+          className={
+            alertPartition.attention.some((a) => a.level === "CRITICAL")
+              ? "border-destructive/50 p-4"
+              : "border-warning/50 p-4"
+          }
+        >
+          <h3
+            id="attention-today-title"
+            className="mb-2 flex items-center gap-2 text-base font-semibold"
+          >
+            <AlertCircle
+              aria-hidden="true"
+              className={
+                alertPartition.attention.some((a) => a.level === "CRITICAL")
+                  ? "h-4 w-4 text-destructive"
+                  : "h-4 w-4 text-warning"
+              }
+            />
+            Atenção hoje
+          </h3>
+          <ul className="space-y-1.5 text-sm text-muted-foreground">
+            {alertPartition.attention.map((alert, idx) => (
+              <li key={idx} className="flex gap-2">
+                <span
+                  aria-hidden="true"
+                  className={
+                    alert.level === "CRITICAL"
+                      ? "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-destructive"
+                      : alert.level === "WARNING"
+                        ? "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warning"
+                        : "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground"
+                  }
+                />
+                <span>{stripAlertEmoji(alert.message)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* Notas de onboarding (histórico/baseline em construção): informação,
+          não atenção — uma linha discreta, nunca card. */}
+      {alertPartition.onboardingNotes.length > 0 && (
+        <div className="space-y-1">
+          {alertPartition.onboardingNotes.map((note, idx) => (
+            <p key={idx} className="text-xs text-muted-foreground">
+              {note}
+            </p>
           ))}
         </div>
       )}
@@ -539,9 +624,14 @@ const PersonalizedTrainingDashboard = ({
             Fisiologia de hoje
           </h3>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
-            {physiology.map((p) => (
-              <Fragment key={p.key}>{p.tile}</Fragment>
-            ))}
+            {physiology.map((p) => {
+              const tileAlert = p.metric ? alertPartition.byTile.get(p.metric) : undefined;
+              return (
+                <Fragment key={p.key}>
+                  {tileAlert ? cloneElement(p.tile, { alert: tileAlert }) : p.tile}
+                </Fragment>
+              );
+            })}
           </div>
         </div>
       )}

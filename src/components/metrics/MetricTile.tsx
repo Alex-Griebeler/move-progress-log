@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MetricTone } from "./ScoreRing";
+import type { TileAlertSummary } from "@/utils/attentionAlerts";
 
 export interface MetricDelta {
   /** Texto já formatado (ex.: "+4 vs 7d", "−2 bpm"). */
@@ -21,6 +22,13 @@ interface MetricTileProps {
   /** Slot pra sparkline/conteúdo extra abaixo do valor. */
   children?: ReactNode;
   footnote?: string;
+  /**
+   * Estado de atenção (refinamento R1): sinal do motor de alertas ancorado
+   * NESTA métrica — borda sutil + rótulo curto, mensagem completa no nome
+   * acessível. Agregação (maior severidade, "+N sinais") vem pronta do
+   * partitionAlerts; o tile só apresenta.
+   */
+  alert?: TileAlertSummary | null;
   className?: string;
 }
 
@@ -46,6 +54,7 @@ export const MetricTile = ({
   tone = "neutral",
   children,
   footnote,
+  alert,
   className,
 }: MetricTileProps) => {
   const DeltaIcon = delta ? DELTA_ICON[delta.direction] : null;
@@ -60,8 +69,29 @@ export const MetricTile = ({
   // conteúdo diferentes (só alguns têm footnote ou sparkline). Sem isso, o
   // item do grid estica mas o CARD dentro dele não, e a linha fica com
   // cards de tamanhos distintos e buracos embaixo dos menores.
+  const alertBorder =
+    alert?.level === "CRITICAL"
+      ? "border-destructive/50"
+      : alert
+        ? "border-warning/50"
+        : null;
+  const alertText =
+    alert?.level === "CRITICAL" ? "text-destructive" : "text-warning";
+
   return (
-    <div className={cn("flex h-full flex-col rounded-lg border bg-card p-3.5", className)}>
+    <div
+      role={alert ? "group" : undefined}
+      aria-label={
+        alert
+          ? `${label}: ${value ?? "sem dado"}${unit ? ` ${unit}` : ""}. Atenção: ${alert.messages.join(" ")}`
+          : undefined
+      }
+      className={cn(
+        "flex h-full flex-col rounded-lg border bg-card p-3.5",
+        alertBorder,
+        className,
+      )}
+    >
       <p className="text-[10.5px] font-medium uppercase tracking-widest text-muted-foreground">
         {label}
       </p>
@@ -80,6 +110,16 @@ export const MetricTile = ({
         )}
       </div>
       {children}
+      {alert && (
+        <p className={cn("mt-1 text-[11px] font-medium", alertText)} aria-hidden="true">
+          {alert.label}
+          {alert.extraCount > 0 && (
+            <span className="ml-1 font-normal text-muted-foreground">
+              +{alert.extraCount} {alert.extraCount === 1 ? "sinal" : "sinais"}
+            </span>
+          )}
+        </p>
+      )}
       {footnote && <p className="mt-auto pt-1.5 text-xs text-muted-foreground">{footnote}</p>}
     </div>
   );

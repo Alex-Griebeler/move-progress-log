@@ -213,7 +213,7 @@ const StudentDetailPage = () => {
                 <Avatar
                   onClick={() => setEditStudentOpen(true)}
                   aria-label="Editar dados do aluno"
-                  className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-primary/20 ring-offset-4 ring-offset-background transition-transform duration-300 hover:scale-105 cursor-pointer shrink-0"
+                  className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-primary/20 ring-offset-4 ring-offset-background transition-transform duration-300 hover:scale-105 cursor-pointer shrink-0 self-center m-2"
                 >
                   <StudentAvatarImage avatarUrl={student.avatar_url} className="object-cover" />
                   <AvatarFallback className="text-2xl md:text-3xl font-bold">
