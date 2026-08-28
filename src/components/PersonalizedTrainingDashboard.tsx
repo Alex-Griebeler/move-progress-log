@@ -152,7 +152,7 @@ const PersonalizedTrainingDashboard = ({
       // (virada de meia-noite SP antes do refetch da nova key). Direção
       // conservadora: coverageStart estimado ≥ real → o guard nunca aceita
       // baseline truncado; no pior caso descarta um válido no limite dos 59
-      // dias, por um render.
+      // dias, até a próxima reavaliação da query key.
       ? buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())
       : null;
   const activeRecommendation =
@@ -733,7 +733,7 @@ const PersonalizedTrainingDashboard = ({
           <div className="space-y-3 my-4">
             {getTrainingAlternativesForZone(
               // Zona FINAL do motor (já com fadiga/override); score cru só
-              // no fallback sem recomendação (ex.: fonte Whoop nesta fase).
+              // no fallback raro sem recomendação da fonte ativa.
               hasActiveRecommendation && activeRecommendation ? activeRecommendation.zone : null,
               snapshot.score,
             ).map((alt, idx) => (
