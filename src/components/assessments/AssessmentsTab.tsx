@@ -29,7 +29,7 @@ import {
   useVo2ReferenceRanges,
 } from "@/hooks/useReferenceRanges";
 import type { AssessmentType } from "@/types/assessment";
-import { computeAssessmentDeltas } from "@/utils/assessmentTrends";
+import { computeAssessmentDeltas, type AssessmentPointLike } from "@/utils/assessmentTrends";
 import { resolveAssessmentSubject } from "@/utils/assessmentSubject";
 import {
   classifyAssessmentKind,
