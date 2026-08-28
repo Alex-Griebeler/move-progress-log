@@ -176,6 +176,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
         avatar_url: avatarUrl,
         weight_kg: data.weight_kg,
         height_cm: data.height_cm,
+        sex: null,
       });
       
       loader.dismiss();

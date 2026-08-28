@@ -18,6 +18,7 @@ export interface Student {
   avatar_url: string | null;
   weight_kg: number | null;
   height_cm: number | null;
+  sex: 'M' | 'F' | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,7 +26,7 @@ export interface Student {
 const STUDENTS_PAGE_SIZE = 500;
 const STUDENTS_MAX_PAGES = 50;
 const STUDENT_SELECT =
-  "id, name, weekly_sessions_proposed, birth_date, objectives, limitations, preferences, max_heart_rate, injury_history, fitness_level, avatar_url, weight_kg, height_cm, created_at, updated_at";
+  "id, name, weekly_sessions_proposed, birth_date, objectives, limitations, preferences, max_heart_rate, injury_history, fitness_level, avatar_url, weight_kg, height_cm, sex, created_at, updated_at";
 
 const normalizeComparableText = (value: string): string =>
   value

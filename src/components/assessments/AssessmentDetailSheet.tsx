@@ -29,7 +29,7 @@ import {
   useSitToStandReferenceRanges,
   useVo2ReferenceRanges,
 } from "@/hooks/useReferenceRanges";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useIsAdmin } from "@/hooks/useUserRole";
 import type { AssessmentType } from "@/types/assessment";
 import { sanitizeAssessmentDebugPayload } from "@/utils/assessmentDebugSanitize";
 import { resolveAssessmentSubject } from "@/utils/assessmentSubject";
@@ -446,7 +446,7 @@ export const AssessmentDetailSheet = ({
     ? ASSESSMENT_TYPE_METADATA[assessment.assessment_type as AssessmentType]
     : null;
 
-  const { isAdmin } = useUserRole();
+  const { isAdmin } = useIsAdmin();
   const { data: vo2Ranges, isError: vo2RangesError } = useVo2ReferenceRanges();
   const { data: handgripRanges, isError: handgripRangesError } = useHandgripReferenceRanges();
   const { data: sitToStandRanges, isError: sitToStandRangesError } =
