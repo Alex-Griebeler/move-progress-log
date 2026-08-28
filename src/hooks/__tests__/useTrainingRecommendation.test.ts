@@ -96,6 +96,49 @@ function buildRecentMetrics(days: number, activeCalories = 500): OuraMetrics[] {
   );
 }
 
+describe("alertas estruturados (R1) — metric/kind/shortLabel na saída real", () => {
+  it("FC repouso elevada sai com metric fc_repouso e rótulo específico", () => {
+    const rec = calculateTrainingRecommendation(
+      buildMetrics({ resting_heart_rate: baseline.avgRHR + 7 }),
+      buildRecentMetrics(10),
+      baseline,
+    );
+    const alert = rec!.alerts.find((a) => a.metric === "fc_repouso");
+    expect(alert).toBeTruthy();
+    expect(alert!.kind).toBe("fisiologico");
+    expect(alert!.shortLabel).toBe("Acima do basal");
+  });
+
+  it("histórico em construção é onboarding sem métrica", () => {
+    const rec = calculateTrainingRecommendation(
+      buildMetrics(),
+      buildRecentMetrics(3), // < 7 dias
+      baseline,
+    );
+    const alert = rec!.alerts.find((a) => a.kind === "onboarding");
+    expect(alert).toBeTruthy();
+    expect(alert!.metric).toBeNull();
+  });
+
+  it("todo alerta emitido carrega os 3 campos estruturais", () => {
+    const rec = calculateTrainingRecommendation(
+      buildMetrics({
+        resting_heart_rate: baseline.avgRHR + 15,
+        total_sleep_duration: 20000,
+        stress_high_time: 8000,
+      }),
+      buildRecentMetrics(10),
+      baseline,
+    );
+    expect(rec!.alerts.length).toBeGreaterThan(0);
+    for (const a of rec!.alerts) {
+      expect(["fisiologico", "onboarding", "override"]).toContain(a.kind);
+      expect("metric" in a).toBe(true);
+      expect("shortLabel" in a).toBe(true);
+    }
+  });
+});
+
 describe("calculateTrainingRecommendation", () => {
   it("returns green_high with increase when readiness is high and no override", () => {
     const recommendation = calculateTrainingRecommendation(

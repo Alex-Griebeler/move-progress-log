@@ -297,6 +297,14 @@ const PersonalizedTrainingDashboard = ({
           label="HRV mínima (noite)"
           value={Math.round(latestAcuteMetrics.hrv_night_min)}
           unit="ms"
+          footnote={
+            // Os alertas de HRV aguda podem vir do ÚLTIMO BLOCO da noite,
+            // não só da mínima — sem esta linha, o tile marcaria atenção
+            // mostrando um número que não é o que disparou o sinal.
+            latestAcuteMetrics.hrv_night_last != null
+              ? `último bloco: ${Math.round(latestAcuteMetrics.hrv_night_last)} ms`
+              : undefined
+          }
         />
       ),
     });
