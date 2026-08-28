@@ -117,6 +117,14 @@ describe("agnóstico de wearable", () => {
   it("página propaga loading/erro pro dashboard", () => {
     expect(page).toContain("isLoading={loadingOuraMetrics || loadingWhoopMetrics || loadingLatestOura}");
     expect(page).toContain("isError={ouraMetricsError || whoopMetricsError}");
+    expect(page).toContain("latestOuraError={latestOuraError}");
+    // com snapshot presente, erro só do latest NÃO pode afirmar "sem score":
+    // a cadeia de mensagens testa latestOuraError ANTES da afirmação
+    const chain = dash.slice(dash.indexOf("Carregando recomendação do dia"));
+    const errIdx = chain.indexOf("Não foi possível carregar o score do dia");
+    const claimIdx = chain.indexOf("Sem score de prontidão fechado");
+    expect(errIdx).toBeGreaterThan(-1);
+    expect(claimIdx).toBeGreaterThan(errIdx);
   });
 });
 
