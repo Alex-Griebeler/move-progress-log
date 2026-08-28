@@ -5,7 +5,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { AlertCircle, Activity, Target } from "lucide-react";
-import { OuraMetrics } from "@/hooks/useOuraMetrics";
+import { OuraMetrics, spToday } from "@/hooks/useOuraMetrics";
 import { WhoopMetrics } from "@/hooks/useWhoopMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
 import { useOuraBaseline } from "@/hooks/useOuraBaseline";
@@ -141,7 +141,7 @@ const PersonalizedTrainingDashboard = ({
   const recommendation = useTrainingRecommendation(ouraDayRow, recentMetrics, baseline, undefined, latestAcuteMetrics);
   const whoopRec =
     earlySnapshot?.source === "whoop"
-      ? buildWhoopRecommendation(whoopMetrics, earlySnapshot.date)
+      ? buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())
       : null;
   const activeRecommendation =
     earlySnapshot?.source === "whoop"
@@ -228,8 +228,13 @@ const PersonalizedTrainingDashboard = ({
     ? hasOuraRecommendation
     : Boolean(activeRecommendation);
   const sleepDuration = ouraDayRow ? formatDuration(ouraDayRow.total_sleep_duration) : null;
-  const hasAcuteHrv = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hrv > 0;
-  const hasAcuteHr = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hr_day > 0;
+  // Agudas do MESMO dia do snapshot — regra que o adapter já aplica pra
+  // recomendação; sem ela os tiles mostrariam agudas de 28/08 sob hero de
+  // 27/08.
+  const acuteDayRow =
+    latestAcuteMetrics && latestAcuteMetrics.date === snapshot.date ? latestAcuteMetrics : null;
+  const hasAcuteHrv = !!acuteDayRow && acuteDayRow.samples_count_hrv > 0;
+  const hasAcuteHr = !!acuteDayRow && acuteDayRow.samples_count_hr_day > 0;
 
   // Fisiologia de hoje: só métricas PRESENTES entram na grade.
   const physiology: Array<{ key: string; metric?: AlertMetric; tile: JSX.Element }> = [];
@@ -307,48 +312,48 @@ const PersonalizedTrainingDashboard = ({
       ),
     });
   }
-  if (ouraIsCurrent && hasAcuteHrv && latestAcuteMetrics?.hrv_night_min != null) {
+  if (ouraIsCurrent && hasAcuteHrv && acuteDayRow?.hrv_night_min != null) {
     physiology.push({
       key: "hrv-aguda",
       metric: "hrv_aguda",
       tile: (
         <MetricTile
           label="HRV mínima (noite)"
-          value={Math.round(latestAcuteMetrics.hrv_night_min)}
+          value={Math.round(acuteDayRow.hrv_night_min)}
           unit="ms"
           footnote={
             // Os alertas de HRV aguda podem vir do ÚLTIMO BLOCO da noite,
             // não só da mínima — sem esta linha, o tile marcaria atenção
             // mostrando um número que não é o que disparou o sinal.
-            latestAcuteMetrics.hrv_night_last != null
-              ? `último bloco: ${Math.round(latestAcuteMetrics.hrv_night_last)} ms`
+            acuteDayRow.hrv_night_last != null
+              ? `último bloco: ${Math.round(acuteDayRow.hrv_night_last)} ms`
               : undefined
           }
         />
       ),
     });
   }
-  if (ouraIsCurrent && hasAcuteHr && latestAcuteMetrics?.hr_day_avg != null) {
+  if (ouraIsCurrent && hasAcuteHr && acuteDayRow?.hr_day_avg != null) {
     physiology.push({
       key: "fc-dia",
       metric: "fc_media_dia",
       tile: (
         <MetricTile
           label="FC média (dia)"
-          value={Math.round(latestAcuteMetrics.hr_day_avg)}
+          value={Math.round(acuteDayRow.hr_day_avg)}
           unit="bpm"
         />
       ),
     });
   }
-  if (ouraIsCurrent && hasAcuteHr && latestAcuteMetrics?.hr_day_max != null) {
+  if (ouraIsCurrent && hasAcuteHr && acuteDayRow?.hr_day_max != null) {
     physiology.push({
       key: "fc-pico",
       metric: "fc_pico",
       tile: (
         <MetricTile
           label="FC pico (dia)"
-          value={Math.round(latestAcuteMetrics.hr_day_max)}
+          value={Math.round(acuteDayRow.hr_day_max)}
           unit="bpm"
         />
       ),

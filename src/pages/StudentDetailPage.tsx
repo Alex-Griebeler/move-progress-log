@@ -29,6 +29,7 @@ import { StudentOverviewDashboard } from "@/components/StudentOverviewDashboard"
 import { AssessmentsTab } from "@/components/assessments/AssessmentsTab";
 import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useWhoopMetrics } from "@/hooks/useWhoopMetrics";
+import { WHOOP_RECOMMENDATION_WINDOW_DAYS } from "@/utils/whoopRecommendation";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState, useMemo, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -102,7 +103,7 @@ const StudentDetailPage = () => {
   // hoje). 90 dias cobrem snapshot de até 60 dias atrás; além disso o
   // baseline degrada pra "insuficiente" (not_evaluated), nunca pra número
   // errado.
-  const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", { days: 90 });
+  const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", { days: WHOOP_RECOMMENDATION_WINDOW_DAYS });
   const { isAdmin } = useIsAdmin();
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);

@@ -138,7 +138,7 @@ describe("fachada Oura intocada (paridade)", () => {
   it("R5: aluno só-Whoop recebe recomendação nativa (não mais a nota Oura-only)", () => {
     // A fase Oura-only acabou: o hero Whoop alimenta o motor via adapter.
     expect(dash).not.toContain("recomendação automática de treino usa dados do Oura");
-    expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date)");
+    expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())");
     // Estado pendente é ALCANÇÁVEL: sem dia fechado o snapshot é null e o
     // vazio genérico é substituído pela mensagem de processamento.
     expect(dash).toContain("recovery do dia ainda está sendo processado pelo aparelho");
@@ -169,7 +169,7 @@ describe("coerência de fontes (fix pós-review Codex)", () => {
 describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
   it("recomendação ativa segue o snapshot: whoop → buildWhoopRecommendation, senão Oura", () => {
     expect(dash).toMatch(
-      /earlySnapshot\?\.source === "whoop"\s*\? buildWhoopRecommendation\(whoopMetrics, earlySnapshot\.date\)\s*: null/,
+      /earlySnapshot\?\.source === "whoop"\s*\? buildWhoopRecommendation\(whoopMetrics, earlySnapshot\.date, spToday\(\)\)\s*: null/,
     );
     expect(dash).toMatch(/whoopRec\?\.recommendation \?\? null\s*: recommendation/);
   });
@@ -196,9 +196,20 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
     expect(dash).toContain('snapshot.source === "oura" ? "readiness" : "recovery"');
   });
 
-  it("página busca 90 dias de Whoop (baseline exige [snapshot−30, snapshot], não [hoje−30, hoje])", () => {
-    expect(page).toContain('useWhoopMetrics(needsWhoop ? studentId : "", { days: 90 })');
+  it("página busca a janela da recomendação (constante compartilhada, não número solto)", () => {
+    expect(page).toContain('useWhoopMetrics(needsWhoop ? studentId : "", { days: WHOOP_RECOMMENDATION_WINDOW_DAYS })');
     expect(page).not.toMatch(/useWhoopMetrics\([^)]*,\s*7\)/);
+  });
+
+  it("tiles de agudas só mostram agudas do DIA do snapshot", () => {
+    expect(dash).toMatch(/latestAcuteMetrics && latestAcuteMetrics\.date === snapshot\.date \? latestAcuteMetrics : null/);
+    // Nenhum tile lê latestAcuteMetrics direto — só via acuteDayRow gateado.
+    expect(dash).not.toMatch(/latestAcuteMetrics\??\.(hrv_night_min|hrv_night_last|hr_day_avg|hr_day_max)/);
+  });
+
+  it("recomendação Whoop recebe o anchor da consulta (guard de baseline truncado)", () => {
+    expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())");
+    expect(page).toContain("{ days: WHOOP_RECOMMENDATION_WINDOW_DAYS }");
   });
 
   it("prescrição e tiles Oura casam com o DIA do snapshot (não com latestMetrics de outra query)", () => {
