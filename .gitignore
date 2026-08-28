@@ -29,3 +29,6 @@ artifacts
 *.sln
 *.sw?
 supabase/.temp/
+
+# saída incremental do tsc -b (typecheck real; tsc --noEmit no tsconfig-solução é no-op)
+*.tsbuildinfo

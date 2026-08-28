@@ -135,8 +135,13 @@ describe("motor de recomendação intocado (Oura-only nesta fase)", () => {
     );
   });
 
-  it("aluno só-Whoop recebe nota explícita (recomendação usa Oura)", () => {
-    expect(dash).toContain("recomendação automática de treino usa dados do Oura");
+  it("R5: aluno só-Whoop recebe recomendação nativa (não mais a nota Oura-only)", () => {
+    // A fase Oura-only acabou: o hero Whoop alimenta o motor via adapter.
+    expect(dash).not.toContain("recomendação automática de treino usa dados do Oura");
+    expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date)");
+    // Estados vazios do Whoop têm mensagens próprias.
+    expect(dash).toContain("O Whoop ainda está processando o recovery deste dia");
+    expect(dash).toContain("Sem recovery utilizável para o dia mais recente");
   });
 });
 
@@ -146,9 +151,9 @@ describe("coerência de fontes (fix pós-review Codex)", () => {
     expect(dash).toContain("ouraIsCurrent && Boolean(latestMetrics && recommendation)");
   });
 
-  it("card de carga vazio tem a MESMA guarda do cheio", () => {
-    const emptyGuard = dash.match(/hasOuraRecommendation && loadSuggestions && loadSuggestions\.length === 0/);
-    const fullGuard = dash.match(/hasOuraRecommendation && loadSuggestions && loadSuggestions\.length > 0/);
+  it("card de carga vazio tem a MESMA guarda do cheio (fonte ativa, R5)", () => {
+    const emptyGuard = dash.match(/hasActiveRecommendation && loadSuggestions && loadSuggestions\.length === 0/);
+    const fullGuard = dash.match(/hasActiveRecommendation && loadSuggestions && loadSuggestions\.length > 0/);
     expect(emptyGuard).not.toBeNull();
     expect(fullGuard).not.toBeNull();
   });
@@ -156,5 +161,41 @@ describe("coerência de fontes (fix pós-review Codex)", () => {
   it("sort do snapshot usa localeCompare (contrato correto p/ datas iguais)", () => {
     expect(snapshotUtil.match(/localeCompare/g)?.length).toBe(2);
     expect(snapshotUtil).not.toContain("a.date < b.date ? 1 : -1");
+  });
+});
+
+describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
+  it("recomendação ativa segue o snapshot: whoop → buildWhoopRecommendation, senão Oura", () => {
+    expect(dash).toMatch(
+      /earlySnapshot\?\.source === "whoop"\s*\? buildWhoopRecommendation\(whoopMetrics, earlySnapshot\.date\)\s*: null/,
+    );
+    expect(dash).toMatch(/whoopRec\?\.recommendation \?\? null\s*: recommendation/);
+  });
+
+  it("carga usa a recomendação da MESMA fonte do hero", () => {
+    expect(dash).toContain("useLoadSuggestions(studentId, activeRecommendation)");
+  });
+
+  it("alternativas de treino usam a zona da fonte ativa", () => {
+    expect(dash).toContain(
+      "hasActiveRecommendation && activeRecommendation ? activeRecommendation.zone : null",
+    );
+  });
+
+  it("tiles Whoop têm metric keys pros alertas ancorarem (HRV, FCR, sono)", () => {
+    // Cada key aparece 2×: uma no ramo Oura, outra no Whoop — exceto o sono,
+    // que no Whoop usa o tile próprio de performance.
+    expect(dash).toMatch(/key: "hrv-whoop",\s*metric: "hrv_noturna"/);
+    expect(dash).toMatch(/key: "fcr-whoop",\s*metric: "fc_repouso"/);
+    expect(dash).toMatch(/key: "sono-whoop",\s*metric: "sono"/);
+  });
+
+  it("nomenclatura source-aware no diálogo de alternativas", () => {
+    expect(dash).toContain('snapshot.source === "oura" ? "readiness" : "recovery"');
+  });
+
+  it("página busca janela de 35 dias de calendário do Whoop (baseline + folga)", () => {
+    expect(page).toContain('useWhoopMetrics(needsWhoop ? studentId : "", { days: 35 })');
+    expect(page).not.toMatch(/useWhoopMetrics\([^)]*,\s*7\)/);
   });
 });

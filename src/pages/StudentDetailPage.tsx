@@ -97,7 +97,10 @@ const StudentDetailPage = () => {
   );
   const { data: latestOuraMetrics, isLoading: loadingLatestOura, isError: latestOuraError } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
   const { data: ouraConnection } = useOuraConnection(studentId);
-  const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", 7);
+  // R5: a recomendação Whoop precisa do baseline de 30 dias ANTERIORES ao dia
+  // avaliado — 7 linhas não bastavam; 35 dias de calendário dão folga pra
+  // snapshot de dias atrás e gaps de sync.
+  const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", { days: 35 });
   const { isAdmin } = useIsAdmin();
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
