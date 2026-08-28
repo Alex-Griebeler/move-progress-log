@@ -96,6 +96,48 @@ function buildRecentMetrics(days: number, activeCalories = 500): OuraMetrics[] {
   );
 }
 
+describe("R2 — bugs do motor corrigidos", () => {
+  it("(c) sem score de prontidão fechado → SEM recomendação, não um 50 inventado", () => {
+    const rec = calculateTrainingRecommendation(
+      buildMetrics({ readiness_score: null }),
+      buildRecentMetrics(10),
+      baseline,
+    );
+    expect(rec).toBeNull();
+  });
+
+  it("(b) fadiga 'semanal' soma só 7 dias de calendário do dia avaliado", () => {
+    // 30 dias com 500 kcal/dia: janela de 7 dias = 3500 (fadiga LOW, <7000).
+    // A soma antiga de 30 dias daria 15000 (HIGH) e rebaixaria a zona.
+    const recent = buildRecentMetrics(30, 500);
+    // fixture gera datas ASCENDENTES — o dia avaliado é o último
+    const metrics = buildMetrics({ readiness_score: 90, date: recent[recent.length - 1].date });
+    const rec = calculateTrainingRecommendation(metrics, recent, baseline);
+    expect(rec!.fatigueLevel).toBe("low");
+    expect(rec!.zone).toBe("green_high"); // 90 + fadiga low = zona 4
+  });
+
+  it("(b) fadiga alta REAL na semana continua detectada", () => {
+    const recent = buildRecentMetrics(7, 1600); // 7×1600 = 11200 > 10000
+    const metrics = buildMetrics({ readiness_score: 90, date: recent[recent.length - 1].date });
+    const rec = calculateTrainingRecommendation(metrics, recent, baseline);
+    expect(rec!.fatigueLevel).toBe("high");
+    expect(rec!.zone).not.toBe("green_high"); // fadiga alta veta zona 4
+  });
+
+  it("(f) linha sem readiness não conta como 'dia de dado' no histórico mínimo", () => {
+    const recent = [
+      ...buildRecentMetrics(5),
+      ...buildRecentMetrics(4).map((m, i) => ({ ...m, date: `2025-12-0${i + 1}`, readiness_score: null })),
+    ];
+    const rec = calculateTrainingRecommendation(buildMetrics(), recent, baseline);
+    // 5 válidas + 4 nulas = histórico ainda em construção (< 7 válidas)
+    const onboarding = rec!.alerts.find((a) => a.kind === "onboarding");
+    expect(onboarding).toBeTruthy();
+    expect(onboarding!.message).toContain("Coletamos 5 dias");
+  });
+});
+
 describe("alertas estruturados (R1) — metric/kind/shortLabel na saída real", () => {
   it("FC repouso elevada sai com metric fc_repouso e rótulo específico", () => {
     const rec = calculateTrainingRecommendation(

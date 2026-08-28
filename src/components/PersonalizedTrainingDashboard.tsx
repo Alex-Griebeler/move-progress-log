@@ -101,6 +101,23 @@ const getSuggestionStatusLabel = (status: string) => {
 
 // Alternativas por faixa de readiness (conteúdo de domínio pré-existente;
 // apresentação sem emoji — coerência ratificada).
+/**
+ * Alternativas pela ZONA FINAL do motor. O recálculo antigo pelo score cru
+ * ignorava fadiga acumulada e override agudo: um aluno rebaixado de zona
+ * pelo override via alternativas da zona de cima.
+ */
+const getTrainingAlternativesForZone = (
+  zone: "green_high" | "green" | "yellow" | "orange" | "red" | null,
+  fallbackScore: number,
+) => {
+  if (zone !== null) {
+    const zoneScore =
+      zone === "green_high" ? 90 : zone === "green" ? 70 : zone === "yellow" ? 50 : zone === "orange" ? 30 : 0;
+    return getTrainingAlternatives(zoneScore);
+  }
+  return getTrainingAlternatives(fallbackScore);
+};
+
 const getTrainingAlternatives = (rs: number) => {
   if (rs >= 85) {
     return [
@@ -145,7 +162,9 @@ const PersonalizedTrainingDashboard = ({
   isError = false,
   onStartTraining,
 }: PersonalizedTrainingDashboardProps) => {
-  const { baseline } = useOuraBaseline(studentId);
+  // 30 dias: é o que a UI promete nos deltas ("vs 30d") — o default do hook
+  // era 14 e ninguém percebia a divergência.
+  const { baseline } = useOuraBaseline(studentId, 30);
   const { data: latestAcuteMetrics } = useLatestOuraAcuteMetrics(studentId);
   const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics, baseline, undefined, latestAcuteMetrics);
   const { data: loadSuggestions } = useLoadSuggestions(studentId, recommendation);
@@ -410,9 +429,9 @@ const PersonalizedTrainingDashboard = ({
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                A recomendação automática de treino usa dados do Oura — este aluno
-                está com Whoop. Use o score acima e o histórico da aba Whoop para
-                calibrar o treino do dia.
+                {snapshot.source === "oura"
+                  ? "Sem score de prontidão fechado para o dia mais recente — a recomendação automática fica indisponível até a próxima sincronização. Use o histórico da aba Oura para calibrar o treino."
+                  : "A recomendação automática de treino usa dados do Oura — este aluno está com Whoop. Use o score acima e o histórico da aba Whoop para calibrar o treino do dia."}
               </p>
             )}
           </div>
@@ -664,7 +683,12 @@ const PersonalizedTrainingDashboard = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 my-4">
-            {getTrainingAlternatives(recommendation?.recoveryScore ?? snapshot.score).map((alt, idx) => (
+            {getTrainingAlternativesForZone(
+              // Zona FINAL do motor (já com fadiga/override); score cru só
+              // no fallback sem recomendação (ex.: fonte Whoop nesta fase).
+              hasOuraRecommendation && recommendation ? recommendation.zone : null,
+              snapshot.score,
+            ).map((alt, idx) => (
               <button
                 key={idx}
                 onClick={() => {

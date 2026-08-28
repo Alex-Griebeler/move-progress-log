@@ -52,6 +52,11 @@ export function calculateTrainingRecommendation(
 ): TrainingRecommendation | null {
   if (!metrics) return null;
 
+  // Sem score de prontidão fechado não há recomendação: inventar um 50
+  // produzia uma "zona amarela" com cara de dado real. O chamador trata
+  // null como estado próprio ("sem recomendação"), não como erro.
+  if (metrics.readiness_score == null) return null;
+
   // Fallback defaults caso baseline não seja fornecido
   const effectiveBaseline = baseline ?? {
     avgHRV: 65,
@@ -64,12 +69,15 @@ export function calculateTrainingRecommendation(
 
   const alerts: TrainingRecommendation['alerts'] = [];
 
-  const hasMinimumHistory = recentMetrics.length >= 7;
+  // Amostras com score fechado — linha sem readiness não é "um dia de dado"
+  // pra fins de baseline/alertas.
+  const validHistoryCount = recentMetrics.filter((m) => m.readiness_score != null).length;
+  const hasMinimumHistory = validHistoryCount >= 7;
 
-  if (!hasMinimumHistory && recentMetrics.length > 0) {
+  if (!hasMinimumHistory && validHistoryCount > 0) {
     alerts.push({ kind: 'onboarding', metric: null, shortLabel: null,
       level: 'INFO',
-      message: `ℹ️ Histórico em construção: Coletamos ${recentMetrics.length} dias de dados. Para recomendações mais precisas, aguarde pelo menos 7 dias de sincronização.`
+      message: `ℹ️ Histórico em construção: Coletamos ${validHistoryCount} dias de dados. Para recomendações mais precisas, aguarde pelo menos 7 dias de sincronização.`
     });
   }
 
@@ -82,10 +90,19 @@ export function calculateTrainingRecommendation(
   }
 
   // 1. AVALIAÇÃO DE RECUPERAÇÃO
-  const recoveryScore = metrics.readiness_score ?? 50;
+  const recoveryScore = metrics.readiness_score;
 
-  // 2. FADIGA ACUMULADA
-  const weeklyBurn = recentMetrics.reduce((sum, m) => sum + (m.active_calories || 0), 0);
+  // 2. FADIGA ACUMULADA — janela de 7 dias de CALENDÁRIO ancorada no dia
+  // avaliado. recentMetrics chega com até 30 linhas; somar tudo rotulava
+  // um mês de calorias como fadiga "semanal" e inflava o corte de zona.
+  const weekStart = (() => {
+    const d = new Date(`${metrics.date}T00:00:00`);
+    d.setDate(d.getDate() - 6);
+    return d.toISOString().slice(0, 10);
+  })();
+  const weeklyBurn = recentMetrics
+    .filter((m) => m.date >= weekStart && m.date <= metrics.date)
+    .reduce((sum, m) => sum + (m.active_calories || 0), 0);
   let fatigueLevel: 'low' | 'moderate' | 'high' = 'low';
   if (weeklyBurn > goals.highFatigueThreshold) fatigueLevel = 'high';
   else if (weeklyBurn > goals.moderateFatigueThreshold) fatigueLevel = 'moderate';

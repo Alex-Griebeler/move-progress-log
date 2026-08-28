@@ -94,7 +94,6 @@ export const useLoadSuggestions = (
       if (!recommendation) return [];
 
       const periodStart = subDays(new Date(), 90).toISOString().slice(0, 10);
-      const bestRecentStart = subDays(new Date(), 60).toISOString().slice(0, 10);
 
       const [{ data: sessions, error: sessionsError }, { data: libraryRows, error: libraryError }] =
         await Promise.all([
@@ -179,29 +178,17 @@ export const useLoadSuggestions = (
           const eligibleByCategory = isEligibleStrengthCategory(libMeta?.category);
           if (!eligibleByCategory) return null;
 
-          const referenceReps = first.reps;
-          const bestEquivalent = list
-            .filter((item) => item.date >= bestRecentStart && Math.abs(item.reps - referenceReps) <= 1)
-            .sort((a, b) => {
-              if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-              return b.loadKg - a.loadKg;
-            })[0];
+          // A referência é SEMPRE a última execução válida: toda entrada da
+          // lista já passou pelo filtro de ingestão (carga e reps finitas e
+          // positivas), então `first` existe e é utilizável por construção.
+          // A cadeia antiga `first || bestEquivalent || sameBlock` era código
+          // morto que fazia a UI PARECER ter fontes alternativas — os tipos
+          // "best_recent_equivalent"/"same_block" ficam reservados pra
+          // seleção mais esperta na fase de normalização (R3+).
+          const reference = first;
+          const source: LoadSuggestionItem["source"] = "last_valid";
 
-          const sameBlock = first.prescriptionId
-            ? list.find((item, index) => index > 0 && item.prescriptionId === first.prescriptionId)
-            : null;
-
-          const reference = first || bestEquivalent || sameBlock || null;
-          const source: LoadSuggestionItem["source"] =
-            first
-              ? "last_valid"
-              : bestEquivalent
-                ? "best_recent_equivalent"
-                : sameBlock
-                  ? "same_block"
-                  : "insufficient";
-
-          if (!reference || !Number.isFinite(reference.loadKg)) {
+          if (!Number.isFinite(reference.loadKg)) {
             return {
               exerciseName: first?.exerciseName || key,
               lastLoadKg: null,
