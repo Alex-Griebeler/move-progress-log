@@ -392,7 +392,8 @@ const StudentDetailPage = () => {
             studentId={student.id}
             maxHeartRate={student.max_heart_rate}
             isLoading={loadingOuraMetrics || loadingWhoopMetrics || loadingLatestOura}
-            isError={ouraMetricsError || whoopMetricsError || latestOuraError}
+            isError={ouraMetricsError || whoopMetricsError}
+              latestOuraError={latestOuraError}
             onStartTraining={() => setRecordSessionOpen(true)}
           />
         </TabsContent>

@@ -52,6 +52,12 @@ interface PersonalizedTrainingDashboardProps {
   maxHeartRate?: number | null;
   isLoading?: boolean;
   isError?: boolean;
+  /**
+   * Erro ESPECÍFICO da consulta do dia mais recente (useLatestOuraMetrics).
+   * Com snapshot presente, um erro só nessa consulta não pode virar nem
+   * erro total nem a afirmação "sem score fechado" — é estado próprio.
+   */
+  latestOuraError?: boolean;
   onStartTraining?: () => void;
 }
 
@@ -112,6 +118,7 @@ const PersonalizedTrainingDashboard = ({
   maxHeartRate,
   isLoading = false,
   isError = false,
+  latestOuraError = false,
   onStartTraining,
 }: PersonalizedTrainingDashboardProps) => {
   // 30 dias: é o que a UI promete nos deltas ("vs 30d") — o default do hook
@@ -383,9 +390,11 @@ const PersonalizedTrainingDashboard = ({
               <p className="text-sm text-muted-foreground">
                 {isLoading
                   ? "Carregando recomendação do dia…"
-                  : snapshot.source === "oura"
-                    ? "Sem score de prontidão fechado para o dia mais recente — a recomendação automática fica indisponível até a próxima sincronização. Use o histórico da aba Oura para calibrar o treino."
-                    : "A recomendação automática de treino usa dados do Oura — este aluno está com Whoop. Use o score acima e o histórico da aba Whoop para calibrar o treino do dia."}
+                  : snapshot.source === "oura" && latestOuraError
+                    ? "Não foi possível carregar o score do dia — a recomendação fica indisponível. Recarregue a página para tentar de novo."
+                    : snapshot.source === "oura"
+                      ? "Sem score de prontidão fechado para o dia mais recente — a recomendação automática fica indisponível até a próxima sincronização. Use o histórico da aba Oura para calibrar o treino."
+                      : "A recomendação automática de treino usa dados do Oura — este aluno está com Whoop. Use o score acima e o histórico da aba Whoop para calibrar o treino do dia."}
               </p>
             )}
           </div>
