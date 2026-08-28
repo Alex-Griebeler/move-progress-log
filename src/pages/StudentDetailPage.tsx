@@ -100,9 +100,9 @@ const StudentDetailPage = () => {
   const { data: ouraConnection } = useOuraConnection(studentId);
   // R5: a recomendação Whoop precisa do baseline de 30 dias ANTERIORES ao
   // DIA DO SNAPSHOT — que pode estar dias atrás de hoje (a query ancora em
-  // hoje). 90 dias cobrem snapshot de até 60 dias atrás; além disso o
-  // baseline degrada pra "insuficiente" (not_evaluated), nunca pra número
-  // errado.
+  // hoje). 90 dias cobrem snapshot de até 59 dias atrás; do 60º em diante o
+  // baseline é descartado pelo guard de truncamento (not_evaluated), nunca
+  // calculado com número errado.
   const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", { days: WHOOP_RECOMMENDATION_WINDOW_DAYS });
   const { isAdmin } = useIsAdmin();
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
