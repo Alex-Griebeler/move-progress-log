@@ -119,14 +119,18 @@ describe("motor com fonte Whoop — regras por disponibilidade de dado", () => {
     expect(alert?.level).toBe("CRITICAL");
   });
 
-  it("FC repouso elevada rebaixa a zona via override (portável)", () => {
+  it("FCR elevada no Whoop: ALERTA contextual, zona NÃO muda (banda nativa é final)", () => {
+    // Política da revisão fria R4: o recovery Whoop JÁ embute FCR — rebaixar
+    // de novo pelo mesmo sinal contaria o dado duas vezes.
     const rec = computeRecoveryRecommendation(
-      whoopDay({ score: 80, restingHeartRateBpm: 65 }), // basal 54 → +11 > +8
+      whoopDay({ score: 80, restingHeartRateBpm: 65 }), // basal 54 → +11
       historyDays(10),
       whoopBaseline(),
     );
-    expect(rec.overrideApplied).toBe(true);
-    expect(rec.zone).toBe("yellow"); // 3 → 2
+    expect(rec.alerts.find((a) => a.metric === "fc_repouso")?.level).toBe("CRITICAL");
+    expect(rec.overrideApplied).toBe(false);
+    expect(rec.zone).toBe("green"); // banda nativa intacta
+    expect(rec.skippedRules.find((r) => r.rule === "override_fc_repouso")?.reason).toMatch(/banda nativa/);
   });
 
   it("sem baseline Whoop suficiente, regras de baseline pulam — SEM default populacional", () => {
@@ -228,14 +232,15 @@ describe("motivos de skip nomeiam O QUE falta (prontuário honesto)", () => {
     expect(rec.evaluatedRules).not.toContain("fc_intradia");
   });
 
-  it("override real fica visível na auditoria: FCR elevada = evaluated + override aplicado", () => {
+  it("override real fica visível na auditoria (Oura): FCR elevada = evaluated + aplicado", () => {
     const rec = computeRecoveryRecommendation(
-      whoopDay({ score: 80, restingHeartRateBpm: 65 }),
+      { source: "oura", date: "2026-08-28", score: 80, restingHeartRateBpm: 69 }, // basal 60 → +9
       historyDays(10),
-      whoopBaseline(), // basal 54 → +11
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
     );
     expect(rec.evaluatedRules).toContain("override_fc_repouso");
     expect(rec.overrideApplied).toBe(true);
+    expect(rec.zone).toBe("yellow"); // 3 → 2
   });
 });
 
@@ -257,6 +262,57 @@ describe("gate Whoop: baseline por métrica basta (sem o gate legado de contagem
       { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
     );
     expect(rec.skippedRules.map((r) => r.rule)).toContain("hrv_noturna");
+  });
+});
+
+describe("decisões clínicas da revisão fria (R4)", () => {
+  it("fail-closed: score 90 com 3 dias de histórico NÃO libera progressão +5%", () => {
+    const rec = computeRecoveryRecommendation(
+      { source: "oura", date: "2026-08-28", score: 90, restingHeartRateBpm: 55 },
+      historyDays(3), // gate legado não atingido → override_fc_repouso skipped
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 3, usingPopulationDefaults: true },
+    );
+    expect(rec.zone).toBe("green"); // capado de green_high pra green
+    expect(rec.loadDecision).toBe("maintain");
+    expect(rec.alerts.some((a) => a.message.includes("Progressão automática retida"))).toBe(true);
+  });
+
+  it("score 90 COM checagem de FCR avaliada libera a zona 4 normalmente", () => {
+    const rec = computeRecoveryRecommendation(
+      { source: "oura", date: "2026-08-28", score: 90, restingHeartRateBpm: 55 },
+      historyDays(10),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+    );
+    expect(rec.zone).toBe("green_high");
+    expect(rec.loadAdjustmentPercent).toBe(5);
+  });
+
+  it("fronteira inclusiva: FCR exatamente no basal +8 rebaixa a zona", () => {
+    const rec = computeRecoveryRecommendation(
+      { source: "oura", date: "2026-08-28", score: 80, restingHeartRateBpm: 68 }, // 60 + 8
+      historyDays(10),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+    );
+    expect(rec.overrideApplied).toBe(true);
+  });
+
+  it("fronteiras inclusivas dos alertas de FCR: +5 = WARNING, +10 = CRITICAL", () => {
+    const base = { source: "oura" as const, date: "2026-08-28", score: 50 };
+    const bl = { source: "oura" as const, avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false };
+    const warn = computeRecoveryRecommendation({ ...base, restingHeartRateBpm: 65 }, historyDays(10), bl);
+    expect(warn.alerts.find((a) => a.metric === "fc_repouso")?.level).toBe("WARNING");
+    const crit = computeRecoveryRecommendation({ ...base, restingHeartRateBpm: 70 }, historyDays(10), bl);
+    expect(crit.alerts.find((a) => a.metric === "fc_repouso")?.level).toBe("CRITICAL");
+  });
+
+  it("zona bloqueada tem sugestão numérica NULA no contrato (não 0)", () => {
+    const rec = computeRecoveryRecommendation(
+      { source: "oura", date: "2026-08-28", score: 10 },
+      historyDays(10),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+    );
+    expect(rec.loadDecision).toBe("block");
+    expect(rec.loadAdjustmentPercent).toBeNull();
   });
 });
 

@@ -6,6 +6,7 @@ import { TrainingRecommendation } from "./useTrainingRecommendation";
 import {
   isEligibleStrengthCategory,
   normalizeComparableText,
+  decideLoadSuggestion,
 } from "./loadSuggestionUtils";
 
 type SuggestionStatus = "automatic" | "assisted" | "insufficient";
@@ -210,45 +211,19 @@ export const useLoadSuggestions = (
           const hasTechniqueWarning = recentObservations.some((obs) => hasTechniqueSignal(obs));
           const guardrails: string[] = [];
 
-          let suggestedLoadKg: number | null = reference.loadKg;
-          let ruleApplied = "Manter carga";
-          let adjustmentPercent: number | null = 0;
-
-          if (hasPainOrJointWarning) {
-            guardrails.push("pain_recent");
-            adjustmentPercent = -20;
-            suggestedLoadKg = roundToIncrement(
-              reference.loadKg * (1 + adjustmentPercent / 100),
-              incrementKg
-            );
-            ruleApplied = "Dor/Desconforto recente: redução de segurança (-20%)";
-          } else if (recommendation.loadDecision === "increase" && hasTechniqueWarning) {
-            guardrails.push("technique_inconsistent");
-            suggestedLoadKg = roundToIncrement(reference.loadKg, incrementKg);
-            adjustmentPercent = 0;
-            ruleApplied = "Técnica inconsistente recente: progressão bloqueada";
-          } else if (recommendation.loadDecision === "increase" && !criticalFlags) {
-            adjustmentPercent = recommendation.loadAdjustmentPercent ?? 5;
-            suggestedLoadKg = roundToIncrement(
-              reference.loadKg * (1 + adjustmentPercent / 100),
-              incrementKg
-            );
-            ruleApplied = `Progressão +${adjustmentPercent}%`;
-          } else if (recommendation.loadDecision === "reduce") {
-            adjustmentPercent = recommendation.loadAdjustmentPercent ?? -20;
-            suggestedLoadKg = roundToIncrement(
-              reference.loadKg * (1 + adjustmentPercent / 100),
-              incrementKg
-            );
-            ruleApplied = `Redução ${adjustmentPercent}%`;
-          } else if (recommendation.loadDecision === "block") {
-            suggestedLoadKg = null;
-            adjustmentPercent = null;
-            ruleApplied = "Carga bloqueada (recuperação/descanso)";
-          } else {
-            suggestedLoadKg = roundToIncrement(reference.loadKg, incrementKg);
-            ruleApplied = "Manter carga planejada";
-          }
+          const decision = decideLoadSuggestion({
+            referenceLoadKg: reference.loadKg,
+            incrementKg,
+            loadDecision: recommendation.loadDecision,
+            authorizedPercent: recommendation.loadAdjustmentPercent,
+            hasPainOrJointWarning,
+            hasTechniqueWarning,
+            criticalFlags,
+          });
+          const suggestedLoadKg = decision.suggestedLoadKg;
+          const adjustmentPercent = decision.adjustmentPercent;
+          const ruleApplied = decision.ruleApplied;
+          guardrails.push(...decision.guardrails);
 
           const status: SuggestionStatus =
             recommendation.loadDecision === "maintain" && !hasPainOrJointWarning && !hasTechniqueWarning

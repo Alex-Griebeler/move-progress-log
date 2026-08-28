@@ -216,19 +216,30 @@ export function computeRecoveryRecommendation(
   // baseline (7 amostras) — exigir os dois mediria coisas diferentes.
   const legacyHistoryGate = input.source === "oura" ? hasMinimumHistory : true;
 
-  // override_fc_repouso — FC do dia acima do basal em 8+ bpm
+  // POLÍTICA WHOOP (revisão fria clínica R4): a banda nativa é FINAL. O
+  // recovery do aparelho JÁ embute FCR/HRV/sono — rebaixar a zona de novo
+  // pelos mesmos sinais contaria o mesmo dado duas vezes e contradiria a
+  // ratificação ("manter as recomendações propostas por cada aparelho").
+  // FCR/HRV elevados continuam como ALERTAS contextuais, sem mudar a zona.
+  const overridesApplicable = input.source === "oura";
+  const OVERRIDE_WHOOP_REASON =
+    "política Whoop: banda nativa é final — sinais fisiológicos viram alertas, não reclassificação";
+
+  // override_fc_repouso — FC do dia acima do basal em 8+ bpm (inclusivo)
   let rhrSignificantlyElevated = false;
-  if (input.restingHeartRateBpm === undefined) skip("override_fc_repouso", "sem FC de repouso no dia");
+  if (!overridesApplicable) skip("override_fc_repouso", OVERRIDE_WHOOP_REASON);
+  else if (input.restingHeartRateBpm === undefined) skip("override_fc_repouso", "sem FC de repouso no dia");
   else if (baseline.avgRhr === null) skip("override_fc_repouso", "sem baseline de FC nesta fonte");
   else if (!legacyHistoryGate) skip("override_fc_repouso", "histórico mínimo (7 dias) não atingido");
   else {
     evaluate("override_fc_repouso");
-    rhrSignificantlyElevated = input.restingHeartRateBpm > baseline.avgRhr + 8;
+    rhrSignificantlyElevated = input.restingHeartRateBpm >= baseline.avgRhr + 8;
   }
 
   // override_hrv_aguda — último bloco da noite < 70% do basal
   let acuteHrvVeryLow = false;
-  if (input.acute?.hrvNightLastMs === undefined) skip("override_hrv_aguda", "sem métricas agudas nesta fonte");
+  if (!overridesApplicable) skip("override_hrv_aguda", OVERRIDE_WHOOP_REASON);
+  else if (input.acute?.hrvNightLastMs === undefined) skip("override_hrv_aguda", "sem métricas agudas nesta fonte");
   else if (baseline.avgHrv === null) skip("override_hrv_aguda", "sem baseline de HRV nesta fonte");
   else if (!legacyHistoryGate) skip("override_hrv_aguda", "histórico mínimo (7 dias) não atingido");
   else {
@@ -242,7 +253,8 @@ export function computeRecoveryRecommendation(
   let sleepStressConjunction = false;
   const missingSleep = input.sleepDurationSeconds === undefined;
   const missingStress = input.stressHighSeconds === undefined;
-  if (missingSleep && missingStress) skip("override_sono_estresse", "sem duração de sono e sem tempo de estresse");
+  if (!overridesApplicable) skip("override_sono_estresse", OVERRIDE_WHOOP_REASON);
+  else if (missingSleep && missingStress) skip("override_sono_estresse", "sem duração de sono e sem tempo de estresse");
   else if (missingSleep) skip("override_sono_estresse", "sem duração de sono no dia");
   else if (missingStress) skip("override_sono_estresse", "sem tempo de estresse nesta fonte");
   else {
@@ -254,6 +266,20 @@ export function computeRecoveryRecommendation(
 
   const shouldDowngradeOneZone =
     zone > 0 && (acuteHrvVeryLow || rhrSignificantlyElevated || sleepStressConjunction);
+
+  // FAIL-CLOSED pra progressão (revisão fria R4): a zona 4 autoriza +5% de
+  // carga — ela só é liberada quando a checagem de segurança mais básica
+  // (FCR vs basal) PÔDE ser avaliada. Score alto com histórico/dado
+  // insuficiente cai pra zona 3 (treino normal, manter), nunca progressão.
+  const fcOverrideEvaluated = evaluatedRules.includes("override_fc_repouso");
+  if (zone === 4 && !fcOverrideEvaluated) {
+    zone = 3;
+    alerts.push({ kind: "onboarding", metric: null, shortLabel: null,
+      level: "INFO",
+      message:
+        "ℹ️ Progressão automática retida: sem FC de repouso ou histórico suficiente pra validar a segurança do aumento de carga. Treino normal recomendado.",
+    });
+  }
 
   const overrideApplied = shouldDowngradeOneZone;
   if (shouldDowngradeOneZone) {
@@ -337,8 +363,8 @@ export function computeRecoveryRecommendation(
   else if (!legacyHistoryGate) skip("fc_repouso", "histórico mínimo (7 dias) não atingido");
   else {
     evaluate("fc_repouso");
-    if (input.restingHeartRateBpm > baseline.avgRhr + 5) {
-      if (input.restingHeartRateBpm > baseline.avgRhr + 10) {
+    if (input.restingHeartRateBpm >= baseline.avgRhr + 5) {
+      if (input.restingHeartRateBpm >= baseline.avgRhr + 10) {
         alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Muito acima do basal", level: "CRITICAL", message: "🔴 Frequência cardíaca em repouso muito elevada: Pode indicar inflamação, doença ou exaustão. Priorize o repouso e observe se há outros sintomas." });
       } else {
         alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Acima do basal", level: "WARNING", message: "🟡 Frequência cardíaca em repouso elevada: Indício de que seu corpo ainda está se recuperando. Reduza o ritmo hoje." });
@@ -437,7 +463,9 @@ export function computeRecoveryRecommendation(
     zone === 4 ? "green_high" : zone === 3 ? "green" : zone === 2 ? "yellow" : zone === 1 ? "orange" : "red";
   const loadDecision: TrainingRecommendation["loadDecision"] =
     zone === 4 ? "increase" : zone === 3 ? "maintain" : zone === 2 ? "reduce" : "block";
-  const loadAdjustmentPercent = zone === 4 ? 5 : zone === 2 ? -20 : 0;
+  // block = sem sugestão numérica (null, não 0 — zero pareceria "manter")
+  const loadAdjustmentPercent =
+    loadDecision === "block" ? null : zone === 4 ? 5 : zone === 2 ? -20 : 0;
 
   return {
     trainingType,

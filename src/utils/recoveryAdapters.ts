@@ -28,18 +28,23 @@ export const ouraToRecoveryInput = (
 ): RecoveryDayInput | null => {
   if (metrics.readiness_score == null) return null;
 
+  // Agudas de OUTRO dia não entram: a query de agudas pega a linha mais
+  // recente sem casar com o dia avaliado — se o upsert de hoje falhou,
+  // aplicar as agudas normais de ontem ao readiness de hoje esconderia que
+  // o override agudo de hoje NÃO foi avaliado.
+  const acuteSameDay = acuteMetrics && acuteMetrics.date === metrics.date ? acuteMetrics : null;
   const acute =
-    acuteMetrics &&
-    (acuteMetrics.samples_count_hrv > 0 || acuteMetrics.samples_count_hr_day > 0)
+    acuteSameDay &&
+    (acuteSameDay.samples_count_hrv > 0 || acuteSameDay.samples_count_hr_day > 0)
       ? {
           hrvNightLastMs:
-            acuteMetrics.samples_count_hrv > 0 ? num(acuteMetrics.hrv_night_last) : undefined,
+            acuteSameDay.samples_count_hrv > 0 ? num(acuteSameDay.hrv_night_last) : undefined,
           hrvNightMinMs:
-            acuteMetrics.samples_count_hrv > 0 ? num(acuteMetrics.hrv_night_min) : undefined,
+            acuteSameDay.samples_count_hrv > 0 ? num(acuteSameDay.hrv_night_min) : undefined,
           hrDayMaxBpm:
-            acuteMetrics.samples_count_hr_day > 0 ? num(acuteMetrics.hr_day_max) : undefined,
+            acuteSameDay.samples_count_hr_day > 0 ? num(acuteSameDay.hr_day_max) : undefined,
           hrDayAvgBpm:
-            acuteMetrics.samples_count_hr_day > 0 ? num(acuteMetrics.hr_day_avg) : undefined,
+            acuteSameDay.samples_count_hr_day > 0 ? num(acuteSameDay.hr_day_avg) : undefined,
         }
       : undefined;
 
