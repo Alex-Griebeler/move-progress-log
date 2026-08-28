@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ALL_ENGINE_RULES,
   computeRecoveryRecommendation,
   initialZoneFor,
   type RecoveryDayInput,
@@ -11,7 +12,6 @@ const whoopDay = (overrides: Partial<RecoveryDayInput> = {}): RecoveryDayInput =
   source: "whoop",
   date: "2026-08-28",
   score: 70,
-  nativeBand: "green",
   sleepScore: 80,
   sleepDurationSeconds: 27000,
   sleepEfficiencyPercent: 90,
@@ -38,21 +38,22 @@ const historyDays = (n: number): RecoveryHistoryDay[] =>
   }));
 
 describe("initialZoneFor — política ratificada por fonte", () => {
-  it("Whoop usa as bandas nativas: verde→3, amarelo→2, vermelho→1", () => {
-    expect(initialZoneFor("whoop", 67, "low", "green")).toBe(3);
-    expect(initialZoneFor("whoop", 66, "low", "yellow")).toBe(2);
-    expect(initialZoneFor("whoop", 34, "low", "yellow")).toBe(2);
-    expect(initialZoneFor("whoop", 33, "low", "red")).toBe(1);
+  it("Whoop usa as bandas nativas derivadas do score: verde→3, amarelo→2, vermelho→1", () => {
+    expect(initialZoneFor("whoop", 67, "low")).toBe(3);
+    expect(initialZoneFor("whoop", 66, "low")).toBe(2);
+    expect(initialZoneFor("whoop", 34, "low")).toBe(2);
+    expect(initialZoneFor("whoop", 33, "low")).toBe(1);
   });
 
   it("zona 4 (progressão +5%) é INALCANÇÁVEL pra Whoop, mesmo com recovery 99", () => {
-    expect(initialZoneFor("whoop", 99, "low", "green")).toBe(3);
+    expect(initialZoneFor("whoop", 99, "low")).toBe(3);
   });
 
-  it("Whoop sem nativeBand deriva a banda do score", () => {
-    expect(initialZoneFor("whoop", 80, "low")).toBe(3);
-    expect(initialZoneFor("whoop", 50, "low")).toBe(2);
-    expect(initialZoneFor("whoop", 10, "low")).toBe(1);
+  it("fronteiras exatas das bandas: 67 e 34 pertencem à banda superior", () => {
+    expect(initialZoneFor("whoop", 67, "low")).toBe(3);
+    expect(initialZoneFor("whoop", 66.9, "low")).toBe(2);
+    expect(initialZoneFor("whoop", 34, "low")).toBe(2);
+    expect(initialZoneFor("whoop", 33.9, "low")).toBe(1);
   });
 
   it("Oura mantém os cortes calibrados (85/65/45/25 + fadiga)", () => {
@@ -67,7 +68,7 @@ describe("initialZoneFor — política ratificada por fonte", () => {
 
 describe("motor com fonte Whoop — recomendação e carga", () => {
   it("recovery verde → treino normal, manter carga (nunca 'increase')", () => {
-    const rec = computeRecoveryRecommendation(whoopDay({ score: 95, nativeBand: "green" }), historyDays(10), whoopBaseline());
+    const rec = computeRecoveryRecommendation(whoopDay({ score: 95 }), historyDays(10), whoopBaseline());
     expect(rec.zone).toBe("green");
     expect(rec.loadDecision).toBe("maintain");
     expect(rec.trainingType).toBe("Treino Normal Completo");
@@ -75,14 +76,14 @@ describe("motor com fonte Whoop — recomendação e carga", () => {
   });
 
   it("recovery amarelo → treino reduzido 20%", () => {
-    const rec = computeRecoveryRecommendation(whoopDay({ score: 50, nativeBand: "yellow" }), historyDays(10), whoopBaseline());
+    const rec = computeRecoveryRecommendation(whoopDay({ score: 50 }), historyDays(10), whoopBaseline());
     expect(rec.zone).toBe("yellow");
     expect(rec.loadDecision).toBe("reduce");
     expect(rec.loadAdjustmentPercent).toBe(-20);
   });
 
   it("recovery vermelho → recuperação ativa com sugestão numérica bloqueada", () => {
-    const rec = computeRecoveryRecommendation(whoopDay({ score: 20, nativeBand: "red" }), historyDays(10), whoopBaseline());
+    const rec = computeRecoveryRecommendation(whoopDay({ score: 20 }), historyDays(10), whoopBaseline());
     expect(rec.zone).toBe("orange"); // zona 1 do motor
     expect(rec.loadDecision).toBe("block");
     expect(rec.trainingType).toMatch(/Recuperação Ativa/);
@@ -120,7 +121,7 @@ describe("motor com fonte Whoop — regras por disponibilidade de dado", () => {
 
   it("FC repouso elevada rebaixa a zona via override (portável)", () => {
     const rec = computeRecoveryRecommendation(
-      whoopDay({ score: 80, nativeBand: "green", restingHeartRateBpm: 65 }), // basal 54 → +11 > +8
+      whoopDay({ score: 80, restingHeartRateBpm: 65 }), // basal 54 → +11 > +8
       historyDays(10),
       whoopBaseline(),
     );
@@ -141,7 +142,7 @@ describe("motor com fonte Whoop — regras por disponibilidade de dado", () => {
 
   it("sono insuficiente SEM estresse não aciona o override de conjunção", () => {
     const rec = computeRecoveryRecommendation(
-      whoopDay({ score: 80, nativeBand: "green", sleepDurationSeconds: 18000 }),
+      whoopDay({ score: 80, sleepDurationSeconds: 18000 }),
       historyDays(10),
       whoopBaseline(),
     );
@@ -150,6 +151,112 @@ describe("motor com fonte Whoop — regras por disponibilidade de dado", () => {
     // …mas a conjunção sono+estresse não é avaliável sem estresse
     expect(rec.overrideApplied).toBe(false);
     expect(rec.skippedRules.map((r) => r.rule)).toContain("override_sono_estresse");
+  });
+});
+
+describe("invariante de auditoria — cada regra exatamente uma vez", () => {
+  const assertInvariant = (rec: ReturnType<typeof computeRecoveryRecommendation>) => {
+    const evaluated = new Set(rec.evaluatedRules);
+    const skipped = new Set(rec.skippedRules.map((r) => r.rule));
+    for (const rule of ALL_ENGINE_RULES) {
+      const inEval = evaluated.has(rule);
+      const inSkip = skipped.has(rule);
+      expect(inEval || inSkip, `regra ${rule} sumiu da auditoria`).toBe(true);
+      expect(inEval && inSkip, `regra ${rule} nos dois lados`).toBe(false);
+    }
+    expect(rec.evaluatedRules.length + rec.skippedRules.length).toBe(ALL_ENGINE_RULES.length);
+  };
+
+  it("vale pro dia Whoop típico", () => {
+    assertInvariant(
+      computeRecoveryRecommendation(whoopDay(), historyDays(10), whoopBaseline()),
+    );
+  });
+
+  it("vale pro Whoop com dados parciais (sem HRV, sem baseline)", () => {
+    assertInvariant(
+      computeRecoveryRecommendation(
+        whoopDay({ hrvRmssdMs: undefined, sleepDurationSeconds: undefined }),
+        historyDays(3),
+        whoopBaseline({ avgHrv: null, avgRhr: null, avgSleepScore: null }),
+      ),
+    );
+  });
+
+  it("vale pro Oura completo e pro Oura mínimo", () => {
+    assertInvariant(
+      computeRecoveryRecommendation(
+        { source: "oura", date: "2026-08-28", score: 80, sleepScore: 80,
+          sleepDurationSeconds: 27000, sleepEfficiencyPercent: 90, hrvRmssdMs: 65,
+          restingHeartRateBpm: 55, stressHighSeconds: 1000,
+          acute: { hrvNightLastMs: 60, hrvNightMinMs: 50, hrDayMaxBpm: 120, hrDayAvgBpm: 70 } },
+        historyDays(10).map((h) => ({ ...h, activeCaloriesKcal: 400 })),
+        { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+      ),
+    );
+    assertInvariant(
+      computeRecoveryRecommendation(
+        { source: "oura", date: "2026-08-28", score: 80 },
+        [],
+        { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 0, usingPopulationDefaults: true },
+      ),
+    );
+  });
+});
+
+describe("motivos de skip nomeiam O QUE falta (prontuário honesto)", () => {
+  it("sono ausente com estresse presente: o motivo é o sono, não o estresse", () => {
+    const rec = computeRecoveryRecommendation(
+      { source: "oura", date: "2026-08-28", score: 80, stressHighSeconds: 1000 },
+      historyDays(10),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+    );
+    const reason = rec.skippedRules.find((r) => r.rule === "override_sono_estresse")!.reason;
+    expect(reason).toMatch(/sem duração de sono/);
+    expect(reason).not.toMatch(/estresse nesta fonte/);
+  });
+
+  it("FC intradia presente com FC de repouso ausente → skip (não 'avaliada sem comparação')", () => {
+    const rec = computeRecoveryRecommendation(
+      { source: "oura", date: "2026-08-28", score: 80,
+        acute: { hrDayMaxBpm: 150, hrDayAvgBpm: 100 } },
+      historyDays(10),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+    );
+    const skip = rec.skippedRules.find((r) => r.rule === "fc_intradia");
+    expect(skip?.reason).toMatch(/sem FC de repouso/);
+    expect(rec.evaluatedRules).not.toContain("fc_intradia");
+  });
+
+  it("override real fica visível na auditoria: FCR elevada = evaluated + override aplicado", () => {
+    const rec = computeRecoveryRecommendation(
+      whoopDay({ score: 80, restingHeartRateBpm: 65 }),
+      historyDays(10),
+      whoopBaseline(), // basal 54 → +11
+    );
+    expect(rec.evaluatedRules).toContain("override_fc_repouso");
+    expect(rec.overrideApplied).toBe(true);
+  });
+});
+
+describe("gate Whoop: baseline por métrica basta (sem o gate legado de contagem)", () => {
+  it("7 amostras de HRV no baseline avaliam a regra mesmo com só 6 scores fechados", () => {
+    const rec = computeRecoveryRecommendation(
+      whoopDay({ hrvRmssdMs: 40 }), // crítico vs basal 65
+      historyDays(6), // < 7 scores fechados
+      whoopBaseline(), // baseline por métrica OK
+    );
+    expect(rec.evaluatedRules).toContain("hrv_noturna");
+    expect(rec.alerts.find((a) => a.metric === "hrv_noturna")?.level).toBe("CRITICAL");
+  });
+
+  it("no Oura o gate legado continua valendo (paridade)", () => {
+    const rec = computeRecoveryRecommendation(
+      { source: "oura", date: "2026-08-28", score: 80, hrvRmssdMs: 40 },
+      historyDays(6),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+    );
+    expect(rec.skippedRules.map((r) => r.rule)).toContain("hrv_noturna");
   });
 });
 

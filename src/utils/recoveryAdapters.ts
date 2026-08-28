@@ -69,17 +69,24 @@ export const ouraHistoryToRecoveryDays = (recent: OuraMetrics[]): RecoveryHistor
     activeCaloriesKcal: m.active_calories ?? 0,
   }));
 
-/** Baseline Oura → contrato. Preserva o fallback populacional histórico. */
+/**
+ * Baseline Oura → contrato, com PARIDADE ESTRITA com o motor legado:
+ * baseline fornecido usa os valores fornecidos (mesmo com hasMinimumData
+ * false — o legado nunca os substituía; em produção o useOuraBaseline já
+ * devolve os defaults populacionais nesse caso, então dá no mesmo, mas a
+ * API pública aceita qualquer valor e a fachada não pode divergir).
+ * Só baseline AUSENTE cai nos defaults.
+ */
 export const ouraBaselineToRecoveryBaseline = (
   baseline?: OuraBaseline,
 ): RecoveryBaselineInput => {
-  if (!baseline || !baseline.hasMinimumData) {
+  if (!baseline) {
     return {
       source: "oura",
       avgHrv: 65,
       avgRhr: 60,
       avgSleepScore: 75,
-      dataPoints: baseline?.dataPoints ?? 0,
+      dataPoints: 0,
       usingPopulationDefaults: true,
     };
   }
@@ -89,7 +96,7 @@ export const ouraBaselineToRecoveryBaseline = (
     avgRhr: baseline.avgRHR,
     avgSleepScore: baseline.avgSleepScore,
     dataPoints: baseline.dataPoints,
-    usingPopulationDefaults: false,
+    usingPopulationDefaults: !baseline.hasMinimumData,
   };
 };
 
@@ -106,7 +113,6 @@ export const whoopToRecoveryInput = (w: WhoopMetrics): RecoveryDayInput | null =
     source: "whoop",
     date: w.date,
     score: w.recovery_score,
-    nativeBand: w.recovery_score >= 67 ? "green" : w.recovery_score >= 34 ? "yellow" : "red",
     sleepScore: num(w.sleep_performance),
     sleepDurationSeconds: num(w.total_sleep_duration),
     sleepEfficiencyPercent: num(w.sleep_efficiency),
@@ -143,11 +149,13 @@ export const buildWhoopBaseline = (
     return d.toISOString().slice(0, 10);
   })();
 
+  // Mesmo predicado de "dia fechado" usado no adapter do dia e do histórico:
+  // recovery presente E score_state SCORED (null legado = fechado só com
+  // recovery). Uma linha meio-processada não alimenta média de basal.
+  const isClosed = (w: WhoopMetrics) =>
+    w.recovery_score != null && (!w.score_state || w.score_state === "SCORED");
   const window = rows.filter(
-    (w) =>
-      w.date >= start &&
-      w.date < asOfDate &&
-      (!w.score_state || w.score_state === "SCORED"),
+    (w) => w.date >= start && w.date < asOfDate && isClosed(w),
   );
 
   const metric = (pick: (w: WhoopMetrics) => number | null | undefined) => {

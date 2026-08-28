@@ -30,8 +30,6 @@ export interface RecoveryDayInput {
   /** Score fechado (readiness Oura / recovery Whoop). Adapters não emitem
    *  input sem score — dia pendente/inscorável vira null ANTES daqui. */
   score: number;
-  /** Banda nativa do aparelho (só Whoop define; Oura não tem). */
-  nativeBand?: "green" | "yellow" | "red";
   sleepScore?: number;
   sleepDurationSeconds?: number;
   sleepEfficiencyPercent?: number;
@@ -115,6 +113,22 @@ export interface TrainingRecommendation {
 
 type RecommendationZone = 0 | 1 | 2 | 3 | 4;
 
+/** Toda regra do motor — cada uma aparece EXATAMENTE uma vez em
+ *  evaluatedRules OU skippedRules de qualquer saída (invariante testado). */
+export const ALL_ENGINE_RULES = [
+  "fadiga_semanal",
+  "override_fc_repouso",
+  "override_hrv_aguda",
+  "override_sono_estresse",
+  "hrv_noturna",
+  "fc_repouso",
+  "sono_duracao",
+  "sono_eficiencia",
+  "estresse",
+  "hrv_aguda",
+  "fc_intradia",
+] as const;
+
 /**
  * Zona inicial por fonte. Oura usa os cortes calibrados no readiness; Whoop
  * usa as bandas nativas do aparelho (política ratificada — ver cabeçalho).
@@ -123,11 +137,11 @@ export const initialZoneFor = (
   source: RecoverySource,
   score: number,
   fatigueLevel: "low" | "moderate" | "high",
-  nativeBand?: "green" | "yellow" | "red",
 ): RecommendationZone => {
   if (source === "whoop") {
-    const band = nativeBand ?? (score >= 67 ? "green" : score >= 34 ? "yellow" : "red");
-    return band === "green" ? 3 : band === "yellow" ? 2 : 1;
+    // Banda nativa derivada AQUI, num lugar só: aceitar a banda como campo
+    // do contrato permitia {score: 20, band: "green"} — contradição sem dono.
+    return score >= 67 ? 3 : score >= 34 ? 2 : 1;
   }
   if (score >= 85 && fatigueLevel === "low") return 4;
   if (score >= 65 && fatigueLevel !== "high") return 3;
@@ -194,39 +208,52 @@ export function computeRecoveryRecommendation(
   }
 
   // ── ZONA INICIAL POR FONTE ───────────────────────────────────────────────
-  let zone = initialZoneFor(input.source, recoveryScore, fatigueLevel, input.nativeBand);
+  let zone = initialZoneFor(input.source, recoveryScore, fatigueLevel);
 
   // ── OVERRIDE AGUDO (rebaixa 1 zona) ──────────────────────────────────────
-  const sleepInsufficient =
-    input.sleepDurationSeconds !== undefined &&
-    input.sleepDurationSeconds < goals.minSleepDurationThreshold;
-  const stressHigh =
-    input.stressHighSeconds !== undefined && input.stressHighSeconds > 7200;
-  const rhrSignificantlyElevated =
-    hasMinimumHistory &&
-    input.restingHeartRateBpm !== undefined &&
-    baseline.avgRhr !== null &&
-    input.restingHeartRateBpm > baseline.avgRhr + 8;
-  const acuteHrvVeryLow =
-    hasMinimumHistory &&
-    input.acute?.hrvNightLastMs !== undefined &&
-    baseline.avgHrv !== null &&
-    input.acute.hrvNightLastMs < baseline.avgHrv * 0.7;
+  // Gate de histórico mínimo por CONTAGEM DE SCORES é semântica legada Oura;
+  // no Whoop a disponibilidade já é certificada pelo mínimo POR MÉTRICA do
+  // baseline (7 amostras) — exigir os dois mediria coisas diferentes.
+  const legacyHistoryGate = input.source === "oura" ? hasMinimumHistory : true;
 
-  // A conjunção sono+estresse só é avaliável quando AMBOS os insumos existem
-  // (Whoop não tem estresse → conjunção inteira not_evaluated, nunca "falso").
-  const sleepStressEvaluable =
-    input.sleepDurationSeconds !== undefined && input.stressHighSeconds !== undefined;
-  if (!sleepStressEvaluable) skip("override_sono_estresse", "sem tempo de estresse nesta fonte");
-  else evaluate("override_sono_estresse");
+  // override_fc_repouso — FC do dia acima do basal em 8+ bpm
+  let rhrSignificantlyElevated = false;
+  if (input.restingHeartRateBpm === undefined) skip("override_fc_repouso", "sem FC de repouso no dia");
+  else if (baseline.avgRhr === null) skip("override_fc_repouso", "sem baseline de FC nesta fonte");
+  else if (!legacyHistoryGate) skip("override_fc_repouso", "histórico mínimo (7 dias) não atingido");
+  else {
+    evaluate("override_fc_repouso");
+    rhrSignificantlyElevated = input.restingHeartRateBpm > baseline.avgRhr + 8;
+  }
+
+  // override_hrv_aguda — último bloco da noite < 70% do basal
+  let acuteHrvVeryLow = false;
   if (input.acute?.hrvNightLastMs === undefined) skip("override_hrv_aguda", "sem métricas agudas nesta fonte");
-  else evaluate("override_hrv_aguda");
+  else if (baseline.avgHrv === null) skip("override_hrv_aguda", "sem baseline de HRV nesta fonte");
+  else if (!legacyHistoryGate) skip("override_hrv_aguda", "histórico mínimo (7 dias) não atingido");
+  else {
+    evaluate("override_hrv_aguda");
+    acuteHrvVeryLow = input.acute.hrvNightLastMs < baseline.avgHrv * 0.7;
+  }
+
+  // override_sono_estresse — conjunção só avaliável com AMBOS os insumos;
+  // o motivo do skip nomeia O QUE falta (dizer "sem estresse" quando falta
+  // sono seria mentira de prontuário).
+  let sleepStressConjunction = false;
+  const missingSleep = input.sleepDurationSeconds === undefined;
+  const missingStress = input.stressHighSeconds === undefined;
+  if (missingSleep && missingStress) skip("override_sono_estresse", "sem duração de sono e sem tempo de estresse");
+  else if (missingSleep) skip("override_sono_estresse", "sem duração de sono no dia");
+  else if (missingStress) skip("override_sono_estresse", "sem tempo de estresse nesta fonte");
+  else {
+    evaluate("override_sono_estresse");
+    sleepStressConjunction =
+      input.sleepDurationSeconds! < goals.minSleepDurationThreshold &&
+      input.stressHighSeconds! > 7200;
+  }
 
   const shouldDowngradeOneZone =
-    zone > 0 &&
-    (acuteHrvVeryLow ||
-      rhrSignificantlyElevated ||
-      (sleepStressEvaluable && sleepInsufficient && stressHigh));
+    zone > 0 && (acuteHrvVeryLow || rhrSignificantlyElevated || sleepStressConjunction);
 
   const overrideApplied = shouldDowngradeOneZone;
   if (shouldDowngradeOneZone) {
@@ -292,7 +319,7 @@ export function computeRecoveryRecommendation(
   // HRV noturna vs baseline
   if (input.hrvRmssdMs === undefined) skip("hrv_noturna", "sem HRV noturna no dia");
   else if (baseline.avgHrv === null) skip("hrv_noturna", "sem baseline de HRV nesta fonte");
-  else if (!hasMinimumHistory) skip("hrv_noturna", "histórico mínimo (7 dias) não atingido");
+  else if (!legacyHistoryGate) skip("hrv_noturna", "histórico mínimo (7 dias) não atingido");
   else {
     evaluate("hrv_noturna");
     if (input.hrvRmssdMs < baseline.avgHrv * 0.85) {
@@ -307,7 +334,7 @@ export function computeRecoveryRecommendation(
   // FC repouso vs baseline
   if (input.restingHeartRateBpm === undefined) skip("fc_repouso", "sem FC de repouso no dia");
   else if (baseline.avgRhr === null) skip("fc_repouso", "sem baseline de FC nesta fonte");
-  else if (!hasMinimumHistory) skip("fc_repouso", "histórico mínimo (7 dias) não atingido");
+  else if (!legacyHistoryGate) skip("fc_repouso", "histórico mínimo (7 dias) não atingido");
   else {
     evaluate("fc_repouso");
     if (input.restingHeartRateBpm > baseline.avgRhr + 5) {
@@ -351,7 +378,7 @@ export function computeRecoveryRecommendation(
     skip("hrv_aguda", "sem métricas agudas nesta fonte");
   } else if (baseline.avgHrv === null) {
     skip("hrv_aguda", "sem baseline de HRV nesta fonte");
-  } else if (!hasMinimumHistory) {
+  } else if (!legacyHistoryGate) {
     skip("hrv_aguda", "histórico mínimo (7 dias) não atingido");
   } else {
     evaluate("hrv_aguda");
@@ -380,7 +407,10 @@ export function computeRecoveryRecommendation(
   // Agudas intra-dia (Oura-only por pipeline)
   if (input.acute?.hrDayMaxBpm === undefined && input.acute?.hrDayAvgBpm === undefined) {
     skip("fc_intradia", "sem métricas agudas nesta fonte");
-  } else if (!hasMinimumHistory) {
+  } else if (input.restingHeartRateBpm === undefined) {
+    // a régua intradia É a FC de repouso do dia — sem ela não há comparação
+    skip("fc_intradia", "sem FC de repouso no dia");
+  } else if (!legacyHistoryGate) {
     skip("fc_intradia", "histórico mínimo (7 dias) não atingido");
   } else {
     evaluate("fc_intradia");

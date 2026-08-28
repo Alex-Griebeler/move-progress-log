@@ -33,11 +33,12 @@ const whoopRow = (overrides: Partial<WhoopMetrics> = {}): WhoopMetrics => ({
 });
 
 describe("whoopToRecoveryInput", () => {
-  it("converte dia SCORED com a banda nativa correta", () => {
-    expect(whoopToRecoveryInput(whoopRow({ recovery_score: 67 }))!.nativeBand).toBe("green");
-    expect(whoopToRecoveryInput(whoopRow({ recovery_score: 66 }))!.nativeBand).toBe("yellow");
-    expect(whoopToRecoveryInput(whoopRow({ recovery_score: 34 }))!.nativeBand).toBe("yellow");
-    expect(whoopToRecoveryInput(whoopRow({ recovery_score: 33 }))!.nativeBand).toBe("red");
+  it("converte dia SCORED sem duplicar a derivação de banda (vive só no motor)", () => {
+    const input = whoopToRecoveryInput(whoopRow({ recovery_score: 67 }))!;
+    expect(input.score).toBe(67);
+    // a banda NÃO é campo do contrato: {score: 20, band: "green"} seria uma
+    // contradição sem dono — o motor deriva do score em um único lugar
+    expect("nativeBand" in input).toBe(false);
   });
 
   it("dia pendente ou inscorável NÃO vira input", () => {
@@ -107,6 +108,65 @@ describe("buildWhoopBaseline", () => {
     const recent = series(8);
     const b = buildWhoopBaseline([oldRow, ...recent], "2026-08-09");
     expect(b.avgHrv).toBe(60); // 999 de junho não entra
+  });
+});
+
+describe("fronteiras exatas da janela do baseline", () => {
+  it("lower bound asOf−30 entra; asOf−31 e o próprio asOf ficam fora", () => {
+    const rows = [
+      whoopRow({ id: "fora-velho", date: "2026-07-28", hrv_rmssd: 999 }), // asOf-31
+      whoopRow({ id: "borda", date: "2026-07-29", hrv_rmssd: 10 }),       // asOf-30 (entra)
+      ...Array.from({ length: 6 }, (_, i) =>
+        whoopRow({ id: `w${i}`, date: `2026-08-${String(i + 10).padStart(2, "0")}`, hrv_rmssd: 60 })),
+      whoopRow({ id: "avaliado", date: "2026-08-28", hrv_rmssd: 999 }),   // asOf (fora)
+    ];
+    const b = buildWhoopBaseline(rows, "2026-08-28");
+    // 7 amostras: 10 + 6×60 = 370/7
+    expect(b.avgHrv).toBeCloseTo(370 / 7, 5);
+  });
+
+  it("cruza mês/ano corretamente (janela de janeiro pega dezembro)", () => {
+    const rows = Array.from({ length: 8 }, (_, i) =>
+      whoopRow({ id: `d${i}`, date: `2025-12-${String(24 + i).padStart(2, "0")}`, hrv_rmssd: 50 }));
+    const b = buildWhoopBaseline(rows, "2026-01-05");
+    expect(b.avgHrv).toBe(50); // dezembro está dentro dos 30 dias
+  });
+});
+
+describe("score_state null (legado) tem UMA semântica nos 3 caminhos", () => {
+  it("dia: null é fechado só com recovery presente", () => {
+    expect(whoopToRecoveryInput(whoopRow({ score_state: null }))).not.toBeNull();
+    expect(whoopToRecoveryInput(whoopRow({ score_state: null, recovery_score: null }))).toBeNull();
+  });
+
+  it("baseline: mesma regra — linha null sem recovery fica fora da média", () => {
+    const rows = [
+      ...Array.from({ length: 7 }, (_, i) =>
+        whoopRow({ id: `ok${i}`, date: `2026-08-${String(i + 1).padStart(2, "0")}`, hrv_rmssd: 60, score_state: null })),
+      whoopRow({ id: "meio", date: "2026-08-08", hrv_rmssd: 999, score_state: null, recovery_score: null }),
+    ];
+    const b = buildWhoopBaseline(rows, "2026-08-20");
+    expect(b.avgHrv).toBe(60); // a linha meio-processada com 999 não entra
+  });
+});
+
+describe("integração adapter → engine (fatia vertical Whoop)", () => {
+  it("linha crua do banco vira recomendação com a política ratificada", async () => {
+    const { computeRecoveryRecommendation } = await import("../recoveryEngine");
+    const { whoopHistoryToRecoveryDays } = await import("../recoveryAdapters");
+    const rows = Array.from({ length: 10 }, (_, i) =>
+      whoopRow({ id: `h${i}`, date: `2026-08-${String(i + 10).padStart(2, "0")}` }));
+    const today = whoopRow({ date: "2026-08-28", recovery_score: 45 }); // amarelo
+    const input = whoopToRecoveryInput(today)!;
+    const rec = computeRecoveryRecommendation(
+      input,
+      whoopHistoryToRecoveryDays(rows),
+      buildWhoopBaseline([...rows, today], "2026-08-28"),
+    );
+    expect(rec.source).toBe("whoop");
+    expect(rec.zone).toBe("yellow");
+    expect(rec.loadDecision).toBe("reduce");
+    expect(rec.trainingType).toBe("Treino Reduzido 20%");
   });
 });
 
