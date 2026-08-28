@@ -24,7 +24,8 @@ import { ScoreRing, MetricTile, StaleBadge, DataErrorState } from "./metrics";
 import type { MetricDelta, MetricTone } from "./metrics";
 import { buildRecoverySnapshot } from "@/utils/recoverySnapshot";
 import { getTrainingAlternativesForZone } from "@/utils/trainingAlternatives";
-import { buildWhoopRecommendation } from "@/utils/whoopRecommendation";
+import { buildWhoopRecommendation, newerPendingWhoopDate } from "@/utils/whoopRecommendation";
+import { formatRelativeDay } from "@/utils/relativeDate";
 import {
   partitionAlerts,
   stripAlertEmoji,
@@ -130,7 +131,13 @@ const PersonalizedTrainingDashboard = ({
   // {source, date} e todo o resto (recomendação, tiles, carga, alertas) casa
   // com esse par. Nunca misturar hero Whoop de hoje com recomendação Oura
   // antiga — nem anel de um dia com prescrição de outro.
-  const earlySnapshot = buildRecoverySnapshot(recentMetrics, whoopMetrics);
+  // latestMetrics participa da DECISÃO da fonte: com cache defasado do
+  // histórico, o dia Oura mais novo podia existir só na query "latest" e o
+  // snapshot escolheria Whoop de ontem por cima de Oura de hoje.
+  const earlySnapshot = buildRecoverySnapshot(
+    latestMetrics ? [latestMetrics, ...recentMetrics] : recentMetrics,
+    whoopMetrics,
+  );
   // latestMetrics vem de query com cache próprio e pode estar um dia à
   // frente (ou atrás) do snapshot — a linha Oura consumida por prescrição e
   // tiles é a do DIA do snapshot, com latestMetrics só como fallback.
@@ -141,6 +148,11 @@ const PersonalizedTrainingDashboard = ({
   const recommendation = useTrainingRecommendation(ouraDayRow, recentMetrics, baseline, undefined, latestAcuteMetrics);
   const whoopRec =
     earlySnapshot?.source === "whoop"
+      // spToday() do RENDER pode estar até 1 dia à frente do anchor da query
+      // (virada de meia-noite SP antes do refetch da nova key). Direção
+      // conservadora: coverageStart estimado ≥ real → o guard nunca aceita
+      // baseline truncado; no pior caso descarta um válido no limite dos 59
+      // dias, por um render.
       ? buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())
       : null;
   const activeRecommendation =
@@ -162,16 +174,16 @@ const PersonalizedTrainingDashboard = ({
   // Whoop recovery (empate → Oura; Whoop PENDING_SCORE pulado).
   const snapshot = earlySnapshot;
 
-  // Whoop sincronizado mas com o recovery do dia ainda em processamento
-  // (PENDING/UNSCORABLE): sem NENHUM dia fechado o snapshot é null — esse
-  // estado precisa de mensagem própria, não do vazio genérico. (Mesmo
-  // predicado de "não fechado" dos adapters.)
-  const latestWhoopRow = whoopMetrics.reduce<WhoopMetrics | null>(
-    (acc, w) => (!acc || w.date > acc.date ? w : acc),
-    null,
-  );
-  const whoopStillProcessing =
-    !snapshot && latestWhoopRow?.score_state != null && latestWhoopRow.score_state !== "SCORED";
+  // Dia Whoop mais novo que o exibido ainda processando (PENDING/UNSCORABLE):
+  // o snapshot pula esses dias. Dois usos — sem NENHUM dia fechado, o estado
+  // vazio ganha mensagem própria; com hero Whoop de um dia anterior, uma nota
+  // explícita ("hoje pendente + ontem fechado" não dispara isStale).
+  const pendingWhoopDate = newerPendingWhoopDate(whoopMetrics, snapshot?.date ?? null);
+  const whoopStillProcessing = !snapshot && pendingWhoopDate !== null;
+  const whoopPendingNote =
+    snapshot?.source === "whoop" && pendingWhoopDate !== null
+      ? `O recovery de ${formatRelativeDay(pendingWhoopDate)} ainda está processando no Whoop — mostrando o último dia fechado.`
+      : null;
 
   // Contrato de estados: loading ≠ erro ≠ sem wearable (regra transversal).
   if (isLoading && !snapshot) {
@@ -438,6 +450,11 @@ const PersonalizedTrainingDashboard = ({
                 />
               )}
             </div>
+            {/* "Hoje pendente + ontem fechado" não dispara isStale (2 dias) —
+                sem esta linha, a prescrição de ontem passaria por atual. */}
+            {whoopPendingNote && (
+              <p className="text-xs text-muted-foreground">{whoopPendingNote}</p>
+            )}
             {hasActiveRecommendation ? (
               <>
                 <h3 className="text-2xl font-bold text-foreground">

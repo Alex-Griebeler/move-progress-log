@@ -139,10 +139,13 @@ describe("fachada Oura intocada (paridade)", () => {
     // A fase Oura-only acabou: o hero Whoop alimenta o motor via adapter.
     expect(dash).not.toContain("recomendação automática de treino usa dados do Oura");
     expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())");
-    // Estado pendente é ALCANÇÁVEL: sem dia fechado o snapshot é null e o
-    // vazio genérico é substituído pela mensagem de processamento.
+    // Estado pendente é ALCANÇÁVEL nos dois casos: sem dia fechado (estado
+    // vazio) e com hero de dia anterior (nota sob o hero — revisão fria).
     expect(dash).toContain("recovery do dia ainda está sendo processado pelo aparelho");
-    expect(dash).toMatch(/whoopStillProcessing\s*=\s*\n?\s*!snapshot && latestWhoopRow\?\.score_state != null && latestWhoopRow\.score_state !== "SCORED"/);
+    expect(dash).toContain("const whoopStillProcessing = !snapshot && pendingWhoopDate !== null;");
+    expect(dash).toMatch(/newerPendingWhoopDate\(whoopMetrics, snapshot\?\.date \?\? null\)/);
+    expect(dash).toContain("ainda está processando no Whoop — mostrando o último dia fechado");
+    expect(dash).toContain("{whoopPendingNote && (");
     expect(dash).toContain("Sem recovery utilizável para o dia mais recente");
   });
 });
@@ -168,8 +171,12 @@ describe("coerência de fontes (fix pós-review Codex)", () => {
 
 describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
   it("recomendação ativa segue o snapshot: whoop → buildWhoopRecommendation, senão Oura", () => {
+    // O comentário do anchor vive entre o "?" e a chamada — asserts por parte.
     expect(dash).toMatch(
-      /earlySnapshot\?\.source === "whoop"\s*\? buildWhoopRecommendation\(whoopMetrics, earlySnapshot\.date, spToday\(\)\)\s*: null/,
+      /whoopRec =\n\s*earlySnapshot\?\.source === "whoop"/,
+    );
+    expect(dash).toMatch(
+      /\? buildWhoopRecommendation\(whoopMetrics, earlySnapshot\.date, spToday\(\)\)\s*: null/,
     );
     expect(dash).toMatch(/whoopRec\?\.recommendation \?\? null\s*: recommendation/);
   });
@@ -210,6 +217,10 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
   it("recomendação Whoop recebe o anchor da consulta (guard de baseline truncado)", () => {
     expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())");
     expect(page).toContain("{ days: WHOOP_RECOMMENDATION_WINDOW_DAYS }");
+  });
+
+  it("latestMetrics participa da DECISÃO da fonte (cache defasado não esconde o Oura mais novo)", () => {
+    expect(dash).toMatch(/buildRecoverySnapshot\(\s*latestMetrics \? \[latestMetrics, \.\.\.recentMetrics\] : recentMetrics,\s*whoopMetrics,\s*\)/);
   });
 
   it("prescrição e tiles Oura casam com o DIA do snapshot (não com latestMetrics de outra query)", () => {

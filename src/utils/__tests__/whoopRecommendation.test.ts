@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { WhoopMetrics } from "@/hooks/useWhoopMetrics";
 import {
   buildWhoopRecommendation,
+  newerPendingWhoopDate,
   WHOOP_RECOMMENDATION_WINDOW_DAYS,
 } from "@/utils/whoopRecommendation";
 
@@ -128,5 +129,37 @@ describe("buildWhoopRecommendation (R5 — fiação pura)", () => {
     })();
     const atEdge = buildWhoopRecommendation(rows, "2026-08-27", edgeAnchor).recommendation!;
     expect(atEdge.alerts.some((a) => a.metric === "fc_repouso")).toBe(true);
+  });
+});
+
+describe("newerPendingWhoopDate (aviso de dia pendente pulado pelo snapshot)", () => {
+  it("hoje pendente + ontem fechado → aponta hoje (o cenário sem isStale)", () => {
+    const rows = [
+      row({ id: "hoje", date: "2026-08-27", score_state: "PENDING_SCORE" }),
+      row({ id: "ontem", date: "2026-08-26" }),
+    ];
+    // snapshot teria escolhido ontem (último fechado)
+    expect(newerPendingWhoopDate(rows, "2026-08-26")).toBe("2026-08-27");
+  });
+
+  it("dia pendente IGUAL ou ANTERIOR ao exibido não gera aviso", () => {
+    const rows = [
+      row({ id: "a", date: "2026-08-27" }),
+      row({ id: "b", date: "2026-08-26", score_state: "UNSCORABLE" }),
+    ];
+    expect(newerPendingWhoopDate(rows, "2026-08-27")).toBeNull();
+  });
+
+  it("sem NENHUM dia fechado (sinceDate null) → aponta o pendente mais novo", () => {
+    const rows = [
+      row({ id: "a", date: "2026-08-26", score_state: "PENDING_SCORE" }),
+      row({ id: "b", date: "2026-08-27", score_state: "UNSCORABLE" }),
+    ];
+    expect(newerPendingWhoopDate(rows, null)).toBe("2026-08-27");
+  });
+
+  it("score_state null legado NÃO é pendente (é fechado, semântica dos adapters)", () => {
+    expect(newerPendingWhoopDate([row({ score_state: null })], null)).toBeNull();
+    expect(newerPendingWhoopDate([], null)).toBeNull();
   });
 });
