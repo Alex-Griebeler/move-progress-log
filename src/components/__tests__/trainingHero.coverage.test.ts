@@ -128,10 +128,10 @@ describe("agnóstico de wearable", () => {
   });
 });
 
-describe("motor de recomendação intocado (Oura-only nesta fase)", () => {
-  it("useTrainingRecommendation continua recebendo só métricas Oura", () => {
+describe("fachada Oura intocada (paridade)", () => {
+  it("useTrainingRecommendation continua recebendo só métricas Oura (a linha do dia do snapshot)", () => {
     expect(dash).toContain(
-      "useTrainingRecommendation(latestMetrics, recentMetrics, baseline, undefined, latestAcuteMetrics)",
+      "useTrainingRecommendation(ouraDayRow, recentMetrics, baseline, undefined, latestAcuteMetrics)",
     );
   });
 
@@ -139,8 +139,10 @@ describe("motor de recomendação intocado (Oura-only nesta fase)", () => {
     // A fase Oura-only acabou: o hero Whoop alimenta o motor via adapter.
     expect(dash).not.toContain("recomendação automática de treino usa dados do Oura");
     expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date)");
-    // Estados vazios do Whoop têm mensagens próprias.
-    expect(dash).toContain("O Whoop ainda está processando o recovery deste dia");
+    // Estado pendente é ALCANÇÁVEL: sem dia fechado o snapshot é null e o
+    // vazio genérico é substituído pela mensagem de processamento.
+    expect(dash).toContain("recovery do dia ainda está sendo processado pelo aparelho");
+    expect(dash).toMatch(/whoopStillProcessing\s*=\s*\n?\s*!snapshot && latestWhoopRow\?\.score_state != null && latestWhoopRow\.score_state !== "SCORED"/);
     expect(dash).toContain("Sem recovery utilizável para o dia mais recente");
   });
 });
@@ -148,7 +150,7 @@ describe("motor de recomendação intocado (Oura-only nesta fase)", () => {
 describe("coerência de fontes (fix pós-review Codex)", () => {
   it("conteúdo Oura é gateado quando o hero é Whoop", () => {
     expect(dash).toContain("const ouraIsCurrent");
-    expect(dash).toContain("ouraIsCurrent && Boolean(latestMetrics && recommendation)");
+    expect(dash).toContain("ouraIsCurrent && Boolean(ouraDayRow && recommendation)");
   });
 
   it("card de carga vazio tem a MESMA guarda do cheio (fonte ativa, R5)", () => {
@@ -194,8 +196,15 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
     expect(dash).toContain('snapshot.source === "oura" ? "readiness" : "recovery"');
   });
 
-  it("página busca janela de 35 dias de calendário do Whoop (baseline + folga)", () => {
-    expect(page).toContain('useWhoopMetrics(needsWhoop ? studentId : "", { days: 35 })');
+  it("página busca 90 dias de Whoop (baseline exige [snapshot−30, snapshot], não [hoje−30, hoje])", () => {
+    expect(page).toContain('useWhoopMetrics(needsWhoop ? studentId : "", { days: 90 })');
     expect(page).not.toMatch(/useWhoopMetrics\([^)]*,\s*7\)/);
+  });
+
+  it("prescrição e tiles Oura casam com o DIA do snapshot (não com latestMetrics de outra query)", () => {
+    expect(dash).toContain("useTrainingRecommendation(ouraDayRow, recentMetrics");
+    expect(dash).toMatch(/recentMetrics\.find\(\(m\) => m\.date === earlySnapshot\.date\) \?\? latestMetrics/);
+    // Nenhum tile Oura lê latestMetrics direto — tudo vem da linha do dia.
+    expect(dash).not.toMatch(/latestMetrics\??\.(sleep_score|average_sleep_hrv|resting_heart_rate|temperature_deviation|activity_score|steps|total_sleep_duration)/);
   });
 });

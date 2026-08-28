@@ -33,12 +33,8 @@ const WHOOP_METRICS_SELECT =
   "deep_sleep_duration, rem_sleep_duration, light_sleep_duration, awake_time, disturbance_count, score_state, created_at";
 
 export interface WhoopMetricsWindow {
-  /**
-   * Janela de CALENDÁRIO: hoje (America/Sao_Paulo) + (days−1) dias anteriores.
-   * 35 = janela da recomendação (R5): baseline de 30 dias ANTERIORES ao dia
-   * avaliado + folga pra snapshot de dias atrás.
-   */
-  days: 7 | 30 | 35 | 90;
+  /** Janela de CALENDÁRIO: hoje (America/Sao_Paulo) + (days−1) dias anteriores. */
+  days: 7 | 30 | 90;
 }
 
 // 2ª forma (redesign PR-5b, mesmo contrato do Oura): {days} = janela de

@@ -63,19 +63,25 @@ describe("buildWhoopRecommendation (R5 — fiação pura)", () => {
     expect(out.dayNotScored).toBe(false);
   });
 
-  it("invariantes das bandas nativas: verde nunca aumenta, amarelo reduz, vermelho bloqueia número", () => {
-    const cases: Array<[number, string[], number | null | "any"]> = [
-      [80, ["maintain", "reduce", "block"], "any"], // verde: nunca "increase"
-      [50, ["reduce", "block"], "any"],             // amarelo: reduz (ou pior)
-      [20, ["block"], null],                         // vermelho: sem sugestão numérica
+  it("bandas nativas EXATAS: verde mantém (0%), amarelo reduz (−20%), vermelho bloqueia (null)", () => {
+    // Sem overrides no Whoop (banda final, R4), o mapeamento é determinístico
+    // — asserts frouxos ("reduce ou pior") esconderiam reclassificação.
+    const cases: Array<[number, string, number | null]> = [
+      [80, "maintain", 0],
+      [67, "maintain", 0],
+      [66, "reduce", -20],
+      [50, "reduce", -20],
+      [34, "reduce", -20],
+      [33, "block", null],
+      [20, "block", null],
     ];
-    for (const [score, allowed, pct] of cases) {
+    for (const [score, decision, pct] of cases) {
       const rows = window35(() => ({ recovery_score: score }));
       const rec = buildWhoopRecommendation(rows, "2026-08-27").recommendation!;
-      expect(rec).not.toBeNull();
-      expect(allowed).toContain(rec.loadDecision);
-      expect(rec.loadDecision).not.toBe("increase");
-      if (pct === null) expect(rec.loadAdjustmentPercent).toBeNull();
+      expect(rec, `score ${score}`).not.toBeNull();
+      expect(rec.loadDecision, `score ${score}`).toBe(decision);
+      expect(rec.loadAdjustmentPercent, `score ${score}`).toBe(pct);
+      expect(rec.loadDecision).not.toBe("increase"); // Whoop nunca progride (fase 1)
     }
   });
 

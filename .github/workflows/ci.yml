@@ -32,7 +32,9 @@ jobs:
         run: npm run lint
 
       - name: TypeScript check
-        run: npx tsc --noEmit
+        # tsc --noEmit no tsconfig-solução (files:[] + references) é NO-OP e
+        # sai 0 sem checar nada — o check real é o modo build.
+        run: npx tsc -b --force
 
       - name: Edge function type check (Deno)
         run: npm run verify:edge-types

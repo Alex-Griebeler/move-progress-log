@@ -126,12 +126,19 @@ const PersonalizedTrainingDashboard = ({
   // era 14 e ninguém percebia a divergência.
   const { baseline } = useOuraBaseline(studentId, 30);
   const { data: latestAcuteMetrics } = useLatestOuraAcuteMetrics(studentId);
-  const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics, baseline, undefined, latestAcuteMetrics);
-
   // R5 — a FONTE é decidida ANTES de qualquer consumo: o snapshot escolhe
-  // {source, date} e todo o resto (recomendação, carga, alertas) casa com
-  // esse par. Nunca misturar hero Whoop de hoje com recomendação Oura antiga.
+  // {source, date} e todo o resto (recomendação, tiles, carga, alertas) casa
+  // com esse par. Nunca misturar hero Whoop de hoje com recomendação Oura
+  // antiga — nem anel de um dia com prescrição de outro.
   const earlySnapshot = buildRecoverySnapshot(recentMetrics, whoopMetrics);
+  // latestMetrics vem de query com cache próprio e pode estar um dia à
+  // frente (ou atrás) do snapshot — a linha Oura consumida por prescrição e
+  // tiles é a do DIA do snapshot, com latestMetrics só como fallback.
+  const ouraDayRow =
+    earlySnapshot?.source === "oura"
+      ? recentMetrics.find((m) => m.date === earlySnapshot.date) ?? latestMetrics
+      : latestMetrics;
+  const recommendation = useTrainingRecommendation(ouraDayRow, recentMetrics, baseline, undefined, latestAcuteMetrics);
   const whoopRec =
     earlySnapshot?.source === "whoop"
       ? buildWhoopRecommendation(whoopMetrics, earlySnapshot.date)
@@ -155,6 +162,17 @@ const PersonalizedTrainingDashboard = ({
   // Whoop recovery (empate → Oura; Whoop PENDING_SCORE pulado).
   const snapshot = earlySnapshot;
 
+  // Whoop sincronizado mas com o recovery do dia ainda em processamento
+  // (PENDING/UNSCORABLE): sem NENHUM dia fechado o snapshot é null — esse
+  // estado precisa de mensagem própria, não do vazio genérico. (Mesmo
+  // predicado de "não fechado" dos adapters.)
+  const latestWhoopRow = whoopMetrics.reduce<WhoopMetrics | null>(
+    (acc, w) => (!acc || w.date > acc.date ? w : acc),
+    null,
+  );
+  const whoopStillProcessing =
+    !snapshot && latestWhoopRow?.score_state != null && latestWhoopRow.score_state !== "SCORED";
+
   // Contrato de estados: loading ≠ erro ≠ sem wearable (regra transversal).
   if (isLoading && !snapshot) {
     return (
@@ -172,7 +190,11 @@ const PersonalizedTrainingDashboard = ({
       <Card className="p-6">
         <div className="text-center text-muted-foreground">
           <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Ainda não há dados de recuperação para {studentName}. Se o wearable já estiver conectado, aguarde a próxima sincronização; caso contrário, conecte Oura ou Whoop na aba correspondente.</p>
+          <p>
+            {whoopStillProcessing
+              ? `O Whoop de ${studentName} sincronizou, mas o recovery do dia ainda está sendo processado pelo aparelho — a recomendação aparece quando o score fechar.`
+              : `Ainda não há dados de recuperação para ${studentName}. Se o wearable já estiver conectado, aguarde a próxima sincronização; caso contrário, conecte Oura ou Whoop na aba correspondente.`}
+          </p>
         </div>
       </Card>
     );
@@ -199,63 +221,63 @@ const PersonalizedTrainingDashboard = ({
   // fisiologia Oura) SÓ renderiza quando o próprio hero é Oura — senão a
   // tela misturaria hero Whoop de hoje com análise de um Oura antigo.
   const ouraIsCurrent = snapshot.source === "oura";
-  const hasOuraRecommendation = ouraIsCurrent && Boolean(latestMetrics && recommendation);
+  const hasOuraRecommendation = ouraIsCurrent && Boolean(ouraDayRow && recommendation);
   // R5: gate único da fonte ativa — Oura mantém o caminho histórico; Whoop
   // usa a recomendação montada pelo par {source, date} do snapshot.
   const hasActiveRecommendation = ouraIsCurrent
     ? hasOuraRecommendation
     : Boolean(activeRecommendation);
-  const sleepDuration = latestMetrics ? formatDuration(latestMetrics.total_sleep_duration) : null;
+  const sleepDuration = ouraDayRow ? formatDuration(ouraDayRow.total_sleep_duration) : null;
   const hasAcuteHrv = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hrv > 0;
   const hasAcuteHr = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hr_day > 0;
 
   // Fisiologia de hoje: só métricas PRESENTES entram na grade.
   const physiology: Array<{ key: string; metric?: AlertMetric; tile: JSX.Element }> = [];
-  if (ouraIsCurrent && latestMetrics?.sleep_score != null) {
+  if (ouraIsCurrent && ouraDayRow?.sleep_score != null) {
     physiology.push({
       key: "sono",
       metric: "sono",
       tile: (
         <MetricTile
           label="Sono"
-          value={latestMetrics.sleep_score}
-          delta={baselineDelta(latestMetrics.sleep_score, baseline?.avgSleepScore)}
+          value={ouraDayRow.sleep_score}
+          delta={baselineDelta(ouraDayRow.sleep_score, baseline?.avgSleepScore)}
           footnote={sleepDuration ?? undefined}
         />
       ),
     });
   }
-  if (ouraIsCurrent && latestMetrics?.average_sleep_hrv != null) {
+  if (ouraIsCurrent && ouraDayRow?.average_sleep_hrv != null) {
     physiology.push({
       key: "hrv",
       metric: "hrv_noturna",
       tile: (
         <MetricTile
           label="HRV noturna"
-          value={Math.round(latestMetrics.average_sleep_hrv)}
+          value={Math.round(ouraDayRow.average_sleep_hrv)}
           unit="ms"
-          delta={baselineDelta(latestMetrics.average_sleep_hrv, baseline?.avgHRV)}
+          delta={baselineDelta(ouraDayRow.average_sleep_hrv, baseline?.avgHRV)}
         />
       ),
     });
   }
-  if (ouraIsCurrent && latestMetrics?.resting_heart_rate != null) {
+  if (ouraIsCurrent && ouraDayRow?.resting_heart_rate != null) {
     physiology.push({
       key: "fcr",
       metric: "fc_repouso",
       tile: (
         <MetricTile
           label="FC repouso"
-          value={latestMetrics.resting_heart_rate}
+          value={ouraDayRow.resting_heart_rate}
           unit="bpm"
-          delta={baselineDelta(latestMetrics.resting_heart_rate, baseline?.avgRHR, { lowerIsBetter: true })}
+          delta={baselineDelta(ouraDayRow.resting_heart_rate, baseline?.avgRHR, { lowerIsBetter: true })}
           footnote="abaixo = melhor"
         />
       ),
     });
   }
-  if (ouraIsCurrent && latestMetrics?.temperature_deviation != null) {
-    const t = latestMetrics.temperature_deviation;
+  if (ouraIsCurrent && ouraDayRow?.temperature_deviation != null) {
+    const t = ouraDayRow.temperature_deviation;
     physiology.push({
       key: "temp",
       tile: (
@@ -269,16 +291,16 @@ const PersonalizedTrainingDashboard = ({
       ),
     });
   }
-  if (ouraIsCurrent && latestMetrics?.activity_score != null) {
+  if (ouraIsCurrent && ouraDayRow?.activity_score != null) {
     physiology.push({
       key: "atividade",
       tile: (
         <MetricTile
           label="Atividade"
-          value={latestMetrics.activity_score}
+          value={ouraDayRow.activity_score}
           footnote={
-            latestMetrics.steps !== null
-              ? `${latestMetrics.steps.toLocaleString("pt-BR")} passos`
+            ouraDayRow.steps !== null
+              ? `${ouraDayRow.steps.toLocaleString("pt-BR")} passos`
               : undefined
           }
         />
@@ -434,9 +456,7 @@ const PersonalizedTrainingDashboard = ({
                     ? "Não foi possível carregar o score do dia — a recomendação fica indisponível. Recarregue a página para tentar de novo."
                     : snapshot.source === "oura"
                       ? "Sem score de prontidão fechado para o dia mais recente — a recomendação automática fica indisponível até a próxima sincronização. Use o histórico da aba Oura para calibrar o treino."
-                      : whoopRec?.dayNotScored
-                        ? "O Whoop ainda está processando o recovery deste dia — a recomendação aparece quando o score fechar."
-                        : "Sem recovery utilizável para o dia mais recente — use o histórico da aba Whoop para calibrar o treino do dia."}
+                      : "Sem recovery utilizável para o dia mais recente — use o histórico da aba Whoop para calibrar o treino do dia."}
               </p>
             )}
           </div>
