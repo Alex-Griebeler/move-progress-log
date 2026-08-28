@@ -96,8 +96,11 @@ export function calculateTrainingRecommendation(
   // avaliado. recentMetrics chega com até 30 linhas; somar tudo rotulava
   // um mês de calorias como fadiga "semanal" e inflava o corte de zona.
   const weekStart = (() => {
-    const d = new Date(`${metrics.date}T00:00:00`);
-    d.setDate(d.getDate() - 6);
+    // Aritmética date-only em UTC: meia-noite LOCAL convertida por
+    // toISOString() desloca a data em fusos a leste (Tóquio: janela de 8
+    // dias). Com Z + setUTCDate o resultado independe do fuso do navegador.
+    const d = new Date(`${metrics.date}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 6);
     return d.toISOString().slice(0, 10);
   })();
   const weeklyBurn = recentMetrics

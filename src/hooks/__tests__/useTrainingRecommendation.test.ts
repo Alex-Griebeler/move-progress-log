@@ -125,6 +125,24 @@ describe("R2 — bugs do motor corrigidos", () => {
     expect(rec!.zone).not.toBe("green_high"); // fadiga alta veta zona 4
   });
 
+  it("(b) fronteira da janela: weekStart entra, weekStart−1 fica de fora", () => {
+    const mk = (date: string, kcal: number) =>
+      buildMetrics({ id: date, date, active_calories: kcal });
+    const recent = [
+      mk("2026-04-03", 5000), // weekStart-1 (fora)
+      mk("2026-04-04", 5000), // weekStart (dentro)
+      mk("2026-04-10", 5000), // dia avaliado (dentro)
+    ];
+    const rec = calculateTrainingRecommendation(
+      buildMetrics({ readiness_score: 90, date: "2026-04-10" }),
+      recent,
+      baseline,
+    );
+    // 2×5000 = 10000 → NÃO passa o corte high (>10000); com o dia de fora
+    // incluído seriam 15000 → high. fatigueLevel moderate prova a fronteira.
+    expect(rec!.fatigueLevel).toBe("moderate");
+  });
+
   it("(f) linha sem readiness não conta como 'dia de dado' no histórico mínimo", () => {
     const recent = [
       ...buildRecentMetrics(5),

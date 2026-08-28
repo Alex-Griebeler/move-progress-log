@@ -23,6 +23,7 @@ import TrainingZonesCard from "./TrainingZonesCard";
 import { ScoreRing, MetricTile, StaleBadge, DataErrorState } from "./metrics";
 import type { MetricDelta, MetricTone } from "./metrics";
 import { buildRecoverySnapshot } from "@/utils/recoverySnapshot";
+import { getTrainingAlternativesForZone } from "@/utils/trainingAlternatives";
 import {
   partitionAlerts,
   stripAlertEmoji,
@@ -101,55 +102,6 @@ const getSuggestionStatusLabel = (status: string) => {
 
 // Alternativas por faixa de readiness (conteúdo de domínio pré-existente;
 // apresentação sem emoji — coerência ratificada).
-/**
- * Alternativas pela ZONA FINAL do motor. O recálculo antigo pelo score cru
- * ignorava fadiga acumulada e override agudo: um aluno rebaixado de zona
- * pelo override via alternativas da zona de cima.
- */
-const getTrainingAlternativesForZone = (
-  zone: "green_high" | "green" | "yellow" | "orange" | "red" | null,
-  fallbackScore: number,
-) => {
-  if (zone !== null) {
-    const zoneScore =
-      zone === "green_high" ? 90 : zone === "green" ? 70 : zone === "yellow" ? 50 : zone === "orange" ? 30 : 0;
-    return getTrainingAlternatives(zoneScore);
-  }
-  return getTrainingAlternatives(fallbackScore);
-};
-
-const getTrainingAlternatives = (rs: number) => {
-  if (rs >= 85) {
-    return [
-      { type: "Desafio Máximo Recomendado", description: "Dia ideal para buscar recordes pessoais: recuperação completa." },
-      { type: "Treino Normal Intenso", description: "Alta intensidade com confiança — sistema nervoso e muscular prontos." },
-      { type: "Volume Alto", description: "Bom dia para treinos longos ou múltiplas sessões." },
-    ];
-  } else if (rs >= 65) {
-    return [
-      { type: "Treino Completo (Recomendado)", description: "Executar o treino programado normalmente, com cargas habituais." },
-      { type: "Redução Leve (10%)", description: "Se houver fadiga durante o treino, reduzir levemente volume ou intensidade." },
-      { type: "Foco Técnico", description: "Priorizar qualidade de movimento sobre carga máxima." },
-    ];
-  } else if (rs >= 45) {
-    return [
-      { type: "Redução Moderada (Recomendado)", description: "Reduzir 20-30% do volume ou intensidade — carga mais leve pra seguir progredindo." },
-      { type: "Recuperação Ativa", description: "Alternativa mais segura: mobilidade leve, yoga ou caminhada." },
-      { type: "Descanso Completo", description: "Com sintomas de overtraining (fadiga intensa, dor persistente), optar por descanso." },
-    ];
-  } else if (rs >= 25) {
-    return [
-      { type: "Recuperação Ativa (Recomendado)", description: "Movimento leve apenas: alongamento dinâmico, yoga suave ou caminhada de 20-30 min." },
-      { type: "Descanso Completo", description: "Com cansaço acentuado, priorizar descanso total — recuperação urgente." },
-      { type: "Protocolos de Recuperação", description: "Focar nos protocolos recomendados (crioterapia, respiração, mindfulness)." },
-    ];
-  }
-  return [
-    { type: "Descanso Obrigatório (CRÍTICO)", description: "Sistema nervoso severamente sobrecarregado: treinar hoje aumenta risco de lesão." },
-    { type: "Protocolos de Recuperação Urgente", description: "Focar 100% nos protocolos prioritários — efeito mensurável em 24-72h." },
-    { type: "Avaliação Médica", description: "Se o readiness crítico persistir por 3+ dias, considerar avaliação médica/fisioterapia." },
-  ];
-};
 
 const PersonalizedTrainingDashboard = ({
   latestMetrics,
@@ -429,9 +381,11 @@ const PersonalizedTrainingDashboard = ({
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {snapshot.source === "oura"
-                  ? "Sem score de prontidão fechado para o dia mais recente — a recomendação automática fica indisponível até a próxima sincronização. Use o histórico da aba Oura para calibrar o treino."
-                  : "A recomendação automática de treino usa dados do Oura — este aluno está com Whoop. Use o score acima e o histórico da aba Whoop para calibrar o treino do dia."}
+                {isLoading
+                  ? "Carregando recomendação do dia…"
+                  : snapshot.source === "oura"
+                    ? "Sem score de prontidão fechado para o dia mais recente — a recomendação automática fica indisponível até a próxima sincronização. Use o histórico da aba Oura para calibrar o treino."
+                    : "A recomendação automática de treino usa dados do Oura — este aluno está com Whoop. Use o score acima e o histórico da aba Whoop para calibrar o treino do dia."}
               </p>
             )}
           </div>

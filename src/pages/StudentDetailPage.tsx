@@ -95,7 +95,7 @@ const StudentDetailPage = () => {
     needsOuraHistory ? studentId : "",
     30
   );
-  const { data: latestOuraMetrics, isLoading: loadingLatestOura } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
+  const { data: latestOuraMetrics, isLoading: loadingLatestOura, isError: latestOuraError } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
   const { data: ouraConnection } = useOuraConnection(studentId);
   const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", 7);
   const { isAdmin } = useIsAdmin();
@@ -392,7 +392,7 @@ const StudentDetailPage = () => {
             studentId={student.id}
             maxHeartRate={student.max_heart_rate}
             isLoading={loadingOuraMetrics || loadingWhoopMetrics || loadingLatestOura}
-            isError={ouraMetricsError || whoopMetricsError}
+            isError={ouraMetricsError || whoopMetricsError || latestOuraError}
             onStartTraining={() => setRecordSessionOpen(true)}
           />
         </TabsContent>

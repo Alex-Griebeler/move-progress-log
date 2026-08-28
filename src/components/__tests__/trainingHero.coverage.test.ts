@@ -116,7 +116,7 @@ describe("agnóstico de wearable", () => {
 
   it("página propaga loading/erro pro dashboard", () => {
     expect(page).toContain("isLoading={loadingOuraMetrics || loadingWhoopMetrics || loadingLatestOura}");
-    expect(page).toContain("isError={ouraMetricsError || whoopMetricsError}");
+    expect(page).toContain("isError={ouraMetricsError || whoopMetricsError || latestOuraError}");
   });
 });
 
