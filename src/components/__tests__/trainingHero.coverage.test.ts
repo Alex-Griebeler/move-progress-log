@@ -29,6 +29,51 @@ const snapshotUtil = readFileSync(
   "utf-8",
 );
 
+describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
+  it("badge de zona usa rótulo curto por fonte; prescrição em linha única", () => {
+    expect(dash).toContain("SNAPSHOT_ZONE_SHORT[snapshot.source][snapshot.zone]");
+    expect(dash).toMatch(/formatPrescriptionLine\(/);
+    // a linha antiga "intensity · duration" com o % de FCmáx morreu
+    expect(dash).not.toMatch(/\{recommendation!\.intensity\} · \{recommendation!\.duration\}/);
+  });
+
+  it("origem/data só quando o dado está velho (2+ dias)", () => {
+    expect(dash).toMatch(/\{snapshot\.isStale && \(/);
+  });
+
+  it("a pilha de cards de alerta morreu; consolidação via partitionAlerts", () => {
+    expect(dash).not.toContain("recommendation.alerts.map");
+    expect(dash).toMatch(/partitionAlerts\(/);
+    expect(dash).toContain("Atenção hoje");
+    // partição calculada DEPOIS dos tiles (eles são condicionais ao dado)
+    const tilesIdx = dash.indexOf("const physiology");
+    const partIdx = dash.indexOf("const alertPartition");
+    expect(tilesIdx).toBeGreaterThan(-1);
+    expect(partIdx).toBeGreaterThan(tilesIdx);
+  });
+
+  it("o aviso de override do hero morreu (vive no card consolidado)", () => {
+    expect(dash).not.toContain("Override agudo ativo:");
+  });
+
+  it("mensagens do motor são sanitizadas de emoji na apresentação", () => {
+    expect(dash).toMatch(/stripAlertEmoji\(alert\.message\)/);
+  });
+
+  it("FC pico ganhou tile (o alerta de pico tem onde morar)", () => {
+    expect(dash).toContain('label="FC pico (dia)"');
+    expect(dash).toMatch(/metric: "fc_pico"/);
+  });
+
+  it("tiles recebem o estado de atenção da sua métrica", () => {
+    expect(dash).toMatch(/alertPartition\.byTile\.get\(p\.metric\)/);
+  });
+
+  it("avatar do header centralizado com o anel contido no layout", () => {
+    expect(page).toMatch(/self-center m-2/);
+  });
+});
+
 describe("hero único de recuperação", () => {
   it("usa ScoreRing + StaleBadge + RecoverySnapshot", () => {
     expect(dash).toContain("ScoreRing");

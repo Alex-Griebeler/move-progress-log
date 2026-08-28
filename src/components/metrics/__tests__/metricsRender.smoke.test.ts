@@ -45,6 +45,40 @@ describe("smoke renderToString", () => {
     expect(renderToString(h(MetricTile, { label: "HRV", value: null }))).toContain("—");
   });
 
+  it("MetricTile com estado de atenção: rótulo curto, +N sinais e role=group", () => {
+    const out = renderToString(
+      h(MetricTile, {
+        label: "FC média (dia)",
+        value: 123,
+        unit: "bpm",
+        alert: {
+          label: "Acima do esperado",
+          level: "WARNING",
+          extraCount: 1,
+          messages: ["FC média diária acima do esperado (123 bpm)."],
+        },
+      }),
+    );
+    expect(out).toContain("Acima do esperado");
+    // renderToString intercala <!-- --> entre expressões JSX
+    expect(out.replace(/<!-- -->/g, "")).toContain("+1 sinal");
+    expect(out).toMatch(/role="group"/);
+    expect(out).toMatch(/border-warning\/50/);
+    // o nome acessível carrega a mensagem completa
+    expect(out).toContain("FC média diária acima do esperado");
+  });
+
+  it("MetricTile crítico usa a borda destrutiva", () => {
+    const out = renderToString(
+      h(MetricTile, {
+        label: "FC repouso",
+        value: 80,
+        alert: { label: "Muito acima do basal", level: "CRITICAL", extraCount: 0, messages: ["x"] },
+      }),
+    );
+    expect(out).toMatch(/border-destructive\/50/);
+  });
+
   it("MetricTile preenche a altura da linha do grid (tiles irmãos simétricos)", () => {
     // Num grid, uns tiles têm footnote/sparkline e outros não. Sem h-full o
     // card mantém a altura do próprio conteúdo e a linha fica desalinhada,
