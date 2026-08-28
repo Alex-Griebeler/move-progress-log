@@ -5,7 +5,7 @@ import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
 import { AlertCircle, Activity, Target } from "lucide-react";
-import { OuraMetrics } from "@/hooks/useOuraMetrics";
+import { OuraMetrics, spToday } from "@/hooks/useOuraMetrics";
 import { WhoopMetrics } from "@/hooks/useWhoopMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
 import { useOuraBaseline } from "@/hooks/useOuraBaseline";
@@ -24,6 +24,8 @@ import { ScoreRing, MetricTile, StaleBadge, DataErrorState } from "./metrics";
 import type { MetricDelta, MetricTone } from "./metrics";
 import { buildRecoverySnapshot } from "@/utils/recoverySnapshot";
 import { getTrainingAlternativesForZone } from "@/utils/trainingAlternatives";
+import { buildWhoopRecommendation, newerPendingWhoopDate } from "@/utils/whoopRecommendation";
+import { formatRelativeDay } from "@/utils/relativeDate";
 import {
   partitionAlerts,
   stripAlertEmoji,
@@ -125,8 +127,39 @@ const PersonalizedTrainingDashboard = ({
   // era 14 e ninguém percebia a divergência.
   const { baseline } = useOuraBaseline(studentId, 30);
   const { data: latestAcuteMetrics } = useLatestOuraAcuteMetrics(studentId);
-  const recommendation = useTrainingRecommendation(latestMetrics, recentMetrics, baseline, undefined, latestAcuteMetrics);
-  const { data: loadSuggestions } = useLoadSuggestions(studentId, recommendation);
+  // R5 — a FONTE é decidida ANTES de qualquer consumo: o snapshot escolhe
+  // {source, date} e todo o resto (recomendação, tiles, carga, alertas) casa
+  // com esse par. Nunca misturar hero Whoop de hoje com recomendação Oura
+  // antiga — nem anel de um dia com prescrição de outro.
+  // latestMetrics participa da DECISÃO da fonte: com cache defasado do
+  // histórico, o dia Oura mais novo podia existir só na query "latest" e o
+  // snapshot escolheria Whoop de ontem por cima de Oura de hoje.
+  const earlySnapshot = buildRecoverySnapshot(
+    latestMetrics ? [latestMetrics, ...recentMetrics] : recentMetrics,
+    whoopMetrics,
+  );
+  // latestMetrics vem de query com cache próprio e pode estar um dia à
+  // frente (ou atrás) do snapshot — a linha Oura consumida por prescrição e
+  // tiles é a do DIA do snapshot, com latestMetrics só como fallback.
+  const ouraDayRow =
+    earlySnapshot?.source === "oura"
+      ? recentMetrics.find((m) => m.date === earlySnapshot.date) ?? latestMetrics
+      : latestMetrics;
+  const recommendation = useTrainingRecommendation(ouraDayRow, recentMetrics, baseline, undefined, latestAcuteMetrics);
+  const whoopRec =
+    earlySnapshot?.source === "whoop"
+      // spToday() do RENDER pode estar até 1 dia à frente do anchor da query
+      // (virada de meia-noite SP antes do refetch da nova key). Direção
+      // conservadora: coverageStart estimado ≥ real → o guard nunca aceita
+      // baseline truncado; no pior caso descarta um válido no limite dos 59
+      // dias, até a próxima reavaliação da query key.
+      ? buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())
+      : null;
+  const activeRecommendation =
+    earlySnapshot?.source === "whoop"
+      ? whoopRec?.recommendation ?? null
+      : recommendation;
+  const { data: loadSuggestions } = useLoadSuggestions(studentId, activeRecommendation);
   const [showAlternatives, setShowAlternatives] = useState(false);
   const { selectedAlternative, setSelectedAlternative } = useTrainingContext();
 
@@ -139,7 +172,18 @@ const PersonalizedTrainingDashboard = ({
 
   // HERO agnóstico de wearable: score mais recente entre Oura readiness e
   // Whoop recovery (empate → Oura; Whoop PENDING_SCORE pulado).
-  const snapshot = buildRecoverySnapshot(recentMetrics, whoopMetrics);
+  const snapshot = earlySnapshot;
+
+  // Dia Whoop mais novo que o exibido ainda processando (PENDING/UNSCORABLE):
+  // o snapshot pula esses dias. Dois usos — sem NENHUM dia fechado, o estado
+  // vazio ganha mensagem própria; com hero Whoop de um dia anterior, uma nota
+  // explícita ("hoje pendente + ontem fechado" não dispara isStale).
+  const pendingWhoopDate = newerPendingWhoopDate(whoopMetrics, snapshot?.date ?? null);
+  const whoopStillProcessing = !snapshot && pendingWhoopDate !== null;
+  const whoopPendingNote =
+    snapshot?.source === "whoop" && pendingWhoopDate !== null
+      ? `O recovery de ${formatRelativeDay(pendingWhoopDate)} ainda está processando no Whoop — mostrando o último dia fechado.`
+      : null;
 
   // Contrato de estados: loading ≠ erro ≠ sem wearable (regra transversal).
   if (isLoading && !snapshot) {
@@ -158,7 +202,11 @@ const PersonalizedTrainingDashboard = ({
       <Card className="p-6">
         <div className="text-center text-muted-foreground">
           <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Ainda não há dados de recuperação para {studentName}. Se o wearable já estiver conectado, aguarde a próxima sincronização; caso contrário, conecte Oura ou Whoop na aba correspondente.</p>
+          <p>
+            {whoopStillProcessing
+              ? `O Whoop de ${studentName} sincronizou, mas o recovery do dia ainda está sendo processado pelo aparelho — a recomendação aparece quando o score fechar.`
+              : `Ainda não há dados de recuperação para ${studentName}. Se o wearable já estiver conectado, aguarde a próxima sincronização; caso contrário, conecte Oura ou Whoop na aba correspondente.`}
+          </p>
         </div>
       </Card>
     );
@@ -185,58 +233,68 @@ const PersonalizedTrainingDashboard = ({
   // fisiologia Oura) SÓ renderiza quando o próprio hero é Oura — senão a
   // tela misturaria hero Whoop de hoje com análise de um Oura antigo.
   const ouraIsCurrent = snapshot.source === "oura";
-  const hasOuraRecommendation = ouraIsCurrent && Boolean(latestMetrics && recommendation);
-  const sleepDuration = latestMetrics ? formatDuration(latestMetrics.total_sleep_duration) : null;
-  const hasAcuteHrv = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hrv > 0;
-  const hasAcuteHr = !!latestAcuteMetrics && latestAcuteMetrics.samples_count_hr_day > 0;
+  const hasOuraRecommendation = ouraIsCurrent && Boolean(ouraDayRow && recommendation);
+  // R5: gate único da fonte ativa — Oura mantém o caminho histórico; Whoop
+  // usa a recomendação montada pelo par {source, date} do snapshot.
+  const hasActiveRecommendation = ouraIsCurrent
+    ? hasOuraRecommendation
+    : Boolean(activeRecommendation);
+  const sleepDuration = ouraDayRow ? formatDuration(ouraDayRow.total_sleep_duration) : null;
+  // Agudas do MESMO dia do snapshot — regra que o adapter já aplica pra
+  // recomendação; sem ela os tiles mostrariam agudas de 28/08 sob hero de
+  // 27/08.
+  const acuteDayRow =
+    latestAcuteMetrics && latestAcuteMetrics.date === snapshot.date ? latestAcuteMetrics : null;
+  const hasAcuteHrv = !!acuteDayRow && acuteDayRow.samples_count_hrv > 0;
+  const hasAcuteHr = !!acuteDayRow && acuteDayRow.samples_count_hr_day > 0;
 
   // Fisiologia de hoje: só métricas PRESENTES entram na grade.
   const physiology: Array<{ key: string; metric?: AlertMetric; tile: JSX.Element }> = [];
-  if (ouraIsCurrent && latestMetrics?.sleep_score != null) {
+  if (ouraIsCurrent && ouraDayRow?.sleep_score != null) {
     physiology.push({
       key: "sono",
       metric: "sono",
       tile: (
         <MetricTile
           label="Sono"
-          value={latestMetrics.sleep_score}
-          delta={baselineDelta(latestMetrics.sleep_score, baseline?.avgSleepScore)}
+          value={ouraDayRow.sleep_score}
+          delta={baselineDelta(ouraDayRow.sleep_score, baseline?.avgSleepScore)}
           footnote={sleepDuration ?? undefined}
         />
       ),
     });
   }
-  if (ouraIsCurrent && latestMetrics?.average_sleep_hrv != null) {
+  if (ouraIsCurrent && ouraDayRow?.average_sleep_hrv != null) {
     physiology.push({
       key: "hrv",
       metric: "hrv_noturna",
       tile: (
         <MetricTile
           label="HRV noturna"
-          value={Math.round(latestMetrics.average_sleep_hrv)}
+          value={Math.round(ouraDayRow.average_sleep_hrv)}
           unit="ms"
-          delta={baselineDelta(latestMetrics.average_sleep_hrv, baseline?.avgHRV)}
+          delta={baselineDelta(ouraDayRow.average_sleep_hrv, baseline?.avgHRV)}
         />
       ),
     });
   }
-  if (ouraIsCurrent && latestMetrics?.resting_heart_rate != null) {
+  if (ouraIsCurrent && ouraDayRow?.resting_heart_rate != null) {
     physiology.push({
       key: "fcr",
       metric: "fc_repouso",
       tile: (
         <MetricTile
           label="FC repouso"
-          value={latestMetrics.resting_heart_rate}
+          value={ouraDayRow.resting_heart_rate}
           unit="bpm"
-          delta={baselineDelta(latestMetrics.resting_heart_rate, baseline?.avgRHR, { lowerIsBetter: true })}
+          delta={baselineDelta(ouraDayRow.resting_heart_rate, baseline?.avgRHR, { lowerIsBetter: true })}
           footnote="abaixo = melhor"
         />
       ),
     });
   }
-  if (ouraIsCurrent && latestMetrics?.temperature_deviation != null) {
-    const t = latestMetrics.temperature_deviation;
+  if (ouraIsCurrent && ouraDayRow?.temperature_deviation != null) {
+    const t = ouraDayRow.temperature_deviation;
     physiology.push({
       key: "temp",
       tile: (
@@ -250,64 +308,64 @@ const PersonalizedTrainingDashboard = ({
       ),
     });
   }
-  if (ouraIsCurrent && latestMetrics?.activity_score != null) {
+  if (ouraIsCurrent && ouraDayRow?.activity_score != null) {
     physiology.push({
       key: "atividade",
       tile: (
         <MetricTile
           label="Atividade"
-          value={latestMetrics.activity_score}
+          value={ouraDayRow.activity_score}
           footnote={
-            latestMetrics.steps !== null
-              ? `${latestMetrics.steps.toLocaleString("pt-BR")} passos`
+            ouraDayRow.steps !== null
+              ? `${ouraDayRow.steps.toLocaleString("pt-BR")} passos`
               : undefined
           }
         />
       ),
     });
   }
-  if (ouraIsCurrent && hasAcuteHrv && latestAcuteMetrics?.hrv_night_min != null) {
+  if (ouraIsCurrent && hasAcuteHrv && acuteDayRow?.hrv_night_min != null) {
     physiology.push({
       key: "hrv-aguda",
       metric: "hrv_aguda",
       tile: (
         <MetricTile
           label="HRV mínima (noite)"
-          value={Math.round(latestAcuteMetrics.hrv_night_min)}
+          value={Math.round(acuteDayRow.hrv_night_min)}
           unit="ms"
           footnote={
             // Os alertas de HRV aguda podem vir do ÚLTIMO BLOCO da noite,
             // não só da mínima — sem esta linha, o tile marcaria atenção
             // mostrando um número que não é o que disparou o sinal.
-            latestAcuteMetrics.hrv_night_last != null
-              ? `último bloco: ${Math.round(latestAcuteMetrics.hrv_night_last)} ms`
+            acuteDayRow.hrv_night_last != null
+              ? `último bloco: ${Math.round(acuteDayRow.hrv_night_last)} ms`
               : undefined
           }
         />
       ),
     });
   }
-  if (ouraIsCurrent && hasAcuteHr && latestAcuteMetrics?.hr_day_avg != null) {
+  if (ouraIsCurrent && hasAcuteHr && acuteDayRow?.hr_day_avg != null) {
     physiology.push({
       key: "fc-dia",
       metric: "fc_media_dia",
       tile: (
         <MetricTile
           label="FC média (dia)"
-          value={Math.round(latestAcuteMetrics.hr_day_avg)}
+          value={Math.round(acuteDayRow.hr_day_avg)}
           unit="bpm"
         />
       ),
     });
   }
-  if (ouraIsCurrent && hasAcuteHr && latestAcuteMetrics?.hr_day_max != null) {
+  if (ouraIsCurrent && hasAcuteHr && acuteDayRow?.hr_day_max != null) {
     physiology.push({
       key: "fc-pico",
       metric: "fc_pico",
       tile: (
         <MetricTile
           label="FC pico (dia)"
-          value={Math.round(latestAcuteMetrics.hr_day_max)}
+          value={Math.round(acuteDayRow.hr_day_max)}
           unit="bpm"
         />
       ),
@@ -324,13 +382,34 @@ const PersonalizedTrainingDashboard = ({
     if (w?.hrv_rmssd != null) {
       physiology.push({
         key: "hrv-whoop",
+        metric: "hrv_noturna",
         tile: <MetricTile label="HRV" value={Math.round(w.hrv_rmssd)} unit="ms" />,
       });
     }
     if (w?.resting_heart_rate != null) {
       physiology.push({
         key: "fcr-whoop",
+        metric: "fc_repouso",
         tile: <MetricTile label="FC repouso" value={w.resting_heart_rate} unit="bpm" />,
+      });
+    }
+    if (w?.sleep_performance != null) {
+      physiology.push({
+        key: "sono-whoop",
+        metric: "sono",
+        tile: (
+          <MetricTile
+            label="Sono (performance)"
+            value={Math.round(w.sleep_performance)}
+            footnote={
+              // O alerta de sono fala de DURAÇÃO — o rodapé mostra o número
+              // que dispara o sinal, junto do score do aparelho.
+              w.total_sleep_duration != null
+                ? formatDuration(w.total_sleep_duration) ?? undefined
+                : undefined
+            }
+          />
+        ),
       });
     }
   }
@@ -341,7 +420,7 @@ const PersonalizedTrainingDashboard = ({
     physiology.flatMap((p) => (p.metric ? [p.metric] : [])),
   );
   const alertPartition = partitionAlerts(
-    hasOuraRecommendation && recommendation ? recommendation.alerts : [],
+    hasActiveRecommendation && activeRecommendation ? activeRecommendation.alerts : [],
     renderedTileMetrics,
   );
 
@@ -371,13 +450,18 @@ const PersonalizedTrainingDashboard = ({
                 />
               )}
             </div>
-            {hasOuraRecommendation ? (
+            {/* "Hoje pendente + ontem fechado" não dispara isStale (2 dias) —
+                sem esta linha, a prescrição de ontem passaria por atual. */}
+            {whoopPendingNote && (
+              <p className="text-xs text-muted-foreground">{whoopPendingNote}</p>
+            )}
+            {hasActiveRecommendation ? (
               <>
                 <h3 className="text-2xl font-bold text-foreground">
-                  {recommendation!.trainingType}
+                  {activeRecommendation!.trainingType}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  {formatPrescriptionLine(recommendation!.intensity, recommendation!.duration)}
+                  {formatPrescriptionLine(activeRecommendation!.intensity, activeRecommendation!.duration)}
                 </p>
                 <div className="flex gap-3 pt-2">
                   <Button onClick={() => onStartTraining?.()}>Iniciar Treino</Button>
@@ -394,7 +478,7 @@ const PersonalizedTrainingDashboard = ({
                     ? "Não foi possível carregar o score do dia — a recomendação fica indisponível. Recarregue a página para tentar de novo."
                     : snapshot.source === "oura"
                       ? "Sem score de prontidão fechado para o dia mais recente — a recomendação automática fica indisponível até a próxima sincronização. Use o histórico da aba Oura para calibrar o treino."
-                      : "A recomendação automática de treino usa dados do Oura — este aluno está com Whoop. Use o score acima e o histórico da aba Whoop para calibrar o treino do dia."}
+                      : "Sem recovery utilizável para o dia mais recente — use o histórico da aba Whoop para calibrar o treino do dia."}
               </p>
             )}
           </div>
@@ -403,12 +487,12 @@ const PersonalizedTrainingDashboard = ({
       </Card>
 
       {/* Sugestão de carga — o dado mais acionável do coach, logo após o hero */}
-      {hasOuraRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
+      {hasActiveRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold">Sugestão Assistida de Carga</h3>
             <Badge variant="outline">
-              Zona {ZONE_LABEL[recommendation.zone] ?? recommendation.zone}
+              Zona {ZONE_LABEL[activeRecommendation!.zone] ?? activeRecommendation!.zone}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
@@ -475,7 +559,7 @@ const PersonalizedTrainingDashboard = ({
           </div>
         </Card>
       )}
-      {hasOuraRecommendation && loadSuggestions && loadSuggestions.length === 0 && (
+      {hasActiveRecommendation && loadSuggestions && loadSuggestions.length === 0 && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
@@ -485,7 +569,7 @@ const PersonalizedTrainingDashboard = ({
       )}
 
       {/* Protocolos prioritários (readiness crítico) */}
-      {hasOuraRecommendation && recommendation?.priorityProtocols && recommendation.priorityProtocols.length > 0 && (
+      {hasActiveRecommendation && activeRecommendation?.priorityProtocols && activeRecommendation.priorityProtocols.length > 0 && (
         <Card className="p-6 border-2 border-destructive/50 bg-destructive/5">
           <div className="flex items-center space-x-2 mb-4">
             <AlertCircle className="w-6 h-6 text-destructive" />
@@ -500,7 +584,7 @@ const PersonalizedTrainingDashboard = ({
             </AlertDescription>
           </Alert>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recommendation.priorityProtocols.map((protocol) => (
+            {activeRecommendation!.priorityProtocols!.map((protocol) => (
               <div
                 key={protocol.order}
                 className="p-5 rounded-lg border-2 border-muted bg-background hover:border-primary/50 transition-colors"
@@ -641,15 +725,16 @@ const PersonalizedTrainingDashboard = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Alternativas de Treino</AlertDialogTitle>
             <AlertDialogDescription>
-              Com base no readiness de <strong>{recommendation?.recoveryScore ?? snapshot.score}</strong>,
+              Com base no {snapshot.source === "oura" ? "readiness" : "recovery"} de{" "}
+              <strong>{activeRecommendation?.recoveryScore ?? snapshot.score}</strong>,
               estas são as opções:
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 my-4">
             {getTrainingAlternativesForZone(
               // Zona FINAL do motor (já com fadiga/override); score cru só
-              // no fallback sem recomendação (ex.: fonte Whoop nesta fase).
-              hasOuraRecommendation && recommendation ? recommendation.zone : null,
+              // no fallback raro sem recomendação da fonte ativa.
+              hasActiveRecommendation && activeRecommendation ? activeRecommendation.zone : null,
               snapshot.score,
             ).map((alt, idx) => (
               <button

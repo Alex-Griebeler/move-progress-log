@@ -13,8 +13,9 @@ import { daysAgo } from "@/utils/relativeDate";
  * - `isStale` a partir de 2 dias de CALENDÁRIO (não 48h literais) — a UI
  *   marca com tom de alerta.
  *
- * A RECOMENDAÇÃO de treino continua Oura-only (useTrainingRecommendation é
- * 100% Oura); este contrato alimenta apenas o anel/zona/fonte do hero.
+ * Desde a R5, este par {source, date} também decide QUAL recomendação o
+ * dashboard monta (Oura via fachada, Whoop via buildWhoopRecommendation) —
+ * não é mais só o anel do hero.
  */
 
 export interface RecoverySnapshot {

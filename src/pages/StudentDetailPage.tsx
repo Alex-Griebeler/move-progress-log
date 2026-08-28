@@ -29,6 +29,7 @@ import { StudentOverviewDashboard } from "@/components/StudentOverviewDashboard"
 import { AssessmentsTab } from "@/components/assessments/AssessmentsTab";
 import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useWhoopMetrics } from "@/hooks/useWhoopMetrics";
+import { WHOOP_RECOMMENDATION_WINDOW_DAYS } from "@/utils/whoopRecommendation";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
 import { useState, useMemo, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -97,7 +98,12 @@ const StudentDetailPage = () => {
   );
   const { data: latestOuraMetrics, isLoading: loadingLatestOura, isError: latestOuraError } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
   const { data: ouraConnection } = useOuraConnection(studentId);
-  const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", 7);
+  // R5: a recomendação Whoop precisa do baseline de 30 dias ANTERIORES ao
+  // DIA DO SNAPSHOT — que pode estar dias atrás de hoje (a query ancora em
+  // hoje). 90 dias cobrem snapshot de até 59 dias atrás; do 60º em diante o
+  // baseline é descartado pelo guard de truncamento (not_evaluated), nunca
+  // calculado com número errado.
+  const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", { days: WHOOP_RECOMMENDATION_WINDOW_DAYS });
   const { isAdmin } = useIsAdmin();
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);

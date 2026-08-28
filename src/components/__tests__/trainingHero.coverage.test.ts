@@ -128,27 +128,37 @@ describe("agnóstico de wearable", () => {
   });
 });
 
-describe("motor de recomendação intocado (Oura-only nesta fase)", () => {
-  it("useTrainingRecommendation continua recebendo só métricas Oura", () => {
+describe("fachada Oura intocada (paridade)", () => {
+  it("useTrainingRecommendation continua recebendo só métricas Oura (a linha do dia do snapshot)", () => {
     expect(dash).toContain(
-      "useTrainingRecommendation(latestMetrics, recentMetrics, baseline, undefined, latestAcuteMetrics)",
+      "useTrainingRecommendation(ouraDayRow, recentMetrics, baseline, undefined, latestAcuteMetrics)",
     );
   });
 
-  it("aluno só-Whoop recebe nota explícita (recomendação usa Oura)", () => {
-    expect(dash).toContain("recomendação automática de treino usa dados do Oura");
+  it("R5: aluno só-Whoop recebe recomendação nativa (não mais a nota Oura-only)", () => {
+    // A fase Oura-only acabou: o hero Whoop alimenta o motor via adapter.
+    expect(dash).not.toContain("recomendação automática de treino usa dados do Oura");
+    expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())");
+    // Estado pendente é ALCANÇÁVEL nos dois casos: sem dia fechado (estado
+    // vazio) e com hero de dia anterior (nota sob o hero — revisão fria).
+    expect(dash).toContain("recovery do dia ainda está sendo processado pelo aparelho");
+    expect(dash).toContain("const whoopStillProcessing = !snapshot && pendingWhoopDate !== null;");
+    expect(dash).toMatch(/newerPendingWhoopDate\(whoopMetrics, snapshot\?\.date \?\? null\)/);
+    expect(dash).toContain("ainda está processando no Whoop — mostrando o último dia fechado");
+    expect(dash).toContain("{whoopPendingNote && (");
+    expect(dash).toContain("Sem recovery utilizável para o dia mais recente");
   });
 });
 
 describe("coerência de fontes (fix pós-review Codex)", () => {
   it("conteúdo Oura é gateado quando o hero é Whoop", () => {
     expect(dash).toContain("const ouraIsCurrent");
-    expect(dash).toContain("ouraIsCurrent && Boolean(latestMetrics && recommendation)");
+    expect(dash).toContain("ouraIsCurrent && Boolean(ouraDayRow && recommendation)");
   });
 
-  it("card de carga vazio tem a MESMA guarda do cheio", () => {
-    const emptyGuard = dash.match(/hasOuraRecommendation && loadSuggestions && loadSuggestions\.length === 0/);
-    const fullGuard = dash.match(/hasOuraRecommendation && loadSuggestions && loadSuggestions\.length > 0/);
+  it("card de carga vazio tem a MESMA guarda do cheio (fonte ativa, R5)", () => {
+    const emptyGuard = dash.match(/hasActiveRecommendation && loadSuggestions && loadSuggestions\.length === 0/);
+    const fullGuard = dash.match(/hasActiveRecommendation && loadSuggestions && loadSuggestions\.length > 0/);
     expect(emptyGuard).not.toBeNull();
     expect(fullGuard).not.toBeNull();
   });
@@ -156,5 +166,67 @@ describe("coerência de fontes (fix pós-review Codex)", () => {
   it("sort do snapshot usa localeCompare (contrato correto p/ datas iguais)", () => {
     expect(snapshotUtil.match(/localeCompare/g)?.length).toBe(2);
     expect(snapshotUtil).not.toContain("a.date < b.date ? 1 : -1");
+  });
+});
+
+describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
+  it("recomendação ativa segue o snapshot: whoop → buildWhoopRecommendation, senão Oura", () => {
+    // O comentário do anchor vive entre o "?" e a chamada — asserts por parte.
+    expect(dash).toMatch(
+      /whoopRec =\n\s*earlySnapshot\?\.source === "whoop"/,
+    );
+    expect(dash).toMatch(
+      /\? buildWhoopRecommendation\(whoopMetrics, earlySnapshot\.date, spToday\(\)\)\s*: null/,
+    );
+    expect(dash).toMatch(/whoopRec\?\.recommendation \?\? null\s*: recommendation/);
+  });
+
+  it("carga usa a recomendação da MESMA fonte do hero", () => {
+    expect(dash).toContain("useLoadSuggestions(studentId, activeRecommendation)");
+  });
+
+  it("alternativas de treino usam a zona da fonte ativa", () => {
+    expect(dash).toContain(
+      "hasActiveRecommendation && activeRecommendation ? activeRecommendation.zone : null",
+    );
+  });
+
+  it("tiles Whoop têm metric keys pros alertas ancorarem (HRV, FCR, sono)", () => {
+    // Cada key aparece 2×: uma no ramo Oura, outra no Whoop — exceto o sono,
+    // que no Whoop usa o tile próprio de performance.
+    expect(dash).toMatch(/key: "hrv-whoop",\s*metric: "hrv_noturna"/);
+    expect(dash).toMatch(/key: "fcr-whoop",\s*metric: "fc_repouso"/);
+    expect(dash).toMatch(/key: "sono-whoop",\s*metric: "sono"/);
+  });
+
+  it("nomenclatura source-aware no diálogo de alternativas", () => {
+    expect(dash).toContain('snapshot.source === "oura" ? "readiness" : "recovery"');
+  });
+
+  it("página busca a janela da recomendação (constante compartilhada, não número solto)", () => {
+    expect(page).toContain('useWhoopMetrics(needsWhoop ? studentId : "", { days: WHOOP_RECOMMENDATION_WINDOW_DAYS })');
+    expect(page).not.toMatch(/useWhoopMetrics\([^)]*,\s*7\)/);
+  });
+
+  it("tiles de agudas só mostram agudas do DIA do snapshot", () => {
+    expect(dash).toMatch(/latestAcuteMetrics && latestAcuteMetrics\.date === snapshot\.date \? latestAcuteMetrics : null/);
+    // Nenhum tile lê latestAcuteMetrics direto — só via acuteDayRow gateado.
+    expect(dash).not.toMatch(/latestAcuteMetrics\??\.(hrv_night_min|hrv_night_last|hr_day_avg|hr_day_max)/);
+  });
+
+  it("recomendação Whoop recebe o anchor da consulta (guard de baseline truncado)", () => {
+    expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())");
+    expect(page).toContain("{ days: WHOOP_RECOMMENDATION_WINDOW_DAYS }");
+  });
+
+  it("latestMetrics participa da DECISÃO da fonte (cache defasado não esconde o Oura mais novo)", () => {
+    expect(dash).toMatch(/buildRecoverySnapshot\(\s*latestMetrics \? \[latestMetrics, \.\.\.recentMetrics\] : recentMetrics,\s*whoopMetrics,\s*\)/);
+  });
+
+  it("prescrição e tiles Oura casam com o DIA do snapshot (não com latestMetrics de outra query)", () => {
+    expect(dash).toContain("useTrainingRecommendation(ouraDayRow, recentMetrics");
+    expect(dash).toMatch(/recentMetrics\.find\(\(m\) => m\.date === earlySnapshot\.date\) \?\? latestMetrics/);
+    // Nenhum tile Oura lê latestMetrics direto — tudo vem da linha do dia.
+    expect(dash).not.toMatch(/latestMetrics\??\.(sleep_score|average_sleep_hrv|resting_heart_rate|temperature_deviation|activity_score|steps|total_sleep_duration)/);
   });
 });
