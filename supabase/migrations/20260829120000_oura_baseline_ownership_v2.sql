@@ -60,7 +60,9 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.calc_oura_baseline(uuid, integer) FROM anon;
-REVOKE ALL ON FUNCTION public.calc_oura_baseline_v2(uuid, integer, date) FROM anon;
+-- Função nova herda EXECUTE de PUBLIC por default — revogar só de anon não
+-- remove o privilégio herdado (Codex R7).
+REVOKE EXECUTE ON FUNCTION public.calc_oura_baseline(uuid, integer) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.calc_oura_baseline_v2(uuid, integer, date) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.calc_oura_baseline(uuid, integer) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.calc_oura_baseline_v2(uuid, integer, date) TO authenticated;

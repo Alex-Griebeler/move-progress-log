@@ -116,7 +116,7 @@ describe("agnóstico de wearable", () => {
 
   it("página propaga loading/erro pro dashboard", () => {
     expect(page).toContain("isLoading={loadingOuraMetrics || loadingWhoopMetrics || loadingLatestOura}");
-    expect(page).toContain("isError={ouraMetricsError || whoopMetricsError}");
+    expect(page).toContain("isError={ouraMetricsError || whoopMetricsError || latestOuraError}");
     expect(page).toContain("latestOuraError={latestOuraError}");
     // com snapshot presente, erro só do latest NÃO pode afirmar "sem score":
     // a cadeia de mensagens testa latestOuraError ANTES da afirmação
