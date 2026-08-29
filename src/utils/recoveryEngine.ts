@@ -210,6 +210,7 @@ export function computeRecoveryRecommendation(
   // liberaria progressão por falta de dado (auditoria 29/08). Com menos de
   // 5 dos 7 dias, a regra pula e a fadiga assume "moderate" — conservador:
   // segura a zona 4 sem derrubar o treino normal.
+  const fatigueWindowComplete = weekDaysWithCalories.length === 7;
   if (weekDaysWithCalories.length >= 5) {
     evaluate("fadiga_semanal");
     const weeklyBurn = weekDaysWithCalories.reduce(
@@ -364,7 +365,7 @@ export function computeRecoveryRecommendation(
   else {
     evaluate("sono_eficiencia");
     if (input.sleepEfficiencyPercent < goals.minSleepEfficiency) {
-      alerts.push({ kind: "fisiologico", metric: "eficiencia_sono", shortLabel: "Eficiência baixa", level: "INFO", message: "ℹ️ Eficiência do sono abaixo do mínimo configurado. Vale revisar ambiente e rotina de sono." });
+      alerts.push({ kind: "fisiologico", metric: "eficiencia_sono", shortLabel: "Eficiência baixa", level: "INFO", message: `ℹ️ Eficiência do sono abaixo do mínimo configurado (${input.sleepEfficiencyPercent.toFixed(0)}% vs ${goals.minSleepEfficiency}%). Vale revisar ambiente e rotina de sono.` });
     }
   }
 
@@ -392,18 +393,18 @@ export function computeRecoveryRecommendation(
     if (typeof hrvLast === "number" && hrvLast < baselineHrv * 0.7) {
       alerts.push({ kind: "fisiologico", metric: "hrv_aguda", shortLabel: "Queda aguda forte",
         level: "CRITICAL",
-        message: `🔴 HRV do último bloco da noite mais de 30% abaixo do seu basal (${hrvLast.toFixed(1)} ms). Reduza a carga de hoje e reavalie amanhã.`,
+        message: `🔴 HRV do último bloco da noite mais de 30% abaixo do seu basal (${hrvLast.toFixed(1)} ms vs ${Math.round(baselineHrv)} ms). Reduza a carga de hoje e reavalie amanhã.`,
       });
     } else if (typeof hrvLast === "number" && hrvLast < baselineHrv * 0.85) {
       alerts.push({ kind: "fisiologico", metric: "hrv_aguda", shortLabel: "Abaixo do basal",
         level: "WARNING",
-        message: `🟡 HRV do último bloco da noite mais de 15% abaixo do seu basal (${hrvLast.toFixed(1)} ms). Considere reduzir a carga e observar a resposta.`,
+        message: `🟡 HRV do último bloco da noite mais de 15% abaixo do seu basal (${hrvLast.toFixed(1)} ms vs ${Math.round(baselineHrv)} ms). Considere reduzir a carga e observar a resposta.`,
       });
     }
     if (typeof hrvMin === "number" && hrvMin < baselineHrv * 0.55) {
       alerts.push({ kind: "fisiologico", metric: "hrv_aguda", shortLabel: "Queda acentuada na noite",
         level: "WARNING",
-        message: `🟡 HRV mínima da noite mais de 45% abaixo do seu basal (${hrvMin.toFixed(1)} ms). Evite sessão de alta intensidade hoje.`,
+        message: `🟡 HRV mínima da noite mais de 45% abaixo do seu basal (${hrvMin.toFixed(1)} ms vs ${Math.round(baselineHrv)} ms). Evite sessão de alta intensidade hoje.`,
       });
     }
   }
@@ -433,6 +434,19 @@ export function computeRecoveryRecommendation(
         message: `🟡 FC média diária acima do esperado (${hrDayAvg.toFixed(0)} bpm). Priorize controle de intensidade na sessão.`,
       });
     }
+  }
+
+  // PROGRESSÃO EXIGE JANELA DE FADIGA COMPLETA (revisão R7): com 5-6 dos 7
+  // dias, o burn avaliado vale pras zonas de manutenção/redução, mas os
+  // dias ausentes poderiam levar o total a "high" — +5% não pode nascer de
+  // semana incompleta.
+  if (zone === 4 && !fatigueWindowComplete) {
+    zone = 3;
+    alerts.push({ kind: "onboarding", metric: null, shortLabel: null,
+      level: "INFO",
+      message:
+        "ℹ️ Progressão automática retida: a janela de fadiga semanal está incompleta — treino normal recomendado no lugar de máxima performance.",
+    });
   }
 
   // VETO POR CRITICAL (revisão fria R4): zona 4 prescreve 80-95% FCMáx e

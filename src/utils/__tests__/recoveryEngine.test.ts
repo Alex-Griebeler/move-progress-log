@@ -425,3 +425,45 @@ describe("linguagem clínica (ratificado 29/08: medido vs basal + o que fazer)",
     }
   });
 });
+
+describe("janela de fadiga por disponibilidade (R7)", () => {
+  const day = (score = 90): RecoveryDayInput => ({
+    source: "oura", date: "2026-08-28", score, restingHeartRateBpm: 55,
+  });
+  const okBaseline = { source: "oura" as const, avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 };
+  const historyWithCalorieDays = (daysWithData: number): RecoveryHistoryDay[] =>
+    historyDays(10).map((h, i) => {
+      // os últimos `daysWithData` dias da janela ganham calorias
+      const idxFromEnd = 10 - 1 - i;
+      return idxFromEnd < daysWithData ? { ...h, activeCaloriesKcal: 400 } : h;
+    });
+
+  it("7/7 dias com dado + burn baixo → zona 4 liberada", () => {
+    const rec = computeRecoveryRecommendation(day(), historyWithCalorieDays(7), okBaseline);
+    expect(rec.evaluatedRules).toContain("fadiga_semanal");
+    expect(rec.zone).toBe("green_high");
+  });
+
+  it("5-6/7: burn avaliado, mas progressão RETIDA (dias ausentes podiam levar a high)", () => {
+    for (const n of [5, 6]) {
+      const rec = computeRecoveryRecommendation(day(), historyWithCalorieDays(n), okBaseline);
+      expect(rec.evaluatedRules, `${n}/7`).toContain("fadiga_semanal");
+      expect(rec.zone, `${n}/7`).toBe("green");
+      expect(rec.alerts.some((a) => a.message.includes("janela de fadiga semanal está incompleta"))).toBe(true);
+    }
+  });
+
+  it("1-4/7: regra pula com motivo e fadiga assume moderate", () => {
+    const rec = computeRecoveryRecommendation(day(), historyWithCalorieDays(4), okBaseline);
+    expect(rec.skippedRules.find((r) => r.rule === "fadiga_semanal")?.reason).toMatch(/4 dos 7/);
+    expect(rec.fatigueLevel).toBe("moderate");
+    expect(rec.zone).toBe("green"); // moderate nunca libera zona 4
+  });
+
+  it("0/7 no Oura: skip conservador também segura a zona 4", () => {
+    const rec = computeRecoveryRecommendation(day(), historyDays(10), okBaseline);
+    expect(rec.skippedRules.map((r) => r.rule)).toContain("fadiga_semanal");
+    expect(rec.fatigueLevel).toBe("moderate");
+    expect(rec.zone).toBe("green");
+  });
+});

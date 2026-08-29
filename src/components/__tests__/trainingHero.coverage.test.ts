@@ -159,8 +159,8 @@ describe("coerência de fontes (fix pós-review Codex)", () => {
   });
 
   it("card de carga vazio tem a MESMA guarda do cheio (fonte ativa, R5)", () => {
-    const emptyGuard = dash.match(/hasActiveRecommendation && loadSuggestions && loadSuggestions\.length === 0/);
-    const fullGuard = dash.match(/hasActiveRecommendation && loadSuggestions && loadSuggestions\.length > 0/);
+    const emptyGuard = dash.match(/hasActionableRecommendation && loadSuggestions && loadSuggestions\.length === 0/);
+    const fullGuard = dash.match(/hasActionableRecommendation && loadSuggestions && loadSuggestions\.length > 0/);
     expect(emptyGuard).not.toBeNull();
     expect(fullGuard).not.toBeNull();
   });
@@ -189,7 +189,7 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
 
   it("alternativas de treino usam a zona da fonte ativa", () => {
     expect(dash).toContain(
-      "hasActiveRecommendation && activeRecommendation ? activeRecommendation.zone : null",
+      "hasActionableRecommendation && activeRecommendation ? activeRecommendation.zone : null",
     );
   });
 
@@ -239,8 +239,21 @@ describe("R7 — correções da auditoria (29/08)", () => {
     expect(dash).not.toContain("if (isLoading && !snapshot) {");
   });
 
-  it("erro parcial de wearable é dito no hero, não engolido", () => {
+  it("erro parcial de wearable é dito no hero E suspende ação (2ª rodada)", () => {
     expect(dash).toContain("Parte dos dados de wearable não carregou");
+    expect(dash).toContain("const hasActionableRecommendation = hasActiveRecommendation && !isError;");
+    expect(dash).toContain("{hasActionableRecommendation ? (");
+    expect(dash).toContain("Recomendação suspensa: parte dos dados de wearable não carregou");
+  });
+
+  it("alternativa escolhida é escopada por {studentId, date}", () => {
+    expect(dash).toContain("rawSelectedAlternative.studentId === studentId");
+    expect(dash).toContain("rawSelectedAlternative.date === earlySnapshot?.date");
+    expect(dash).toContain("setSelectedAlternative({ ...alt, studentId, date: snapshot.date })");
+  });
+
+  it("stale ganha nota explícita de conduta datada", () => {
+    expect(dash).toContain("Conduta calculada para {snapshotDayLabel}");
   });
 
   it("baseline Oura ancorado no DIA do snapshot", () => {

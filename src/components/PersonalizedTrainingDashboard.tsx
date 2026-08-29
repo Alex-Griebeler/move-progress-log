@@ -172,7 +172,15 @@ const PersonalizedTrainingDashboard = ({
     isError: loadSuggestionsError,
   } = useLoadSuggestions(studentId, activeRecommendation);
   const [showAlternatives, setShowAlternatives] = useState(false);
-  const { selectedAlternative, setSelectedAlternative } = useTrainingContext();
+  const { selectedAlternative: rawSelectedAlternative, setSelectedAlternative } = useTrainingContext();
+  // Escolha de alternativa é estado GLOBAL: sem casar {studentId, date},
+  // a seleção da aluna A aparecia no hero da aluna B (revisão R7).
+  const selectedAlternative =
+    rawSelectedAlternative &&
+    rawSelectedAlternative.studentId === studentId &&
+    rawSelectedAlternative.date === earlySnapshot?.date
+      ? rawSelectedAlternative
+      : null;
 
   // AUD-003: Sincronizar alternativa selecionada com contexto global
   useEffect(() => {
@@ -265,6 +273,11 @@ const PersonalizedTrainingDashboard = ({
   const hasActiveRecommendation = ouraIsCurrent
     ? hasOuraRecommendation
     : Boolean(activeRecommendation);
+  // Com uma das consultas de wearable em ERRO, a decisão da fonte pode
+  // estar errada (um dia mais novo pode existir na fonte que falhou) — o
+  // hero fica informativo, mas prescrição/carga/CTA suspendem até
+  // recarregar (revisão R7).
+  const hasActionableRecommendation = hasActiveRecommendation && !isError;
   const sleepDuration = ouraDayRow ? formatDuration(ouraDayRow.total_sleep_duration) : null;
   // Agudas do MESMO dia do snapshot — regra que o adapter já aplica pra
   // recomendação; sem ela os tiles mostrariam agudas de 28/08 sob hero de
@@ -446,7 +459,7 @@ const PersonalizedTrainingDashboard = ({
     physiology.flatMap((p) => (p.metric ? [p.metric] : [])),
   );
   const alertPartition = partitionAlerts(
-    hasActiveRecommendation && activeRecommendation ? activeRecommendation.alerts : [],
+    hasActionableRecommendation && activeRecommendation ? activeRecommendation.alerts : [],
     renderedTileMetrics,
   );
 
@@ -478,6 +491,11 @@ const PersonalizedTrainingDashboard = ({
             </div>
             {/* "Hoje pendente + ontem fechado" não dispara isStale (2 dias) —
                 sem esta linha, a prescrição de ontem passaria por atual. */}
+            {snapshotDayLabel && (
+              <p className="text-xs text-warning">
+                Conduta calculada para {snapshotDayLabel} — não é a leitura de hoje.
+              </p>
+            )}
             {whoopPendingNote && (
               <p className="text-xs text-muted-foreground">{whoopPendingNote}</p>
             )}
@@ -497,7 +515,7 @@ const PersonalizedTrainingDashboard = ({
             <span className="sr-only" role="status">
               {`Recomendação por ${snapshot.source === "oura" ? "Oura" : "Whoop"}, dia ${snapshot.date}${activeRecommendation ? `: ${activeRecommendation.trainingType}` : ""}`}
             </span>
-            {hasActiveRecommendation ? (
+            {hasActionableRecommendation ? (
               <>
                 <h3 className="text-2xl font-bold text-foreground">
                   {activeRecommendation!.trainingType}
@@ -516,7 +534,9 @@ const PersonalizedTrainingDashboard = ({
               <p className="text-sm text-muted-foreground">
                 {isLoading
                   ? "Carregando recomendação do dia…"
-                  : snapshot.source === "oura" && latestOuraError
+                  : isError
+                    ? "Recomendação suspensa: parte dos dados de wearable não carregou e a fonte do dia pode estar errada. Recarregue a página."
+                    : snapshot.source === "oura" && latestOuraError
                     ? "Não foi possível carregar o score do dia — a recomendação fica indisponível. Recarregue a página para tentar de novo."
                     : snapshot.source === "oura"
                       ? "Sem score de prontidão fechado para o dia mais recente — a recomendação automática fica indisponível até a próxima sincronização. Use o histórico da aba Oura para calibrar o treino."
@@ -529,7 +549,7 @@ const PersonalizedTrainingDashboard = ({
       </Card>
 
       {/* Sugestão de carga — o dado mais acionável do coach, logo após o hero */}
-      {hasActiveRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
+      {hasActionableRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold">Sugestão Assistida de Carga</h3>
@@ -607,13 +627,13 @@ const PersonalizedTrainingDashboard = ({
           </div>
         </Card>
       )}
-      {hasActiveRecommendation && loadSuggestionsLoading && (
+      {hasActionableRecommendation && loadSuggestionsLoading && !loadSuggestions && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <Skeleton className="h-16 w-full rounded-lg" />
         </Card>
       )}
-      {hasActiveRecommendation && loadSuggestionsError && (
+      {hasActionableRecommendation && loadSuggestionsError && !loadSuggestions && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
@@ -622,7 +642,7 @@ const PersonalizedTrainingDashboard = ({
           </p>
         </Card>
       )}
-      {hasActiveRecommendation && loadSuggestions && loadSuggestions.length === 0 && (
+      {hasActionableRecommendation && loadSuggestions && loadSuggestions.length === 0 && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
@@ -632,7 +652,7 @@ const PersonalizedTrainingDashboard = ({
       )}
 
       {/* Protocolos prioritários (readiness crítico) */}
-      {hasActiveRecommendation && activeRecommendation?.priorityProtocols && activeRecommendation.priorityProtocols.length > 0 && (
+      {hasActionableRecommendation && activeRecommendation?.priorityProtocols && activeRecommendation.priorityProtocols.length > 0 && (
         <Card className="p-6 border-2 border-destructive/50 bg-destructive/5">
           <div className="flex items-center space-x-2 mb-4">
             <AlertCircle className="w-6 h-6 text-destructive" />
@@ -642,8 +662,9 @@ const PersonalizedTrainingDashboard = ({
           </div>
           <Alert variant="destructive" className="mb-6">
             <AlertDescription>
-              <strong>Dia de recuperação:</strong> treino não é recomendado hoje.
-              Os protocolos abaixo são as condutas sugeridas pro dia.
+              <strong>Dia de recuperação:</strong> treino não é recomendado{" "}
+              {snapshotDayLabel ? `no dia avaliado (${snapshotDayLabel})` : "hoje"}. Os
+              protocolos abaixo são as condutas sugeridas pra esse dia.
             </AlertDescription>
           </Alert>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -796,13 +817,13 @@ const PersonalizedTrainingDashboard = ({
             {getTrainingAlternativesForZone(
               // Zona FINAL do motor (já com fadiga/override); score cru só
               // no fallback raro sem recomendação da fonte ativa.
-              hasActiveRecommendation && activeRecommendation ? activeRecommendation.zone : null,
+              hasActionableRecommendation && activeRecommendation ? activeRecommendation.zone : null,
               snapshot.score,
             ).map((alt, idx) => (
               <button
                 key={idx}
                 onClick={() => {
-                  setSelectedAlternative(alt);
+                  setSelectedAlternative({ ...alt, studentId, date: snapshot.date });
                   setShowAlternatives(false);
                 }}
                 className="w-full p-4 border rounded-lg hover:bg-muted/50 transition-colors text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"

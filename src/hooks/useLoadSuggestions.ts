@@ -74,8 +74,11 @@ export const hasPainSignal = (value: string | null | undefined): boolean => {
 export const hasTechniqueSignal = (value: string | null | undefined): boolean => {
   if (!value) return false;
   const normalized = stripNegatedMentions(normalizeComparableText(value));
+  // "tecnica" sozinha NÃO é sinal ("técnica excelente" bloqueava progressão
+  // — revisão R7); só a menção com qualificador negativo conta.
   return (
-    normalized.includes("tecnica") ||
+    /\btecnica\s+(?:ruim|comprometida|falhou|quebrou|instavel)\b/.test(normalized) ||
+    /\b(?:falha|quebra|perda)\s+d?[aeo]?\s*tecnica\b/.test(normalized) ||
     normalized.includes("compensacao") ||
     normalized.includes("instavel") ||
     normalized.includes("instabilidade")
@@ -130,6 +133,7 @@ export const useLoadSuggestions = (
         string,
         { category: string | null; equipmentRequired: string[] | null }
       >();
+      const libraryIdByName = new Map<string, string>();
       for (const row of libraryRows || []) {
         if (!row?.name) continue;
         const meta = {
@@ -142,6 +146,9 @@ export const useLoadSuggestions = (
         const key = normalizeComparableText(row.name);
         if (!libraryByName.has(key)) {
           libraryByName.set(key, meta);
+        }
+        if (!libraryIdByName.has(key)) {
+          libraryIdByName.set(key, row.id);
         }
       }
 
@@ -159,9 +166,12 @@ export const useLoadSuggestions = (
             continue;
           }
 
-          const key = exerciseLibraryId
-            ? `id:${exerciseLibraryId}`
-            : `name:${normalizeComparableText(exerciseName)}`;
+          // Reconciliação (revisão R7): execução antiga sem id, cujo nome
+          // casa com a biblioteca, entra no MESMO grupo do id canônico —
+          // senão o mesmo exercício aparecia 2× com histórico fragmentado.
+          const normalizedName = normalizeComparableText(exerciseName);
+          const canonicalId = exerciseLibraryId ?? libraryIdByName.get(normalizedName) ?? null;
+          const key = canonicalId ? `id:${canonicalId}` : `name:${normalizedName}`;
           const list = byExercise.get(key) || [];
           list.push({
             exerciseLibraryId,
