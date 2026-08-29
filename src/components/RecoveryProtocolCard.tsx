@@ -90,7 +90,10 @@ const RecoveryProtocolCard = ({ protocol }: RecoveryProtocolCardProps) => {
       <CardContent className="space-y-md">
         {/* Benefits */}
         <div>
-          <p className="text-base font-medium mb-sm">Benefícios:</p>
+          {/* Rótulo de INTENÇÃO, não de promessa: os itens vêm do catálogo
+              e descrevem o alvo do protocolo, não efeito garantido
+              (linguagem clínica ratificada 29/08). */}
+          <p className="text-base font-medium mb-sm">Objetivo do protocolo:</p>
           <div className="flex flex-wrap gap-sm">
             {formatBenefits(protocol.benefits).map((benefit, idx) => (
               <Badge key={idx} variant="secondary" className="text-xs">

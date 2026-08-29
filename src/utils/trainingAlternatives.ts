@@ -25,8 +25,8 @@ export const getTrainingAlternativesForZone = (
 const getTrainingAlternatives = (rs: number) => {
   if (rs >= 85) {
     return [
-      { type: "Desafio Máximo Recomendado", description: "Dia ideal para buscar recordes pessoais: recuperação completa." },
-      { type: "Treino Normal Intenso", description: "Alta intensidade com confiança — sistema nervoso e muscular prontos." },
+      { type: "Desafio Máximo Recomendado", description: "Score no topo da faixa — dia adequado para buscar recordes pessoais." },
+      { type: "Treino Normal Intenso", description: "Alta intensidade dentro do programado." },
       { type: "Volume Alto", description: "Bom dia para treinos longos ou múltiplas sessões." },
     ];
   } else if (rs >= 65) {
@@ -38,19 +38,19 @@ const getTrainingAlternatives = (rs: number) => {
   } else if (rs >= 45) {
     return [
       { type: "Redução Moderada (Recomendado)", description: "Reduzir 20-30% do volume ou intensidade — carga mais leve pra seguir progredindo." },
-      { type: "Recuperação Ativa", description: "Alternativa mais segura: mobilidade leve, yoga ou caminhada." },
-      { type: "Descanso Completo", description: "Com sintomas de overtraining (fadiga intensa, dor persistente), optar por descanso." },
+      { type: "Recuperação Ativa", description: "Mobilidade leve, yoga ou caminhada." },
+      { type: "Descanso Completo", description: "Com fadiga intensa ou dor persistente, optar por descanso." },
     ];
   } else if (rs >= 25) {
     return [
       { type: "Recuperação Ativa (Recomendado)", description: "Movimento leve apenas: alongamento dinâmico, yoga suave ou caminhada de 20-30 min." },
-      { type: "Descanso Completo", description: "Com cansaço acentuado, priorizar descanso total — recuperação urgente." },
+      { type: "Descanso Completo", description: "Com cansaço acentuado, priorizar descanso total." },
       { type: "Protocolos de Recuperação", description: "Focar nos protocolos recomendados (crioterapia, respiração, mindfulness)." },
     ];
   }
   return [
-    { type: "Descanso Obrigatório (CRÍTICO)", description: "Sistema nervoso severamente sobrecarregado: treinar hoje aumenta risco de lesão." },
-    { type: "Protocolos de Recuperação Urgente", description: "Focar 100% nos protocolos prioritários — efeito mensurável em 24-72h." },
-    { type: "Avaliação Médica", description: "Se o readiness crítico persistir por 3+ dias, considerar avaliação médica/fisioterapia." },
+    { type: "Descanso Obrigatório", description: "Recuperação muito baixa hoje — descanso é a conduta recomendada." },
+    { type: "Protocolos de Recuperação", description: "Focar nos protocolos prioritários do dia (banho de contraste, respiração lenta, descanso)." },
+    { type: "Avaliação Médica", description: "Se o quadro persistir por 3+ dias, considerar avaliação médica/fisioterapia." },
   ];
 };

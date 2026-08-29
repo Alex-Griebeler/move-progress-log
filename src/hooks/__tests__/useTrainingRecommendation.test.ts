@@ -231,8 +231,10 @@ describe("calculateTrainingRecommendation", () => {
       baseline
     );
 
+    // Matcher por métrica+nível (o texto foi reescrito na R6 — decisão
+    // ratificada 29/08 — e o comportamento é o que este teste protege).
     const criticalAlert = recommendation?.alerts.find(
-      (alert) => alert.level === "CRITICAL" && alert.message.includes("muito elevada")
+      (alert) => alert.level === "CRITICAL" && alert.metric === "fc_repouso"
     );
 
     expect(criticalAlert).toBeDefined();
