@@ -310,7 +310,7 @@ export function computeRecoveryRecommendation(
       if (input.hrvRmssdMs < baseline.avgHrv * 0.70) {
         alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Muito abaixo do basal", level: "CRITICAL", message: "🔴 HRV mais de 30% abaixo do seu basal. Reduza o estímulo de hoje e priorize descanso; se o padrão persistir por vários dias ou vier com sintomas, vale avaliação médica." });
       } else {
-        alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Abaixo do basal", level: "WARNING", message: "🟡 HRV 15% ou mais abaixo do seu basal. Considere reduzir o esforço de hoje e observar o acumulado da semana." });
+        alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Abaixo do basal", level: "WARNING", message: "🟡 HRV mais de 15% abaixo do seu basal. Considere reduzir o esforço de hoje e observar o acumulado da semana." });
       }
     }
   }
@@ -324,9 +324,9 @@ export function computeRecoveryRecommendation(
     evaluate("fc_repouso");
     if (input.restingHeartRateBpm >= baseline.avgRhr + 5) {
       if (input.restingHeartRateBpm >= baseline.avgRhr + 10) {
-        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Muito acima do basal", level: "CRITICAL", message: "🔴 FC de repouso 10+ bpm acima do seu basal — o corpo ainda não voltou ao padrão. Priorize repouso hoje e observe como você se sente." });
+        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Muito acima do basal", level: "CRITICAL", message: "🔴 FC de repouso 10+ bpm acima do seu basal. Priorize repouso hoje e observe como você se sente." });
       } else {
-        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Acima do basal", level: "WARNING", message: "🟡 FC de repouso 5+ bpm acima do seu basal — recuperação ainda incompleta. Reduza o ritmo hoje." });
+        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Acima do basal", level: "WARNING", message: "🟡 FC de repouso 5+ bpm acima do seu basal. Reduza o ritmo hoje." });
       }
     }
   }
@@ -336,7 +336,7 @@ export function computeRecoveryRecommendation(
   else {
     evaluate("sono_duracao");
     if (input.sleepDurationSeconds < goals.minSleepDurationThreshold) {
-      alerts.push({ kind: "fisiologico", metric: "sono", shortLabel: "Duração insuficiente", level: "CRITICAL", message: "🔴 Sono abaixo do mínimo configurado. Evite alta intensidade hoje e, se possível, complemente o descanso." });
+      alerts.push({ kind: "fisiologico", metric: "sono", shortLabel: "Duração insuficiente", level: "CRITICAL", message: "🔴 Sono abaixo do mínimo configurado. Modere a intensidade de hoje e priorize o descanso desta noite." });
     }
   }
 
@@ -467,7 +467,7 @@ export function computeRecoveryRecommendation(
     trainingType = "Descanso Completo / Repouso";
     intensity = "MUITO BAIXA (0-20% FCMáx)";
     duration = "Repouso total";
-    reason = "Vários sinais fisiológicos bem abaixo do seu padrão hoje. Treino não é recomendado — use os protocolos de recuperação e reavalie amanhã.";
+    reason = "Score de recuperação muito baixo hoje. Treino não é recomendado — use os protocolos de recuperação e reavalie amanhã.";
     emoji = "🔴";
   }
 
@@ -475,8 +475,8 @@ export function computeRecoveryRecommendation(
   if (zone === 0) {
     priorityProtocols = [
       { order: 1, name: "Contraste Térmico", duration: "15 minutos", timing: "Pós-treino ou manhã", description: "Alternância de água quente e fria no banho." },
-      { order: 2, name: "Crioterapia", duration: "10 minutos", timing: "Após atividade física", description: "Imersão em água fria por até 10 minutos, se disponível. Pode ajudar na sensação de dor muscular." },
-      { order: 3, name: "Coerência Cardíaca", duration: "10-15 minutos", timing: "Ao acordar", description: "Respiração lenta, ~6 ciclos por minuto. Ajuda a reduzir a ativação de estresse no curto prazo." },
+      { order: 2, name: "Crioterapia", duration: "10 minutos", timing: "Após atividade física", description: "Imersão em água fria por até 10 minutos, se disponível." },
+      { order: 3, name: "Coerência Cardíaca", duration: "10-15 minutos", timing: "Ao acordar", description: "Respiração lenta, ~6 ciclos por minuto, em ambiente calmo." },
       { order: 4, name: "Grounding", duration: "10 minutos", timing: "Manhã", description: "Tempo ao ar livre pela manhã, de preferência em ambiente natural." },
     ];
   }

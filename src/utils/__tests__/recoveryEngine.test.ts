@@ -378,24 +378,34 @@ describe("linguagem clínica (ratificado 29/08: medido vs basal + o que fazer)",
   it("sem diagnóstico, sem drama, sem promessa causal com prazo — nos textos do motor e das alternativas", () => {
     const { readFileSync } = require("fs");
     const { join } = require("path");
-    const engine = readFileSync(join(__dirname, "../recoveryEngine.ts"), "utf8");
-    const alternatives = readFileSync(join(__dirname, "../trainingAlternatives.ts"), "utf8");
-    const banned = [
-      "possível doença",
-      "SITUAÇÃO CRÍTICA",
-      "severamente",
-      "24-72h",
-      "24-48h",
-      "reduz cortisol",
-      "Reduz inflamação",
-      "Reduz marcadores inflamatórios",
-      "pode indicar inflamação",
-      "Pode indicar inflamação",
-      "fadiga extrema",
+    const sources: Array<[string, string]> = [
+      ["motor", readFileSync(join(__dirname, "../recoveryEngine.ts"), "utf8")],
+      ["alternativas", readFileSync(join(__dirname, "../trainingAlternatives.ts"), "utf8")],
+      // O card de protocolos tinha texto ESTÁTICO com a mesma linguagem —
+      // a review da R6 pegou; a UI entra no guarda.
+      [
+        "dashboard",
+        readFileSync(join(__dirname, "../../components/PersonalizedTrainingDashboard.tsx"), "utf8"),
+      ],
     ];
-    for (const phrase of banned) {
-      expect(engine, `"${phrase}" voltou pro motor`).not.toContain(phrase);
-      expect(alternatives, `"${phrase}" voltou pras alternativas`).not.toContain(phrase);
+    const banned = [
+      /possível doença/i,
+      /situação crítica/i,
+      /severamente/i,
+      /24-72h/,
+      /24-48h/,
+      /reduz cortisol/i,
+      /reduz inflamação/i,
+      /reduz marcadores inflamatórios/i,
+      /pode indicar inflamação/i,
+      /fadiga extrema/i,
+      /meta-análises/i,
+      /validados cientificamente/i,
+    ];
+    for (const [name, source] of sources) {
+      for (const phrase of banned) {
+        expect(source, `${phrase} voltou (${name})`).not.toMatch(phrase);
+      }
     }
   });
 });

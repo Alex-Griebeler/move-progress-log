@@ -579,8 +579,8 @@ const PersonalizedTrainingDashboard = ({
           </div>
           <Alert variant="destructive" className="mb-6">
             <AlertDescription>
-              <strong>Situação crítica:</strong> recuperação urgente necessária.
-              Os protocolos abaixo são validados cientificamente, com efeitos mensuráveis em 24-72h.
+              <strong>Dia de recuperação:</strong> treino não é recomendado hoje.
+              Os protocolos abaixo são as condutas sugeridas pro dia.
             </AlertDescription>
           </Alert>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -615,9 +615,8 @@ const PersonalizedTrainingDashboard = ({
           </div>
           <div className="mt-6 p-4 bg-muted/30 rounded-lg">
             <p className="text-sm text-muted-foreground">
-              Protocolos selecionados com base em meta-análises peer-reviewed; seguir a
-              ordem recomendada. Se o readiness crítico persistir por 3+ dias, encaminhar
-              a profissional de saúde.
+              Seguir a ordem sugerida. Se o quadro persistir por 3 ou mais dias,
+              encaminhar a profissional de saúde.
             </p>
           </div>
         </Card>
