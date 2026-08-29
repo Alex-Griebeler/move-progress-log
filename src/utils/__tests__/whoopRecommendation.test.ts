@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { WhoopMetrics } from "@/hooks/useWhoopMetrics";
 import {
   buildWhoopRecommendation,
+  isBaselineWindowTruncated,
   newerPendingWhoopDate,
   WHOOP_RECOMMENDATION_WINDOW_DAYS,
 } from "@/utils/whoopRecommendation";
@@ -101,34 +102,23 @@ describe("buildWhoopRecommendation (R5 — fiação pura)", () => {
     expect(withFuture).toEqual(withoutFuture);
   });
 
-  it("baseline cuja janela começa antes da cobertura da consulta é descartado, não truncado", () => {
-    // FCR do dia 20 bpm acima do baseline → com baseline válido dispara
-    // alerta CRÍTICO de FCR. É o efeito observável que o guard precisa
-    // suprimir quando a consulta cortou o começo da janela.
-    const rows = window35((i) => (i === 0 ? { resting_heart_rate: 70 } : { resting_heart_rate: 50 }));
-    const withFullCoverage = buildWhoopRecommendation(rows, "2026-08-27", "2026-08-27").recommendation!;
-    expect(withFullCoverage.alerts.some((a) => a.metric === "fc_repouso")).toBe(true);
-
-    // Snapshot 70 dias atrás do anchor: [date−30, date] começa ANTES de
-    // anchor−(90−1) → mesmo com 34 amostras no array, o baseline é
-    // insuficiente por construção (não dá pra saber o que a consulta cortou).
-    const staleAnchor = ((): string => {
+  it("guard de truncamento: fronteiras exatas de 59/60 dias de defasagem", () => {
+    // Desde 29/08 (limiares por aparelho) nenhuma regra Whoop consome o
+    // baseline — o observável de alerta sumiu de propósito. O guard segue
+    // testado direto no predicado, pras calibrações futuras herdarem.
+    const anchorPlus = (days: number): string => {
       const d = new Date("2026-08-27T00:00:00Z");
-      d.setUTCDate(d.getUTCDate() + 70);
+      d.setUTCDate(d.getUTCDate() + days);
       return d.toISOString().slice(0, 10);
-    })();
-    const truncated = buildWhoopRecommendation(rows, "2026-08-27", staleAnchor).recommendation!;
-    expect(truncated).not.toBeNull();
-    expect(truncated.alerts.some((a) => a.metric === "fc_repouso")).toBe(false);
-
-    // Anchor no limite seguro (snapshot até windowDays−31 dias atrás) mantém o baseline.
-    const edgeAnchor = ((): string => {
-      const d = new Date("2026-08-27T00:00:00Z");
-      d.setUTCDate(d.getUTCDate() + (WHOOP_RECOMMENDATION_WINDOW_DAYS - 31));
-      return d.toISOString().slice(0, 10);
-    })();
-    const atEdge = buildWhoopRecommendation(rows, "2026-08-27", edgeAnchor).recommendation!;
-    expect(atEdge.alerts.some((a) => a.metric === "fc_repouso")).toBe(true);
+    };
+    // anchor = date → cobertura total
+    expect(isBaselineWindowTruncated("2026-08-27", "2026-08-27")).toBe(false);
+    // snapshot 59 dias atrás do anchor: janela ainda coberta (anchor−89 = date−30)
+    expect(isBaselineWindowTruncated("2026-08-27", anchorPlus(WHOOP_RECOMMENDATION_WINDOW_DAYS - 31))).toBe(false);
+    // 60 dias: primeiro dia da janela já ficou fora da consulta
+    expect(isBaselineWindowTruncated("2026-08-27", anchorPlus(WHOOP_RECOMMENDATION_WINDOW_DAYS - 30))).toBe(true);
+    // caso extremo usado na R5 (70 dias)
+    expect(isBaselineWindowTruncated("2026-08-27", anchorPlus(70))).toBe(true);
   });
 });
 

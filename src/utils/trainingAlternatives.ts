@@ -44,13 +44,13 @@ const getTrainingAlternatives = (rs: number) => {
   } else if (rs >= 25) {
     return [
       { type: "Recuperação Ativa (Recomendado)", description: "Movimento leve apenas: alongamento dinâmico, yoga suave ou caminhada de 20-30 min." },
-      { type: "Descanso Completo", description: "Com cansaço acentuado, priorizar descanso total — recuperação urgente." },
+      { type: "Descanso Completo", description: "Com cansaço acentuado, priorizar descanso total." },
       { type: "Protocolos de Recuperação", description: "Focar nos protocolos recomendados (crioterapia, respiração, mindfulness)." },
     ];
   }
   return [
-    { type: "Descanso Obrigatório (CRÍTICO)", description: "Sistema nervoso severamente sobrecarregado: treinar hoje aumenta risco de lesão." },
-    { type: "Protocolos de Recuperação Urgente", description: "Focar 100% nos protocolos prioritários — efeito mensurável em 24-72h." },
-    { type: "Avaliação Médica", description: "Se o readiness crítico persistir por 3+ dias, considerar avaliação médica/fisioterapia." },
+    { type: "Descanso Obrigatório", description: "Recuperação muito abaixo do seu padrão — hoje o custo de treinar supera o benefício." },
+    { type: "Protocolos de Recuperação", description: "Focar nos protocolos prioritários do dia (banho de contraste, respiração lenta, descanso)." },
+    { type: "Avaliação Médica", description: "Se o quadro persistir por 3+ dias, considerar avaliação médica/fisioterapia." },
   ];
 };

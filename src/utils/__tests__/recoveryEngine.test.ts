@@ -102,32 +102,35 @@ describe("motor com fonte Whoop — regras por disponibilidade de dado", () => {
     expect(skipped).toContain("override_hrv_aguda");
   });
 
-  it("as 4 regras portáveis avaliam com dado presente", () => {
+  it("no Whoop só as regras de SONO avaliam — HRV/FCR pulam por limiar de aparelho (ratificado 29/08)", () => {
     const rec = computeRecoveryRecommendation(whoopDay(), historyDays(10), whoopBaseline());
-    for (const rule of ["hrv_noturna", "fc_repouso", "sono_duracao", "sono_eficiencia"]) {
+    for (const rule of ["sono_duracao", "sono_eficiencia"]) {
       expect(rec.evaluatedRules).toContain(rule);
+    }
+    for (const rule of ["hrv_noturna", "fc_repouso"]) {
+      expect(rec.skippedRules.find((r) => r.rule === rule)?.reason).toMatch(/limiares por aparelho/);
     }
   });
 
-  it("HRV Whoop abaixo do basal Whoop dispara o alerta portável", () => {
+  it("HRV Whoop muito abaixo do basal NÃO dispara alerta com corte do Oura", () => {
+    // Decisão do Alex (29/08): limiares do Whoop pro Whoop. Os cortes
+    // 0.85/0.70 são calibração Oura; o recovery nativo já pondera HRV.
     const rec = computeRecoveryRecommendation(
-      whoopDay({ hrvRmssdMs: 40 }), // baseline 65 → 40 < 0.70×65 = crítico
+      whoopDay({ hrvRmssdMs: 40 }), // 40 < 0.70×65 dispararia na régua Oura
       historyDays(10),
       whoopBaseline(),
     );
-    const alert = rec.alerts.find((a) => a.metric === "hrv_noturna");
-    expect(alert?.level).toBe("CRITICAL");
+    expect(rec.alerts.find((a) => a.metric === "hrv_noturna")).toBeUndefined();
+    expect(rec.skippedRules.map((r) => r.rule)).toContain("hrv_noturna");
   });
 
-  it("FCR elevada no Whoop: ALERTA contextual, zona NÃO muda (banda nativa é final)", () => {
-    // Política da revisão fria R4: o recovery Whoop JÁ embute FCR — rebaixar
-    // de novo pelo mesmo sinal contaria o dado duas vezes.
+  it("FCR elevada no Whoop: sem alerta de régua Oura E zona intacta (banda nativa é final)", () => {
     const rec = computeRecoveryRecommendation(
       whoopDay({ score: 80, restingHeartRateBpm: 65 }), // basal 54 → +11
       historyDays(10),
       whoopBaseline(),
     );
-    expect(rec.alerts.find((a) => a.metric === "fc_repouso")?.level).toBe("CRITICAL");
+    expect(rec.alerts.find((a) => a.metric === "fc_repouso")).toBeUndefined();
     expect(rec.overrideApplied).toBe(false);
     expect(rec.zone).toBe("green"); // banda nativa intacta
     expect(rec.skippedRules.find((r) => r.rule === "override_fc_repouso")?.reason).toMatch(/banda nativa/);
@@ -245,14 +248,16 @@ describe("motivos de skip nomeiam O QUE falta (prontuário honesto)", () => {
 });
 
 describe("gate Whoop: baseline por métrica basta (sem o gate legado de contagem)", () => {
-  it("7 amostras de HRV no baseline avaliam a regra mesmo com só 6 scores fechados", () => {
+  it("regras de sono avaliam com só 6 scores fechados (gate legado é Oura-only)", () => {
+    // Desde 29/08 HRV/FCR pulam no Whoop por limiar de aparelho — o gate
+    // legado de contagem segue Oura-only, comprovado pela regra de sono.
     const rec = computeRecoveryRecommendation(
-      whoopDay({ hrvRmssdMs: 40 }), // crítico vs basal 65
+      whoopDay({ sleepDurationSeconds: 18000 }),
       historyDays(6), // < 7 scores fechados
-      whoopBaseline(), // baseline por métrica OK
+      whoopBaseline(),
     );
-    expect(rec.evaluatedRules).toContain("hrv_noturna");
-    expect(rec.alerts.find((a) => a.metric === "hrv_noturna")?.level).toBe("CRITICAL");
+    expect(rec.evaluatedRules).toContain("sono_duracao");
+    expect(rec.alerts.find((a) => a.metric === "sono")?.level).toBe("CRITICAL");
   });
 
   it("no Oura o gate legado continua valendo (paridade)", () => {
@@ -366,5 +371,31 @@ describe("auditoria evaluated/skipped", () => {
     expect(rec.evaluatedRules).toContain("fadiga_semanal");
     expect(rec.evaluatedRules).toContain("estresse");
     expect(rec.evaluatedRules).toContain("hrv_aguda");
+  });
+});
+
+describe("linguagem clínica (ratificado 29/08: medido vs basal + o que fazer)", () => {
+  it("sem diagnóstico, sem drama, sem promessa causal com prazo — nos textos do motor e das alternativas", () => {
+    const { readFileSync } = require("fs");
+    const { join } = require("path");
+    const engine = readFileSync(join(__dirname, "../recoveryEngine.ts"), "utf8");
+    const alternatives = readFileSync(join(__dirname, "../trainingAlternatives.ts"), "utf8");
+    const banned = [
+      "possível doença",
+      "SITUAÇÃO CRÍTICA",
+      "severamente",
+      "24-72h",
+      "24-48h",
+      "reduz cortisol",
+      "Reduz inflamação",
+      "Reduz marcadores inflamatórios",
+      "pode indicar inflamação",
+      "Pode indicar inflamação",
+      "fadiga extrema",
+    ];
+    for (const phrase of banned) {
+      expect(engine, `"${phrase}" voltou pro motor`).not.toContain(phrase);
+      expect(alternatives, `"${phrase}" voltou pras alternativas`).not.toContain(phrase);
+    }
   });
 });

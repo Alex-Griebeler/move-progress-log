@@ -50,6 +50,17 @@ export const newerPendingWhoopDate = (
   return newest;
 };
 
+/**
+ * true quando a janela do baseline ([date−30, date)) começa ANTES da
+ * cobertura da consulta ancorada em `queryAnchorDate` — nesse caso o
+ * baseline seria calculado truncado sem que dê pra perceber. Desde a
+ * decisão de limiares por aparelho (29/08) nenhuma regra Whoop consome o
+ * baseline, mas o guard fica: qualquer calibração futura por aparelho
+ * (ex.: SWC por aluno) herda a proteção.
+ */
+export const isBaselineWindowTruncated = (date: string, queryAnchorDate: string): boolean =>
+  shiftDays(date, -30) < shiftDays(queryAnchorDate, -(WHOOP_RECOMMENDATION_WINDOW_DAYS - 1));
+
 export interface WhoopRecommendationResult {
   recommendation: TrainingRecommendation | null;
   /**
@@ -81,13 +92,10 @@ export const buildWhoopRecommendation = (
   // Histórico: só dias ANTERIORES ao avaliado (dia futuro ou o próprio dia
   // não contam como "histórico"); baseline ancorado no dia avaliado.
   const history = whoopHistoryToRecoveryDays(rows.filter((w) => w.date < date));
-  const coverageStart = queryAnchorDate
-    ? shiftDays(queryAnchorDate, -(WHOOP_RECOMMENDATION_WINDOW_DAYS - 1))
-    : null;
-  const baselineTruncated = coverageStart !== null && shiftDays(date, -30) < coverageStart;
-  const baseline = baselineTruncated
-    ? buildWhoopBaseline([], date) // janela cortada pela consulta → insuficiente
-    : buildWhoopBaseline(rows, date);
+  const baseline =
+    queryAnchorDate !== undefined && isBaselineWindowTruncated(date, queryAnchorDate)
+      ? buildWhoopBaseline([], date) // janela cortada pela consulta → insuficiente
+      : buildWhoopBaseline(rows, date);
 
   return {
     recommendation: computeRecoveryRecommendation(input, history, baseline),

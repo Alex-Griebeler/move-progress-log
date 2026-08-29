@@ -292,33 +292,41 @@ export function computeRecoveryRecommendation(
   }
 
   // ── REGRAS DE ALERTA (portáveis por disponibilidade de dado) ─────────────
+  const WHOOP_DEVICE_THRESHOLD_REASON =
+    "limiar de desvio calibrado no Oura — no Whoop, HRV/FCR vs basal já estão ponderados no recovery nativo (limiares por aparelho, ratificado 29/08)";
 
-  // HRV noturna vs baseline
+  // HRV noturna vs baseline — cortes 0.85/0.70 calibrados no Oura. Pro
+  // Whoop a regra NÃO avalia (decisão do Alex 29/08, "limiares do whoop
+  // pro whoop"): o recovery nativo já pondera o desvio de HRV vs basal
+  // pessoal; refazer o corte com régua de outro aparelho contaria o mesmo
+  // dado duas vezes com limiar não validado.
   if (input.hrvRmssdMs === undefined) skip("hrv_noturna", "sem HRV noturna no dia");
+  else if (input.source === "whoop") skip("hrv_noturna", WHOOP_DEVICE_THRESHOLD_REASON);
   else if (baseline.avgHrv === null) skip("hrv_noturna", "sem baseline de HRV nesta fonte");
   else if (!legacyHistoryGate) skip("hrv_noturna", "histórico mínimo (7 dias) não atingido");
   else {
     evaluate("hrv_noturna");
     if (input.hrvRmssdMs < baseline.avgHrv * 0.85) {
       if (input.hrvRmssdMs < baseline.avgHrv * 0.70) {
-        alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Muito abaixo do basal", level: "CRITICAL", message: "🔴 HRV criticamente baixa: Sinal forte de fadiga extrema ou possível doença. Seu corpo precisa de descanso. Se persistir, procure orientação médica." });
+        alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Muito abaixo do basal", level: "CRITICAL", message: "🔴 HRV mais de 30% abaixo do seu basal. Reduza o estímulo de hoje e priorize descanso; se o padrão persistir por vários dias ou vier com sintomas, vale avaliação médica." });
       } else {
-        alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Abaixo do basal", level: "WARNING", message: "🟡 HRV abaixo do normal: Seu corpo pode estar sob estresse ou fadiga acumulada. Monitore sinais de cansaço e considere reduzir o esforço." });
+        alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Abaixo do basal", level: "WARNING", message: "🟡 HRV 15% ou mais abaixo do seu basal. Considere reduzir o esforço de hoje e observar o acumulado da semana." });
       }
     }
   }
 
-  // FC repouso vs baseline
+  // FC repouso vs baseline — mesmos motivos da regra de HRV acima.
   if (input.restingHeartRateBpm === undefined) skip("fc_repouso", "sem FC de repouso no dia");
+  else if (input.source === "whoop") skip("fc_repouso", WHOOP_DEVICE_THRESHOLD_REASON);
   else if (baseline.avgRhr === null) skip("fc_repouso", "sem baseline de FC nesta fonte");
   else if (!legacyHistoryGate) skip("fc_repouso", "histórico mínimo (7 dias) não atingido");
   else {
     evaluate("fc_repouso");
     if (input.restingHeartRateBpm >= baseline.avgRhr + 5) {
       if (input.restingHeartRateBpm >= baseline.avgRhr + 10) {
-        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Muito acima do basal", level: "CRITICAL", message: "🔴 Frequência cardíaca em repouso muito elevada: Pode indicar inflamação, doença ou exaustão. Priorize o repouso e observe se há outros sintomas." });
+        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Muito acima do basal", level: "CRITICAL", message: "🔴 FC de repouso 10+ bpm acima do seu basal — o corpo ainda não voltou ao padrão. Priorize repouso hoje e observe como você se sente." });
       } else {
-        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Acima do basal", level: "WARNING", message: "🟡 Frequência cardíaca em repouso elevada: Indício de que seu corpo ainda está se recuperando. Reduza o ritmo hoje." });
+        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Acima do basal", level: "WARNING", message: "🟡 FC de repouso 5+ bpm acima do seu basal — recuperação ainda incompleta. Reduza o ritmo hoje." });
       }
     }
   }
@@ -328,7 +336,7 @@ export function computeRecoveryRecommendation(
   else {
     evaluate("sono_duracao");
     if (input.sleepDurationSeconds < goals.minSleepDurationThreshold) {
-      alerts.push({ kind: "fisiologico", metric: "sono", shortLabel: "Duração insuficiente", level: "CRITICAL", message: "🔴 Sono insuficiente detectado: Sua capacidade de recuperação está comprometida. Evite treinos de alta intensidade e priorize descanso extra." });
+      alerts.push({ kind: "fisiologico", metric: "sono", shortLabel: "Duração insuficiente", level: "CRITICAL", message: "🔴 Sono abaixo do mínimo configurado. Evite alta intensidade hoje e, se possível, complemente o descanso." });
     }
   }
 
@@ -459,17 +467,17 @@ export function computeRecoveryRecommendation(
     trainingType = "Descanso Completo / Repouso";
     intensity = "MUITO BAIXA (0-20% FCMáx)";
     duration = "Repouso total";
-    reason = "⚠️ SITUAÇÃO CRÍTICA: Seu corpo precisa de recuperação urgente. Treino NÃO é recomendado hoje. Foque nos protocolos de recuperação.";
+    reason = "Vários sinais fisiológicos bem abaixo do seu padrão hoje. Treino não é recomendado — use os protocolos de recuperação e reavalie amanhã.";
     emoji = "🔴";
   }
 
   let priorityProtocols: TrainingRecommendation["priorityProtocols"] = undefined;
   if (zone === 0) {
     priorityProtocols = [
-      { order: 1, name: "Contraste Térmico", duration: "15 minutos", timing: "Pós-treino ou manhã", description: "Alternância água quente/fria. Reduz inflamação e acelera recuperação muscular (efeitos mensuráveis em 24-48h)." },
-      { order: 2, name: "Crioterapia", duration: "10 minutos", timing: "Após atividade física", description: "Imersão em água fria. Reduz marcadores inflamatórios e acelera recuperação (efeitos em 24-72h)." },
-      { order: 3, name: "Coerência Cardíaca", duration: "10-15 minutos", timing: "Ao acordar", description: "Respiração 6 ciclos/min. Ativa sistema parassimpático e reduz cortisol imediatamente." },
-      { order: 4, name: "Grounding", duration: "10 minutos", timing: "Manhã", description: "Contato descalço com superfície natural. Reduz cortisol e inflamação (efeitos mensuráveis em 24-72h)." },
+      { order: 1, name: "Contraste Térmico", duration: "15 minutos", timing: "Pós-treino ou manhã", description: "Alternância de água quente e fria no banho." },
+      { order: 2, name: "Crioterapia", duration: "10 minutos", timing: "Após atividade física", description: "Imersão em água fria por até 10 minutos, se disponível. Pode ajudar na sensação de dor muscular." },
+      { order: 3, name: "Coerência Cardíaca", duration: "10-15 minutos", timing: "Ao acordar", description: "Respiração lenta, ~6 ciclos por minuto. Ajuda a reduzir a ativação de estresse no curto prazo." },
+      { order: 4, name: "Grounding", duration: "10 minutos", timing: "Manhã", description: "Tempo ao ar livre pela manhã, de preferência em ambiente natural." },
     ];
   }
 
