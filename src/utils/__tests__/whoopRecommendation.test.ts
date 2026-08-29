@@ -90,7 +90,12 @@ describe("buildWhoopRecommendation (R5 — fiação pura)", () => {
     }
   });
 
-  it("dias POSTERIORES ao selecionado não contaminam histórico nem baseline", () => {
+  it("dias POSTERIORES ao selecionado não afetam a recomendação (seleção do dia é exata)", () => {
+    // Nota (revisão fria R6): com HRV/FCR fora do Whoop, baseline e
+    // histórico ficaram inertes — o que este teste garante HOJE é que a
+    // seleção da linha do dia não pega linha futura (scores aberrantes de 5
+    // mudariam recoveryScore/banda se vazassem). Quando alguma calibração
+    // por aparelho voltar a consumir baseline, reforçar com observável.
     // Snapshot de 3 dias atrás: as 3 linhas mais novas são FUTURO relativo.
     const target = daysBefore(3);
     const rows = window35((i) =>

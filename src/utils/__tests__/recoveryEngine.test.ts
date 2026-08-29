@@ -387,6 +387,10 @@ describe("linguagem clínica (ratificado 29/08: medido vs basal + o que fazer)",
         "dashboard",
         readFileSync(join(__dirname, "../../components/PersonalizedTrainingDashboard.tsx"), "utf8"),
       ],
+      [
+        "protocol-card",
+        readFileSync(join(__dirname, "../../components/RecoveryProtocolCard.tsx"), "utf8"),
+      ],
     ];
     const banned = [
       /possível doença/i,
@@ -401,6 +405,10 @@ describe("linguagem clínica (ratificado 29/08: medido vs basal + o que fazer)",
       /fadiga extrema/i,
       /meta-análises/i,
       /validados cientificamente/i,
+      /interrompido ou superficial/i,
+      /sintomas de overtraining/i,
+      /alternativa mais segura/i,
+      /forte indicação/i,
     ];
     for (const [name, source] of sources) {
       for (const phrase of banned) {

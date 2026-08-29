@@ -38,8 +38,8 @@ const getTrainingAlternatives = (rs: number) => {
   } else if (rs >= 45) {
     return [
       { type: "Redução Moderada (Recomendado)", description: "Reduzir 20-30% do volume ou intensidade — carga mais leve pra seguir progredindo." },
-      { type: "Recuperação Ativa", description: "Alternativa mais segura: mobilidade leve, yoga ou caminhada." },
-      { type: "Descanso Completo", description: "Com sintomas de overtraining (fadiga intensa, dor persistente), optar por descanso." },
+      { type: "Recuperação Ativa", description: "Mobilidade leve, yoga ou caminhada." },
+      { type: "Descanso Completo", description: "Com fadiga intensa ou dor persistente, optar por descanso." },
     ];
   } else if (rs >= 25) {
     return [

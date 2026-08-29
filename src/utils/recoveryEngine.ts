@@ -345,7 +345,7 @@ export function computeRecoveryRecommendation(
   else {
     evaluate("sono_eficiencia");
     if (input.sleepEfficiencyPercent < goals.minSleepEfficiency) {
-      alerts.push({ kind: "fisiologico", metric: "eficiencia_sono", shortLabel: "Eficiência baixa", level: "INFO", message: "ℹ️ Eficiência do sono abaixo do ideal: Seu sono foi interrompido ou superficial. Tente melhorar seu ambiente e rotina de sono." });
+      alerts.push({ kind: "fisiologico", metric: "eficiencia_sono", shortLabel: "Eficiência baixa", level: "INFO", message: "ℹ️ Eficiência do sono abaixo do mínimo configurado. Vale revisar ambiente e rotina de sono." });
     }
   }
 
@@ -373,18 +373,18 @@ export function computeRecoveryRecommendation(
     if (typeof hrvLast === "number" && hrvLast < baselineHrv * 0.7) {
       alerts.push({ kind: "fisiologico", metric: "hrv_aguda", shortLabel: "Queda aguda forte",
         level: "CRITICAL",
-        message: `🔴 HRV aguda noturna muito baixa (último bloco: ${hrvLast.toFixed(1)} ms). Forte indicação de baixa recuperação hoje.`,
+        message: `🔴 HRV do último bloco da noite mais de 30% abaixo do seu basal (${hrvLast.toFixed(1)} ms). Reduza a carga de hoje e reavalie amanhã.`,
       });
     } else if (typeof hrvLast === "number" && hrvLast < baselineHrv * 0.85) {
       alerts.push({ kind: "fisiologico", metric: "hrv_aguda", shortLabel: "Abaixo do basal",
         level: "WARNING",
-        message: `🟡 HRV aguda abaixo do basal (último bloco: ${hrvLast.toFixed(1)} ms). Considere reduzir carga e monitorar resposta.`,
+        message: `🟡 HRV do último bloco da noite mais de 15% abaixo do seu basal (${hrvLast.toFixed(1)} ms). Considere reduzir a carga e observar a resposta.`,
       });
     }
     if (typeof hrvMin === "number" && hrvMin < baselineHrv * 0.55) {
       alerts.push({ kind: "fisiologico", metric: "hrv_aguda", shortLabel: "Queda acentuada na noite",
         level: "WARNING",
-        message: `🟡 Queda acentuada de HRV durante a noite (mínimo: ${hrvMin.toFixed(1)} ms). Evite sessão de alta intensidade hoje.`,
+        message: `🟡 HRV mínima da noite mais de 45% abaixo do seu basal (${hrvMin.toFixed(1)} ms). Evite sessão de alta intensidade hoje.`,
       });
     }
   }
