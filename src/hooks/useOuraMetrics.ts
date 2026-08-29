@@ -167,6 +167,10 @@ export const useLatestOuraMetrics = (studentId: string) => {
         .from("oura_metrics")
         .select(OURA_METRICS_SELECT)
         .eq("student_id", studentId)
+        // Teto no dia corrente (paridade com a janela Whoop): uma linha com
+        // data FUTURA errada venceria o snapshot e viraria prescrição
+        // (auditoria 29/08).
+        .lte("date", spToday())
         .order("date", { ascending: false })
         .order("created_at", { ascending: false })
         .limit(90);

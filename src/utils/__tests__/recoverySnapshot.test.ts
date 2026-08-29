@@ -13,12 +13,21 @@ const whoop = (date: string, recovery: number | null, state: string | null = "SC
   score_state: state,
 });
 
-describe("recoveryZone", () => {
-  it("faixas 67/34", () => {
-    expect(recoveryZone(67)).toBe("alta");
-    expect(recoveryZone(66)).toBe("media");
-    expect(recoveryZone(34)).toBe("media");
-    expect(recoveryZone(33)).toBe("baixa");
+describe("recoveryZone — limiares por aparelho (ratificado 29/08)", () => {
+  it("Whoop: bandas nativas 67/34", () => {
+    expect(recoveryZone(67, "whoop")).toBe("alta");
+    expect(recoveryZone(66, "whoop")).toBe("media");
+    expect(recoveryZone(34, "whoop")).toBe("media");
+    expect(recoveryZone(33, "whoop")).toBe("baixa");
+  });
+
+  it("Oura: faixas do próprio app 85/70 (as mesmas dos cards da aba Oura)", () => {
+    expect(recoveryZone(85, "oura")).toBe("alta");
+    expect(recoveryZone(84, "oura")).toBe("media");
+    expect(recoveryZone(70, "oura")).toBe("media");
+    expect(recoveryZone(69, "oura")).toBe("baixa");
+    // 81 era classificado "alta" pela régua Whoop — o Oura chama de "bom".
+    expect(recoveryZone(81, "oura")).toBe("media");
   });
 });
 
@@ -30,7 +39,7 @@ describe("buildRecoverySnapshot", () => {
 
   it("só Oura", () => {
     const s = buildRecoverySnapshot([oura("2026-08-25", 81)], [], NOW)!;
-    expect(s).toMatchObject({ source: "oura", score: 81, date: "2026-08-25", zone: "alta" });
+    expect(s).toMatchObject({ source: "oura", score: 81, date: "2026-08-25", zone: "media" });
     expect(s.isStale).toBe(false);
   });
 

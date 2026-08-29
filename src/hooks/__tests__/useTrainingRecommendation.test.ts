@@ -8,6 +8,9 @@ const baseline: OuraBaseline = {
   avgHRV: 65,
   avgRHR: 60,
   avgSleepScore: 75,
+  hrvPoints: 14,
+  rhrPoints: 14,
+  sleepPoints: 14,
   dataPoints: 14,
   hasMinimumData: true,
 };
@@ -86,14 +89,19 @@ function buildAcuteMetrics(overrides: Partial<OuraAcuteMetrics> = {}): OuraAcute
 }
 
 function buildRecentMetrics(days: number, activeCalories = 500): OuraMetrics[] {
-  return Array.from({ length: days }, (_, index) =>
-    buildMetrics({
+  // Termina no dia avaliado (2026-04-12): a fadiga semanal exige dado DENTRO
+  // da janela [date−6, date] — dias soltos no começo do mês não contam.
+  return Array.from({ length: days }, (_, index) => {
+    const d = new Date("2026-04-12T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() - (days - 1 - index));
+    const date = d.toISOString().slice(0, 10);
+    return buildMetrics({
       id: `recent-${index}`,
-      date: `2026-04-${String(index + 1).padStart(2, "0")}`,
+      date,
       active_calories: activeCalories,
-      created_at: `2026-04-${String(index + 1).padStart(2, "0")}T08:00:00.000Z`,
-    })
-  );
+      created_at: `${date}T08:00:00.000Z`,
+    });
+  });
 }
 
 describe("R2 — bugs do motor corrigidos", () => {

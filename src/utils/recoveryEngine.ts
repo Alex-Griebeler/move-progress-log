@@ -65,9 +65,6 @@ export interface RecoveryBaselineInput {
   avgRhr: number | null;
   avgSleepScore: number | null;
   dataPoints: number;
-  /** true quando os valores vêm de defaults populacionais (só Oura faz isso,
-   *  por paridade com o comportamento histórico; Whoop nunca). */
-  usingPopulationDefaults: boolean;
 }
 
 export interface UserGoals {
@@ -163,7 +160,14 @@ export function computeRecoveryRecommendation(
   baseline: RecoveryBaselineInput,
   userGoals?: Partial<UserGoals>,
 ): TrainingRecommendation {
-  const goals = { ...DEFAULT_GOALS, ...userGoals };
+  // Chave presente com valor undefined NÃO pode apagar o default (com
+  // strict:false toda comparação contra undefined viraria false).
+  const goals = { ...DEFAULT_GOALS };
+  for (const [k, v] of Object.entries(userGoals ?? {})) {
+    if (typeof v === "number" && Number.isFinite(v)) {
+      (goals as Record<string, number>)[k] = v;
+    }
+  }
   const alerts: StructuredAlert[] = [];
   const evaluatedRules: string[] = [];
   const skippedRules: Array<{ rule: string; reason: string }> = [];
@@ -179,10 +183,13 @@ export function computeRecoveryRecommendation(
       message: `ℹ️ Histórico em construção: Coletamos ${validHistoryCount} dias de dados. Para recomendações mais precisas, aguarde pelo menos 7 dias de sincronização.`,
     });
   }
-  if (baseline.usingPopulationDefaults && baseline.dataPoints > 0) {
+  if (
+    baseline.dataPoints > 0 &&
+    (baseline.avgHrv === null || baseline.avgRhr === null)
+  ) {
     alerts.push({ kind: "onboarding", metric: null, shortLabel: null,
       level: "INFO",
-      message: `ℹ️ Baseline em construção: ${baseline.dataPoints} dias coletados. Usando valores de referência populacionais até atingir 7 dias.`,
+      message: `ℹ️ Baseline em construção: ${baseline.dataPoints} dias coletados. Comparações com o basal pessoal começam com 7 amostras por métrica.`,
     });
   }
 
@@ -194,17 +201,29 @@ export function computeRecoveryRecommendation(
   // linhas do histórico — somar `input` por fora contaria o dia duas vezes.
   // (Chamador é responsável por incluir o dia avaliado no histórico quando
   // a fonte o traz, como o hook Oura sempre fez.)
-  const hasCalorieData = history.some((h) => h.activeCaloriesKcal !== undefined);
-  if (hasCalorieData) {
+  const weekStart = weekStartOf(input.date);
+  const weekDays = history.filter((h) => h.date >= weekStart && h.date <= input.date);
+  const weekDaysWithCalories = weekDays.filter(
+    (h) => typeof h.activeCaloriesKcal === "number" && Number.isFinite(h.activeCaloriesKcal),
+  );
+  // Disponibilidade DENTRO da janela: burn parcial subestima a fadiga e
+  // liberaria progressão por falta de dado (auditoria 29/08). Com menos de
+  // 5 dos 7 dias, a regra pula e a fadiga assume "moderate" — conservador:
+  // segura a zona 4 sem derrubar o treino normal.
+  if (weekDaysWithCalories.length >= 5) {
     evaluate("fadiga_semanal");
-    const weekStart = weekStartOf(input.date);
-    const weeklyBurn = history
-      .filter((h) => h.date >= weekStart && h.date <= input.date)
-      .reduce((sum, h) => sum + (h.activeCaloriesKcal || 0), 0);
+    const weeklyBurn = weekDaysWithCalories.reduce(
+      (sum, h) => sum + (h.activeCaloriesKcal as number),
+      0,
+    );
     if (weeklyBurn > goals.highFatigueThreshold) fatigueLevel = "high";
     else if (weeklyBurn > goals.moderateFatigueThreshold) fatigueLevel = "moderate";
+  } else if (weekDaysWithCalories.length > 0) {
+    skip("fadiga_semanal", `calorias ativas em só ${weekDaysWithCalories.length} dos 7 dias da janela`);
+    fatigueLevel = "moderate";
   } else {
     skip("fadiga_semanal", "sem calorias ativas nesta fonte");
+    fatigueLevel = input.source === "oura" ? "moderate" : fatigueLevel;
   }
 
   // ── ZONA INICIAL POR FONTE ───────────────────────────────────────────────
@@ -308,9 +327,9 @@ export function computeRecoveryRecommendation(
     evaluate("hrv_noturna");
     if (input.hrvRmssdMs < baseline.avgHrv * 0.85) {
       if (input.hrvRmssdMs < baseline.avgHrv * 0.70) {
-        alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Muito abaixo do basal", level: "CRITICAL", message: "🔴 HRV mais de 30% abaixo do seu basal. Reduza o estímulo de hoje e priorize descanso; se o padrão persistir por vários dias ou vier com sintomas, vale avaliação médica." });
+        alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Muito abaixo do basal", level: "CRITICAL", message: `🔴 HRV mais de 30% abaixo do seu basal (${Math.round(input.hrvRmssdMs)} ms vs ${Math.round(baseline.avgHrv)} ms). Reduza o estímulo de hoje e priorize descanso; se o padrão persistir por vários dias ou vier com sintomas, vale avaliação médica.` });
       } else {
-        alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Abaixo do basal", level: "WARNING", message: "🟡 HRV mais de 15% abaixo do seu basal. Considere reduzir o esforço de hoje e observar o acumulado da semana." });
+        alerts.push({ kind: "fisiologico", metric: "hrv_noturna", shortLabel: "Abaixo do basal", level: "WARNING", message: `🟡 HRV mais de 15% abaixo do seu basal (${Math.round(input.hrvRmssdMs)} ms vs ${Math.round(baseline.avgHrv)} ms). Considere reduzir o esforço de hoje e observar o acumulado da semana.` });
       }
     }
   }
@@ -324,9 +343,9 @@ export function computeRecoveryRecommendation(
     evaluate("fc_repouso");
     if (input.restingHeartRateBpm >= baseline.avgRhr + 5) {
       if (input.restingHeartRateBpm >= baseline.avgRhr + 10) {
-        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Muito acima do basal", level: "CRITICAL", message: "🔴 FC de repouso 10+ bpm acima do seu basal. Priorize repouso hoje e observe como você se sente." });
+        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Muito acima do basal", level: "CRITICAL", message: `🔴 FC de repouso 10+ bpm acima do seu basal (${Math.round(input.restingHeartRateBpm)} vs ${Math.round(baseline.avgRhr)} bpm). Priorize repouso hoje e observe como você se sente.` });
       } else {
-        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Acima do basal", level: "WARNING", message: "🟡 FC de repouso 5+ bpm acima do seu basal. Reduza o ritmo hoje." });
+        alerts.push({ kind: "fisiologico", metric: "fc_repouso", shortLabel: "Acima do basal", level: "WARNING", message: `🟡 FC de repouso 5+ bpm acima do seu basal (${Math.round(input.restingHeartRateBpm)} vs ${Math.round(baseline.avgRhr)} bpm). Reduza o ritmo hoje.` });
       }
     }
   }
@@ -336,7 +355,7 @@ export function computeRecoveryRecommendation(
   else {
     evaluate("sono_duracao");
     if (input.sleepDurationSeconds < goals.minSleepDurationThreshold) {
-      alerts.push({ kind: "fisiologico", metric: "sono", shortLabel: "Duração insuficiente", level: "CRITICAL", message: "🔴 Sono abaixo do mínimo configurado. Modere a intensidade de hoje e priorize o descanso desta noite." });
+      alerts.push({ kind: "fisiologico", metric: "sono", shortLabel: "Duração insuficiente", level: "CRITICAL", message: `🔴 Sono abaixo do mínimo configurado (${(input.sleepDurationSeconds / 3600).toFixed(1)}h dormidas; mínimo ${(goals.minSleepDurationThreshold / 3600).toFixed(1)}h). Modere a intensidade de hoje e priorize o descanso desta noite.` });
     }
   }
 

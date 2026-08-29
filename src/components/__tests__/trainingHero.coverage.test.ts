@@ -142,8 +142,10 @@ describe("fachada Oura intocada (paridade)", () => {
     // Estado pendente é ALCANÇÁVEL nos dois casos: sem dia fechado (estado
     // vazio) e com hero de dia anterior (nota sob o hero — revisão fria).
     expect(dash).toContain("recovery do dia ainda está sendo processado pelo aparelho");
-    expect(dash).toContain("const whoopStillProcessing = !snapshot && pendingWhoopDate !== null;");
-    expect(dash).toMatch(/newerPendingWhoopDate\(whoopMetrics, snapshot\?\.date \?\? null\)/);
+    expect(dash).toContain("const whoopStillProcessing = !snapshot && unscoredWhoopDay !== null;");
+    expect(dash).toMatch(/newerUnscoredWhoopDay\(whoopMetrics, snapshot\?\.date \?\? null\)/);
+    // UNSCORABLE é terminal — a UI não promete que "vai fechar" (auditoria 29/08).
+    expect(dash).toContain("não conseguiu pontuar");
     expect(dash).toContain("ainda está processando no Whoop — mostrando o último dia fechado");
     expect(dash).toContain("{whoopPendingNote && (");
     expect(dash).toContain("Sem recovery utilizável para o dia mais recente");
@@ -228,5 +230,35 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
     expect(dash).toMatch(/recentMetrics\.find\(\(m\) => m\.date === earlySnapshot\.date\) \?\? latestMetrics/);
     // Nenhum tile Oura lê latestMetrics direto — tudo vem da linha do dia.
     expect(dash).not.toMatch(/latestMetrics\??\.(sleep_score|average_sleep_hrv|resting_heart_rate|temperature_deviation|activity_score|steps|total_sleep_duration)/);
+  });
+});
+
+describe("R7 — correções da auditoria (29/08)", () => {
+  it("fonte só é decidida com as DUAS consultas resolvidas (gate de loading total)", () => {
+    expect(dash).toMatch(/if \(isLoading\) \{/);
+    expect(dash).not.toContain("if (isLoading && !snapshot) {");
+  });
+
+  it("erro parcial de wearable é dito no hero, não engolido", () => {
+    expect(dash).toContain("Parte dos dados de wearable não carregou");
+  });
+
+  it("baseline Oura ancorado no DIA do snapshot", () => {
+    expect(dash).toMatch(/useOuraBaseline\(\s*studentId,\s*30,\s*earlySnapshot\?\.source === "oura" \? earlySnapshot\.date : undefined,?\s*\)/);
+  });
+
+  it("títulos carregam a data real quando o snapshot é stale", () => {
+    expect(dash).toContain("`Atenção em ${snapshotDayLabel}`");
+    expect(dash).toContain("`Fisiologia de ${snapshotDayLabel}`");
+  });
+
+  it("carga: loading, erro e bloqueio são estados visíveis", () => {
+    expect(dash).toContain("loadSuggestionsLoading");
+    expect(dash).toContain("loadSuggestionsError");
+    expect(dash).toContain('"Carga bloqueada hoje"');
+  });
+
+  it("alternativa escolhida fica visível (não é botão de mentira)", () => {
+    expect(dash).toContain("Alternativa escolhida:");
   });
 });

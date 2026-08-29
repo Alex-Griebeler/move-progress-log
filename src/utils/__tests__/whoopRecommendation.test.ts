@@ -3,7 +3,7 @@ import type { WhoopMetrics } from "@/hooks/useWhoopMetrics";
 import {
   buildWhoopRecommendation,
   isBaselineWindowTruncated,
-  newerPendingWhoopDate,
+  newerUnscoredWhoopDay,
   WHOOP_RECOMMENDATION_WINDOW_DAYS,
 } from "@/utils/whoopRecommendation";
 
@@ -127,34 +127,48 @@ describe("buildWhoopRecommendation (R5 — fiação pura)", () => {
   });
 });
 
-describe("newerPendingWhoopDate (aviso de dia pendente pulado pelo snapshot)", () => {
-  it("hoje pendente + ontem fechado → aponta hoje (o cenário sem isStale)", () => {
+describe("newerUnscoredWhoopDay (dia sem score pulado pelo snapshot)", () => {
+  it("hoje pendente + ontem fechado → aponta hoje como PENDING (cenário sem isStale)", () => {
     const rows = [
       row({ id: "hoje", date: "2026-08-27", score_state: "PENDING_SCORE" }),
       row({ id: "ontem", date: "2026-08-26" }),
     ];
     // snapshot teria escolhido ontem (último fechado)
-    expect(newerPendingWhoopDate(rows, "2026-08-26")).toBe("2026-08-27");
+    expect(newerUnscoredWhoopDay(rows, "2026-08-26")).toEqual({
+      date: "2026-08-27",
+      state: "pending",
+    });
   });
 
-  it("dia pendente IGUAL ou ANTERIOR ao exibido não gera aviso", () => {
+  it("UNSCORABLE é estado TERMINAL, distinto de pendente (não promete que vai fechar)", () => {
+    const rows = [
+      row({ id: "hoje", date: "2026-08-27", score_state: "UNSCORABLE" }),
+      row({ id: "ontem", date: "2026-08-26" }),
+    ];
+    expect(newerUnscoredWhoopDay(rows, "2026-08-26")).toEqual({
+      date: "2026-08-27",
+      state: "unscorable",
+    });
+  });
+
+  it("dia sem score IGUAL ou ANTERIOR ao exibido não gera aviso", () => {
     const rows = [
       row({ id: "a", date: "2026-08-27" }),
       row({ id: "b", date: "2026-08-26", score_state: "UNSCORABLE" }),
     ];
-    expect(newerPendingWhoopDate(rows, "2026-08-27")).toBeNull();
+    expect(newerUnscoredWhoopDay(rows, "2026-08-27")).toBeNull();
   });
 
-  it("sem NENHUM dia fechado (sinceDate null) → aponta o pendente mais novo", () => {
+  it("sem NENHUM dia fechado (sinceDate null) → aponta o mais novo com seu estado", () => {
     const rows = [
       row({ id: "a", date: "2026-08-26", score_state: "PENDING_SCORE" }),
       row({ id: "b", date: "2026-08-27", score_state: "UNSCORABLE" }),
     ];
-    expect(newerPendingWhoopDate(rows, null)).toBe("2026-08-27");
+    expect(newerUnscoredWhoopDay(rows, null)).toEqual({ date: "2026-08-27", state: "unscorable" });
   });
 
   it("score_state null legado NÃO é pendente (é fechado, semântica dos adapters)", () => {
-    expect(newerPendingWhoopDate([row({ score_state: null })], null)).toBeNull();
-    expect(newerPendingWhoopDate([], null)).toBeNull();
+    expect(newerUnscoredWhoopDay([row({ score_state: null })], null)).toBeNull();
+    expect(newerUnscoredWhoopDay([], null)).toBeNull();
   });
 });
