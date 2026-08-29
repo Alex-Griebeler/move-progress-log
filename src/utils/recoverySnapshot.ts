@@ -38,8 +38,22 @@ interface WhoopLike {
   score_state: string | null;
 }
 
-/** Faixas de recuperação usadas no app pro Whoop (67/34) — genéricas 0-100. */
-export const recoveryZone = (score: number): RecoverySnapshot["zone"] => {
+/**
+ * Faixas do ANEL por aparelho (limiares por aparelho, ratificado 29/08):
+ * Whoop usa as bandas nativas 67/34; Oura usa as faixas do próprio app
+ * (85+ ótimo / 70-84 bom / <70 atenção — as mesmas dos cards da aba Oura).
+ * Aplicar 67/34 ao readiness fazia 81 aparecer como "alta" quando o Oura
+ * chama de "bom" e o motor nem cogita progressão abaixo de 85.
+ */
+export const recoveryZone = (
+  score: number,
+  source: RecoverySnapshot["source"],
+): RecoverySnapshot["zone"] => {
+  if (source === "oura") {
+    if (score >= 85) return "alta";
+    if (score >= 70) return "media";
+    return "baixa";
+  }
   if (score >= 67) return "alta";
   if (score >= 34) return "media";
   return "baixa";
@@ -83,7 +97,7 @@ export const buildRecoverySnapshot = (
   if (!pick) return null;
   return {
     ...pick,
-    zone: recoveryZone(pick.score),
+    zone: recoveryZone(pick.score, pick.source),
     isStale: daysAgo(pick.date, now) >= 2,
   };
 };

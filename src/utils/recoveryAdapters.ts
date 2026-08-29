@@ -71,29 +71,23 @@ export const ouraHistoryToRecoveryDays = (recent: OuraMetrics[]): RecoveryHistor
   recent.map((m) => ({
     date: m.date,
     scoreClosed: m.readiness_score != null,
-    activeCaloriesKcal: m.active_calories ?? 0,
+    // null ≠ 0: dia sem calorias fica undefined — fabricar zero fazia a
+    // fadiga ser "avaliada e baixa" com dado ausente (auditoria 29/08).
+    activeCaloriesKcal: num(m.active_calories),
   }));
 
 /**
- * Baseline Oura → contrato, com PARIDADE ESTRITA com o motor legado:
- * baseline fornecido usa os valores fornecidos (mesmo com hasMinimumData
- * false — o legado nunca os substituía; em produção o useOuraBaseline já
- * devolve os defaults populacionais nesse caso, então dá no mesmo, mas a
- * API pública aceita qualquer valor e a fachada não pode divergir).
- * Só baseline AUSENTE cai nos defaults.
+ * Baseline Oura → contrato. Desde a auditoria de 29/08 NÃO existem defaults
+ * populacionais no caminho clínico: o hook v2 devolve null por métrica
+ * abaixo do mínimo, e métrica null faz a regra correspondente pular no
+ * motor (era exatamente assim que 65/60/75 populacionais viravam régua de
+ * alerta pessoal — e uma FCR "basal" de 1 amostra liberava zona 4).
  */
 export const ouraBaselineToRecoveryBaseline = (
   baseline?: OuraBaseline,
 ): RecoveryBaselineInput => {
   if (!baseline) {
-    return {
-      source: "oura",
-      avgHrv: 65,
-      avgRhr: 60,
-      avgSleepScore: 75,
-      dataPoints: 0,
-      usingPopulationDefaults: true,
-    };
+    return { source: "oura", avgHrv: null, avgRhr: null, avgSleepScore: null, dataPoints: 0 };
   }
   return {
     source: "oura",
@@ -101,7 +95,6 @@ export const ouraBaselineToRecoveryBaseline = (
     avgRhr: baseline.avgRHR,
     avgSleepScore: baseline.avgSleepScore,
     dataPoints: baseline.dataPoints,
-    usingPopulationDefaults: !baseline.hasMinimumData,
   };
 };
 
@@ -181,6 +174,5 @@ export const buildWhoopBaseline = (
     avgRhr: rhr.avg,
     avgSleepScore: sleep.avg,
     dataPoints: Math.max(hrv.count, rhr.count, sleep.count),
-    usingPopulationDefaults: false,
   };
 };

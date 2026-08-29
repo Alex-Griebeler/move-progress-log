@@ -398,7 +398,9 @@ const StudentDetailPage = () => {
             studentId={student.id}
             maxHeartRate={student.max_heart_rate}
             isLoading={loadingOuraMetrics || loadingWhoopMetrics || loadingLatestOura}
-            isError={ouraMetricsError || whoopMetricsError}
+            // latestOuraError TAMBÉM suspende ação: com histórico cacheado e
+            // latest falhando, a fonte decidida pode estar errada (Codex R7).
+            isError={ouraMetricsError || whoopMetricsError || latestOuraError}
               latestOuraError={latestOuraError}
             onStartTraining={() => setRecordSessionOpen(true)}
           />

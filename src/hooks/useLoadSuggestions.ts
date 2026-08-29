@@ -9,9 +9,11 @@ import {
   decideLoadSuggestion,
 } from "./loadSuggestionUtils";
 
-type SuggestionStatus = "automatic" | "assisted" | "insufficient";
+type SuggestionStatus = "automatic" | "assisted" | "blocked" | "insufficient";
 
 export interface LoadSuggestionItem {
+  /** Chave estável (id da biblioteca ou nome normalizado) — nome cru repete. */
+  key: string;
   exerciseName: string;
   lastLoadKg: number | null;
   referenceLoadKg: number | null;
@@ -46,14 +48,21 @@ const inferIncrement = (equipmentRequired: string[] | null | undefined): number 
   return 0.5;
 };
 
-const roundToIncrement = (value: number, increment: number): number => {
-  if (!Number.isFinite(value) || !Number.isFinite(increment) || increment <= 0) return value;
-  return Math.round(value / increment) * increment;
-};
+/**
+ * Remove menções NEGADAS antes de casar sinais ("sem dor", "nenhum
+ * desconforto", "dor resolvida", "não sentiu dor") — a busca crua tratava a
+ * negação como sinal presente e reduzia carga indevidamente (auditoria
+ * 29/08). Na dúvida (frase ambígua), o sinal permanece — direção segura.
+ */
+export const stripNegatedMentions = (normalized: string): string =>
+  normalized
+    .replace(/\b(?:sem|nenhuma?)\s+(?:dor(?:es)?|desconfortos?|lesao|lesoes|compensac\w+|instabilidades?)\b/g, " ")
+    .replace(/\bnao\s+(?:ha|houve|teve|sentiu|relatou|apresentou)\s+(?:dor(?:es)?|desconfortos?|compensac\w+|instabilidades?)\b/g, " ")
+    .replace(/\bdor(?:es)?\s+(?:resolvida|ausente)s?\b/g, " ");
 
-const hasPainSignal = (value: string | null | undefined): boolean => {
+export const hasPainSignal = (value: string | null | undefined): boolean => {
   if (!value) return false;
-  const normalized = normalizeComparableText(value);
+  const normalized = stripNegatedMentions(normalizeComparableText(value));
   return (
     normalized.includes("dor") ||
     normalized.includes("pain") ||
@@ -62,11 +71,14 @@ const hasPainSignal = (value: string | null | undefined): boolean => {
   );
 };
 
-const hasTechniqueSignal = (value: string | null | undefined): boolean => {
+export const hasTechniqueSignal = (value: string | null | undefined): boolean => {
   if (!value) return false;
-  const normalized = normalizeComparableText(value);
+  const normalized = stripNegatedMentions(normalizeComparableText(value));
+  // "tecnica" sozinha NÃO é sinal ("técnica excelente" bloqueava progressão
+  // — revisão R7); só a menção com qualificador negativo conta.
   return (
-    normalized.includes("tecnica") ||
+    /\btecnica\s+(?:ruim|comprometida|falhou|quebrou|instavel)\b/.test(normalized) ||
+    /\b(?:falha|quebra|perda)\s+d?[aeo]?\s*tecnica\b/.test(normalized) ||
     normalized.includes("compensacao") ||
     normalized.includes("instavel") ||
     normalized.includes("instabilidade")
@@ -100,10 +112,13 @@ export const useLoadSuggestions = (
         await Promise.all([
           supabase
             .from("workout_sessions")
-            .select("id, date, prescription_id, exercises(exercise_library_id, exercise_name, load_kg, reps, observations)")
+            .select("id, date, created_at, prescription_id, exercises(exercise_library_id, exercise_name, load_kg, reps, observations)")
             .eq("student_id", studentId)
             .gte("date", periodStart)
-            .order("date", { ascending: false }),
+            // 2º critério estável: duas sessões no MESMO dia alternavam a
+            // referência conforme a ordem do join (auditoria 29/08).
+            .order("date", { ascending: false })
+            .order("created_at", { ascending: false }),
           supabase.from("exercises_library").select("id, name, category, equipment_required"),
         ]);
 
@@ -118,6 +133,7 @@ export const useLoadSuggestions = (
         string,
         { category: string | null; equipmentRequired: string[] | null }
       >();
+      const libraryIdByName = new Map<string, string>();
       for (const row of libraryRows || []) {
         if (!row?.name) continue;
         const meta = {
@@ -130,6 +146,9 @@ export const useLoadSuggestions = (
         const key = normalizeComparableText(row.name);
         if (!libraryByName.has(key)) {
           libraryByName.set(key, meta);
+        }
+        if (!libraryIdByName.has(key)) {
+          libraryIdByName.set(key, row.id);
         }
       }
 
@@ -147,9 +166,12 @@ export const useLoadSuggestions = (
             continue;
           }
 
-          const key = exerciseLibraryId
-            ? `id:${exerciseLibraryId}`
-            : `name:${normalizeComparableText(exerciseName)}`;
+          // Reconciliação (revisão R7): execução antiga sem id, cujo nome
+          // casa com a biblioteca, entra no MESMO grupo do id canônico —
+          // senão o mesmo exercício aparecia 2× com histórico fragmentado.
+          const normalizedName = normalizeComparableText(exerciseName);
+          const canonicalId = exerciseLibraryId ?? libraryIdByName.get(normalizedName) ?? null;
+          const key = canonicalId ? `id:${canonicalId}` : `name:${normalizedName}`;
           const list = byExercise.get(key) || [];
           list.push({
             exerciseLibraryId,
@@ -169,7 +191,7 @@ export const useLoadSuggestions = (
 
       const suggestions: LoadSuggestionItem[] = ([...byExercise.entries()]
         .map(([key, list]): LoadSuggestionItem | null => {
-          list.sort((a, b) => (a.date < b.date ? 1 : -1));
+          list.sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1));
           const first = list[0];
           if (!first) return null;
 
@@ -191,6 +213,7 @@ export const useLoadSuggestions = (
 
           if (!Number.isFinite(reference.loadKg)) {
             return {
+              key,
               exerciseName: first?.exerciseName || key,
               lastLoadKg: null,
               referenceLoadKg: null,
@@ -206,7 +229,14 @@ export const useLoadSuggestions = (
           }
 
           const incrementKg = inferIncrement(libMeta?.equipmentRequired);
-          const recentObservations = list.slice(0, 3).map((item) => item.observations);
+          // Janela CLÍNICA de 30 dias (auditoria 29/08): "as 3 últimas
+          // execuções" deixava dor de 89 dias atrás travando a carga de quem
+          // treina pouco E ignorava dor recente na 4ª execução de quem
+          // treina muito.
+          const guardrailCutoff = subDays(new Date(), 30).toISOString().slice(0, 10);
+          const recentObservations = list
+            .filter((item) => item.date >= guardrailCutoff)
+            .map((item) => item.observations);
           const hasPainOrJointWarning = recentObservations.some((obs) => hasPainSignal(obs));
           const hasTechniqueWarning = recentObservations.some((obs) => hasTechniqueSignal(obs));
           const guardrails: string[] = [];
@@ -226,11 +256,14 @@ export const useLoadSuggestions = (
           guardrails.push(...decision.guardrails);
 
           const status: SuggestionStatus =
-            recommendation.loadDecision === "maintain" && !hasPainOrJointWarning && !hasTechniqueWarning
-              ? "automatic"
-              : "assisted";
+            recommendation.loadDecision === "block"
+              ? "blocked"
+              : recommendation.loadDecision === "maintain" && !hasPainOrJointWarning && !hasTechniqueWarning
+                ? "automatic"
+                : "assisted";
 
           return {
+            key,
             exerciseName: first.exerciseName,
             lastLoadKg: first.loadKg,
             referenceLoadKg: reference.loadKg,

@@ -11,6 +11,9 @@ const SESSION_QUERY_ROOTS = [
   "all-sessions-paginated",
   "session-exercises",
   "session-detail",
+  // Sessão nova muda referência/observações da carga assistida (auditoria
+  // 29/08 — sem isto a sugestão anterior ficava eterna na tela).
+  "load-suggestions",
 ] as const;
 
 type InvalidateSessionQueriesOptions = {

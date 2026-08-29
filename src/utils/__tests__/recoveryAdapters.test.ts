@@ -83,7 +83,6 @@ describe("buildWhoopBaseline", () => {
     const b = buildWhoopBaseline(rows, "2026-08-11");
     expect(b.avgHrv).toBeNull(); // só 5 amostras de HRV
     expect(b.avgRhr).not.toBeNull(); // FC tem 10
-    expect(b.usingPopulationDefaults).toBe(false);
   });
 
   it("dias PENDING/UNSCORABLE ficam fora do baseline", () => {

@@ -29,15 +29,21 @@ const whoopBaseline = (overrides: Partial<RecoveryBaselineInput> = {}): Recovery
   avgRhr: 54,
   avgSleepScore: 78,
   dataPoints: 20,
-  usingPopulationDefaults: false,
   ...overrides,
 });
 
-const historyDays = (n: number): RecoveryHistoryDay[] =>
-  Array.from({ length: n }, (_, i) => ({
-    date: `2026-08-${String(i + 1).padStart(2, "0")}`,
-    scoreClosed: true,
-  }));
+// Termina no dia avaliado (2026-08-28): a fadiga semanal só olha a janela
+// [date−6, date] — histórico longe da janela é o mesmo que não ter dado.
+const historyDays = (n: number, kcal?: number): RecoveryHistoryDay[] =>
+  Array.from({ length: n }, (_, i) => {
+    const d = new Date("2026-08-28T00:00:00Z");
+    d.setUTCDate(d.getUTCDate() - (n - 1 - i));
+    return {
+      date: d.toISOString().slice(0, 10),
+      scoreClosed: true,
+      ...(kcal !== undefined ? { activeCaloriesKcal: kcal } : {}),
+    };
+  });
 
 describe("initialZoneFor — política ratificada por fonte", () => {
   it("Whoop usa as bandas nativas derivadas do score: verde→3, amarelo→2, vermelho→1", () => {
@@ -200,14 +206,14 @@ describe("invariante de auditoria — cada regra exatamente uma vez", () => {
           restingHeartRateBpm: 55, stressHighSeconds: 1000,
           acute: { hrvNightLastMs: 60, hrvNightMinMs: 50, hrDayMaxBpm: 120, hrDayAvgBpm: 70 } },
         historyDays(10).map((h) => ({ ...h, activeCaloriesKcal: 400 })),
-        { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+        { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 },
       ),
     );
     assertInvariant(
       computeRecoveryRecommendation(
         { source: "oura", date: "2026-08-28", score: 80 },
         [],
-        { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 0, usingPopulationDefaults: true },
+        { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 0 },
       ),
     );
   });
@@ -218,7 +224,7 @@ describe("motivos de skip nomeiam O QUE falta (prontuário honesto)", () => {
     const rec = computeRecoveryRecommendation(
       { source: "oura", date: "2026-08-28", score: 80, stressHighSeconds: 1000 },
       historyDays(10),
-      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 },
     );
     const reason = rec.skippedRules.find((r) => r.rule === "override_sono_estresse")!.reason;
     expect(reason).toMatch(/sem duração de sono/);
@@ -230,7 +236,7 @@ describe("motivos de skip nomeiam O QUE falta (prontuário honesto)", () => {
       { source: "oura", date: "2026-08-28", score: 80,
         acute: { hrDayMaxBpm: 150, hrDayAvgBpm: 100 } },
       historyDays(10),
-      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 },
     );
     const skip = rec.skippedRules.find((r) => r.rule === "fc_intradia");
     expect(skip?.reason).toMatch(/sem FC de repouso/);
@@ -241,7 +247,7 @@ describe("motivos de skip nomeiam O QUE falta (prontuário honesto)", () => {
     const rec = computeRecoveryRecommendation(
       { source: "oura", date: "2026-08-28", score: 80, restingHeartRateBpm: 69 }, // basal 60 → +9
       historyDays(10),
-      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 },
     );
     expect(rec.evaluatedRules).toContain("override_fc_repouso");
     expect(rec.overrideApplied).toBe(true);
@@ -266,7 +272,7 @@ describe("gate Whoop: baseline por métrica basta (sem o gate legado de contagem
     const rec = computeRecoveryRecommendation(
       { source: "oura", date: "2026-08-28", score: 80, hrvRmssdMs: 40 },
       historyDays(6),
-      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 },
     );
     expect(rec.skippedRules.map((r) => r.rule)).toContain("hrv_noturna");
   });
@@ -276,8 +282,10 @@ describe("decisões clínicas da revisão fria (R4)", () => {
   it("fail-closed: score 90 com 3 dias de histórico NÃO libera progressão +5%", () => {
     const rec = computeRecoveryRecommendation(
       { source: "oura", date: "2026-08-28", score: 90, restingHeartRateBpm: 55 },
-      historyDays(3), // gate legado não atingido → override_fc_repouso skipped
-      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 3, usingPopulationDefaults: true },
+      // calorias na janela (fadiga avaliada e baixa) mas só 3 scores
+      // fechados → gate legado não atingido → override_fc_repouso skipped
+      historyDays(10, 400).map((h, i) => (i < 7 ? { ...h, scoreClosed: false } : h)),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 3 },
     );
     expect(rec.zone).toBe("green"); // capado de green_high pra green
     expect(rec.loadDecision).toBe("maintain");
@@ -287,8 +295,8 @@ describe("decisões clínicas da revisão fria (R4)", () => {
   it("score 90 COM checagem de FCR avaliada libera a zona 4 normalmente", () => {
     const rec = computeRecoveryRecommendation(
       { source: "oura", date: "2026-08-28", score: 90, restingHeartRateBpm: 55 },
-      historyDays(10),
-      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+      historyDays(10, 400),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 },
     );
     expect(rec.zone).toBe("green_high");
     expect(rec.loadAdjustmentPercent).toBe(5);
@@ -298,14 +306,14 @@ describe("decisões clínicas da revisão fria (R4)", () => {
     const rec = computeRecoveryRecommendation(
       { source: "oura", date: "2026-08-28", score: 80, restingHeartRateBpm: 68 }, // 60 + 8
       historyDays(10),
-      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 },
     );
     expect(rec.overrideApplied).toBe(true);
   });
 
   it("fronteiras inclusivas dos alertas de FCR: +5 = WARNING, +10 = CRITICAL", () => {
     const base = { source: "oura" as const, date: "2026-08-28", score: 50 };
-    const bl = { source: "oura" as const, avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false };
+    const bl = { source: "oura" as const, avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 };
     const warn = computeRecoveryRecommendation({ ...base, restingHeartRateBpm: 65 }, historyDays(10), bl);
     expect(warn.alerts.find((a) => a.metric === "fc_repouso")?.level).toBe("WARNING");
     const crit = computeRecoveryRecommendation({ ...base, restingHeartRateBpm: 70 }, historyDays(10), bl);
@@ -316,7 +324,7 @@ describe("decisões clínicas da revisão fria (R4)", () => {
     const rec = computeRecoveryRecommendation(
       { source: "oura", date: "2026-08-28", score: 10 },
       historyDays(10),
-      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 },
     );
     expect(rec.loadDecision).toBe("block");
     expect(rec.loadAdjustmentPercent).toBeNull();
@@ -328,8 +336,8 @@ describe("veto por CRITICAL fisiológico (R4)", () => {
     const rec = computeRecoveryRecommendation(
       { source: "oura", date: "2026-08-28", score: 90, restingHeartRateBpm: 58,
         sleepDurationSeconds: 18000 }, // sono < 6h30 → CRITICAL
-      historyDays(10),
-      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+      historyDays(10, 400),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 },
     );
     expect(rec.alerts.some((a) => a.metric === "sono" && a.level === "CRITICAL")).toBe(true);
     expect(rec.zone).toBe("green"); // capado da zona 4
@@ -341,8 +349,8 @@ describe("veto por CRITICAL fisiológico (R4)", () => {
     const rec = computeRecoveryRecommendation(
       { source: "oura", date: "2026-08-28", score: 90, restingHeartRateBpm: 58,
         sleepDurationSeconds: 27000 },
-      historyDays(10),
-      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false },
+      historyDays(10, 400),
+      { source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 },
     );
     expect(rec.zone).toBe("green_high");
   });
@@ -367,7 +375,7 @@ describe("auditoria evaluated/skipped", () => {
       activeCaloriesKcal: 400,
     }));
     const rec = computeRecoveryRecommendation(oura, history, {
-      source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20, usingPopulationDefaults: false,
+      source: "oura", avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20,
     });
     expect(rec.skippedRules).toHaveLength(0);
     expect(rec.evaluatedRules).toContain("fadiga_semanal");
@@ -415,5 +423,47 @@ describe("linguagem clínica (ratificado 29/08: medido vs basal + o que fazer)",
         expect(source, `${phrase} voltou (${name})`).not.toMatch(phrase);
       }
     }
+  });
+});
+
+describe("janela de fadiga por disponibilidade (R7)", () => {
+  const day = (score = 90): RecoveryDayInput => ({
+    source: "oura", date: "2026-08-28", score, restingHeartRateBpm: 55,
+  });
+  const okBaseline = { source: "oura" as const, avgHrv: 65, avgRhr: 60, avgSleepScore: 75, dataPoints: 20 };
+  const historyWithCalorieDays = (daysWithData: number): RecoveryHistoryDay[] =>
+    historyDays(10).map((h, i) => {
+      // os últimos `daysWithData` dias da janela ganham calorias
+      const idxFromEnd = 10 - 1 - i;
+      return idxFromEnd < daysWithData ? { ...h, activeCaloriesKcal: 400 } : h;
+    });
+
+  it("7/7 dias com dado + burn baixo → zona 4 liberada", () => {
+    const rec = computeRecoveryRecommendation(day(), historyWithCalorieDays(7), okBaseline);
+    expect(rec.evaluatedRules).toContain("fadiga_semanal");
+    expect(rec.zone).toBe("green_high");
+  });
+
+  it("5-6/7: burn avaliado, mas progressão RETIDA (dias ausentes podiam levar a high)", () => {
+    for (const n of [5, 6]) {
+      const rec = computeRecoveryRecommendation(day(), historyWithCalorieDays(n), okBaseline);
+      expect(rec.evaluatedRules, `${n}/7`).toContain("fadiga_semanal");
+      expect(rec.zone, `${n}/7`).toBe("green");
+      expect(rec.alerts.some((a) => a.message.includes("janela de fadiga semanal está incompleta"))).toBe(true);
+    }
+  });
+
+  it("1-4/7: regra pula com motivo e fadiga assume moderate", () => {
+    const rec = computeRecoveryRecommendation(day(), historyWithCalorieDays(4), okBaseline);
+    expect(rec.skippedRules.find((r) => r.rule === "fadiga_semanal")?.reason).toMatch(/4 dos 7/);
+    expect(rec.fatigueLevel).toBe("moderate");
+    expect(rec.zone).toBe("green"); // moderate nunca libera zona 4
+  });
+
+  it("0/7 no Oura: skip conservador também segura a zona 4", () => {
+    const rec = computeRecoveryRecommendation(day(), historyDays(10), okBaseline);
+    expect(rec.skippedRules.map((r) => r.rule)).toContain("fadiga_semanal");
+    expect(rec.fatigueLevel).toBe("moderate");
+    expect(rec.zone).toBe("green");
   });
 });

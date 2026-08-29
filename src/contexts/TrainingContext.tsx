@@ -11,6 +11,10 @@ interface TrainingAlternative {
   emoji?: string;
   type: string;
   description: string;
+  /** Escopo da escolha (R7): sem casar {studentId, date}, a seleção feita
+   *  na ficha de uma aluna aparecia na ficha da outra (contexto é global). */
+  studentId?: string;
+  date?: string;
 }
 
 interface TrainingContextValue {

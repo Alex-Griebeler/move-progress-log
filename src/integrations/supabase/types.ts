@@ -3462,6 +3462,17 @@ export type Database = {
           data_points: number
         }[]
       }
+      calc_oura_baseline_v2: {
+        Args: { p_as_of?: string; p_days?: number; p_student_id: string }
+        Returns: {
+          avg_hrv: number
+          avg_rhr: number
+          avg_sleep_score: number
+          hrv_points: number
+          rhr_points: number
+          sleep_points: number
+        }[]
+      }
       can_access_trainer: {
         Args: { _trainer_id: string; _viewer_id: string }
         Returns: boolean

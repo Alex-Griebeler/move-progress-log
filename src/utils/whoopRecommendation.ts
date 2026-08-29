@@ -31,21 +31,34 @@ const shiftDays = (date: string, delta: number): string => {
   return d.toISOString().slice(0, 10);
 };
 
+export interface UnscoredWhoopDay {
+  date: string;
+  /** "pending" ainda pode fechar; "unscorable" é TERMINAL — nunca fecha. */
+  state: "pending" | "unscorable";
+}
+
 /**
  * Dia Whoop MAIS NOVO que `sinceDate` (ou qualquer um, se null) cujo score
- * ainda não fechou (PENDING/UNSCORABLE). O snapshot pula esses dias — sem
- * este aviso, "hoje pendente + ontem fechado" prescreveria com o score de
- * ontem sem nenhuma sinalização (isStale só dispara com 2 dias).
+ * não fechou. O snapshot pula esses dias — sem este aviso, "hoje pendente +
+ * ontem fechado" prescreveria com o score de ontem sem nenhuma sinalização
+ * (isStale só dispara com 2 dias). PENDING e UNSCORABLE são estados
+ * DIFERENTES na UI: prometer "aparece quando fechar" pra um dia
+ * inscorável seria mentira (auditoria 29/08).
  */
-export const newerPendingWhoopDate = (
+export const newerUnscoredWhoopDay = (
   rows: WhoopMetrics[],
   sinceDate: string | null,
-): string | null => {
-  let newest: string | null = null;
+): UnscoredWhoopDay | null => {
+  let newest: UnscoredWhoopDay | null = null;
   for (const w of rows) {
     if (w.score_state == null || w.score_state === "SCORED") continue;
     if (sinceDate !== null && w.date <= sinceDate) continue;
-    if (newest === null || w.date > newest) newest = w.date;
+    if (newest === null || w.date > newest.date) {
+      newest = {
+        date: w.date,
+        state: w.score_state === "UNSCORABLE" ? "unscorable" : "pending",
+      };
+    }
   }
   return newest;
 };
