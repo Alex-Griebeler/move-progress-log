@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import { describe, expect, it } from "vitest";
 import {
   ALL_ENGINE_RULES,
@@ -376,8 +378,6 @@ describe("auditoria evaluated/skipped", () => {
 
 describe("linguagem clínica (ratificado 29/08: medido vs basal + o que fazer)", () => {
   it("sem diagnóstico, sem drama, sem promessa causal com prazo — nos textos do motor e das alternativas", () => {
-    const { readFileSync } = require("fs");
-    const { join } = require("path");
     const sources: Array<[string, string]> = [
       ["motor", readFileSync(join(__dirname, "../recoveryEngine.ts"), "utf8")],
       ["alternativas", readFileSync(join(__dirname, "../trainingAlternatives.ts"), "utf8")],
