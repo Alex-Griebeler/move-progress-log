@@ -354,7 +354,9 @@ describe("R8b — fixes da review (fiação)", () => {
   });
 
   it("estado 'Registrado' reseta quando o fingerprint muda", () => {
-    expect(dash).toMatch(/setPerceptionSaveState\("idle"\);\s*\}, \[conductFingerprint, assessment\?\.symptomsAcknowledged, scopedAlternative\?\.type\]\);/);
+    // invalidação síncrona no updateAssessment + effect pra mudanças externas
+    expect((dash.match(/conductVersionRef\.current \+= 1;/g) ?? []).length).toBe(2);
+    expect(dash).toMatch(/\}, \[conductFingerprint, scopedAlternative\?\.type\]\);/);
   });
 
   it("vínculo à sessão usa o ID exato registrado + data da sessão (não spToday)", () => {

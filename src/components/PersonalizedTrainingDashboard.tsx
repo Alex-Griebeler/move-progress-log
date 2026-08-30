@@ -281,6 +281,12 @@ const PersonalizedTrainingDashboard = ({
   // R8b: registrar/atualizar a avaliação de percepção (escopo = fingerprint)
   const updateAssessment = (patch: Partial<{ perception: Perception; symptoms: boolean | null; symptomsAcknowledged: boolean }>) => {
     if (!conductFingerprint || !earlySnapshot) return;
+    // Invalidação SÍNCRONA (fria R8b, 3ª rodada): QUALQUER mudança na
+    // avaliação — percepção e sintomas inclusive — muda a conduta; um save
+    // em voo da avaliação anterior não pode voltar como "Registrado" nem
+    // criar vínculo. Não depende do timing do useEffect.
+    conductVersionRef.current += 1;
+    setPerceptionSaveState("idle");
     setConductAssessment({
       studentId,
       source: earlySnapshot.source,
@@ -298,13 +304,12 @@ const PersonalizedTrainingDashboard = ({
   // (fria R8b — o banco ficava com uma conduta diferente da executada).
   const conductVersionRef = useRef(0);
   useEffect(() => {
-    // Toda mudança de conduta invalida o "Registrado" E carimba um token:
-    // um persist EM VOO da conduta anterior descarta o resultado ao voltar
-    // (revisão fria R8b — sem isto, hero trocado durante o await recebia
-    // remember/saved da fonte antiga).
+    // Mudanças EXTERNAS de conduta (fingerprint novo, alternativa) também
+    // carimbam o token — as mudanças internas da avaliação (percepção,
+    // sintomas, acknowledge) já bumpam SINCRONAMENTE no updateAssessment.
     conductVersionRef.current += 1;
     setPerceptionSaveState("idle");
-  }, [conductFingerprint, assessment?.symptomsAcknowledged, scopedAlternative?.type]);
+  }, [conductFingerprint, scopedAlternative?.type]);
   // Vínculo pendente só vale enquanto a recomendação que o originou existe.
   useEffect(() => {
     validateRememberedPerception(studentId, conductFingerprint);
@@ -740,7 +745,7 @@ const PersonalizedTrainingDashboard = ({
                         variant={(assessment?.perception ?? "nao_informada") === value ? "default" : "outline"}
                         role="radio"
                         aria-checked={(assessment?.perception ?? "nao_informada") === value}
-                        onClick={() => { updateAssessment({ perception: value }); setPerceptionSaveState("idle"); }}
+                        onClick={() => updateAssessment({ perception: value })}
                       >
                         {label}
                       </Button>
@@ -755,7 +760,7 @@ const PersonalizedTrainingDashboard = ({
                         key={label}
                         size="sm"
                         variant={assessment?.symptoms === value ? "default" : "outline"}
-                        onClick={() => { updateAssessment({ symptoms: value, symptomsAcknowledged: false }); setPerceptionSaveState("idle"); }}
+                        onClick={() => updateAssessment({ symptoms: value, symptomsAcknowledged: false })}
                       >
                         {label}
                       </Button>
