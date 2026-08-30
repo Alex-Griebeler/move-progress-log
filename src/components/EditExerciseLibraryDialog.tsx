@@ -88,6 +88,9 @@ export const EditExerciseLibraryDialog = ({
   const [plyometricPhase, setPlyometricPhase] = useState(exercise.plyometric_phase?.toString() || "");
   const [defaultSets, setDefaultSets] = useState(exercise.default_sets || "");
   const [defaultReps, setDefaultReps] = useState(exercise.default_reps || "");
+  const [minIncrementKg, setMinIncrementKg] = useState(
+    exercise.min_increment_kg != null ? String(exercise.min_increment_kg) : "",
+  );
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>(exercise.equipment_required || []);
 
   const updateExercise = useUpdateExercise();
@@ -121,6 +124,7 @@ export const EditExerciseLibraryDialog = ({
     setPlyometricPhase(exercise.plyometric_phase?.toString() || "");
     setDefaultSets(exercise.default_sets || "");
     setDefaultReps(exercise.default_reps || "");
+    setMinIncrementKg(exercise.min_increment_kg != null ? String(exercise.min_increment_kg) : "");
     setSelectedEquipment(exercise.equipment_required || []);
   }, [exercise]);
 
@@ -180,6 +184,11 @@ export const EditExerciseLibraryDialog = ({
         plyometric_phase: plyometricPhase ? parseInt(plyometricPhase) : null,
         default_sets: defaultSets.trim() || null,
         default_reps: defaultReps.trim() || null,
+        // vazio → null (heurística); vírgula aceita; só valor finito > 0
+        min_increment_kg: (() => {
+          const parsed = Number(minIncrementKg.trim().replace(",", "."));
+          return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        })(),
         equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
         surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",
         stability_position: stabilityPosition && stabilityPosition !== "none" ? stabilityPosition : null,
@@ -512,6 +521,24 @@ export const EditExerciseLibraryDialog = ({
                     onChange={(e) => setDefaultReps(e.target.value)}
                     placeholder="Ex: 8-12"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-min-increment">Incremento mínimo (kg)</Label>
+                  <Input
+                    id="edit-min-increment"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min="0.01"
+                    value={minIncrementKg}
+                    onChange={(e) => setMinIncrementKg(e.target.value)}
+                    placeholder="Ex: 2,5 (vazio = inferir do equipamento)"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Na mesma unidade em que a carga deste exercício é registrada
+                    (total ou por halter/lado).
+                  </p>
                 </div>
 
                 <div className="space-y-2 col-span-2">

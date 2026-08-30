@@ -187,7 +187,7 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
     // R8b: a carga segue a CONDUTA efetiva (mesma fonte por construção —
     // conductRecommendation deriva da activeRecommendation); suspensa por
     // sintomas → hook desliga.
-    expect(dash).toContain("useLoadSuggestions(studentId, conduct?.suspended ? null : conductRecommendation)");
+    expect(dash).toMatch(/useLoadSuggestions\(\s*studentId,\s*conduct\?\.suspended \? null : conductRecommendation,\s*selectedLoadPrescriptionId,\s*\)/);
   });
 
   it("alternativas de treino usam a zona da fonte ativa", () => {
@@ -406,5 +406,45 @@ describe("R8b — fria, 2ª rodada", () => {
     expect(card).toContain("parsed.version === PERCEPTION_TEXT_VERSION");
     expect(card).toContain('timeZone: "America/Sao_Paulo"');
     expect(card).toContain("snapDisplay !== day");
+  });
+});
+
+describe("R8c — carga escopada pela prescrição vigente + incremento da biblioteca", () => {
+  it("hook devolve modos e o dashboard consome itens + prescrição ativa", () => {
+    expect(dash).toContain("const loadSuggestions = loadResult?.items;");
+    expect(dash).toContain("const activePrescriptionId = loadResult?.prescriptionId ?? null;");
+  });
+
+  it("multi-vigente sem escolha: seletor explícito + CTA bloqueado (caso 18)", () => {
+    expect(dash).toContain('loadResult?.mode === "selection_required"');
+    expect(dash).toContain("disabled={prescriptionSelectionPending}");
+    expect(dash).toContain("sem escolha silenciosa");
+  });
+
+  it("erro nas atribuições vira modo suspenso (nunca cai no fallback)", () => {
+    expect(dash).toContain('loadResult?.mode === "suspended"');
+    const hook = readFileSync(join(__dirname, "../../hooks/useLoadSuggestions.ts"), "utf8");
+    expect(hook).toContain('return empty("suspended", { fallbackReason: "erro ao consultar prescrições" });');
+    expect(hook).toContain('assignmentStatus({ start_date: a.start_date, end_date: a.end_date }) === "vigente"');
+  });
+
+  it("a MESMA prescrição das sugestões vai pra sessão iniciada", () => {
+    expect(dash).toContain("onStartTraining?.(activePrescriptionId)");
+    expect(page).toContain("initialPrescriptionId={sessionPrescriptionId}");
+  });
+
+  it("origem do incremento é visível (cadastrado vs inferido)", () => {
+    expect(dash).toContain("cadastrado na biblioteca");
+    const hook = readFileSync(join(__dirname, "../../hooks/useLoadSuggestions.ts"), "utf8");
+    expect(hook).toContain("libMeta?.minIncrementKg ?? null");
+    expect(hook).toContain('incrementFromLibrary !== null ? "cadastrado" : "inferido"');
+  });
+
+  it("plano: ordem do plano, should_track=false fora, repetido 1ª ocorrência, primeira execução explícita", () => {
+    const hook = readFileSync(join(__dirname, "../../hooks/useLoadSuggestions.ts"), "utf8");
+    expect(hook).toContain('.order("order_index", { ascending: true })');
+    expect(hook).toContain("if (planRow.should_track === false) continue;");
+    expect(hook).toContain("if (!libId || seen.has(libId)) continue;");
+    expect(hook).toContain("Primeira execução — definir carga com a aluna");
   });
 });

@@ -70,7 +70,7 @@ interface PersonalizedTrainingDashboardProps {
    * erro total nem a afirmação "sem score fechado" — é estado próprio.
    */
   latestOuraError?: boolean;
-  onStartTraining?: () => void;
+  onStartTraining?: (prescriptionId?: string | null) => void;
 }
 
 const ZONE_LABEL: Record<string, string> = {
@@ -272,11 +272,21 @@ const PersonalizedTrainingDashboard = ({
           loadAdjustmentPercent: conduct.effectiveLoadAdjustmentPercent,
         }
       : activeRecommendation;
+  const [selectedLoadPrescriptionId, setSelectedLoadPrescriptionId] = useState<string | null>(null);
   const {
-    data: loadSuggestions,
+    data: loadResult,
     isLoading: loadSuggestionsLoading,
     isError: loadSuggestionsError,
-  } = useLoadSuggestions(studentId, conduct?.suspended ? null : conductRecommendation);
+  } = useLoadSuggestions(
+    studentId,
+    conduct?.suspended ? null : conductRecommendation,
+    selectedLoadPrescriptionId,
+  );
+  const loadSuggestions = loadResult?.items;
+  // R8c: a MESMA prescrição das sugestões vai pro prescription_id da sessão.
+  const activePrescriptionId = loadResult?.prescriptionId ?? null;
+  // Caso 18 da matriz: multi-vigente SEM escolha → sessão não inicia.
+  const prescriptionSelectionPending = loadResult?.mode === "selection_required";
 
   // R8b: registrar/atualizar a avaliação de percepção (escopo = fingerprint)
   const updateAssessment = (patch: Partial<{ perception: Perception; symptoms: boolean | null; symptomsAcknowledged: boolean }>) => {
@@ -827,11 +837,24 @@ const PersonalizedTrainingDashboard = ({
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex gap-3 pt-2">
-                    <Button onClick={() => onStartTraining?.()}>Iniciar Treino</Button>
-                    <Button variant="outline" onClick={() => setShowAlternatives(true)}>
-                      Ver Alternativas
-                    </Button>
+                  <div className="flex flex-col gap-2 pt-2">
+                    {prescriptionSelectionPending && (
+                      <p className="text-xs text-warning">
+                        Esta aluna tem mais de uma prescrição vigente — escolha a do dia no
+                        card de carga antes de iniciar.
+                      </p>
+                    )}
+                    <div className="flex gap-3">
+                      <Button
+                        disabled={prescriptionSelectionPending}
+                        onClick={() => onStartTraining?.(activePrescriptionId)}
+                      >
+                        Iniciar Treino
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowAlternatives(true)}>
+                        Ver Alternativas
+                      </Button>
+                    </div>
                   </div>
                 )}
               </>
@@ -854,6 +877,30 @@ const PersonalizedTrainingDashboard = ({
       </Card>
 
       {/* Sugestão de carga — o dado mais acionável do coach, logo após o hero */}
+      {hasActionableRecommendation && loadResult?.mode === "selection_required" && (
+        <Card className="p-6">
+          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <p className="text-sm text-muted-foreground mb-3">
+            Mais de uma prescrição vigente — escolha a do dia (sem escolha silenciosa):
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {loadResult.availablePrescriptions.map((p) => (
+              <Button key={p.id} size="sm" variant="outline" onClick={() => setSelectedLoadPrescriptionId(p.id)}>
+                {p.name}
+              </Button>
+            ))}
+          </div>
+        </Card>
+      )}
+      {hasActionableRecommendation && loadResult?.mode === "suspended" && (
+        <Card className="p-6">
+          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <p className="text-sm text-muted-foreground">
+            Suspensa: {loadResult.fallbackReason ?? "erro ao consultar prescrições"} — recarregue a
+            página. (Erro não vira “sem prescrição”.)
+          </p>
+        </Card>
+      )}
       {hasActionableRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -862,6 +909,17 @@ const PersonalizedTrainingDashboard = ({
               Zona {ZONE_LABEL[conductRecommendation!.zone] ?? conductRecommendation!.zone}
             </Badge>
           </div>
+          {loadResult?.mode === "prescription" && (
+            <p className="text-sm text-muted-foreground mb-3">
+              Plano vigente: <strong>{loadResult.prescriptionName ?? "prescrição"}</strong> — exercícios
+              na ordem do plano.
+            </p>
+          )}
+          {loadResult?.mode === "fallback_recent" && (
+            <p className="text-sm text-warning mb-3">
+              {loadResult.fallbackReason} (top por peso, 90 dias).
+            </p>
+          )}
           <p className="text-sm text-muted-foreground mb-4">
             Referência por histórico real do aluno. A sugestão deve ser validada pelo coach antes da execução.
           </p>
@@ -911,7 +969,12 @@ const PersonalizedTrainingDashboard = ({
                     </div>
                     <div>
                       <p className="text-muted-foreground">Incremento</p>
-                      <p className="font-semibold">{item.incrementKg} kg</p>
+                      <p className="font-semibold">
+                        {item.incrementKg} kg{" "}
+                        <span className="font-normal text-muted-foreground">
+                          ({item.incrementSource === "cadastrado" ? "cadastrado na biblioteca" : "inferido do equipamento"})
+                        </span>
+                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Fonte</p>

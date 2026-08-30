@@ -112,6 +112,8 @@ const StudentDetailPage = () => {
   const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", { days: WHOOP_RECOMMENDATION_WINDOW_DAYS });
   const { isAdmin } = useIsAdmin();
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
+  // R8c: prescrição que alimentou a sugestão de carga → pré-seleção da sessão.
+  const [sessionPrescriptionId, setSessionPrescriptionId] = useState<string | null>(null);
   const [sessionToReopen, setSessionToReopen] = useState<string | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -408,7 +410,10 @@ const StudentDetailPage = () => {
             // latest falhando, a fonte decidida pode estar errada (Codex R7).
             isError={ouraMetricsError || whoopMetricsError || latestOuraError}
               latestOuraError={latestOuraError}
-            onStartTraining={() => setRecordSessionOpen(true)}
+            onStartTraining={(prescriptionId) => {
+              setSessionPrescriptionId(prescriptionId ?? null);
+              setRecordSessionOpen(true);
+            }}
           />
         </TabsContent>
 
@@ -512,6 +517,7 @@ const StudentDetailPage = () => {
         studentId={id!}
         studentName={student.name}
         existingSessionId={sessionToReopen}
+        initialPrescriptionId={sessionPrescriptionId}
         onSessionCreated={(sessionId, sessionDate) => {
           // R8b: a percepção REGISTRADA do dia vincula pelo ID exato à
           // PRIMEIRA sessão criada — e só quando a DATA da sessão é o mesmo

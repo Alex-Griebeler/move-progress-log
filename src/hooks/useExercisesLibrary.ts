@@ -50,6 +50,7 @@ export interface ExerciseLibrary {
   updated_at: string;
   video_url: string | null;
   equipment_required: string[] | null;
+  min_increment_kg?: number | null;
   prerequisites: unknown | null;
   risk_level: string | null;
   category: string | null;
@@ -83,6 +84,8 @@ export interface CreateExerciseInput {
   numeric_level?: number | null;
   video_url?: string | null;
   equipment_required?: string[] | null;
+  /** R8c: incremento mínimo de carga (kg) — NULL = heurística por equipamento. */
+  min_increment_kg?: number | null;
   prerequisites?: unknown | null;
   risk_level?: string | null;
   category?: string | null;
@@ -112,7 +115,7 @@ const EXERCISES_LIBRARY_SELECT = `
   id, name, movement_pattern, functional_group, laterality, movement_plane, description,
   contraction_type, level, numeric_level, created_at, updated_at, video_url,
   equipment_required, prerequisites, risk_level, category, subcategory,
-  plyometric_phase, default_sets, default_reps, boyle_score, axial_load,
+  plyometric_phase, default_sets, default_reps, min_increment_kg, boyle_score, axial_load,
   lumbar_demand, technical_complexity, metabolic_potential, knee_dominance,
   hip_dominance, primary_muscles, emphasis, stability_position, surface_modifier
 `;

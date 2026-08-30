@@ -776,6 +776,7 @@ export type Database = {
           description: string | null
           emphasis: string | null
           equipment_required: string[] | null
+          min_increment_kg: number | null
           functional_group: string | null
           hip_dominance: number | null
           id: string
@@ -811,6 +812,7 @@ export type Database = {
           description?: string | null
           emphasis?: string | null
           equipment_required?: string[] | null
+          min_increment_kg?: number | null
           functional_group?: string | null
           hip_dominance?: number | null
           id?: string
@@ -846,6 +848,7 @@ export type Database = {
           description?: string | null
           emphasis?: string | null
           equipment_required?: string[] | null
+          min_increment_kg?: number | null
           functional_group?: string | null
           hip_dominance?: number | null
           id?: string
