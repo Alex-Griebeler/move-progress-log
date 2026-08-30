@@ -221,6 +221,21 @@ export const AddExerciseDialog = ({
       return;
     }
 
+    // R8c (fria): entrada INVÁLIDA não vira null silencioso — o valor
+    // cadastrado seria apagado sem aviso. Vazio = null (heurística); resto
+    // precisa ser número > 0 e ≤ 999,99 (numeric(5,2)), mínimo 0,01.
+    const minIncrementRaw = minIncrementKg.trim();
+    let parsedMinIncrement: number | null = null;
+    if (minIncrementRaw !== "") {
+      const parsed = Number(minIncrementRaw.replace(",", "."));
+      if (!Number.isFinite(parsed) || parsed < 0.01 || parsed > 999.99) {
+        notify.error("Incremento mínimo inválido", {
+          description: "Use um número entre 0,01 e 999,99 kg — ou deixe vazio pra inferir do equipamento.",
+        });
+        return;
+      }
+      parsedMinIncrement = Math.round(parsed * 100) / 100;
+    }
     try {
 
     const result = await createExercise.mutateAsync({
@@ -247,10 +262,7 @@ export const AddExerciseDialog = ({
       plyometric_phase: plyometricPhase ? parseInt(plyometricPhase) : null,
       default_sets: defaultSets.trim() || null,
       default_reps: defaultReps.trim() || null,
-      min_increment_kg: (() => {
-        const parsed = Number(minIncrementKg.trim().replace(",", "."));
-        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-      })(),
+      min_increment_kg: parsedMinIncrement,
       equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
       stability_position: stabilityPosition && stabilityPosition !== "none" ? stabilityPosition : null,
       surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",

@@ -290,8 +290,11 @@ const PersonalizedTrainingDashboard = ({
   // (plano vigente ou fallback declarado) — carregando/erro/suspenso não
   // viram sessão livre silenciosamente.
   const prescriptionSelectionPending = loadResult?.mode === "selection_required";
+  // loadSuggestionsError junto: refetch falho MANTÉM data antiga no cache
+  // (isError=true + data velha) — escopo velho não pode iniciar sessão.
   const sessionScopeResolved =
-    loadResult?.mode === "prescription" || loadResult?.mode === "fallback_recent";
+    !loadSuggestionsError &&
+    (loadResult?.mode === "prescription" || loadResult?.mode === "fallback_recent");
 
   // R8b: registrar/atualizar a avaliação de percepção (escopo = fingerprint)
   const updateAssessment = (patch: Partial<{ perception: Perception; symptoms: boolean | null; symptomsAcknowledged: boolean }>) => {
@@ -926,6 +929,12 @@ const PersonalizedTrainingDashboard = ({
               Plano vigente: <strong>{loadResult.prescriptionName ?? "prescrição"}</strong> — exercícios
               na ordem do plano.
               {loadResult.fallbackReason ? ` ${loadResult.fallbackReason.replace(/\.$/, "")}.` : ""}
+            </p>
+          )}
+          {loadSuggestionsError && (
+            <p className="text-sm text-warning mb-3">
+              Falha ao atualizar — estas sugestões podem estar desatualizadas. Recarregue antes
+              de usar.
             </p>
           )}
           {loadResult?.mode === "fallback_recent" && (

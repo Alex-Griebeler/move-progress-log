@@ -98,6 +98,19 @@ describe("máquina de modos (R8c — comportamental, fetchers injetados)", () =>
     expect(stale.mode).toBe("selection_required");
   });
 
+  it("duas vigentes da MESMA prescrição não são escolha real (dedupe)", async () => {
+    const r = await computeLoadSuggestions("a1", rec(), null, deps({
+      assignments: {
+        data: [vigente("p1"), { ...vigente("p1"), start_date: "2021-01-01" }],
+        error: null,
+      },
+      plan: { data: [{ exercise_library_id: "e1", order_index: 1, should_track: true }], error: null },
+      library: { data: [libRow("e1")], error: null },
+    }));
+    expect(r.mode).toBe("prescription");
+    expect(r.prescriptionId).toBe("p1");
+  });
+
   it("atribuição expirada/futura NÃO é vigente", async () => {
     const r = await computeLoadSuggestions("a1", rec(), null, deps({
       assignments: {

@@ -512,7 +512,12 @@ const StudentDetailPage = () => {
         open={recordSessionOpen}
         onOpenChange={(open) => {
           setRecordSessionOpen(open);
-          if (!open) setSessionToReopen(null);
+          if (!open) {
+            setSessionToReopen(null);
+            // R8c: a prescrição do fluxo de treino não vaza pra próxima
+            // abertura por outro CTA ("Gravar sessão" administrativo).
+            setSessionPrescriptionId(null);
+          }
         }}
         studentId={id!}
         studentName={student.name}

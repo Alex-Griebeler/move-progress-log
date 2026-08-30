@@ -9,6 +9,9 @@ const PRESCRIPTION_QUERY_ROOTS = [
   "prescriptions-list",
   "student-prescriptions",
   "students-active-prescriptions",
+  // R8c: atribuição/plano novos mudam o ESCOPO da carga assistida — sem
+  // isto, criar a 2ª vigente deixava o CTA iniciando a prescrição antiga.
+  "load-suggestions",
 ] as const;
 
 type InvalidatePrescriptionQueriesOptions = {

@@ -479,3 +479,35 @@ describe("R8c — 3ª rodada", () => {
     );
   });
 });
+
+describe("R8c — fixes da revisão fria", () => {
+  it("refetch com erro não mantém CTA (escopo exige !loadSuggestionsError)", () => {
+    expect(dash).toMatch(/!loadSuggestionsError &&\s*\(loadResult\?\.mode === "prescription" \|\| loadResult\?\.mode === "fallback_recent"\)/);
+    expect(dash).toContain("podem estar desatualizadas");
+  });
+
+  it("prescrição do fluxo de treino não vaza pra outra abertura do diálogo", () => {
+    expect(page).toContain("setSessionPrescriptionId(null);");
+  });
+
+  it("mudança de prescrição invalida a carga assistida", () => {
+    const inv = readFileSync(join(__dirname, "../../hooks/prescriptionQueryInvalidation.ts"), "utf8");
+    expect(inv).toContain('"load-suggestions"');
+  });
+
+  it("import da biblioteca não apaga campos ausentes (defaultToNull false)", () => {
+    const fn = readFileSync(
+      join(__dirname, "../../../supabase/functions/import-exercises/index.ts"),
+      "utf8",
+    );
+    expect((fn.match(/defaultToNull: false/g) ?? []).length).toBe(2);
+  });
+
+  it("incremento inválido bloqueia o submit (não vira null silencioso)", () => {
+    for (const rel of ["../AddExerciseDialog.tsx", "../EditExerciseLibraryDialog.tsx"]) {
+      const src = readFileSync(join(__dirname, rel), "utf8");
+      expect(src, rel).toContain("Incremento mínimo inválido");
+      expect(src, rel).toContain("parsedMinIncrement = Math.round(parsed * 100) / 100;");
+    }
+  });
+});

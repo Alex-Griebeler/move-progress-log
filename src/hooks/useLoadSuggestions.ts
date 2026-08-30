@@ -217,9 +217,18 @@ export const computeLoadSuggestions = async (
         logger.warn("[load-suggestions] atribuições indisponíveis — sugestão suspensa", { assignmentsError });
         return empty("suspended", { fallbackReason: "erro ao consultar prescrições" });
       }
-      const vigentes = (assignmentRows ?? []).filter((a) =>
+      const vigentesAll = (assignmentRows ?? []).filter((a) =>
         assignmentStatus({ start_date: a.start_date, end_date: a.end_date }) === "vigente",
       );
+      // Duas atribuições vigentes da MESMA prescrição (reatribuição sem
+      // encerrar a anterior) não são escolha real — dedupe por prescrição
+      // (fica a 1ª; a sobreposição é problema da aba Prescrições).
+      const seenPrescriptions = new Set<string>();
+      const vigentes = vigentesAll.filter((a) => {
+        if (seenPrescriptions.has(a.prescription_id)) return false;
+        seenPrescriptions.add(a.prescription_id);
+        return true;
+      });
       const availablePrescriptions = vigentes.map((a) => ({
         id: a.prescription_id as string,
         name: a.prescription?.name ?? "Prescrição",
