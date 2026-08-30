@@ -707,9 +707,10 @@ const PersonalizedTrainingDashboard = ({
   const conductContrast =
     !!conduct &&
     (conduct.modulated || conduct.suspended !== null || conduct.appliedVetoes.length > 0);
-  // Revelação progressiva da percepção: a linha de sintomas (e o Registrar)
-  // só aparecem depois da 1ª resposta — o que pode ser PERSISTIDO não muda
-  // (Registrar continua exigindo percepção E sintomas respondidos).
+  // Revelação progressiva SÓ do botão Registrar: sintomas é a regra 0
+  // clínica e fica SEMPRE visível (o caminho "sintomas primeiro" existe —
+  // review da PR #315); o Registrar, que é disabled até percepção E
+  // sintomas respondidos, só aparece depois da 1ª resposta.
   const perceptionStarted =
     (assessment?.perception ?? "nao_informada") !== "nao_informada" ||
     assessment?.symptoms != null;
@@ -855,21 +856,21 @@ const PersonalizedTrainingDashboard = ({
                       </span>
                     )}
                   </div>
-                  {perceptionStarted && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        Sintomas relevantes? (dor aguda, mal-estar, tontura, falta de ar)
-                      </span>
-                      {([[true, "Sim"], [false, "Não"]] as Array<[boolean, string]>).map(([value, label]) => (
-                        <Button
-                          key={label}
-                          size="sm"
-                          variant={assessment?.symptoms === value ? "default" : "outline"}
-                          onClick={() => updateAssessment({ symptoms: value, symptomsAcknowledged: false })}
-                        >
-                          {label}
-                        </Button>
-                      ))}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      Sintomas relevantes? (dor aguda, mal-estar, tontura, falta de ar)
+                    </span>
+                    {([[true, "Sim"], [false, "Não"]] as Array<[boolean, string]>).map(([value, label]) => (
+                      <Button
+                        key={label}
+                        size="sm"
+                        variant={assessment?.symptoms === value ? "default" : "outline"}
+                        onClick={() => updateAssessment({ symptoms: value, symptomsAcknowledged: false })}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                    {perceptionStarted && (
                       <Button
                         size="sm"
                         variant="secondary"
@@ -882,11 +883,11 @@ const PersonalizedTrainingDashboard = ({
                       >
                         {perceptionSaveState === "saving" ? "Registrando…" : perceptionSaveState === "saved" ? "Registrado" : "Registrar"}
                       </Button>
-                      {perceptionSaveState === "error" && (
-                        <span className="text-xs text-destructive">Falha ao registrar — tente de novo.</span>
-                      )}
-                    </div>
-                  )}
+                    )}
+                    {perceptionSaveState === "error" && (
+                      <span className="text-xs text-destructive">Falha ao registrar — tente de novo.</span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Nível 2 — CONDUTA AJUSTADA (só quando difere da base) */}
