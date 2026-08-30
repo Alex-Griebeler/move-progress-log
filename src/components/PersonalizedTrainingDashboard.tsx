@@ -827,8 +827,8 @@ const PersonalizedTrainingDashboard = ({
                 {/* R8b — percepção da aluna (decisão ratificada: percepção >
                     números, exceto números muito ruins). Default REAL =
                     não informada: sem seleção, a conduta é a objetiva.
-                    Visual: separador em vez de caixa aninhada; sintomas e
-                    Registrar aparecem depois da 1ª resposta. */}
+                    Visual: separador em vez de caixa aninhada; só o Registrar
+                    aparece depois da 1ª resposta (sintomas sempre visíveis). */}
                 <div className="mt-4 space-y-2 border-t pt-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium">Percepção da aluna</span>
