@@ -27,7 +27,9 @@ import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import { StudentOverviewDashboard } from "@/components/StudentOverviewDashboard";
 import { AssessmentsTab } from "@/components/assessments/AssessmentsTab";
-import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
+import { useOuraMetrics, useLatestOuraMetrics, spToday } from "@/hooks/useOuraMetrics";
+import { linkPerceptionToSession } from "@/utils/perceptionObservation";
+import { supabase } from "@/integrations/supabase/client";
 import { useWhoopMetrics } from "@/hooks/useWhoopMetrics";
 import { WHOOP_RECOMMENDATION_WINDOW_DAYS } from "@/utils/whoopRecommendation";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
@@ -510,6 +512,11 @@ const StudentDetailPage = () => {
         studentId={id!}
         studentName={student.name}
         existingSessionId={sessionToReopen}
+        onSessionCreated={(sessionId) => {
+          // R8b: a percepção pré-treino do dia (se registrada) vincula à
+          // PRIMEIRA sessão criada; session_id não-nulo nunca é sobrescrito.
+          void linkPerceptionToSession(supabase, id!, sessionId, spToday());
+        }}
       />
 
       <EditSessionDialog

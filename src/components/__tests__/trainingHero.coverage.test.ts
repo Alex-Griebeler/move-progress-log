@@ -184,7 +184,10 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
   });
 
   it("carga usa a recomendação da MESMA fonte do hero", () => {
-    expect(dash).toContain("useLoadSuggestions(studentId, activeRecommendation)");
+    // R8b: a carga segue a CONDUTA efetiva (mesma fonte por construção —
+    // conductRecommendation deriva da activeRecommendation); suspensa por
+    // sintomas → hook desliga.
+    expect(dash).toContain("useLoadSuggestions(studentId, conduct?.suspended ? null : conductRecommendation)");
   });
 
   it("alternativas de treino usam a zona da fonte ativa", () => {
@@ -271,8 +274,9 @@ describe("R7 — correções da auditoria (29/08)", () => {
     expect(dash).toContain('"Carga bloqueada hoje"');
   });
 
-  it("alternativa escolhida fica visível (não é botão de mentira)", () => {
-    expect(dash).toContain("Alternativa escolhida:");
+  it("alternativa aplicada fica visível — e agora tem efeito real via conduta (R8b)", () => {
+    expect(dash).toContain("Alternativa aplicada:");
+    expect(dash).toContain("conduct?.appliedAlternative");
   });
 });
 
@@ -299,5 +303,42 @@ describe("R8a — badge ontem + janela Oura de calendário", () => {
   it("página pede 30 DIAS de calendário do Oura (não 30 linhas)", () => {
     expect(page).toContain("{ days: 30 }");
     expect(page).not.toMatch(/useOuraMetrics\(\s*needsOuraHistory \? studentId : "",\s*30\s*\)/);
+  });
+});
+
+describe("R8b — percepção da aluna e conduta efetiva", () => {
+  it("conduta é computada pelo funil puro e alimenta a carga", () => {
+    expect(dash).toContain("computeEffectiveConduct({");
+    expect(dash).toContain("conductRecommendation");
+  });
+
+  it("default REAL é 'não informada' (pede pra perguntar à aluna)", () => {
+    expect(dash).toContain('assessment?.perception ?? "nao_informada"');
+    expect(dash).toContain("pergunte à aluna como ela está hoje");
+  });
+
+  it("gate de sintomas existe e suspende CTA/carga até avaliação explícita", () => {
+    expect(dash).toContain("Sintomas relevantes? (dor aguda, mal-estar, tontura, falta de ar)");
+    expect(dash).toContain("Avaliei — liberar conduta conservadora");
+    expect(dash).toContain('conduct?.suspended === "symptoms"');
+  });
+
+  it("dois níveis rotulados: recomendação do aparelho ≠ conduta ajustada", () => {
+    expect(dash).toContain("Recomendação do aparelho");
+    expect(dash).toContain("Conduta ajustada após relato da aluna");
+  });
+
+  it("conduta zona 0 troca o CTA por registrar descanso", () => {
+    expect(dash).toContain("Registrar dia de descanso");
+    expect(dash).toMatch(/conduct && conduct\.effectiveZone === 0 \?/);
+  });
+
+  it("fase R8b: contexto Whoop fail-closed (unavailable) até a R8d", () => {
+    expect(dash).toContain('{ freshness: "unavailable", strain: "unavailable" }');
+  });
+
+  it("fingerprint completo invalida modulação quando a recomendação muda", () => {
+    expect(dash).toContain("criticalSignature");
+    expect(dash).toContain("conductAssessment.fingerprint === conductFingerprint");
   });
 });
