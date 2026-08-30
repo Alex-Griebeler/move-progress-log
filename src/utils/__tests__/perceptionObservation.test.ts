@@ -3,6 +3,7 @@ import {
   buildPerceptionText,
   spDayUtcRange,
   PERCEPTION_CATEGORY,
+  PERCEPTION_TEXT_VERSION,
 } from "@/utils/perceptionObservation";
 
 describe("persistência da percepção (partes puras)", () => {
