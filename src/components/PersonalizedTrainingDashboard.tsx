@@ -148,6 +148,16 @@ const PersonalizedTrainingDashboard = ({
   const { data: whoopConnection, isError: whoopConnectionError } = useWhoopConnection(studentId);
   const syncWhoop = useSyncWhoop();
   const { isAdmin } = useIsAdmin();
+  // R8d: relógio de 60s pro contexto Whoop — sem ele, tela aberta ficava
+  // "fresh" pra sempre (Date.now() no render só muda com outro render). A
+  // virada fresh→stale muda o fingerprint e invalida a modulação registrada
+  // (gate clínico mudou) — comportamento desejado, sem loop (só o timer
+  // atualiza o relógio).
+  const [whoopClockMs, setWhoopClockMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setWhoopClockMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
   // R5 — a FONTE é decidida ANTES de qualquer consumo: o snapshot escolhe
   // {source, date} e todo o resto (recomendação, tiles, carga, alertas) casa
   // com esse par. Nunca misturar hero Whoop de hoje com recomendação Oura
@@ -236,7 +246,7 @@ const PersonalizedTrainingDashboard = ({
           connectionUnavailable: whoopConnectionError || whoopConnection === undefined,
           dayStrain: whoopDayRow?.day_strain ?? null,
           snapshotIsToday: earlySnapshot.date === spToday(),
-          nowMs: Date.now(),
+          nowMs: whoopClockMs,
         })
       : null;
   const whoopConductContext = whoopCtx

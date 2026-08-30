@@ -129,10 +129,16 @@ export const computeWhoopContext = (input: WhoopContextInput): WhoopContextResul
   }
 
   let strain: WhoopContextResult["strain"];
-  if (input.dayStrain == null || !Number.isFinite(input.dayStrain)) {
+  if (freshness === "unavailable" || !input.snapshotIsToday) {
+    // Sem sync conhecido NÃO existe leitura de strain confiável (mesmo um
+    // ≥14 do cache não é atribuível a "hoje até as HH:mm"); e strain de
+    // snapshot de ONTEM não é contexto da sessão de hoje — nos dois casos
+    // o estado é unavailable (veto de elevação, nunca piso). Revisão R8d.
+    strain = "unavailable";
+  } else if (input.dayStrain == null || !Number.isFinite(input.dayStrain)) {
     strain = "unavailable";
   } else if (input.dayStrain >= WHOOP_HIGH_STRAIN_THRESHOLD) {
-    strain = "high";
+    strain = "high"; // alto com sync STALE conhecido continua alto (veto se sustenta)
   } else {
     // <14 só certifica "não-alto" com sync FRESCO — valor de horas atrás
     // pode ter subido desde então (revisão: veto de elevação, não piso).

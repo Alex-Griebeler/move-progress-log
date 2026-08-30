@@ -533,3 +533,10 @@ describe("R8d — freshness e strain do Whoop", () => {
     expect(dash).toMatch(/key: "strain",\s*metric: "strain"/);
   });
 });
+
+describe("R8d — 2ª rodada", () => {
+  it("relógio de 60s alimenta o contexto (tela aberta não fica fresh pra sempre)", () => {
+    expect(dash).toContain("setInterval(() => setWhoopClockMs(Date.now()), 60_000)");
+    expect(dash).toContain("nowMs: whoopClockMs");
+  });
+});

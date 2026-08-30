@@ -216,6 +216,28 @@ describe("computeWhoopContext (R8d — estados fechados)", () => {
     expect(WHOOP_HIGH_STRAIN_THRESHOLD).toBe(14);
   });
 
+  it("conexão indisponível zera TUDO — até strain ≥14 vira unavailable", () => {
+    const ctx = computeWhoopContext({ ...base, lastSyncAt: syncAt(1), connectionUnavailable: true, dayStrain: 18 });
+    expect(ctx.freshness).toBe("unavailable");
+    expect(ctx.strain).toBe("unavailable");
+    expect(ctx.strainAlert).toBeNull();
+  });
+
+  it("snapshot de ONTEM: strain da conduta é unavailable (baixo de ontem não libera hoje)", () => {
+    const low = computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: 5, snapshotIsToday: false });
+    expect(low.strain).toBe("unavailable");
+    const high = computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: 16, snapshotIsToday: false });
+    expect(high.strain).toBe("unavailable");
+    expect(high.strainAlert).toBeNull();
+  });
+
+  it("fronteiras exatas: 3h ainda fresh, 3h+ε stale; 13.99 non_high, 14 high", () => {
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(3) }).freshness).toBe("fresh");
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(3.01) }).freshness).toBe("stale");
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: 13.99 }).strain).toBe("non_high");
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: 14 }).strain).toBe("high");
+  });
+
   it("syncDisplay em HH:mm no fuso SP", () => {
     const ctx = computeWhoopContext({ ...base, lastSyncAt: "2026-08-29T13:20:00Z" });
     expect(ctx.syncDisplay).toBe("10:20");
