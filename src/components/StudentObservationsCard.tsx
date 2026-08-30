@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { parsePerceptionText } from "@/utils/perceptionObservation";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -257,7 +258,7 @@ export function StudentObservationsCard({
  */
 function PerceptionHistorySection({ studentId }: { studentId: string }) {
   const [periodDays, setPeriodDays] = useState<7 | 30>(7);
-  const { data: rows } = useQuery({
+  const { data: rows, isError: historyError } = useQuery({
     queryKey: ["perception-history", studentId, periodDays],
     enabled: !!studentId,
     staleTime: 60 * 1000,
@@ -276,6 +277,17 @@ function PerceptionHistorySection({ studentId }: { studentId: string }) {
     },
   });
 
+  // Erro ≠ vazio: seção sumindo em erro fingia "sem histórico" (fria R8b).
+  if (historyError) {
+    return (
+      <div className="mt-4 border-t pt-3">
+        <p className="text-sm font-medium">Percepção pré-treino</p>
+        <p className="text-xs text-muted-foreground">
+          Não foi possível carregar o histórico — recarregue a página.
+        </p>
+      </div>
+    );
+  }
   if (!rows || rows.length === 0) return null;
 
   return (
@@ -296,13 +308,28 @@ function PerceptionHistorySection({ studentId }: { studentId: string }) {
         </div>
       </div>
       <div className="space-y-1">
-        {rows.map((row) => (
-          <p key={row.id} className="text-xs text-muted-foreground font-mono break-words">
-            {new Date(row.created_at as string).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}{" "}
-            — {String(row.observation_text)}
-            {row.session_id ? " | sessão vinculada" : ""}
-          </p>
-        ))}
+        {rows.map((row) => {
+          const parsed = parsePerceptionText(String(row.observation_text));
+          const day = new Date(row.created_at as string).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+          const f = parsed.fields;
+          return (
+            <p key={row.id} className="text-xs text-muted-foreground break-words">
+              {parsed.version ? (
+                <>
+                  {day} · {f.fonte === "whoop" ? "Whoop" : "Oura"} {f.score}
+                  {f.dia_snapshot && f.dia_snapshot !== f.registrado?.slice(0, 10) ? ` (dia ${f.dia_snapshot?.slice(8, 10)}/${f.dia_snapshot?.slice(5, 7)})` : ""}
+                  {" · percepção: "}{f.percepcao?.replace("nao_informada", "não informada")}
+                  {" · sintomas: "}{f.sintomas === "sim" ? "sim" : f.sintomas === "nao" ? "não" : "não perguntado"}
+                  {" · conduta: "}{f.conduta}
+                  {row.session_id ? " · sessão vinculada" : ""}
+                </>
+              ) : (
+                // versão desconhecida → cru (formato futuro não vira lixo)
+                <span className="font-mono">{day} — {String(row.observation_text)}</span>
+              )}
+            </p>
+          );
+        })}
       </div>
     </div>
   );

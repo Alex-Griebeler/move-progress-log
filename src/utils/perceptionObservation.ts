@@ -39,7 +39,12 @@ export interface PerceptionRecord {
   symptoms: boolean | null;
   conductType: string;
   vetoes: string[];
+  /** Dia SP do REGISTRO (chave do upsert). */
   spDay: string;
+  /** Dia do SNAPSHOT avaliado — pode ser anterior ao registro (Whoop de
+   *  hoje pendente → hero de ontem); sem este campo o prontuário
+   *  apresentava score de ontem como medição de hoje (revisão fria R8b). */
+  snapshotDate: string;
   registeredAtDisplay: string;
   actorId: string | null;
 }
@@ -50,6 +55,7 @@ export const buildPerceptionText = (r: PerceptionRecord): string =>
     `fonte=${r.source}`,
     `score=${r.score}`,
     `zona_base=${r.baseZoneLabel}`,
+    `dia_snapshot=${r.snapshotDate}`,
     `percepcao=${r.perception}`,
     `sintomas=${r.symptoms === null ? "nao_perguntado" : r.symptoms ? "sim" : "nao"}`,
     `conduta=${r.conductType}`,
@@ -57,6 +63,26 @@ export const buildPerceptionText = (r: PerceptionRecord): string =>
     `registrado=${r.registeredAtDisplay}`,
     `por=${r.actorId ?? "?"}`,
   ].join(" | ");
+
+/** Campos parseados do texto versionado (round-trip com buildPerceptionText). */
+export interface ParsedPerception {
+  version: string | null;
+  fields: Record<string, string>;
+}
+
+/**
+ * Parse do texto estruturado — o card clínico exibe versão amigável e o
+ * formato cru fica como fallback pra versões futuras desconhecidas.
+ */
+export const parsePerceptionText = (text: string): ParsedPerception => {
+  const versionMatch = text.match(new RegExp(`^\\[${PERCEPTION_CATEGORY} (v\\d+)\\]`));
+  const fields: Record<string, string> = {};
+  for (const part of text.split(" | ").slice(1)) {
+    const eq = part.indexOf("=");
+    if (eq > 0) fields[part.slice(0, eq)] = part.slice(eq + 1);
+  }
+  return { version: versionMatch?.[1] ?? null, fields };
+};
 
 /**
  * Grava/atualiza a percepção do dia (1 por {aluna, dia SP, fonte}).
@@ -123,19 +149,25 @@ export const upsertPerceptionObservation = async (
  * o registro só é CONSUMIDO após update bem-sucedido (falha de rede não
  * perde a tentativa — a próxima sessão criada tenta de novo).
  */
-const rememberedPerception = new Map<string, { spDay: string; observationId: string }>();
+const rememberedPerception = new Map<string, { spDay: string; observationId: string; fingerprint: string }>();
 const storageKey = (studentId: string) => `percepcao_treino:${studentId}`;
 
-const readRemembered = (studentId: string): { spDay: string; observationId: string } | null => {
+const readRemembered = (
+  studentId: string,
+): { spDay: string; observationId: string; fingerprint: string } | null => {
   const inMemory = rememberedPerception.get(studentId);
   if (inMemory) return inMemory;
   try {
     if (typeof sessionStorage === "undefined") return null;
     const raw = sessionStorage.getItem(storageKey(studentId));
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { spDay?: unknown; observationId?: unknown };
-    if (typeof parsed.spDay === "string" && typeof parsed.observationId === "string") {
-      return { spDay: parsed.spDay, observationId: parsed.observationId };
+    const parsed = JSON.parse(raw) as { spDay?: unknown; observationId?: unknown; fingerprint?: unknown };
+    if (
+      typeof parsed.spDay === "string" &&
+      typeof parsed.observationId === "string" &&
+      typeof parsed.fingerprint === "string"
+    ) {
+      return { spDay: parsed.spDay, observationId: parsed.observationId, fingerprint: parsed.fingerprint };
     }
   } catch {
     // storage indisponível/corrompido — segue sem vínculo
@@ -156,14 +188,33 @@ export const rememberPerceptionObservation = (
   studentId: string,
   spDay: string,
   observationId: string,
+  fingerprint: string,
 ): void => {
-  rememberedPerception.set(studentId, { spDay, observationId });
+  rememberedPerception.set(studentId, { spDay, observationId, fingerprint });
   try {
     if (typeof sessionStorage !== "undefined") {
-      sessionStorage.setItem(storageKey(studentId), JSON.stringify({ spDay, observationId }));
+      sessionStorage.setItem(storageKey(studentId), JSON.stringify({ spDay, observationId, fingerprint }));
     }
   } catch {
     // storage cheio/bloqueado — memória cobre a sessão atual da página
+  }
+};
+
+/**
+ * O vínculo só vale enquanto a RECOMENDAÇÃO que originou a percepção está
+ * de pé: o dashboard chama isto a cada render com o fingerprint atual —
+ * hero trocou de fonte/score no mesmo dia → o vínculo pendente é esquecido
+ * (a observação persiste no banco; só o LINK automático morre). Revisão
+ * fria R8b: sem isto, sessão iniciada sob Oura vinculava percepção Whoop.
+ */
+export const validateRememberedPerception = (
+  studentId: string,
+  currentFingerprint: string | null,
+): void => {
+  const remembered = readRemembered(studentId);
+  if (!remembered) return;
+  if (currentFingerprint === null || remembered.fingerprint !== currentFingerprint) {
+    forgetRemembered(studentId);
   }
 };
 

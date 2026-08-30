@@ -33,7 +33,7 @@ import {
   type EffectiveConduct,
   type Perception,
 } from "@/utils/effectiveConduct";
-import { rememberPerceptionObservation, upsertPerceptionObservation } from "@/utils/perceptionObservation";
+import { rememberPerceptionObservation, upsertPerceptionObservation, validateRememberedPerception } from "@/utils/perceptionObservation";
 import { supabase } from "@/integrations/supabase/client";
 import { daysBetweenDateOnly, formatRelativeDay, parseLocalDate, shiftDateOnly } from "@/utils/relativeDate";
 import {
@@ -205,9 +205,11 @@ const PersonalizedTrainingDashboard = ({
   const criticalSignature = activeRecommendation
     ? activeRecommendation.alerts
         .filter((a) => a.kind === "fisiologico" && a.level === "CRITICAL")
-        .map((a) => a.metric ?? "?")
+        // métrica+mensagem: a mensagem carrega o VALOR medido — sono caindo
+        // de 6h pra 3h com a mesma zona também invalida a modulação (fria).
+        .map((a) => `${a.metric ?? "?"}:${a.message}`)
         .sort()
-        .join(",")
+        .join(";")
     : "";
   // Fase R8b (antes da R8d): contexto Whoop fail-closed — freshness/strain
   // "unavailable" vetam elevação por percepção até a R8d fornecer os dados.
@@ -291,12 +293,21 @@ const PersonalizedTrainingDashboard = ({
     });
   };
   const [perceptionSaveState, setPerceptionSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  // Recomendação mudou (fingerprint novo) → "Registrado" antigo não vale mais.
+  // "Registrado" não vale mais quando a CONDUTA muda: fingerprint novo,
+  // sintomas liberados depois do registro, ou alternativa escolhida depois
+  // (fria R8b — o banco ficava com uma conduta diferente da executada).
   useEffect(() => {
     setPerceptionSaveState("idle");
-  }, [conductFingerprint]);
+  }, [conductFingerprint, assessment?.symptomsAcknowledged, scopedAlternative?.type]);
+  // Vínculo pendente só vale enquanto a recomendação que o originou existe.
+  useEffect(() => {
+    validateRememberedPerception(studentId, conductFingerprint);
+  }, [studentId, conductFingerprint]);
   const persistPerception = async (conductTypeOverride?: string) => {
-    if (!earlySnapshot || !activeRecommendation || !conduct) return;
+    if (!earlySnapshot || !activeRecommendation || !conduct || !conductFingerprint) return;
+    // Dia do REGISTRO capturado antes de qualquer await: virada de meia-noite
+    // entre o upsert e o remember gravava num dia e lembrava noutro (fria R8b).
+    const registrationDay = spToday();
     setPerceptionSaveState("saving");
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -316,11 +327,12 @@ const PersonalizedTrainingDashboard = ({
         symptoms: assessment?.symptoms ?? null,
         conductType: conductTypeOverride ?? conduct.prescription.trainingType,
         vetoes: conduct.appliedVetoes,
-        spDay: spToday(),
+        spDay: registrationDay,
+        snapshotDate: earlySnapshot.date,
         registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
         actorId,
       });
-      rememberPerceptionObservation(studentId, spToday(), observationId);
+      rememberPerceptionObservation(studentId, registrationDay, observationId, conductFingerprint);
       setPerceptionSaveState("saved");
     } catch (e) {
       logger.error("[percepcao] falha ao registrar", e);

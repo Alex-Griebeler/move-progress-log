@@ -354,11 +354,14 @@ describe("R8b — fixes da review (fiação)", () => {
   });
 
   it("estado 'Registrado' reseta quando o fingerprint muda", () => {
-    expect(dash).toMatch(/setPerceptionSaveState\("idle"\);\s*\}, \[conductFingerprint\]\);/);
+    expect(dash).toMatch(/setPerceptionSaveState\("idle"\);\s*\}, \[conductFingerprint, assessment\?\.symptomsAcknowledged, scopedAlternative\?\.type\]\);/);
   });
 
   it("vínculo à sessão usa o ID exato registrado + data da sessão (não spToday)", () => {
-    expect(dash).toContain("rememberPerceptionObservation(studentId, spToday(), observationId)");
+    expect(dash).toContain("rememberPerceptionObservation(studentId, registrationDay, observationId, conductFingerprint)");
+    // dia capturado UMA vez antes do await (corrida de meia-noite — fria)
+    expect(dash).toContain("const registrationDay = spToday();");
+    expect(dash).toContain("validateRememberedPerception(studentId, conductFingerprint)");
     expect(page).toContain("linkPerceptionToSession(supabase, id!, sessionId, sessionDate)");
   });
 

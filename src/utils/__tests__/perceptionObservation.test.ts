@@ -15,7 +15,7 @@ describe("persistência da percepção (partes puras)", () => {
   it("texto versionado carrega fonte/score/zona/percepção/sintomas/conduta/vetos/ator", () => {
     const text = buildPerceptionText({
       source: "whoop", score: 55, baseZoneLabel: "yellow", perception: "pior",
-      symptoms: false, conductType: "Recuperação Ativa / Muito Leve",
+      symptoms: false, conductType: "Recuperação Ativa / Muito Leve", snapshotDate: "2026-08-28",
       vetoes: ["Conduta reduzida pela percepção da aluna (pior que o score)."],
       spDay: "2026-08-29", registeredAtDisplay: "29/08/2026 14:32", actorId: "abc",
     });
@@ -26,12 +26,14 @@ describe("persistência da percepção (partes puras)", () => {
     expect(text).toContain("sintomas=nao");
     expect(text).toContain("conduta=Recuperação Ativa / Muito Leve");
     expect(text).toContain("por=abc");
+    // dia do snapshot ≠ dia do registro fica explícito no prontuário
+    expect(text).toContain("dia_snapshot=2026-08-28");
   });
 
   it("sintomas null vira 'nao_perguntado' no texto", () => {
     const text = buildPerceptionText({
       source: "oura", score: 80, baseZoneLabel: "green", perception: "nao_informada",
-      symptoms: null, conductType: "x", vetoes: [], spDay: "2026-08-29",
+      symptoms: null, conductType: "x", vetoes: [], spDay: "2026-08-29", snapshotDate: "2026-08-29",
       registeredAtDisplay: "x", actorId: null,
     });
     expect(text).toContain("sintomas=nao_perguntado");
@@ -40,6 +42,29 @@ describe("persistência da percepção (partes puras)", () => {
 });
 
 import { afterEach, beforeEach, vi } from "vitest";
+import { parsePerceptionText, validateRememberedPerception } from "@/utils/perceptionObservation";
+
+describe("parser do texto versionado (round-trip)", () => {
+  it("parse(build(x)) recupera os campos", () => {
+    const text = buildPerceptionText({
+      source: "whoop", score: 55, baseZoneLabel: "yellow", perception: "pior",
+      symptoms: false, conductType: "Treino Reduzido 20%", vetoes: ["a; b"],
+      spDay: "2026-08-29", snapshotDate: "2026-08-28",
+      registeredAtDisplay: "29/08/2026 14:32", actorId: "abc",
+    });
+    const parsed = parsePerceptionText(text);
+    expect(parsed.version).toBe("v1");
+    expect(parsed.fields.fonte).toBe("whoop");
+    expect(parsed.fields.score).toBe("55");
+    expect(parsed.fields.dia_snapshot).toBe("2026-08-28");
+    expect(parsed.fields.percepcao).toBe("pior");
+    expect(parsed.fields.conduta).toBe("Treino Reduzido 20%");
+  });
+
+  it("texto de versão desconhecida devolve version null (card cai no cru)", () => {
+    expect(parsePerceptionText("qualquer coisa").version).toBeNull();
+  });
+});
 import {
   _clearRememberedPerceptions,
   linkPerceptionToSession,
@@ -81,7 +106,7 @@ describe("vínculo percepção→sessão (comportamental, supabase mockado)", ()
 
   it("vincula pelo ID exato, condicionado a session_id NULL", async () => {
     const { client, calls } = fakeSupabase({ error: null });
-    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123");
+    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123", "fp-1");
     await linkPerceptionToSession(client, "aluna1", "sess-1", "2026-08-29");
     expect(calls).toHaveLength(1);
     expect(calls[0].eq).toEqual(["id", "obs-123"]);
@@ -90,7 +115,7 @@ describe("vínculo percepção→sessão (comportamental, supabase mockado)", ()
 
   it("caso 15: só a PRIMEIRA sessão vincula (registro consumido no sucesso)", async () => {
     const { client, calls } = fakeSupabase({ error: null });
-    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123");
+    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123", "fp-1");
     await linkPerceptionToSession(client, "aluna1", "sess-1", "2026-08-29");
     await linkPerceptionToSession(client, "aluna1", "sess-2", "2026-08-29");
     expect(calls).toHaveLength(1);
@@ -98,7 +123,7 @@ describe("vínculo percepção→sessão (comportamental, supabase mockado)", ()
 
   it("sessão RETROATIVA (data diferente) não herda a percepção de hoje", async () => {
     const { client, calls } = fakeSupabase({ error: null });
-    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123");
+    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123", "fp-1");
     await linkPerceptionToSession(client, "aluna1", "sess-1", "2026-08-20");
     expect(calls).toHaveLength(0);
     // e o registro continua disponível pra sessão do dia certo
@@ -108,7 +133,7 @@ describe("vínculo percepção→sessão (comportamental, supabase mockado)", ()
 
   it("falha de rede NÃO consome o registro — a próxima sessão tenta de novo", async () => {
     const failing = fakeSupabase({ error: { message: "network" } });
-    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123");
+    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123", "fp-1");
     await linkPerceptionToSession(failing.client, "aluna1", "sess-1", "2026-08-29");
     expect(failing.calls).toHaveLength(1);
     const ok = fakeSupabase({ error: null });
@@ -117,7 +142,7 @@ describe("vínculo percepção→sessão (comportamental, supabase mockado)", ()
   });
 
   it("sobrevive a refresh (memória limpa, sessionStorage mantém)", async () => {
-    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123");
+    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123", "fp-1");
     _clearRememberedPerceptions(); // simula remount/refresh da SPA
     const { client, calls } = fakeSupabase({ error: null });
     await linkPerceptionToSession(client, "aluna1", "sess-1", "2026-08-29");
@@ -129,5 +154,36 @@ describe("vínculo percepção→sessão (comportamental, supabase mockado)", ()
     const { client, calls } = fakeSupabase({ error: null });
     await linkPerceptionToSession(client, "aluna-sem-registro", "sess-1", "2026-08-29");
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("validação do vínculo pelo fingerprint (fria R8b)", () => {
+  beforeEach(() => {
+    _clearRememberedPerceptions();
+    vi.stubGlobal("sessionStorage", (() => {
+      const store = new Map<string, string>();
+      return {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+        removeItem: (k: string) => void store.delete(k),
+      };
+    })());
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("hero trocou de fonte (fingerprint diferente) → vínculo pendente morre", async () => {
+    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-whoop", "fp-whoop");
+    validateRememberedPerception("aluna1", "fp-oura"); // dashboard re-renderizou como Oura
+    const { client, calls } = fakeSupabase({ error: null });
+    await linkPerceptionToSession(client, "aluna1", "sess-1", "2026-08-29");
+    expect(calls).toHaveLength(0);
+  });
+
+  it("mesmo fingerprint → vínculo sobrevive à validação", async () => {
+    rememberPerceptionObservation("aluna1", "2026-08-29", "obs-123", "fp-1");
+    validateRememberedPerception("aluna1", "fp-1");
+    const { client, calls } = fakeSupabase({ error: null });
+    await linkPerceptionToSession(client, "aluna1", "sess-1", "2026-08-29");
+    expect(calls).toHaveLength(1);
   });
 });
