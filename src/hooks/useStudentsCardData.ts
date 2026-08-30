@@ -70,7 +70,7 @@ export const useStudentsCardData = (studentIds: string[]) => {
         .in("student_id", normalizedStudentIds)
         .eq("is_resolved", false)
         .in("severity", ["baixa", "média", "alta"])
-        .not("categories", "cs", "{percepcao_treino}")
+        .or("categories.is.null,categories.not.cs.{percepcao_treino}")
         .order("severity", { ascending: false })
         .order("created_at", { ascending: false });
       if (observationsError) throw observationsError;

@@ -18,7 +18,9 @@ export const useStudentImportantObservations = (studentId: string) => {
         .in('severity', ['baixa', 'média', 'alta'])
         // R8b: percepção pré-treino nunca é "observação importante" — cinto
         // e suspensório além do severity null + is_resolved true do insert.
-        .not('categories', 'cs', '{percepcao_treino}')
+        // NULL-safe: NOT(NULL @> ...) é NULL e sumia com observações SEM
+        // categoria (revisão R8b) — o OR preserva categories IS NULL.
+        .or('categories.is.null,categories.not.cs.{percepcao_treino}')
         .order('severity', { ascending: false })
         .order('created_at', { ascending: false });
       

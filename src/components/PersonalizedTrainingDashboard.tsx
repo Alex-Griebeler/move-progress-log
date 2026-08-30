@@ -300,6 +300,14 @@ const PersonalizedTrainingDashboard = ({
     setPerceptionSaveState("saving");
     try {
       const { data: userData } = await supabase.auth.getUser();
+      const actorId = userData?.user?.id ?? null;
+      if (!actorId) {
+        // Contrato: created_by = coach autenticado — sem sessão de auth
+        // válida o registro NÃO acontece (revisão R8b).
+        logger.error("[percepcao] sem usuário autenticado — registro abortado");
+        setPerceptionSaveState("error");
+        return;
+      }
       const observationId = await upsertPerceptionObservation(supabase, studentId, {
         source: earlySnapshot.source,
         score: earlySnapshot.score,
@@ -310,7 +318,7 @@ const PersonalizedTrainingDashboard = ({
         vetoes: conduct.appliedVetoes,
         spDay: spToday(),
         registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
-        actorId: userData?.user?.id ?? null,
+        actorId,
       });
       rememberPerceptionObservation(studentId, spToday(), observationId);
       setPerceptionSaveState("saved");

@@ -51,7 +51,9 @@ export function StudentObservationsCard({
         .eq('student_id', studentId)
         .eq('is_resolved', false)
         // R8b: percepção pré-treino tem seção própria abaixo — não é pendência.
-        .not('categories', 'cs', '{percepcao_treino}')
+        // NULL-safe: NOT(NULL @> ...) é NULL e sumia com observações SEM
+        // categoria (revisão R8b) — o OR preserva categories IS NULL.
+        .or('categories.is.null,categories.not.cs.{percepcao_treino}')
         .order('created_at', { ascending: false });
       
       if (error) throw error;

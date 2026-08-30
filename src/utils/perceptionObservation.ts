@@ -116,12 +116,41 @@ export const upsertPerceptionObservation = async (
 };
 
 /**
- * Registro em memória do ID da percepção do dia — o vínculo à sessão usa o
- * ID EXATO devolvido pelo upsert (nunca "a mais recente do dia": com Oura e
- * Whoop no mesmo dia, a busca genérica podia vincular a fonte errada;
- * revisão R8b). Escopo {studentId → {spDay, observationId}}.
+ * Registro do ID da percepção do dia — o vínculo à sessão usa o ID EXATO
+ * devolvido pelo upsert (nunca "a mais recente do dia": com Oura e Whoop no
+ * mesmo dia, a busca genérica podia vincular a fonte errada; revisão R8b).
+ * Memória + espelho em sessionStorage: sobrevive a refresh/remount da SPA;
+ * o registro só é CONSUMIDO após update bem-sucedido (falha de rede não
+ * perde a tentativa — a próxima sessão criada tenta de novo).
  */
 const rememberedPerception = new Map<string, { spDay: string; observationId: string }>();
+const storageKey = (studentId: string) => `percepcao_treino:${studentId}`;
+
+const readRemembered = (studentId: string): { spDay: string; observationId: string } | null => {
+  const inMemory = rememberedPerception.get(studentId);
+  if (inMemory) return inMemory;
+  try {
+    if (typeof sessionStorage === "undefined") return null;
+    const raw = sessionStorage.getItem(storageKey(studentId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { spDay?: unknown; observationId?: unknown };
+    if (typeof parsed.spDay === "string" && typeof parsed.observationId === "string") {
+      return { spDay: parsed.spDay, observationId: parsed.observationId };
+    }
+  } catch {
+    // storage indisponível/corrompido — segue sem vínculo
+  }
+  return null;
+};
+
+const forgetRemembered = (studentId: string): void => {
+  rememberedPerception.delete(studentId);
+  try {
+    if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(storageKey(studentId));
+  } catch {
+    // ok
+  }
+};
 
 export const rememberPerceptionObservation = (
   studentId: string,
@@ -129,6 +158,13 @@ export const rememberPerceptionObservation = (
   observationId: string,
 ): void => {
   rememberedPerception.set(studentId, { spDay, observationId });
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(storageKey(studentId), JSON.stringify({ spDay, observationId }));
+    }
+  } catch {
+    // storage cheio/bloqueado — memória cobre a sessão atual da página
+  }
 };
 
 /** Exposto só pra teste. */
@@ -137,8 +173,8 @@ export const _clearRememberedPerceptions = (): void => rememberedPerception.clea
 /**
  * Vincula a percepção REGISTRADA à sessão criada — só quando a DATA da
  * sessão é o mesmo dia SP da percepção (sessão retroativa não recebe a
- * percepção de hoje) e só à PRIMEIRA sessão (session_id não-nulo nunca é
- * sobrescrito; o registro em memória é consumido no primeiro vínculo).
+ * percepção de hoje) e só à PRIMEIRA sessão (`.is("session_id", null)`:
+ * session_id não-nulo nunca é sobrescrito).
  */
 export const linkPerceptionToSession = async (
   supabase: SupabaseClient,
@@ -146,15 +182,17 @@ export const linkPerceptionToSession = async (
   sessionId: string,
   sessionSpDay: string,
 ): Promise<void> => {
-  const remembered = rememberedPerception.get(studentId);
+  const remembered = readRemembered(studentId);
   if (!remembered || remembered.spDay !== sessionSpDay) return;
-  rememberedPerception.delete(studentId); // 1ª sessão consome o vínculo
   const { error } = await supabase
     .from("student_observations")
     .update({ session_id: sessionId })
     .eq("id", remembered.observationId)
     .is("session_id", null);
   if (error) {
-    logger.warn("[percepcao] falha ao vincular sessão à percepção", { error });
+    // NÃO consome: a próxima sessão criada tenta de novo.
+    logger.warn("[percepcao] falha ao vincular sessão à percepção — vínculo mantido pra retry", { error });
+    return;
   }
+  forgetRemembered(studentId);
 };

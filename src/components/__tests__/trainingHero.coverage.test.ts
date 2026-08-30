@@ -370,7 +370,9 @@ describe("R8b — fixes da review (fiação)", () => {
       "../StudentObservationsCard.tsx",
     ]) {
       const src = readFileSync(join(__dirname, rel), "utf8");
-      expect(src, rel).toContain("percepcao_treino");
+      // NULL-safe: NOT(NULL @> ...) é NULL no Postgres e sumia com
+      // observações SEM categoria — a exclusão tem que preservar is.null.
+      expect(src, rel).toContain("categories.is.null,categories.not.cs.{percepcao_treino}");
     }
   });
 
@@ -379,5 +381,11 @@ describe("R8b — fixes da review (fiação)", () => {
     expect(card).toContain("PerceptionHistorySection");
     expect(card).toContain("Percepção pré-treino");
     expect(card).toMatch(/\.contains\("categories", \["percepcao_treino"\]\)/);
+  });
+});
+
+describe("R8b — 5ª rodada", () => {
+  it("registro exige coach autenticado (created_by nunca null)", () => {
+    expect(dash).toContain("sem usuário autenticado — registro abortado");
   });
 });
