@@ -92,9 +92,13 @@ const StudentDetailPage = () => {
   const { data: assignments, isLoading: loadingAssignments, isError: assignmentsError, refetch: refetchAssignments } = useStudentPrescriptions(
     needsAssignments ? studentId : ""
   );
+  // R8-5 (ratificado 29/08): 30 DIAS de calendário, não 30 linhas — com sync
+  // esparso, 30 linhas atravessavam meses e 7 scores antigos liberavam a
+  // recomendação como se fossem recentes. Consequência aceita: aluna com
+  // sync ruim vê "sem recomendação" (que é a verdade clínica).
   const { data: ouraMetrics, isLoading: loadingOuraMetrics, isError: ouraMetricsError } = useOuraMetrics(
     needsOuraHistory ? studentId : "",
-    30
+    { days: 30 }
   );
   const { data: latestOuraMetrics, isLoading: loadingLatestOura, isError: latestOuraError } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
   const { data: ouraConnection } = useOuraConnection(studentId);

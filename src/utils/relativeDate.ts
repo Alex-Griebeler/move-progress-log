@@ -35,3 +35,21 @@ export const formatRelativeDay = (
   if (n === 1) return "ontem";
   return `há ${n} dias`;
 };
+
+/**
+ * Diferença em dias entre duas datas date-only ("YYYY-MM-DD"), via UTC —
+ * ancore `todayStr` no calendário do PRODUTO (spToday() = America/Sao_Paulo)
+ * pra "ontem" ser o ontem do coach, não o do runtime (R8-1).
+ */
+export const daysBetweenDateOnly = (todayStr: string, dateStr: string): number => {
+  const [ty, tm, td] = todayStr.split("-").map(Number);
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(y, m - 1, d)) / 86_400_000);
+};
+
+/** date-only ± N dias, aritmética UTC (padrão do projeto). */
+export const shiftDateOnly = (dateStr: string, delta: number): string => {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+};

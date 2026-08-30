@@ -51,6 +51,11 @@ export const useWhoopMetrics = (
       : undefined;
 
   return useQuery({
+    // R8-6 (ratificado): a página NÃO agenda reavaliação automática na
+    // meia-noite. A janela muda no próximo render que recomputar a query
+    // key, refetch ou reload; até então, a tela pode manter o snapshot do
+    // dia anterior, sujeito às regras de badge/staleness. Dívida futura:
+    // timer de invalidação.
     queryKey: days
       ? ["whoop-metrics", studentId, "days", days, spToday()]
       : ["whoop-metrics", studentId, limit],

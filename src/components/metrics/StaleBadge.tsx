@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { daysAgo, formatRelativeDay } from "@/utils/relativeDate";
+import { daysAgo } from "@/utils/relativeDate";
 
 interface StaleBadgeProps {
   /** Data do dado exibido ("YYYY-MM-DD" ou Date). */
@@ -9,6 +9,8 @@ interface StaleBadgeProps {
   source?: string;
   /** A partir de quantos dias o dado é considerado velho (tom de alerta). */
   staleAfterDays?: number;
+  /** Idade em dias já ancorada no calendário do produto (America/Sao_Paulo). */
+  ageDays?: number;
   className?: string;
 }
 
@@ -24,10 +26,16 @@ export const StaleBadge = ({
   date,
   source,
   staleAfterDays = 2,
+  ageDays,
   className,
 }: StaleBadgeProps) => {
-  const relative = formatRelativeDay(date);
-  const isStale = daysAgo(date) >= staleAfterDays;
+  // ageDays: idade em dias no CALENDÁRIO DO PRODUTO (spToday/SP) — sem ela,
+  // texto e tom recalculavam pelo fuso do runtime e podiam divergir do gate
+  // de quem renderiza o badge (revisão R8a).
+  const effectiveAge = ageDays ?? daysAgo(date);
+  const relative =
+    effectiveAge <= 0 ? "hoje" : effectiveAge === 1 ? "ontem" : `há ${effectiveAge} dias`;
+  const isStale = effectiveAge >= staleAfterDays;
 
   return (
     <Badge
