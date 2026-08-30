@@ -116,6 +116,7 @@ const getSuggestionStatusLabel = (status: string) => {
   if (status === "automatic") return "Sugestão automática";
   if (status === "assisted") return "Sugestão assistida";
   if (status === "blocked") return "Carga bloqueada hoje";
+  if (status === "suspended") return "Adaptação a resolver";
   return "Dados insuficientes";
 };
 
@@ -924,6 +925,7 @@ const PersonalizedTrainingDashboard = ({
             <p className="text-sm text-muted-foreground mb-3">
               Plano vigente: <strong>{loadResult.prescriptionName ?? "prescrição"}</strong> — exercícios
               na ordem do plano.
+              {loadResult.fallbackReason ? ` ${loadResult.fallbackReason}.` : ""}
             </p>
           )}
           {loadResult?.mode === "fallback_recent" && (
@@ -955,7 +957,7 @@ const PersonalizedTrainingDashboard = ({
                   </div>
                   <Badge
                     variant={
-                      item.status === "insufficient" || item.status === "blocked"
+                      item.status === "insufficient" || item.status === "blocked" || item.status === "suspended"
                         ? "destructive"
                         : "secondary"
                     }
@@ -1000,6 +1002,13 @@ const PersonalizedTrainingDashboard = ({
                       <Badge variant="outline">Guardrail: técnica inconsistente</Badge>
                     )}
                   </div>
+                  {/* Notas textuais (ex.: adaptação individual) — códigos
+                      conhecidos viram badge acima; o resto é frase visível. */}
+                  {item.guardrails
+                    .filter((g) => g !== "pain_recent" && g !== "technique_inconsistent")
+                    .map((g, i) => (
+                      <p key={i} className="mt-1 text-xs text-muted-foreground">{g}</p>
+                    ))}
                 </details>
               </div>
             ))}
@@ -1033,7 +1042,9 @@ const PersonalizedTrainingDashboard = ({
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
-            Dados insuficientes de histórico para sugerir carga numérica neste momento.
+            {loadResult?.fallbackReason
+              ? `Sem sugestões: ${loadResult.fallbackReason}.`
+              : "Dados insuficientes de histórico para sugerir carga numérica neste momento."}
           </p>
         </Card>
       )}

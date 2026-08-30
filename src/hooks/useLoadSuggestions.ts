@@ -10,7 +10,7 @@ import {
 } from "./loadSuggestionUtils";
 import { assignmentStatus } from "@/utils/assignmentStatus";
 
-type SuggestionStatus = "automatic" | "assisted" | "blocked" | "insufficient";
+type SuggestionStatus = "automatic" | "assisted" | "blocked" | "insufficient" | "suspended";
 
 /**
  * R8c (decisão 3, ratificada): a sugestão é escopada pela PRESCRIÇÃO
@@ -380,6 +380,7 @@ export const computeLoadSuggestions = async (
         const adaptations = Array.isArray(rawAdaptations)
           ? (rawAdaptations as Array<{
               exercise_library_id?: string;
+              adaptation_type?: unknown;
               sets?: unknown; reps?: unknown; interval_seconds?: unknown;
               pse?: unknown; observations?: unknown;
             }>)
@@ -400,18 +401,29 @@ export const computeLoadSuggestions = async (
           if (!libMeta) continue; // exercício removido da biblioteca
           if (!isEligibleStrengthCategory(libMeta.category)) continue;
           const adaptation = adaptations.find((a) => a.exercise_library_id === libId) ?? null;
+          const adaptationType =
+            typeof adaptation?.adaptation_type === "string"
+              ? normalizeComparableText(adaptation.adaptation_type)
+              : "";
+          // Substituição manda MESMO com sets/reps preenchidos: a carga do
+          // exercício-base não vale pro exercício trocado (revisão R8c); e
+          // adaptação sem NENHUM campo interpretável idem.
+          const adaptationIsSubstitution =
+            adaptationType.includes("substitu") ||
+            adaptationType.includes("troca") ||
+            adaptationType.includes("replace");
           const adaptationHasKnownFields =
             adaptation != null &&
             [adaptation.sets, adaptation.reps, adaptation.interval_seconds, adaptation.pse, adaptation.observations]
               .some((v) => v != null);
-          if (adaptation && !adaptationHasKnownFields) {
-            // Adaptação sem campos interpretáveis (ex.: substituição futura):
-            // NÃO sugerir carga do exercício-base — item explícito (delta v3).
+          if (adaptation && (adaptationIsSubstitution || !adaptationHasKnownFields)) {
             items.push({
               key: `id:${libId}`, exerciseName: libMeta.name,
               lastLoadKg: null, referenceLoadKg: null, referenceReps: null, suggestedLoadKg: null,
-              ruleApplied: "Adaptação individual não interpretável — confira a atribuição",
-              adjustmentPercent: null, source: "insufficient", status: "insufficient",
+              ruleApplied: adaptationIsSubstitution
+                ? "Exercício adaptado/substituído nesta atribuição — defina a carga com a aluna"
+                : "Adaptação individual não interpretável — confira a atribuição",
+              adjustmentPercent: null, source: "insufficient", status: "suspended",
               incrementKg: libMeta.minIncrementKg ?? inferIncrement(libMeta.equipmentRequired),
               incrementSource: libMeta.minIncrementKg != null ? "cadastrado" : "inferido",
               guardrails: [],
