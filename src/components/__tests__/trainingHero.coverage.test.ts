@@ -159,7 +159,9 @@ describe("coerência de fontes (fix pós-review Codex)", () => {
   });
 
   it("card de carga vazio tem a MESMA guarda do cheio (fonte ativa, R5)", () => {
-    const emptyGuard = dash.match(/hasActionableRecommendation && loadSuggestions && loadSuggestions\.length === 0/);
+    // R8c: o vazio ganhou o gate extra de escopo resolvido (não duplica
+    // com seletor multi-vigente nem com suspensão).
+    const emptyGuard = dash.match(/hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions\.length === 0/);
     const fullGuard = dash.match(/hasActionableRecommendation && loadSuggestions && loadSuggestions\.length > 0/);
     expect(emptyGuard).not.toBeNull();
     expect(fullGuard).not.toBeNull();
