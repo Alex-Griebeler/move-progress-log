@@ -37,10 +37,10 @@ describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
     expect(dash).not.toMatch(/\{recommendation!\.intensity\} · \{recommendation!\.duration\}/);
   });
 
-  it("origem/data só quando o dado está velho (2+ dias) — decisão de produto ratificada 28/08, NÃO é bug", () => {
-    expect(dash).toMatch(/\{snapshot\.isStale && \(/);
-    // isStale usa a definição canônica do app (2 dias de calendário,
-    // recoverySnapshot.ts) — o call site não inventa limiar próprio
+  it("origem/data com tom de ALERTA só com 2+ dias — decisão ratificada 28/08 (R8a: idade em calendário SP)", () => {
+    // Desde a R8a a idade vem de snapshotAgeDays (spToday/SP) — mesmo limiar
+    // de 2 dias, calendário único; D−1 tem badge neutro próprio (decisão 1b).
+    expect(dash).toMatch(/\{snapshotIsStale && \(/);
     expect(dash).not.toMatch(/staleAfterDays=/);
   });
 
