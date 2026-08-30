@@ -277,9 +277,15 @@ describe("R7 — correções da auditoria (29/08)", () => {
 });
 
 describe("R8a — badge ontem + janela Oura de calendário", () => {
-  it("D−1 ganha badge NEUTRO, mutuamente exclusivo com o StaleBadge de alerta", () => {
-    expect(dash).toMatch(/\{!snapshot\.isStale && daysBetweenDateOnly\(spToday\(\), snapshot\.date\) === 1 && \(/);
+  it("D−1 e stale usam a MESMA idade ancorada em SP (calendário único)", () => {
+    expect(dash).toContain("const snapshotAgeDays = daysBetweenDateOnly(spToday(), snapshot.date);");
+    expect(dash).toContain("const snapshotIsStale = snapshotAgeDays >= 2;");
+    expect(dash).toMatch(/\{!snapshotIsStale && snapshotAgeDays === 1 && \(/);
+    expect(dash).toMatch(/\{snapshotIsStale && \(/);
+    expect(dash).toContain("ageDays={snapshotAgeDays}");
     expect(dash).toContain('· ontem');
+    // nenhum consumidor restante do isStale de runtime no hero
+    expect(dash).not.toContain("snapshot.isStale");
   });
 
   it("latest só entra na decisão da fonte DENTRO da janela de 30 dias", () => {
