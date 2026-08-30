@@ -392,3 +392,17 @@ describe("R8b — 5ª rodada", () => {
     expect(dash).toContain("sem usuário autenticado — registro abortado");
   });
 });
+
+describe("R8b — fria, 2ª rodada", () => {
+  it("gravação em voo de conduta antiga é descartada (token de versão)", () => {
+    expect(dash).toContain("const startedVersion = conductVersionRef.current;");
+    expect(dash).toContain("if (conductVersionRef.current !== startedVersion)");
+  });
+
+  it("card só usa o ramo amigável na versão EXATA do formato", () => {
+    const card = readFileSync(join(__dirname, "../StudentObservationsCard.tsx"), "utf8");
+    expect(card).toContain("parsed.version === PERCEPTION_TEXT_VERSION");
+    expect(card).toContain('timeZone: "America/Sao_Paulo"');
+    expect(card).toContain("snapDisplay !== day");
+  });
+});

@@ -64,6 +64,12 @@ describe("parser do texto versionado (round-trip)", () => {
   it("texto de versão desconhecida devolve version null (card cai no cru)", () => {
     expect(parsePerceptionText("qualquer coisa").version).toBeNull();
   });
+
+  it("versão FUTURA (v2) parseia mas não é a atual — card deve cair no cru", () => {
+    const parsed = parsePerceptionText("[percepcao_treino v2] | fonte=whoop | novo_campo=x");
+    expect(parsed.version).toBe("v2");
+    expect(parsed.version).not.toBe(PERCEPTION_TEXT_VERSION);
+  });
 });
 import {
   _clearRememberedPerceptions,

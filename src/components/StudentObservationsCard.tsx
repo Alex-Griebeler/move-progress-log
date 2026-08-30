@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { parsePerceptionText } from "@/utils/perceptionObservation";
+import { parsePerceptionText, PERCEPTION_TEXT_VERSION } from "@/utils/perceptionObservation";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -310,14 +310,19 @@ function PerceptionHistorySection({ studentId }: { studentId: string }) {
       <div className="space-y-1">
         {rows.map((row) => {
           const parsed = parsePerceptionText(String(row.observation_text));
-          const day = new Date(row.created_at as string).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+          const day = new Date(row.created_at as string).toLocaleDateString("pt-BR", {
+            day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo",
+          });
           const f = parsed.fields;
+          const snapDisplay = f.dia_snapshot
+            ? `${f.dia_snapshot.slice(8, 10)}/${f.dia_snapshot.slice(5, 7)}`
+            : null;
           return (
             <p key={row.id} className="text-xs text-muted-foreground break-words">
-              {parsed.version ? (
+              {parsed.version === PERCEPTION_TEXT_VERSION ? (
                 <>
                   {day} · {f.fonte === "whoop" ? "Whoop" : "Oura"} {f.score}
-                  {f.dia_snapshot && f.dia_snapshot !== f.registrado?.slice(0, 10) ? ` (dia ${f.dia_snapshot?.slice(8, 10)}/${f.dia_snapshot?.slice(5, 7)})` : ""}
+                  {snapDisplay && snapDisplay !== day ? ` (dia ${snapDisplay})` : ""}
                   {" · percepção: "}{f.percepcao?.replace("nao_informada", "não informada")}
                   {" · sintomas: "}{f.sintomas === "sim" ? "sim" : f.sintomas === "nao" ? "não" : "não perguntado"}
                   {" · conduta: "}{f.conduta}

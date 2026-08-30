@@ -1,4 +1,4 @@
-import { Fragment, cloneElement, useState, useEffect } from "react";
+import { Fragment, cloneElement, useState, useEffect, useRef } from "react";
 import { Card } from "./ui/card";
 import { logger } from "@/utils/logger";
 import { Badge } from "./ui/badge";
@@ -296,7 +296,13 @@ const PersonalizedTrainingDashboard = ({
   // "Registrado" não vale mais quando a CONDUTA muda: fingerprint novo,
   // sintomas liberados depois do registro, ou alternativa escolhida depois
   // (fria R8b — o banco ficava com uma conduta diferente da executada).
+  const conductVersionRef = useRef(0);
   useEffect(() => {
+    // Toda mudança de conduta invalida o "Registrado" E carimba um token:
+    // um persist EM VOO da conduta anterior descarta o resultado ao voltar
+    // (revisão fria R8b — sem isto, hero trocado durante o await recebia
+    // remember/saved da fonte antiga).
+    conductVersionRef.current += 1;
     setPerceptionSaveState("idle");
   }, [conductFingerprint, assessment?.symptomsAcknowledged, scopedAlternative?.type]);
   // Vínculo pendente só vale enquanto a recomendação que o originou existe.
@@ -308,6 +314,7 @@ const PersonalizedTrainingDashboard = ({
     // Dia do REGISTRO capturado antes de qualquer await: virada de meia-noite
     // entre o upsert e o remember gravava num dia e lembrava noutro (fria R8b).
     const registrationDay = spToday();
+    const startedVersion = conductVersionRef.current;
     setPerceptionSaveState("saving");
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -332,11 +339,19 @@ const PersonalizedTrainingDashboard = ({
         registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
         actorId,
       });
+      if (conductVersionRef.current !== startedVersion) {
+        // A conduta mudou enquanto a gravação estava em voo: a observação
+        // ficou no banco (histórico legítimo), mas nem o vínculo automático
+        // nem o "Registrado" valem pra conduta NOVA.
+        return;
+      }
       rememberPerceptionObservation(studentId, registrationDay, observationId, conductFingerprint);
       setPerceptionSaveState("saved");
     } catch (e) {
       logger.error("[percepcao] falha ao registrar", e);
-      setPerceptionSaveState("error");
+      if (conductVersionRef.current === startedVersion) {
+        setPerceptionSaveState("error");
+      }
     }
   };
 
