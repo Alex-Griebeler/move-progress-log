@@ -33,7 +33,7 @@ import {
   type EffectiveConduct,
   type Perception,
 } from "@/utils/effectiveConduct";
-import { buildPerceptionText, upsertPerceptionObservation } from "@/utils/perceptionObservation";
+import { rememberPerceptionObservation, upsertPerceptionObservation } from "@/utils/perceptionObservation";
 import { supabase } from "@/integrations/supabase/client";
 import { daysBetweenDateOnly, formatRelativeDay, parseLocalDate, shiftDateOnly } from "@/utils/relativeDate";
 import {
@@ -197,6 +197,7 @@ const PersonalizedTrainingDashboard = ({
     rawSelectedAlternative.date === earlySnapshot?.date
       ? rawSelectedAlternative
       : null;
+  // (o casamento com o fingerprint acontece adiante, depois de calculá-lo)
 
   // ── R8b: CONDUTA EFETIVA (percepção da aluna + alternativa) ────────────
   // Fingerprint COMPLETO: mudou score/zona/carga/override/CRITICAL/contexto,
@@ -227,14 +228,20 @@ const PersonalizedTrainingDashboard = ({
     conductAssessment && conductFingerprint && conductAssessment.fingerprint === conductFingerprint
       ? conductAssessment
       : null;
+  // Alternativa também é MODULAÇÃO: fingerprint diferente = recomendação
+  // mudou → a escolha antiga é limpa (não aplicada) — revisão R8b.
+  const scopedAlternative =
+    selectedAlternative && selectedAlternative.fingerprint === conductFingerprint
+      ? selectedAlternative
+      : null;
   const conductAlternative: ConductAlternative | null =
-    selectedAlternative && typeof selectedAlternative.targetZone === "number"
+    scopedAlternative && typeof scopedAlternative.targetZone === "number"
       ? {
-          type: selectedAlternative.type,
-          description: selectedAlternative.description,
-          targetZone: selectedAlternative.targetZone,
-          targetLoadDecision: selectedAlternative.targetLoadDecision ?? "block",
-          targetAdjustmentPercent: selectedAlternative.targetAdjustmentPercent ?? null,
+          type: scopedAlternative.type,
+          description: scopedAlternative.description,
+          targetZone: scopedAlternative.targetZone,
+          targetLoadDecision: scopedAlternative.targetLoadDecision ?? "block",
+          targetAdjustmentPercent: scopedAlternative.targetAdjustmentPercent ?? null,
         }
       : null;
   const conduct: EffectiveConduct | null =
@@ -284,12 +291,16 @@ const PersonalizedTrainingDashboard = ({
     });
   };
   const [perceptionSaveState, setPerceptionSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Recomendação mudou (fingerprint novo) → "Registrado" antigo não vale mais.
+  useEffect(() => {
+    setPerceptionSaveState("idle");
+  }, [conductFingerprint]);
   const persistPerception = async (conductTypeOverride?: string) => {
     if (!earlySnapshot || !activeRecommendation || !conduct) return;
     setPerceptionSaveState("saving");
     try {
       const { data: userData } = await supabase.auth.getUser();
-      await upsertPerceptionObservation(supabase, studentId, {
+      const observationId = await upsertPerceptionObservation(supabase, studentId, {
         source: earlySnapshot.source,
         score: earlySnapshot.score,
         baseZoneLabel: activeRecommendation.zone,
@@ -301,6 +312,7 @@ const PersonalizedTrainingDashboard = ({
         registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
         actorId: userData?.user?.id ?? null,
       });
+      rememberPerceptionObservation(studentId, spToday(), observationId);
       setPerceptionSaveState("saved");
     } catch (e) {
       logger.error("[percepcao] falha ao registrar", e);
@@ -716,7 +728,11 @@ const PersonalizedTrainingDashboard = ({
                     <Button
                       size="sm"
                       variant="secondary"
-                      disabled={perceptionSaveState === "saving" || (assessment?.perception ?? "nao_informada") === "nao_informada"}
+                      disabled={
+                        perceptionSaveState === "saving" ||
+                        (assessment?.perception ?? "nao_informada") === "nao_informada" ||
+                        assessment?.symptoms == null
+                      }
                       onClick={() => void persistPerception()}
                     >
                       {perceptionSaveState === "saving" ? "Registrando…" : perceptionSaveState === "saved" ? "Registrado" : "Registrar"}
@@ -1080,7 +1096,7 @@ const PersonalizedTrainingDashboard = ({
               <button
                 key={idx}
                 onClick={() => {
-                  setSelectedAlternative({ ...alt, studentId, date: snapshot.date });
+                  setSelectedAlternative({ ...alt, studentId, date: snapshot.date, fingerprint: conductFingerprint ?? undefined });
                   setShowAlternatives(false);
                 }}
                 className="w-full p-4 border rounded-lg hover:bg-muted/50 transition-colors text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"

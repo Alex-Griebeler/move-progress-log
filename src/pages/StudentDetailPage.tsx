@@ -512,10 +512,12 @@ const StudentDetailPage = () => {
         studentId={id!}
         studentName={student.name}
         existingSessionId={sessionToReopen}
-        onSessionCreated={(sessionId) => {
-          // R8b: a percepção pré-treino do dia (se registrada) vincula à
-          // PRIMEIRA sessão criada; session_id não-nulo nunca é sobrescrito.
-          void linkPerceptionToSession(supabase, id!, sessionId, spToday());
+        onSessionCreated={(sessionId, sessionDate) => {
+          // R8b: a percepção REGISTRADA do dia vincula pelo ID exato à
+          // PRIMEIRA sessão criada — e só quando a DATA da sessão é o mesmo
+          // dia da percepção (sessão retroativa não herda a percepção de
+          // hoje); session_id não-nulo nunca é sobrescrito.
+          void linkPerceptionToSession(supabase, id!, sessionId, sessionDate);
         }}
       />
 

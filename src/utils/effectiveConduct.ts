@@ -159,6 +159,12 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
   }
 
   const floor = isNumericFloor(input);
+  const hasCritical = input.base.alerts.some(
+    (a) => a.kind === "fisiologico" && a.level === "CRITICAL",
+  );
+  if (hasCritical) {
+    vetoes.push("Sinal crítico presente — confirme com a aluna antes de manter o programado.");
+  }
 
   // 3) PERCEPÇÃO
   let zone = baseZone;
@@ -182,9 +188,12 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
       }
     }
     if (elevationBlockers.length === 0) {
-      zone = clampZone(Math.min(baseZone + 1, 3));
-      capMaintain = true;
-      if (zone !== baseZone) {
+      // Só zona base ≤2 SOBE; zona 3 já é o teto humano; zona 4 objetiva
+      // NÃO é desfeita por "melhor" (a progressão +5% foi autorizada por
+      // todos os gates numéricos — percepção não a apaga; revisão R8b).
+      if (baseZone <= 2) {
+        zone = clampZone(baseZone + 1);
+        capMaintain = true;
         vetoes.push("Conduta elevada pela percepção da aluna (melhor que o score) — carga nunca progride por percepção.");
       }
     } else {

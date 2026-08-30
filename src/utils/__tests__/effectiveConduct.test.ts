@@ -239,3 +239,36 @@ describe("integridade dos dados de alternativas e do espelho de prescrições", 
     }
   });
 });
+
+describe("R8b — fixes da review (rodada 4)", () => {
+  it("zona 4 objetiva NÃO é desfeita por percepção 'melhor' (progressão autorizada fica)", () => {
+    const c = computeEffectiveConduct(
+      input({ base: baseRec("green_high"), score: 90, perception: "melhor", symptoms: false }),
+    );
+    expect(c.effectiveZone).toBe(4);
+    expect(c.effectiveLoadDecision).toBe("increase");
+    expect(c.effectiveLoadAdjustmentPercent).toBe(5);
+  });
+
+  it("zona 3 + 'melhor' permanece 3 (teto humano) sem capar a carga objetiva", () => {
+    const c = computeEffectiveConduct(input({ base: baseRec("green"), perception: "melhor", symptoms: false }));
+    expect(c.effectiveZone).toBe(3);
+    expect(c.effectiveLoadDecision).toBe("maintain");
+  });
+
+  it("CRITICAL gera a nota de confirmação na conduta mesmo sem tentativa de elevação", () => {
+    const critical = baseRec("green", {
+      alerts: [{ kind: "fisiologico", metric: "sono", shortLabel: "x", level: "CRITICAL", message: "x" }],
+    });
+    const c = computeEffectiveConduct(input({ base: critical, perception: "condizente", symptoms: false }));
+    expect(c.appliedVetoes.join(" ")).toMatch(/Sinal crítico presente — confirme com a aluna/);
+  });
+
+  it("zona 0/1: alternativa malformada com carga numérica não produz número (block absoluto)", () => {
+    const blocked = baseRec("orange"); // loadDecision block por construção
+    const malformed = alt(1, { targetLoadDecision: "maintain", targetAdjustmentPercent: 0 });
+    const c = computeEffectiveConduct(input({ base: blocked, score: 30, alternative: malformed }));
+    expect(c.effectiveLoadDecision).toBe("block");
+    expect(c.effectiveLoadAdjustmentPercent).toBeNull();
+  });
+});

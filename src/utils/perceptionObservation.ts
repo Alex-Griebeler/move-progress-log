@@ -107,6 +107,7 @@ export const upsertPerceptionObservation = async (
       categories: [PERCEPTION_CATEGORY],
       severity: null,
       is_resolved: true, // percepção não é pendência clínica a resolver
+      created_by: record.actorId,
     })
     .select("id")
     .single();
@@ -115,36 +116,43 @@ export const upsertPerceptionObservation = async (
 };
 
 /**
- * Vincula a percepção do dia à PRIMEIRA sessão criada depois dela —
- * session_id não-nulo nunca é sobrescrito (update condicionado no banco).
+ * Registro em memória do ID da percepção do dia — o vínculo à sessão usa o
+ * ID EXATO devolvido pelo upsert (nunca "a mais recente do dia": com Oura e
+ * Whoop no mesmo dia, a busca genérica podia vincular a fonte errada;
+ * revisão R8b). Escopo {studentId → {spDay, observationId}}.
+ */
+const rememberedPerception = new Map<string, { spDay: string; observationId: string }>();
+
+export const rememberPerceptionObservation = (
+  studentId: string,
+  spDay: string,
+  observationId: string,
+): void => {
+  rememberedPerception.set(studentId, { spDay, observationId });
+};
+
+/** Exposto só pra teste. */
+export const _clearRememberedPerceptions = (): void => rememberedPerception.clear();
+
+/**
+ * Vincula a percepção REGISTRADA à sessão criada — só quando a DATA da
+ * sessão é o mesmo dia SP da percepção (sessão retroativa não recebe a
+ * percepção de hoje) e só à PRIMEIRA sessão (session_id não-nulo nunca é
+ * sobrescrito; o registro em memória é consumido no primeiro vínculo).
  */
 export const linkPerceptionToSession = async (
   supabase: SupabaseClient,
   studentId: string,
   sessionId: string,
-  spDay: string,
+  sessionSpDay: string,
 ): Promise<void> => {
-  const { startIso, endIso } = spDayUtcRange(spDay);
-  const { data: candidates, error: findError } = await supabase
-    .from("student_observations")
-    .select("id")
-    .eq("student_id", studentId)
-    .contains("categories", [PERCEPTION_CATEGORY])
-    .gte("created_at", startIso)
-    .lt("created_at", endIso)
-    .is("session_id", null)
-    .order("created_at", { ascending: false })
-    .limit(1);
-  if (findError) {
-    logger.warn("[percepcao] falha ao buscar observação pra vincular sessão", { findError });
-    return;
-  }
-  const target = candidates?.[0];
-  if (!target) return;
+  const remembered = rememberedPerception.get(studentId);
+  if (!remembered || remembered.spDay !== sessionSpDay) return;
+  rememberedPerception.delete(studentId); // 1ª sessão consome o vínculo
   const { error } = await supabase
     .from("student_observations")
     .update({ session_id: sessionId })
-    .eq("id", target.id)
+    .eq("id", remembered.observationId)
     .is("session_id", null);
   if (error) {
     logger.warn("[percepcao] falha ao vincular sessão à percepção", { error });

@@ -53,7 +53,7 @@ interface RecordIndividualSessionDialogProps {
   existingSessionId?: string | null;
   /** R8b: chamado com o id quando uma sessão NOVA é criada (não em reabertura)
    *  — usado pra vincular a percepção pré-treino do dia à primeira sessão. */
-  onSessionCreated?: (sessionId: string) => void;
+  onSessionCreated?: (sessionId: string, sessionDate: string) => void;
 }
 
 type DialogState = 'setup' | 'recording' | 'processing' | 'preview' | 'edit';
@@ -437,7 +437,7 @@ export function RecordIndividualSessionDialog({
       }
 
       notify.success(isReopening ? "Sessão atualizada com sucesso" : i18n.modules.workouts.sessionCreated, { description: isReopening ? "Novos dados adicionados à sessão" : `${accumulatedRecordings.length} ${i18n.modules.workouts.recording}` });
-      if (!isReopening) onSessionCreated?.(sessionId);
+      if (!isReopening) onSessionCreated?.(sessionId, date);
       onOpenChange(false);
     } catch (error: unknown) {
       logger.error('Error saving session:', error);

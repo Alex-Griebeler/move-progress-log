@@ -50,6 +50,8 @@ export function StudentObservationsCard({
         .select('id, student_id, observation_text, categories, severity, created_at, is_resolved')
         .eq('student_id', studentId)
         .eq('is_resolved', false)
+        // R8b: percepção pré-treino tem seção própria abaixo — não é pendência.
+        .not('categories', 'cs', '{percepcao_treino}')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -240,7 +242,66 @@ export function StudentObservationsCard({
             ))}
           </div>
         )}
+        <PerceptionHistorySection studentId={studentId} />
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * R8b — histórico de percepção pré-treino (categoria 'percepcao_treino').
+ * Consulta PRÓPRIA, independente de is_resolved, com período — permite ao
+ * coach ver padrões ("ela costuma se sentir pior que o score").
+ */
+function PerceptionHistorySection({ studentId }: { studentId: string }) {
+  const [periodDays, setPeriodDays] = useState<7 | 30>(7);
+  const { data: rows } = useQuery({
+    queryKey: ["perception-history", studentId, periodDays],
+    enabled: !!studentId,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - periodDays * 86_400_000).toISOString();
+      const { data, error } = await supabase
+        .from("student_observations")
+        .select("id, observation_text, created_at, session_id")
+        .eq("student_id", studentId)
+        .contains("categories", ["percepcao_treino"])
+        .gte("created_at", cutoff)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  if (!rows || rows.length === 0) return null;
+
+  return (
+    <div className="mt-4 border-t pt-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">Percepção pré-treino</p>
+        <div className="flex gap-1">
+          {([7, 30] as const).map((d) => (
+            <Button
+              key={d}
+              size="sm"
+              variant={periodDays === d ? "default" : "ghost"}
+              onClick={() => setPeriodDays(d)}
+            >
+              {d}d
+            </Button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1">
+        {rows.map((row) => (
+          <p key={row.id} className="text-xs text-muted-foreground font-mono break-words">
+            {new Date(row.created_at as string).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}{" "}
+            — {String(row.observation_text)}
+            {row.session_id ? " | sessão vinculada" : ""}
+          </p>
+        ))}
+      </div>
+    </div>
   );
 }

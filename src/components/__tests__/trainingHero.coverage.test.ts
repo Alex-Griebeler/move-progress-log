@@ -11,7 +11,7 @@
  */
 
 import { readFileSync } from "fs";
-import { dirname, resolve } from "path";
+import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { describe, expect, it } from "vitest";
 
@@ -252,7 +252,7 @@ describe("R7 — correções da auditoria (29/08)", () => {
   it("alternativa escolhida é escopada por {studentId, date}", () => {
     expect(dash).toContain("rawSelectedAlternative.studentId === studentId");
     expect(dash).toContain("rawSelectedAlternative.date === earlySnapshot?.date");
-    expect(dash).toContain("setSelectedAlternative({ ...alt, studentId, date: snapshot.date })");
+    expect(dash).toContain("setSelectedAlternative({ ...alt, studentId, date: snapshot.date, fingerprint: conductFingerprint ?? undefined })");
   });
 
   it("stale ganha nota explícita de conduta datada", () => {
@@ -340,5 +340,44 @@ describe("R8b — percepção da aluna e conduta efetiva", () => {
   it("fingerprint completo invalida modulação quando a recomendação muda", () => {
     expect(dash).toContain("criticalSignature");
     expect(dash).toContain("conductAssessment.fingerprint === conductFingerprint");
+  });
+});
+
+describe("R8b — fixes da review (fiação)", () => {
+  it("alternativa é escopada pelo fingerprint (recomendação mudou → escolha limpa)", () => {
+    expect(dash).toContain("selectedAlternative.fingerprint === conductFingerprint");
+    expect(dash).toContain("fingerprint: conductFingerprint ?? undefined");
+  });
+
+  it("Registrar exige percepção selecionada E sintomas respondidos", () => {
+    expect(dash).toContain("assessment?.symptoms == null");
+  });
+
+  it("estado 'Registrado' reseta quando o fingerprint muda", () => {
+    expect(dash).toMatch(/setPerceptionSaveState\("idle"\);\s*\}, \[conductFingerprint\]\);/);
+  });
+
+  it("vínculo à sessão usa o ID exato registrado + data da sessão (não spToday)", () => {
+    expect(dash).toContain("rememberPerceptionObservation(studentId, spToday(), observationId)");
+    expect(page).toContain("linkPerceptionToSession(supabase, id!, sessionId, sessionDate)");
+  });
+
+  it("consultas de observações importantes excluem a categoria de percepção", () => {
+    for (const rel of [
+      "../../hooks/useStudentImportantObservations.ts",
+      "../../hooks/useStudentsCardData.ts",
+      "../../hooks/useWorkouts.ts",
+      "../StudentObservationsCard.tsx",
+    ]) {
+      const src = readFileSync(join(__dirname, rel), "utf8");
+      expect(src, rel).toContain("percepcao_treino");
+    }
+  });
+
+  it("card clínico ganhou a seção própria de histórico de percepção", () => {
+    const card = readFileSync(join(__dirname, "../StudentObservationsCard.tsx"), "utf8");
+    expect(card).toContain("PerceptionHistorySection");
+    expect(card).toContain("Percepção pré-treino");
+    expect(card).toMatch(/\.contains\("categories", \["percepcao_treino"\]\)/);
   });
 });

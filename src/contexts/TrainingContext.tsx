@@ -16,10 +16,12 @@ interface TrainingAlternative {
   targetZone?: 0 | 1 | 2 | 3 | 4;
   targetLoadDecision?: "increase" | "maintain" | "reduce" | "block";
   targetAdjustmentPercent?: number | null;
-  /** Escopo da escolha (R7): sem casar {studentId, date}, a seleção feita
-   *  na ficha de uma aluna aparecia na ficha da outra (contexto é global). */
+  /** Escopo da escolha (R7/R8b): sem casar {studentId, date, fingerprint},
+   *  a seleção vazava entre alunas — e uma recomendação que MUDOU no mesmo
+   *  dia (score/CRITICAL/contexto) não pode herdar a alternativa antiga. */
   studentId?: string;
   date?: string;
+  fingerprint?: string;
 }
 
 /** Avaliação de percepção da aluna (R8b) — global mas escopada por
