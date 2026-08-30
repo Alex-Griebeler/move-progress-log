@@ -42,3 +42,21 @@ describe("daysAgo / formatRelativeDay", () => {
     expect(daysAgo("2026-07-31", NOW)).toBe(26);
   });
 });
+
+import { daysBetweenDateOnly, shiftDateOnly } from "@/utils/relativeDate";
+
+describe("daysBetweenDateOnly / shiftDateOnly (R8-1/R8-5)", () => {
+  it("0 = hoje, 1 = ontem, 2 = anteontem — ancorado na string do produto", () => {
+    expect(daysBetweenDateOnly("2026-08-29", "2026-08-29")).toBe(0);
+    expect(daysBetweenDateOnly("2026-08-29", "2026-08-28")).toBe(1);
+    expect(daysBetweenDateOnly("2026-08-29", "2026-08-27")).toBe(2);
+    // vira de mês/ano sem drift (UTC puro, sem fuso do runtime)
+    expect(daysBetweenDateOnly("2026-09-01", "2026-08-31")).toBe(1);
+    expect(daysBetweenDateOnly("2027-01-01", "2026-12-31")).toBe(1);
+  });
+
+  it("shiftDateOnly: janela de 30 dias começa em hoje−29", () => {
+    expect(shiftDateOnly("2026-08-29", -29)).toBe("2026-07-31");
+    expect(shiftDateOnly("2026-08-31", 1)).toBe("2026-09-01");
+  });
+});

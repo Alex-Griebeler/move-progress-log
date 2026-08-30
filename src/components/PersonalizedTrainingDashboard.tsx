@@ -25,7 +25,7 @@ import type { MetricDelta, MetricTone } from "./metrics";
 import { buildRecoverySnapshot } from "@/utils/recoverySnapshot";
 import { getTrainingAlternativesForZone } from "@/utils/trainingAlternatives";
 import { buildWhoopRecommendation, newerUnscoredWhoopDay } from "@/utils/whoopRecommendation";
-import { formatRelativeDay, parseLocalDate } from "@/utils/relativeDate";
+import { daysBetweenDateOnly, formatRelativeDay, parseLocalDate, shiftDateOnly } from "@/utils/relativeDate";
 import {
   partitionAlerts,
   stripAlertEmoji,
@@ -134,8 +134,14 @@ const PersonalizedTrainingDashboard = ({
   // latestMetrics participa da DECISÃO da fonte: com cache defasado do
   // histórico, o dia Oura mais novo podia existir só na query "latest" e o
   // snapshot escolheria Whoop de ontem por cima de Oura de hoje.
+  // R8-5: o latest (busca de até 90 linhas) só participa da DECISÃO da
+  // fonte se estiver DENTRO da janela de 30 dias — fora dela, ele furava a
+  // consequência ratificada ("sync esparso → sem recomendação").
+  const ouraWindowStart = shiftDateOnly(spToday(), -29);
+  const latestInWindow =
+    latestMetrics && latestMetrics.date >= ouraWindowStart ? latestMetrics : null;
   const earlySnapshot = buildRecoverySnapshot(
-    latestMetrics ? [latestMetrics, ...recentMetrics] : recentMetrics,
+    latestInWindow ? [latestInWindow, ...recentMetrics] : recentMetrics,
     whoopMetrics,
   );
   // latestMetrics vem de query com cache próprio e pode estar um dia à
@@ -143,7 +149,7 @@ const PersonalizedTrainingDashboard = ({
   // tiles é a do DIA do snapshot, com latestMetrics só como fallback.
   const ouraDayRow =
     earlySnapshot?.source === "oura"
-      ? recentMetrics.find((m) => m.date === earlySnapshot.date) ?? latestMetrics
+      ? recentMetrics.find((m) => m.date === earlySnapshot.date) ?? latestInWindow
       : latestMetrics;
   // Baseline ancorado no DIA do snapshot (auditoria 29/08): a RPC antiga
   // ancorava em CURRENT_DATE e incluía o próprio dia e linhas futuras.
@@ -487,6 +493,15 @@ const PersonalizedTrainingDashboard = ({
                   date={snapshot.date}
                   source={snapshot.source === "oura" ? "Oura" : "Whoop"}
                 />
+              )}
+              {/* R8-1 (decisão 1b): D−1 ganha marca NEUTRA — informação sem
+                  alarme; o tom de alerta continua reservado ao isStale (2+
+                  dias, ratificado na R1). Dia ancorado no calendário do
+                  produto (spToday = America/Sao_Paulo). */}
+              {!snapshot.isStale && daysBetweenDateOnly(spToday(), snapshot.date) === 1 && (
+                <Badge variant="outline" className="font-normal text-muted-foreground">
+                  {snapshot.source === "oura" ? "Oura" : "Whoop"} · ontem
+                </Badge>
               )}
             </div>
             {/* "Hoje pendente + ontem fechado" não dispara isStale (2 dias) —

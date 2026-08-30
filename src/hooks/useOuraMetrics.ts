@@ -111,6 +111,11 @@ export const useOuraMetrics = (
   return useQuery({
     // A key da janela inclui o DIA corrente (SP): depois da meia-noite,
     // qualquer re-render busca a janela nova em vez de servir a de ontem.
+    // R8-6 (ratificado): a página NÃO agenda reavaliação automática na
+    // meia-noite. A janela muda no próximo render que recomputar a query
+    // key, refetch ou reload; até então, a tela pode manter o snapshot do
+    // dia anterior, sujeito às regras de badge/staleness. Dívida futura:
+    // timer de invalidação.
     queryKey: days
       ? ["oura-metrics", studentId, "days", days, spToday()]
       : ["oura-metrics", studentId, limit],

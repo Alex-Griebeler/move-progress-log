@@ -221,13 +221,13 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
     expect(page).toContain("{ days: WHOOP_RECOMMENDATION_WINDOW_DAYS }");
   });
 
-  it("latestMetrics participa da DECISÃO da fonte (cache defasado não esconde o Oura mais novo)", () => {
-    expect(dash).toMatch(/buildRecoverySnapshot\(\s*latestMetrics \? \[latestMetrics, \.\.\.recentMetrics\] : recentMetrics,\s*whoopMetrics,\s*\)/);
+  it("latestMetrics participa da DECISÃO da fonte — mas só dentro da janela (R8a)", () => {
+    expect(dash).toMatch(/buildRecoverySnapshot\(\s*latestInWindow \? \[latestInWindow, \.\.\.recentMetrics\] : recentMetrics,\s*whoopMetrics,\s*\)/);
   });
 
   it("prescrição e tiles Oura casam com o DIA do snapshot (não com latestMetrics de outra query)", () => {
     expect(dash).toContain("useTrainingRecommendation(ouraDayRow, recentMetrics");
-    expect(dash).toMatch(/recentMetrics\.find\(\(m\) => m\.date === earlySnapshot\.date\) \?\? latestMetrics/);
+    expect(dash).toMatch(/recentMetrics\.find\(\(m\) => m\.date === earlySnapshot\.date\) \?\? latestInWindow/);
     // Nenhum tile Oura lê latestMetrics direto — tudo vem da linha do dia.
     expect(dash).not.toMatch(/latestMetrics\??\.(sleep_score|average_sleep_hrv|resting_heart_rate|temperature_deviation|activity_score|steps|total_sleep_duration)/);
   });
@@ -273,5 +273,25 @@ describe("R7 — correções da auditoria (29/08)", () => {
 
   it("alternativa escolhida fica visível (não é botão de mentira)", () => {
     expect(dash).toContain("Alternativa escolhida:");
+  });
+});
+
+describe("R8a — badge ontem + janela Oura de calendário", () => {
+  it("D−1 ganha badge NEUTRO, mutuamente exclusivo com o StaleBadge de alerta", () => {
+    expect(dash).toMatch(/\{!snapshot\.isStale && daysBetweenDateOnly\(spToday\(\), snapshot\.date\) === 1 && \(/);
+    expect(dash).toContain('· ontem');
+  });
+
+  it("latest só entra na decisão da fonte DENTRO da janela de 30 dias", () => {
+    expect(dash).toContain('const ouraWindowStart = shiftDateOnly(spToday(), -29);');
+    expect(dash).toMatch(/latestMetrics && latestMetrics\.date >= ouraWindowStart \? latestMetrics : null/);
+    expect(dash).toMatch(/latestInWindow \? \[latestInWindow, \.\.\.recentMetrics\] : recentMetrics/);
+    // fallback do dia Oura também respeita a janela
+    expect(dash).toContain("recentMetrics.find((m) => m.date === earlySnapshot.date) ?? latestInWindow");
+  });
+
+  it("página pede 30 DIAS de calendário do Oura (não 30 linhas)", () => {
+    expect(page).toContain("{ days: 30 }");
+    expect(page).not.toMatch(/useOuraMetrics\(\s*needsOuraHistory \? studentId : "",\s*30\s*\)/);
   });
 });
