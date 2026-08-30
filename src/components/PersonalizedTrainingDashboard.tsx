@@ -925,7 +925,7 @@ const PersonalizedTrainingDashboard = ({
             <p className="text-sm text-muted-foreground mb-3">
               Plano vigente: <strong>{loadResult.prescriptionName ?? "prescrição"}</strong> — exercícios
               na ordem do plano.
-              {loadResult.fallbackReason ? ` ${loadResult.fallbackReason}.` : ""}
+              {loadResult.fallbackReason ? ` ${loadResult.fallbackReason.replace(/\.$/, "")}.` : ""}
             </p>
           )}
           {loadResult?.mode === "fallback_recent" && (
@@ -1023,13 +1023,13 @@ const PersonalizedTrainingDashboard = ({
           </p>
         </Card>
       )}
-      {hasActionableRecommendation && loadSuggestionsLoading && !loadSuggestions && (
+      {hasActionableRecommendation && loadSuggestionsLoading && !loadResult && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <Skeleton className="h-16 w-full rounded-lg" />
         </Card>
       )}
-      {hasActionableRecommendation && loadSuggestionsError && !loadSuggestions && (
+      {hasActionableRecommendation && loadSuggestionsError && !loadResult && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
@@ -1038,7 +1038,7 @@ const PersonalizedTrainingDashboard = ({
           </p>
         </Card>
       )}
-      {hasActionableRecommendation && loadSuggestions && loadSuggestions.length === 0 && (
+      {hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions.length === 0 && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">

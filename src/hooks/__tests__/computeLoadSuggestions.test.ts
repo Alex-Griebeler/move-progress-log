@@ -209,6 +209,23 @@ describe("máquina de modos (R8c — comportamental, fetchers injetados)", () =>
     expect(r.items[0].status).toBe("suspended");
   });
 
+  it("adaptação com strings VAZIAS não conta como interpretável → suspende", async () => {
+    const r = await computeLoadSuggestions("a1", rec(), null, deps({
+      assignments: {
+        data: [vigente("p1", "Plano", [{ exercise_library_id: "e1", adaptation_type: "ajuste", reps: "", sets: "  " }])],
+        error: null,
+      },
+      plan: { data: [{ exercise_library_id: "e1", order_index: 1, should_track: true }], error: null },
+      library: { data: [libRow("e1")], error: null },
+      sessions: {
+        data: [sessionRow([{ exercise_library_id: "e1", exercise_name: "Ex 1", load_kg: 40, reps: 8, observations: null }])],
+        error: null,
+      },
+    }));
+    expect(r.items[0].status).toBe("suspended");
+    expect(r.items[0].suggestedLoadKg).toBeNull();
+  });
+
   it("adaptação COM campos (reps ajustadas) → sugere normalmente com nota", async () => {
     const r = await computeLoadSuggestions("a1", rec(), null, deps({
       assignments: {

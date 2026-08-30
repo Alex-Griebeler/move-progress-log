@@ -469,3 +469,11 @@ describe("R8c — 2ª rodada", () => {
     expect(hook).not.toMatch(/[^_]prescriptions\(name\)/);
   });
 });
+
+describe("R8c — 3ª rodada", () => {
+  it("card vazio genérico só nos modos RESOLVIDOS (não duplica com seletor/suspenso)", () => {
+    expect(dash).toContain(
+      "{hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions.length === 0 && (",
+    );
+  });
+});

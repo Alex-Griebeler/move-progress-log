@@ -412,10 +412,12 @@ export const computeLoadSuggestions = async (
             adaptationType.includes("substitu") ||
             adaptationType.includes("troca") ||
             adaptationType.includes("replace");
+          const isMeaningfulField = (v: unknown): boolean =>
+            typeof v === "string" ? v.trim().length > 0 : typeof v === "number" ? Number.isFinite(v) : v != null;
           const adaptationHasKnownFields =
             adaptation != null &&
             [adaptation.sets, adaptation.reps, adaptation.interval_seconds, adaptation.pse, adaptation.observations]
-              .some((v) => v != null);
+              .some(isMeaningfulField);
           if (adaptation && (adaptationIsSubstitution || !adaptationHasKnownFields)) {
             items.push({
               key: `id:${libId}`, exerciseName: libMeta.name,
