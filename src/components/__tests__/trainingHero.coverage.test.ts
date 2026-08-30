@@ -417,8 +417,13 @@ describe("R8c — carga escopada pela prescrição vigente + incremento da bibli
 
   it("multi-vigente sem escolha: seletor explícito + CTA bloqueado (caso 18)", () => {
     expect(dash).toContain('loadResult?.mode === "selection_required"');
-    expect(dash).toContain("disabled={prescriptionSelectionPending}");
     expect(dash).toContain("sem escolha silenciosa");
+    // CTA só com escopo RESOLVIDO: carregando/erro/suspenso não viram
+    // sessão livre silenciosamente (revisão R8c).
+    expect(dash).toContain(
+      'loadResult?.mode === "prescription" || loadResult?.mode === "fallback_recent"',
+    );
+    expect(dash).toContain("disabled={!sessionScopeResolved}");
   });
 
   it("erro nas atribuições vira modo suspenso (nunca cai no fallback)", () => {
@@ -446,5 +451,21 @@ describe("R8c — carga escopada pela prescrição vigente + incremento da bibli
     expect(hook).toContain("if (planRow.should_track === false) continue;");
     expect(hook).toContain("if (!libId || seen.has(libId)) continue;");
     expect(hook).toContain("Primeira execução — definir carga com a aluna");
+  });
+});
+
+describe("R8c — 2ª rodada", () => {
+  it("campo de incremento também no fluxo de CRIAÇÃO (Add) e como text/decimal", () => {
+    const add = readFileSync(join(__dirname, "../AddExerciseDialog.tsx"), "utf8");
+    expect(add).toContain("min_increment_kg");
+    expect(add).toContain('inputMode="decimal"');
+    const edit = readFileSync(join(__dirname, "../EditExerciseLibraryDialog.tsx"), "utf8");
+    expect(edit).toMatch(/type="text"\s*inputMode="decimal"/);
+  });
+
+  it("embed correto da prescrição (workout_prescriptions, não 'prescriptions')", () => {
+    const hook = readFileSync(join(__dirname, "../../hooks/useLoadSuggestions.ts"), "utf8");
+    expect(hook).toContain("prescription:workout_prescriptions(name)");
+    expect(hook).not.toMatch(/[^_]prescriptions\(name\)/);
   });
 });

@@ -527,10 +527,8 @@ export const EditExerciseLibraryDialog = ({
                   <Label htmlFor="edit-min-increment">Incremento mínimo (kg)</Label>
                   <Input
                     id="edit-min-increment"
-                    type="number"
+                    type="text"
                     inputMode="decimal"
-                    step="0.01"
-                    min="0.01"
                     value={minIncrementKg}
                     onChange={(e) => setMinIncrementKg(e.target.value)}
                     placeholder="Ex: 2,5 (vazio = inferir do equipamento)"

@@ -285,8 +285,12 @@ const PersonalizedTrainingDashboard = ({
   const loadSuggestions = loadResult?.items;
   // R8c: a MESMA prescrição das sugestões vai pro prescription_id da sessão.
   const activePrescriptionId = loadResult?.prescriptionId ?? null;
-  // Caso 18 da matriz: multi-vigente SEM escolha → sessão não inicia.
+  // Caso 18 da matriz + revisão: sessão só inicia com o ESCOPO resolvido
+  // (plano vigente ou fallback declarado) — carregando/erro/suspenso não
+  // viram sessão livre silenciosamente.
   const prescriptionSelectionPending = loadResult?.mode === "selection_required";
+  const sessionScopeResolved =
+    loadResult?.mode === "prescription" || loadResult?.mode === "fallback_recent";
 
   // R8b: registrar/atualizar a avaliação de percepção (escopo = fingerprint)
   const updateAssessment = (patch: Partial<{ perception: Perception; symptoms: boolean | null; symptomsAcknowledged: boolean }>) => {
@@ -844,9 +848,16 @@ const PersonalizedTrainingDashboard = ({
                         card de carga antes de iniciar.
                       </p>
                     )}
+                    {!sessionScopeResolved && !prescriptionSelectionPending && (
+                      <p className="text-xs text-muted-foreground">
+                        {loadSuggestionsError || loadResult?.mode === "suspended"
+                          ? "Prescrições indisponíveis — recarregue antes de iniciar."
+                          : "Carregando prescrições…"}
+                      </p>
+                    )}
                     <div className="flex gap-3">
                       <Button
-                        disabled={prescriptionSelectionPending}
+                        disabled={!sessionScopeResolved}
                         onClick={() => onStartTraining?.(activePrescriptionId)}
                       >
                         Iniciar Treino

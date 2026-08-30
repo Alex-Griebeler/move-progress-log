@@ -109,6 +109,70 @@ export const hasTechniqueSignal = (value: string | null | undefined): boolean =>
   );
 };
 
+/**
+ * Fetchers injetáveis (R8c, revisão): a máquina de modos é testável de
+ * verdade — o embed errado de prescrição passou pelos asserts de texto.
+ */
+export interface AssignmentRowLite {
+  prescription_id: string;
+  start_date: string | null;
+  end_date: string | null;
+  custom_adaptations: unknown;
+  prescription: { name?: string } | null;
+}
+export interface PlanRowLite {
+  exercise_library_id: string | null;
+  order_index: number | null;
+  should_track: boolean | null;
+}
+export interface SessionRowLite {
+  id: string;
+  date: string;
+  created_at: string | null;
+  prescription_id: string | null;
+  exercises: unknown;
+}
+export interface LibraryRowLite {
+  id: string;
+  name: string | null;
+  category: string | null;
+  equipment_required: unknown;
+  min_increment_kg: number | null;
+}
+
+export interface LoadSuggestionDeps {
+  fetchAssignments: () => Promise<{ data: AssignmentRowLite[] | null; error: unknown }>;
+  fetchPlan: (prescriptionId: string) => Promise<{ data: PlanRowLite[] | null; error: unknown }>;
+  fetchSessions: (periodStart: string) => Promise<{ data: SessionRowLite[] | null; error: unknown }>;
+  fetchLibrary: () => Promise<{ data: LibraryRowLite[] | null; error: unknown }>;
+}
+
+const supabaseDeps = (studentId: string): LoadSuggestionDeps => ({
+  fetchAssignments: async () =>
+    supabase
+      .from("prescription_assignments")
+      .select("prescription_id, start_date, end_date, custom_adaptations, prescription:workout_prescriptions(name)")
+      .eq("student_id", studentId) as unknown as Promise<{ data: AssignmentRowLite[] | null; error: unknown }>,
+  fetchPlan: async (prescriptionId: string) =>
+    supabase
+      .from("prescription_exercises")
+      .select("exercise_library_id, order_index, should_track")
+      .eq("prescription_id", prescriptionId)
+      .order("order_index", { ascending: true }) as unknown as Promise<{ data: PlanRowLite[] | null; error: unknown }>,
+  fetchSessions: async (periodStart: string) =>
+    supabase
+      .from("workout_sessions")
+      .select("id, date, created_at, prescription_id, exercises(exercise_library_id, exercise_name, load_kg, reps, observations)")
+      .eq("student_id", studentId)
+      .gte("date", periodStart)
+      // 2º critério estável: duas sessões no MESMO dia alternavam a
+      // referência conforme a ordem do join (auditoria 29/08).
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false }) as unknown as Promise<{ data: SessionRowLite[] | null; error: unknown }>,
+  fetchLibrary: async () =>
+    supabase.from("exercises_library").select("id, name, category, equipment_required, min_increment_kg") as unknown as Promise<{ data: LibraryRowLite[] | null; error: unknown }>,
+});
+
 export const useLoadSuggestions = (
   studentId: string,
   recommendation: TrainingRecommendation | null,
@@ -128,7 +192,19 @@ export const useLoadSuggestions = (
     queryKey: ["load-suggestions", studentId, recommendationKey, selectedPrescriptionId ?? "auto"],
     enabled: !!studentId && !!recommendation,
     refetchOnWindowFocus: false,
-    queryFn: async (): Promise<LoadSuggestionsResult> => {
+    queryFn: async (): Promise<LoadSuggestionsResult> =>
+      computeLoadSuggestions(studentId, recommendation, selectedPrescriptionId, supabaseDeps(studentId)),
+    staleTime: 60 * 1000,
+  });
+};
+
+/** Orquestrador PURO da sugestão de carga (fetchers injetáveis). */
+export const computeLoadSuggestions = async (
+  studentId: string,
+  recommendation: TrainingRecommendation | null,
+  selectedPrescriptionId: string | null,
+  deps: LoadSuggestionDeps,
+): Promise<LoadSuggestionsResult> => {
       const empty = (mode: LoadSuggestionsResult["mode"], extra: Partial<LoadSuggestionsResult> = {}): LoadSuggestionsResult => ({
         mode, prescriptionId: null, prescriptionName: null,
         availablePrescriptions: [], fallbackReason: null, items: [], ...extra,
@@ -136,10 +212,7 @@ export const useLoadSuggestions = (
       if (!recommendation) return empty("fallback_recent");
 
       // ── atribuições vigentes (erro aqui NÃO cai no fallback) ──────────
-      const { data: assignmentRows, error: assignmentsError } = await supabase
-        .from("prescription_assignments")
-        .select("prescription_id, start_date, end_date, custom_adaptations, prescriptions(name)")
-        .eq("student_id", studentId);
+      const { data: assignmentRows, error: assignmentsError } = await deps.fetchAssignments();
       if (assignmentsError) {
         logger.warn("[load-suggestions] atribuições indisponíveis — sugestão suspensa", { assignmentsError });
         return empty("suspended", { fallbackReason: "erro ao consultar prescrições" });
@@ -149,7 +222,7 @@ export const useLoadSuggestions = (
       );
       const availablePrescriptions = vigentes.map((a) => ({
         id: a.prescription_id as string,
-        name: ((a.prescriptions as { name?: string } | null)?.name ?? "Prescrição") as string,
+        name: a.prescription?.name ?? "Prescrição",
       }));
 
       let chosen: (typeof vigentes)[number] | null = null;
@@ -163,18 +236,7 @@ export const useLoadSuggestions = (
       const periodStart = subDays(new Date(), 90).toISOString().slice(0, 10);
 
       const [{ data: sessions, error: sessionsError }, { data: libraryRows, error: libraryError }] =
-        await Promise.all([
-          supabase
-            .from("workout_sessions")
-            .select("id, date, created_at, prescription_id, exercises(exercise_library_id, exercise_name, load_kg, reps, observations)")
-            .eq("student_id", studentId)
-            .gte("date", periodStart)
-            // 2º critério estável: duas sessões no MESMO dia alternavam a
-            // referência conforme a ordem do join (auditoria 29/08).
-            .order("date", { ascending: false })
-            .order("created_at", { ascending: false }),
-          supabase.from("exercises_library").select("id, name, category, equipment_required, min_increment_kg"),
-        ]);
+        await Promise.all([deps.fetchSessions(periodStart), deps.fetchLibrary()]);
 
       if (sessionsError) throw sessionsError;
       if (libraryError) throw libraryError;
@@ -191,7 +253,7 @@ export const useLoadSuggestions = (
       for (const row of libraryRows || []) {
         if (!row?.name) continue;
         const meta: LibraryMeta = {
-          category: row.category,
+          category: row.category ?? null,
           name: row.name,
           minIncrementKg: typeof row.min_increment_kg === "number" ? row.min_increment_kg : null,
           equipmentRequired: Array.isArray(row.equipment_required)
@@ -256,7 +318,11 @@ export const useLoadSuggestions = (
         const incrementKg = incrementFromLibrary ?? inferIncrement(libMeta?.equipmentRequired);
         const incrementSource: LoadSuggestionItem["incrementSource"] =
           incrementFromLibrary !== null ? "cadastrado" : "inferido";
-        const sorted = (list ?? []).slice().sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1));
+        const sorted = (list ?? [])
+          .slice()
+          .sort((a, b) =>
+            a.date !== b.date ? (a.date < b.date ? 1 : -1) : 0,
+          );
         const reference = sorted[0];
         if (!reference) {
           return {
@@ -305,18 +371,24 @@ export const useLoadSuggestions = (
 
       // ── MODO PRESCRIÇÃO: itens do plano vigente, na ORDEM do plano ─────
       if (chosen) {
-        const { data: planRows, error: planError } = await supabase
-          .from("prescription_exercises")
-          .select("exercise_library_id, order_index, should_track")
-          .eq("prescription_id", chosen.prescription_id)
-          .order("order_index", { ascending: true });
+        const { data: planRows, error: planError } = await deps.fetchPlan(chosen.prescription_id as string);
         if (planError) {
           logger.warn("[load-suggestions] plano indisponível — sugestão suspensa", { planError });
           return empty("suspended", { fallbackReason: "erro ao consultar o plano" });
         }
-        const adaptations = Array.isArray(chosen.custom_adaptations)
-          ? (chosen.custom_adaptations as Array<{ exercise_library_id?: string }>)
+        const rawAdaptations = chosen.custom_adaptations;
+        const adaptations = Array.isArray(rawAdaptations)
+          ? (rawAdaptations as Array<{
+              exercise_library_id?: string;
+              sets?: unknown; reps?: unknown; interval_seconds?: unknown;
+              pse?: unknown; observations?: unknown;
+            }>)
           : [];
+        // Agenda ({weekdays,time}) adaptada → nota no nível do plano.
+        const scheduleNote =
+          rawAdaptations && !Array.isArray(rawAdaptations)
+            ? "Atribuição com agenda adaptada — confira os dias/horário na aba Prescrições."
+            : null;
         const seen = new Set<string>();
         const items: LoadSuggestionItem[] = [];
         for (const planRow of planRows ?? []) {
@@ -327,7 +399,26 @@ export const useLoadSuggestions = (
           const libMeta = libraryById.get(libId);
           if (!libMeta) continue; // exercício removido da biblioteca
           if (!isEligibleStrengthCategory(libMeta.category)) continue;
-          const planNote = adaptations.some((a) => a.exercise_library_id === libId)
+          const adaptation = adaptations.find((a) => a.exercise_library_id === libId) ?? null;
+          const adaptationHasKnownFields =
+            adaptation != null &&
+            [adaptation.sets, adaptation.reps, adaptation.interval_seconds, adaptation.pse, adaptation.observations]
+              .some((v) => v != null);
+          if (adaptation && !adaptationHasKnownFields) {
+            // Adaptação sem campos interpretáveis (ex.: substituição futura):
+            // NÃO sugerir carga do exercício-base — item explícito (delta v3).
+            items.push({
+              key: `id:${libId}`, exerciseName: libMeta.name,
+              lastLoadKg: null, referenceLoadKg: null, referenceReps: null, suggestedLoadKg: null,
+              ruleApplied: "Adaptação individual não interpretável — confira a atribuição",
+              adjustmentPercent: null, source: "insufficient", status: "insufficient",
+              incrementKg: libMeta.minIncrementKg ?? inferIncrement(libMeta.equipmentRequired),
+              incrementSource: libMeta.minIncrementKg != null ? "cadastrado" : "inferido",
+              guardrails: [],
+            });
+            continue;
+          }
+          const planNote = adaptation
             ? "Adaptação individual nesta prescrição — confira séries/reps na atribuição."
             : null;
           items.push(buildItem(`id:${libId}`, libMeta.name, libMeta, byExercise.get(`id:${libId}`), planNote));
@@ -340,7 +431,10 @@ export const useLoadSuggestions = (
           prescriptionId: chosen.prescription_id as string,
           prescriptionName: availablePrescriptions.find((p) => p.id === chosen!.prescription_id)?.name ?? null,
           availablePrescriptions,
-          fallbackReason: null,
+          fallbackReason:
+            items.length === 0
+              ? "o plano vigente não tem exercício de força rastreável"
+              : scheduleNote,
           items,
         };
       }
@@ -380,7 +474,4 @@ export const useLoadSuggestions = (
         fallbackReason: "sem prescrição vigente — mostrando exercícios recentes",
         items: fallbackItems,
       };
-    },
-    staleTime: 60 * 1000,
-  });
 };
