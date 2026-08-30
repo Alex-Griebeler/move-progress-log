@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { parsePerceptionText, PERCEPTION_TEXT_VERSION } from "@/utils/perceptionObservation";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,10 @@ export function StudentObservationsCard({
         .select('id, student_id, observation_text, categories, severity, created_at, is_resolved')
         .eq('student_id', studentId)
         .eq('is_resolved', false)
+        // R8b: percepção pré-treino tem seção própria abaixo — não é pendência.
+        // NULL-safe: NOT(NULL @> ...) é NULL e sumia com observações SEM
+        // categoria (revisão R8b) — o OR preserva categories IS NULL.
+        .or('categories.is.null,categories.not.cs.{percepcao_treino}')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -240,7 +245,97 @@ export function StudentObservationsCard({
             ))}
           </div>
         )}
+        <PerceptionHistorySection studentId={studentId} />
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * R8b — histórico de percepção pré-treino (categoria 'percepcao_treino').
+ * Consulta PRÓPRIA, independente de is_resolved, com período — permite ao
+ * coach ver padrões ("ela costuma se sentir pior que o score").
+ */
+function PerceptionHistorySection({ studentId }: { studentId: string }) {
+  const [periodDays, setPeriodDays] = useState<7 | 30>(7);
+  const { data: rows, isError: historyError } = useQuery({
+    queryKey: ["perception-history", studentId, periodDays],
+    enabled: !!studentId,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const cutoff = new Date(Date.now() - periodDays * 86_400_000).toISOString();
+      const { data, error } = await supabase
+        .from("student_observations")
+        .select("id, observation_text, created_at, session_id")
+        .eq("student_id", studentId)
+        .contains("categories", ["percepcao_treino"])
+        .gte("created_at", cutoff)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Erro ≠ vazio: seção sumindo em erro fingia "sem histórico" (fria R8b).
+  if (historyError) {
+    return (
+      <div className="mt-4 border-t pt-3">
+        <p className="text-sm font-medium">Percepção pré-treino</p>
+        <p className="text-xs text-muted-foreground">
+          Não foi possível carregar o histórico — recarregue a página.
+        </p>
+      </div>
+    );
+  }
+  if (!rows || rows.length === 0) return null;
+
+  return (
+    <div className="mt-4 border-t pt-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">Percepção pré-treino</p>
+        <div className="flex gap-1">
+          {([7, 30] as const).map((d) => (
+            <Button
+              key={d}
+              size="sm"
+              variant={periodDays === d ? "default" : "ghost"}
+              onClick={() => setPeriodDays(d)}
+            >
+              {d}d
+            </Button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1">
+        {rows.map((row) => {
+          const parsed = parsePerceptionText(String(row.observation_text));
+          const day = new Date(row.created_at as string).toLocaleDateString("pt-BR", {
+            day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo",
+          });
+          const f = parsed.fields;
+          const snapDisplay = f.dia_snapshot
+            ? `${f.dia_snapshot.slice(8, 10)}/${f.dia_snapshot.slice(5, 7)}`
+            : null;
+          return (
+            <p key={row.id} className="text-xs text-muted-foreground break-words">
+              {parsed.version === PERCEPTION_TEXT_VERSION ? (
+                <>
+                  {day} · {f.fonte === "whoop" ? "Whoop" : "Oura"} {f.score}
+                  {snapDisplay && snapDisplay !== day ? ` (dia ${snapDisplay})` : ""}
+                  {" · percepção: "}{f.percepcao?.replace("nao_informada", "não informada")}
+                  {" · sintomas: "}{f.sintomas === "sim" ? "sim" : f.sintomas === "nao" ? "não" : "não perguntado"}
+                  {" · conduta: "}{f.conduta}
+                  {row.session_id ? " · sessão vinculada" : ""}
+                </>
+              ) : (
+                // versão desconhecida → cru (formato futuro não vira lixo)
+                <span className="font-mono">{day} — {String(row.observation_text)}</span>
+              )}
+            </p>
+          );
+        })}
+      </div>
+    </div>
   );
 }

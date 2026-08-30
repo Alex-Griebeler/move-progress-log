@@ -11,7 +11,7 @@
  */
 
 import { readFileSync } from "fs";
-import { dirname, resolve } from "path";
+import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { describe, expect, it } from "vitest";
 
@@ -184,7 +184,10 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
   });
 
   it("carga usa a recomendação da MESMA fonte do hero", () => {
-    expect(dash).toContain("useLoadSuggestions(studentId, activeRecommendation)");
+    // R8b: a carga segue a CONDUTA efetiva (mesma fonte por construção —
+    // conductRecommendation deriva da activeRecommendation); suspensa por
+    // sintomas → hook desliga.
+    expect(dash).toContain("useLoadSuggestions(studentId, conduct?.suspended ? null : conductRecommendation)");
   });
 
   it("alternativas de treino usam a zona da fonte ativa", () => {
@@ -249,7 +252,7 @@ describe("R7 — correções da auditoria (29/08)", () => {
   it("alternativa escolhida é escopada por {studentId, date}", () => {
     expect(dash).toContain("rawSelectedAlternative.studentId === studentId");
     expect(dash).toContain("rawSelectedAlternative.date === earlySnapshot?.date");
-    expect(dash).toContain("setSelectedAlternative({ ...alt, studentId, date: snapshot.date })");
+    expect(dash).toContain("setSelectedAlternative({ ...alt, studentId, date: snapshot.date, fingerprint: conductFingerprint ?? undefined })");
   });
 
   it("stale ganha nota explícita de conduta datada", () => {
@@ -271,8 +274,9 @@ describe("R7 — correções da auditoria (29/08)", () => {
     expect(dash).toContain('"Carga bloqueada hoje"');
   });
 
-  it("alternativa escolhida fica visível (não é botão de mentira)", () => {
-    expect(dash).toContain("Alternativa escolhida:");
+  it("alternativa aplicada fica visível — e agora tem efeito real via conduta (R8b)", () => {
+    expect(dash).toContain("Alternativa aplicada:");
+    expect(dash).toContain("conduct?.appliedAlternative");
   });
 });
 
@@ -299,5 +303,108 @@ describe("R8a — badge ontem + janela Oura de calendário", () => {
   it("página pede 30 DIAS de calendário do Oura (não 30 linhas)", () => {
     expect(page).toContain("{ days: 30 }");
     expect(page).not.toMatch(/useOuraMetrics\(\s*needsOuraHistory \? studentId : "",\s*30\s*\)/);
+  });
+});
+
+describe("R8b — percepção da aluna e conduta efetiva", () => {
+  it("conduta é computada pelo funil puro e alimenta a carga", () => {
+    expect(dash).toContain("computeEffectiveConduct({");
+    expect(dash).toContain("conductRecommendation");
+  });
+
+  it("default REAL é 'não informada' (pede pra perguntar à aluna)", () => {
+    expect(dash).toContain('assessment?.perception ?? "nao_informada"');
+    expect(dash).toContain("pergunte à aluna como ela está hoje");
+  });
+
+  it("gate de sintomas existe e suspende CTA/carga até avaliação explícita", () => {
+    expect(dash).toContain("Sintomas relevantes? (dor aguda, mal-estar, tontura, falta de ar)");
+    expect(dash).toContain("Avaliei — liberar conduta conservadora");
+    expect(dash).toContain('conduct?.suspended === "symptoms"');
+  });
+
+  it("dois níveis rotulados: recomendação do aparelho ≠ conduta ajustada", () => {
+    expect(dash).toContain("Recomendação do aparelho");
+    expect(dash).toContain("Conduta ajustada após relato da aluna");
+  });
+
+  it("conduta zona 0 troca o CTA por registrar descanso", () => {
+    expect(dash).toContain("Registrar dia de descanso");
+    expect(dash).toMatch(/conduct && conduct\.effectiveZone === 0 \?/);
+  });
+
+  it("fase R8b: contexto Whoop fail-closed (unavailable) até a R8d", () => {
+    expect(dash).toContain('{ freshness: "unavailable", strain: "unavailable" }');
+  });
+
+  it("fingerprint completo invalida modulação quando a recomendação muda", () => {
+    expect(dash).toContain("criticalSignature");
+    expect(dash).toContain("conductAssessment.fingerprint === conductFingerprint");
+  });
+});
+
+describe("R8b — fixes da review (fiação)", () => {
+  it("alternativa é escopada pelo fingerprint (recomendação mudou → escolha limpa)", () => {
+    expect(dash).toContain("selectedAlternative.fingerprint === conductFingerprint");
+    expect(dash).toContain("fingerprint: conductFingerprint ?? undefined");
+  });
+
+  it("Registrar exige percepção selecionada E sintomas respondidos", () => {
+    expect(dash).toContain("assessment?.symptoms == null");
+  });
+
+  it("estado 'Registrado' reseta quando o fingerprint muda", () => {
+    // invalidação síncrona no updateAssessment + effect pra mudanças externas
+    expect((dash.match(/conductVersionRef\.current \+= 1;/g) ?? []).length).toBe(2);
+    expect(dash).toMatch(/\}, \[conductFingerprint, scopedAlternative\?\.type\]\);/);
+  });
+
+  it("vínculo à sessão usa o ID exato registrado + data da sessão (não spToday)", () => {
+    expect(dash).toContain("rememberPerceptionObservation(studentId, registrationDay, observationId, conductFingerprint)");
+    // dia capturado UMA vez antes do await (corrida de meia-noite — fria)
+    expect(dash).toContain("const registrationDay = spToday();");
+    expect(dash).toContain("validateRememberedPerception(studentId, conductFingerprint)");
+    expect(page).toContain("linkPerceptionToSession(supabase, id!, sessionId, sessionDate)");
+  });
+
+  it("consultas de observações importantes excluem a categoria de percepção", () => {
+    for (const rel of [
+      "../../hooks/useStudentImportantObservations.ts",
+      "../../hooks/useStudentsCardData.ts",
+      "../../hooks/useWorkouts.ts",
+      "../StudentObservationsCard.tsx",
+    ]) {
+      const src = readFileSync(join(__dirname, rel), "utf8");
+      // NULL-safe: NOT(NULL @> ...) é NULL no Postgres e sumia com
+      // observações SEM categoria — a exclusão tem que preservar is.null.
+      expect(src, rel).toContain("categories.is.null,categories.not.cs.{percepcao_treino}");
+    }
+  });
+
+  it("card clínico ganhou a seção própria de histórico de percepção", () => {
+    const card = readFileSync(join(__dirname, "../StudentObservationsCard.tsx"), "utf8");
+    expect(card).toContain("PerceptionHistorySection");
+    expect(card).toContain("Percepção pré-treino");
+    expect(card).toMatch(/\.contains\("categories", \["percepcao_treino"\]\)/);
+  });
+});
+
+describe("R8b — 5ª rodada", () => {
+  it("registro exige coach autenticado (created_by nunca null)", () => {
+    expect(dash).toContain("sem usuário autenticado — registro abortado");
+  });
+});
+
+describe("R8b — fria, 2ª rodada", () => {
+  it("gravação em voo de conduta antiga é descartada (token de versão)", () => {
+    expect(dash).toContain("const startedVersion = conductVersionRef.current;");
+    expect(dash).toContain("if (conductVersionRef.current !== startedVersion)");
+  });
+
+  it("card só usa o ramo amigável na versão EXATA do formato", () => {
+    const card = readFileSync(join(__dirname, "../StudentObservationsCard.tsx"), "utf8");
+    expect(card).toContain("parsed.version === PERCEPTION_TEXT_VERSION");
+    expect(card).toContain('timeZone: "America/Sao_Paulo"');
+    expect(card).toContain("snapDisplay !== day");
   });
 });

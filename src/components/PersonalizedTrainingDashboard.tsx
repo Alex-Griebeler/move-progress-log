@@ -1,4 +1,4 @@
-import { Fragment, cloneElement, useState, useEffect } from "react";
+import { Fragment, cloneElement, useState, useEffect, useRef } from "react";
 import { Card } from "./ui/card";
 import { logger } from "@/utils/logger";
 import { Badge } from "./ui/badge";
@@ -25,6 +25,16 @@ import type { MetricDelta, MetricTone } from "./metrics";
 import { buildRecoverySnapshot } from "@/utils/recoverySnapshot";
 import { getTrainingAlternativesForZone } from "@/utils/trainingAlternatives";
 import { buildWhoopRecommendation, newerUnscoredWhoopDay } from "@/utils/whoopRecommendation";
+import {
+  computeEffectiveConduct,
+  PRESCRIPTION_BY_ZONE,
+  ZONE_FROM_LABEL,
+  type ConductAlternative,
+  type EffectiveConduct,
+  type Perception,
+} from "@/utils/effectiveConduct";
+import { rememberPerceptionObservation, upsertPerceptionObservation, validateRememberedPerception } from "@/utils/perceptionObservation";
+import { supabase } from "@/integrations/supabase/client";
 import { daysBetweenDateOnly, formatRelativeDay, parseLocalDate, shiftDateOnly } from "@/utils/relativeDate";
 import {
   partitionAlerts,
@@ -172,13 +182,13 @@ const PersonalizedTrainingDashboard = ({
     earlySnapshot?.source === "whoop"
       ? whoopRec?.recommendation ?? null
       : recommendation;
-  const {
-    data: loadSuggestions,
-    isLoading: loadSuggestionsLoading,
-    isError: loadSuggestionsError,
-  } = useLoadSuggestions(studentId, activeRecommendation);
   const [showAlternatives, setShowAlternatives] = useState(false);
-  const { selectedAlternative: rawSelectedAlternative, setSelectedAlternative } = useTrainingContext();
+  const {
+    selectedAlternative: rawSelectedAlternative,
+    setSelectedAlternative,
+    conductAssessment,
+    setConductAssessment,
+  } = useTrainingContext();
   // Escolha de alternativa é estado GLOBAL: sem casar {studentId, date},
   // a seleção da aluna A aparecia no hero da aluna B (revisão R7).
   const selectedAlternative =
@@ -187,6 +197,168 @@ const PersonalizedTrainingDashboard = ({
     rawSelectedAlternative.date === earlySnapshot?.date
       ? rawSelectedAlternative
       : null;
+  // (o casamento com o fingerprint acontece adiante, depois de calculá-lo)
+
+  // ── R8b: CONDUTA EFETIVA (percepção da aluna + alternativa) ────────────
+  // Fingerprint COMPLETO: mudou score/zona/carga/override/CRITICAL/contexto,
+  // a modulação registrada é invalidada na tela (o histórico fica no banco).
+  const criticalSignature = activeRecommendation
+    ? activeRecommendation.alerts
+        .filter((a) => a.kind === "fisiologico" && a.level === "CRITICAL")
+        // métrica+mensagem: a mensagem carrega o VALOR medido — sono caindo
+        // de 6h pra 3h com a mesma zona também invalida a modulação (fria).
+        .map((a) => `${a.metric ?? "?"}:${a.message}`)
+        .sort()
+        .join(";")
+    : "";
+  // Fase R8b (antes da R8d): contexto Whoop fail-closed — freshness/strain
+  // "unavailable" vetam elevação por percepção até a R8d fornecer os dados.
+  const whoopConductContext =
+    earlySnapshot?.source === "whoop"
+      ? ({ freshness: "unavailable", strain: "unavailable" } as const)
+      : null;
+  const conductFingerprint = earlySnapshot && activeRecommendation
+    ? [
+        studentId, earlySnapshot.source, earlySnapshot.date, earlySnapshot.score,
+        activeRecommendation.zone, activeRecommendation.loadDecision,
+        activeRecommendation.loadAdjustmentPercent ?? "na",
+        activeRecommendation.overrideApplied ? "ov" : "-", criticalSignature,
+        whoopConductContext ? `${whoopConductContext.freshness}/${whoopConductContext.strain}` : "na",
+      ].join("|")
+    : null;
+  const assessment =
+    conductAssessment && conductFingerprint && conductAssessment.fingerprint === conductFingerprint
+      ? conductAssessment
+      : null;
+  // Alternativa também é MODULAÇÃO: fingerprint diferente = recomendação
+  // mudou → a escolha antiga é limpa (não aplicada) — revisão R8b.
+  const scopedAlternative =
+    selectedAlternative && selectedAlternative.fingerprint === conductFingerprint
+      ? selectedAlternative
+      : null;
+  const conductAlternative: ConductAlternative | null =
+    scopedAlternative && typeof scopedAlternative.targetZone === "number"
+      ? {
+          type: scopedAlternative.type,
+          description: scopedAlternative.description,
+          targetZone: scopedAlternative.targetZone,
+          targetLoadDecision: scopedAlternative.targetLoadDecision ?? "block",
+          targetAdjustmentPercent: scopedAlternative.targetAdjustmentPercent ?? null,
+        }
+      : null;
+  const conduct: EffectiveConduct | null =
+    activeRecommendation && earlySnapshot
+      ? computeEffectiveConduct({
+          base: activeRecommendation,
+          source: earlySnapshot.source,
+          score: earlySnapshot.score,
+          perception: assessment?.perception ?? "nao_informada",
+          symptoms: assessment?.symptoms ?? null,
+          symptomsAcknowledged: assessment?.symptomsAcknowledged ?? false,
+          alternative: conductAlternative,
+          whoopContext: whoopConductContext,
+          hasPartialError: isError,
+        })
+      : null;
+  // A carga assistida segue a CONDUTA (zona/decisão efetivas), nunca a base
+  // quando há modulação — o motor original permanece intocado.
+  const conductRecommendation =
+    activeRecommendation && conduct && conduct.modulated
+      ? {
+          ...activeRecommendation,
+          zone: (Object.entries(ZONE_FROM_LABEL).find(([, z]) => z === conduct.effectiveZone)?.[0] ??
+            activeRecommendation.zone) as typeof activeRecommendation.zone,
+          loadDecision: conduct.effectiveLoadDecision,
+          loadAdjustmentPercent: conduct.effectiveLoadAdjustmentPercent,
+        }
+      : activeRecommendation;
+  const {
+    data: loadSuggestions,
+    isLoading: loadSuggestionsLoading,
+    isError: loadSuggestionsError,
+  } = useLoadSuggestions(studentId, conduct?.suspended ? null : conductRecommendation);
+
+  // R8b: registrar/atualizar a avaliação de percepção (escopo = fingerprint)
+  const updateAssessment = (patch: Partial<{ perception: Perception; symptoms: boolean | null; symptomsAcknowledged: boolean }>) => {
+    if (!conductFingerprint || !earlySnapshot) return;
+    // Invalidação SÍNCRONA (fria R8b, 3ª rodada): QUALQUER mudança na
+    // avaliação — percepção e sintomas inclusive — muda a conduta; um save
+    // em voo da avaliação anterior não pode voltar como "Registrado" nem
+    // criar vínculo. Não depende do timing do useEffect.
+    conductVersionRef.current += 1;
+    setPerceptionSaveState("idle");
+    setConductAssessment({
+      studentId,
+      source: earlySnapshot.source,
+      snapshotDate: earlySnapshot.date,
+      fingerprint: conductFingerprint,
+      perception: assessment?.perception ?? "nao_informada",
+      symptoms: assessment?.symptoms ?? null,
+      symptomsAcknowledged: assessment?.symptomsAcknowledged ?? false,
+      ...patch,
+    });
+  };
+  const [perceptionSaveState, setPerceptionSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // "Registrado" não vale mais quando a CONDUTA muda: fingerprint novo,
+  // sintomas liberados depois do registro, ou alternativa escolhida depois
+  // (fria R8b — o banco ficava com uma conduta diferente da executada).
+  const conductVersionRef = useRef(0);
+  useEffect(() => {
+    // Mudanças EXTERNAS de conduta (fingerprint novo, alternativa) também
+    // carimbam o token — as mudanças internas da avaliação (percepção,
+    // sintomas, acknowledge) já bumpam SINCRONAMENTE no updateAssessment.
+    conductVersionRef.current += 1;
+    setPerceptionSaveState("idle");
+  }, [conductFingerprint, scopedAlternative?.type]);
+  // Vínculo pendente só vale enquanto a recomendação que o originou existe.
+  useEffect(() => {
+    validateRememberedPerception(studentId, conductFingerprint);
+  }, [studentId, conductFingerprint]);
+  const persistPerception = async (conductTypeOverride?: string) => {
+    if (!earlySnapshot || !activeRecommendation || !conduct || !conductFingerprint) return;
+    // Dia do REGISTRO capturado antes de qualquer await: virada de meia-noite
+    // entre o upsert e o remember gravava num dia e lembrava noutro (fria R8b).
+    const registrationDay = spToday();
+    const startedVersion = conductVersionRef.current;
+    setPerceptionSaveState("saving");
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const actorId = userData?.user?.id ?? null;
+      if (!actorId) {
+        // Contrato: created_by = coach autenticado — sem sessão de auth
+        // válida o registro NÃO acontece (revisão R8b).
+        logger.error("[percepcao] sem usuário autenticado — registro abortado");
+        setPerceptionSaveState("error");
+        return;
+      }
+      const observationId = await upsertPerceptionObservation(supabase, studentId, {
+        source: earlySnapshot.source,
+        score: earlySnapshot.score,
+        baseZoneLabel: activeRecommendation.zone,
+        perception: assessment?.perception ?? "nao_informada",
+        symptoms: assessment?.symptoms ?? null,
+        conductType: conductTypeOverride ?? conduct.prescription.trainingType,
+        vetoes: conduct.appliedVetoes,
+        spDay: registrationDay,
+        snapshotDate: earlySnapshot.date,
+        registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+        actorId,
+      });
+      if (conductVersionRef.current !== startedVersion) {
+        // A conduta mudou enquanto a gravação estava em voo: a observação
+        // ficou no banco (histórico legítimo), mas nem o vínculo automático
+        // nem o "Registrado" valem pra conduta NOVA.
+        return;
+      }
+      rememberPerceptionObservation(studentId, registrationDay, observationId, conductFingerprint);
+      setPerceptionSaveState("saved");
+    } catch (e) {
+      logger.error("[percepcao] falha ao registrar", e);
+      if (conductVersionRef.current === startedVersion) {
+        setPerceptionSaveState("error");
+      }
+    }
+  };
 
   // AUD-003: Sincronizar alternativa selecionada com contexto global
   useEffect(() => {
@@ -528,9 +700,9 @@ const PersonalizedTrainingDashboard = ({
                 recente. Recarregue a página para confirmar.
               </p>
             )}
-            {selectedAlternative && (
+            {conduct?.appliedAlternative && (
               <p className="text-xs text-muted-foreground">
-                Alternativa escolhida: <strong>{selectedAlternative.type}</strong>
+                Alternativa aplicada: <strong>{conduct.appliedAlternative}</strong>
               </p>
             )}
             <span className="sr-only" role="status">
@@ -538,18 +710,130 @@ const PersonalizedTrainingDashboard = ({
             </span>
             {hasActionableRecommendation ? (
               <>
+                {/* Nível 1 — RECOMENDAÇÃO DO APARELHO (base, nunca sobrescrita) */}
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Recomendação do aparelho
+                </p>
                 <h3 className="text-2xl font-bold text-foreground">
                   {activeRecommendation!.trainingType}
                 </h3>
                 <p className="text-sm text-muted-foreground">
                   {formatPrescriptionLine(activeRecommendation!.intensity, activeRecommendation!.duration)}
                 </p>
-                <div className="flex gap-3 pt-2">
-                  <Button onClick={() => onStartTraining?.()}>Iniciar Treino</Button>
-                  <Button variant="outline" onClick={() => setShowAlternatives(true)}>
-                    Ver Alternativas
-                  </Button>
+
+                {/* R8b — percepção da aluna (decisão ratificada: percepção >
+                    números, exceto números muito ruins). Default REAL =
+                    não informada: sem seleção, a conduta é a objetiva. */}
+                <div className="mt-3 rounded-lg border bg-muted/20 p-3 space-y-2">
+                  <p className="text-sm font-medium">
+                    Percepção da aluna
+                    {(assessment?.perception ?? "nao_informada") === "nao_informada" && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        pergunte à aluna como ela está hoje
+                      </span>
+                    )}
+                  </p>
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Percepção da aluna">
+                    {([
+                      ["pior", "Pior que o score"],
+                      ["condizente", "Condizente"],
+                      ["melhor", "Melhor que o score"],
+                    ] as Array<[Perception, string]>).map(([value, label]) => (
+                      <Button
+                        key={value}
+                        size="sm"
+                        variant={(assessment?.perception ?? "nao_informada") === value ? "default" : "outline"}
+                        role="radio"
+                        aria-checked={(assessment?.perception ?? "nao_informada") === value}
+                        onClick={() => updateAssessment({ perception: value })}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Sintomas relevantes? (dor aguda, mal-estar, tontura, falta de ar)
+                    </span>
+                    {([[true, "Sim"], [false, "Não"]] as Array<[boolean, string]>).map(([value, label]) => (
+                      <Button
+                        key={label}
+                        size="sm"
+                        variant={assessment?.symptoms === value ? "default" : "outline"}
+                        onClick={() => updateAssessment({ symptoms: value, symptomsAcknowledged: false })}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={
+                        perceptionSaveState === "saving" ||
+                        (assessment?.perception ?? "nao_informada") === "nao_informada" ||
+                        assessment?.symptoms == null
+                      }
+                      onClick={() => void persistPerception()}
+                    >
+                      {perceptionSaveState === "saving" ? "Registrando…" : perceptionSaveState === "saved" ? "Registrado" : "Registrar"}
+                    </Button>
+                    {perceptionSaveState === "error" && (
+                      <span className="text-xs text-destructive">Falha ao registrar — tente de novo.</span>
+                    )}
+                  </div>
                 </div>
+
+                {/* Nível 2 — CONDUTA AJUSTADA (só quando difere da base) */}
+                {conduct && conduct.modulated && !conduct.suspended && (
+                  <div className="mt-2 rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-1">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      Conduta ajustada após relato da aluna
+                    </p>
+                    <p className="text-lg font-semibold">{conduct.prescription.trainingType}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatPrescriptionLine(conduct.prescription.intensity, conduct.prescription.duration)}
+                    </p>
+                  </div>
+                )}
+                {conduct && conduct.appliedVetoes.length > 0 && (
+                  <ul className="mt-1 space-y-0.5">
+                    {conduct.appliedVetoes.map((v, i) => (
+                      <li key={i} className="text-xs text-muted-foreground">• {v}</li>
+                    ))}
+                  </ul>
+                )}
+
+                {/* CTA por estado da conduta (ordem: sintomas → descanso → normal) */}
+                {conduct?.suspended === "symptoms" ? (
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => updateAssessment({ symptomsAcknowledged: true })}
+                    >
+                      Avaliei — liberar conduta conservadora
+                    </Button>
+                  </div>
+                ) : conduct && conduct.effectiveZone === 0 ? (
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button
+                      variant="outline"
+                      disabled={perceptionSaveState === "saving"}
+                      onClick={() => void persistPerception("Dia de descanso registrado")}
+                    >
+                      Registrar dia de descanso
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowAlternatives(true)}>
+                      Ver Alternativas
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 pt-2">
+                    <Button onClick={() => onStartTraining?.()}>Iniciar Treino</Button>
+                    <Button variant="outline" onClick={() => setShowAlternatives(true)}>
+                      Ver Alternativas
+                    </Button>
+                  </div>
+                )}
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
@@ -575,7 +859,7 @@ const PersonalizedTrainingDashboard = ({
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold">Sugestão Assistida de Carga</h3>
             <Badge variant="outline">
-              Zona {ZONE_LABEL[activeRecommendation!.zone] ?? activeRecommendation!.zone}
+              Zona {ZONE_LABEL[conductRecommendation!.zone] ?? conductRecommendation!.zone}
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground mb-4">
@@ -646,6 +930,14 @@ const PersonalizedTrainingDashboard = ({
               </div>
             ))}
           </div>
+        </Card>
+      )}
+      {hasActionableRecommendation && conduct?.suspended === "symptoms" && (
+        <Card className="p-6">
+          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <p className="text-sm text-muted-foreground">
+            Suspensa — a aluna relatou sintomas. Avalie antes de liberar qualquer conduta.
+          </p>
         </Card>
       )}
       {hasActionableRecommendation && loadSuggestionsLoading && !loadSuggestions && (
@@ -844,7 +1136,7 @@ const PersonalizedTrainingDashboard = ({
               <button
                 key={idx}
                 onClick={() => {
-                  setSelectedAlternative({ ...alt, studentId, date: snapshot.date });
+                  setSelectedAlternative({ ...alt, studentId, date: snapshot.date, fingerprint: conductFingerprint ?? undefined });
                   setShowAlternatives(false);
                 }}
                 className="w-full p-4 border rounded-lg hover:bg-muted/50 transition-colors text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"

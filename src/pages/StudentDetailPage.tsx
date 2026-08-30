@@ -27,7 +27,9 @@ import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import { StudentOverviewDashboard } from "@/components/StudentOverviewDashboard";
 import { AssessmentsTab } from "@/components/assessments/AssessmentsTab";
-import { useOuraMetrics, useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
+import { useOuraMetrics, useLatestOuraMetrics, spToday } from "@/hooks/useOuraMetrics";
+import { linkPerceptionToSession } from "@/utils/perceptionObservation";
+import { supabase } from "@/integrations/supabase/client";
 import { useWhoopMetrics } from "@/hooks/useWhoopMetrics";
 import { WHOOP_RECOMMENDATION_WINDOW_DAYS } from "@/utils/whoopRecommendation";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
@@ -510,6 +512,13 @@ const StudentDetailPage = () => {
         studentId={id!}
         studentName={student.name}
         existingSessionId={sessionToReopen}
+        onSessionCreated={(sessionId, sessionDate) => {
+          // R8b: a percepção REGISTRADA do dia vincula pelo ID exato à
+          // PRIMEIRA sessão criada — e só quando a DATA da sessão é o mesmo
+          // dia da percepção (sessão retroativa não herda a percepção de
+          // hoje); session_id não-nulo nunca é sobrescrito.
+          void linkPerceptionToSession(supabase, id!, sessionId, sessionDate);
+        }}
       />
 
       <EditSessionDialog

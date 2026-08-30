@@ -100,7 +100,12 @@ export const useWorkouts = () => {
         .select('session_id')
         .in('session_id', sessionIds)
         .eq('is_resolved', false)
-        .in('severity', ['baixa', 'média', 'alta']);
+        .in('severity', ['baixa', 'média', 'alta'])
+        // R8b: percepção pré-treino nunca é "observação importante" — cinto
+        // e suspensório além do severity null + is_resolved true do insert.
+        // NULL-safe: NOT(NULL @> ...) é NULL e sumia com observações SEM
+        // categoria (revisão R8b) — o OR preserva categories IS NULL.
+        .or('categories.is.null,categories.not.cs.{percepcao_treino}');
 
       if (observationsError) throw observationsError;
 
@@ -144,7 +149,12 @@ export const useWorkoutsPaginated = () => {
           .select('session_id')
           .in('session_id', sessionIds)
           .eq('is_resolved', false)
-          .in('severity', ['baixa', 'média', 'alta']);
+          .in('severity', ['baixa', 'média', 'alta'])
+        // R8b: percepção pré-treino nunca é "observação importante" — cinto
+        // e suspensório além do severity null + is_resolved true do insert.
+        // NULL-safe: NOT(NULL @> ...) é NULL e sumia com observações SEM
+        // categoria (revisão R8b) — o OR preserva categories IS NULL.
+        .or('categories.is.null,categories.not.cs.{percepcao_treino}');
 
         if (observationsError) throw observationsError;
 
