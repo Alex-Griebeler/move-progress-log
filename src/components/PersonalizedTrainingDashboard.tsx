@@ -702,6 +702,19 @@ const PersonalizedTrainingDashboard = ({
     renderedTileMetrics,
   );
 
+  // Rótulos "aparelho vs ajustada" só quando há CONTRASTE de fato — no fluxo
+  // sem modulação o par de rótulos era ruído acima do título (passe visual).
+  const conductContrast =
+    !!conduct &&
+    (conduct.modulated || conduct.suspended !== null || conduct.appliedVetoes.length > 0);
+  // Revelação progressiva SÓ do botão Registrar: sintomas é a regra 0
+  // clínica e fica SEMPRE visível (o caminho "sintomas primeiro" existe —
+  // review da PR #315); o Registrar, que é disabled até percepção E
+  // sintomas respondidos, só aparece depois da 1ª resposta.
+  const perceptionStarted =
+    (assessment?.perception ?? "nao_informada") !== "nao_informada" ||
+    assessment?.symptoms != null;
+
   return (
     <div className="space-y-6">
       {/* HERO — um único score de recuperação. Fonte/data só aparecem quando
@@ -737,22 +750,11 @@ const PersonalizedTrainingDashboard = ({
                   {snapshot.source === "oura" ? "Oura" : "Whoop"} · ontem
                 </Badge>
               )}
-            </div>
-            {/* "Hoje pendente + ontem fechado" não dispara isStale (2 dias) —
-                sem esta linha, a prescrição de ontem passaria por atual. */}
-            {snapshotDayLabel && (
-              <p className="text-xs text-warning">
-                Conduta calculada para {snapshotDayLabel} — não é a leitura de hoje.
-              </p>
-            )}
-            {snapshot.source === "whoop" && (
-              whoopCtx?.freshness === "unavailable" ? (
-                <p className="text-xs text-warning">
-                  Estado da sincronização do Whoop indisponível — freshness e strain não
-                  entram na decisão de hoje.
-                </p>
-              ) : whoopCtx?.syncDisplay ? (
-                <p className="text-xs text-muted-foreground">
+              {/* R8d visual: sync mora na MESMA linha dos badges — menos uma
+                  fileira antes do título; unavailable ⇒ syncDisplay null, os
+                  dois estados nunca coexistem. */}
+              {snapshot.source === "whoop" && whoopCtx?.syncDisplay && (
+                <span className="text-xs text-muted-foreground">
                   Dados sincronizados às {whoopCtx.syncDisplay}
                   {whoopCtx.freshness === "stale" && (
                     <span className="text-warning">
@@ -763,15 +765,28 @@ const PersonalizedTrainingDashboard = ({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="ml-2 h-6 px-2 text-xs"
+                      className="ml-1 h-6 px-2 text-xs"
                       disabled={syncWhoop.isPending}
                       onClick={() => syncWhoop.mutate(studentId)}
                     >
                       {syncWhoop.isPending ? "Sincronizando…" : "Sincronizar agora"}
                     </Button>
                   )}
-                </p>
-              ) : null
+                </span>
+              )}
+            </div>
+            {/* "Hoje pendente + ontem fechado" não dispara isStale (2 dias) —
+                sem esta linha, a prescrição de ontem passaria por atual. */}
+            {snapshotDayLabel && (
+              <p className="text-xs text-warning">
+                Conduta calculada para {snapshotDayLabel} — não é a leitura de hoje.
+              </p>
+            )}
+            {snapshot.source === "whoop" && whoopCtx?.freshness === "unavailable" && (
+              <p className="text-xs text-warning">
+                Estado da sincronização do Whoop indisponível — freshness e strain não
+                entram na decisão de hoje.
+              </p>
             )}
             {whoopPendingNote && (
               <p className="text-xs text-muted-foreground">{whoopPendingNote}</p>
@@ -794,10 +809,14 @@ const PersonalizedTrainingDashboard = ({
             </span>
             {hasActionableRecommendation ? (
               <>
-                {/* Nível 1 — RECOMENDAÇÃO DO APARELHO (base, nunca sobrescrita) */}
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Recomendação do aparelho
-                </p>
+                {/* Nível 1 — RECOMENDAÇÃO DO APARELHO (base, nunca sobrescrita).
+                    O rótulo só aparece quando há conduta ajustada/vetos pra
+                    contrastar; sozinho ele era ruído acima do título. */}
+                {conductContrast && (
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Recomendação do aparelho
+                  </p>
+                )}
                 <h3 className="text-2xl font-bold text-foreground">
                   {activeRecommendation!.trainingType}
                 </h3>
@@ -807,36 +826,38 @@ const PersonalizedTrainingDashboard = ({
 
                 {/* R8b — percepção da aluna (decisão ratificada: percepção >
                     números, exceto números muito ruins). Default REAL =
-                    não informada: sem seleção, a conduta é a objetiva. */}
-                <div className="mt-3 rounded-lg border bg-muted/20 p-3 space-y-2">
-                  <p className="text-sm font-medium">
-                    Percepção da aluna
-                    {(assessment?.perception ?? "nao_informada") === "nao_informada" && (
-                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    não informada: sem seleção, a conduta é a objetiva.
+                    Visual: separador em vez de caixa aninhada; só o Registrar
+                    aparece depois da 1ª resposta (sintomas sempre visíveis). */}
+                <div className="mt-4 space-y-2 border-t pt-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium">Percepção da aluna</span>
+                    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Percepção da aluna">
+                      {([
+                        ["pior", "Pior que o score"],
+                        ["condizente", "Condizente"],
+                        ["melhor", "Melhor que o score"],
+                      ] as Array<[Perception, string]>).map(([value, label]) => (
+                        <Button
+                          key={value}
+                          size="sm"
+                          variant={(assessment?.perception ?? "nao_informada") === value ? "default" : "outline"}
+                          role="radio"
+                          aria-checked={(assessment?.perception ?? "nao_informada") === value}
+                          onClick={() => updateAssessment({ perception: value })}
+                        >
+                          {label}
+                        </Button>
+                      ))}
+                    </div>
+                    {!perceptionStarted && (
+                      <span className="text-xs text-muted-foreground">
                         pergunte à aluna como ela está hoje
                       </span>
                     )}
-                  </p>
-                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Percepção da aluna">
-                    {([
-                      ["pior", "Pior que o score"],
-                      ["condizente", "Condizente"],
-                      ["melhor", "Melhor que o score"],
-                    ] as Array<[Perception, string]>).map(([value, label]) => (
-                      <Button
-                        key={value}
-                        size="sm"
-                        variant={(assessment?.perception ?? "nao_informada") === value ? "default" : "outline"}
-                        role="radio"
-                        aria-checked={(assessment?.perception ?? "nao_informada") === value}
-                        onClick={() => updateAssessment({ perception: value })}
-                      >
-                        {label}
-                      </Button>
-                    ))}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       Sintomas relevantes? (dor aguda, mal-estar, tontura, falta de ar)
                     </span>
                     {([[true, "Sim"], [false, "Não"]] as Array<[boolean, string]>).map(([value, label]) => (
@@ -849,18 +870,20 @@ const PersonalizedTrainingDashboard = ({
                         {label}
                       </Button>
                     ))}
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={
-                        perceptionSaveState === "saving" ||
-                        (assessment?.perception ?? "nao_informada") === "nao_informada" ||
-                        assessment?.symptoms == null
-                      }
-                      onClick={() => void persistPerception()}
-                    >
-                      {perceptionSaveState === "saving" ? "Registrando…" : perceptionSaveState === "saved" ? "Registrado" : "Registrar"}
-                    </Button>
+                    {perceptionStarted && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={
+                          perceptionSaveState === "saving" ||
+                          (assessment?.perception ?? "nao_informada") === "nao_informada" ||
+                          assessment?.symptoms == null
+                        }
+                        onClick={() => void persistPerception()}
+                      >
+                        {perceptionSaveState === "saving" ? "Registrando…" : perceptionSaveState === "saved" ? "Registrado" : "Registrar"}
+                      </Button>
+                    )}
                     {perceptionSaveState === "error" && (
                       <span className="text-xs text-destructive">Falha ao registrar — tente de novo.</span>
                     )}
@@ -906,7 +929,7 @@ const PersonalizedTrainingDashboard = ({
                     >
                       Registrar dia de descanso
                     </Button>
-                    <Button variant="outline" onClick={() => setShowAlternatives(true)}>
+                    <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
                       Ver Alternativas
                     </Button>
                   </div>
@@ -932,7 +955,7 @@ const PersonalizedTrainingDashboard = ({
                       >
                         Iniciar Treino
                       </Button>
-                      <Button variant="outline" onClick={() => setShowAlternatives(true)}>
+                      <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
                         Ver Alternativas
                       </Button>
                     </div>
@@ -960,7 +983,7 @@ const PersonalizedTrainingDashboard = ({
       {/* Sugestão de carga — o dado mais acionável do coach, logo após o hero */}
       {hasActionableRecommendation && loadResult?.mode === "selection_required" && (
         <Card className="p-6">
-          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground mb-3">
             Mais de uma prescrição vigente — escolha a do dia (sem escolha silenciosa):
           </p>
@@ -975,7 +998,7 @@ const PersonalizedTrainingDashboard = ({
       )}
       {hasActionableRecommendation && loadResult?.mode === "suspended" && (
         <Card className="p-6">
-          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
             Suspensa: {loadResult.fallbackReason ?? "erro ao consultar prescrições"} — recarregue a
             página. (Erro não vira “sem prescrição”.)
@@ -985,7 +1008,7 @@ const PersonalizedTrainingDashboard = ({
       {hasActionableRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold">Sugestão Assistida de Carga</h3>
+            <h3 className="text-lg font-semibold">Sugestão Assistida de Carga</h3>
             <Badge variant="outline">
               Zona {ZONE_LABEL[conductRecommendation!.zone] ?? conductRecommendation!.zone}
             </Badge>
@@ -1008,12 +1031,14 @@ const PersonalizedTrainingDashboard = ({
               {loadResult.fallbackReason} (top por peso, 90 dias).
             </p>
           )}
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-xs text-muted-foreground mb-4">
             Referência por histórico real do aluno. A sugestão deve ser validada pelo coach antes da execução.
           </p>
-          <div className="space-y-3">
+          {/* Passe visual: lista única com divisores no lugar de caixa por
+              exercício (caixa-em-caixa deixava o card pesado). */}
+          <div className="divide-y rounded-lg border">
             {loadSuggestions.map((item) => (
-              <div key={item.key} className="rounded-lg border p-4 bg-muted/20">
+              <div key={item.key} className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <h4 className="font-semibold">{item.exerciseName}</h4>
@@ -1040,8 +1065,8 @@ const PersonalizedTrainingDashboard = ({
                     {getSuggestionStatusLabel(item.status)}
                   </Badge>
                 </div>
-                <details className="mt-3 rounded-md border bg-background/50 px-3 py-2">
-                  <summary className="cursor-pointer text-sm font-medium text-primary">
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-xs font-medium text-primary">
                     Ver detalhes da regra
                   </summary>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
@@ -1092,7 +1117,7 @@ const PersonalizedTrainingDashboard = ({
       )}
       {hasActionableRecommendation && conduct?.suspended === "symptoms" && (
         <Card className="p-6">
-          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
             Suspensa — a aluna relatou sintomas. Avalie antes de liberar qualquer conduta.
           </p>
@@ -1100,13 +1125,13 @@ const PersonalizedTrainingDashboard = ({
       )}
       {hasActionableRecommendation && loadSuggestionsLoading && !loadResult && (
         <Card className="p-6">
-          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
           <Skeleton className="h-16 w-full rounded-lg" />
         </Card>
       )}
       {hasActionableRecommendation && loadSuggestionsError && !loadResult && (
         <Card className="p-6">
-          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
             Não foi possível calcular as sugestões de carga — recarregue a página para tentar de
             novo. (Sem sugestão não significa sem exercício elegível.)
@@ -1115,7 +1140,7 @@ const PersonalizedTrainingDashboard = ({
       )}
       {hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions.length === 0 && (
         <Card className="p-6">
-          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
             {loadResult?.fallbackReason
               ? `Sem sugestões: ${loadResult.fallbackReason}.`
