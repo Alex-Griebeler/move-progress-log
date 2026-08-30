@@ -24,7 +24,14 @@ import { ScoreRing, MetricTile, StaleBadge, DataErrorState } from "./metrics";
 import type { MetricDelta, MetricTone } from "./metrics";
 import { buildRecoverySnapshot } from "@/utils/recoverySnapshot";
 import { getTrainingAlternativesForZone } from "@/utils/trainingAlternatives";
-import { buildWhoopRecommendation, newerUnscoredWhoopDay } from "@/utils/whoopRecommendation";
+import {
+  buildWhoopRecommendation,
+  computeWhoopContext,
+  newerUnscoredWhoopDay,
+  WHOOP_SYNC_STALE_HOURS,
+} from "@/utils/whoopRecommendation";
+import { useWhoopConnection, useSyncWhoop } from "@/hooks/useWhoopConnection";
+import { useIsAdmin } from "@/hooks/useUserRole";
 import {
   computeEffectiveConduct,
   PRESCRIPTION_BY_ZONE,
@@ -138,6 +145,9 @@ const PersonalizedTrainingDashboard = ({
   // 30 dias: é o que a UI promete nos deltas ("vs 30d") — o default do hook
   // era 14 e ninguém percebia a divergência.
   const { data: latestAcuteMetrics } = useLatestOuraAcuteMetrics(studentId);
+  const { data: whoopConnection, isError: whoopConnectionError } = useWhoopConnection(studentId);
+  const syncWhoop = useSyncWhoop();
+  const { isAdmin } = useIsAdmin();
   // R5 — a FONTE é decidida ANTES de qualquer consumo: o snapshot escolhe
   // {source, date} e todo o resto (recomendação, tiles, carga, alertas) casa
   // com esse par. Nunca misturar hero Whoop de hoje com recomendação Oura
@@ -212,12 +222,26 @@ const PersonalizedTrainingDashboard = ({
         .sort()
         .join(";")
     : "";
-  // Fase R8b (antes da R8d): contexto Whoop fail-closed — freshness/strain
-  // "unavailable" vetam elevação por percepção até a R8d fornecer os dados.
-  const whoopConductContext =
+  // R8d: contexto REAL de freshness/strain (o fail-closed da R8b sai de
+  // cena). Erro na consulta da conexão → unavailable (veto de elevação,
+  // nunca piso); strain do DIA do snapshot; alerta só com snapshot de hoje.
+  const whoopDayRow =
     earlySnapshot?.source === "whoop"
-      ? ({ freshness: "unavailable", strain: "unavailable" } as const)
+      ? whoopMetrics.find((w) => w.date === earlySnapshot.date) ?? null
       : null;
+  const whoopCtx =
+    earlySnapshot?.source === "whoop"
+      ? computeWhoopContext({
+          lastSyncAt: whoopConnection?.last_sync_at ?? null,
+          connectionUnavailable: whoopConnectionError || whoopConnection === undefined,
+          dayStrain: whoopDayRow?.day_strain ?? null,
+          snapshotIsToday: earlySnapshot.date === spToday(),
+          nowMs: Date.now(),
+        })
+      : null;
+  const whoopConductContext = whoopCtx
+    ? ({ freshness: whoopCtx.freshness, strain: whoopCtx.strain } as const)
+    : null;
   const conductFingerprint = earlySnapshot && activeRecommendation
     ? [
         studentId, earlySnapshot.source, earlySnapshot.date, earlySnapshot.score,
@@ -616,6 +640,7 @@ const PersonalizedTrainingDashboard = ({
     if (w?.day_strain != null) {
       physiology.push({
         key: "strain",
+        metric: "strain",
         tile: <MetricTile label="Strain" value={w.day_strain.toFixed(1)} />,
       });
     }
@@ -660,7 +685,10 @@ const PersonalizedTrainingDashboard = ({
     physiology.flatMap((p) => (p.metric ? [p.metric] : [])),
   );
   const alertPartition = partitionAlerts(
-    hasActionableRecommendation && activeRecommendation ? activeRecommendation.alerts : [],
+    [
+      ...(hasActionableRecommendation && activeRecommendation ? activeRecommendation.alerts : []),
+      ...(hasActionableRecommendation && whoopCtx?.strainAlert ? [whoopCtx.strainAlert] : []),
+    ],
     renderedTileMetrics,
   );
 
@@ -706,6 +734,34 @@ const PersonalizedTrainingDashboard = ({
               <p className="text-xs text-warning">
                 Conduta calculada para {snapshotDayLabel} — não é a leitura de hoje.
               </p>
+            )}
+            {snapshot.source === "whoop" && (
+              whoopCtx?.freshness === "unavailable" ? (
+                <p className="text-xs text-warning">
+                  Estado da sincronização do Whoop indisponível — freshness e strain não
+                  entram na decisão de hoje.
+                </p>
+              ) : whoopCtx?.syncDisplay ? (
+                <p className="text-xs text-muted-foreground">
+                  Dados sincronizados às {whoopCtx.syncDisplay}
+                  {whoopCtx.freshness === "stale" && (
+                    <span className="text-warning">
+                      {" "}— desatualizado para decisão pré-sessão (&gt;{WHOOP_SYNC_STALE_HOURS}h)
+                    </span>
+                  )}
+                  {whoopCtx.freshness === "stale" && isAdmin && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="ml-2 h-6 px-2 text-xs"
+                      disabled={syncWhoop.isPending}
+                      onClick={() => syncWhoop.mutate(studentId)}
+                    >
+                      {syncWhoop.isPending ? "Sincronizando…" : "Sincronizar agora"}
+                    </Button>
+                  )}
+                </p>
+              ) : null
             )}
             {whoopPendingNote && (
               <p className="text-xs text-muted-foreground">{whoopPendingNote}</p>

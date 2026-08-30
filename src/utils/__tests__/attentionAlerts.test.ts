@@ -116,3 +116,29 @@ describe("stripAlertEmoji", () => {
     expect(stripAlertEmoji("Mensagem limpa.")).toBe("Mensagem limpa.");
   });
 });
+
+import { partitionAlerts as partitionForContextual } from "@/utils/attentionAlerts";
+
+describe("kind contextual (R8d)", () => {
+  const strainWarning = {
+    kind: "contextual" as const, metric: "strain" as const, level: "WARNING" as const,
+    shortLabel: "Strain do dia alto", message: "Strain medido: 15.0/21 …",
+  };
+
+  it("WARNING contextual ancora no tile E conta pro card como qualquer sinal", () => {
+    const p = partitionForContextual([strainWarning], new Set(["strain"]));
+    expect(p.byTile.get("strain")?.level).toBe("WARNING");
+    expect(p.showAttentionCard).toBe(false); // 1 sinal com tile não abre card
+    const p2 = partitionForContextual(
+      [strainWarning, { ...strainWarning, kind: "fisiologico", metric: "sono" }],
+      new Set(["strain", "sono"]),
+    );
+    expect(p2.showAttentionCard).toBe(true); // 2+ sinais
+  });
+
+  it("INFO contextual fica no tile e NUNCA dispara o card (contexto ≠ atenção)", () => {
+    const info = { ...strainWarning, level: "INFO" as const };
+    const p = partitionForContextual([info], new Set<never>());
+    expect(p.showAttentionCard).toBe(false); // órfão INFO contextual não abre card
+  });
+});

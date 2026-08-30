@@ -74,6 +74,85 @@ export const newerUnscoredWhoopDay = (
 export const isBaselineWindowTruncated = (date: string, queryAnchorDate: string): boolean =>
   shiftDays(date, -30) < shiftDays(queryAnchorDate, -(WHOOP_RECOMMENDATION_WINDOW_DAYS - 1));
 
+/**
+ * Contexto operacional do Whoop pra DECISÃO pré-sessão (R8-7, plano 3×
+ * revisado). Corte de 3h é OPERACIONAL e declarado (o sync automático roda
+ * ~10:15 SP; sessão às 16h teria dado de ~6h — um corte de 12h nunca
+ * dispararia). Estados FECHADOS: ausente/indisponível = veto de elevação
+ * por percepção, nunca piso nem reclassificação de banda.
+ */
+export const WHOOP_SYNC_STALE_HOURS = 3;
+export const WHOOP_HIGH_STRAIN_THRESHOLD = 14; // faixa "alto" da escala nativa 0-21
+
+export interface WhoopContextInput {
+  lastSyncAt: string | null;
+  connectionUnavailable: boolean;
+  dayStrain: number | null;
+  snapshotIsToday: boolean;
+  nowMs: number;
+}
+
+export interface WhoopContextResult {
+  freshness: "fresh" | "stale" | "unavailable";
+  strain: "non_high" | "high" | "unavailable";
+  /** "HH:mm" em America/Sao_Paulo, ou null sem sync. */
+  syncDisplay: string | null;
+  /** Alerta contextual de strain alto — só com snapshot de HOJE e sync
+   *  conhecido; nunca muda banda/recomendação. */
+  strainAlert: {
+    kind: "contextual";
+    metric: "strain";
+    level: "WARNING";
+    shortLabel: string;
+    message: string;
+  } | null;
+}
+
+export const computeWhoopContext = (input: WhoopContextInput): WhoopContextResult => {
+  let freshness: WhoopContextResult["freshness"];
+  let syncDisplay: string | null = null;
+  if (input.connectionUnavailable || !input.lastSyncAt) {
+    freshness = "unavailable";
+  } else {
+    const syncMs = new Date(input.lastSyncAt).getTime();
+    if (!Number.isFinite(syncMs)) {
+      freshness = "unavailable";
+    } else {
+      const hours = (input.nowMs - syncMs) / 3_600_000;
+      freshness = hours <= WHOOP_SYNC_STALE_HOURS ? "fresh" : "stale";
+      syncDisplay = new Date(syncMs).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "America/Sao_Paulo",
+      });
+    }
+  }
+
+  let strain: WhoopContextResult["strain"];
+  if (input.dayStrain == null || !Number.isFinite(input.dayStrain)) {
+    strain = "unavailable";
+  } else if (input.dayStrain >= WHOOP_HIGH_STRAIN_THRESHOLD) {
+    strain = "high";
+  } else {
+    // <14 só certifica "não-alto" com sync FRESCO — valor de horas atrás
+    // pode ter subido desde então (revisão: veto de elevação, não piso).
+    strain = freshness === "fresh" ? "non_high" : "unavailable";
+  }
+
+  const strainAlert =
+    input.snapshotIsToday && freshness !== "unavailable" && strain === "high" && syncDisplay
+      ? {
+          kind: "contextual" as const,
+          metric: "strain" as const,
+          level: "WARNING" as const,
+          shortLabel: "Strain do dia alto",
+          message: `Strain medido: ${(input.dayStrain as number).toFixed(1)}/21 na sincronização das ${syncDisplay} — faixa alta do Whoop (≥${WHOOP_HIGH_STRAIN_THRESHOLD}). Confirme esforço realizado e percepção atual antes de manter a sessão.`,
+        }
+      : null;
+
+  return { freshness, strain, syncDisplay, strainAlert };
+};
+
 export interface WhoopRecommendationResult {
   recommendation: TrainingRecommendation | null;
   /**

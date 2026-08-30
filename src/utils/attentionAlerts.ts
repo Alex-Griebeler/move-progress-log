@@ -27,9 +27,13 @@ export type AlertMetric =
   | "estresse"
   | "hrv_aguda"
   | "fc_pico"
-  | "fc_media_dia";
+  | "fc_media_dia"
+  | "strain";
 
-export type AlertKind = "fisiologico" | "onboarding" | "override";
+/** "contextual" (R8d): sinal de CONTEXTO da decisão (strain do dia,
+ *  freshness) — ancora no tile e só dispara o card "Atenção hoje" quando
+ *  WARNING+; nunca reclassifica banda/score. */
+export type AlertKind = "fisiologico" | "onboarding" | "override" | "contextual";
 
 export interface StructuredAlert {
   level: AlertLevel;
@@ -116,12 +120,16 @@ export const partitionAlerts = (
   }
 
   // Card consolidado: crítico sempre; 2+ sinais; ou sinal órfão de tile.
-  const hasCritical = attention.some((a) => a.level === "CRITICAL");
-  const hasOrphan = attention.some(
+  // Contextual INFO fica só no tile — contexto informativo não é "atenção".
+  const cardRelevant = attention.filter(
+    (a) => !(a.kind === "contextual" && a.level === "INFO"),
+  );
+  const hasCritical = cardRelevant.some((a) => a.level === "CRITICAL");
+  const hasOrphan = cardRelevant.some(
     (a) => a.metric === null || !renderedTileMetrics.has(a.metric),
   );
   const showAttentionCard =
-    attention.length > 0 && (hasCritical || attention.length >= 2 || hasOrphan);
+    cardRelevant.length > 0 && (hasCritical || cardRelevant.length >= 2 || hasOrphan);
 
   return { byTile, attention, showAttentionCard, onboardingNotes };
 };

@@ -172,3 +172,52 @@ describe("newerUnscoredWhoopDay (dia sem score pulado pelo snapshot)", () => {
     expect(newerUnscoredWhoopDay([], null)).toBeNull();
   });
 });
+
+import { computeWhoopContext, WHOOP_HIGH_STRAIN_THRESHOLD } from "@/utils/whoopRecommendation";
+
+describe("computeWhoopContext (R8d — estados fechados)", () => {
+  const NOW = new Date("2026-08-29T18:00:00Z").getTime(); // 15:00 SP
+  const syncAt = (hoursAgo: number) => new Date(NOW - hoursAgo * 3_600_000).toISOString();
+  const base = { connectionUnavailable: false, dayStrain: 10, snapshotIsToday: true, nowMs: NOW };
+
+  it("fresh ≤3h; stale >3h; unavailable sem sync/conexão (corte OPERACIONAL declarado)", () => {
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(2) }).freshness).toBe("fresh");
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(4) }).freshness).toBe("stale");
+    expect(computeWhoopContext({ ...base, lastSyncAt: null }).freshness).toBe("unavailable");
+    expect(
+      computeWhoopContext({ ...base, lastSyncAt: syncAt(1), connectionUnavailable: true }).freshness,
+    ).toBe("unavailable");
+  });
+
+  it("strain <14 só é non_high com sync FRESCO (valor velho não certifica)", () => {
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(1) }).strain).toBe("non_high");
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(5) }).strain).toBe("unavailable");
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: null }).strain).toBe("unavailable");
+    expect(
+      computeWhoopContext({ ...base, lastSyncAt: syncAt(5), dayStrain: 15 }).strain,
+    ).toBe("high"); // alto de horas atrás continua alto (veto se sustenta)
+  });
+
+  it("alerta de strain: só HOJE + sync conhecido + ≥14, com horário na copy", () => {
+    const alerting = computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: 14.6 });
+    expect(alerting.strainAlert?.level).toBe("WARNING");
+    expect(alerting.strainAlert?.kind).toBe("contextual");
+    expect(alerting.strainAlert?.message).toContain("14.6/21");
+    expect(alerting.strainAlert?.message).toContain("na sincronização das");
+    expect(alerting.strainAlert?.message).toMatch(/≥14/);
+    // snapshot de ONTEM nunca gera "strain antes da sessão" de hoje
+    expect(
+      computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: 15, snapshotIsToday: false }).strainAlert,
+    ).toBeNull();
+    // sem sync conhecido, nada de alerta
+    expect(
+      computeWhoopContext({ ...base, lastSyncAt: null, dayStrain: 15 }).strainAlert,
+    ).toBeNull();
+    expect(WHOOP_HIGH_STRAIN_THRESHOLD).toBe(14);
+  });
+
+  it("syncDisplay em HH:mm no fuso SP", () => {
+    const ctx = computeWhoopContext({ ...base, lastSyncAt: "2026-08-29T13:20:00Z" });
+    expect(ctx.syncDisplay).toBe("10:20");
+  });
+});

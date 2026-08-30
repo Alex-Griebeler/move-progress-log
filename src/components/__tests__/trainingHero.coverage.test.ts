@@ -335,8 +335,12 @@ describe("R8b — percepção da aluna e conduta efetiva", () => {
     expect(dash).toMatch(/conduct && conduct\.effectiveZone === 0 \?/);
   });
 
-  it("fase R8b: contexto Whoop fail-closed (unavailable) até a R8d", () => {
-    expect(dash).toContain('{ freshness: "unavailable", strain: "unavailable" }');
+  it("R8d: contexto Whoop REAL (freshness/strain do dia) alimenta a conduta", () => {
+    expect(dash).toContain("computeWhoopContext({");
+    expect(dash).toContain("lastSyncAt: whoopConnection?.last_sync_at ?? null");
+    expect(dash).toContain("connectionUnavailable: whoopConnectionError || whoopConnection === undefined");
+    expect(dash).toContain("dayStrain: whoopDayRow?.day_strain ?? null");
+    expect(dash).toContain("snapshotIsToday: earlySnapshot.date === spToday()");
   });
 
   it("fingerprint completo invalida modulação quando a recomendação muda", () => {
@@ -509,5 +513,23 @@ describe("R8c — fixes da revisão fria", () => {
       expect(src, rel).toContain("Incremento mínimo inválido");
       expect(src, rel).toContain("parsedMinIncrement = Math.round(parsed * 100) / 100;");
     }
+  });
+});
+
+describe("R8d — freshness e strain do Whoop", () => {
+  it("linha de sincronização sempre visível na fonte Whoop (com estado indisponível honesto)", () => {
+    expect(dash).toContain("Dados sincronizados às {whoopCtx.syncDisplay}");
+    expect(dash).toContain("Estado da sincronização do Whoop indisponível");
+    expect(dash).toContain("desatualizado para decisão pré-sessão");
+  });
+
+  it("sync manual compacto só pra admin e só quando stale", () => {
+    expect(dash).toMatch(/whoopCtx\.freshness === "stale" && isAdmin &&/);
+    expect(dash).toContain("Sincronizar agora");
+  });
+
+  it("alerta de strain entra na partição como CONTEXTUAL ancorado no tile", () => {
+    expect(dash).toContain("whoopCtx?.strainAlert ? [whoopCtx.strainAlert] : []");
+    expect(dash).toMatch(/key: "strain",\s*metric: "strain"/);
   });
 });
