@@ -159,7 +159,9 @@ describe("coerência de fontes (fix pós-review Codex)", () => {
   });
 
   it("card de carga vazio tem a MESMA guarda do cheio (fonte ativa, R5)", () => {
-    const emptyGuard = dash.match(/hasActionableRecommendation && loadSuggestions && loadSuggestions\.length === 0/);
+    // R8c: o vazio ganhou o gate extra de escopo resolvido (não duplica
+    // com seletor multi-vigente nem com suspensão).
+    const emptyGuard = dash.match(/hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions\.length === 0/);
     const fullGuard = dash.match(/hasActionableRecommendation && loadSuggestions && loadSuggestions\.length > 0/);
     expect(emptyGuard).not.toBeNull();
     expect(fullGuard).not.toBeNull();
@@ -187,7 +189,7 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
     // R8b: a carga segue a CONDUTA efetiva (mesma fonte por construção —
     // conductRecommendation deriva da activeRecommendation); suspensa por
     // sintomas → hook desliga.
-    expect(dash).toContain("useLoadSuggestions(studentId, conduct?.suspended ? null : conductRecommendation)");
+    expect(dash).toMatch(/useLoadSuggestions\(\s*studentId,\s*conduct\?\.suspended \? null : conductRecommendation,\s*selectedLoadPrescriptionId,\s*\)/);
   });
 
   it("alternativas de treino usam a zona da fonte ativa", () => {
@@ -406,5 +408,106 @@ describe("R8b — fria, 2ª rodada", () => {
     expect(card).toContain("parsed.version === PERCEPTION_TEXT_VERSION");
     expect(card).toContain('timeZone: "America/Sao_Paulo"');
     expect(card).toContain("snapDisplay !== day");
+  });
+});
+
+describe("R8c — carga escopada pela prescrição vigente + incremento da biblioteca", () => {
+  it("hook devolve modos e o dashboard consome itens + prescrição ativa", () => {
+    expect(dash).toContain("const loadSuggestions = loadResult?.items;");
+    expect(dash).toContain("const activePrescriptionId = loadResult?.prescriptionId ?? null;");
+  });
+
+  it("multi-vigente sem escolha: seletor explícito + CTA bloqueado (caso 18)", () => {
+    expect(dash).toContain('loadResult?.mode === "selection_required"');
+    expect(dash).toContain("sem escolha silenciosa");
+    // CTA só com escopo RESOLVIDO: carregando/erro/suspenso não viram
+    // sessão livre silenciosamente (revisão R8c).
+    expect(dash).toContain(
+      'loadResult?.mode === "prescription" || loadResult?.mode === "fallback_recent"',
+    );
+    expect(dash).toContain("disabled={!sessionScopeResolved}");
+  });
+
+  it("erro nas atribuições vira modo suspenso (nunca cai no fallback)", () => {
+    expect(dash).toContain('loadResult?.mode === "suspended"');
+    const hook = readFileSync(join(__dirname, "../../hooks/useLoadSuggestions.ts"), "utf8");
+    expect(hook).toContain('return empty("suspended", { fallbackReason: "erro ao consultar prescrições" });');
+    expect(hook).toContain('assignmentStatus({ start_date: a.start_date, end_date: a.end_date }) === "vigente"');
+  });
+
+  it("a MESMA prescrição das sugestões vai pra sessão iniciada", () => {
+    expect(dash).toContain("onStartTraining?.(activePrescriptionId)");
+    expect(page).toContain("initialPrescriptionId={sessionPrescriptionId}");
+  });
+
+  it("origem do incremento é visível (cadastrado vs inferido)", () => {
+    expect(dash).toContain("cadastrado na biblioteca");
+    const hook = readFileSync(join(__dirname, "../../hooks/useLoadSuggestions.ts"), "utf8");
+    expect(hook).toContain("libMeta?.minIncrementKg ?? null");
+    expect(hook).toContain('incrementFromLibrary !== null ? "cadastrado" : "inferido"');
+  });
+
+  it("plano: ordem do plano, should_track=false fora, repetido 1ª ocorrência, primeira execução explícita", () => {
+    const hook = readFileSync(join(__dirname, "../../hooks/useLoadSuggestions.ts"), "utf8");
+    expect(hook).toContain('.order("order_index", { ascending: true })');
+    expect(hook).toContain("if (planRow.should_track === false) continue;");
+    expect(hook).toContain("if (!libId || seen.has(libId)) continue;");
+    expect(hook).toContain("Primeira execução — definir carga com a aluna");
+  });
+});
+
+describe("R8c — 2ª rodada", () => {
+  it("campo de incremento também no fluxo de CRIAÇÃO (Add) e como text/decimal", () => {
+    const add = readFileSync(join(__dirname, "../AddExerciseDialog.tsx"), "utf8");
+    expect(add).toContain("min_increment_kg");
+    expect(add).toContain('inputMode="decimal"');
+    const edit = readFileSync(join(__dirname, "../EditExerciseLibraryDialog.tsx"), "utf8");
+    expect(edit).toMatch(/type="text"\s*inputMode="decimal"/);
+  });
+
+  it("embed correto da prescrição (workout_prescriptions, não 'prescriptions')", () => {
+    const hook = readFileSync(join(__dirname, "../../hooks/useLoadSuggestions.ts"), "utf8");
+    expect(hook).toContain("prescription:workout_prescriptions(name)");
+    expect(hook).not.toMatch(/[^_]prescriptions\(name\)/);
+  });
+});
+
+describe("R8c — 3ª rodada", () => {
+  it("card vazio genérico só nos modos RESOLVIDOS (não duplica com seletor/suspenso)", () => {
+    expect(dash).toContain(
+      "{hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions.length === 0 && (",
+    );
+  });
+});
+
+describe("R8c — fixes da revisão fria", () => {
+  it("refetch com erro não mantém CTA (escopo exige !loadSuggestionsError)", () => {
+    expect(dash).toMatch(/!loadSuggestionsError &&\s*\(loadResult\?\.mode === "prescription" \|\| loadResult\?\.mode === "fallback_recent"\)/);
+    expect(dash).toContain("podem estar desatualizadas");
+  });
+
+  it("prescrição do fluxo de treino não vaza pra outra abertura do diálogo", () => {
+    expect(page).toContain("setSessionPrescriptionId(null);");
+  });
+
+  it("mudança de prescrição invalida a carga assistida", () => {
+    const inv = readFileSync(join(__dirname, "../../hooks/prescriptionQueryInvalidation.ts"), "utf8");
+    expect(inv).toContain('"load-suggestions"');
+  });
+
+  it("import da biblioteca não apaga campos ausentes (defaultToNull false)", () => {
+    const fn = readFileSync(
+      join(__dirname, "../../../supabase/functions/import-exercises/index.ts"),
+      "utf8",
+    );
+    expect((fn.match(/defaultToNull: false/g) ?? []).length).toBe(2);
+  });
+
+  it("incremento inválido bloqueia o submit (não vira null silencioso)", () => {
+    for (const rel of ["../AddExerciseDialog.tsx", "../EditExerciseLibraryDialog.tsx"]) {
+      const src = readFileSync(join(__dirname, rel), "utf8");
+      expect(src, rel).toContain("Incremento mínimo inválido");
+      expect(src, rel).toContain("parsedMinIncrement = Math.round(parsed * 100) / 100;");
+    }
   });
 });

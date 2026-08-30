@@ -54,6 +54,9 @@ interface RecordIndividualSessionDialogProps {
   /** R8b: chamado com o id quando uma sessão NOVA é criada (não em reabertura)
    *  — usado pra vincular a percepção pré-treino do dia à primeira sessão. */
   onSessionCreated?: (sessionId: string, sessionDate: string) => void;
+  /** R8c: prescrição pré-selecionada (a MESMA que alimentou a sugestão de
+   *  carga) — o coach pode trocar; aplica só na abertura de sessão nova. */
+  initialPrescriptionId?: string | null;
 }
 
 type DialogState = 'setup' | 'recording' | 'processing' | 'preview' | 'edit';
@@ -78,10 +81,17 @@ export function RecordIndividualSessionDialog({
   studentName,
   existingSessionId,
   onSessionCreated,
+  initialPrescriptionId,
 }: RecordIndividualSessionDialogProps) {
   const getTodayDate = () => format(new Date(), "yyyy-MM-dd");
   const [dialogState, setDialogState] = useState<DialogState>('setup');
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
+  useEffect(() => {
+    if (open && !existingSessionId && initialPrescriptionId) {
+      setSelectedPrescriptionId(initialPrescriptionId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só na transição de abertura
+  }, [open]);
   const [date, setDate] = useState(getTodayDate());
   const [time, setTime] = useState(getCurrentSessionTimeHHmm());
   const [trainerName, setTrainerName] = useState<string>('');

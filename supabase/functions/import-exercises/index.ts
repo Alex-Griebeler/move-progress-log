@@ -567,7 +567,9 @@ Deno.serve(async (req: Request) => {
                                            const rows = chunk.map(({ id, record }) => ({ id, ...record }));
                                            const { error, data } = await supabase
                                              .from("exercises_library")
-                                             .upsert(rows, { onConflict: "id" })
+                                             // defaultToNull:false — coluna ausente do CSV (ex.: min_increment_kg
+                                             // cadastrado pelo coach) NÃO é apagada no update (revisão R8c).
+                                             .upsert(rows, { onConflict: "id", defaultToNull: false })
                                              .select("id");
                                            if (error) {
                                                          errors.push(`Batch update chunk ${Math.floor(i / CHUNK) + 1}: ${error.message}`);
@@ -604,7 +606,7 @@ Deno.serve(async (req: Request) => {
                                            const chunk = orphanRows.slice(i, i + CHUNK);
                                            const { error, data } = await supabase
                                              .from("exercises_library")
-                                             .upsert(chunk, { onConflict: "id", ignoreDuplicates: false })
+                                             .upsert(chunk, { onConflict: "id", ignoreDuplicates: false, defaultToNull: false })
                                              .select("id");
                                            if (!error) {
                                                          orphansUpdated += data?.length ?? chunk.length;

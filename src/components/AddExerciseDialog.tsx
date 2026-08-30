@@ -155,6 +155,7 @@ export const AddExerciseDialog = ({
   const [plyometricPhase, setPlyometricPhase] = useState("");
   const [defaultSets, setDefaultSets] = useState("");
   const [defaultReps, setDefaultReps] = useState("");
+  const [minIncrementKg, setMinIncrementKg] = useState("");
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const [stabilityPosition, setStabilityPosition] = useState("");
   const [surfaceModifier, setSurfaceModifier] = useState("");
@@ -220,6 +221,21 @@ export const AddExerciseDialog = ({
       return;
     }
 
+    // R8c (fria): entrada INVÁLIDA não vira null silencioso — o valor
+    // cadastrado seria apagado sem aviso. Vazio = null (heurística); resto
+    // precisa ser número > 0 e ≤ 999,99 (numeric(5,2)), mínimo 0,01.
+    const minIncrementRaw = minIncrementKg.trim();
+    let parsedMinIncrement: number | null = null;
+    if (minIncrementRaw !== "") {
+      const parsed = Number(minIncrementRaw.replace(",", "."));
+      if (!Number.isFinite(parsed) || parsed < 0.01 || parsed > 999.99) {
+        notify.error("Incremento mínimo inválido", {
+          description: "Use um número entre 0,01 e 999,99 kg — ou deixe vazio pra inferir do equipamento.",
+        });
+        return;
+      }
+      parsedMinIncrement = Math.round(parsed * 100) / 100;
+    }
     try {
 
     const result = await createExercise.mutateAsync({
@@ -246,6 +262,7 @@ export const AddExerciseDialog = ({
       plyometric_phase: plyometricPhase ? parseInt(plyometricPhase) : null,
       default_sets: defaultSets.trim() || null,
       default_reps: defaultReps.trim() || null,
+      min_increment_kg: parsedMinIncrement,
       equipment_required: selectedEquipment.length > 0 ? selectedEquipment : null,
       stability_position: stabilityPosition && stabilityPosition !== "none" ? stabilityPosition : null,
       surface_modifier: surfaceModifier && surfaceModifier !== "nenhum" ? surfaceModifier : "nenhum",
@@ -279,6 +296,7 @@ export const AddExerciseDialog = ({
     setPlyometricPhase("");
     setDefaultSets("");
     setDefaultReps("");
+    setMinIncrementKg("");
     setSelectedEquipment([]);
     setStabilityPosition("");
     setSurfaceModifier("");
@@ -650,6 +668,21 @@ export const AddExerciseDialog = ({
                     placeholder="Ex: 8-12"
                   />
                 </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="add-min-increment">Incremento mínimo (kg)</Label>
+                <Input
+                  id="add-min-increment"
+                  type="text"
+                  inputMode="decimal"
+                  value={minIncrementKg}
+                  onChange={(e) => setMinIncrementKg(e.target.value)}
+                  placeholder="Ex: 2,5 (vazio = inferir do equipamento)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Na mesma unidade em que a carga deste exercício é registrada.
+                </p>
+              </div>
 
                 <div className="space-y-2 col-span-2">
                   <Label htmlFor="subcategory">Subcategoria</Label>

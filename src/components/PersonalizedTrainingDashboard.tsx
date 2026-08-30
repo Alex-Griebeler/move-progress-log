@@ -70,7 +70,7 @@ interface PersonalizedTrainingDashboardProps {
    * erro total nem a afirmação "sem score fechado" — é estado próprio.
    */
   latestOuraError?: boolean;
-  onStartTraining?: () => void;
+  onStartTraining?: (prescriptionId?: string | null) => void;
 }
 
 const ZONE_LABEL: Record<string, string> = {
@@ -116,6 +116,7 @@ const getSuggestionStatusLabel = (status: string) => {
   if (status === "automatic") return "Sugestão automática";
   if (status === "assisted") return "Sugestão assistida";
   if (status === "blocked") return "Carga bloqueada hoje";
+  if (status === "suspended") return "Adaptação a resolver";
   return "Dados insuficientes";
 };
 
@@ -272,11 +273,28 @@ const PersonalizedTrainingDashboard = ({
           loadAdjustmentPercent: conduct.effectiveLoadAdjustmentPercent,
         }
       : activeRecommendation;
+  const [selectedLoadPrescriptionId, setSelectedLoadPrescriptionId] = useState<string | null>(null);
   const {
-    data: loadSuggestions,
+    data: loadResult,
     isLoading: loadSuggestionsLoading,
     isError: loadSuggestionsError,
-  } = useLoadSuggestions(studentId, conduct?.suspended ? null : conductRecommendation);
+  } = useLoadSuggestions(
+    studentId,
+    conduct?.suspended ? null : conductRecommendation,
+    selectedLoadPrescriptionId,
+  );
+  const loadSuggestions = loadResult?.items;
+  // R8c: a MESMA prescrição das sugestões vai pro prescription_id da sessão.
+  const activePrescriptionId = loadResult?.prescriptionId ?? null;
+  // Caso 18 da matriz + revisão: sessão só inicia com o ESCOPO resolvido
+  // (plano vigente ou fallback declarado) — carregando/erro/suspenso não
+  // viram sessão livre silenciosamente.
+  const prescriptionSelectionPending = loadResult?.mode === "selection_required";
+  // loadSuggestionsError junto: refetch falho MANTÉM data antiga no cache
+  // (isError=true + data velha) — escopo velho não pode iniciar sessão.
+  const sessionScopeResolved =
+    !loadSuggestionsError &&
+    (loadResult?.mode === "prescription" || loadResult?.mode === "fallback_recent");
 
   // R8b: registrar/atualizar a avaliação de percepção (escopo = fingerprint)
   const updateAssessment = (patch: Partial<{ perception: Perception; symptoms: boolean | null; symptomsAcknowledged: boolean }>) => {
@@ -827,11 +845,31 @@ const PersonalizedTrainingDashboard = ({
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex gap-3 pt-2">
-                    <Button onClick={() => onStartTraining?.()}>Iniciar Treino</Button>
-                    <Button variant="outline" onClick={() => setShowAlternatives(true)}>
-                      Ver Alternativas
-                    </Button>
+                  <div className="flex flex-col gap-2 pt-2">
+                    {prescriptionSelectionPending && (
+                      <p className="text-xs text-warning">
+                        Esta aluna tem mais de uma prescrição vigente — escolha a do dia no
+                        card de carga antes de iniciar.
+                      </p>
+                    )}
+                    {!sessionScopeResolved && !prescriptionSelectionPending && (
+                      <p className="text-xs text-muted-foreground">
+                        {loadSuggestionsError || loadResult?.mode === "suspended"
+                          ? "Prescrições indisponíveis — recarregue antes de iniciar."
+                          : "Carregando prescrições…"}
+                      </p>
+                    )}
+                    <div className="flex gap-3">
+                      <Button
+                        disabled={!sessionScopeResolved}
+                        onClick={() => onStartTraining?.(activePrescriptionId)}
+                      >
+                        Iniciar Treino
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowAlternatives(true)}>
+                        Ver Alternativas
+                      </Button>
+                    </div>
                   </div>
                 )}
               </>
@@ -854,6 +892,30 @@ const PersonalizedTrainingDashboard = ({
       </Card>
 
       {/* Sugestão de carga — o dado mais acionável do coach, logo após o hero */}
+      {hasActionableRecommendation && loadResult?.mode === "selection_required" && (
+        <Card className="p-6">
+          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <p className="text-sm text-muted-foreground mb-3">
+            Mais de uma prescrição vigente — escolha a do dia (sem escolha silenciosa):
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {loadResult.availablePrescriptions.map((p) => (
+              <Button key={p.id} size="sm" variant="outline" onClick={() => setSelectedLoadPrescriptionId(p.id)}>
+                {p.name}
+              </Button>
+            ))}
+          </div>
+        </Card>
+      )}
+      {hasActionableRecommendation && loadResult?.mode === "suspended" && (
+        <Card className="p-6">
+          <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
+          <p className="text-sm text-muted-foreground">
+            Suspensa: {loadResult.fallbackReason ?? "erro ao consultar prescrições"} — recarregue a
+            página. (Erro não vira “sem prescrição”.)
+          </p>
+        </Card>
+      )}
       {hasActionableRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
@@ -862,6 +924,24 @@ const PersonalizedTrainingDashboard = ({
               Zona {ZONE_LABEL[conductRecommendation!.zone] ?? conductRecommendation!.zone}
             </Badge>
           </div>
+          {loadResult?.mode === "prescription" && (
+            <p className="text-sm text-muted-foreground mb-3">
+              Plano vigente: <strong>{loadResult.prescriptionName ?? "prescrição"}</strong> — exercícios
+              na ordem do plano.
+              {loadResult.fallbackReason ? ` ${loadResult.fallbackReason.replace(/\.$/, "")}.` : ""}
+            </p>
+          )}
+          {loadSuggestionsError && (
+            <p className="text-sm text-warning mb-3">
+              Falha ao atualizar — estas sugestões podem estar desatualizadas. Recarregue antes
+              de usar.
+            </p>
+          )}
+          {loadResult?.mode === "fallback_recent" && (
+            <p className="text-sm text-warning mb-3">
+              {loadResult.fallbackReason} (top por peso, 90 dias).
+            </p>
+          )}
           <p className="text-sm text-muted-foreground mb-4">
             Referência por histórico real do aluno. A sugestão deve ser validada pelo coach antes da execução.
           </p>
@@ -886,7 +966,7 @@ const PersonalizedTrainingDashboard = ({
                   </div>
                   <Badge
                     variant={
-                      item.status === "insufficient" || item.status === "blocked"
+                      item.status === "insufficient" || item.status === "blocked" || item.status === "suspended"
                         ? "destructive"
                         : "secondary"
                     }
@@ -911,7 +991,12 @@ const PersonalizedTrainingDashboard = ({
                     </div>
                     <div>
                       <p className="text-muted-foreground">Incremento</p>
-                      <p className="font-semibold">{item.incrementKg} kg</p>
+                      <p className="font-semibold">
+                        {item.incrementKg} kg{" "}
+                        <span className="font-normal text-muted-foreground">
+                          ({item.incrementSource === "cadastrado" ? "cadastrado na biblioteca" : "inferido do equipamento"})
+                        </span>
+                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Fonte</p>
@@ -926,6 +1011,13 @@ const PersonalizedTrainingDashboard = ({
                       <Badge variant="outline">Guardrail: técnica inconsistente</Badge>
                     )}
                   </div>
+                  {/* Notas textuais (ex.: adaptação individual) — códigos
+                      conhecidos viram badge acima; o resto é frase visível. */}
+                  {item.guardrails
+                    .filter((g) => g !== "pain_recent" && g !== "technique_inconsistent")
+                    .map((g, i) => (
+                      <p key={i} className="mt-1 text-xs text-muted-foreground">{g}</p>
+                    ))}
                 </details>
               </div>
             ))}
@@ -940,13 +1032,13 @@ const PersonalizedTrainingDashboard = ({
           </p>
         </Card>
       )}
-      {hasActionableRecommendation && loadSuggestionsLoading && !loadSuggestions && (
+      {hasActionableRecommendation && loadSuggestionsLoading && !loadResult && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <Skeleton className="h-16 w-full rounded-lg" />
         </Card>
       )}
-      {hasActionableRecommendation && loadSuggestionsError && !loadSuggestions && (
+      {hasActionableRecommendation && loadSuggestionsError && !loadResult && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
@@ -955,11 +1047,13 @@ const PersonalizedTrainingDashboard = ({
           </p>
         </Card>
       )}
-      {hasActionableRecommendation && loadSuggestions && loadSuggestions.length === 0 && (
+      {hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions.length === 0 && (
         <Card className="p-6">
           <h3 className="text-xl font-bold mb-2">Sugestão Assistida de Carga</h3>
           <p className="text-sm text-muted-foreground">
-            Dados insuficientes de histórico para sugerir carga numérica neste momento.
+            {loadResult?.fallbackReason
+              ? `Sem sugestões: ${loadResult.fallbackReason}.`
+              : "Dados insuficientes de histórico para sugerir carga numérica neste momento."}
           </p>
         </Card>
       )}
