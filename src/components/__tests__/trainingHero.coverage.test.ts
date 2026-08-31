@@ -10,6 +10,18 @@
  *   • motor useTrainingRecommendation INTOCADO (Oura-only por decisão).
  */
 
+/**
+ * CLASSIFICAÇÃO DOS ASSERTS (PR-A do redesign premium, emenda E13/v3-13):
+ *
+ * 1. `it` SEM tag = INVARIANTE ratificada (decisão de produto/clínica): o
+ *    assert só muda com a decisão correspondente citada no diff.
+ * 2. `it` com prefixo `markup:` = contrato de APRESENTAÇÃO: pode acompanhar
+ *    o redesign, citando o plano (scratchpad redesign_premium_v2..v5).
+ * 3. Dentro de um `it` invariante, um LITERAL de UI pode ser re-redigido pelo
+ *    redesign DESDE QUE a propriedade assertada continue coberta (ex.: o gate
+ *    de sintomas continua existindo com outro texto) e o diff aponte o assert
+ *    atualizado no mapa assert→PR (E13).
+ */
 import { readFileSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
@@ -30,7 +42,7 @@ const snapshotUtil = readFileSync(
 );
 
 describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
-  it("badge de zona usa rótulo curto por fonte; prescrição em linha única", () => {
+  it("markup: badge de zona usa rótulo curto por fonte; prescrição em linha única", () => {
     expect(dash).toContain("SNAPSHOT_ZONE_SHORT[snapshot.source][snapshot.zone]");
     expect(dash).toMatch(/formatPrescriptionLine\(/);
     // a linha antiga "intensity · duration" com o % de FCmáx morreu
@@ -63,7 +75,7 @@ describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
     expect(dash).toMatch(/stripAlertEmoji\(alert\.message\)/);
   });
 
-  it("FC pico ganhou tile (o alerta de pico tem onde morar)", () => {
+  it("markup: FC pico ganhou tile (o alerta de pico tem onde morar)", () => {
     expect(dash).toContain('label="FC pico (dia)"');
     expect(dash).toMatch(/metric: "fc_pico"/);
   });
@@ -72,13 +84,13 @@ describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
     expect(dash).toMatch(/alertPartition\.byTile\.get\(p\.metric\)/);
   });
 
-  it("avatar do header centralizado com o anel contido no layout", () => {
+  it("markup: avatar do header centralizado com o anel contido no layout", () => {
     expect(page).toMatch(/self-center m-2/);
   });
 });
 
 describe("hero único de recuperação", () => {
-  it("usa ScoreRing + StaleBadge + RecoverySnapshot", () => {
+  it("markup: usa ScoreRing + StaleBadge + RecoverySnapshot", () => {
     expect(dash).toContain("ScoreRing");
     expect(dash).toContain("StaleBadge");
     expect(dash).toContain("buildRecoverySnapshot");
@@ -206,7 +218,7 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
     expect(dash).toMatch(/key: "sono-whoop",\s*metric: "sono"/);
   });
 
-  it("nomenclatura source-aware no diálogo de alternativas", () => {
+  it("markup: nomenclatura source-aware no diálogo de alternativas", () => {
     expect(dash).toContain('snapshot.source === "oura" ? "readiness" : "recovery"');
   });
 
