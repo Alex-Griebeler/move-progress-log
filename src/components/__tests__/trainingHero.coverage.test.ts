@@ -75,8 +75,11 @@ describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
     expect(dash).toMatch(/stripAlertEmoji\(alert\.message\)/);
   });
 
-  it("markup: FC pico ganhou tile (o alerta de pico tem onde morar)", () => {
+  it("markup: FC pico ganhou tile", () => {
     expect(dash).toContain('label="FC pico (dia)"');
+  });
+
+  it("o alerta de FC pico tem onde morar (metric key roteia a partição)", () => {
     expect(dash).toMatch(/metric: "fc_pico"/);
   });
 
@@ -90,9 +93,12 @@ describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
 });
 
 describe("hero único de recuperação", () => {
-  it("markup: usa ScoreRing + StaleBadge + RecoverySnapshot", () => {
+  it("markup: usa ScoreRing + StaleBadge", () => {
     expect(dash).toContain("ScoreRing");
     expect(dash).toContain("StaleBadge");
+  });
+
+  it("a fonte do hero vem do RecoverySnapshot (seleção semântica intocada)", () => {
     expect(dash).toContain("buildRecoverySnapshot");
   });
 

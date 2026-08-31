@@ -31,8 +31,9 @@ const InfoDisclosure = ({ label, children, className }: InfoDisclosureProps) => 
         type="button"
         aria-label={label}
         className={cn(
-          // Alvo de toque ≥40px via área clicável estendida; ícone pequeno.
-          "inline-flex h-6 w-6 -my-1 items-center justify-center rounded-full text-muted-foreground",
+          // Alvo de toque REAL de 40px (h-10 w-10) com pegada visual de 24px
+          // (-m-2 devolve o espaço ao layout) — emenda de a11y da revisão.
+          "inline-flex h-10 w-10 -m-2 items-center justify-center rounded-full text-muted-foreground",
           "hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           className,
         )}
