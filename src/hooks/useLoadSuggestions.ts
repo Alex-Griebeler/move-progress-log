@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { subDays } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/utils/logger";
-import { TrainingRecommendation } from "./useTrainingRecommendation";
+import type { ConductRecommendation } from "@/utils/checkin";
 import {
   isEligibleStrengthCategory,
   normalizeComparableText,
@@ -175,7 +175,7 @@ const supabaseDeps = (studentId: string): LoadSuggestionDeps => ({
 
 export const useLoadSuggestions = (
   studentId: string,
-  recommendation: TrainingRecommendation | null,
+  recommendation: ConductRecommendation | null,
   selectedPrescriptionId: string | null = null,
 ) => {
   const recommendationKey = recommendation
@@ -201,7 +201,7 @@ export const useLoadSuggestions = (
 /** Orquestrador PURO da sugestão de carga (fetchers injetáveis). */
 export const computeLoadSuggestions = async (
   studentId: string,
-  recommendation: TrainingRecommendation | null,
+  recommendation: ConductRecommendation | null,
   selectedPrescriptionId: string | null,
   deps: LoadSuggestionDeps,
 ): Promise<LoadSuggestionsResult> => {

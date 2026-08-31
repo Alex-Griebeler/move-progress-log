@@ -136,8 +136,27 @@ export const upsertPerceptionObservation = async (
   supabase: SupabaseClient,
   studentId: string,
   record: PerceptionRecord,
+): Promise<string> =>
+  upsertPerceptionBySource(supabase, studentId, record.spDay, record.source, buildPerceptionText(record), record.actorId);
+
+/** Upsert do formato v2 (check-in v3) — mesma idempotência {aluna, dia SP,
+ *  fonte}; ADITIVO: a UI atual segue no v1 até o cutover da PR-B2. */
+export const upsertPerceptionObservationV2 = async (
+  supabase: SupabaseClient,
+  studentId: string,
+  record: PerceptionRecordV2,
+): Promise<string> =>
+  upsertPerceptionBySource(supabase, studentId, record.spDay, record.source, buildPerceptionTextV2(record), record.actorId);
+
+const upsertPerceptionBySource = async (
+  supabase: SupabaseClient,
+  studentId: string,
+  spDay: string,
+  source: string,
+  text: string,
+  actorId: string | null,
 ): Promise<string> => {
-  const { startIso, endIso } = spDayUtcRange(record.spDay);
+  const { startIso, endIso } = spDayUtcRange(spDay);
   const { data: existing, error: findError } = await supabase
     .from("student_observations")
     .select("id, created_at, observation_text")
@@ -150,15 +169,14 @@ export const upsertPerceptionObservation = async (
   if (findError) throw findError;
 
   const sameSource = (existing ?? []).filter((row) =>
-    typeof row.observation_text === "string" && row.observation_text.includes(`fonte=${record.source}`),
+    typeof row.observation_text === "string" && row.observation_text.includes(`fonte=${source}`),
   );
   if (sameSource.length > 1) {
     logger.warn("[percepcao] múltiplas observações no mesmo dia/fonte — atualizando a mais recente", {
-      studentId, spDay: record.spDay, count: sameSource.length,
+      studentId, spDay: spDay, count: sameSource.length,
     });
   }
 
-  const text = buildPerceptionText(record);
   if (sameSource.length > 0) {
     const target = sameSource[0];
     const { error } = await supabase
@@ -177,7 +195,7 @@ export const upsertPerceptionObservation = async (
       categories: [PERCEPTION_CATEGORY],
       severity: null,
       is_resolved: true, // percepção não é pendência clínica a resolver
-      created_by: record.actorId,
+      created_by: actorId,
     })
     .select("id")
     .single();

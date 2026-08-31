@@ -19,6 +19,32 @@
 
 export type CheckInState = "pending" | "done" | "skipped";
 
+/**
+ * Transição REAL da máquina do check-in (review PR-B1, achado 4): o estado
+ * lembrado só vale enquanto o fingerprint da recomendação E o dia SP não
+ * mudarem — qualquer divergência DESTRÓI (volta a "pending"; nada de
+ * ressurreição A→B→A, coerente com v6.1-M8). Whoop fresh→stale muda o
+ * fingerprint → skip/done morrem sozinhos. É este resolver que a PR-B2
+ * consome; o seletor visual abaixo só compõe o resultado.
+ */
+export interface StoredCheckIn {
+  state: Exclude<CheckInState, "pending">;
+  conductFingerprint: string;
+  spDay: string;
+}
+
+export const resolveCheckInState = (
+  stored: StoredCheckIn | null,
+  currentFingerprint: string | null,
+  todaySpDay: string,
+): CheckInState => {
+  if (!stored) return "pending";
+  if (currentFingerprint === null) return "pending";
+  if (stored.conductFingerprint !== currentFingerprint) return "pending";
+  if (stored.spDay !== todaySpDay) return "pending";
+  return stored.state;
+};
+
 export interface HeroStateInput {
   /** Consultas de wearable ainda resolvendo (gate de loading total). */
   loading: boolean;
@@ -37,6 +63,9 @@ export interface HeroStateInput {
   hasPriorityProtocols: boolean;
   /** selection_required sem escolha feita (multi-vigente). */
   multiVigentePending: boolean;
+  /** Modo sem dispositivo (v7.2-B2: conexões resolvidas ok, sem Oura, sem
+   *  Whoop, sem snapshot). A conduta vem das bandas do PSR. */
+  psrOnlyMode: boolean;
 }
 
 export type HeroComposition =
@@ -49,7 +78,10 @@ export type HeroComposition =
   | "recovery_block"
   | "rest_day"
   | "selection_required"
-  | "normal";
+  | "normal"
+  /** Skip SEM dispositivo (v7.2-M6): sem conduta e sem cargas; Iniciar
+   *  disponível com onStartTraining(null) — sessão livre, fail-honest. */
+  | "free_session";
 
 export type HeroPrimaryAction =
   | "none"
@@ -80,8 +112,21 @@ export const deriveTrainingHeroState = (input: HeroStateInput): HeroState => {
 
   if (input.loading) return closed("loading");
   if (input.totalError) return closed("error_total");
-  if (!input.hasSnapshot) return closed("empty");
-  if (!input.hasRecommendation) return closed("score_no_recommendation");
+  // Modo PSR-only (v7.2): sem snapshot NÃO é beco — o check-in é o dado.
+  if (!input.hasSnapshot && !input.psrOnlyMode) return closed("empty");
+  if (input.psrOnlyMode && input.checkIn === "skipped") {
+    // v7.2-M6: sem aparelho E sem check-in = sem dado nenhum → sessão livre.
+    return {
+      composition: "free_session",
+      primaryAction: "start",
+      showConduct: false,
+      showLoads: false,
+      showCheckInForm: false,
+    };
+  }
+  if (!input.psrOnlyMode && !input.hasRecommendation) {
+    return closed("score_no_recommendation");
+  }
   if (input.partialError) return closed("partial_error");
 
   if (input.checkIn === "pending") {

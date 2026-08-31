@@ -27,6 +27,16 @@ export const PSR_MAX = 10;
 /** Fonte de uma recomendação exibível: as do motor + o modo PSR-only. */
 export type RecommendationSource = RecoverySource | "psr";
 
+/**
+ * Contrato ESTRUTURAL que as cargas/alternativas consomem (review PR-B1,
+ * achado 2): o shape do motor com a fonte alargada — `TrainingRecommendation`
+ * é atribuível a ele (covariância), e o adapter PSR também. O tipo clínico do
+ * motor continua fechado em RecoverySource.
+ */
+export type ConductRecommendation = Omit<TrainingRecommendation, "source"> & {
+  source: RecommendationSource;
+};
+
 /** Recomendação do modo sem dispositivo — mesmo shape do motor, fonte "psr". */
 export type PsrOnlyRecommendation = Omit<TrainingRecommendation, "source"> & {
   source: "psr";

@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import {
   deriveTrainingHeroState,
+  resolveCheckInState,
   type HeroStateInput,
 } from "../trainingHeroState";
 
@@ -20,6 +21,7 @@ const base: HeroStateInput = {
   effectiveZone: 3,
   hasPriorityProtocols: false,
   multiVigentePending: false,
+  psrOnlyMode: false,
 };
 
 describe("deriveTrainingHeroState — matriz E1 completa", () => {
@@ -61,6 +63,19 @@ describe("deriveTrainingHeroState — matriz E1 completa", () => {
     ["skipped→Fazer volta a pending (esconde tudo de novo)",
       { checkIn: "pending", multiVigentePending: true },
       "arrival", "register_checkin"],
+    // Modo SEM dispositivo (v7.2-B2/M6):
+    ["psr-only + pending → chegada normal (o check-in É o dado)",
+      { psrOnlyMode: true, hasSnapshot: false, hasRecommendation: false },
+      "arrival", "register_checkin"],
+    ["psr-only + done → conduta das bandas (normal)",
+      { psrOnlyMode: true, hasSnapshot: false, checkIn: "done" },
+      "normal", "start"],
+    ["psr-only + done + banda 0 → descanso SEM protocolos (nunca recovery_block)",
+      { psrOnlyMode: true, hasSnapshot: false, checkIn: "done", effectiveZone: 0 },
+      "rest_day", "register_rest"],
+    ["psr-only + skipped → sessão livre (Iniciar com onStartTraining(null); sem conduta/cargas)",
+      { psrOnlyMode: true, hasSnapshot: false, checkIn: "skipped" },
+      "free_session", "start"],
   ] as Array<[string, Partial<HeroStateInput>, string, string]>)(
     "%s",
     (_name, overrides, composition, action) => {
@@ -85,5 +100,42 @@ describe("deriveTrainingHeroState — matriz E1 completa", () => {
     const rest = deriveTrainingHeroState({ ...base, checkIn: "done", effectiveZone: 0 });
     expect(rest.showConduct).toBe(true);
     expect(rest.showLoads).toBe(false);
+  });
+
+  it("sessão livre (psr-only skip) não mostra conduta nem cargas (v7.2-M6)", () => {
+    const free = deriveTrainingHeroState({
+      ...base, psrOnlyMode: true, hasSnapshot: false, hasRecommendation: false, checkIn: "skipped",
+    });
+    expect(free.showConduct).toBe(false);
+    expect(free.showLoads).toBe(false);
+  });
+});
+
+describe("resolveCheckInState — transições com destruição (v7.2-M7 / v6.1-M8)", () => {
+  const stored = { state: "done" as const, conductFingerprint: "fpA", spDay: "2026-08-31" };
+
+  it("done/skipped valem só com o MESMO fingerprint e o MESMO dia SP", () => {
+    expect(resolveCheckInState(stored, "fpA", "2026-08-31")).toBe("done");
+    expect(resolveCheckInState({ ...stored, state: "skipped" }, "fpA", "2026-08-31")).toBe("skipped");
+  });
+
+  it("Whoop fresh→stale muda o fingerprint → skip/done DESTRUÍDOS (pending)", () => {
+    expect(resolveCheckInState(stored, "fpB", "2026-08-31")).toBe("pending");
+    expect(resolveCheckInState({ ...stored, state: "skipped" }, "fpB", "2026-08-31")).toBe("pending");
+  });
+
+  it("virada de dia SP destrói done E skipped", () => {
+    expect(resolveCheckInState(stored, "fpA", "2026-09-01")).toBe("pending");
+    expect(resolveCheckInState({ ...stored, state: "skipped" }, "fpA", "2026-09-01")).toBe("pending");
+  });
+
+  it("sem registro lembrado ou sem fingerprint atual → pending (fail-closed)", () => {
+    expect(resolveCheckInState(null, "fpA", "2026-08-31")).toBe("pending");
+    expect(resolveCheckInState(stored, null, "2026-08-31")).toBe("pending");
+  });
+
+  it("A→B→A NÃO ressuscita: o resolver é puro — com fpA de novo ele voltaria a valer SÓ se o armazenamento não tiver sido destruído; a destruição do storage é contrato do chamador (PR-B2), testado lá", () => {
+    // O resolver responde pela VALIDADE, não pelo ciclo de vida do storage.
+    expect(resolveCheckInState(stored, "fpA", "2026-08-31")).toBe("done");
   });
 });
