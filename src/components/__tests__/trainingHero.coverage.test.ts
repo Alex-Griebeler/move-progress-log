@@ -425,9 +425,9 @@ describe("R8b — fria, 2ª rodada", () => {
     expect(dash).toContain("if (conductVersionRef.current !== startedVersion)");
   });
 
-  it("card só usa o ramo amigável na versão EXATA do formato", () => {
+  it("card só usa o ramo amigável em versão SUPORTADA do formato (v1+v2 desde a PR-B1/spec v7.2-M6; desconhecida → cru)", () => {
     const card = readFileSync(join(__dirname, "../StudentObservationsCard.tsx"), "utf8");
-    expect(card).toContain("parsed.version === PERCEPTION_TEXT_VERSION");
+    expect(card).toContain("SUPPORTED_PERCEPTION_VERSIONS");
     expect(card).toContain('timeZone: "America/Sao_Paulo"');
     expect(card).toContain("snapDisplay !== day");
   });

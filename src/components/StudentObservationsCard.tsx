@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { parsePerceptionText, PERCEPTION_TEXT_VERSION } from "@/utils/perceptionObservation";
+import { parsePerceptionText, SUPPORTED_PERCEPTION_VERSIONS } from "@/utils/perceptionObservation";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -319,12 +319,22 @@ function PerceptionHistorySection({ studentId }: { studentId: string }) {
             : null;
           return (
             <p key={row.id} className="text-xs text-muted-foreground break-words">
-              {parsed.version === PERCEPTION_TEXT_VERSION ? (
+              {(SUPPORTED_PERCEPTION_VERSIONS as readonly string[]).includes(parsed.version ?? "") ? (
                 <>
-                  {day} · {f.fonte === "whoop" ? "Whoop" : "Oura"} {f.score}
+                  {/* Mapa fonte→rótulo explícito (v7.2-M4): "psr" existe no
+                      v2; o fallback antigo rotulava qualquer não-whoop de
+                      "Oura" — bug latente corrigido. */}
+                  {day} · {f.fonte === "whoop" ? "Whoop" : f.fonte === "psr" ? "PSR" : "Oura"} {f.score}
                   {snapDisplay && snapDisplay !== day ? ` (dia ${snapDisplay})` : ""}
+                  {f.psr !== undefined
+                    ? ` · PSR: ${f.psr === "nao_informado" ? "não informado" : f.psr}`
+                    : ""}
                   {" · percepção: "}{f.percepcao?.replace("nao_informada", "não informada")}
-                  {" · sintomas: "}{f.sintomas === "sim" ? "sim" : f.sintomas === "nao" ? "não" : "não perguntado"}
+                  {/* v1 histórico: o dado de sintomas antigo continua visível
+                      pra sempre (v7.2-M9); v2 não tem o campo. */}
+                  {f.sintomas !== undefined
+                    ? ` · sintomas: ${f.sintomas === "sim" ? "sim" : f.sintomas === "nao" ? "não" : "não perguntado"}`
+                    : ""}
                   {" · conduta: "}{f.conduta}
                   {row.session_id ? " · sessão vinculada" : ""}
                 </>
