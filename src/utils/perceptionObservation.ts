@@ -19,6 +19,15 @@ import type { Perception } from "@/utils/effectiveConduct";
 
 export const PERCEPTION_CATEGORY = "percepcao_treino";
 export const PERCEPTION_TEXT_VERSION = "v1";
+/** Check-in v3 (spec v7.2): v2 = PSR sem pergunta de sintomas. O builder v1
+ *  permanece porque a UI atual (pré-cutover PR-B2) ainda grava v1; o
+ *  RENDERER já entende as duas — e registros v1 antigos com `sintomas=`
+ *  continuam exibindo o dado histórico pra sempre (v7.2-M9). */
+export const PERCEPTION_TEXT_VERSION_V2 = "v2";
+export const SUPPORTED_PERCEPTION_VERSIONS = [
+  PERCEPTION_TEXT_VERSION,
+  PERCEPTION_TEXT_VERSION_V2,
+] as const;
 
 /**
  * Dia SP → intervalo UTC [início, fim). Brasil não tem horário de verão
@@ -64,6 +73,41 @@ export const buildPerceptionText = (r: PerceptionRecord): string =>
     `por=${r.actorId ?? "?"}`,
   ].join(" | ");
 
+/**
+ * Registro v2 (check-in v3): PSR no lugar da percepção categórica + fonte
+ * "psr" pro modo sem dispositivo (identidade sintética v7.2-M4). Sem campos
+ * de sintoma — sintoma virou observação clínica no fluxo próprio.
+ */
+export interface PerceptionRecordV2 {
+  source: "oura" | "whoop" | "psr";
+  /** Score do aparelho (0-100) — ou o PRÓPRIO PSR (0-10) na fonte "psr". */
+  score: number;
+  psr: number | null;
+  baseZoneLabel: string;
+  perception: Perception;
+  conductType: string;
+  vetoes: string[];
+  spDay: string;
+  snapshotDate: string;
+  registeredAtDisplay: string;
+  actorId: string | null;
+}
+
+export const buildPerceptionTextV2 = (r: PerceptionRecordV2): string =>
+  [
+    `[${PERCEPTION_CATEGORY} ${PERCEPTION_TEXT_VERSION_V2}]`,
+    `fonte=${r.source}`,
+    `score=${r.score}`,
+    `psr=${r.psr === null ? "nao_informado" : r.psr}`,
+    `zona_base=${r.baseZoneLabel}`,
+    `dia_snapshot=${r.snapshotDate}`,
+    `percepcao=${r.perception}`,
+    `conduta=${r.conductType}`,
+    `vetos=${r.vetoes.length ? r.vetoes.join("; ") : "-"}`,
+    `registrado=${r.registeredAtDisplay}`,
+    `por=${r.actorId ?? "?"}`,
+  ].join(" | ");
+
 /** Campos parseados do texto versionado (round-trip com buildPerceptionText). */
 export interface ParsedPerception {
   version: string | null;
@@ -92,8 +136,27 @@ export const upsertPerceptionObservation = async (
   supabase: SupabaseClient,
   studentId: string,
   record: PerceptionRecord,
+): Promise<string> =>
+  upsertPerceptionBySource(supabase, studentId, record.spDay, record.source, buildPerceptionText(record), record.actorId);
+
+/** Upsert do formato v2 (check-in v3) — mesma idempotência {aluna, dia SP,
+ *  fonte}; ADITIVO: a UI atual segue no v1 até o cutover da PR-B2. */
+export const upsertPerceptionObservationV2 = async (
+  supabase: SupabaseClient,
+  studentId: string,
+  record: PerceptionRecordV2,
+): Promise<string> =>
+  upsertPerceptionBySource(supabase, studentId, record.spDay, record.source, buildPerceptionTextV2(record), record.actorId);
+
+const upsertPerceptionBySource = async (
+  supabase: SupabaseClient,
+  studentId: string,
+  spDay: string,
+  source: string,
+  text: string,
+  actorId: string | null,
 ): Promise<string> => {
-  const { startIso, endIso } = spDayUtcRange(record.spDay);
+  const { startIso, endIso } = spDayUtcRange(spDay);
   const { data: existing, error: findError } = await supabase
     .from("student_observations")
     .select("id, created_at, observation_text")
@@ -106,15 +169,14 @@ export const upsertPerceptionObservation = async (
   if (findError) throw findError;
 
   const sameSource = (existing ?? []).filter((row) =>
-    typeof row.observation_text === "string" && row.observation_text.includes(`fonte=${record.source}`),
+    typeof row.observation_text === "string" && row.observation_text.includes(`fonte=${source}`),
   );
   if (sameSource.length > 1) {
     logger.warn("[percepcao] múltiplas observações no mesmo dia/fonte — atualizando a mais recente", {
-      studentId, spDay: record.spDay, count: sameSource.length,
+      studentId, spDay: spDay, count: sameSource.length,
     });
   }
 
-  const text = buildPerceptionText(record);
   if (sameSource.length > 0) {
     const target = sameSource[0];
     const { error } = await supabase
@@ -133,7 +195,7 @@ export const upsertPerceptionObservation = async (
       categories: [PERCEPTION_CATEGORY],
       severity: null,
       is_resolved: true, // percepção não é pendência clínica a resolver
-      created_by: record.actorId,
+      created_by: actorId,
     })
     .select("id")
     .single();
