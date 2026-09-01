@@ -478,7 +478,9 @@ const PersonalizedTrainingDashboard = ({
       const observationId = await upsertPerceptionObservationV2(supabase, studentId, {
         source: earlySnapshot.source,
         score: earlySnapshot.score,
-        psr: assessment?.psr ?? null,
+        // Override: persiste o PSR EXIBIDO (registeredPsr) — pós-skip é null e
+        // o registro de descanso nunca reidrata "done" (fix rodada 4).
+        psr: conductTypeOverride ? registeredPsr : validPsr,
         conductFingerprintHash: hashConductFingerprint(conductFingerprint),
         registeredAtIso,
         baseZoneLabel: activeRecommendation.zone,
