@@ -11,6 +11,8 @@ import { PSR_MAX, PSR_MIN } from "@/utils/checkin";
  * → secundárias). Apresentacional puro — a máquina/persistência é do
  * chamador; RTL cobre teclado/estados aqui.
  */
+const PSR_VALUES = Array.from({ length: PSR_MAX - PSR_MIN + 1 }, (_, i) => PSR_MIN + i);
+
 export interface CheckInFormProps {
   psr: number | null;
   onSelectPsr: (psr: number) => void;
@@ -36,7 +38,20 @@ const CheckInForm = ({
   reconciliationFailed,
   onRetryReconciliation,
 }: CheckInFormProps) => {
-  const values = Array.from({ length: PSR_MAX - PSR_MIN + 1 }, (_, i) => PSR_MIN + i);
+  // Radiogroup de verdade (review B2 parte 2): roving tabindex + setas —
+  // Tab entra uma vez; setas movem a seleção.
+  const handleKeyDown = (event: React.KeyboardEvent, value: number) => {
+    let next: number | null = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowUp") next = Math.min(PSR_MAX, value + 1);
+    if (event.key === "ArrowLeft" || event.key === "ArrowDown") next = Math.max(PSR_MIN, value - 1);
+    if (next === null || next === value) return;
+    event.preventDefault();
+    onSelectPsr(next);
+    const group = event.currentTarget.parentElement;
+    const target = group?.querySelector<HTMLButtonElement>(`[data-psr="${next}"]`);
+    target?.focus();
+  };
+  const tabStop = psr ?? PSR_MIN;
   return (
     <div className="mt-1 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -46,16 +61,19 @@ const CheckInForm = ({
           role="radiogroup"
           aria-label="Percepção subjetiva de repouso, de 0 a 10"
         >
-          {values.map((value) => (
+          {PSR_VALUES.map((value) => (
             <button
               key={value}
               type="button"
               role="radio"
               aria-checked={psr === value}
+              data-psr={value}
+              tabIndex={value === tabStop ? 0 : -1}
               onClick={() => onSelectPsr(value)}
+              onKeyDown={(e) => handleKeyDown(e, value)}
               className={cn(
-                "h-10 w-9 rounded-md border text-[13px] tabular-nums sm:w-9",
-                "min-h-[44px] min-w-[40px] sm:min-h-[40px]",
+                "rounded-md border text-[13px] tabular-nums",
+                "min-h-[44px] min-w-[44px] sm:min-h-[40px] sm:min-w-[36px]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 psr === value
                   ? "border-foreground bg-foreground font-semibold text-background"

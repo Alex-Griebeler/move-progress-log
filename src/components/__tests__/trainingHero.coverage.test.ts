@@ -18,9 +18,9 @@
  * 2. `it` com prefixo `markup:` = contrato de APRESENTAÇÃO: pode acompanhar
  *    o redesign, citando o plano (scratchpad redesign_premium_v2..v5).
  * 3. Dentro de um `it` invariante, um LITERAL de UI pode ser re-redigido pelo
- *    redesign DESDE QUE a propriedade assertada continue coberta (ex.: o gate
- *    de sintomas continua existindo com outro texto) e o diff aponte o assert
- *    atualizado no mapa assert→PR (E13).
+ *    redesign DESDE QUE a propriedade assertada continue coberta (ex.: o piso
+ *    numérico continua testado com outro texto de veto) e o diff aponte o
+ *    assert atualizado no mapa assert→PR (E13).
  */
 import { readFileSync } from "fs";
 import { dirname, join, resolve } from "path";

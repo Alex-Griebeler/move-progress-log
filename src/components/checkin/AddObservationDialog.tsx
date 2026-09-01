@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { logger } from "@/utils/logger";
+import { sanitizeInput, studentObservationSchema } from "@/utils/validation";
 
 /**
  * Observação clínica AVULSA (check-in v3, spec v7.2-B1): sintoma deixou de
@@ -37,6 +38,12 @@ const AddObservationDialog = ({ open, onOpenChange, studentId, studentName }: Ad
 
   const save = useMutation({
     mutationFn: async () => {
+      // Mesmo contrato de validação/sanitização das observações de sessão
+      // (schema 1-1000 chars + sanitizeInput — review B2 parte 2).
+      const parsed = studentObservationSchema.safeParse({ observation: text });
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues[0]?.message ?? "Observação inválida.");
+      }
       const { data: userData } = await supabase.auth.getUser();
       const actorId = userData?.user?.id ?? null;
       if (!actorId) {
@@ -44,7 +51,7 @@ const AddObservationDialog = ({ open, onOpenChange, studentId, studentName }: Ad
       }
       const { error } = await supabase.from("student_observations").insert({
         student_id: studentId,
-        observation_text: text.trim(),
+        observation_text: sanitizeInput(parsed.data.observation),
         categories: [category],
         severity,
         is_resolved: false,

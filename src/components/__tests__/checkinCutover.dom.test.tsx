@@ -45,6 +45,21 @@ describe("CheckInForm — slot reservado e commit explícito (v8.2/v8.3)", () =>
     expect(props.onSelectPsr).toHaveBeenCalledWith(0);
   });
 
+  it("teclado: roving tabindex + setas movem a seleção (radiogroup real)", async () => {
+    const user = userEvent.setup();
+    const props = formProps({ psr: 5 });
+    render(<CheckInForm {...props} />);
+    const five = screen.getByRole("radio", { name: "5" });
+    expect(five).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("radio", { name: "4" })).toHaveAttribute("tabindex", "-1");
+    five.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(props.onSelectPsr).toHaveBeenCalledWith(6);
+    // o foco acompanhou a seleção (roving): ArrowLeft parte do 6 → 5
+    await user.keyboard("{ArrowLeft}");
+    expect(props.onSelectPsr).toHaveBeenLastCalledWith(5);
+  });
+
   it("com PSR selecionado o Registrar aparece e dispara onRegister", async () => {
     const user = userEvent.setup();
     const props = formProps({ psr: 7 });

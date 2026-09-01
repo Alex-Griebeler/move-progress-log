@@ -70,7 +70,6 @@ import {
   SNAPSHOT_ZONE_SHORT,
   VERDICT_BY_ZONE,
   formatDoseShort,
-  formatPrescriptionLine,
 } from "@/utils/recommendationDisplay";
 import {
   AlertDialog,
