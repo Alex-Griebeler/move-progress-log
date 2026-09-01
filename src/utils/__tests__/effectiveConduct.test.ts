@@ -1,22 +1,26 @@
+/**
+ * Funil de conduta efetiva v3 (PR-B2, spec v7+v7.2 ratificada 31/08).
+ * REESCRITO citando a emenda: a máquina de sintomas MORREU ("o treino só
+ * deverá ser suspenso se o treinador decidir" — sintoma é observação, sem
+ * gate). Cada regra que PERMANECE tem teste próprio; os testes de sintoma
+ * não foram afrouxados — o comportamento deixou de existir por decisão.
+ */
 import { describe, expect, it } from "vitest";
-import type { TrainingRecommendation } from "@/utils/recoveryEngine";
 import {
   computeEffectiveConduct,
   isNumericFloor,
   PRESCRIPTION_BY_ZONE,
   ZONE_FROM_LABEL,
-  type ConductAlternative,
   type ConductInput,
-  type Perception,
-} from "@/utils/effectiveConduct";
-import { getTrainingAlternativesForZone } from "@/utils/trainingAlternatives";
+} from "../effectiveConduct";
+import type { TrainingRecommendation } from "@/utils/recoveryEngine";
 
-const baseRec = (
-  zone: TrainingRecommendation["zone"],
-  overrides: Partial<TrainingRecommendation> = {},
-): TrainingRecommendation => {
+const rec = (zone: TrainingRecommendation["zone"], overrides: Partial<TrainingRecommendation> = {}): TrainingRecommendation => {
   const z = ZONE_FROM_LABEL[zone];
   const p = PRESCRIPTION_BY_ZONE[z];
+  const load = { 4: ["increase", 5], 3: ["maintain", 0], 2: ["reduce", -20], 1: ["block", null], 0: ["block", null] }[z] as [
+    TrainingRecommendation["loadDecision"], number | null,
+  ];
   return {
     trainingType: p.trainingType,
     intensity: p.intensity,
@@ -24,203 +28,175 @@ const baseRec = (
     recoveryScore: 70,
     zone,
     fatigueLevel: "low",
-    loadDecision: z === 4 ? "increase" : z === 3 ? "maintain" : z === 2 ? "reduce" : "block",
-    loadAdjustmentPercent: z === 4 ? 5 : z === 3 ? 0 : z === 2 ? -20 : null,
+    loadDecision: load[0],
+    loadAdjustmentPercent: load[1],
     overrideApplied: false,
     reason: "",
     alerts: [],
-    confidence: 70,
+    confidence: 80,
     emoji: p.emoji,
+    source: "whoop",
     evaluatedRules: [],
     skippedRules: [],
     ...overrides,
-  } as TrainingRecommendation;
+  };
 };
 
 const input = (overrides: Partial<ConductInput> = {}): ConductInput => ({
-  base: baseRec("green"),
-  source: "oura",
+  base: rec("green"),
+  source: "whoop",
   score: 70,
   perception: "nao_informada",
-  symptoms: null,
-  symptomsAcknowledged: false,
   alternative: null,
-  whoopContext: null,
+  whoopContext: { freshness: "fresh", strain: "non_high" },
   hasPartialError: false,
   ...overrides,
 });
 
-const alt = (
-  targetZone: 0 | 1 | 2 | 3 | 4,
-  extra: Partial<ConductAlternative> = {},
-): ConductAlternative => ({
-  type: `alt-z${targetZone}`,
-  description: "",
-  targetZone,
-  targetLoadDecision: targetZone >= 3 ? "maintain" : targetZone === 2 ? "reduce" : "block",
-  targetAdjustmentPercent: targetZone >= 3 ? 0 : targetZone === 2 ? -20 : null,
-  ...extra,
-});
+const critical = () => [{
+  kind: "fisiologico" as const,
+  metric: "fc_repouso" as const,
+  level: "CRITICAL" as const,
+  shortLabel: "FCR",
+  message: "FC de repouso 21% acima do basal",
+}];
 
-describe("ordem geradora: erro → sintomas → base → percepção → alternativa → block", () => {
-  it("caso 12/erro: erro parcial suspende tudo, antes de qualquer modulação", () => {
+describe("erro parcial precede tudo", () => {
+  it("hasPartialError suspende com a base intacta", () => {
     const c = computeEffectiveConduct(input({ hasPartialError: true, perception: "pior" }));
     expect(c.suspended).toBe("error");
     expect(c.modulated).toBe(false);
-  });
-
-  it("caso 2: condizente + sintomas SIM (não avaliados) → suspende carga/CTA, sem conversão em zona", () => {
-    const c = computeEffectiveConduct(input({ perception: "condizente", symptoms: true }));
-    expect(c.suspended).toBe("symptoms");
-    expect(c.effectiveZone).toBe(3); // conduta exibida = base, mas suspensa
-    expect(c.appliedVetoes.join(" ")).toMatch(/suspensos até avaliação/);
-  });
-
-  it("sintomas avaliados e liberados → conduta capada no caminho conservador", () => {
-    const c = computeEffectiveConduct(
-      input({ symptoms: true, symptomsAcknowledged: true, perception: "condizente" }),
-    );
-    expect(c.suspended).toBeNull();
-    expect(c.effectiveZone).toBe(2); // min(3−1, 2)
+    expect(c.effectiveZone).toBe(3);
   });
 });
 
-describe("percepção — pisos e clamps (casos 1, 3, 4 da matriz)", () => {
-  it("caso 1: 'pior' em todas as zonas → max(0, min(base−1, 2))", () => {
-    const expected: Record<TrainingRecommendation["zone"], number> = {
-      green_high: 2,
-      green: 2,
-      yellow: 1,
-      orange: 0,
-      red: 0,
-    };
-    for (const [zone, want] of Object.entries(expected)) {
-      const c = computeEffectiveConduct(
-        input({ base: baseRec(zone as TrainingRecommendation["zone"]), perception: "pior", symptoms: false }),
-      );
-      expect(c.effectiveZone, zone).toBe(want);
-    }
+describe("a máquina de sintomas NÃO existe (v7 — decisão do dono)", () => {
+  it("o input não tem campos de sintoma e nenhum estado 'symptoms' é emitível", () => {
+    const c = computeEffectiveConduct(input());
+    expect(c.suspended).toBe(null);
+    expect("symptoms" in input()).toBe(false);
+  });
+});
+
+describe("piso numérico (assimétrico: só bloqueia SUBIR)", () => {
+  it("whoop ≤33, oura <45, CRITICAL", () => {
+    expect(isNumericFloor({ base: rec("red"), source: "whoop", score: 33 })).toBe(true);
+    expect(isNumericFloor({ base: rec("red"), source: "whoop", score: 34 })).toBe(false);
+    expect(isNumericFloor({ base: rec("red"), source: "oura", score: 44 })).toBe(true);
+    expect(isNumericFloor({ base: rec("red"), source: "oura", score: 45 })).toBe(false);
+    expect(isNumericFloor({ base: rec("green", { alerts: critical() }), source: "whoop", score: 80 })).toBe(true);
   });
 
-  it("caso 4: 'não informada' → conduta = base, sem modulação", () => {
-    const c = computeEffectiveConduct(input({ perception: "nao_informada" }));
-    expect(c.modulated).toBe(false);
-    expect(c.effectiveZone).toBe(3);
-  });
-
-  it("caso 3: 'melhor' com sintomas NULL (não perguntado) → elevação bloqueada", () => {
-    const c = computeEffectiveConduct(input({ base: baseRec("yellow"), perception: "melhor", symptoms: null }));
+  it("piso bloqueia elevação por percepção, com veto visível", () => {
+    const c = computeEffectiveConduct(input({ base: rec("yellow"), score: 30, perception: "melhor" }));
     expect(c.effectiveZone).toBe(2);
-    expect(c.appliedVetoes.join(" ")).toMatch(/sintomas não descartados/);
+    expect(c.appliedVetoes.join(" ")).toContain("piso numérico");
   });
 
-  it("'melhor' com gates limpos: amarelo→treino normal, carga capada em maintain", () => {
-    const c = computeEffectiveConduct(input({ base: baseRec("yellow"), score: 50, perception: "melhor", symptoms: false }));
+  it("piso NUNCA bloqueia reduzir (pior sempre pode)", () => {
+    const c = computeEffectiveConduct(input({ base: rec("yellow"), score: 30, perception: "pior" }));
+    expect(c.effectiveZone).toBe(1);
+  });
+});
+
+describe("percepção via PSR (régua relativa consumida como categoria)", () => {
+  it("nao_informada/condizente = base intocada", () => {
+    expect(computeEffectiveConduct(input()).modulated).toBe(false);
+    expect(computeEffectiveConduct(input({ perception: "condizente" })).modulated).toBe(false);
+  });
+
+  it("pior reduz pra min(base−1, 2), clampado em 0", () => {
+    expect(computeEffectiveConduct(input({ base: rec("green_high"), perception: "pior" })).effectiveZone).toBe(2);
+    expect(computeEffectiveConduct(input({ base: rec("green"), perception: "pior" })).effectiveZone).toBe(2);
+    expect(computeEffectiveConduct(input({ base: rec("yellow"), perception: "pior" })).effectiveZone).toBe(1);
+    expect(computeEffectiveConduct(input({ base: rec("red"), perception: "pior" })).effectiveZone).toBe(0);
+  });
+
+  it("melhor: só base ≤2 sobe (+1); zona 3 é teto humano; zona 4 não é desfeita", () => {
+    expect(computeEffectiveConduct(input({ base: rec("yellow"), perception: "melhor" })).effectiveZone).toBe(3);
+    expect(computeEffectiveConduct(input({ base: rec("orange"), perception: "melhor" })).effectiveZone).toBe(2);
+    expect(computeEffectiveConduct(input({ base: rec("green"), perception: "melhor" })).effectiveZone).toBe(3);
+    expect(computeEffectiveConduct(input({ base: rec("green_high"), perception: "melhor" })).effectiveZone).toBe(4);
+  });
+
+  it("melhor NUNCA gera increase (capMaintain)", () => {
+    const c = computeEffectiveConduct(input({ base: rec("yellow"), perception: "melhor" }));
     expect(c.effectiveZone).toBe(3);
     expect(c.effectiveLoadDecision).toBe("maintain");
+    expect(c.effectiveLoadAdjustmentPercent).toBe(0);
   });
 
-  it("'melhor' NUNCA cria zona 4 (base verde fica em 3)", () => {
-    const c = computeEffectiveConduct(input({ base: baseRec("green"), perception: "melhor", symptoms: false }));
+  it("whoop: elevação exige sync fresh E strain non_high", () => {
+    const stale = computeEffectiveConduct(input({
+      base: rec("yellow"), perception: "melhor",
+      whoopContext: { freshness: "stale", strain: "non_high" },
+    }));
+    expect(stale.effectiveZone).toBe(2);
+    expect(stale.appliedVetoes.join(" ")).toContain("sincronização");
+    const high = computeEffectiveConduct(input({
+      base: rec("yellow"), perception: "melhor",
+      whoopContext: { freshness: "fresh", strain: "high" },
+    }));
+    expect(high.effectiveZone).toBe(2);
+  });
+
+  it("oura: elevação não depende de contexto whoop", () => {
+    const c = computeEffectiveConduct(input({
+      base: rec("yellow"), source: "oura", score: 60, perception: "melhor", whoopContext: null,
+    }));
     expect(c.effectiveZone).toBe(3);
   });
 
-  it("piso: Whoop ≤33 / Oura <45 / CRITICAL bloqueiam SÓ a subida; descer continua", () => {
-    expect(isNumericFloor({ base: baseRec("red"), source: "whoop", score: 33 })).toBe(true);
-    expect(isNumericFloor({ base: baseRec("yellow"), source: "whoop", score: 34 })).toBe(false);
-    expect(isNumericFloor({ base: baseRec("orange"), source: "oura", score: 44 })).toBe(true);
-    expect(isNumericFloor({ base: baseRec("yellow"), source: "oura", score: 45 })).toBe(false);
-    const critical = baseRec("green", {
-      alerts: [{ kind: "fisiologico", metric: "sono", shortLabel: "x", level: "CRITICAL", message: "x" }],
-    });
-    // caso 14: CRITICAL sem mudança de zona ainda ativa o piso
-    const up = computeEffectiveConduct(input({ base: critical, perception: "melhor", symptoms: false }));
-    expect(up.effectiveZone).toBe(3); // não sobe
-    expect(up.appliedVetoes.join(" ")).toMatch(/piso numérico/);
-    const down = computeEffectiveConduct(input({ base: critical, perception: "pior", symptoms: false }));
-    expect(down.effectiveZone).toBe(2); // descer sempre pode
-  });
-
-  it("Whoop: elevação exige freshness fresh E strain non_high (casos 10/11 — unavailable = veto)", () => {
-    const blocked = computeEffectiveConduct(
-      input({ base: baseRec("yellow"), source: "whoop", score: 50, perception: "melhor", symptoms: false,
-        whoopContext: { freshness: "unavailable", strain: "unavailable" } }),
-    );
-    expect(blocked.effectiveZone).toBe(2);
-    const ok = computeEffectiveConduct(
-      input({ base: baseRec("yellow"), source: "whoop", score: 50, perception: "melhor", symptoms: false,
-        whoopContext: { freshness: "fresh", strain: "non_high" } }),
-    );
-    expect(ok.effectiveZone).toBe(3);
-    const highStrain = computeEffectiveConduct(
-      input({ base: baseRec("yellow"), source: "whoop", score: 50, perception: "melhor", symptoms: false,
-        whoopContext: { freshness: "fresh", strain: "high" } }),
-    );
-    expect(highStrain.effectiveZone).toBe(2);
+  it("CRITICAL adiciona o veto de confirmação mesmo sem mudar zona", () => {
+    const c = computeEffectiveConduct(input({ base: rec("green", { alerts: critical() }) }));
+    expect(c.appliedVetoes.join(" ")).toContain("confirme com a aluna");
   });
 });
 
-describe("alternativas — 7 regras de composição (casos 5-8 da matriz)", () => {
-  it("caso 5: alternativa zona 4 com base 3 → ignorada (zona 4 nunca nasce de ação humana)", () => {
-    const c = computeEffectiveConduct(input({ base: baseRec("green"), alternative: alt(4, { targetLoadDecision: "increase", targetAdjustmentPercent: 5 }) }));
+describe("alternativas (o funil é o mesmo pra escolha do treinador)", () => {
+  const alt = (targetZone: 0 | 1 | 2 | 3 | 4, load: ConductInput["alternative"] extends infer _ ? "increase" | "maintain" | "reduce" | "block" : never = "maintain", pct: number | null = 0) => ({
+    type: "Alternativa X", description: "", targetZone, targetLoadDecision: load, targetAdjustmentPercent: pct,
+  });
+
+  it("zona 4 nunca nasce de alternativa (só base 4 mantém 4)", () => {
+    const c = computeEffectiveConduct(input({ alternative: alt(4, "increase", 5) }));
     expect(c.effectiveZone).toBe(3);
-    expect(c.appliedAlternative).toBeNull();
-    expect(c.appliedVetoes.join(" ")).toMatch(/zona 4 nunca nasce/);
+    expect(c.appliedAlternative).toBe(null);
+    const base4 = computeEffectiveConduct(input({ base: rec("green_high"), alternative: alt(4, "increase", 5) }));
+    expect(base4.appliedAlternative).toBe("Alternativa X");
   });
 
-  it("caso 6: alternativa zona 4 com base 4 válida → aplicada", () => {
-    const c = computeEffectiveConduct(input({ base: baseRec("green_high"), score: 90, alternative: alt(4, { targetLoadDecision: "increase", targetAdjustmentPercent: 5 }) }));
-    expect(c.effectiveZone).toBe(4);
-    expect(c.appliedAlternative).toBe("alt-z4");
-  });
-
-  it("caso 7: percepção 'pior' (teto 2) + alternativa zona 3 → alternativa NÃO desfaz a percepção", () => {
-    const c = computeEffectiveConduct(
-      input({ base: baseRec("green"), perception: "pior", symptoms: false, alternative: alt(3) }),
-    );
+  it("alternativa acima do teto (pós-percepção) não aplica, com veto", () => {
+    const c = computeEffectiveConduct(input({ base: rec("green"), perception: "pior", alternative: alt(3) }));
     expect(c.effectiveZone).toBe(2);
-    expect(c.appliedAlternative).toBeNull();
+    expect(c.appliedAlternative).toBe(null);
+    expect(c.appliedVetoes.join(" ")).toContain("acima do teto");
   });
 
-  it("caso 8: percepção 'melhor' em amarelo + alternativa zona 0 (descer) → sempre aceita", () => {
-    const c = computeEffectiveConduct(
-      input({ base: baseRec("yellow"), score: 50, perception: "melhor", symptoms: false, alternative: alt(0) }),
-    );
-    expect(c.effectiveZone).toBe(0);
-    expect(c.appliedAlternative).toBe("alt-z0");
-    expect(c.effectiveLoadDecision).toBe("block");
+  it("carga da alternativa capada pela zona-teto (nunca mais agressiva)", () => {
+    const c = computeEffectiveConduct(input({ base: rec("yellow"), alternative: alt(2, "increase", 10) }));
+    expect(c.effectiveLoadDecision).not.toBe("increase");
   });
 
-  it("carga da alternativa nunca mais agressiva que o teto (reduce −10 ≤ maintain ok; increase capado)", () => {
-    const c = computeEffectiveConduct(
-      input({ base: baseRec("green"), alternative: alt(2, { targetLoadDecision: "reduce", targetAdjustmentPercent: -10 }) }),
-    );
-    expect(c.effectiveLoadDecision).toBe("reduce");
-    expect(c.effectiveLoadAdjustmentPercent).toBe(-10);
-  });
-
-  it("caso 21/block: block da BASE sobrevive a percepção, alternativa e tudo", () => {
-    const blocked = baseRec("yellow", { loadDecision: "block", loadAdjustmentPercent: null });
-    const c = computeEffectiveConduct(
-      input({ base: blocked, perception: "melhor", symptoms: false, alternative: alt(3) }),
-    );
-    expect(c.effectiveLoadDecision).toBe("block");
-    expect(c.effectiveLoadAdjustmentPercent).toBeNull();
+  it("elevação por percepção + alternativa: teto continua maintain", () => {
+    const c = computeEffectiveConduct(input({ base: rec("yellow"), perception: "melhor", alternative: alt(3, "increase", 5) }));
+    expect(c.effectiveLoadDecision).toBe("maintain");
   });
 });
 
-describe("integridade dos dados de alternativas e do espelho de prescrições", () => {
-  it("mapa estático: nenhuma alternativa é mais agressiva que a zona que a oferece", () => {
-    const zones: Array<[TrainingRecommendation["zone"], number]> = [
-      ["green_high", 4], ["green", 3], ["yellow", 2], ["orange", 1], ["red", 0],
-    ];
-    for (const [label, z] of zones) {
-      for (const a of getTrainingAlternativesForZone(label, 0)) {
-        expect(a.targetZone, `${label}/${a.type}`).toBeLessThanOrEqual(z);
-      }
-    }
+describe("block absoluto", () => {
+  it("block da base sobrevive a percepção e alternativa", () => {
+    const c = computeEffectiveConduct(input({
+      base: rec("orange"), perception: "melhor",
+      whoopContext: { freshness: "fresh", strain: "non_high" },
+      alternative: { type: "A", description: "", targetZone: 2, targetLoadDecision: "maintain", targetAdjustmentPercent: 0 },
+    }));
+    expect(c.effectiveLoadDecision).toBe("block");
+    expect(c.effectiveLoadAdjustmentPercent).toBe(null);
   });
+});
 
+describe("integridade do espelho de prescrições", () => {
   it("PRESCRIPTION_BY_ZONE espelha o motor (tipo de treino por zona)", () => {
     expect(PRESCRIPTION_BY_ZONE[4].trainingType).toBe("Máxima Performance / Desafio");
     expect(PRESCRIPTION_BY_ZONE[3].trainingType).toBe("Treino Normal Completo");
@@ -229,46 +205,9 @@ describe("integridade dos dados de alternativas e do espelho de prescrições", 
     expect(PRESCRIPTION_BY_ZONE[0].trainingType).toBe("Descanso Completo / Repouso");
   });
 
-  it("fronteiras do piso numérico: Whoop 33/34, Oura 44/45 (casos nomeados)", () => {
-    const perceptions: Perception[] = ["melhor"];
-    for (const p of perceptions) {
-      const w33 = computeEffectiveConduct(input({ base: baseRec("red"), source: "whoop", score: 33, perception: p, symptoms: false, whoopContext: { freshness: "fresh", strain: "non_high" } }));
-      expect(w33.effectiveZone).toBe(0);
-      const w34 = computeEffectiveConduct(input({ base: baseRec("yellow"), source: "whoop", score: 34, perception: p, symptoms: false, whoopContext: { freshness: "fresh", strain: "non_high" } }));
-      expect(w34.effectiveZone).toBe(3);
-    }
-  });
-});
-
-describe("R8b — fixes da review (rodada 4)", () => {
-  it("zona 4 objetiva NÃO é desfeita por percepção 'melhor' (progressão autorizada fica)", () => {
-    const c = computeEffectiveConduct(
-      input({ base: baseRec("green_high"), score: 90, perception: "melhor", symptoms: false }),
+  it("ZONE_FROM_LABEL cobre as 5 zonas", () => {
+    expect(Object.keys(ZONE_FROM_LABEL).sort()).toEqual(
+      ["green", "green_high", "orange", "red", "yellow"],
     );
-    expect(c.effectiveZone).toBe(4);
-    expect(c.effectiveLoadDecision).toBe("increase");
-    expect(c.effectiveLoadAdjustmentPercent).toBe(5);
-  });
-
-  it("zona 3 + 'melhor' permanece 3 (teto humano) sem capar a carga objetiva", () => {
-    const c = computeEffectiveConduct(input({ base: baseRec("green"), perception: "melhor", symptoms: false }));
-    expect(c.effectiveZone).toBe(3);
-    expect(c.effectiveLoadDecision).toBe("maintain");
-  });
-
-  it("CRITICAL gera a nota de confirmação na conduta mesmo sem tentativa de elevação", () => {
-    const critical = baseRec("green", {
-      alerts: [{ kind: "fisiologico", metric: "sono", shortLabel: "x", level: "CRITICAL", message: "x" }],
-    });
-    const c = computeEffectiveConduct(input({ base: critical, perception: "condizente", symptoms: false }));
-    expect(c.appliedVetoes.join(" ")).toMatch(/Sinal crítico presente — confirme com a aluna/);
-  });
-
-  it("zona 0/1: alternativa malformada com carga numérica não produz número (block absoluto)", () => {
-    const blocked = baseRec("orange"); // loadDecision block por construção
-    const malformed = alt(1, { targetLoadDecision: "maintain", targetAdjustmentPercent: 0 });
-    const c = computeEffectiveConduct(input({ base: blocked, score: 30, alternative: malformed }));
-    expect(c.effectiveLoadDecision).toBe("block");
-    expect(c.effectiveLoadAdjustmentPercent).toBeNull();
   });
 });

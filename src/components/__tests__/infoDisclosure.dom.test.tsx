@@ -6,9 +6,11 @@
  * Escape. A suíte segue Node por padrão; DOM é opt-in por arquivo.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+
+afterEach(cleanup);
 import InfoDisclosure from "../InfoDisclosure";
 
 describe("InfoDisclosure — contrato de acessibilidade (E14)", () => {
