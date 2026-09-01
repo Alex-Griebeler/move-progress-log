@@ -126,6 +126,21 @@ describe("percepção via PSR (régua relativa consumida como categoria)", () =>
     expect(c.effectiveLoadAdjustmentPercent).toBe(0);
   });
 
+  it("whoop: contexto UNAVAILABLE também bloqueia elevação (fail-closed)", () => {
+    const c = computeEffectiveConduct(input({
+      base: rec("yellow"), perception: "melhor",
+      whoopContext: { freshness: "unavailable", strain: "unavailable" },
+    }));
+    expect(c.effectiveZone).toBe(2);
+  });
+
+  it("z4 objetiva preserva increase +5 mesmo com 'melhor' (progressão autorizada pelos gates numéricos)", () => {
+    const c = computeEffectiveConduct(input({ base: rec("green_high"), perception: "melhor" }));
+    expect(c.effectiveZone).toBe(4);
+    expect(c.effectiveLoadDecision).toBe("increase");
+    expect(c.effectiveLoadAdjustmentPercent).toBe(5);
+  });
+
   it("whoop: elevação exige sync fresh E strain non_high", () => {
     const stale = computeEffectiveConduct(input({
       base: rec("yellow"), perception: "melhor",
@@ -173,14 +188,25 @@ describe("alternativas (o funil é o mesmo pra escolha do treinador)", () => {
     expect(c.appliedVetoes.join(" ")).toContain("acima do teto");
   });
 
-  it("carga da alternativa capada pela zona-teto (nunca mais agressiva)", () => {
+  it("carga da alternativa capada pela zona-teto — valor EXATO do teto (reduce −20)", () => {
     const c = computeEffectiveConduct(input({ base: rec("yellow"), alternative: alt(2, "increase", 10) }));
-    expect(c.effectiveLoadDecision).not.toBe("increase");
+    expect(c.effectiveLoadDecision).toBe("reduce");
+    expect(c.effectiveLoadAdjustmentPercent).toBe(-20);
+    expect(c.appliedVetoes.join(" ")).toContain("limitada ao teto");
   });
 
-  it("elevação por percepção + alternativa: teto continua maintain", () => {
+  it("alternativa DESCENDENTE menos agressiva mantém a carga exata dela (reduce −10 sob base green)", () => {
+    const c = computeEffectiveConduct(input({ base: rec("green"), alternative: alt(2, "reduce", -10) }));
+    expect(c.appliedAlternative).toBe("Alternativa X");
+    expect(c.effectiveZone).toBe(2);
+    expect(c.effectiveLoadDecision).toBe("reduce");
+    expect(c.effectiveLoadAdjustmentPercent).toBe(-10);
+  });
+
+  it("elevação por percepção + alternativa: teto continua maintain 0 EXATO", () => {
     const c = computeEffectiveConduct(input({ base: rec("yellow"), perception: "melhor", alternative: alt(3, "increase", 5) }));
     expect(c.effectiveLoadDecision).toBe("maintain");
+    expect(c.effectiveLoadAdjustmentPercent).toBe(0);
   });
 });
 

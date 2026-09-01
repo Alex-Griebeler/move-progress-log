@@ -375,6 +375,7 @@ const PersonalizedTrainingDashboard = ({
   // conduta; save em voo da versão anterior não volta como "Registrado".
   const setPsr = (psr: number) => {
     if (!conductFingerprint || !earlySnapshot) return;
+    closeColdStart();
     conductVersionRef.current += 1;
     setPerceptionSaveState("idle");
     setConductAssessment({
@@ -386,9 +387,9 @@ const PersonalizedTrainingDashboard = ({
     });
   };
   const [perceptionSaveState, setPerceptionSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  // "Registrado" não vale mais quando a CONDUTA muda: fingerprint novo,
-  // sintomas liberados depois do registro, ou alternativa escolhida depois
-  // (fria R8b — o banco ficava com uma conduta diferente da executada).
+  // "Registrado" não vale mais quando a CONDUTA muda: fingerprint novo ou
+  // alternativa escolhida depois (fria R8b; check-in v3: as mudanças internas
+  // são só o PSR, que bumpa sincronamente no setPsr).
   const conductVersionRef = useRef(0);
   useEffect(() => {
     // Mudanças EXTERNAS de conduta (fingerprint novo, alternativa) também
@@ -408,6 +409,15 @@ const PersonalizedTrainingDashboard = ({
   }, [studentId, linkFingerprint]);
   const persistPerception = async (conductTypeOverride?: string) => {
     if (!earlySnapshot || !activeRecommendation || !conduct || !conductFingerprint) return;
+    closeColdStart();
+    const validPsr = normalizePsr(assessment?.psr ?? null);
+    // "Registrar exige PSR respondido" (v7): sem override, PSR inválido
+    // aborta. O registro de DIA DE DESCANSO (override) pode acontecer
+    // pós-skip: grava o evento SEM forjar um check-in "done" (fix B2-3).
+    if (!conductTypeOverride && validPsr === null) {
+      setPerceptionSaveState("error");
+      return;
+    }
     // Dia do REGISTRO capturado antes de qualquer await: virada de meia-noite
     // entre o upsert e o remember gravava num dia e lembrava noutro (fria R8b).
     const registrationDay = spToday();
@@ -455,14 +465,17 @@ const PersonalizedTrainingDashboard = ({
         `${conductFingerprint}#psr=${assessment?.psr ?? "null"}`,
       );
       setPerceptionSaveState("saved");
-      // Máquina do check-in: registrado com sucesso pro fingerprint vigente.
-      setCheckInRecord({
-        studentId,
-        state: "done",
-        conductFingerprint,
-        spDay: registrationDay,
-        registeredAtIso,
-      });
+      // Máquina do check-in: SÓ o registro com PSR válido vira "done" — o
+      // rest-day pós-skip não forja check-in (fix B2-3).
+      if (validPsr !== null) {
+        setCheckInRecord({
+          studentId,
+          state: "done",
+          conductFingerprint,
+          spDay: registrationDay,
+          registeredAtIso,
+        });
+      }
       const newVerdict = VERDICT_BY_ZONE[conduct.effectiveZone];
       lastRegisteredVerdictRef.current = newVerdict;
       if (previousVerdict && previousVerdict !== newVerdict) {
@@ -516,6 +529,23 @@ const PersonalizedTrainingDashboard = ({
   // (rehydratedRef) — resposta tardia de query nunca restaura um estado que a
   // montagem corrente já destruiu (guardrail do GO).
   const rehydratedRef = useRef<string | null>(null);
+  // Janela de cold-start (fix da review B2-1): aberta SÓ até a primeira
+  // transição de fingerprint, interação do coach ou aplicação da resposta.
+  // Fechou → resposta tardia da query NUNCA escreve estado (A→B→A morto).
+  const coldStartRef = useRef<{ student: string; fingerprint: string; open: boolean } | null>(null);
+  if (conductFingerprint && (coldStartRef.current === null || coldStartRef.current.student !== studentId)) {
+    coldStartRef.current = { student: studentId, fingerprint: conductFingerprint, open: true };
+  }
+  if (
+    coldStartRef.current &&
+    conductFingerprint &&
+    coldStartRef.current.fingerprint !== conductFingerprint
+  ) {
+    coldStartRef.current.open = false; // transição observada — janela fecha pra sempre
+  }
+  const closeColdStart = () => {
+    if (coldStartRef.current) coldStartRef.current.open = false;
+  };
   const [reconciliationFailed, setReconciliationFailed] = useState(false);
   const rehydration = useQuery({
     queryKey: ["checkin-rehydrate", studentId, todaySp],
@@ -541,6 +571,12 @@ const PersonalizedTrainingDashboard = ({
     if (rehydratedRef.current === studentId) return;
     if (rehydration.isLoading) return;
     rehydratedRef.current = studentId;
+    // Janela fechada (transição/interação durante o voo da query) → a
+    // resposta é DESCARTADA integralmente (guardrail do GO: query tardia
+    // nunca restaura estado que a montagem destruiu).
+    if (!coldStartRef.current?.open || coldStartRef.current.fingerprint !== conductFingerprint) {
+      return;
+    }
     if (rehydration.isError) {
       setReconciliationFailed(true);
       return;
@@ -554,6 +590,8 @@ const PersonalizedTrainingDashboard = ({
       if (f.fingerprint !== expectedHash) continue;
       if (f.fonte !== earlySnapshot.source) continue;
       const psr = normalizePsr(f.psr === "nao_informado" ? null : Number(f.psr));
+      if (psr === null) continue; // done exige PSR válido (fix B2-3)
+      closeColdStart(); // resposta aplicada — janela cumprida
       setCheckInRecord({
         studentId,
         state: "done",
@@ -574,8 +612,16 @@ const PersonalizedTrainingDashboard = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rehydration.isLoading, rehydration.isError, rehydration.data, conductFingerprint, studentId]);
 
+  // Reconciliação do cold start é ESTADO VISÍVEL (skeleton) — a chegada não
+  // pisca "pendente" enquanto a query verifica um registro do dia (U3/B2-2).
+  const reconciling =
+    Boolean(coldStartRef.current?.open) &&
+    rehydration.isLoading &&
+    rehydratedRef.current !== studentId;
+
   const skipCheckIn = () => {
     if (!conductFingerprint) return;
+    closeColdStart();
     setCheckInRecord({
       studentId,
       state: "skipped",
@@ -1032,7 +1078,13 @@ const PersonalizedTrainingDashboard = ({
                 {/* ── FLUXO EM DOIS TEMPOS (v7, mocks aprovados 31/08):
                     chegada = check-in; a conduta é a RESPOSTA do check-in e
                     só aparece pós registro/skip. ── */}
-                {heroState.composition === "arrival" && (
+                {heroState.composition === "arrival" && reconciling && (
+                  <div className="mt-2 space-y-2">
+                    <Skeleton className="h-10 w-full max-w-md rounded-md" />
+                    <Skeleton className="h-11 w-32 rounded-md" />
+                  </div>
+                )}
+                {heroState.composition === "arrival" && !reconciling && (
                   <CheckInForm
                     psr={assessment?.psr ?? psrDraft}
                     onSelectPsr={setPsr}
