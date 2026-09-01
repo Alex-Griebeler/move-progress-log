@@ -438,6 +438,25 @@ const PersonalizedTrainingDashboard = ({
       setPerceptionSaveState("error");
       return;
     }
+    // Conduta PROSPECTIVA do commit (fix B2-p1 rodada 3): no momento do
+    // Registrar o estado ainda é pending (rascunho não modula a tela) — o
+    // REGISTRO precisa gravar a conduta que o PSR commitado produz, senão o
+    // banco diz "manter" e a tela revela "reduzir". O override (rest-day)
+    // registra o estado exibido, que já é pós-done/skip.
+    const prospectivePerception = conductTypeOverride
+      ? perception
+      : derivePerceptionFromPsr(validPsr, earlySnapshot.score);
+    const prospectiveConduct = conductTypeOverride
+      ? conduct
+      : computeEffectiveConduct({
+          base: activeRecommendation,
+          source: earlySnapshot.source,
+          score: earlySnapshot.score,
+          perception: prospectivePerception,
+          alternative: conductAlternative,
+          whoopContext: whoopConductContext,
+          hasPartialError: isError,
+        });
     // Dia do REGISTRO capturado antes de qualquer await: virada de meia-noite
     // entre o upsert e o remember gravava num dia e lembrava noutro (fria R8b).
     const registrationDay = spToday();
@@ -463,9 +482,9 @@ const PersonalizedTrainingDashboard = ({
         conductFingerprintHash: hashConductFingerprint(conductFingerprint),
         registeredAtIso,
         baseZoneLabel: activeRecommendation.zone,
-        perception,
-        conductType: conductTypeOverride ?? conduct.prescription.trainingType,
-        vetoes: conduct.appliedVetoes,
+        perception: prospectivePerception,
+        conductType: conductTypeOverride ?? prospectiveConduct.prescription.trainingType,
+        vetoes: prospectiveConduct.appliedVetoes,
         spDay: registrationDay,
         snapshotDate: earlySnapshot.date,
         registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
@@ -500,7 +519,7 @@ const PersonalizedTrainingDashboard = ({
           registeredAtIso,
         });
       }
-      const newVerdict = VERDICT_BY_ZONE[conduct.effectiveZone];
+      const newVerdict = VERDICT_BY_ZONE[prospectiveConduct.effectiveZone];
       lastRegisteredVerdictRef.current = newVerdict;
       if (previousVerdict && previousVerdict !== newVerdict) {
         toast({ title: `Conduta atualizada: ${previousVerdict} → ${newVerdict}` });
