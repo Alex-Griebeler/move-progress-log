@@ -38,9 +38,10 @@ const AddObservationDialog = ({ open, onOpenChange, studentId, studentName }: Ad
 
   const save = useMutation({
     mutationFn: async () => {
-      // Mesmo contrato de validação/sanitização das observações de sessão
-      // (schema 1-1000 chars + sanitizeInput — review B2 parte 2).
-      const parsed = studentObservationSchema.safeParse({ observation: text });
+      // Sanitiza ANTES de validar (review B2 p2 rodada 2): texto que vira
+      // vazio após a sanitização é rejeitado pelo schema — nunca grava "".
+      const sanitized = sanitizeInput(text);
+      const parsed = studentObservationSchema.safeParse({ observation: sanitized });
       if (!parsed.success) {
         throw new Error(parsed.error.issues[0]?.message ?? "Observação inválida.");
       }
@@ -51,7 +52,7 @@ const AddObservationDialog = ({ open, onOpenChange, studentId, studentName }: Ad
       }
       const { error } = await supabase.from("student_observations").insert({
         student_id: studentId,
-        observation_text: sanitizeInput(parsed.data.observation),
+        observation_text: parsed.data.observation,
         categories: [category],
         severity,
         is_resolved: false,
@@ -99,9 +100,9 @@ const AddObservationDialog = ({ open, onOpenChange, studentId, studentName }: Ad
           </div>
           <div className="flex gap-3">
             <div className="flex-1 space-y-1.5">
-              <Label>Categoria</Label>
+              <Label id="obs-category-label">Categoria</Label>
               <Select value={category} onValueChange={(v) => setCategory(v as typeof category)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-labelledby="obs-category-label"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map((c) => (
                     <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>
@@ -110,9 +111,9 @@ const AddObservationDialog = ({ open, onOpenChange, studentId, studentName }: Ad
               </Select>
             </div>
             <div className="flex-1 space-y-1.5">
-              <Label>Severidade</Label>
+              <Label id="obs-severity-label">Severidade</Label>
               <Select value={severity} onValueChange={(v) => setSeverity(v as typeof severity)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger aria-labelledby="obs-severity-label"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {SEVERITIES.map((sev) => (
                     <SelectItem key={sev} value={sev}>{sev.charAt(0).toUpperCase() + sev.slice(1)}</SelectItem>
