@@ -340,6 +340,16 @@ describe("R8b — percepção da aluna e conduta efetiva", () => {
     expect(dash).toContain("assessment?.psr ?? null");
   });
 
+  it("vocabulário do AddObservationDialog casa com o fluxo de sessão (guarda de fonte-única, FRIA-8)", () => {
+    const dialog = readFileSync(join(__dirname, "../checkin/AddObservationDialog.tsx"), "utf8");
+    const session = readFileSync(join(__dirname, "../RecordIndividualSessionDialog.tsx"), "utf8");
+    for (const cat of ["dor", "mobilidade", "força", "técnica", "geral"]) {
+      expect(dialog).toContain(`"${cat}"`);
+      expect(session).toContain(`"${cat}"`);
+    }
+    expect(dialog).toContain('["baixa", "média", "alta"]');
+  });
+
   it("a máquina de sintomas MORREU no check-in (v7, decisão do dono 31/08): sintoma é OBSERVAÇÃO", () => {
     expect(dash).not.toContain("Sintomas relevantes?");
     expect(dash).not.toContain("Avaliei — liberar conduta conservadora");

@@ -41,11 +41,14 @@ const CheckInForm = ({
   // Radiogroup de verdade (review B2 parte 2): roving tabindex + setas —
   // Tab entra uma vez; setas movem a seleção.
   const handleKeyDown = (event: React.KeyboardEvent, value: number) => {
-    let next: number | null = null;
-    if (event.key === "ArrowRight" || event.key === "ArrowUp") next = Math.min(PSR_MAX, value + 1);
-    if (event.key === "ArrowLeft" || event.key === "ArrowDown") next = Math.max(PSR_MIN, value - 1);
-    if (next === null || next === value) return;
+    const up = event.key === "ArrowRight" || event.key === "ArrowUp";
+    const down = event.key === "ArrowLeft" || event.key === "ArrowDown";
+    if (!up && !down) return;
+    // FRIA-9: a tecla é SEMPRE consumida dentro do grupo — no limite (0/10)
+    // nada muda, mas a página não rola.
     event.preventDefault();
+    const next = up ? Math.min(PSR_MAX, value + 1) : Math.max(PSR_MIN, value - 1);
+    if (next === value) return;
     onSelectPsr(next);
     const group = event.currentTarget.parentElement;
     const target = group?.querySelector<HTMLButtonElement>(`[data-psr="${next}"]`);

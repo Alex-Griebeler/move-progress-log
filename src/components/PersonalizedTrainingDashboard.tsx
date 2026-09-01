@@ -423,9 +423,32 @@ const PersonalizedTrainingDashboard = ({
   const linkFingerprint = conductFingerprint
     ? `${conductFingerprint}#psr=${assessment?.psr ?? "null"}`
     : null;
+  const rehydratedRef = useRef<string | null>(null);
+  // Janela de cold-start (fix da review B2-1): aberta SÓ até a primeira
+  // transição de fingerprint, interação do coach ou aplicação da resposta.
+  // Fechou → resposta tardia da query NUNCA escreve estado (A→B→A morto).
+  const coldStartRef = useRef<{ student: string; fingerprint: string; open: boolean } | null>(null);
+  if (conductFingerprint && (coldStartRef.current === null || coldStartRef.current.student !== studentId)) {
+    coldStartRef.current = { student: studentId, fingerprint: conductFingerprint, open: true };
+  }
+  if (
+    coldStartRef.current &&
+    conductFingerprint &&
+    coldStartRef.current.fingerprint !== conductFingerprint
+  ) {
+    coldStartRef.current.open = false; // transição observada — janela fecha pra sempre
+  }
+  const closeColdStart = () => {
+    if (coldStartRef.current) coldStartRef.current.open = false;
+  };
+  const reconciliationPending =
+    Boolean(coldStartRef.current?.open) && rehydratedRef.current !== studentId;
   useEffect(() => {
+    // FRIA-2: enquanto a reconciliação não definiu o PSR, o linkFingerprint
+    // provisório (#psr=null) NÃO pode apagar um vínculo válido do storage.
+    if (reconciliationPending) return;
     validateRememberedPerception(studentId, linkFingerprint);
-  }, [studentId, linkFingerprint]);
+  }, [studentId, linkFingerprint, reconciliationPending]);
   const persistPerception = async (conductTypeOverride?: string) => {
     if (!earlySnapshot || !activeRecommendation || !conduct || !conductFingerprint) return;
     closeColdStart();
@@ -525,9 +548,14 @@ const PersonalizedTrainingDashboard = ({
       if (previousVerdict && previousVerdict !== newVerdict) {
         toast({ title: `Conduta atualizada: ${previousVerdict} → ${newVerdict}` });
       }
-      // U15: live curto + foco na REGIÃO da conduta (a região lê o conteúdo).
-      setLiveAnnouncement("Check-in registrado");
-      requestAnimationFrame(() => conductRegionRef.current?.focus());
+      // U15/FRIA-7: anúncio e foco fiéis ao EVENTO — descanso não anuncia
+      // "check-in" (a linha "não realizado" pode continuar de pé).
+      if (conductTypeOverride) {
+        setLiveAnnouncement("Dia de descanso registrado");
+      } else {
+        setLiveAnnouncement("Check-in registrado");
+        requestAnimationFrame(() => conductRegionRef.current?.focus());
+      }
     } catch (e) {
       logger.error("[percepcao] falha ao registrar", e);
       if (conductVersionRef.current === startedVersion) {
@@ -558,24 +586,6 @@ const PersonalizedTrainingDashboard = ({
   // fingerprint EXATO reidrata "done". Roda UMA vez por aluna nesta montagem
   // (rehydratedRef) — resposta tardia de query nunca restaura um estado que a
   // montagem corrente já destruiu (guardrail do GO).
-  const rehydratedRef = useRef<string | null>(null);
-  // Janela de cold-start (fix da review B2-1): aberta SÓ até a primeira
-  // transição de fingerprint, interação do coach ou aplicação da resposta.
-  // Fechou → resposta tardia da query NUNCA escreve estado (A→B→A morto).
-  const coldStartRef = useRef<{ student: string; fingerprint: string; open: boolean } | null>(null);
-  if (conductFingerprint && (coldStartRef.current === null || coldStartRef.current.student !== studentId)) {
-    coldStartRef.current = { student: studentId, fingerprint: conductFingerprint, open: true };
-  }
-  if (
-    coldStartRef.current &&
-    conductFingerprint &&
-    coldStartRef.current.fingerprint !== conductFingerprint
-  ) {
-    coldStartRef.current.open = false; // transição observada — janela fecha pra sempre
-  }
-  const closeColdStart = () => {
-    if (coldStartRef.current) coldStartRef.current.open = false;
-  };
   const [reconciliationFailed, setReconciliationFailed] = useState(false);
   const rehydration = useQuery({
     queryKey: ["checkin-rehydrate", studentId, todaySp],
@@ -622,6 +632,15 @@ const PersonalizedTrainingDashboard = ({
       const psr = normalizePsr(f.psr === "nao_informado" ? null : Number(f.psr));
       if (psr === null) continue; // done exige PSR válido (fix B2-3)
       closeColdStart(); // resposta aplicada — janela cumprida
+      // FRIA-2: o VÍNCULO à sessão renasce junto do done — sem isto, o
+      // refresh validava o check-in na tela mas a 1ª sessão do dia não
+      // recebia session_id no prontuário.
+      rememberPerceptionObservation(
+        studentId,
+        todaySp,
+        String(row.id),
+        `${conductFingerprint}#psr=${psr}`,
+      );
       setCheckInRecord({
         studentId,
         state: "done",
@@ -649,9 +668,39 @@ const PersonalizedTrainingDashboard = ({
     rehydration.isLoading &&
     rehydratedRef.current !== studentId;
 
+  // FRIA-5 (v7.2-M8/U5): contagem de observações CLÍNICAS do dia SP na linha
+  // colapsada — inclui resolvidas, exclui a categoria técnica do check-in
+  // (NULL-safe). A invalidação de ["student-observations", studentId] do
+  // diálogo alcança esta key por prefixo.
+  const { data: dayObservationCount } = useQuery({
+    queryKey: ["student-observations", studentId, "day-count", todaySp],
+    enabled: !!studentId,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { startIso, endIso } = spDayUtcRange(todaySp);
+      const { count, error } = await supabase
+        .from("student_observations")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", studentId)
+        .gte("created_at", startIso)
+        .lt("created_at", endIso)
+        .or("categories.is.null,categories.not.cs.{percepcao_treino}");
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+  const dayObservationLabel =
+    dayObservationCount && dayObservationCount > 0
+      ? `${dayObservationCount} observaç${dayObservationCount === 1 ? "ão" : "ões"}`
+      : null;
+
   const skipCheckIn = () => {
     if (!conductFingerprint) return;
     closeColdStart();
+    // FRIA-1: alternativa escolhida sob o estado anterior morre ao pular —
+    // o skip revela a conduta OBJETIVA (uma nova pode ser escolhida depois).
+    setSelectedAlternative(null);
     setCheckInRecord({
       studentId,
       state: "skipped",
@@ -664,7 +713,14 @@ const PersonalizedTrainingDashboard = ({
       toast({ title: "Check-in pulado", description: "Você pode fazê-lo depois pela linha do check-in." });
     }
   };
-  const reopenCheckIn = () => setCheckInRecord(null); // Editar/Fazer: valor do PSR fica como rascunho
+  const reopenCheckIn = () => {
+    // FRIA-3: reabrir é INTERAÇÃO — fecha a janela de cold start antes de
+    // destruir (query tardia nunca repõe o done que o coach acabou de abrir).
+    closeColdStart();
+    // FRIA-1: reentrar no check-in também destrói a alternativa anterior.
+    setSelectedAlternative(null);
+    setCheckInRecord(null); // valor do PSR fica como rascunho no form
+  };
 
   // "registrado 08:10 · Refazer" quando o registro tem >3h (U14) — mesmo
   // limiar do stale do Whoop; recalcula com o relógio de 60s existente.
@@ -991,17 +1047,38 @@ const PersonalizedTrainingDashboard = ({
     ? ZONE_FROM_LABEL[activeRecommendation.zone]
     : null;
   const conductTone = conduct ? CONDUCT_TONE_BY_ZONE[conduct.effectiveZone] : "ok";
+  // FRIA-6: estágio PÓS-PSR (antes da alternativa) — decompõe a causalidade
+  // no estado composto: o delta do PSR nunca é atribuído à alternativa.
+  const psrStageConduct =
+    conduct && conductAlternative && activeRecommendation && earlySnapshot
+      ? computeEffectiveConduct({
+          base: activeRecommendation,
+          source: earlySnapshot.source,
+          score: earlySnapshot.score,
+          perception,
+          alternative: null,
+          whoopContext: whoopConductContext,
+          hasPartialError: isError,
+        })
+      : null;
+  const psrStageZone = (psrStageConduct ?? conduct)?.effectiveZone ?? null;
   // "Conduta cresce E coloriza só quando DESVIA do planejado" (regra dos
   // mocks): desvio = zona efetiva ≤2 OU modulação aplicada.
   const conductDeviates = conduct ? conduct.effectiveZone <= 2 || conduct.modulated : false;
-  // Frase causal do DELTA REAL (U10/v8.1) — nunca mapa fixo de PSR.
+  // Frases causais do DELTA REAL (U10/v8.1 + FRIA-6): PSR e alternativa
+  // renderizam como causas SEPARADAS, em ordem — nunca mapa fixo.
   const perceptionChangedZone =
-    !!conduct && baseZoneNumber !== null &&
-    conduct.effectiveZone !== baseZoneNumber && conduct.appliedAlternative === null;
+    baseZoneNumber !== null && psrStageZone !== null &&
+    psrStageZone !== baseZoneNumber && registeredPsr !== null;
   const causalLine =
-    perceptionChangedZone && assessment?.psr != null && baseZoneNumber !== null && conduct
-      ? `PSR ${assessment.psr} ${conduct.effectiveZone < baseZoneNumber ? "rebaixou" : "elevou"}: ${VERDICT_BY_ZONE[baseZoneNumber]} → ${VERDICT_BY_ZONE[conduct.effectiveZone]}`
+    perceptionChangedZone && baseZoneNumber !== null && psrStageZone !== null
+      ? `PSR ${registeredPsr} ${psrStageZone < baseZoneNumber ? "rebaixou" : "elevou"}: ${VERDICT_BY_ZONE[baseZoneNumber]} → ${VERDICT_BY_ZONE[psrStageZone]}`
       : null;
+  const alternativeLine = conduct?.appliedAlternative
+    ? psrStageZone !== null && conduct.effectiveZone !== psrStageZone
+      ? `Alternativa "${conduct.appliedAlternative}": ${VERDICT_BY_ZONE[psrStageZone]} → ${VERDICT_BY_ZONE[conduct.effectiveZone]}`
+      : `Alternativa aplicada: "${conduct.appliedAlternative}"`
+    : null;
   const modulationEyebrow = conduct?.appliedAlternative
     ? "Alternativa escolhida"
     : perceptionChangedZone
@@ -1134,7 +1211,7 @@ const PersonalizedTrainingDashboard = ({
 
                 {/* Conduta como FRASE (cresce e coloriza só no desvio);
                     região focável pós-registro (U15). */}
-                {heroState.showConduct && conduct && (
+                {heroState.showConduct && conduct && heroState.composition !== "recovery_block" && (
                   <div ref={conductRegionRef} tabIndex={-1} className="outline-none" aria-label="Conduta do dia">
                     {modulationEyebrow && (
                       <p className="text-xs font-semibold text-muted-foreground">{modulationEyebrow}</p>
@@ -1162,6 +1239,7 @@ const PersonalizedTrainingDashboard = ({
                       </span>
                     </p>
                     {causalLine && <p className="mt-1 text-xs text-muted-foreground">{causalLine}</p>}
+                    {alternativeLine && <p className="mt-1 text-xs text-muted-foreground">{alternativeLine}</p>}
                     {conduct.modulated && baseZoneNumber !== null && (
                       <p className="mt-1 text-xs text-muted-foreground">
                         Recomendação do aparelho: {VERDICT_BY_ZONE[baseZoneNumber]} ·{" "}
@@ -1188,6 +1266,7 @@ const PersonalizedTrainingDashboard = ({
                         <span>
                           Check-in: <span className="font-medium text-foreground">PSR {assessment?.psr ?? "—"}</span>
                           {checkInIsOld && registeredAtDisplay ? ` · registrado ${registeredAtDisplay}` : ""}
+                          {dayObservationLabel ? ` · ${dayObservationLabel}` : ""}
                         </span>
                         <button type="button" className="min-h-[44px] text-primary" onClick={reopenCheckIn}>
                           {checkInIsOld ? "Refazer" : "Editar check-in"}
@@ -1195,7 +1274,10 @@ const PersonalizedTrainingDashboard = ({
                       </>
                     ) : (
                       <>
-                        <span>Check-in: não realizado</span>
+                        <span>
+                          Check-in: não realizado
+                          {dayObservationLabel ? ` · ${dayObservationLabel}` : ""}
+                        </span>
                         <button type="button" className="min-h-[44px] text-primary" onClick={reopenCheckIn}>
                           Fazer check-in
                         </button>
@@ -1213,7 +1295,7 @@ const PersonalizedTrainingDashboard = ({
                 )}
 
                 {/* CTA por composição (máquina E1) */}
-                {heroState.primaryAction === "register_rest" && (
+                {heroState.primaryAction === "register_rest" && heroState.composition !== "recovery_block" && (
                   <div className="flex flex-wrap items-center gap-3 pt-3">
                     <Button
                       disabled={perceptionSaveState === "saving"}
@@ -1470,6 +1552,43 @@ const PersonalizedTrainingDashboard = ({
                 ))}
             </ul>
           )}
+          {/* FRIA-4: o VEREDITO e a AÇÃO moram AQUI no dia de recuperação —
+              superfície única na ordem ratificada: sinais → veredito → ação
+              → protocolos. O hero acima fica com anel/meta/check-in. */}
+          {conduct && (
+            <div ref={conductRegionRef} tabIndex={-1} className="mb-4 outline-none" aria-label="Conduta do dia">
+              <p className="text-xs font-semibold text-muted-foreground">Dia de recuperação</p>
+              <p className="mt-1 flex flex-wrap items-baseline gap-2">
+                <span aria-hidden="true" className="h-2 w-2 shrink-0 self-center rounded-full bg-destructive" />
+                <span className="text-xl font-semibold tracking-tight text-destructive">
+                  {VERDICT_BY_ZONE[conduct.effectiveZone]}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  · {formatDoseShort(conduct.prescription.intensity, conduct.prescription.duration)}
+                </span>
+              </p>
+              {causalLine && <p className="mt-1 text-xs text-muted-foreground">{causalLine}</p>}
+              {alternativeLine && <p className="mt-1 text-xs text-muted-foreground">{alternativeLine}</p>}
+              {conduct.appliedVetoes.length > 0 && (
+                <ul className="mt-1 space-y-0.5">
+                  {conduct.appliedVetoes.map((v, i) => (
+                    <li key={i} className="text-xs text-muted-foreground">• {v}</li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <Button
+                  disabled={perceptionSaveState === "saving"}
+                  onClick={() => void persistPerception("Dia de descanso registrado")}
+                >
+                  Registrar dia de descanso
+                </Button>
+                <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
+                  Ver alternativas
+                </Button>
+              </div>
+            </div>
+          )}
           <Alert variant="destructive" className="mb-6">
             <AlertDescription>
               <strong>Dia de recuperação:</strong> treino não é recomendado{" "}
@@ -1584,7 +1703,12 @@ const PersonalizedTrainingDashboard = ({
           </h3>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
             {physiology.map((p) => {
-              const tileAlert = p.metric ? alertPartition.byTile.get(p.metric) : undefined;
+              // FRIA-4: sinais absorvidos pelo bloco de recuperação moram lá
+              // UMA vez — os tiles não repetem o estado de alerta nesse dia.
+              const tileAlert =
+                heroState.composition === "recovery_block"
+                  ? undefined
+                  : p.metric ? alertPartition.byTile.get(p.metric) : undefined;
               return (
                 <Fragment key={p.key}>
                   {tileAlert ? cloneElement(p.tile, { alert: tileAlert }) : p.tile}
