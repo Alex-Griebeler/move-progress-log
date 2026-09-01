@@ -303,8 +303,28 @@ const PersonalizedTrainingDashboard = ({
     conductAssessment.psr !== null
       ? conductAssessment.psr
       : null;
+  // Máquina do check-in (parte síncrona) ANTES do funil: o PSR só modula a
+  // conduta quando o check-in está REGISTRADO — rascunho selecionado e não
+  // commitado nunca alimenta o funil (fix da review B2: skip pós-seleção
+  // revela a conduta OBJETIVA, como o oráculo manda).
+  const todaySp = spToday();
+  const scopedCheckInRecord =
+    checkInRecord && checkInRecord.studentId === studentId ? checkInRecord : null;
+  const checkInState = resolveCheckInState(
+    scopedCheckInRecord
+      ? {
+          state: scopedCheckInRecord.state,
+          conductFingerprint: scopedCheckInRecord.conductFingerprint,
+          spDay: scopedCheckInRecord.spDay,
+        }
+      : null,
+    conductFingerprint,
+    todaySp,
+  );
+  const registeredPsr =
+    checkInState === "done" ? normalizePsr(assessment?.psr ?? null) : null;
   const perception = derivePerceptionFromPsr(
-    assessment?.psr ?? null,
+    registeredPsr,
     earlySnapshot?.score ?? 0,
   );
   // Alternativa também é MODULAÇÃO: fingerprint diferente = recomendação
@@ -393,8 +413,8 @@ const PersonalizedTrainingDashboard = ({
   const conductVersionRef = useRef(0);
   useEffect(() => {
     // Mudanças EXTERNAS de conduta (fingerprint novo, alternativa) também
-    // carimbam o token — as mudanças internas da avaliação (percepção,
-    // sintomas, acknowledge) já bumpam SINCRONAMENTE no updateAssessment.
+    // carimbam o token — a mudança interna (PSR) já bumpa SINCRONAMENTE no
+    // setPsr.
     conductVersionRef.current += 1;
     setPerceptionSaveState("idle");
   }, [conductFingerprint, scopedAlternative?.type]);
@@ -458,16 +478,20 @@ const PersonalizedTrainingDashboard = ({
         toast({ title: `Check-in de ${studentName} registrado`, description: "A conduta mudou depois do registro — confira a tela." });
         return;
       }
-      rememberPerceptionObservation(
-        studentId,
-        registrationDay,
-        observationId,
-        `${conductFingerprint}#psr=${assessment?.psr ?? "null"}`,
-      );
+      if (!conductTypeOverride) {
+        // Vínculo automático é do CHECK-IN commitado — o registro de
+        // descanso (override) não entra no remember/link (fix B2-p1-3).
+        rememberPerceptionObservation(
+          studentId,
+          registrationDay,
+          observationId,
+          `${conductFingerprint}#psr=${assessment?.psr ?? "null"}`,
+        );
+      }
       setPerceptionSaveState("saved");
-      // Máquina do check-in: SÓ o registro com PSR válido vira "done" — o
-      // rest-day pós-skip não forja check-in (fix B2-3).
-      if (validPsr !== null) {
+      // SÓ o commit normal com PSR válido vira "done" — o rest-day
+      // (override, alcançável pós-skip) nunca forja check-in (fix B2-p1-2).
+      if (!conductTypeOverride && validPsr !== null) {
         setCheckInRecord({
           studentId,
           state: "done",
@@ -497,12 +521,9 @@ const PersonalizedTrainingDashboard = ({
     }
   };
 
-  // ── Check-in v3: máquina pending/done/skipped (spec v7.2 + v8.1) ────────
-  const todaySp = spToday();
-  const scopedCheckInRecord =
-    checkInRecord && checkInRecord.studentId === studentId ? checkInRecord : null;
-  // Destruição ATÔMICA: fingerprint/dia divergente APAGA o registro (nunca
-  // "esconde") — A→B→A não ressuscita na montagem corrente (v6.1-M8/v8.1).
+  // ── Check-in v3: efeitos da máquina (a parte síncrona vive antes do
+  // funil). Destruição ATÔMICA: fingerprint/dia divergente APAGA o registro
+  // (nunca "esconde") — A→B→A não ressuscita na montagem corrente. ──
   useEffect(() => {
     if (!scopedCheckInRecord) return;
     if (
@@ -512,17 +533,6 @@ const PersonalizedTrainingDashboard = ({
       setCheckInRecord(null);
     }
   }, [scopedCheckInRecord, conductFingerprint, todaySp, setCheckInRecord]);
-  const checkInState = resolveCheckInState(
-    scopedCheckInRecord
-      ? {
-          state: scopedCheckInRecord.state,
-          conductFingerprint: scopedCheckInRecord.conductFingerprint,
-          spDay: scopedCheckInRecord.spDay,
-        }
-      : null,
-    conductFingerprint,
-    todaySp,
-  );
 
   // Reidratação de COLD START (U3/v8.1): o registro v2 persistido de HOJE com
   // fingerprint EXATO reidrata "done". Roda UMA vez por aluna nesta montagem
