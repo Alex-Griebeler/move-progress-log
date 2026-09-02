@@ -54,6 +54,7 @@ import {
   normalizePsr,
 } from "@/utils/checkin";
 import { deriveTrainingHeroState, resolveCheckInState } from "@/utils/trainingHeroState";
+import { createSerialQueue } from "@/utils/serialQueue";
 import CheckInForm from "@/components/checkin/CheckInForm";
 import AddObservationDialog from "@/components/checkin/AddObservationDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -238,7 +239,14 @@ const PersonalizedTrainingDashboard = ({
   // com novo registro; limpa ao registrar, pular ou trocar de aluna.
   const [editingCheckIn, setEditingCheckIn] = useState(false);
   const [conductSyncState, setConductSyncState] = useState<"idle" | "saving" | "error">("idle");
-  const lastPersistedAlternativeRef = useRef<string | null>(null);
+  // Confirmação final-2: `undefined` = "ainda não observei a alternativa
+  // nesta montagem" — o primeiro render com done só REGISTRA a identidade
+  // (remount/reidratação nunca dispara mutação); mudança REAL depois dela
+  // re-persiste.
+  const lastPersistedAlternativeRef = useRef<string | null | undefined>(undefined);
+  // Confirmação final-1: fila SERIAL latest-wins — duas escolhas rápidas
+  // nunca terminam com o prontuário na intermediária.
+  const conductSyncQueueRef = useRef(createSerialQueue());
   const queryClient = useQueryClient();
   // Revisão final-8: NADA efêmero do atendimento vaza entre alunas.
   useEffect(() => {
@@ -247,7 +255,8 @@ const PersonalizedTrainingDashboard = ({
     setLiveAnnouncement("");
     lastRegisteredVerdictRef.current = null;
     skipHintShownRef.current = false;
-    lastPersistedAlternativeRef.current = null;
+    lastPersistedAlternativeRef.current = undefined;
+    conductSyncQueueRef.current = createSerialQueue();
   }, [studentId]);
   const conductRegionRef = useRef<HTMLDivElement | null>(null);
   const lastRegisteredVerdictRef = useRef<string | null>(null);
@@ -553,6 +562,11 @@ const PersonalizedTrainingDashboard = ({
         registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
         actorId,
       });
+      // Confirmação final-3: TODO upsert bem-sucedido invalida cache e
+      // histórico ANTES de qualquer retorno — o guard abaixo descarta só os
+      // efeitos locais da versão antiga, nunca a verdade do banco.
+      void queryClient.invalidateQueries({ queryKey: ["checkin-rehydrate", studentId] });
+      void queryClient.invalidateQueries({ queryKey: ["perception-history", studentId] });
       if (conductVersionRef.current !== startedVersion) {
         // A conduta mudou enquanto a gravação estava em voo: a observação
         // ficou no banco (histórico legítimo), mas nem o vínculo automático
@@ -572,12 +586,9 @@ const PersonalizedTrainingDashboard = ({
       }
       setPerceptionSaveState("saved");
       setEditingCheckIn(false);
-      // Revisão final-3/9: o cache de reidratação e o histórico do prontuário
-      // seguem o banco imediatamente (remount <60s não volta pra chegada
-      // nem restaura PSR antigo).
-      void queryClient.invalidateQueries({ queryKey: ["checkin-rehydrate", studentId] });
-      void queryClient.invalidateQueries({ queryKey: ["perception-history", studentId] });
       if (!conductTypeOverride) {
+        // A conduta commitada JÁ inclui a alternativa corrente — registra a
+        // identidade pra o efeito não re-persistir sem mudança real.
         lastPersistedAlternativeRef.current = conductAlternative?.type ?? null;
       }
       // SÓ o commit normal com PSR válido vira "done" — o rest-day
@@ -621,48 +632,63 @@ const PersonalizedTrainingDashboard = ({
   // MUTAÇÃO CLÍNICA — re-persiste a conduta final na linha do dia
   // (preservando psr e registrado_iso do commit); "Iniciar treino" só com
   // sucesso. O prontuário nunca fica com uma conduta diferente da executada.
-  const persistConductUpdate = async () => {
+  const persistConductUpdate = () => {
     if (!earlySnapshot || !activeRecommendation || !conduct || !conductFingerprint) return;
     if (registeredPsr === null || !scopedCheckInRecord) return;
+    // Snapshot dos valores DESTA escolha (a fila pode executá-la depois de
+    // outro render).
+    const payload = {
+      source: earlySnapshot.source,
+      score: earlySnapshot.score,
+      psr: registeredPsr,
+      conductFingerprintHash: hashConductFingerprint(conductFingerprint),
+      registeredAtIso: scopedCheckInRecord.registeredAtIso ?? new Date().toISOString(),
+      baseZoneLabel: activeRecommendation.zone,
+      perception,
+      conductType: conduct.prescription.trainingType,
+      vetoes: conduct.appliedVetoes,
+      spDay: todaySp,
+      snapshotDate: earlySnapshot.date,
+      registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+    };
+    const queue = conductSyncQueueRef.current;
     setConductSyncState("saving");
-    try {
-      const { data: userData } = await supabase.auth.getUser();
-      const actorId = userData?.user?.id ?? null;
-      if (!actorId) throw new Error("sem usuário autenticado");
-      await upsertPerceptionObservationV2(supabase, studentId, {
-        source: earlySnapshot.source,
-        score: earlySnapshot.score,
-        psr: registeredPsr,
-        conductFingerprintHash: hashConductFingerprint(conductFingerprint),
-        registeredAtIso: scopedCheckInRecord.registeredAtIso ?? new Date().toISOString(),
-        baseZoneLabel: activeRecommendation.zone,
-        perception,
-        conductType: conduct.prescription.trainingType,
-        vetoes: conduct.appliedVetoes,
-        spDay: todaySp,
-        snapshotDate: earlySnapshot.date,
-        registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
-        actorId,
-      });
-      void queryClient.invalidateQueries({ queryKey: ["checkin-rehydrate", studentId] });
-      void queryClient.invalidateQueries({ queryKey: ["perception-history", studentId] });
-      setConductSyncState("idle");
-    } catch (e) {
-      logger.error("[percepcao] falha ao atualizar a conduta no prontuário", e);
-      setConductSyncState("error");
-      toast({
-        title: `Conduta de ${studentName} não foi atualizada no prontuário`,
-        description: "A alternativa foi aplicada na tela, mas não gravada — tente novamente.",
-        variant: "destructive",
-      });
-    }
+    void queue.enqueue(async (isLatest) => {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const actorId = userData?.user?.id ?? null;
+        if (!actorId) throw new Error("sem usuário autenticado");
+        await upsertPerceptionObservationV2(supabase, studentId, { ...payload, actorId });
+        void queryClient.invalidateQueries({ queryKey: ["checkin-rehydrate", studentId] });
+        void queryClient.invalidateQueries({ queryKey: ["perception-history", studentId] });
+        // Só a ÚLTIMA escolha publica "idle" — o CTA fica preso até a conduta
+        // exibida estar persistida (latest-wins).
+        if (isLatest()) setConductSyncState("idle");
+      } catch (e) {
+        logger.error("[percepcao] falha ao atualizar a conduta no prontuário", e);
+        if (isLatest()) {
+          setConductSyncState("error");
+          toast({
+            title: `Conduta de ${studentName} não foi atualizada no prontuário`,
+            description: "A alternativa foi aplicada na tela, mas não gravada — tente novamente.",
+            variant: "destructive",
+          });
+        }
+      }
+    });
   };
   useEffect(() => {
     if (checkInState !== "done") return;
     const altKey = conductAlternative?.type ?? null;
+    if (lastPersistedAlternativeRef.current === undefined) {
+      // Primeira observação nesta montagem (commit, remount ou reidratação):
+      // registra a identidade já persistida SEM mutação (confirmação final-2).
+      lastPersistedAlternativeRef.current = altKey;
+      return;
+    }
     if (lastPersistedAlternativeRef.current === altKey) return;
     lastPersistedAlternativeRef.current = altKey;
-    void persistConductUpdate();
+    persistConductUpdate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conductAlternative?.type, checkInState, studentId]);
 
@@ -765,7 +791,9 @@ const PersonalizedTrainingDashboard = ({
         psr,
       });
       lastRegisteredVerdictRef.current = null;
-      lastPersistedAlternativeRef.current = null;
+      // Reidratação: a alternativa retida no contexto (se houver) já está
+      // no banco — identidade, não mutação (confirmação final-2).
+      lastPersistedAlternativeRef.current = conductAlternative?.type ?? null;
       break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1448,7 +1476,7 @@ const PersonalizedTrainingDashboard = ({
                     {conductSyncState === "error" && (
                       <p className="text-xs text-destructive">
                         Conduta não foi atualizada no prontuário.{" "}
-                        <button type="button" className="underline" onClick={() => void persistConductUpdate()}>
+                        <button type="button" className="underline" onClick={persistConductUpdate}>
                           Tentar novamente
                         </button>
                       </p>

@@ -390,8 +390,17 @@ describe("R8b — fixes da review (fiação)", () => {
   });
 
   it("revisão final: alternativa pós-check-in re-persiste a conduta (blocker 1); descanso é slot próprio (2); cache invalidado (3/9); alternativa destruída na divergência (4); escolha de prescrição escopada por aluna (5); reset efêmero por aluna (8)", () => {
-    expect(dash).toContain("const persistConductUpdate = async () => {");
+    expect(dash).toContain("const persistConductUpdate = () => {");
     expect(dash).toContain("lastPersistedAlternativeRef.current = altKey;");
+    // confirmação final: fila serial latest-wins + sentinela de identidade +
+    // invalidação ANTES do guard de versão
+    expect(dash).toContain("useRef(createSerialQueue())");
+    expect(dash).toContain("if (isLatest()) setConductSyncState(\"idle\");");
+    expect(dash).toContain("if (lastPersistedAlternativeRef.current === undefined) {");
+    const invalidateIdx = dash.indexOf('queryKey: ["checkin-rehydrate", studentId]');
+    const guardIdx = dash.indexOf("if (conductVersionRef.current !== startedVersion) {");
+    expect(invalidateIdx).toBeGreaterThan(-1);
+    expect(invalidateIdx).toBeLessThan(guardIdx);
     expect(dash).toContain('source: conductTypeOverride ? "descanso" : earlySnapshot.source,');
     expect(dash).toContain('queryKey: ["checkin-rehydrate", studentId]');
     expect(dash).toContain('queryKey: ["perception-history", studentId]');
