@@ -250,6 +250,12 @@ const PersonalizedTrainingDashboard = ({
   // Tipo de conduta cuja gravação está em voo (evita enfileirar duplicatas
   // enquanto a re-persistência ainda não atualizou o registro).
   const inFlightConductTypeRef = useRef<string | null>(null);
+  // Época da sincronização: reopen/skip/troca de aluna a incrementam — uma
+  // gravação em voo de época anterior NUNCA publica (nem restaura um "done"
+  // por cima de pending/skipped). O record atualizado é sempre o CORRENTE.
+  const syncEpochRef = useRef(0);
+  const currentRecordRef = useRef<typeof checkInRecord>(null);
+  currentRecordRef.current = checkInRecord;
   const queryClient = useQueryClient();
   // Revisão final-8: NADA efêmero do atendimento vaza entre alunas.
   useEffect(() => {
@@ -259,6 +265,7 @@ const PersonalizedTrainingDashboard = ({
     lastRegisteredVerdictRef.current = null;
     skipHintShownRef.current = false;
     inFlightConductTypeRef.current = null;
+    syncEpochRef.current += 1;
     conductSyncQueueRef.current = createSerialQueue();
   }, [studentId]);
   const conductRegionRef = useRef<HTMLDivElement | null>(null);
@@ -653,12 +660,15 @@ const PersonalizedTrainingDashboard = ({
     };
     const queue = conductSyncQueueRef.current;
     const owner = studentId;
-    const recordSnapshot = scopedCheckInRecord;
+    const epoch = syncEpochRef.current;
+    const fingerprintAtStart = scopedCheckInRecord.conductFingerprint;
     inFlightConductTypeRef.current = payload.conductType;
     setConductSyncState("saving");
     void queue.enqueue(async (isLatest) => {
-      // Publica SÓ se ainda é a última escolha E a aluna é a mesma da tela.
-      const mayPublish = () => isLatest() && currentStudentRef.current === owner;
+      // Publica SÓ se ainda é a última escolha, a aluna é a mesma da tela E
+      // a época não mudou (reopen/skip invalidam).
+      const mayPublish = () =>
+        isLatest() && currentStudentRef.current === owner && syncEpochRef.current === epoch;
       try {
         const { data: userData } = await supabase.auth.getUser();
         const actorId = userData?.user?.id ?? null;
@@ -668,8 +678,18 @@ const PersonalizedTrainingDashboard = ({
         void queryClient.invalidateQueries({ queryKey: ["perception-history", owner] });
         if (!mayPublish()) return;
         inFlightConductTypeRef.current = null;
-        // A verdade do banco agora é esta conduta — o record acompanha.
-        setCheckInRecord({ ...recordSnapshot, persistedConductType: payload.conductType });
+        // A verdade do banco agora é esta conduta — o record CORRENTE
+        // acompanha (nunca um snapshot velho: um done antigo jamais volta por
+        // cima de pending/skipped).
+        const current = currentRecordRef.current;
+        if (
+          current &&
+          current.studentId === owner &&
+          current.state === "done" &&
+          current.conductFingerprint === fingerprintAtStart
+        ) {
+          setCheckInRecord({ ...current, persistedConductType: payload.conductType });
+        }
         // Só a ÚLTIMA escolha publica "idle" — o CTA fica preso até a conduta
         // exibida estar persistida (latest-wins).
         setConductSyncState("idle");
@@ -844,6 +864,8 @@ const PersonalizedTrainingDashboard = ({
   const skipCheckIn = () => {
     if (!conductFingerprint) return;
     closeColdStart();
+    syncEpochRef.current += 1;
+    setConductSyncState("idle");
     // FRIA-1: alternativa escolhida sob o estado anterior morre ao pular —
     // o skip revela a conduta OBJETIVA (uma nova pode ser escolhida depois).
     setSelectedAlternative(null);
@@ -865,6 +887,8 @@ const PersonalizedTrainingDashboard = ({
     // FRIA-3: reabrir é INTERAÇÃO — fecha a janela de cold start antes de
     // destruir (query tardia nunca repõe o done que o coach acabou de abrir).
     closeColdStart();
+    syncEpochRef.current += 1; // gravação de alternativa em voo não publica mais
+    setConductSyncState("idle");
     // FRIA-1: reentrar no check-in também destrói a alternativa anterior.
     setSelectedAlternative(null);
     setCheckInRecord(null); // valor do PSR fica como rascunho no form

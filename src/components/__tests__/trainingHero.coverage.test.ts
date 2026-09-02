@@ -400,7 +400,9 @@ describe("R8b — fixes da review (fiação)", () => {
     // publicação guardada pela aluna corrente
     expect(dash).toContain("if (displayedConductType === persistedConductType) return;");
     expect(dash).toContain('persistedConductType: f.conduta ?? null,');
-    expect(dash).toContain("const mayPublish = () => isLatest() && currentStudentRef.current === owner;");
+    expect(dash).toContain("isLatest() && currentStudentRef.current === owner && syncEpochRef.current === epoch;");
+    // record atualizado é o CORRENTE (done, mesmo fingerprint) — nunca snapshot velho
+    expect(dash).toContain("current.conductFingerprint === fingerprintAtStart");
     expect(dash).not.toContain("lastPersistedAlternativeRef");
     const invalidateIdx = dash.indexOf('queryKey: ["checkin-rehydrate", studentId]');
     const guardIdx = dash.indexOf("if (conductVersionRef.current !== startedVersion) {");
