@@ -256,6 +256,16 @@ const PersonalizedTrainingDashboard = ({
   const syncEpochRef = useRef(0);
   const currentRecordRef = useRef<typeof checkInRecord>(null);
   currentRecordRef.current = checkInRecord;
+  // Invalidação de época — helper ÚNICO (3ª confirmação): época nova, fila
+  // nova, sentinela de voo ZERADA e estado idle. Sem zerar a sentinela, uma
+  // gravação invalidada deixava "B em voo" órfão e um ciclo posterior
+  // (Refazer → commit A → escolher B) nunca gravava B, com CTA liberado.
+  const invalidateConductSync = () => {
+    syncEpochRef.current += 1;
+    inFlightConductTypeRef.current = null;
+    conductSyncQueueRef.current = createSerialQueue();
+    setConductSyncState("idle");
+  };
   const queryClient = useQueryClient();
   // Revisão final-8: NADA efêmero do atendimento vaza entre alunas.
   useEffect(() => {
@@ -264,9 +274,7 @@ const PersonalizedTrainingDashboard = ({
     setLiveAnnouncement("");
     lastRegisteredVerdictRef.current = null;
     skipHintShownRef.current = false;
-    inFlightConductTypeRef.current = null;
-    syncEpochRef.current += 1;
-    conductSyncQueueRef.current = createSerialQueue();
+    invalidateConductSync();
   }, [studentId]);
   const conductRegionRef = useRef<HTMLDivElement | null>(null);
   const lastRegisteredVerdictRef = useRef<string | null>(null);
@@ -864,8 +872,7 @@ const PersonalizedTrainingDashboard = ({
   const skipCheckIn = () => {
     if (!conductFingerprint) return;
     closeColdStart();
-    syncEpochRef.current += 1;
-    setConductSyncState("idle");
+    invalidateConductSync();
     // FRIA-1: alternativa escolhida sob o estado anterior morre ao pular —
     // o skip revela a conduta OBJETIVA (uma nova pode ser escolhida depois).
     setSelectedAlternative(null);
@@ -887,8 +894,7 @@ const PersonalizedTrainingDashboard = ({
     // FRIA-3: reabrir é INTERAÇÃO — fecha a janela de cold start antes de
     // destruir (query tardia nunca repõe o done que o coach acabou de abrir).
     closeColdStart();
-    syncEpochRef.current += 1; // gravação de alternativa em voo não publica mais
-    setConductSyncState("idle");
+    invalidateConductSync(); // gravação de alternativa em voo não publica mais
     // FRIA-1: reentrar no check-in também destrói a alternativa anterior.
     setSelectedAlternative(null);
     setCheckInRecord(null); // valor do PSR fica como rascunho no form

@@ -403,6 +403,11 @@ describe("R8b — fixes da review (fiação)", () => {
     expect(dash).toContain("isLatest() && currentStudentRef.current === owner && syncEpochRef.current === epoch;");
     // record atualizado é o CORRENTE (done, mesmo fingerprint) — nunca snapshot velho
     expect(dash).toContain("current.conductFingerprint === fingerprintAtStart");
+    // 3ª confirmação: invalidação de época é helper ÚNICO (zera a sentinela
+    // de voo) e é chamada em reopen, skip e troca de aluna
+    expect(dash).toContain("const invalidateConductSync = () => {");
+    expect((dash.match(/invalidateConductSync\(\);/g) ?? []).length).toBeGreaterThanOrEqual(3);
+    expect(dash).not.toMatch(/syncEpochRef\.current \+= 1;[\s\S]*syncEpochRef\.current \+= 1;/);
     expect(dash).not.toContain("lastPersistedAlternativeRef");
     const invalidateIdx = dash.indexOf('queryKey: ["checkin-rehydrate", studentId]');
     const guardIdx = dash.indexOf("if (conductVersionRef.current !== startedVersion) {");
