@@ -1,14 +1,19 @@
 /**
- * Conduta efetiva (R8b — decisão ratificada 29/08): "as decisões não podem
- * ser baseadas apenas nos números; a percepção do aluno é ainda mais
- * importante, excetuando casos onde os números estão muito ruins."
+ * Conduta efetiva v3 (check-in v3, spec v7+v7.2 ratificada 31/08): "as
+ * decisões não podem ser baseadas apenas nos números; a percepção do aluno é
+ * ainda mais importante, excetuando casos onde os números estão muito ruins."
  *
  * A recomendação-base do aparelho NUNCA é sobrescrita — este módulo compõe
- * por cima dela a conduta do coach (percepção da aluna + alternativa
- * escolhida), com ordem geradora FIXA (plano R8 v2+v3, 3 rodadas de
- * revisão): erro → sintomas → base → percepção/teto → alternativa → block
+ * por cima dela a conduta do coach (percepção via PSR + alternativa), com
+ * ordem geradora FIXA: erro → base → percepção/teto → alternativa → block
  * absoluto. Zona 4 nunca nasce de ação humana; block de carga sobrevive a
  * tudo.
+ *
+ * A MÁQUINA DE SINTOMAS MORREU (decisão do dono, 31/08, emenda v7): "o
+ * treino só deverá ser suspenso se o treinador decidir" — sintoma virou
+ * OBSERVAÇÃO clínica no fluxo próprio, sem gate automático nenhum; a
+ * elevação por percepção fica gated só por piso numérico + freshness/strain
+ * do Whoop. Registros v1 antigos com sintomas seguem visíveis no prontuário.
  */
 
 import type { TrainingRecommendation } from "@/utils/recoveryEngine";
@@ -35,11 +40,9 @@ export interface ConductInput {
   base: TrainingRecommendation;
   source: "oura" | "whoop";
   score: number;
+  /** Derivada do PSR pela régua ±2 (derivePerceptionFromPsr) — o funil segue
+   *  consumindo a categoria relativa; PSR null → "nao_informada". */
   perception: Perception;
-  /** null = pergunta de sintomas ainda não respondida. */
-  symptoms: boolean | null;
-  /** true depois do coach clicar "Avaliei — liberar conduta conservadora". */
-  symptomsAcknowledged: boolean;
   alternative: ConductAlternative | null;
   /** null para Oura (contexto não se aplica). */
   whoopContext: WhoopConductContext | null;
@@ -65,9 +68,8 @@ export interface EffectiveConduct {
   appliedAlternative: string | null;
   /** Vetos aplicados, em linguagem visível pro coach. */
   appliedVetoes: string[];
-  /** "error": ação suspensa por dado incompleto. "symptoms": carga numérica
-   *  e CTA suspensos até avaliação explícita do coach. */
-  suspended: "error" | "symptoms" | null;
+  /** "error": ação suspensa por dado incompleto (fonte pode estar errada). */
+  suspended: "error" | null;
 }
 
 export const ZONE_FROM_LABEL: Record<TrainingRecommendation["zone"], 0 | 1 | 2 | 3 | 4> = {
@@ -149,15 +151,6 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
     return baseConduct({ suspended: "error" });
   }
 
-  // 2) SINTOMAS (regra 0 clínica): sem avaliação explícita do coach, carga
-  // numérica e CTA ficam suspensos; nada de conversão automática em zona.
-  if (input.symptoms === true && !input.symptomsAcknowledged) {
-    vetoes.push(
-      "Sintomas relatados — sugestão de carga e início de treino suspensos até avaliação do coach.",
-    );
-    return baseConduct({ suspended: "symptoms" });
-  }
-
   const floor = isNumericFloor(input);
   const hasCritical = input.base.alerts.some(
     (a) => a.kind === "fisiologico" && a.level === "CRITICAL",
@@ -166,19 +159,17 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
     vetoes.push("Sinal crítico presente — confirme com a aluna antes de manter o programado.");
   }
 
-  // 3) PERCEPÇÃO
+  // 2) PERCEPÇÃO (via PSR→relativa)
   let zone = baseZone;
   let capMaintain = false;
   if (input.perception === "pior") {
     zone = clampZone(Math.min(baseZone - 1, 2));
     if (zone !== baseZone) {
-      vetoes.push("Conduta reduzida pela percepção da aluna (pior que o score).");
+      vetoes.push("Conduta reduzida pela percepção da aluna (PSR abaixo do score).");
     }
   } else if (input.perception === "melhor") {
     const elevationBlockers: string[] = [];
     if (floor) elevationBlockers.push("sinais objetivos muito baixos (piso numérico)");
-    if (input.symptoms !== false) elevationBlockers.push("sintomas não descartados");
-    if (input.symptoms === true) elevationBlockers.push("sintomas relatados");
     if (input.source === "whoop") {
       if (input.whoopContext?.freshness !== "fresh") {
         elevationBlockers.push("sincronização do Whoop não está fresca");
@@ -194,7 +185,7 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
       if (baseZone <= 2) {
         zone = clampZone(baseZone + 1);
         capMaintain = true;
-        vetoes.push("Conduta elevada pela percepção da aluna (melhor que o score) — carga nunca progride por percepção.");
+        vetoes.push("Conduta elevada pela percepção da aluna (PSR acima do score) — carga nunca progride por percepção.");
       }
     } else {
       vetoes.push(
@@ -204,19 +195,10 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
   }
   // "nao_informada"/"condizente": conduta = base (sem modulação por percepção).
 
-  // Sintomas avaliados e liberados: conduta capada no caminho conservador.
-  if (input.symptoms === true && input.symptomsAcknowledged) {
-    const conservative = clampZone(Math.min(baseZone - 1, 2));
-    if (zone > conservative) {
-      zone = conservative;
-      vetoes.push("Sintomas avaliados pelo coach — conduta limitada ao caminho conservador.");
-    }
-  }
-
   // Teto permitido por base+percepção+vetos (alternativa nunca passa dele).
   const ceiling = zone;
 
-  // 4) ALTERNATIVA (7 regras da revisão)
+  // 3) ALTERNATIVA (7 regras da revisão)
   let appliedAlternative: string | null = null;
   let altLoad: { decision: EffectiveConduct["effectiveLoadDecision"]; percent: number | null } | null = null;
   if (input.alternative) {
@@ -235,7 +217,7 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
     }
   }
 
-  // 5) CARGA da conduta
+  // 4) CARGA da conduta
   let load = altLoad ?? LOAD_BY_ZONE[zone];
   // Alternativa nunca mais agressiva que a carga da zona-teto.
   const ceilingLoad =
@@ -250,7 +232,7 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
   if (capMaintain && load.decision === "increase") {
     load = { decision: "maintain", percent: 0 };
   }
-  // 6) BLOCK ABSOLUTO da base sobrevive a tudo.
+  // 5) BLOCK ABSOLUTO da base sobrevive a tudo.
   if (input.base.loadDecision === "block" && load.decision !== "block") {
     load = { decision: "block", percent: null };
     vetoes.push("Carga permanece bloqueada pela recomendação-base (block é absoluto).");

@@ -54,3 +54,34 @@ export const formatPrescriptionLine = (intensity: string, duration: string): str
   if (/repouso/i.test(shortDuration)) return shortDuration;
   return `Intensidade ${formatIntensityShort(intensity)} · ${shortDuration}`;
 };
+
+/**
+ * Check-in v3 (PR-B2, mocks aprovados): o veredito na tela é uma DECISÃO,
+ * não um rótulo de categoria — mapa de DISPLAY por zona; os nomes internos
+ * do motor (PRESCRIPTION_BY_ZONE/trainingType) ficam intocados (contratos e
+ * registros usam os internos; a tela usa estes).
+ */
+export const VERDICT_BY_ZONE: Record<0 | 1 | 2 | 3 | 4, string> = {
+  4: "Progredir no treino planejado",
+  3: "Manter o treino planejado",
+  2: "Reduzir o treino em 20%",
+  1: "Apenas recuperação ativa",
+  0: "Descanso completo",
+};
+
+/** Dose curta da frase de conduta: "moderada-alta · 45–55 min" (sem o
+ *  prefixo "Intensidade" — a frase-decisão já carrega o contexto). */
+export const formatDoseShort = (intensity: string, duration: string): string => {
+  const shortDuration = formatDurationShort(duration);
+  if (/repouso/i.test(shortDuration)) return shortDuration.toLowerCase();
+  return `${formatIntensityShort(intensity)} · ${shortDuration}`;
+};
+
+/** Tom visual da frase de conduta por zona efetiva (dot/cor no desvio). */
+export const CONDUCT_TONE_BY_ZONE: Record<0 | 1 | 2 | 3 | 4, "ok" | "warn" | "bad"> = {
+  4: "ok",
+  3: "ok",
+  2: "warn",
+  1: "bad",
+  0: "bad",
+};

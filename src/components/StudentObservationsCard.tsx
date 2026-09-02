@@ -308,44 +308,53 @@ function PerceptionHistorySection({ studentId }: { studentId: string }) {
         </div>
       </div>
       <div className="space-y-1">
-        {rows.map((row) => {
-          const parsed = parsePerceptionText(String(row.observation_text));
-          const day = new Date(row.created_at as string).toLocaleDateString("pt-BR", {
-            day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo",
-          });
-          const f = parsed.fields;
-          const snapDisplay = f.dia_snapshot
-            ? `${f.dia_snapshot.slice(8, 10)}/${f.dia_snapshot.slice(5, 7)}`
-            : null;
-          return (
-            <p key={row.id} className="text-xs text-muted-foreground break-words">
-              {(SUPPORTED_PERCEPTION_VERSIONS as readonly string[]).includes(parsed.version ?? "") ? (
-                <>
-                  {/* Mapa fonte→rótulo explícito (v7.2-M4): "psr" existe no
-                      v2; o fallback antigo rotulava qualquer não-whoop de
-                      "Oura" — bug latente corrigido. */}
-                  {day} · {f.fonte === "whoop" ? "Whoop" : f.fonte === "psr" ? "PSR" : "Oura"} {f.score}
-                  {snapDisplay && snapDisplay !== day ? ` (dia ${snapDisplay})` : ""}
-                  {f.psr !== undefined
-                    ? ` · PSR: ${f.psr === "nao_informado" ? "não informado" : f.psr}`
-                    : ""}
-                  {" · percepção: "}{f.percepcao?.replace("nao_informada", "não informada")}
-                  {/* v1 histórico: o dado de sintomas antigo continua visível
-                      pra sempre (v7.2-M9); v2 não tem o campo. */}
-                  {f.sintomas !== undefined
-                    ? ` · sintomas: ${f.sintomas === "sim" ? "sim" : f.sintomas === "nao" ? "não" : "não perguntado"}`
-                    : ""}
-                  {" · conduta: "}{f.conduta}
-                  {row.session_id ? " · sessão vinculada" : ""}
-                </>
-              ) : (
-                // versão desconhecida → cru (formato futuro não vira lixo)
-                <span className="font-mono">{day} — {String(row.observation_text)}</span>
-              )}
-            </p>
-          );
-        })}
+        {rows.map((row) => (
+          <PerceptionHistoryLine key={row.id} row={row} />
+        ))}
       </div>
     </div>
+  );
+}
+
+
+/**
+ * Linha do histórico de percepção — exportada pro teste RTL da lista mista
+ * v1/v2/v3 (critério do GO da PR-B1). v1 mantém sintomas históricos pra
+ * sempre (v7.2-M9); v2 mostra PSR e fonte (incl. "PSR" no modo sem
+ * dispositivo); versão desconhecida cai no cru.
+ */
+export function PerceptionHistoryLine({
+  row,
+}: {
+  row: { id: string; observation_text: unknown; created_at: unknown; session_id?: unknown };
+}) {
+  const parsed = parsePerceptionText(String(row.observation_text));
+  const day = new Date(row.created_at as string).toLocaleDateString("pt-BR", {
+    day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo",
+  });
+  const f = parsed.fields;
+  const snapDisplay = f.dia_snapshot
+    ? `${f.dia_snapshot.slice(8, 10)}/${f.dia_snapshot.slice(5, 7)}`
+    : null;
+  return (
+    <p className="text-xs text-muted-foreground break-words">
+      {(SUPPORTED_PERCEPTION_VERSIONS as readonly string[]).includes(parsed.version ?? "") ? (
+        <>
+          {day} · {f.fonte === "whoop" ? "Whoop" : f.fonte === "psr" ? "PSR" : f.fonte === "descanso" ? "Descanso" : "Oura"} {f.score}
+          {snapDisplay && snapDisplay !== day ? ` (dia ${snapDisplay})` : ""}
+          {f.psr !== undefined
+            ? ` · PSR: ${f.psr === "nao_informado" ? "não informado" : f.psr}`
+            : ""}
+          {" · percepção: "}{f.percepcao?.replace("nao_informada", "não informada")}
+          {f.sintomas !== undefined
+            ? ` · sintomas: ${f.sintomas === "sim" ? "sim" : f.sintomas === "nao" ? "não" : "não perguntado"}`
+            : ""}
+          {" · conduta: "}{f.conduta}
+          {row.session_id ? " · sessão vinculada" : ""}
+        </>
+      ) : (
+        <span className="font-mono">{day} — {String(row.observation_text)}</span>
+      )}
+    </p>
   );
 }

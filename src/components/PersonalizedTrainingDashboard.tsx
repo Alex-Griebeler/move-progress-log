@@ -38,9 +38,27 @@ import {
   ZONE_FROM_LABEL,
   type ConductAlternative,
   type EffectiveConduct,
-  type Perception,
 } from "@/utils/effectiveConduct";
-import { rememberPerceptionObservation, upsertPerceptionObservation, validateRememberedPerception } from "@/utils/perceptionObservation";
+import {
+  PERCEPTION_CATEGORY,
+  PERCEPTION_TEXT_VERSION_V2,
+  parsePerceptionText,
+  rememberPerceptionObservation,
+  spDayUtcRange,
+  upsertPerceptionObservationV2,
+  validateRememberedPerception,
+} from "@/utils/perceptionObservation";
+import {
+  derivePerceptionFromPsr,
+  hashConductFingerprint,
+  normalizePsr,
+} from "@/utils/checkin";
+import { deriveTrainingHeroState, resolveCheckInState } from "@/utils/trainingHeroState";
+import { createSerialQueue } from "@/utils/serialQueue";
+import CheckInForm from "@/components/checkin/CheckInForm";
+import AddObservationDialog from "@/components/checkin/AddObservationDialog";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { daysBetweenDateOnly, formatRelativeDay, parseLocalDate, shiftDateOnly } from "@/utils/relativeDate";
 import {
@@ -49,8 +67,10 @@ import {
   type AlertMetric,
 } from "@/utils/attentionAlerts";
 import {
+  CONDUCT_TONE_BY_ZONE,
   SNAPSHOT_ZONE_SHORT,
-  formatPrescriptionLine,
+  VERDICT_BY_ZONE,
+  formatDoseShort,
 } from "@/utils/recommendationDisplay";
 import {
   AlertDialog,
@@ -209,7 +229,56 @@ const PersonalizedTrainingDashboard = ({
     setSelectedAlternative,
     conductAssessment,
     setConductAssessment,
+    checkInRecord,
+    setCheckInRecord,
   } = useTrainingContext();
+  const { toast } = useToast();
+  const [liveAnnouncement, setLiveAnnouncement] = useState("");
+  const [showObservationDialog, setShowObservationDialog] = useState(false);
+  // U8: reabrir o check-in (Editar/Fazer) mostra que a conduta só atualiza
+  // com novo registro; limpa ao registrar, pular ou trocar de aluna.
+  const [editingCheckIn, setEditingCheckIn] = useState(false);
+  const [conductSyncState, setConductSyncState] = useState<"idle" | "saving" | "error">("idle");
+  // Confirmação final-1: fila SERIAL latest-wins — duas escolhas rápidas
+  // nunca terminam com o prontuário na intermediária.
+  const conductSyncQueueRef = useRef(createSerialQueue());
+  // Confirmação 2-2: publicação de estado é guardada pela ALUNA CORRENTE —
+  // uma fila da aluna A que resolve tarde nunca publica idle/erro/toast na
+  // tela da aluna B.
+  const currentStudentRef = useRef(studentId);
+  currentStudentRef.current = studentId;
+  // Tipo de conduta cuja gravação está em voo (evita enfileirar duplicatas
+  // enquanto a re-persistência ainda não atualizou o registro).
+  const inFlightConductTypeRef = useRef<string | null>(null);
+  // Época da sincronização: reopen/skip/troca de aluna a incrementam — uma
+  // gravação em voo de época anterior NUNCA publica (nem restaura um "done"
+  // por cima de pending/skipped). O record atualizado é sempre o CORRENTE.
+  const syncEpochRef = useRef(0);
+  const currentRecordRef = useRef<typeof checkInRecord>(null);
+  currentRecordRef.current = checkInRecord;
+  // Invalidação de época — helper ÚNICO (3ª confirmação): época nova, fila
+  // nova, sentinela de voo ZERADA e estado idle. Sem zerar a sentinela, uma
+  // gravação invalidada deixava "B em voo" órfão e um ciclo posterior
+  // (Refazer → commit A → escolher B) nunca gravava B, com CTA liberado.
+  const invalidateConductSync = () => {
+    syncEpochRef.current += 1;
+    inFlightConductTypeRef.current = null;
+    conductSyncQueueRef.current = createSerialQueue();
+    setConductSyncState("idle");
+  };
+  const queryClient = useQueryClient();
+  // Revisão final-8: NADA efêmero do atendimento vaza entre alunas.
+  useEffect(() => {
+    setEditingCheckIn(false);
+    setConductSyncState("idle");
+    setLiveAnnouncement("");
+    lastRegisteredVerdictRef.current = null;
+    skipHintShownRef.current = false;
+    invalidateConductSync();
+  }, [studentId]);
+  const conductRegionRef = useRef<HTMLDivElement | null>(null);
+  const lastRegisteredVerdictRef = useRef<string | null>(null);
+  const skipHintShownRef = useRef(false);
   // Escolha de alternativa é estado GLOBAL: sem casar {studentId, date},
   // a seleção da aluna A aparecia no hero da aluna B (revisão R7).
   const selectedAlternative =
@@ -261,10 +330,44 @@ const PersonalizedTrainingDashboard = ({
         whoopConductContext ? `${whoopConductContext.freshness}/${whoopConductContext.strain}` : "na",
       ].join("|")
     : null;
+  // Escopo por fingerprint: avaliação registrada só vale pra recomendação
+  // que a originou. O VALOR do PSR de um fingerprint antigo do MESMO aluno é
+  // preservado como RASCUNHO pra reconfirmação (U4) — nunca alimenta o funil.
   const assessment =
     conductAssessment && conductFingerprint && conductAssessment.fingerprint === conductFingerprint
       ? conductAssessment
       : null;
+  const psrDraft =
+    !assessment &&
+    conductAssessment &&
+    conductAssessment.studentId === studentId &&
+    conductAssessment.psr !== null
+      ? conductAssessment.psr
+      : null;
+  // Máquina do check-in (parte síncrona) ANTES do funil: o PSR só modula a
+  // conduta quando o check-in está REGISTRADO — rascunho selecionado e não
+  // commitado nunca alimenta o funil (fix da review B2: skip pós-seleção
+  // revela a conduta OBJETIVA, como o oráculo manda).
+  const todaySp = spToday();
+  const scopedCheckInRecord =
+    checkInRecord && checkInRecord.studentId === studentId ? checkInRecord : null;
+  const checkInState = resolveCheckInState(
+    scopedCheckInRecord
+      ? {
+          state: scopedCheckInRecord.state,
+          conductFingerprint: scopedCheckInRecord.conductFingerprint,
+          spDay: scopedCheckInRecord.spDay,
+        }
+      : null,
+    conductFingerprint,
+    todaySp,
+  );
+  const registeredPsr =
+    checkInState === "done" ? normalizePsr(assessment?.psr ?? null) : null;
+  const perception = derivePerceptionFromPsr(
+    registeredPsr,
+    earlySnapshot?.score ?? 0,
+  );
   // Alternativa também é MODULAÇÃO: fingerprint diferente = recomendação
   // mudou → a escolha antiga é limpa (não aplicada) — revisão R8b.
   const scopedAlternative =
@@ -287,9 +390,7 @@ const PersonalizedTrainingDashboard = ({
           base: activeRecommendation,
           source: earlySnapshot.source,
           score: earlySnapshot.score,
-          perception: assessment?.perception ?? "nao_informada",
-          symptoms: assessment?.symptoms ?? null,
-          symptomsAcknowledged: assessment?.symptomsAcknowledged ?? false,
+          perception,
           alternative: conductAlternative,
           whoopContext: whoopConductContext,
           hasPartialError: isError,
@@ -307,7 +408,13 @@ const PersonalizedTrainingDashboard = ({
           loadAdjustmentPercent: conduct.effectiveLoadAdjustmentPercent,
         }
       : activeRecommendation;
-  const [selectedLoadPrescriptionId, setSelectedLoadPrescriptionId] = useState<string | null>(null);
+  // Revisão final-5: a escolha multi-vigente é ESCOPADA por aluna de forma
+  // síncrona — o id escolhido pra A nunca alimenta a consulta de B (templates
+  // compartilhados pulariam o seletor ratificado).
+  const [loadChoice, setLoadChoice] = useState<{ studentId: string; id: string } | null>(null);
+  const selectedLoadPrescriptionId = loadChoice?.studentId === studentId ? loadChoice.id : null;
+  const setSelectedLoadPrescriptionId = (id: string | null) =>
+    setLoadChoice(id ? { studentId, id } : null);
   const {
     data: loadResult,
     isLoading: loadSuggestionsLoading,
@@ -330,13 +437,12 @@ const PersonalizedTrainingDashboard = ({
     !loadSuggestionsError &&
     (loadResult?.mode === "prescription" || loadResult?.mode === "fallback_recent");
 
-  // R8b: registrar/atualizar a avaliação de percepção (escopo = fingerprint)
-  const updateAssessment = (patch: Partial<{ perception: Perception; symptoms: boolean | null; symptomsAcknowledged: boolean }>) => {
+  // Check-in v3: selecionar um número da escala atualiza o PSR (escopo =
+  // fingerprint). Invalidação SÍNCRONA (fria R8b, mantida): mudança muda a
+  // conduta; save em voo da versão anterior não volta como "Registrado".
+  const setPsr = (psr: number) => {
     if (!conductFingerprint || !earlySnapshot) return;
-    // Invalidação SÍNCRONA (fria R8b, 3ª rodada): QUALQUER mudança na
-    // avaliação — percepção e sintomas inclusive — muda a conduta; um save
-    // em voo da avaliação anterior não pode voltar como "Registrado" nem
-    // criar vínculo. Não depende do timing do useEffect.
+    closeColdStart();
     conductVersionRef.current += 1;
     setPerceptionSaveState("idle");
     setConductAssessment({
@@ -344,34 +450,107 @@ const PersonalizedTrainingDashboard = ({
       source: earlySnapshot.source,
       snapshotDate: earlySnapshot.date,
       fingerprint: conductFingerprint,
-      perception: assessment?.perception ?? "nao_informada",
-      symptoms: assessment?.symptoms ?? null,
-      symptomsAcknowledged: assessment?.symptomsAcknowledged ?? false,
-      ...patch,
+      psr,
     });
   };
   const [perceptionSaveState, setPerceptionSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  // "Registrado" não vale mais quando a CONDUTA muda: fingerprint novo,
-  // sintomas liberados depois do registro, ou alternativa escolhida depois
-  // (fria R8b — o banco ficava com uma conduta diferente da executada).
+  // "Registrado" não vale mais quando a CONDUTA muda: fingerprint novo ou
+  // alternativa escolhida depois (fria R8b; check-in v3: as mudanças internas
+  // são só o PSR, que bumpa sincronamente no setPsr).
   const conductVersionRef = useRef(0);
   useEffect(() => {
     // Mudanças EXTERNAS de conduta (fingerprint novo, alternativa) também
-    // carimbam o token — as mudanças internas da avaliação (percepção,
-    // sintomas, acknowledge) já bumpam SINCRONAMENTE no updateAssessment.
+    // carimbam o token — a mudança interna (PSR) já bumpa SINCRONAMENTE no
+    // setPsr.
     conductVersionRef.current += 1;
     setPerceptionSaveState("idle");
   }, [conductFingerprint, scopedAlternative?.type]);
-  // Vínculo pendente só vale enquanto a recomendação que o originou existe.
+  // Vínculo pendente só vale enquanto a recomendação E a avaliação que o
+  // originaram existem (assessmentFingerprint composto — v8.1/B3): mudou o
+  // PSR depois do registro → o link automático morre; a observação fica.
+  const linkFingerprint = conductFingerprint
+    ? `${conductFingerprint}#psr=${assessment?.psr ?? "null"}`
+    : null;
+  const rehydratedRef = useRef<string | null>(null);
+  // Revisão final-3: reconciliação gateia por ESTADO — dado vindo pronto do
+  // cache não pinta a chegada por um frame antes do done.
+  const [reconciledStudent, setReconciledStudent] = useState<string | null>(null);
+  // Janela de cold-start (fix da review B2-1): aberta SÓ até a primeira
+  // transição de fingerprint, interação do coach ou aplicação da resposta.
+  // Fechou → resposta tardia da query NUNCA escreve estado (A→B→A morto).
+  const coldStartRef = useRef<{ student: string; fingerprint: string; open: boolean } | null>(null);
+  if (conductFingerprint && (coldStartRef.current === null || coldStartRef.current.student !== studentId)) {
+    coldStartRef.current = { student: studentId, fingerprint: conductFingerprint, open: true };
+  }
+  if (
+    coldStartRef.current &&
+    conductFingerprint &&
+    coldStartRef.current.fingerprint !== conductFingerprint
+  ) {
+    coldStartRef.current.open = false; // transição observada — janela fecha pra sempre
+  }
+  const closeColdStart = () => {
+    if (coldStartRef.current) coldStartRef.current.open = false;
+  };
+  const reconciliationPending =
+    Boolean(coldStartRef.current?.open) && !!conductFingerprint && reconciledStudent !== studentId;
   useEffect(() => {
-    validateRememberedPerception(studentId, conductFingerprint);
-  }, [studentId, conductFingerprint]);
+    // FRIA-2: enquanto a reconciliação não definiu o PSR, o linkFingerprint
+    // provisório (#psr=null) NÃO pode apagar um vínculo válido do storage.
+    if (reconciliationPending) return;
+    validateRememberedPerception(studentId, linkFingerprint);
+  }, [studentId, linkFingerprint, reconciliationPending]);
   const persistPerception = async (conductTypeOverride?: string) => {
     if (!earlySnapshot || !activeRecommendation || !conduct || !conductFingerprint) return;
+    closeColdStart();
+    // Releitura final: o Registrar precisa aceitar o RASCUNHO (U4 — valor
+    // preservado após sync; Editar). Sem isto, o rascunho fora de escopo caía
+    // em "não foi salvo" sem motivo. Commit re-escopa a avaliação no
+    // fingerprint atual ANTES de gravar.
+    const committedPsrSource = assessment?.psr ?? psrDraft ?? null;
+    const validPsr = normalizePsr(committedPsrSource);
+    if (!conductTypeOverride && validPsr !== null && !assessment) {
+      setConductAssessment({
+        studentId,
+        source: earlySnapshot.source,
+        snapshotDate: earlySnapshot.date,
+        fingerprint: conductFingerprint,
+        psr: validPsr,
+      });
+    }
+    // "Registrar exige PSR respondido" (v7): sem override, PSR inválido
+    // aborta. O registro de DIA DE DESCANSO (override) pode acontecer
+    // pós-skip: grava o evento SEM forjar um check-in "done" (fix B2-3).
+    if (!conductTypeOverride && validPsr === null) {
+      setPerceptionSaveState("error");
+      return;
+    }
+    // Conduta PROSPECTIVA do commit (fix B2-p1 rodada 3): no momento do
+    // Registrar o estado ainda é pending (rascunho não modula a tela) — o
+    // REGISTRO precisa gravar a conduta que o PSR commitado produz, senão o
+    // banco diz "manter" e a tela revela "reduzir". O override (rest-day)
+    // registra o estado exibido, que já é pós-done/skip.
+    const prospectivePerception = conductTypeOverride
+      ? perception
+      : derivePerceptionFromPsr(validPsr, earlySnapshot.score);
+    const prospectiveConduct = conductTypeOverride
+      ? conduct
+      : computeEffectiveConduct({
+          base: activeRecommendation,
+          source: earlySnapshot.source,
+          score: earlySnapshot.score,
+          perception: prospectivePerception,
+          alternative: conductAlternative,
+          whoopContext: whoopConductContext,
+          hasPartialError: isError,
+        });
     // Dia do REGISTRO capturado antes de qualquer await: virada de meia-noite
     // entre o upsert e o remember gravava num dia e lembrava noutro (fria R8b).
     const registrationDay = spToday();
     const startedVersion = conductVersionRef.current;
+    // Delta pro anúncio pós-registro (U8): veredito ANTES desta gravação.
+    const previousVerdict = lastRegisteredVerdictRef.current;
+    const registeredAtIso = new Date().toISOString();
     setPerceptionSaveState("saving");
     try {
       const { data: userData } = await supabase.auth.getUser();
@@ -383,34 +562,360 @@ const PersonalizedTrainingDashboard = ({
         setPerceptionSaveState("error");
         return;
       }
-      const observationId = await upsertPerceptionObservation(supabase, studentId, {
-        source: earlySnapshot.source,
+      const observationId = await upsertPerceptionObservationV2(supabase, studentId, {
+        // Revisão final-2: o descanso é EVENTO SEPARADO — slot próprio
+        // (fonte=descanso) por dia; a linha do check-in (psr, registrado_iso,
+        // conduta) permanece como fato do commit. Nunca reidrata (fonte ≠).
+        source: conductTypeOverride ? "descanso" : earlySnapshot.source,
         score: earlySnapshot.score,
+        psr: conductTypeOverride ? registeredPsr : validPsr,
+        conductFingerprintHash: hashConductFingerprint(conductFingerprint),
+        registeredAtIso,
         baseZoneLabel: activeRecommendation.zone,
-        perception: assessment?.perception ?? "nao_informada",
-        symptoms: assessment?.symptoms ?? null,
-        conductType: conductTypeOverride ?? conduct.prescription.trainingType,
-        vetoes: conduct.appliedVetoes,
+        perception: prospectivePerception,
+        conductType: conductTypeOverride ?? prospectiveConduct.prescription.trainingType,
+        vetoes: prospectiveConduct.appliedVetoes,
         spDay: registrationDay,
         snapshotDate: earlySnapshot.date,
         registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
         actorId,
       });
+      // Confirmação final-3: TODO upsert bem-sucedido invalida cache e
+      // histórico ANTES de qualquer retorno — o guard abaixo descarta só os
+      // efeitos locais da versão antiga, nunca a verdade do banco.
+      void queryClient.invalidateQueries({ queryKey: ["checkin-rehydrate", studentId] });
+      void queryClient.invalidateQueries({ queryKey: ["perception-history", studentId] });
       if (conductVersionRef.current !== startedVersion) {
         // A conduta mudou enquanto a gravação estava em voo: a observação
         // ficou no banco (histórico legítimo), mas nem o vínculo automático
-        // nem o "Registrado" valem pra conduta NOVA.
+        // nem o "Registrado" valem pra conduta NOVA. Toast identificado (U11).
+        toast({ title: `Check-in de ${studentName} registrado`, description: "A conduta mudou depois do registro — confira a tela." });
         return;
       }
-      rememberPerceptionObservation(studentId, registrationDay, observationId, conductFingerprint);
+      if (!conductTypeOverride) {
+        // Vínculo automático é do CHECK-IN commitado — o registro de
+        // descanso (override) não entra no remember/link (fix B2-p1-3).
+        rememberPerceptionObservation(
+          studentId,
+          registrationDay,
+          observationId,
+          `${conductFingerprint}#psr=${validPsr}`,
+        );
+      }
       setPerceptionSaveState("saved");
+      setEditingCheckIn(false);
+
+      // SÓ o commit normal com PSR válido vira "done" — o rest-day
+      // (override, alcançável pós-skip) nunca forja check-in (fix B2-p1-2).
+      if (!conductTypeOverride && validPsr !== null) {
+        setCheckInRecord({
+          studentId,
+          state: "done",
+          conductFingerprint,
+          spDay: registrationDay,
+          registeredAtIso,
+          persistedConductType: prospectiveConduct.prescription.trainingType,
+        });
+      }
+      const newVerdict = VERDICT_BY_ZONE[prospectiveConduct.effectiveZone];
+      lastRegisteredVerdictRef.current = newVerdict;
+      if (previousVerdict && previousVerdict !== newVerdict) {
+        toast({ title: `Conduta atualizada: ${previousVerdict} → ${newVerdict}` });
+      }
+      // U15/FRIA-7: anúncio e foco fiéis ao EVENTO — descanso não anuncia
+      // "check-in" (a linha "não realizado" pode continuar de pé).
+      if (conductTypeOverride) {
+        setLiveAnnouncement("Dia de descanso registrado");
+      } else {
+        setLiveAnnouncement("Check-in registrado");
+        requestAnimationFrame(() => conductRegionRef.current?.focus());
+      }
     } catch (e) {
       logger.error("[percepcao] falha ao registrar", e);
       if (conductVersionRef.current === startedVersion) {
         setPerceptionSaveState("error");
+        toast({
+          title: `Check-in de ${studentName} não foi salvo`,
+          description: "Verifique a conexão e tente registrar novamente.",
+          variant: "destructive",
+        });
       }
     }
   };
+
+  // Revisão final-1 (BLOCKER): alternativa escolhida DEPOIS do check-in é
+  // MUTAÇÃO CLÍNICA — re-persiste a conduta final na linha do dia
+  // (preservando psr e registrado_iso do commit); "Iniciar treino" só com
+  // sucesso. O prontuário nunca fica com uma conduta diferente da executada.
+  const persistConductUpdate = () => {
+    if (!earlySnapshot || !activeRecommendation || !conduct || !conductFingerprint) return;
+    if (registeredPsr === null || !scopedCheckInRecord) return;
+    // Snapshot dos valores DESTA escolha (a fila pode executá-la depois de
+    // outro render).
+    const payload = {
+      source: earlySnapshot.source,
+      score: earlySnapshot.score,
+      psr: registeredPsr,
+      conductFingerprintHash: hashConductFingerprint(conductFingerprint),
+      registeredAtIso: scopedCheckInRecord.registeredAtIso ?? new Date().toISOString(),
+      baseZoneLabel: activeRecommendation.zone,
+      perception,
+      conductType: conduct.prescription.trainingType,
+      vetoes: conduct.appliedVetoes,
+      spDay: todaySp,
+      snapshotDate: earlySnapshot.date,
+      registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+    };
+    const queue = conductSyncQueueRef.current;
+    const owner = studentId;
+    const epoch = syncEpochRef.current;
+    const fingerprintAtStart = scopedCheckInRecord.conductFingerprint;
+    inFlightConductTypeRef.current = payload.conductType;
+    setConductSyncState("saving");
+    void queue.enqueue(async (isLatest) => {
+      // Publica SÓ se ainda é a última escolha, a aluna é a mesma da tela E
+      // a época não mudou (reopen/skip invalidam).
+      const mayPublish = () =>
+        isLatest() && currentStudentRef.current === owner && syncEpochRef.current === epoch;
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        const actorId = userData?.user?.id ?? null;
+        if (!actorId) throw new Error("sem usuário autenticado");
+        await upsertPerceptionObservationV2(supabase, owner, { ...payload, actorId });
+        void queryClient.invalidateQueries({ queryKey: ["checkin-rehydrate", owner] });
+        void queryClient.invalidateQueries({ queryKey: ["perception-history", owner] });
+        if (!mayPublish()) return;
+        inFlightConductTypeRef.current = null;
+        // A verdade do banco agora é esta conduta — o record CORRENTE
+        // acompanha (nunca um snapshot velho: um done antigo jamais volta por
+        // cima de pending/skipped).
+        const current = currentRecordRef.current;
+        if (
+          current &&
+          current.studentId === owner &&
+          current.state === "done" &&
+          current.conductFingerprint === fingerprintAtStart
+        ) {
+          setCheckInRecord({ ...current, persistedConductType: payload.conductType });
+        }
+        // Só a ÚLTIMA escolha publica "idle" — o CTA fica preso até a conduta
+        // exibida estar persistida (latest-wins).
+        setConductSyncState("idle");
+      } catch (e) {
+        logger.error("[percepcao] falha ao atualizar a conduta no prontuário", e);
+        if (mayPublish()) {
+          inFlightConductTypeRef.current = null;
+          setConductSyncState("error");
+          toast({
+            title: `Conduta de ${studentName} não foi atualizada no prontuário`,
+            description: "A alternativa foi aplicada na tela, mas não gravada — tente novamente.",
+            variant: "destructive",
+          });
+        }
+      }
+    });
+  };
+  // Confirmação 2-1: a tela NUNCA presume que a alternativa retida foi
+  // gravada — compara a conduta EXIBIDA com a PERSISTIDA (record) e
+  // re-persiste quando divergem (cobre remount após falha, reidratação com
+  // alternativa retida e mudança real de escolha). Enquanto diverge e nada
+  // está em voo, o CTA fica preso pelo estado "saving".
+  const displayedConductType = conduct?.prescription.trainingType ?? null;
+  const persistedConductType = scopedCheckInRecord?.persistedConductType ?? null;
+  useEffect(() => {
+    if (checkInState !== "done" || !displayedConductType || !scopedCheckInRecord) return;
+    if (displayedConductType === persistedConductType) return;
+    if (inFlightConductTypeRef.current === displayedConductType) return;
+    if (conductSyncState === "error") return; // espera o retry explícito
+    persistConductUpdate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayedConductType, persistedConductType, checkInState, studentId, conductSyncState]);
+
+  // ── Check-in v3: efeitos da máquina (a parte síncrona vive antes do
+  // funil). Destruição ATÔMICA: fingerprint/dia divergente APAGA o registro
+  // (nunca "esconde") — A→B→A não ressuscita na montagem corrente. ──
+  useEffect(() => {
+    if (!scopedCheckInRecord) return;
+    if (
+      scopedCheckInRecord.conductFingerprint !== conductFingerprint ||
+      scopedCheckInRecord.spDay !== todaySp
+    ) {
+      setCheckInRecord(null);
+    }
+  }, [scopedCheckInRecord, conductFingerprint, todaySp, setCheckInRecord]);
+  // Revisão final-4: a alternativa também é DESTRUÍDA na divergência (antes
+  // só saía de escopo e voltava em A→B→A, entrando no próximo commit).
+  useEffect(() => {
+    if (
+      rawSelectedAlternative &&
+      rawSelectedAlternative.studentId === studentId &&
+      rawSelectedAlternative.fingerprint !== conductFingerprint
+    ) {
+      setSelectedAlternative(null);
+    }
+  }, [rawSelectedAlternative, studentId, conductFingerprint, setSelectedAlternative]);
+
+  // Reidratação de COLD START (U3/v8.1): o registro v2 persistido de HOJE com
+  // fingerprint EXATO reidrata "done". Roda UMA vez por aluna nesta montagem
+  // (rehydratedRef) — resposta tardia de query nunca restaura um estado que a
+  // montagem corrente já destruiu (guardrail do GO).
+  const [reconciliationFailed, setReconciliationFailed] = useState(false);
+  const rehydration = useQuery({
+    queryKey: ["checkin-rehydrate", studentId, todaySp],
+    enabled: !!studentId && !!conductFingerprint && rehydratedRef.current !== studentId,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { startIso, endIso } = spDayUtcRange(todaySp);
+      const { data, error } = await supabase
+        .from("student_observations")
+        .select("id, observation_text, created_at")
+        .eq("student_id", studentId)
+        .contains("categories", [PERCEPTION_CATEGORY])
+        .gte("created_at", startIso)
+        .lt("created_at", endIso)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+  useEffect(() => {
+    if (!conductFingerprint || !earlySnapshot) return;
+    if (rehydratedRef.current === studentId) return;
+    if (rehydration.isLoading) return;
+    rehydratedRef.current = studentId;
+    setReconciledStudent(studentId);
+    // Janela fechada (transição/interação durante o voo da query) → a
+    // resposta é DESCARTADA integralmente (guardrail do GO: query tardia
+    // nunca restaura estado que a montagem destruiu).
+    if (!coldStartRef.current?.open || coldStartRef.current.fingerprint !== conductFingerprint) {
+      return;
+    }
+    if (rehydration.isError) {
+      setReconciliationFailed(true);
+      return;
+    }
+    setReconciliationFailed(false);
+    const expectedHash = hashConductFingerprint(conductFingerprint);
+    for (const row of rehydration.data ?? []) {
+      const parsed = parsePerceptionText(String(row.observation_text ?? ""));
+      if (parsed.version !== PERCEPTION_TEXT_VERSION_V2) continue; // v1 NUNCA reidrata
+      const f = parsed.fields;
+      if (f.fingerprint !== expectedHash) continue;
+      if (f.fonte !== earlySnapshot.source) continue;
+      const psr = normalizePsr(f.psr === "nao_informado" ? null : Number(f.psr));
+      if (psr === null) continue; // done exige PSR válido (fix B2-3)
+      closeColdStart(); // resposta aplicada — janela cumprida
+      // FRIA-2: o VÍNCULO à sessão renasce junto do done — sem isto, o
+      // refresh validava o check-in na tela mas a 1ª sessão do dia não
+      // recebia session_id no prontuário.
+      rememberPerceptionObservation(
+        studentId,
+        todaySp,
+        String(row.id),
+        `${conductFingerprint}#psr=${psr}`,
+      );
+      setCheckInRecord({
+        studentId,
+        state: "done",
+        conductFingerprint,
+        spDay: todaySp,
+        registeredAtIso: f.registrado_iso ?? null,
+        // A verdade do banco — a alternativa retida no contexto só será
+        // considerada persistida se a conduta exibida bater com isto.
+        persistedConductType: f.conduta ?? null,
+      });
+      setConductAssessment({
+        studentId,
+        source: earlySnapshot.source,
+        snapshotDate: earlySnapshot.date,
+        fingerprint: conductFingerprint,
+        psr,
+      });
+      lastRegisteredVerdictRef.current = null;
+      break;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rehydration.isLoading, rehydration.isError, rehydration.data, conductFingerprint, studentId]);
+
+  // Reconciliação do cold start é ESTADO VISÍVEL (skeleton) — a chegada não
+  // pisca "pendente" enquanto a query verifica um registro do dia (U3/B2-2).
+  const reconciling = reconciliationPending;
+
+  // FRIA-5 (v7.2-M8/U5): contagem de observações CLÍNICAS do dia SP na linha
+  // colapsada — inclui resolvidas, exclui a categoria técnica do check-in
+  // (NULL-safe). A invalidação de ["student-observations", studentId] do
+  // diálogo alcança esta key por prefixo.
+  const { data: dayObservationCount } = useQuery({
+    queryKey: ["student-observations", studentId, "day-count", todaySp],
+    enabled: !!studentId,
+    staleTime: 30 * 1000,
+    refetchOnWindowFocus: false,
+    queryFn: async () => {
+      const { startIso, endIso } = spDayUtcRange(todaySp);
+      const { count, error } = await supabase
+        .from("student_observations")
+        .select("id", { count: "exact", head: true })
+        .eq("student_id", studentId)
+        .gte("created_at", startIso)
+        .lt("created_at", endIso)
+        .or("categories.is.null,categories.not.cs.{percepcao_treino}");
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+  const dayObservationLabel =
+    dayObservationCount && dayObservationCount > 0
+      ? `${dayObservationCount} observaç${dayObservationCount === 1 ? "ão" : "ões"}`
+      : null;
+
+  const skipCheckIn = () => {
+    if (!conductFingerprint) return;
+    closeColdStart();
+    invalidateConductSync();
+    // FRIA-1: alternativa escolhida sob o estado anterior morre ao pular —
+    // o skip revela a conduta OBJETIVA (uma nova pode ser escolhida depois).
+    setSelectedAlternative(null);
+    setEditingCheckIn(false);
+    setCheckInRecord({
+      studentId,
+      state: "skipped",
+      conductFingerprint,
+      spDay: todaySp,
+      registeredAtIso: null,
+      persistedConductType: null,
+    });
+    if (!skipHintShownRef.current) {
+      skipHintShownRef.current = true;
+      toast({ title: "Check-in pulado", description: "Você pode fazê-lo depois pela linha do check-in." });
+    }
+  };
+  const reopenCheckIn = () => {
+    // FRIA-3: reabrir é INTERAÇÃO — fecha a janela de cold start antes de
+    // destruir (query tardia nunca repõe o done que o coach acabou de abrir).
+    closeColdStart();
+    invalidateConductSync(); // gravação de alternativa em voo não publica mais
+    // FRIA-1: reentrar no check-in também destrói a alternativa anterior.
+    setSelectedAlternative(null);
+    setCheckInRecord(null); // valor do PSR fica como rascunho no form
+    setEditingCheckIn(true);
+  };
+
+  // "registrado 08:10 · Refazer" quando o registro tem >3h (U14) — mesmo
+  // limiar do stale do Whoop; recalcula com o relógio de 60s existente.
+  const registeredAtMs = scopedCheckInRecord?.registeredAtIso
+    ? new Date(scopedCheckInRecord.registeredAtIso).getTime()
+    : null;
+  const checkInIsOld =
+    registeredAtMs !== null &&
+    Number.isFinite(registeredAtMs) &&
+    whoopClockMs - registeredAtMs > 3 * 3_600_000;
+  const registeredAtDisplay =
+    registeredAtMs !== null && Number.isFinite(registeredAtMs)
+      ? new Date(registeredAtMs).toLocaleTimeString("pt-BR", {
+          hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo",
+        })
+      : null;
 
   // AUD-003: Sincronizar alternativa selecionada com contexto global
   useEffect(() => {
@@ -702,18 +1207,70 @@ const PersonalizedTrainingDashboard = ({
     renderedTileMetrics,
   );
 
-  // Rótulos "aparelho vs ajustada" só quando há CONTRASTE de fato — no fluxo
-  // sem modulação o par de rótulos era ruído acima do título (passe visual).
-  const conductContrast =
-    !!conduct &&
-    (conduct.modulated || conduct.suspended !== null || conduct.appliedVetoes.length > 0);
-  // Revelação progressiva SÓ do botão Registrar: sintomas é a regra 0
-  // clínica e fica SEMPRE visível (o caminho "sintomas primeiro" existe —
-  // review da PR #315); o Registrar, que é disabled até percepção E
-  // sintomas respondidos, só aparece depois da 1ª resposta.
-  const perceptionStarted =
-    (assessment?.perception ?? "nao_informada") !== "nao_informada" ||
-    assessment?.symptoms != null;
+  // ── Máquina VISUAL do hero (E1/v7): a composição decide o que renderiza;
+  // precedência testada em trainingHeroState (loading/erro-total/empty já
+  // saíram nos early returns acima). ──
+  const heroState = deriveTrainingHeroState({
+    loading: false,
+    totalError: false,
+    hasSnapshot: true,
+    hasRecommendation: hasActiveRecommendation,
+    partialError: isError,
+    checkIn: checkInState,
+    effectiveZone: conduct?.effectiveZone ?? null,
+    hasPriorityProtocols: Boolean(activeRecommendation?.priorityProtocols?.length),
+    multiVigentePending: prescriptionSelectionPending,
+    psrOnlyMode: false, // PR-C2
+  });
+  const baseZoneNumber = activeRecommendation
+    ? ZONE_FROM_LABEL[activeRecommendation.zone]
+    : null;
+  const conductTone = conduct ? CONDUCT_TONE_BY_ZONE[conduct.effectiveZone] : "ok";
+  // FRIA-6: estágio PÓS-PSR (antes da alternativa) — decompõe a causalidade
+  // no estado composto: o delta do PSR nunca é atribuído à alternativa.
+  const psrStageConduct =
+    conduct && conductAlternative && activeRecommendation && earlySnapshot
+      ? computeEffectiveConduct({
+          base: activeRecommendation,
+          source: earlySnapshot.source,
+          score: earlySnapshot.score,
+          perception,
+          alternative: null,
+          whoopContext: whoopConductContext,
+          hasPartialError: isError,
+        })
+      : null;
+  const psrStageZone = (psrStageConduct ?? conduct)?.effectiveZone ?? null;
+  // "Conduta cresce E coloriza só quando DESVIA do planejado" (regra dos
+  // mocks): desvio = zona efetiva ≤2 OU modulação aplicada.
+  const conductDeviates = conduct ? conduct.effectiveZone <= 2 || conduct.modulated : false;
+  // Frases causais do DELTA REAL (U10/v8.1 + FRIA-6): PSR e alternativa
+  // renderizam como causas SEPARADAS, em ordem — nunca mapa fixo.
+  const perceptionChangedZone =
+    baseZoneNumber !== null && psrStageZone !== null &&
+    psrStageZone !== baseZoneNumber && registeredPsr !== null;
+  const causalLine =
+    perceptionChangedZone && baseZoneNumber !== null && psrStageZone !== null
+      ? `PSR ${registeredPsr} ${psrStageZone < baseZoneNumber ? "rebaixou" : "elevou"}: ${VERDICT_BY_ZONE[baseZoneNumber]} → ${VERDICT_BY_ZONE[psrStageZone]}`
+      : null;
+  const alternativeLine = conduct?.appliedAlternative
+    ? psrStageZone !== null && conduct.effectiveZone !== psrStageZone
+      ? `Alternativa "${conduct.appliedAlternative}": ${VERDICT_BY_ZONE[psrStageZone]} → ${VERDICT_BY_ZONE[conduct.effectiveZone]}`
+      : `Alternativa aplicada: "${conduct.appliedAlternative}"`
+    : null;
+  const modulationEyebrow = conduct?.appliedAlternative
+    ? "Alternativa escolhida"
+    : perceptionChangedZone
+      ? "Ajuste por percepção"
+      : null;
+  // P8/E8: títulos datados NEUTROS pra qualquer snapshot ≠ hoje ("Fisiologia
+  // · ontem"); o AVISO âmbar continua só ≥2 dias (decisão 1b intocada).
+  const sectionDayLabel =
+    snapshotAgeDays === 0
+      ? null
+      : snapshotAgeDays === 1
+        ? "ontem"
+        : parseLocalDate(snapshot.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 
   return (
     <div className="space-y-6">
@@ -799,147 +1356,157 @@ const PersonalizedTrainingDashboard = ({
                 recente. Recarregue a página para confirmar.
               </p>
             )}
-            {conduct?.appliedAlternative && (
-              <p className="text-xs text-muted-foreground">
-                Alternativa aplicada: <strong>{conduct.appliedAlternative}</strong>
-              </p>
-            )}
             <span className="sr-only" role="status">
               {`Recomendação por ${snapshot.source === "oura" ? "Oura" : "Whoop"}, dia ${snapshot.date}${activeRecommendation ? `: ${activeRecommendation.trainingType}` : ""}`}
             </span>
             {hasActionableRecommendation ? (
               <>
-                {/* Nível 1 — RECOMENDAÇÃO DO APARELHO (base, nunca sobrescrita).
-                    O rótulo só aparece quando há conduta ajustada/vetos pra
-                    contrastar; sozinho ele era ruído acima do título. */}
-                {conductContrast && (
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                    Recomendação do aparelho
-                  </p>
-                )}
-                <h3 className="text-2xl font-bold text-foreground">
-                  {activeRecommendation!.trainingType}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {formatPrescriptionLine(activeRecommendation!.intensity, activeRecommendation!.duration)}
-                </p>
-
-                {/* R8b — percepção da aluna (decisão ratificada: percepção >
-                    números, exceto números muito ruins). Default REAL =
-                    não informada: sem seleção, a conduta é a objetiva.
-                    Visual: separador em vez de caixa aninhada; só o Registrar
-                    aparece depois da 1ª resposta (sintomas sempre visíveis). */}
-                <div className="mt-4 space-y-2 border-t pt-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">Percepção da aluna</span>
-                    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Percepção da aluna">
-                      {([
-                        ["pior", "Pior que o score"],
-                        ["condizente", "Condizente"],
-                        ["melhor", "Melhor que o score"],
-                      ] as Array<[Perception, string]>).map(([value, label]) => (
-                        <Button
-                          key={value}
-                          size="sm"
-                          variant={(assessment?.perception ?? "nao_informada") === value ? "default" : "outline"}
-                          role="radio"
-                          aria-checked={(assessment?.perception ?? "nao_informada") === value}
-                          onClick={() => updateAssessment({ perception: value })}
-                        >
-                          {label}
-                        </Button>
-                      ))}
-                    </div>
-                    {!perceptionStarted && (
-                      <span className="text-xs text-muted-foreground">
-                        pergunte à aluna como ela está hoje
-                      </span>
-                    )}
+                {/* ── FLUXO EM DOIS TEMPOS (v7, mocks aprovados 31/08):
+                    chegada = check-in; a conduta é a RESPOSTA do check-in e
+                    só aparece pós registro/skip. ── */}
+                {heroState.composition === "arrival" && reconciling && (
+                  <div className="mt-2 space-y-2">
+                    <Skeleton className="h-10 w-full max-w-md rounded-md" />
+                    <Skeleton className="h-11 w-32 rounded-md" />
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-muted-foreground">
-                      Sintomas relevantes? (dor aguda, mal-estar, tontura, falta de ar)
-                    </span>
-                    {([[true, "Sim"], [false, "Não"]] as Array<[boolean, string]>).map(([value, label]) => (
-                      <Button
-                        key={label}
-                        size="sm"
-                        variant={assessment?.symptoms === value ? "default" : "outline"}
-                        onClick={() => updateAssessment({ symptoms: value, symptomsAcknowledged: false })}
-                      >
-                        {label}
-                      </Button>
-                    ))}
-                    {perceptionStarted && (
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={
-                          perceptionSaveState === "saving" ||
-                          (assessment?.perception ?? "nao_informada") === "nao_informada" ||
-                          assessment?.symptoms == null
+                )}
+                {heroState.composition === "arrival" && !reconciling && (
+                  <CheckInForm
+                    psr={assessment?.psr ?? psrDraft}
+                    onSelectPsr={setPsr}
+                    onRegister={() => void persistPerception()}
+                    onSkip={skipCheckIn}
+                    onAddObservation={() => setShowObservationDialog(true)}
+                    saveState={perceptionSaveState}
+                    staleDataNotice={psrDraft !== null}
+                    editNotice={editingCheckIn && psrDraft === null}
+                    reconciliationFailed={reconciliationFailed}
+                    onRetryReconciliation={() => {
+                      rehydratedRef.current = null;
+                      setReconciledStudent(null);
+                      setReconciliationFailed(false);
+                      void rehydration.refetch();
+                    }}
+                  />
+                )}
+
+                {/* Conduta como FRASE (cresce e coloriza só no desvio);
+                    região focável pós-registro (U15). */}
+                {heroState.showConduct && conduct && heroState.composition !== "recovery_block" && (
+                  <div ref={conductRegionRef} tabIndex={-1} className="outline-none" aria-label="Conduta do dia">
+                    {modulationEyebrow && (
+                      <p className="text-xs font-semibold text-muted-foreground">{modulationEyebrow}</p>
+                    )}
+                    <p className="mt-1 flex flex-wrap items-baseline gap-2">
+                      <span
+                        aria-hidden="true"
+                        className={`h-2 w-2 shrink-0 self-center rounded-full ${
+                          conductTone === "ok" ? "bg-success" : conductTone === "warn" ? "bg-warning" : "bg-destructive"
+                        }`}
+                      />
+                      <span
+                        className={
+                          conductDeviates
+                            ? `text-xl font-semibold tracking-tight ${
+                                conductTone === "warn" ? "text-warning" : conductTone === "bad" ? "text-destructive" : ""
+                              }`
+                            : "text-[15px] font-semibold"
                         }
-                        onClick={() => void persistPerception()}
                       >
-                        {perceptionSaveState === "saving" ? "Registrando…" : perceptionSaveState === "saved" ? "Registrado" : "Registrar"}
-                      </Button>
+                        {VERDICT_BY_ZONE[conduct.effectiveZone]}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        · {formatDoseShort(conduct.prescription.intensity, conduct.prescription.duration)}
+                      </span>
+                    </p>
+                    {causalLine && <p className="mt-1 text-xs text-muted-foreground">{causalLine}</p>}
+                    {alternativeLine && <p className="mt-1 text-xs text-muted-foreground">{alternativeLine}</p>}
+                    {conduct.modulated && baseZoneNumber !== null && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Recomendação do aparelho: {VERDICT_BY_ZONE[baseZoneNumber]} ·{" "}
+                        {formatDoseShort(activeRecommendation!.intensity, activeRecommendation!.duration)}
+                      </p>
                     )}
-                    {perceptionSaveState === "error" && (
-                      <span className="text-xs text-destructive">Falha ao registrar — tente de novo.</span>
+                    {conduct.appliedVetoes.length > 0 && (
+                      <ul className="mt-1 space-y-0.5">
+                        {conduct.appliedVetoes.map((v, i) => (
+                          <li key={i} className="text-xs text-muted-foreground">• {v}</li>
+                        ))}
+                      </ul>
                     )}
                   </div>
-                </div>
-
-                {/* Nível 2 — CONDUTA AJUSTADA (só quando difere da base) */}
-                {conduct && conduct.modulated && !conduct.suspended && (
-                  <div className="mt-2 rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-1">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Conduta ajustada após relato da aluna
-                    </p>
-                    <p className="text-lg font-semibold">{conduct.prescription.trainingType}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatPrescriptionLine(conduct.prescription.intensity, conduct.prescription.duration)}
-                    </p>
-                  </div>
-                )}
-                {conduct && conduct.appliedVetoes.length > 0 && (
-                  <ul className="mt-1 space-y-0.5">
-                    {conduct.appliedVetoes.map((v, i) => (
-                      <li key={i} className="text-xs text-muted-foreground">• {v}</li>
-                    ))}
-                  </ul>
                 )}
 
-                {/* CTA por estado da conduta (ordem: sintomas → descanso → normal) */}
-                {conduct?.suspended === "symptoms" ? (
-                  <div className="flex flex-wrap gap-3 pt-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => updateAssessment({ symptomsAcknowledged: true })}
+                {/* Linha do check-in pós-reveal: colapsada (done) ou skip com
+                    porta aberta ("Fazer check-in"); observação disponível o
+                    dia todo (U5). */}
+                {heroState.composition !== "arrival" && !heroState.showCheckInForm && (
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+                    {checkInState === "done" ? (
+                      <>
+                        <span>
+                          Check-in: <span className="font-medium text-foreground">PSR {assessment?.psr ?? "—"}</span>
+                          {checkInIsOld && registeredAtDisplay ? ` · registrado ${registeredAtDisplay}` : ""}
+                          {dayObservationLabel ? ` · ${dayObservationLabel}` : ""}
+                        </span>
+                        <button type="button" className="min-h-[44px] text-primary" onClick={reopenCheckIn}>
+                          {checkInIsOld ? "Refazer" : "Editar check-in"}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          Check-in: não realizado
+                          {dayObservationLabel ? ` · ${dayObservationLabel}` : ""}
+                        </span>
+                        <button type="button" className="min-h-[44px] text-primary" onClick={reopenCheckIn}>
+                          Fazer check-in
+                        </button>
+                      </>
+                    )}
+                    <span aria-hidden="true" className="opacity-50">·</span>
+                    <button
+                      type="button"
+                      className="min-h-[44px] text-primary"
+                      onClick={() => setShowObservationDialog(true)}
                     >
-                      Avaliei — liberar conduta conservadora
-                    </Button>
+                      + Observação
+                    </button>
                   </div>
-                ) : conduct && conduct.effectiveZone === 0 ? (
-                  <div className="flex flex-wrap gap-3 pt-2">
+                )}
+
+                {/* CTA por composição (máquina E1) */}
+                {heroState.primaryAction === "register_rest" && heroState.composition !== "recovery_block" && (
+                  <div className="flex flex-wrap items-center gap-3 pt-3">
                     <Button
-                      variant="outline"
                       disabled={perceptionSaveState === "saving"}
                       onClick={() => void persistPerception("Dia de descanso registrado")}
                     >
                       Registrar dia de descanso
                     </Button>
                     <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
-                      Ver Alternativas
+                      Ver alternativas
                     </Button>
                   </div>
-                ) : (
-                  <div className="flex flex-col gap-2 pt-2">
-                    {prescriptionSelectionPending && (
-                      <p className="text-xs text-warning">
-                        Esta aluna tem mais de uma prescrição vigente — escolha a do dia no
-                        card de carga antes de iniciar.
-                      </p>
+                )}
+                {(heroState.primaryAction === "start" || heroState.primaryAction === "start_disabled") && (
+                  <div className="flex flex-col gap-2 pt-3">
+                    {/* Multi-vigente: seletor mora AQUI, antes do CTA — lugar
+                        ÚNICO (v5.1-2); o card de carga mostra só a faixa. */}
+                    {prescriptionSelectionPending && loadResult?.mode === "selection_required" && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-warning">Escolha a prescrição do dia:</span>
+                        {loadResult.availablePrescriptions.map((p) => (
+                          <Button
+                            key={p.id}
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setSelectedLoadPrescriptionId(p.id)}
+                          >
+                            {p.name}
+                          </Button>
+                        ))}
+                      </div>
                     )}
                     {!sessionScopeResolved && !prescriptionSelectionPending && (
                       <p className="text-xs text-muted-foreground">
@@ -948,15 +1515,27 @@ const PersonalizedTrainingDashboard = ({
                           : "Carregando prescrições…"}
                       </p>
                     )}
-                    <div className="flex gap-3">
+                    {conductSyncState === "error" && (
+                      <p className="text-xs text-destructive">
+                        Conduta não foi atualizada no prontuário.{" "}
+                        <button type="button" className="underline" onClick={persistConductUpdate}>
+                          Tentar novamente
+                        </button>
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3">
                       <Button
-                        disabled={!sessionScopeResolved}
+                        disabled={
+                          heroState.primaryAction === "start_disabled" ||
+                          !sessionScopeResolved ||
+                          conductSyncState !== "idle"
+                        }
                         onClick={() => onStartTraining?.(activePrescriptionId)}
                       >
-                        Iniciar Treino
+                        {conductSyncState === "saving" ? "Atualizando conduta…" : "Iniciar treino"}
                       </Button>
                       <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
-                        Ver Alternativas
+                        Ver alternativas
                       </Button>
                     </div>
                   </div>
@@ -980,35 +1559,29 @@ const PersonalizedTrainingDashboard = ({
 
       </Card>
 
-      {/* Sugestão de carga — o dado mais acionável do coach, logo após o hero */}
-      {hasActionableRecommendation && loadResult?.mode === "selection_required" && (
+      {/* Sugestão de carga — só APÓS o check-in/skip (fluxo em dois tempos:
+          a carga depende da conduta; antes dela, vazaria a decisão). */}
+      {heroState.showLoads && hasActionableRecommendation && loadResult?.mode === "selection_required" && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
-          <p className="text-sm text-muted-foreground mb-3">
-            Mais de uma prescrição vigente — escolha a do dia (sem escolha silenciosa):
+          <h3 className="text-lg font-semibold mb-2">Sugestões de carga</h3>
+          <p className="text-sm text-muted-foreground">
+            Aguardando a escolha da prescrição do dia (no topo, junto do botão de treino).
           </p>
-          <div className="flex flex-wrap gap-2">
-            {loadResult.availablePrescriptions.map((p) => (
-              <Button key={p.id} size="sm" variant="outline" onClick={() => setSelectedLoadPrescriptionId(p.id)}>
-                {p.name}
-              </Button>
-            ))}
-          </div>
         </Card>
       )}
-      {hasActionableRecommendation && loadResult?.mode === "suspended" && (
+      {heroState.showLoads && hasActionableRecommendation && loadResult?.mode === "suspended" && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
+          <h3 className="text-lg font-semibold mb-2">Sugestões de carga</h3>
           <p className="text-sm text-muted-foreground">
             Suspensa: {loadResult.fallbackReason ?? "erro ao consultar prescrições"} — recarregue a
             página. (Erro não vira “sem prescrição”.)
           </p>
         </Card>
       )}
-      {hasActionableRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
+      {heroState.showLoads && hasActionableRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
         <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Sugestão Assistida de Carga</h3>
+            <h3 className="text-lg font-semibold">Sugestões de carga</h3>
             <Badge variant="outline">
               Zona {ZONE_LABEL[conductRecommendation!.zone] ?? conductRecommendation!.zone}
             </Badge>
@@ -1115,32 +1688,24 @@ const PersonalizedTrainingDashboard = ({
           </div>
         </Card>
       )}
-      {hasActionableRecommendation && conduct?.suspended === "symptoms" && (
+      {heroState.showLoads && hasActionableRecommendation && loadSuggestionsLoading && !loadResult && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
-          <p className="text-sm text-muted-foreground">
-            Suspensa — a aluna relatou sintomas. Avalie antes de liberar qualquer conduta.
-          </p>
-        </Card>
-      )}
-      {hasActionableRecommendation && loadSuggestionsLoading && !loadResult && (
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
+          <h3 className="text-lg font-semibold mb-2">Sugestões de carga</h3>
           <Skeleton className="h-16 w-full rounded-lg" />
         </Card>
       )}
-      {hasActionableRecommendation && loadSuggestionsError && !loadResult && (
+      {heroState.showLoads && hasActionableRecommendation && loadSuggestionsError && !loadResult && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
+          <h3 className="text-lg font-semibold mb-2">Sugestões de carga</h3>
           <p className="text-sm text-muted-foreground">
             Não foi possível calcular as sugestões de carga — recarregue a página para tentar de
             novo. (Sem sugestão não significa sem exercício elegível.)
           </p>
         </Card>
       )}
-      {hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions.length === 0 && (
+      {heroState.showLoads && hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions.length === 0 && (
         <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-2">Sugestão Assistida de Carga</h3>
+          <h3 className="text-lg font-semibold mb-2">Sugestões de carga</h3>
           <p className="text-sm text-muted-foreground">
             {loadResult?.fallbackReason
               ? `Sem sugestões: ${loadResult.fallbackReason}.`
@@ -1150,32 +1715,74 @@ const PersonalizedTrainingDashboard = ({
       )}
 
       {/* Protocolos prioritários (readiness crítico) */}
-      {hasActionableRecommendation && activeRecommendation?.priorityProtocols && activeRecommendation.priorityProtocols.length > 0 && (
-        <Card className="p-6 border-2 border-destructive/50 bg-destructive/5">
-          <div className="flex items-center space-x-2 mb-4">
-            <AlertCircle className="w-6 h-6 text-destructive" />
-            <h3 className="text-xl font-bold text-destructive">
-              Protocolos Prioritários de Recuperação
-            </h3>
-          </div>
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription>
-              <strong>Dia de recuperação:</strong> treino não é recomendado{" "}
-              {snapshotDayLabel ? `no dia avaliado (${snapshotDayLabel})` : "hoje"}. Os
-              protocolos abaixo são as condutas sugeridas pra esse dia.
-            </AlertDescription>
-          </Alert>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {heroState.composition === "recovery_block" && hasActionableRecommendation && activeRecommendation?.priorityProtocols && activeRecommendation.priorityProtocols.length > 0 && (
+        <Card className="border-destructive/50 bg-destructive/5 p-6" role="region" aria-label="Dia de recuperação">
+          {/* Absorção (E1/v5.1): os sinais que iriam pro card "Atenção" moram
+              AQUI no dia de recuperação — uma superfície só, críticos
+              primeiro. */}
+          {alertPartition.attention.length > 0 && (
+            <ul className="mb-4 space-y-1.5 text-sm">
+              {[...alertPartition.attention]
+                .sort((a, b) => (a.level === "CRITICAL" ? -1 : 0) - (b.level === "CRITICAL" ? -1 : 0))
+                .map((alert, idx) => (
+                  <li key={idx} className="flex gap-2 text-muted-foreground">
+                    <span
+                      aria-hidden="true"
+                      className={
+                        alert.level === "CRITICAL"
+                          ? "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-destructive"
+                          : "mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-warning"
+                      }
+                    />
+                    <span>{stripAlertEmoji(alert.message)}</span>
+                  </li>
+                ))}
+            </ul>
+          )}
+          {/* FRIA-4: o VEREDITO e a AÇÃO moram AQUI no dia de recuperação —
+              superfície única na ordem ratificada: sinais → veredito → ação
+              → protocolos. O hero acima fica com anel/meta/check-in. */}
+          {conduct && (
+            <div ref={conductRegionRef} tabIndex={-1} className="mb-4 outline-none" aria-label="Conduta do dia">
+              <p className="text-xs font-semibold text-muted-foreground">Dia de recuperação</p>
+              <p className="mt-1 flex flex-wrap items-baseline gap-2">
+                <span aria-hidden="true" className="h-2 w-2 shrink-0 self-center rounded-full bg-destructive" />
+                <span className="text-xl font-semibold tracking-tight text-destructive">
+                  {VERDICT_BY_ZONE[conduct.effectiveZone]}
+                </span>
+                <span className="text-sm text-muted-foreground">· carga bloqueada hoje</span>
+              </p>
+              {causalLine && <p className="mt-1 text-xs text-muted-foreground">{causalLine}</p>}
+              {alternativeLine && <p className="mt-1 text-xs text-muted-foreground">{alternativeLine}</p>}
+              {conduct.appliedVetoes.length > 0 && (
+                <ul className="mt-1 space-y-0.5">
+                  {conduct.appliedVetoes.map((v, i) => (
+                    <li key={i} className="text-xs text-muted-foreground">• {v}</li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <Button
+                  disabled={perceptionSaveState === "saving"}
+                  onClick={() => void persistPerception("Dia de descanso registrado")}
+                >
+                  Registrar dia de descanso
+                </Button>
+                <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
+                  Ver alternativas
+                </Button>
+              </div>
+            </div>
+          )}
+          <p className="mb-3 text-sm font-medium">
+            Protocolos de recuperação{snapshotDayLabel ? ` · ${snapshotDayLabel}` : ""}
+          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {activeRecommendation!.priorityProtocols!.map((protocol) => (
-              <div
-                key={protocol.order}
-                className="p-5 rounded-lg border-2 border-muted bg-background hover:border-primary/50 transition-colors"
-              >
-                <div className="flex items-center space-x-2 mb-3">
-                  <Badge variant="outline" className="text-lg font-bold">
-                    {protocol.order}
-                  </Badge>
-                  <h4 className="text-lg font-bold">{protocol.name}</h4>
+              <div key={protocol.order} className="rounded-lg border bg-background p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-sm tabular-nums text-muted-foreground">{protocol.order} ·</span>
+                  <h4 className="text-base font-semibold">{protocol.name}</h4>
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
@@ -1207,7 +1814,7 @@ const PersonalizedTrainingDashboard = ({
       {/* Atenção hoje (R1): UM card consolidado no lugar da pilha de alertas.
           Regra ratificada: aparece com qualquer CRITICAL, com 2+ sinais, ou
           com sinal sem tile pra morar; 1 sinal leve vive só no tile. */}
-      {alertPartition.showAttentionCard && (
+      {alertPartition.showAttentionCard && heroState.composition !== "recovery_block" && (
         <Card
           role="region"
           aria-labelledby="attention-today-title"
@@ -1229,7 +1836,7 @@ const PersonalizedTrainingDashboard = ({
                   : "h-4 w-4 text-warning"
               }
             />
-            {snapshotDayLabel ? `Atenção em ${snapshotDayLabel}` : "Atenção hoje"}
+            {sectionDayLabel ? `Atenção · ${sectionDayLabel}` : "Atenção hoje"}
           </h3>
           <ul className="space-y-1.5 text-sm text-muted-foreground">
             {alertPartition.attention.map((alert, idx) => (
@@ -1268,11 +1875,16 @@ const PersonalizedTrainingDashboard = ({
         <div>
           <h3 className="mb-3 flex items-center gap-2 text-base font-semibold">
             <Activity className="h-4 w-4 text-primary" />
-            {snapshotDayLabel ? `Fisiologia de ${snapshotDayLabel}` : "Fisiologia de hoje"}
+            {sectionDayLabel ? `Fisiologia · ${sectionDayLabel}` : "Fisiologia de hoje"}
           </h3>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
             {physiology.map((p) => {
-              const tileAlert = p.metric ? alertPartition.byTile.get(p.metric) : undefined;
+              // FRIA-4: sinais absorvidos pelo bloco de recuperação moram lá
+              // UMA vez — os tiles não repetem o estado de alerta nesse dia.
+              const tileAlert =
+                heroState.composition === "recovery_block"
+                  ? undefined
+                  : p.metric ? alertPartition.byTile.get(p.metric) : undefined;
               return (
                 <Fragment key={p.key}>
                   {tileAlert ? cloneElement(p.tile, { alert: tileAlert }) : p.tile}
@@ -1299,6 +1911,16 @@ const PersonalizedTrainingDashboard = ({
           </AccordionItem>
         </Accordion>
       ) : null}
+
+      {/* Live region curta (U15): a conduta é lida pela REGIÃO focada. */}
+      <span aria-live="polite" className="sr-only">{liveAnnouncement}</span>
+
+      <AddObservationDialog
+        open={showObservationDialog}
+        onOpenChange={setShowObservationDialog}
+        studentId={studentId}
+        studentName={studentName}
+      />
 
       {/* Dialog de alternativas */}
       <AlertDialog open={showAlternatives} onOpenChange={setShowAlternatives}>

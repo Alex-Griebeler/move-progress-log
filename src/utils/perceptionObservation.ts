@@ -79,10 +79,17 @@ export const buildPerceptionText = (r: PerceptionRecord): string =>
  * de sintoma — sintoma virou observação clínica no fluxo próprio.
  */
 export interface PerceptionRecordV2 {
-  source: "oura" | "whoop" | "psr";
+  /** "descanso" = evento de dia de descanso (slot próprio por dia; nunca
+   *  reidrata check-in — revisão final-2). */
+  source: "oura" | "whoop" | "psr" | "descanso";
   /** Score do aparelho (0-100) — ou o PRÓPRIO PSR (0-10) na fonte "psr". */
   score: number;
   psr: number | null;
+  /** Hash canônico do conductFingerprint no momento do registro (v8.1) —
+   *  chave da reidratação de cold start (exata → done; divergente → pending). */
+  conductFingerprintHash: string;
+  /** ISO UTC do registro/refazer — base do "registrado HH:mm" >3h (U14). */
+  registeredAtIso: string;
   baseZoneLabel: string;
   perception: Perception;
   conductType: string;
@@ -99,6 +106,8 @@ export const buildPerceptionTextV2 = (r: PerceptionRecordV2): string =>
     `fonte=${r.source}`,
     `score=${r.score}`,
     `psr=${r.psr === null ? "nao_informado" : r.psr}`,
+    `fingerprint=${r.conductFingerprintHash}`,
+    `registrado_iso=${r.registeredAtIso}`,
     `zona_base=${r.baseZoneLabel}`,
     `dia_snapshot=${r.snapshotDate}`,
     `percepcao=${r.perception}`,

@@ -24,17 +24,35 @@ interface TrainingAlternative {
   fingerprint?: string;
 }
 
-/** Avaliação de percepção da aluna (R8b) — global mas escopada por
- *  fingerprint COMPLETO: mudou score/zona/carga/critical/contexto, a
- *  modulação é invalidada na tela (o histórico persiste no banco). */
+/** Check-in v3 (spec v7): a avaliação é o PSR cru — a Perception relativa é
+ *  DERIVADA no consumo (derivePerceptionFromPsr), nunca armazenada
+ *  (v6.1-M7). Escopada por fingerprint COMPLETO: mudou
+ *  score/zona/carga/critical/contexto, a modulação é invalidada na tela
+ *  (o valor do PSR preenchido é preservado pra reconfirmação — U4). */
 export interface ConductAssessment {
   studentId: string;
   source: "oura" | "whoop";
   snapshotDate: string;
   fingerprint: string;
-  perception: "nao_informada" | "pior" | "condizente" | "melhor";
-  symptoms: boolean | null;
-  symptomsAcknowledged: boolean;
+  psr: number | null;
+}
+
+/** Estado do check-in do dia (máquina resolveCheckInState): registrado com
+ *  sucesso (done) ou pulado (skipped) — escopado por fingerprint + dia SP;
+ *  QUALQUER divergência destrói (o setter troca por null, nunca "esconde" —
+ *  A→B→A não ressuscita, v6.1-M8/v8.1). */
+export interface CheckInRecord {
+  studentId: string;
+  state: "done" | "skipped";
+  conductFingerprint: string;
+  spDay: string;
+  /** ISO UTC do registro (done) — alimenta o "registrado 08:10 · Refazer". */
+  registeredAtIso: string | null;
+  /** Conduta (trainingType) que está de fato NO BANCO pra este check-in —
+   *  vem do commit, da re-persistência ou da linha reidratada (`conduta=`).
+   *  A tela nunca PRESUME que uma alternativa retida foi gravada: compara
+   *  com isto e re-persiste quando diverge (confirmação final 2, blocker 1). */
+  persistedConductType: string | null;
 }
 
 interface TrainingContextValue {
@@ -43,6 +61,8 @@ interface TrainingContextValue {
   clearSelectedAlternative: () => void;
   conductAssessment: ConductAssessment | null;
   setConductAssessment: (assessment: ConductAssessment | null) => void;
+  checkInRecord: CheckInRecord | null;
+  setCheckInRecord: (record: CheckInRecord | null) => void;
 }
 
 const TrainingContext = createContext<TrainingContextValue | undefined>(undefined);
@@ -54,6 +74,7 @@ interface TrainingProviderProps {
 export const TrainingProvider: React.FC<TrainingProviderProps> = ({ children }) => {
   const [selectedAlternative, setSelectedAlternativeState] = useState<TrainingAlternative | null>(null);
   const [conductAssessment, setConductAssessment] = useState<ConductAssessment | null>(null);
+  const [checkInRecord, setCheckInRecord] = useState<CheckInRecord | null>(null);
 
   const setSelectedAlternative = useCallback((alternative: TrainingAlternative | null) => {
     setSelectedAlternativeState(alternative);
@@ -69,6 +90,8 @@ export const TrainingProvider: React.FC<TrainingProviderProps> = ({ children }) 
         selectedAlternative,
         conductAssessment,
         setConductAssessment,
+        checkInRecord,
+        setCheckInRecord,
         setSelectedAlternative,
         clearSelectedAlternative,
       }}

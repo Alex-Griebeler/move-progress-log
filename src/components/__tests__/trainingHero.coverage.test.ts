@@ -18,9 +18,9 @@
  * 2. `it` com prefixo `markup:` = contrato de APRESENTAÇÃO: pode acompanhar
  *    o redesign, citando o plano (scratchpad redesign_premium_v2..v5).
  * 3. Dentro de um `it` invariante, um LITERAL de UI pode ser re-redigido pelo
- *    redesign DESDE QUE a propriedade assertada continue coberta (ex.: o gate
- *    de sintomas continua existindo com outro texto) e o diff aponte o assert
- *    atualizado no mapa assert→PR (E13).
+ *    redesign DESDE QUE a propriedade assertada continue coberta (ex.: o piso
+ *    numérico continua testado com outro texto de veto) e o diff aponte o
+ *    assert atualizado no mapa assert→PR (E13).
  */
 import { readFileSync } from "fs";
 import { dirname, join, resolve } from "path";
@@ -42,9 +42,9 @@ const snapshotUtil = readFileSync(
 );
 
 describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
-  it("markup: badge de zona usa rótulo curto por fonte; prescrição em linha única", () => {
+  it("markup: badge de zona usa rótulo curto por fonte; dose curta na frase de conduta (PR-B2)", () => {
     expect(dash).toContain("SNAPSHOT_ZONE_SHORT[snapshot.source][snapshot.zone]");
-    expect(dash).toMatch(/formatPrescriptionLine\(/);
+    expect(dash).toMatch(/formatDoseShort\(/);
     // a linha antiga "intensity · duration" com o % de FCmáx morreu
     expect(dash).not.toMatch(/\{recommendation!\.intensity\} · \{recommendation!\.duration\}/);
   });
@@ -283,9 +283,12 @@ describe("R7 — correções da auditoria (29/08)", () => {
     expect(dash).toMatch(/useOuraBaseline\(\s*studentId,\s*30,\s*earlySnapshot\?\.source === "oura" \? earlySnapshot\.date : undefined,?\s*\)/);
   });
 
-  it("títulos carregam a data real quando o snapshot é stale", () => {
-    expect(dash).toContain("`Atenção em ${snapshotDayLabel}`");
-    expect(dash).toContain("`Fisiologia de ${snapshotDayLabel}`");
+  it("títulos datados NEUTROS pra qualquer snapshot ≠ hoje (P8/E8; aviso âmbar segue ≥2d — decisão 1b)", () => {
+    expect(dash).toContain("`Atenção · ${sectionDayLabel}`");
+    expect(dash).toContain("`Fisiologia · ${sectionDayLabel}`");
+    expect(dash).toContain('? "ontem"');
+    // o AVISO datado continua ancorado no isStale (≥2 dias)
+    expect(dash).toContain("Conduta calculada para {snapshotDayLabel}");
   });
 
   it("carga: loading, erro e bloqueio são estados visíveis", () => {
@@ -294,8 +297,8 @@ describe("R7 — correções da auditoria (29/08)", () => {
     expect(dash).toContain('"Carga bloqueada hoje"');
   });
 
-  it("alternativa aplicada fica visível — e agora tem efeito real via conduta (R8b)", () => {
-    expect(dash).toContain("Alternativa aplicada:");
+  it("alternativa aplicada fica visível como eyebrow da conduta (PR-B2)", () => {
+    expect(dash).toContain('"Alternativa escolhida"');
     expect(dash).toContain("conduct?.appliedAlternative");
   });
 });
@@ -332,25 +335,38 @@ describe("R8b — percepção da aluna e conduta efetiva", () => {
     expect(dash).toContain("conductRecommendation");
   });
 
-  it("default REAL é 'não informada' (pede pra perguntar à aluna)", () => {
-    expect(dash).toContain('assessment?.perception ?? "nao_informada"');
-    expect(dash).toContain("pergunte à aluna como ela está hoje");
+  it("default REAL continua 'não informada': PSR null → nao_informada via tradutor puro (v7)", () => {
+    expect(dash).toContain("derivePerceptionFromPsr(");
+    expect(dash).toContain("assessment?.psr ?? null");
   });
 
-  it("gate de sintomas existe e suspende CTA/carga até avaliação explícita", () => {
-    expect(dash).toContain("Sintomas relevantes? (dor aguda, mal-estar, tontura, falta de ar)");
-    expect(dash).toContain("Avaliei — liberar conduta conservadora");
-    expect(dash).toContain('conduct?.suspended === "symptoms"');
+  it("vocabulário do AddObservationDialog casa com o fluxo de sessão (guarda de fonte-única, FRIA-8)", () => {
+    const dialog = readFileSync(join(__dirname, "../checkin/AddObservationDialog.tsx"), "utf8");
+    const session = readFileSync(join(__dirname, "../RecordIndividualSessionDialog.tsx"), "utf8");
+    for (const cat of ["dor", "mobilidade", "força", "técnica", "geral"]) {
+      expect(dialog).toContain(`"${cat}"`);
+      expect(session).toContain(`"${cat}"`);
+    }
+    expect(dialog).toContain('["baixa", "média", "alta"]');
   });
 
-  it("dois níveis rotulados: recomendação do aparelho ≠ conduta ajustada", () => {
-    expect(dash).toContain("Recomendação do aparelho");
-    expect(dash).toContain("Conduta ajustada após relato da aluna");
+  it("a máquina de sintomas MORREU no check-in (v7, decisão do dono 31/08): sintoma é OBSERVAÇÃO", () => {
+    expect(dash).not.toContain("Sintomas relevantes?");
+    expect(dash).not.toContain("Avaliei — liberar conduta conservadora");
+    expect(dash).not.toContain('"symptoms"');
+    expect(dash).toContain("AddObservationDialog");
+    expect(dash).toContain("+ Observação");
   });
 
-  it("conduta zona 0 troca o CTA por registrar descanso", () => {
+  it("dois níveis preservados na forma nova (D1 ratificada): conduta como frase + aparelho como nota", () => {
+    expect(dash).toContain("Recomendação do aparelho:");
+    expect(dash).toContain('"Ajuste por percepção"');
+    expect(dash).toContain("VERDICT_BY_ZONE[conduct.effectiveZone]");
+  });
+
+  it("conduta zona 0 troca o CTA por registrar descanso (via máquina E1)", () => {
     expect(dash).toContain("Registrar dia de descanso");
-    expect(dash).toMatch(/conduct && conduct\.effectiveZone === 0 \?/);
+    expect(dash).toContain('heroState.primaryAction === "register_rest"');
   });
 
   it("R8d: contexto Whoop REAL (freshness/strain do dia) alimenta a conduta", () => {
@@ -373,8 +389,50 @@ describe("R8b — fixes da review (fiação)", () => {
     expect(dash).toContain("fingerprint: conductFingerprint ?? undefined");
   });
 
-  it("Registrar exige percepção selecionada E sintomas respondidos", () => {
-    expect(dash).toContain("assessment?.symptoms == null");
+  it("revisão final: alternativa pós-check-in re-persiste a conduta (blocker 1); descanso é slot próprio (2); cache invalidado (3/9); alternativa destruída na divergência (4); escolha de prescrição escopada por aluna (5); reset efêmero por aluna (8)", () => {
+    expect(dash).toContain("const persistConductUpdate = () => {");
+
+    // confirmação final: fila serial latest-wins + sentinela de identidade +
+    // invalidação ANTES do guard de versão
+    expect(dash).toContain("useRef(createSerialQueue())");
+    expect(dash).toContain("if (!mayPublish()) return;");
+    // confirmação 2: exibida vs PERSISTIDA (record.persistedConductType), nunca presunção;
+    // publicação guardada pela aluna corrente
+    expect(dash).toContain("if (displayedConductType === persistedConductType) return;");
+    expect(dash).toContain('persistedConductType: f.conduta ?? null,');
+    expect(dash).toContain("isLatest() && currentStudentRef.current === owner && syncEpochRef.current === epoch;");
+    // record atualizado é o CORRENTE (done, mesmo fingerprint) — nunca snapshot velho
+    expect(dash).toContain("current.conductFingerprint === fingerprintAtStart");
+    // 3ª confirmação: invalidação de época é helper ÚNICO (zera a sentinela
+    // de voo) e é chamada em reopen, skip e troca de aluna
+    expect(dash).toContain("const invalidateConductSync = () => {");
+    expect((dash.match(/invalidateConductSync\(\);/g) ?? []).length).toBeGreaterThanOrEqual(3);
+    expect(dash).not.toMatch(/syncEpochRef\.current \+= 1;[\s\S]*syncEpochRef\.current \+= 1;/);
+    expect(dash).not.toContain("lastPersistedAlternativeRef");
+    const invalidateIdx = dash.indexOf('queryKey: ["checkin-rehydrate", studentId]');
+    const guardIdx = dash.indexOf("if (conductVersionRef.current !== startedVersion) {");
+    expect(invalidateIdx).toBeGreaterThan(-1);
+    expect(invalidateIdx).toBeLessThan(guardIdx);
+    expect(dash).toContain('source: conductTypeOverride ? "descanso" : earlySnapshot.source,');
+    expect(dash).toContain('queryKey: ["checkin-rehydrate", studentId]');
+    expect(dash).toContain('queryKey: ["perception-history", studentId]');
+    expect(dash).toContain("rawSelectedAlternative.fingerprint !== conductFingerprint");
+    expect(dash).toContain("const selectedLoadPrescriptionId = loadChoice?.studentId === studentId ? loadChoice.id : null;");
+    expect(dash).toContain("skipHintShownRef.current = false;");
+    expect(dash).toContain("const reconciling = reconciliationPending;");
+  });
+
+  it("Registrar COMMITA o rascunho (U4/Editar): persist lê assessment ?? psrDraft e re-escopa antes de gravar", () => {
+    expect(dash).toContain("const committedPsrSource = assessment?.psr ?? psrDraft ?? null;");
+    expect(dash).toContain("if (!conductTypeOverride && validPsr !== null && !assessment) {");
+    // rascunho NUNCA modula o funil: só o PSR registrado (done) vira percepção
+    expect(dash).toContain('checkInState === "done" ? normalizePsr(assessment?.psr ?? null) : null');
+  });
+
+  it("Registrar exige PSR selecionado (o botão nem existe sem número — slot reservado v8.3)", () => {
+    const form = readFileSync(join(__dirname, "../checkin/CheckInForm.tsx"), "utf8");
+    expect(form).toContain("{psr !== null && (");
+    expect(form).toContain("min-h-[44px]");
   });
 
   it("estado 'Registrado' reseta quando o fingerprint muda", () => {
@@ -384,10 +442,12 @@ describe("R8b — fixes da review (fiação)", () => {
   });
 
   it("vínculo à sessão usa o ID exato registrado + data da sessão (não spToday)", () => {
-    expect(dash).toContain("rememberPerceptionObservation(studentId, registrationDay, observationId, conductFingerprint)");
+    // v8.1-B3: o vínculo lembrado carrega o fingerprint COMPOSTO (conduta +
+    // avaliação) — editar o PSR sem re-registrar nunca vincula a versão velha.
+    expect(dash).toContain('`${conductFingerprint}#psr=${assessment?.psr ?? "null"}`');
+    expect(dash).toContain("validateRememberedPerception(studentId, linkFingerprint)");
     // dia capturado UMA vez antes do await (corrida de meia-noite — fria)
     expect(dash).toContain("const registrationDay = spToday();");
-    expect(dash).toContain("validateRememberedPerception(studentId, conductFingerprint)");
     expect(page).toContain("linkPerceptionToSession(supabase, id!, sessionId, sessionDate)");
   });
 
@@ -439,15 +499,16 @@ describe("R8c — carga escopada pela prescrição vigente + incremento da bibli
     expect(dash).toContain("const activePrescriptionId = loadResult?.prescriptionId ?? null;");
   });
 
-  it("multi-vigente sem escolha: seletor explícito + CTA bloqueado (caso 18)", () => {
+  it("multi-vigente sem escolha: seletor explícito NO HERO (lugar único, v5.1-2) + CTA bloqueado", () => {
     expect(dash).toContain('loadResult?.mode === "selection_required"');
-    expect(dash).toContain("sem escolha silenciosa");
+    expect(dash).toContain("Escolha a prescrição do dia:");
     // CTA só com escopo RESOLVIDO: carregando/erro/suspenso não viram
     // sessão livre silenciosamente (revisão R8c).
     expect(dash).toContain(
       'loadResult?.mode === "prescription" || loadResult?.mode === "fallback_recent"',
     );
-    expect(dash).toContain("disabled={!sessionScopeResolved}");
+    expect(dash).toContain('heroState.primaryAction === "start_disabled" ||');
+    expect(dash).toContain('conductSyncState !== "idle"');
   });
 
   it("erro nas atribuições vira modo suspenso (nunca cai no fallback)", () => {
@@ -495,9 +556,9 @@ describe("R8c — 2ª rodada", () => {
 });
 
 describe("R8c — 3ª rodada", () => {
-  it("card vazio genérico só nos modos RESOLVIDOS (não duplica com seletor/suspenso)", () => {
+  it("card vazio genérico só nos modos RESOLVIDOS e pós-check-in (fluxo em dois tempos)", () => {
     expect(dash).toContain(
-      "{hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions.length === 0 && (",
+      "{heroState.showLoads && hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions.length === 0 && (",
     );
   });
 });

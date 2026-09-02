@@ -19,6 +19,8 @@ const recordV2 = (overrides: Partial<PerceptionRecordV2> = {}): PerceptionRecord
   source: "whoop",
   score: 71,
   psr: 7,
+  conductFingerprintHash: "abc123",
+  registeredAtIso: "2026-08-31T12:00:00.000Z",
   baseZoneLabel: "green",
   perception: "condizente",
   conductType: "Treino Normal Completo",

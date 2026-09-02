@@ -24,6 +24,20 @@ import { PRESCRIPTION_BY_ZONE } from "@/utils/effectiveConduct";
 export const PSR_MIN = 0;
 export const PSR_MAX = 10;
 
+/**
+ * Hash canônico do conductFingerprint (v8.1): UMA função produz o valor na
+ * GRAVAÇÃO (campo fingerprint= do formato v2) e na COMPARAÇÃO da
+ * reidratação — nunca duas implementações (guardrail do GO da review UX).
+ * djb2-xor em hex: estável, curto, sem dependência.
+ */
+export const hashConductFingerprint = (fingerprint: string): string => {
+  let h = 5381;
+  for (let i = 0; i < fingerprint.length; i++) {
+    h = ((h * 33) ^ fingerprint.charCodeAt(i)) >>> 0;
+  }
+  return h.toString(16);
+};
+
 /** Fonte de uma recomendação exibível: as do motor + o modo PSR-only. */
 export type RecommendationSource = RecoverySource | "psr";
 
