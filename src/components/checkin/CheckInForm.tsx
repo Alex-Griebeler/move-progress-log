@@ -22,6 +22,8 @@ export interface CheckInFormProps {
   saveState: "idle" | "saving" | "saved" | "error";
   /** U4: fingerprint mudou com valor preenchido — pede reconfirmação. */
   staleDataNotice: boolean;
+  /** U8: reaberto via Editar/Fazer — a conduta só atualiza com novo registro. */
+  editNotice?: boolean;
   /** Reconciliação do cold start falhou (v8.1-3). */
   reconciliationFailed: boolean;
   onRetryReconciliation?: () => void;
@@ -35,6 +37,7 @@ const CheckInForm = ({
   onAddObservation,
   saveState,
   staleDataNotice,
+  editNotice = false,
   reconciliationFailed,
   onRetryReconciliation,
 }: CheckInFormProps) => {
@@ -94,6 +97,9 @@ const CheckInForm = ({
         <p className="text-xs text-warning">
           Os dados do aparelho foram atualizados — confirme o check-in para recalcular a conduta.
         </p>
+      )}
+      {editNotice && !staleDataNotice && (
+        <p className="text-xs text-muted-foreground">Registre novamente para atualizar a conduta.</p>
       )}
       {reconciliationFailed && (
         <p className="text-xs text-warning">

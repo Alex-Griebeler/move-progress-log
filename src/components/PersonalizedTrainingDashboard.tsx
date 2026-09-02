@@ -234,6 +234,10 @@ const PersonalizedTrainingDashboard = ({
   const { toast } = useToast();
   const [liveAnnouncement, setLiveAnnouncement] = useState("");
   const [showObservationDialog, setShowObservationDialog] = useState(false);
+  // U8: reabrir o check-in (Editar/Fazer) mostra que a conduta só atualiza
+  // com novo registro; limpa ao registrar, pular ou trocar de aluna.
+  const [editingCheckIn, setEditingCheckIn] = useState(false);
+  useEffect(() => setEditingCheckIn(false), [studentId]);
   const conductRegionRef = useRef<HTMLDivElement | null>(null);
   const lastRegisteredVerdictRef = useRef<string | null>(null);
   const skipHintShownRef = useRef(false);
@@ -452,7 +456,21 @@ const PersonalizedTrainingDashboard = ({
   const persistPerception = async (conductTypeOverride?: string) => {
     if (!earlySnapshot || !activeRecommendation || !conduct || !conductFingerprint) return;
     closeColdStart();
-    const validPsr = normalizePsr(assessment?.psr ?? null);
+    // Releitura final: o Registrar precisa aceitar o RASCUNHO (U4 — valor
+    // preservado após sync; Editar). Sem isto, o rascunho fora de escopo caía
+    // em "não foi salvo" sem motivo. Commit re-escopa a avaliação no
+    // fingerprint atual ANTES de gravar.
+    const committedPsrSource = assessment?.psr ?? psrDraft ?? null;
+    const validPsr = normalizePsr(committedPsrSource);
+    if (!conductTypeOverride && validPsr !== null && !assessment) {
+      setConductAssessment({
+        studentId,
+        source: earlySnapshot.source,
+        snapshotDate: earlySnapshot.date,
+        fingerprint: conductFingerprint,
+        psr: validPsr,
+      });
+    }
     // "Registrar exige PSR respondido" (v7): sem override, PSR inválido
     // aborta. O registro de DIA DE DESCANSO (override) pode acontecer
     // pós-skip: grava o evento SEM forjar um check-in "done" (fix B2-3).
@@ -528,10 +546,11 @@ const PersonalizedTrainingDashboard = ({
           studentId,
           registrationDay,
           observationId,
-          `${conductFingerprint}#psr=${assessment?.psr ?? "null"}`,
+          `${conductFingerprint}#psr=${validPsr}`,
         );
       }
       setPerceptionSaveState("saved");
+      setEditingCheckIn(false);
       // SÓ o commit normal com PSR válido vira "done" — o rest-day
       // (override, alcançável pós-skip) nunca forja check-in (fix B2-p1-2).
       if (!conductTypeOverride && validPsr !== null) {
@@ -701,6 +720,7 @@ const PersonalizedTrainingDashboard = ({
     // FRIA-1: alternativa escolhida sob o estado anterior morre ao pular —
     // o skip revela a conduta OBJETIVA (uma nova pode ser escolhida depois).
     setSelectedAlternative(null);
+    setEditingCheckIn(false);
     setCheckInRecord({
       studentId,
       state: "skipped",
@@ -720,6 +740,7 @@ const PersonalizedTrainingDashboard = ({
     // FRIA-1: reentrar no check-in também destrói a alternativa anterior.
     setSelectedAlternative(null);
     setCheckInRecord(null); // valor do PSR fica como rascunho no form
+    setEditingCheckIn(true);
   };
 
   // "registrado 08:10 · Refazer" quando o registro tem >3h (U14) — mesmo
@@ -1200,6 +1221,7 @@ const PersonalizedTrainingDashboard = ({
                     onAddObservation={() => setShowObservationDialog(true)}
                     saveState={perceptionSaveState}
                     staleDataNotice={psrDraft !== null}
+                    editNotice={editingCheckIn && psrDraft === null}
                     reconciliationFailed={reconciliationFailed}
                     onRetryReconciliation={() => {
                       rehydratedRef.current = null;
@@ -1523,13 +1545,7 @@ const PersonalizedTrainingDashboard = ({
 
       {/* Protocolos prioritários (readiness crítico) */}
       {heroState.composition === "recovery_block" && hasActionableRecommendation && activeRecommendation?.priorityProtocols && activeRecommendation.priorityProtocols.length > 0 && (
-        <Card className="p-6 border-2 border-destructive/50 bg-destructive/5">
-          <div className="flex items-center space-x-2 mb-4">
-            <AlertCircle className="w-6 h-6 text-destructive" />
-            <h3 className="text-xl font-bold text-destructive">
-              Protocolos Prioritários de Recuperação
-            </h3>
-          </div>
+        <Card className="border-destructive/50 bg-destructive/5 p-6" role="region" aria-label="Dia de recuperação">
           {/* Absorção (E1/v5.1): os sinais que iriam pro card "Atenção" moram
               AQUI no dia de recuperação — uma superfície só, críticos
               primeiro. */}
@@ -1563,9 +1579,7 @@ const PersonalizedTrainingDashboard = ({
                 <span className="text-xl font-semibold tracking-tight text-destructive">
                   {VERDICT_BY_ZONE[conduct.effectiveZone]}
                 </span>
-                <span className="text-sm text-muted-foreground">
-                  · {formatDoseShort(conduct.prescription.intensity, conduct.prescription.duration)}
-                </span>
+                <span className="text-sm text-muted-foreground">· carga bloqueada hoje</span>
               </p>
               {causalLine && <p className="mt-1 text-xs text-muted-foreground">{causalLine}</p>}
               {alternativeLine && <p className="mt-1 text-xs text-muted-foreground">{alternativeLine}</p>}
@@ -1589,24 +1603,15 @@ const PersonalizedTrainingDashboard = ({
               </div>
             </div>
           )}
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription>
-              <strong>Dia de recuperação:</strong> treino não é recomendado{" "}
-              {snapshotDayLabel ? `no dia avaliado (${snapshotDayLabel})` : "hoje"}. Os
-              protocolos abaixo são as condutas sugeridas pra esse dia.
-            </AlertDescription>
-          </Alert>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <p className="mb-3 text-sm font-medium">
+            Protocolos de recuperação{snapshotDayLabel ? ` · ${snapshotDayLabel}` : ""}
+          </p>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {activeRecommendation!.priorityProtocols!.map((protocol) => (
-              <div
-                key={protocol.order}
-                className="p-5 rounded-lg border-2 border-muted bg-background hover:border-primary/50 transition-colors"
-              >
-                <div className="flex items-center space-x-2 mb-3">
-                  <Badge variant="outline" className="text-lg font-bold">
-                    {protocol.order}
-                  </Badge>
-                  <h4 className="text-lg font-bold">{protocol.name}</h4>
+              <div key={protocol.order} className="rounded-lg border bg-background p-4">
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-sm tabular-nums text-muted-foreground">{protocol.order} ·</span>
+                  <h4 className="text-base font-semibold">{protocol.name}</h4>
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
