@@ -239,14 +239,17 @@ const PersonalizedTrainingDashboard = ({
   // com novo registro; limpa ao registrar, pular ou trocar de aluna.
   const [editingCheckIn, setEditingCheckIn] = useState(false);
   const [conductSyncState, setConductSyncState] = useState<"idle" | "saving" | "error">("idle");
-  // Confirmação final-2: `undefined` = "ainda não observei a alternativa
-  // nesta montagem" — o primeiro render com done só REGISTRA a identidade
-  // (remount/reidratação nunca dispara mutação); mudança REAL depois dela
-  // re-persiste.
-  const lastPersistedAlternativeRef = useRef<string | null | undefined>(undefined);
   // Confirmação final-1: fila SERIAL latest-wins — duas escolhas rápidas
   // nunca terminam com o prontuário na intermediária.
   const conductSyncQueueRef = useRef(createSerialQueue());
+  // Confirmação 2-2: publicação de estado é guardada pela ALUNA CORRENTE —
+  // uma fila da aluna A que resolve tarde nunca publica idle/erro/toast na
+  // tela da aluna B.
+  const currentStudentRef = useRef(studentId);
+  currentStudentRef.current = studentId;
+  // Tipo de conduta cuja gravação está em voo (evita enfileirar duplicatas
+  // enquanto a re-persistência ainda não atualizou o registro).
+  const inFlightConductTypeRef = useRef<string | null>(null);
   const queryClient = useQueryClient();
   // Revisão final-8: NADA efêmero do atendimento vaza entre alunas.
   useEffect(() => {
@@ -255,7 +258,7 @@ const PersonalizedTrainingDashboard = ({
     setLiveAnnouncement("");
     lastRegisteredVerdictRef.current = null;
     skipHintShownRef.current = false;
-    lastPersistedAlternativeRef.current = undefined;
+    inFlightConductTypeRef.current = null;
     conductSyncQueueRef.current = createSerialQueue();
   }, [studentId]);
   const conductRegionRef = useRef<HTMLDivElement | null>(null);
@@ -586,11 +589,7 @@ const PersonalizedTrainingDashboard = ({
       }
       setPerceptionSaveState("saved");
       setEditingCheckIn(false);
-      if (!conductTypeOverride) {
-        // A conduta commitada JÁ inclui a alternativa corrente — registra a
-        // identidade pra o efeito não re-persistir sem mudança real.
-        lastPersistedAlternativeRef.current = conductAlternative?.type ?? null;
-      }
+
       // SÓ o commit normal com PSR válido vira "done" — o rest-day
       // (override, alcançável pós-skip) nunca forja check-in (fix B2-p1-2).
       if (!conductTypeOverride && validPsr !== null) {
@@ -600,6 +599,7 @@ const PersonalizedTrainingDashboard = ({
           conductFingerprint,
           spDay: registrationDay,
           registeredAtIso,
+          persistedConductType: prospectiveConduct.prescription.trainingType,
         });
       }
       const newVerdict = VERDICT_BY_ZONE[prospectiveConduct.effectiveZone];
@@ -652,21 +652,31 @@ const PersonalizedTrainingDashboard = ({
       registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
     };
     const queue = conductSyncQueueRef.current;
+    const owner = studentId;
+    const recordSnapshot = scopedCheckInRecord;
+    inFlightConductTypeRef.current = payload.conductType;
     setConductSyncState("saving");
     void queue.enqueue(async (isLatest) => {
+      // Publica SÓ se ainda é a última escolha E a aluna é a mesma da tela.
+      const mayPublish = () => isLatest() && currentStudentRef.current === owner;
       try {
         const { data: userData } = await supabase.auth.getUser();
         const actorId = userData?.user?.id ?? null;
         if (!actorId) throw new Error("sem usuário autenticado");
-        await upsertPerceptionObservationV2(supabase, studentId, { ...payload, actorId });
-        void queryClient.invalidateQueries({ queryKey: ["checkin-rehydrate", studentId] });
-        void queryClient.invalidateQueries({ queryKey: ["perception-history", studentId] });
+        await upsertPerceptionObservationV2(supabase, owner, { ...payload, actorId });
+        void queryClient.invalidateQueries({ queryKey: ["checkin-rehydrate", owner] });
+        void queryClient.invalidateQueries({ queryKey: ["perception-history", owner] });
+        if (!mayPublish()) return;
+        inFlightConductTypeRef.current = null;
+        // A verdade do banco agora é esta conduta — o record acompanha.
+        setCheckInRecord({ ...recordSnapshot, persistedConductType: payload.conductType });
         // Só a ÚLTIMA escolha publica "idle" — o CTA fica preso até a conduta
         // exibida estar persistida (latest-wins).
-        if (isLatest()) setConductSyncState("idle");
+        setConductSyncState("idle");
       } catch (e) {
         logger.error("[percepcao] falha ao atualizar a conduta no prontuário", e);
-        if (isLatest()) {
+        if (mayPublish()) {
+          inFlightConductTypeRef.current = null;
           setConductSyncState("error");
           toast({
             title: `Conduta de ${studentName} não foi atualizada no prontuário`,
@@ -677,20 +687,21 @@ const PersonalizedTrainingDashboard = ({
       }
     });
   };
+  // Confirmação 2-1: a tela NUNCA presume que a alternativa retida foi
+  // gravada — compara a conduta EXIBIDA com a PERSISTIDA (record) e
+  // re-persiste quando divergem (cobre remount após falha, reidratação com
+  // alternativa retida e mudança real de escolha). Enquanto diverge e nada
+  // está em voo, o CTA fica preso pelo estado "saving".
+  const displayedConductType = conduct?.prescription.trainingType ?? null;
+  const persistedConductType = scopedCheckInRecord?.persistedConductType ?? null;
   useEffect(() => {
-    if (checkInState !== "done") return;
-    const altKey = conductAlternative?.type ?? null;
-    if (lastPersistedAlternativeRef.current === undefined) {
-      // Primeira observação nesta montagem (commit, remount ou reidratação):
-      // registra a identidade já persistida SEM mutação (confirmação final-2).
-      lastPersistedAlternativeRef.current = altKey;
-      return;
-    }
-    if (lastPersistedAlternativeRef.current === altKey) return;
-    lastPersistedAlternativeRef.current = altKey;
+    if (checkInState !== "done" || !displayedConductType || !scopedCheckInRecord) return;
+    if (displayedConductType === persistedConductType) return;
+    if (inFlightConductTypeRef.current === displayedConductType) return;
+    if (conductSyncState === "error") return; // espera o retry explícito
     persistConductUpdate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conductAlternative?.type, checkInState, studentId]);
+  }, [displayedConductType, persistedConductType, checkInState, studentId, conductSyncState]);
 
   // ── Check-in v3: efeitos da máquina (a parte síncrona vive antes do
   // funil). Destruição ATÔMICA: fingerprint/dia divergente APAGA o registro
@@ -782,6 +793,9 @@ const PersonalizedTrainingDashboard = ({
         conductFingerprint,
         spDay: todaySp,
         registeredAtIso: f.registrado_iso ?? null,
+        // A verdade do banco — a alternativa retida no contexto só será
+        // considerada persistida se a conduta exibida bater com isto.
+        persistedConductType: f.conduta ?? null,
       });
       setConductAssessment({
         studentId,
@@ -791,9 +805,6 @@ const PersonalizedTrainingDashboard = ({
         psr,
       });
       lastRegisteredVerdictRef.current = null;
-      // Reidratação: a alternativa retida no contexto (se houver) já está
-      // no banco — identidade, não mutação (confirmação final-2).
-      lastPersistedAlternativeRef.current = conductAlternative?.type ?? null;
       break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -843,6 +854,7 @@ const PersonalizedTrainingDashboard = ({
       conductFingerprint,
       spDay: todaySp,
       registeredAtIso: null,
+      persistedConductType: null,
     });
     if (!skipHintShownRef.current) {
       skipHintShownRef.current = true;

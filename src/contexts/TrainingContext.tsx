@@ -48,6 +48,11 @@ export interface CheckInRecord {
   spDay: string;
   /** ISO UTC do registro (done) — alimenta o "registrado 08:10 · Refazer". */
   registeredAtIso: string | null;
+  /** Conduta (trainingType) que está de fato NO BANCO pra este check-in —
+   *  vem do commit, da re-persistência ou da linha reidratada (`conduta=`).
+   *  A tela nunca PRESUME que uma alternativa retida foi gravada: compara
+   *  com isto e re-persiste quando diverge (confirmação final 2, blocker 1). */
+  persistedConductType: string | null;
 }
 
 interface TrainingContextValue {
