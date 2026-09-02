@@ -58,6 +58,11 @@ describe("CheckInForm — slot reservado e commit explícito (v8.2/v8.3)", () =>
     // o foco acompanhou a seleção (roving): ArrowLeft parte do 6 → 5
     await user.keyboard("{ArrowLeft}");
     expect(props.onSelectPsr).toHaveBeenLastCalledWith(5);
+    // padrão ARIA (revisão final-7): BAIXO avança, CIMA retrocede
+    await user.keyboard("{ArrowDown}");
+    expect(props.onSelectPsr).toHaveBeenLastCalledWith(6);
+    await user.keyboard("{ArrowUp}");
+    expect(props.onSelectPsr).toHaveBeenLastCalledWith(5);
   });
 
   it("com PSR selecionado o Registrar aparece e dispara onRegister", async () => {

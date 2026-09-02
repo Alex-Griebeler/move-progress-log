@@ -79,7 +79,9 @@ export const buildPerceptionText = (r: PerceptionRecord): string =>
  * de sintoma — sintoma virou observação clínica no fluxo próprio.
  */
 export interface PerceptionRecordV2 {
-  source: "oura" | "whoop" | "psr";
+  /** "descanso" = evento de dia de descanso (slot próprio por dia; nunca
+   *  reidrata check-in — revisão final-2). */
+  source: "oura" | "whoop" | "psr" | "descanso";
   /** Score do aparelho (0-100) — ou o PRÓPRIO PSR (0-10) na fonte "psr". */
   score: number;
   psr: number | null;

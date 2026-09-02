@@ -389,6 +389,18 @@ describe("R8b — fixes da review (fiação)", () => {
     expect(dash).toContain("fingerprint: conductFingerprint ?? undefined");
   });
 
+  it("revisão final: alternativa pós-check-in re-persiste a conduta (blocker 1); descanso é slot próprio (2); cache invalidado (3/9); alternativa destruída na divergência (4); escolha de prescrição escopada por aluna (5); reset efêmero por aluna (8)", () => {
+    expect(dash).toContain("const persistConductUpdate = async () => {");
+    expect(dash).toContain("lastPersistedAlternativeRef.current = altKey;");
+    expect(dash).toContain('source: conductTypeOverride ? "descanso" : earlySnapshot.source,');
+    expect(dash).toContain('queryKey: ["checkin-rehydrate", studentId]');
+    expect(dash).toContain('queryKey: ["perception-history", studentId]');
+    expect(dash).toContain("rawSelectedAlternative.fingerprint !== conductFingerprint");
+    expect(dash).toContain("const selectedLoadPrescriptionId = loadChoice?.studentId === studentId ? loadChoice.id : null;");
+    expect(dash).toContain("skipHintShownRef.current = false;");
+    expect(dash).toContain("const reconciling = reconciliationPending;");
+  });
+
   it("Registrar COMMITA o rascunho (U4/Editar): persist lê assessment ?? psrDraft e re-escopa antes de gravar", () => {
     expect(dash).toContain("const committedPsrSource = assessment?.psr ?? psrDraft ?? null;");
     expect(dash).toContain("if (!conductTypeOverride && validPsr !== null && !assessment) {");
@@ -474,7 +486,8 @@ describe("R8c — carga escopada pela prescrição vigente + incremento da bibli
     expect(dash).toContain(
       'loadResult?.mode === "prescription" || loadResult?.mode === "fallback_recent"',
     );
-    expect(dash).toContain('disabled={heroState.primaryAction === "start_disabled" || !sessionScopeResolved}');
+    expect(dash).toContain('heroState.primaryAction === "start_disabled" ||');
+    expect(dash).toContain('conductSyncState !== "idle"');
   });
 
   it("erro nas atribuições vira modo suspenso (nunca cai no fallback)", () => {

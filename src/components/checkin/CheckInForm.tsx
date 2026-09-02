@@ -44,8 +44,10 @@ const CheckInForm = ({
   // Radiogroup de verdade (review B2 parte 2): roving tabindex + setas —
   // Tab entra uma vez; setas movem a seleção.
   const handleKeyDown = (event: React.KeyboardEvent, value: number) => {
-    const up = event.key === "ArrowRight" || event.key === "ArrowUp";
-    const down = event.key === "ArrowLeft" || event.key === "ArrowDown";
+    // Padrão ARIA de radiogroup (revisão final-7): direita/BAIXO avançam,
+    // esquerda/CIMA retrocedem.
+    const up = event.key === "ArrowRight" || event.key === "ArrowDown";
+    const down = event.key === "ArrowLeft" || event.key === "ArrowUp";
     if (!up && !down) return;
     // FRIA-9: a tecla é SEMPRE consumida dentro do grupo — no limite (0/10)
     // nada muda, mas a página não rola.
@@ -59,9 +61,12 @@ const CheckInForm = ({
   };
   const tabStop = psr ?? PSR_MIN;
   return (
-    <div className="mt-1 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium">Percepção subjetiva de repouso</span>
+    // Grade responsiva (revisão final-6): no desktop o rótulo ocupa a 1ª
+    // coluna e escala/âncora/slot/quietrow alinham na 2ª (mock 01); no
+    // mobile tudo empilha, Registrar full-width e quietrow centrada.
+    <div className="mt-1 grid gap-x-3 gap-y-2 sm:grid-cols-[auto_1fr] sm:items-start">
+      <span className="text-sm font-medium sm:pt-2.5">Percepção subjetiva de repouso</span>
+      <div className="space-y-2">
         <div
           className="flex flex-wrap gap-1.5"
           role="radiogroup"
@@ -90,9 +95,10 @@ const CheckInForm = ({
             </button>
           ))}
         </div>
-        <span className="text-xs text-muted-foreground">0 exaustão · 10 recuperação total</span>
+        <span className="block text-xs text-muted-foreground">0 exaustão · 10 recuperação total</span>
       </div>
 
+      <div className="space-y-2 sm:col-start-2">
       {staleDataNotice && (
         <p className="text-xs text-warning">
           Os dados do aparelho foram atualizados — confirme o check-in para recalcular a conduta.
@@ -116,11 +122,11 @@ const CheckInForm = ({
       {/* Slot RESERVADO de 44px: em repouso fica vazio (o botão está ausente
           da árvore, não transparente); ao selecionar, o Registrar faz fade
           aqui dentro — nada na tela se desloca (v8.3). */}
-      <div className="mt-3 flex min-h-[44px] items-center">
+      <div className="mt-1 flex min-h-[44px] items-center">
         {psr !== null && (
           <Button
             size="sm"
-            className="h-11 animate-in fade-in-0 duration-150 motion-reduce:animate-none"
+            className="h-11 w-full animate-in fade-in-0 duration-150 motion-reduce:animate-none sm:w-auto"
             disabled={saveState === "saving"}
             onClick={onRegister}
           >
@@ -132,7 +138,7 @@ const CheckInForm = ({
           </Button>
         )}
       </div>
-      <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-0 text-xs text-muted-foreground sm:justify-start">
         <button
           type="button"
           className="inline-flex min-h-[44px] items-center hover:text-foreground"
@@ -148,6 +154,7 @@ const CheckInForm = ({
         >
           + Adicionar observação
         </button>
+      </div>
       </div>
     </div>
   );

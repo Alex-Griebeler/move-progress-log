@@ -340,7 +340,7 @@ export function PerceptionHistoryLine({
     <p className="text-xs text-muted-foreground break-words">
       {(SUPPORTED_PERCEPTION_VERSIONS as readonly string[]).includes(parsed.version ?? "") ? (
         <>
-          {day} · {f.fonte === "whoop" ? "Whoop" : f.fonte === "psr" ? "PSR" : "Oura"} {f.score}
+          {day} · {f.fonte === "whoop" ? "Whoop" : f.fonte === "psr" ? "PSR" : f.fonte === "descanso" ? "Descanso" : "Oura"} {f.score}
           {snapDisplay && snapDisplay !== day ? ` (dia ${snapDisplay})` : ""}
           {f.psr !== undefined
             ? ` · PSR: ${f.psr === "nao_informado" ? "não informado" : f.psr}`

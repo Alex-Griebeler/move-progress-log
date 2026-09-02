@@ -57,7 +57,7 @@ import { deriveTrainingHeroState, resolveCheckInState } from "@/utils/trainingHe
 import CheckInForm from "@/components/checkin/CheckInForm";
 import AddObservationDialog from "@/components/checkin/AddObservationDialog";
 import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { daysBetweenDateOnly, formatRelativeDay, parseLocalDate, shiftDateOnly } from "@/utils/relativeDate";
 import {
@@ -237,7 +237,18 @@ const PersonalizedTrainingDashboard = ({
   // U8: reabrir o check-in (Editar/Fazer) mostra que a conduta só atualiza
   // com novo registro; limpa ao registrar, pular ou trocar de aluna.
   const [editingCheckIn, setEditingCheckIn] = useState(false);
-  useEffect(() => setEditingCheckIn(false), [studentId]);
+  const [conductSyncState, setConductSyncState] = useState<"idle" | "saving" | "error">("idle");
+  const lastPersistedAlternativeRef = useRef<string | null>(null);
+  const queryClient = useQueryClient();
+  // Revisão final-8: NADA efêmero do atendimento vaza entre alunas.
+  useEffect(() => {
+    setEditingCheckIn(false);
+    setConductSyncState("idle");
+    setLiveAnnouncement("");
+    lastRegisteredVerdictRef.current = null;
+    skipHintShownRef.current = false;
+    lastPersistedAlternativeRef.current = null;
+  }, [studentId]);
   const conductRegionRef = useRef<HTMLDivElement | null>(null);
   const lastRegisteredVerdictRef = useRef<string | null>(null);
   const skipHintShownRef = useRef(false);
@@ -370,7 +381,13 @@ const PersonalizedTrainingDashboard = ({
           loadAdjustmentPercent: conduct.effectiveLoadAdjustmentPercent,
         }
       : activeRecommendation;
-  const [selectedLoadPrescriptionId, setSelectedLoadPrescriptionId] = useState<string | null>(null);
+  // Revisão final-5: a escolha multi-vigente é ESCOPADA por aluna de forma
+  // síncrona — o id escolhido pra A nunca alimenta a consulta de B (templates
+  // compartilhados pulariam o seletor ratificado).
+  const [loadChoice, setLoadChoice] = useState<{ studentId: string; id: string } | null>(null);
+  const selectedLoadPrescriptionId = loadChoice?.studentId === studentId ? loadChoice.id : null;
+  const setSelectedLoadPrescriptionId = (id: string | null) =>
+    setLoadChoice(id ? { studentId, id } : null);
   const {
     data: loadResult,
     isLoading: loadSuggestionsLoading,
@@ -428,6 +445,9 @@ const PersonalizedTrainingDashboard = ({
     ? `${conductFingerprint}#psr=${assessment?.psr ?? "null"}`
     : null;
   const rehydratedRef = useRef<string | null>(null);
+  // Revisão final-3: reconciliação gateia por ESTADO — dado vindo pronto do
+  // cache não pinta a chegada por um frame antes do done.
+  const [reconciledStudent, setReconciledStudent] = useState<string | null>(null);
   // Janela de cold-start (fix da review B2-1): aberta SÓ até a primeira
   // transição de fingerprint, interação do coach ou aplicação da resposta.
   // Fechou → resposta tardia da query NUNCA escreve estado (A→B→A morto).
@@ -446,7 +466,7 @@ const PersonalizedTrainingDashboard = ({
     if (coldStartRef.current) coldStartRef.current.open = false;
   };
   const reconciliationPending =
-    Boolean(coldStartRef.current?.open) && rehydratedRef.current !== studentId;
+    Boolean(coldStartRef.current?.open) && !!conductFingerprint && reconciledStudent !== studentId;
   useEffect(() => {
     // FRIA-2: enquanto a reconciliação não definiu o PSR, o linkFingerprint
     // provisório (#psr=null) NÃO pode apagar um vínculo válido do storage.
@@ -516,10 +536,11 @@ const PersonalizedTrainingDashboard = ({
         return;
       }
       const observationId = await upsertPerceptionObservationV2(supabase, studentId, {
-        source: earlySnapshot.source,
+        // Revisão final-2: o descanso é EVENTO SEPARADO — slot próprio
+        // (fonte=descanso) por dia; a linha do check-in (psr, registrado_iso,
+        // conduta) permanece como fato do commit. Nunca reidrata (fonte ≠).
+        source: conductTypeOverride ? "descanso" : earlySnapshot.source,
         score: earlySnapshot.score,
-        // Override: persiste o PSR EXIBIDO (registeredPsr) — pós-skip é null e
-        // o registro de descanso nunca reidrata "done" (fix rodada 4).
         psr: conductTypeOverride ? registeredPsr : validPsr,
         conductFingerprintHash: hashConductFingerprint(conductFingerprint),
         registeredAtIso,
@@ -551,6 +572,14 @@ const PersonalizedTrainingDashboard = ({
       }
       setPerceptionSaveState("saved");
       setEditingCheckIn(false);
+      // Revisão final-3/9: o cache de reidratação e o histórico do prontuário
+      // seguem o banco imediatamente (remount <60s não volta pra chegada
+      // nem restaura PSR antigo).
+      void queryClient.invalidateQueries({ queryKey: ["checkin-rehydrate", studentId] });
+      void queryClient.invalidateQueries({ queryKey: ["perception-history", studentId] });
+      if (!conductTypeOverride) {
+        lastPersistedAlternativeRef.current = conductAlternative?.type ?? null;
+      }
       // SÓ o commit normal com PSR válido vira "done" — o rest-day
       // (override, alcançável pós-skip) nunca forja check-in (fix B2-p1-2).
       if (!conductTypeOverride && validPsr !== null) {
@@ -588,6 +617,55 @@ const PersonalizedTrainingDashboard = ({
     }
   };
 
+  // Revisão final-1 (BLOCKER): alternativa escolhida DEPOIS do check-in é
+  // MUTAÇÃO CLÍNICA — re-persiste a conduta final na linha do dia
+  // (preservando psr e registrado_iso do commit); "Iniciar treino" só com
+  // sucesso. O prontuário nunca fica com uma conduta diferente da executada.
+  const persistConductUpdate = async () => {
+    if (!earlySnapshot || !activeRecommendation || !conduct || !conductFingerprint) return;
+    if (registeredPsr === null || !scopedCheckInRecord) return;
+    setConductSyncState("saving");
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const actorId = userData?.user?.id ?? null;
+      if (!actorId) throw new Error("sem usuário autenticado");
+      await upsertPerceptionObservationV2(supabase, studentId, {
+        source: earlySnapshot.source,
+        score: earlySnapshot.score,
+        psr: registeredPsr,
+        conductFingerprintHash: hashConductFingerprint(conductFingerprint),
+        registeredAtIso: scopedCheckInRecord.registeredAtIso ?? new Date().toISOString(),
+        baseZoneLabel: activeRecommendation.zone,
+        perception,
+        conductType: conduct.prescription.trainingType,
+        vetoes: conduct.appliedVetoes,
+        spDay: todaySp,
+        snapshotDate: earlySnapshot.date,
+        registeredAtDisplay: new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
+        actorId,
+      });
+      void queryClient.invalidateQueries({ queryKey: ["checkin-rehydrate", studentId] });
+      void queryClient.invalidateQueries({ queryKey: ["perception-history", studentId] });
+      setConductSyncState("idle");
+    } catch (e) {
+      logger.error("[percepcao] falha ao atualizar a conduta no prontuário", e);
+      setConductSyncState("error");
+      toast({
+        title: `Conduta de ${studentName} não foi atualizada no prontuário`,
+        description: "A alternativa foi aplicada na tela, mas não gravada — tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+  useEffect(() => {
+    if (checkInState !== "done") return;
+    const altKey = conductAlternative?.type ?? null;
+    if (lastPersistedAlternativeRef.current === altKey) return;
+    lastPersistedAlternativeRef.current = altKey;
+    void persistConductUpdate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conductAlternative?.type, checkInState, studentId]);
+
   // ── Check-in v3: efeitos da máquina (a parte síncrona vive antes do
   // funil). Destruição ATÔMICA: fingerprint/dia divergente APAGA o registro
   // (nunca "esconde") — A→B→A não ressuscita na montagem corrente. ──
@@ -600,6 +678,17 @@ const PersonalizedTrainingDashboard = ({
       setCheckInRecord(null);
     }
   }, [scopedCheckInRecord, conductFingerprint, todaySp, setCheckInRecord]);
+  // Revisão final-4: a alternativa também é DESTRUÍDA na divergência (antes
+  // só saía de escopo e voltava em A→B→A, entrando no próximo commit).
+  useEffect(() => {
+    if (
+      rawSelectedAlternative &&
+      rawSelectedAlternative.studentId === studentId &&
+      rawSelectedAlternative.fingerprint !== conductFingerprint
+    ) {
+      setSelectedAlternative(null);
+    }
+  }, [rawSelectedAlternative, studentId, conductFingerprint, setSelectedAlternative]);
 
   // Reidratação de COLD START (U3/v8.1): o registro v2 persistido de HOJE com
   // fingerprint EXATO reidrata "done". Roda UMA vez por aluna nesta montagem
@@ -630,6 +719,7 @@ const PersonalizedTrainingDashboard = ({
     if (rehydratedRef.current === studentId) return;
     if (rehydration.isLoading) return;
     rehydratedRef.current = studentId;
+    setReconciledStudent(studentId);
     // Janela fechada (transição/interação durante o voo da query) → a
     // resposta é DESCARTADA integralmente (guardrail do GO: query tardia
     // nunca restaura estado que a montagem destruiu).
@@ -675,6 +765,7 @@ const PersonalizedTrainingDashboard = ({
         psr,
       });
       lastRegisteredVerdictRef.current = null;
+      lastPersistedAlternativeRef.current = null;
       break;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -682,10 +773,7 @@ const PersonalizedTrainingDashboard = ({
 
   // Reconciliação do cold start é ESTADO VISÍVEL (skeleton) — a chegada não
   // pisca "pendente" enquanto a query verifica um registro do dia (U3/B2-2).
-  const reconciling =
-    Boolean(coldStartRef.current?.open) &&
-    rehydration.isLoading &&
-    rehydratedRef.current !== studentId;
+  const reconciling = reconciliationPending;
 
   // FRIA-5 (v7.2-M8/U5): contagem de observações CLÍNICAS do dia SP na linha
   // colapsada — inclui resolvidas, exclui a categoria técnica do check-in
@@ -1225,6 +1313,7 @@ const PersonalizedTrainingDashboard = ({
                     reconciliationFailed={reconciliationFailed}
                     onRetryReconciliation={() => {
                       rehydratedRef.current = null;
+                      setReconciledStudent(null);
                       setReconciliationFailed(false);
                       void rehydration.refetch();
                     }}
@@ -1356,12 +1445,24 @@ const PersonalizedTrainingDashboard = ({
                           : "Carregando prescrições…"}
                       </p>
                     )}
+                    {conductSyncState === "error" && (
+                      <p className="text-xs text-destructive">
+                        Conduta não foi atualizada no prontuário.{" "}
+                        <button type="button" className="underline" onClick={() => void persistConductUpdate()}>
+                          Tentar novamente
+                        </button>
+                      </p>
+                    )}
                     <div className="flex items-center gap-3">
                       <Button
-                        disabled={heroState.primaryAction === "start_disabled" || !sessionScopeResolved}
+                        disabled={
+                          heroState.primaryAction === "start_disabled" ||
+                          !sessionScopeResolved ||
+                          conductSyncState !== "idle"
+                        }
                         onClick={() => onStartTraining?.(activePrescriptionId)}
                       >
-                        Iniciar treino
+                        {conductSyncState === "saving" ? "Atualizando conduta…" : "Iniciar treino"}
                       </Button>
                       <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
                         Ver alternativas
