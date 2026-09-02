@@ -81,6 +81,14 @@ describe("CheckInForm — slot reservado e commit explícito (v8.2/v8.3)", () =>
     expect(screen.getByText(/dados do aparelho foram atualizados/i)).toBeVisible();
   });
 
+  it("reaberto via Editar (U8): aviso 'Registre novamente' — nunca junto do aviso de sync", () => {
+    const { rerender } = render(<CheckInForm {...formProps({ psr: 6, editNotice: true })} />);
+    expect(screen.getByText("Registre novamente para atualizar a conduta.")).toBeVisible();
+    rerender(<CheckInForm {...formProps({ psr: 6, editNotice: true, staleDataNotice: true })} />);
+    expect(screen.queryByText("Registre novamente para atualizar a conduta.")).not.toBeInTheDocument();
+    expect(screen.getByText(/dados do aparelho foram atualizados/i)).toBeVisible();
+  });
+
   it("falha de reconciliação (v8.1-3): aviso + Tentar novamente", async () => {
     const user = userEvent.setup();
     const retry = vi.fn();

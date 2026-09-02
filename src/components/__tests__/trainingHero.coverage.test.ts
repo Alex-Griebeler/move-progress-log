@@ -389,6 +389,13 @@ describe("R8b — fixes da review (fiação)", () => {
     expect(dash).toContain("fingerprint: conductFingerprint ?? undefined");
   });
 
+  it("Registrar COMMITA o rascunho (U4/Editar): persist lê assessment ?? psrDraft e re-escopa antes de gravar", () => {
+    expect(dash).toContain("const committedPsrSource = assessment?.psr ?? psrDraft ?? null;");
+    expect(dash).toContain("if (!conductTypeOverride && validPsr !== null && !assessment) {");
+    // rascunho NUNCA modula o funil: só o PSR registrado (done) vira percepção
+    expect(dash).toContain('checkInState === "done" ? normalizePsr(assessment?.psr ?? null) : null');
+  });
+
   it("Registrar exige PSR selecionado (o botão nem existe sem número — slot reservado v8.3)", () => {
     const form = readFileSync(join(__dirname, "../checkin/CheckInForm.tsx"), "utf8");
     expect(form).toContain("{psr !== null && (");
