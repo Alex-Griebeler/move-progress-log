@@ -117,21 +117,50 @@ describe("ORÁCULO §3 — matriz base × PSR (6 × 5)", () => {
     expect(c.prescription.trainingType).toBe(PRESCRIPTION_BY_ZONE[expected.zone as 0 | 1 | 2 | 3 | 4].trainingType);
   });
 
-  it("linha yellow COM piso por CRITICAL (score alto): PSR 9 vetada por piso; demais colunas iguais", () => {
-    const withCritical = (p: number | null) =>
-      computeEffectiveConduct(input({ base: rec("yellow", { alerts: critical() }), score: 59, psr: psr(p) }));
-    const v = withCritical(9);
-    expect(v.effectiveZone).toBe(2);
-    expect(v.perception).toMatchObject({ outcome: "vetoed", vetoReason: "floor", agreement: "discordante_acima" });
-    expect(withCritical(5).effectiveZone).toBe(2);
-    expect(withCritical(2).effectiveZone).toBe(1);
-    expect(withCritical(0).effectiveZone).toBe(0);
-    expect(withCritical(null).perception.outcome).toBe("unchanged");
-    // e o mesmo com Oura
-    const oura = computeEffectiveConduct(input({
-      base: rec("yellow", { alerts: critical(), source: "oura" }), source: "oura", score: 60, psr: psr(9), whoopContext: null,
+  // 6ª linha do oráculo: yellow COM piso por CRITICAL (score alto, Whoop e Oura)
+  const runCritical = (p: number | null, source: "whoop" | "oura" = "whoop") =>
+    computeEffectiveConduct(input({
+      base: rec("yellow", { alerts: critical(), source }), source, score: source === "whoop" ? 59 : 60,
+      psr: psr(p), whoopContext: source === "whoop" ? { freshness: "fresh", strain: "non_high" } : null,
     }));
-    expect(oura.perception).toMatchObject({ outcome: "vetoed", vetoReason: "floor" });
+  const assertCell = (c: EffectiveConduct, p: number | null, expected: Cell) => {
+    expect(c.effectiveZone).toBe(expected.zone);
+    expect(c.effectiveLoadDecision).toBe(expected.load);
+    expect(c.effectiveLoadAdjustmentPercent).toBe(expected.pct);
+    expect(c.modulated).toBe(expected.modulated);
+    expect(c.perception).toEqual({
+      agreement: expected.agreement, outcome: expected.outcome, vetoReason: expected.veto,
+      psr: p, baseZone: 2, zoneAfterPsr: expected.zone,
+    });
+    expect(c.suspended).toBe(null);
+    expect(c.prescription.trainingType).toBe(PRESCRIPTION_BY_ZONE[expected.zone as 0 | 1 | 2 | 3 | 4].trainingType);
+    expect(c.appliedVetoes.join(" ")).not.toMatch(/PSR|percepção|piso|strain/);
+    // o veto de confirmação do CRITICAL continua em appliedVetoes (não é veto de percepção)
+    expect(c.appliedVetoes.join(" ")).toContain("Sinal fisiológico crítico presente.");
+  };
+  it.each<[number | null, Cell]>([
+    [9, cell(2, "reduce", -20, false, "discordante_acima", "vetoed", "floor")],
+    [5, cell(2, "reduce", -20, false, "concordante", "unchanged")],
+    [2, cell(1, "block", null, true, "discordante_abaixo", "lowered")],
+    [0, cell(0, "block", null, true, "discordante_abaixo", "lowered")],
+    [null, cell(2, "reduce", -20, false, "nao_informada", "unchanged")],
+  ])("base yellow COM CRITICAL + PSR %s (Whoop e Oura)", (p, expected) => {
+    assertCell(runCritical(p, "whoop"), p, expected);
+    assertCell(runCritical(p, "oura"), p, expected);
+  });
+
+  it("variante strain conhecido/alto na célula (yellow, PSR 9): pacote completo de outputs", () => {
+    const c = run("yellow", 9, { whoopContext: { freshness: "stale", strain: "high", strainValue: 15 } });
+    expect(c.effectiveZone).toBe(2);
+    expect(c.effectiveLoadDecision).toBe("reduce");
+    expect(c.effectiveLoadAdjustmentPercent).toBe(-20);
+    expect(c.modulated).toBe(false);
+    expect(c.perception).toEqual({
+      agreement: "discordante_acima", outcome: "vetoed", vetoReason: "strain", psr: 9, baseZone: 2, zoneAfterPsr: 2,
+    });
+    expect(c.suspended).toBe(null);
+    expect(c.prescription.trainingType).toBe(PRESCRIPTION_BY_ZONE[2].trainingType);
+    expect(c.appliedVetoes).toEqual([]);
   });
 });
 

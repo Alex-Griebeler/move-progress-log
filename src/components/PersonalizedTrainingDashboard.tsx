@@ -28,7 +28,9 @@ import {
   buildWhoopRecommendation,
   computeWhoopContext,
   newerUnscoredWhoopDay,
-  WHOOP_SYNC_STALE_HOURS, formatStrainDisplay } from "@/utils/whoopRecommendation";
+  WHOOP_SYNC_STALE_HOURS,
+  formatStrainDisplay,
+} from "@/utils/whoopRecommendation";
 import { useWhoopConnection, useSyncWhoop } from "@/hooks/useWhoopConnection";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import {
@@ -69,7 +71,10 @@ import {
   CONDUCT_TONE_BY_ZONE,
   SNAPSHOT_ZONE_SHORT,
   VERDICT_BY_ZONE,
-  formatDoseShort, perceptionCausalLine, perceptionEyebrow } from "@/utils/recommendationDisplay";
+  formatDoseShort,
+  perceptionCausalLine,
+  perceptionEyebrow,
+} from "@/utils/recommendationDisplay";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1753,7 +1758,9 @@ const PersonalizedTrainingDashboard = ({
               → protocolos. O hero acima fica com anel/meta/check-in. */}
           {conduct && (
             <div ref={conductRegionRef} tabIndex={-1} className="mb-4 outline-none" aria-label="Conduta do dia">
-              <p className="text-xs font-semibold text-muted-foreground">Dia de recuperação</p>
+              <p className="text-xs font-semibold text-muted-foreground">
+                {modulationEyebrow ? `Dia de recuperação · ${modulationEyebrow}` : "Dia de recuperação"}
+              </p>
               <p className="mt-1 flex flex-wrap items-baseline gap-2">
                 <span aria-hidden="true" className="h-2 w-2 shrink-0 self-center rounded-full bg-destructive" />
                 <span className="text-xl font-semibold tracking-tight text-destructive">

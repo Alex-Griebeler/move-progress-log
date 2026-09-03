@@ -158,8 +158,8 @@ describe("v9.2 — whoopFingerprintSegment (categórico) × resolveCheckInState"
     expect(resolveCheckInState(stored(fp("unavailable")), fp("high"), "2026-09-03")).toBe("pending");
     expect(resolveCheckInState(stored(fp("high")), fp("unavailable"), "2026-09-03")).toBe("pending");
   });
-  it("sem contexto Whoop (Oura) o segmento é 'na' e não contém freshness", () => {
-    expect(whoopFingerprintSegment(null)).toBe("na");
+  it("sem contexto Whoop (Oura) o segmento é '-' (expressão canônica da spec) e não contém freshness", () => {
+    expect(whoopFingerprintSegment(null)).toBe("-");
     for (const st of ["non_high", "high", "unavailable"] as const) {
       expect(whoopFingerprintSegment({ strain: st })).not.toMatch(/fresh|stale/);
     }

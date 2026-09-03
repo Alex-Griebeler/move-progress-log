@@ -23,9 +23,10 @@ export type CheckInState = "pending" | "done" | "skipped";
  * Transição REAL da máquina do check-in (review PR-B1, achado 4): o estado
  * lembrado só vale enquanto o fingerprint da recomendação E o dia SP não
  * mudarem — qualquer divergência DESTRÓI (volta a "pending"; nada de
- * ressurreição A→B→A, coerente com v6.1-M8). Whoop fresh→stale muda o
- * fingerprint → skip/done morrem sozinhos. É este resolver que a PR-B2
- * consome; o seletor visual abaixo só compõe o resultado.
+ * ressurreição A→B→A, coerente com v6.1-M8). Desde a v9.2 o segmento Whoop
+ * do fingerprint é CATEGÓRICO (whoopFingerprintSegment): fresh→stale NÃO
+ * muda o fingerprint — só strain conhecido/alto entrando ou saindo. É este
+ * resolver que a PR-B2 consome; o seletor visual abaixo só compõe o resultado.
  */
 export interface StoredCheckIn {
   state: Exclude<CheckInState, "pending">;
@@ -46,7 +47,7 @@ export interface StoredCheckIn {
  */
 export const whoopFingerprintSegment = (
   ctx: { strain: "non_high" | "high" | "unavailable" } | null,
-): string => (ctx ? (ctx.strain === "high" ? "strain-high" : "-") : "na");
+): string => (ctx?.strain === "high" ? "strain-high" : "-");
 
 export const resolveCheckInState = (
   stored: StoredCheckIn | null,

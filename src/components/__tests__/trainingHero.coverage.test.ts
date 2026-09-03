@@ -403,6 +403,8 @@ describe("R8b — percepção da aluna e conduta efetiva", () => {
     expect(dash).toContain("perception: prospectiveConduct.perception.agreement,");
     expect(dash).toContain('perception: conduct?.perception.agreement ?? "nao_informada",');
     expect(dash).toContain("strainValue: whoopCtx.strainValue");
+    // recovery_block também mostra o eyebrow canônico (E3 da review C1)
+    expect(dash).toContain("{modulationEyebrow ? `Dia de recuperação · ${modulationEyebrow}` : \"Dia de recuperação\"}");
   });
 });
 

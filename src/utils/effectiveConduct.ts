@@ -154,9 +154,6 @@ const loadAggressiveness = (
   return percent ?? -100; // reduce: −10 > −20
 };
 
-const clampZone = (z: number): 0 | 1 | 2 | 3 | 4 =>
-  Math.max(0, Math.min(4, z)) as 0 | 1 | 2 | 3 | 4;
-
 /**
  * Números "muito ruins" (piso ASSIMÉTRICO: bloqueia só modulação PRA CIMA;
  * reduzir nunca eleva a exposição e é sempre permitido).
