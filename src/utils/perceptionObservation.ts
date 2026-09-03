@@ -298,23 +298,27 @@ export const _clearRememberedPerceptions = (): void => rememberedPerception.clea
  * percepção de hoje) e só à PRIMEIRA sessão (`.is("session_id", null)`:
  * session_id não-nulo nunca é sobrescrito).
  */
+export type LinkPerceptionResult = "linked" | "none" | "error";
+
 export const linkPerceptionToSession = async (
   supabase: SupabaseClient,
   studentId: string,
   sessionId: string,
   sessionSpDay: string,
-): Promise<void> => {
+): Promise<LinkPerceptionResult> => {
   const remembered = readRemembered(studentId);
-  if (!remembered || remembered.spDay !== sessionSpDay) return;
+  if (!remembered || remembered.spDay !== sessionSpDay) return "none";
   const { error } = await supabase
     .from("student_observations")
     .update({ session_id: sessionId })
     .eq("id", remembered.observationId)
     .is("session_id", null);
   if (error) {
-    // NÃO consome: a próxima sessão criada tenta de novo.
+    // NÃO consome: a próxima sessão criada tenta de novo. O chamador mostra
+    // feedback (pré-publish R5: falha de vínculo não pode ser invisível).
     logger.warn("[percepcao] falha ao vincular sessão à percepção — vínculo mantido pra retry", { error });
-    return;
+    return "error";
   }
   forgetRemembered(studentId);
+  return "linked";
 };

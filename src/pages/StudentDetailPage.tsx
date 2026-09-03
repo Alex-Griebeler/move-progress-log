@@ -29,6 +29,7 @@ import { StudentOverviewDashboard } from "@/components/StudentOverviewDashboard"
 import { AssessmentsTab } from "@/components/assessments/AssessmentsTab";
 import { useOuraMetrics, useLatestOuraMetrics, spToday } from "@/hooks/useOuraMetrics";
 import { linkPerceptionToSession } from "@/utils/perceptionObservation";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useWhoopMetrics } from "@/hooks/useWhoopMetrics";
 import { WHOOP_RECOMMENDATION_WINDOW_DAYS } from "@/utils/whoopRecommendation";
@@ -68,6 +69,8 @@ const VALID_STUDENT_DETAIL_TABS = new Set([
 
 const StudentDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  // Pré-publish R5: falha de vínculo do check-in à sessão não pode ser invisível.
+  const { toast: linkToast } = useToast();
   const studentId = id ?? "";
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -528,7 +531,15 @@ const StudentDetailPage = () => {
           // PRIMEIRA sessão criada — e só quando a DATA da sessão é o mesmo
           // dia da percepção (sessão retroativa não herda a percepção de
           // hoje); session_id não-nulo nunca é sobrescrito.
-          void linkPerceptionToSession(supabase, id!, sessionId, sessionDate);
+          void linkPerceptionToSession(supabase, id!, sessionId, sessionDate).then((result) => {
+            if (result === "error") {
+              linkToast({
+                title: "Check-in não foi vinculado à sessão",
+                description: "A sessão foi criada; o vínculo tenta de novo na próxima sessão do dia.",
+                variant: "destructive",
+              });
+            }
+          });
         }}
       />
 

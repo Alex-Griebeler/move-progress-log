@@ -649,13 +649,15 @@ const PersonalizedTrainingDashboard = ({
   // sucesso. O prontuário nunca fica com uma conduta diferente da executada.
   const persistConductUpdate = () => {
     if (!earlySnapshot || !activeRecommendation || !conduct || !conductFingerprint) return;
-    if (registeredPsr === null || !scopedCheckInRecord) return;
+    if (!scopedCheckInRecord) return;
+    // done exige PSR registrado; skipped grava a decisão com psr null (R1).
+    if (scopedCheckInRecord.state === "done" && registeredPsr === null) return;
     // Snapshot dos valores DESTA escolha (a fila pode executá-la depois de
     // outro render).
     const payload = {
       source: earlySnapshot.source,
       score: earlySnapshot.score,
-      psr: registeredPsr,
+      psr: scopedCheckInRecord.state === "done" ? registeredPsr : null,
       conductFingerprintHash: hashConductFingerprint(conductFingerprint),
       registeredAtIso: scopedCheckInRecord.registeredAtIso ?? new Date().toISOString(),
       baseZoneLabel: activeRecommendation.zone,
@@ -693,7 +695,6 @@ const PersonalizedTrainingDashboard = ({
         if (
           current &&
           current.studentId === owner &&
-          current.state === "done" &&
           current.conductFingerprint === fingerprintAtStart
         ) {
           setCheckInRecord({ ...current, persistedConductType: payload.conductType });
@@ -723,7 +724,9 @@ const PersonalizedTrainingDashboard = ({
   const displayedConductType = conduct?.prescription.trainingType ?? null;
   const persistedConductType = scopedCheckInRecord?.persistedConductType ?? null;
   useEffect(() => {
-    if (checkInState !== "done" || !displayedConductType || !scopedCheckInRecord) return;
+    // done: qualquer divergência re-persiste. skipped: só uma ALTERNATIVA
+    // escolhida diverge da objetiva (R1 pré-publish) — o skip puro não grava.
+    if (checkInState === "pending" || !displayedConductType || !scopedCheckInRecord) return;
     if (displayedConductType === persistedConductType) return;
     if (inFlightConductTypeRef.current === displayedConductType) return;
     if (conductSyncState === "error") return; // espera o retry explícito
@@ -846,7 +849,7 @@ const PersonalizedTrainingDashboard = ({
   // colapsada — inclui resolvidas, exclui a categoria técnica do check-in
   // (NULL-safe). A invalidação de ["student-observations", studentId] do
   // diálogo alcança esta key por prefixo.
-  const { data: dayObservationCount } = useQuery({
+  const { data: dayObservationCount, isError: dayObservationCountError } = useQuery({
     queryKey: ["student-observations", studentId, "day-count", todaySp],
     enabled: !!studentId,
     staleTime: 30 * 1000,
@@ -864,8 +867,9 @@ const PersonalizedTrainingDashboard = ({
       return count ?? 0;
     },
   });
-  const dayObservationLabel =
-    dayObservationCount && dayObservationCount > 0
+  const dayObservationLabel = dayObservationCountError
+    ? "observações indisponíveis"
+    : dayObservationCount && dayObservationCount > 0
       ? `${dayObservationCount} observaç${dayObservationCount === 1 ? "ão" : "ões"}`
       : null;
 
@@ -883,7 +887,10 @@ const PersonalizedTrainingDashboard = ({
       conductFingerprint,
       spDay: todaySp,
       registeredAtIso: null,
-      persistedConductType: null,
+      // Pré-publish R1: o skip NÃO persiste, mas a conduta OBJETIVA vira a
+      // referência — uma alternativa escolhida depois diverge dela e é
+      // gravada como decisão (v2, psr=nao_informado, nunca reidrata done).
+      persistedConductType: conduct?.prescription.trainingType ?? null,
     });
     if (!skipHintShownRef.current) {
       skipHintShownRef.current = true;
@@ -917,12 +924,6 @@ const PersonalizedTrainingDashboard = ({
         })
       : null;
 
-  // AUD-003: Sincronizar alternativa selecionada com contexto global
-  useEffect(() => {
-    if (selectedAlternative && activeRecommendation) {
-      logger.log('Alternativa persistida:', selectedAlternative);
-    }
-  }, [selectedAlternative, activeRecommendation]);
 
   // HERO agnóstico de wearable: score mais recente entre Oura readiness e
   // Whoop recovery (empate → Oura; Whoop PENDING_SCORE pulado).
@@ -1449,7 +1450,12 @@ const PersonalizedTrainingDashboard = ({
                           {checkInIsOld && registeredAtDisplay ? ` · registrado ${registeredAtDisplay}` : ""}
                           {dayObservationLabel ? ` · ${dayObservationLabel}` : ""}
                         </span>
-                        <button type="button" className="min-h-[44px] text-primary" onClick={reopenCheckIn}>
+                        <button
+                          type="button"
+                          className="min-h-[44px] text-primary disabled:opacity-50"
+                          disabled={conductSyncState === "saving"}
+                          onClick={reopenCheckIn}
+                        >
                           {checkInIsOld ? "Refazer" : "Editar check-in"}
                         </button>
                       </>
@@ -1459,7 +1465,12 @@ const PersonalizedTrainingDashboard = ({
                           Check-in: não realizado
                           {dayObservationLabel ? ` · ${dayObservationLabel}` : ""}
                         </span>
-                        <button type="button" className="min-h-[44px] text-primary" onClick={reopenCheckIn}>
+                        <button
+                          type="button"
+                          className="min-h-[44px] text-primary disabled:opacity-50"
+                          disabled={conductSyncState === "saving"}
+                          onClick={reopenCheckIn}
+                        >
                           Fazer check-in
                         </button>
                       </>

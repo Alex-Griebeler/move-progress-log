@@ -406,6 +406,16 @@ describe("R8b — fixes da review (fiação)", () => {
     // 3ª confirmação: invalidação de época é helper ÚNICO (zera a sentinela
     // de voo) e é chamada em reopen, skip e troca de aluna
     expect(dash).toContain("const invalidateConductSync = () => {");
+    // pré-publish (deploy-risk review): R1 alternativa pós-skip é decisão
+    // persistida (psr null; referência = conduta objetiva no skip); R2 nada
+    // que invalide a época fica clicável durante 'saving'; R6 contador com
+    // erro visível; R7 sem log periódico da alternativa
+    expect(dash).toContain('persistedConductType: conduct?.prescription.trainingType ?? null,');
+    expect(dash).toContain('psr: scopedCheckInRecord.state === "done" ? registeredPsr : null,');
+    expect(dash).toContain('if (checkInState === "pending" || !displayedConductType || !scopedCheckInRecord) return;');
+    expect((dash.match(/disabled=\{conductSyncState === "saving"\}/g) ?? []).length).toBeGreaterThanOrEqual(2);
+    expect(dash).toContain('"observações indisponíveis"');
+    expect(dash).not.toContain("Alternativa persistida:");
     expect((dash.match(/invalidateConductSync\(\);/g) ?? []).length).toBeGreaterThanOrEqual(3);
     expect(dash).not.toMatch(/syncEpochRef\.current \+= 1;[\s\S]*syncEpochRef\.current \+= 1;/);
     expect(dash).not.toContain("lastPersistedAlternativeRef");
