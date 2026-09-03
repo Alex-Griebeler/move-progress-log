@@ -173,7 +173,7 @@ describe("newerUnscoredWhoopDay (dia sem score pulado pelo snapshot)", () => {
   });
 });
 
-import { computeWhoopContext, WHOOP_HIGH_STRAIN_THRESHOLD } from "@/utils/whoopRecommendation";
+import { computeWhoopContext, formatStrainDisplay, WHOOP_HIGH_STRAIN_THRESHOLD } from "@/utils/whoopRecommendation";
 
 describe("computeWhoopContext (R8d — estados fechados)", () => {
   const NOW = new Date("2026-08-29T18:00:00Z").getTime(); // 15:00 SP
@@ -202,7 +202,7 @@ describe("computeWhoopContext (R8d — estados fechados)", () => {
     const alerting = computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: 14.6 });
     expect(alerting.strainAlert?.level).toBe("WARNING");
     expect(alerting.strainAlert?.kind).toBe("contextual");
-    expect(alerting.strainAlert?.message).toContain("14.6/21");
+    expect(alerting.strainAlert?.message).toContain("14,6/21");
     expect(alerting.strainAlert?.message).toContain("na sincronização das");
     expect(alerting.strainAlert?.message).toMatch(/≥14/);
     // snapshot de ONTEM nunca gera "strain antes da sessão" de hoje
@@ -241,5 +241,20 @@ describe("computeWhoopContext (R8d — estados fechados)", () => {
   it("syncDisplay em HH:mm no fuso SP", () => {
     const ctx = computeWhoopContext({ ...base, lastSyncAt: "2026-08-29T13:20:00Z" });
     expect(ctx.syncDisplay).toBe("10:20");
+  });
+
+  it("v9.2 A4: strainValue — só HOJE + valor finito; nunca decide (categoria continua)", () => {
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: 15 }).strainValue).toBe(15);
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(5), dayStrain: 15 }).strainValue).toBe(15); // stale conhecido
+    expect(computeWhoopContext({ ...base, lastSyncAt: null, dayStrain: 15 }).strainValue).toBe(15); // sem sync: valor existe, categoria unavailable
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: 15, snapshotIsToday: false }).strainValue).toBeNull();
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: null }).strainValue).toBeNull();
+    expect(computeWhoopContext({ ...base, lastSyncAt: syncAt(1), dayStrain: Number.NaN }).strainValue).toBeNull();
+  });
+
+  it("v9.2 A3: formatStrainDisplay — SEMPRE uma casa decimal em pt-BR", () => {
+    expect(formatStrainDisplay(14)).toBe("14,0");
+    expect(formatStrainDisplay(14.25)).toBe("14,3");
+    expect(formatStrainDisplay(15)).toBe("15,0");
   });
 });

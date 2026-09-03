@@ -15,7 +15,31 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logger } from "@/utils/logger";
-import type { Perception } from "@/utils/effectiveConduct";
+import type { PerceptionAgreement } from "@/utils/effectiveConduct";
+
+/** Vocabulário LEGADO da régua ±2 (registros v1/v2 gravados antes da v9.2) —
+ *  continua parseável e legível no prontuário; o funil NÃO o aceita. */
+export type LegacyPerception = "condizente" | "pior" | "melhor";
+export type PersistedPerception = PerceptionAgreement | LegacyPerception;
+
+/** Rótulo humano dos dois vocabulários (renderer do prontuário). */
+export const describePersistedPerception = (value: string | undefined): string => {
+  switch (value) {
+    case "condizente":
+    case "concordante":
+      return "Concordante";
+    case "melhor":
+    case "discordante_acima":
+      return "PSR acima do aparelho";
+    case "pior":
+    case "discordante_abaixo":
+      return "PSR abaixo do aparelho";
+    case "nao_informada":
+      return "não informada";
+    default:
+      return value ?? "?";
+  }
+};
 
 export const PERCEPTION_CATEGORY = "percepcao_treino";
 export const PERCEPTION_TEXT_VERSION = "v1";
@@ -44,7 +68,7 @@ export interface PerceptionRecord {
   source: "oura" | "whoop";
   score: number;
   baseZoneLabel: string;
-  perception: Perception;
+  perception: PersistedPerception;
   symptoms: boolean | null;
   conductType: string;
   vetoes: string[];
@@ -91,7 +115,7 @@ export interface PerceptionRecordV2 {
   /** ISO UTC do registro/refazer — base do "registrado HH:mm" >3h (U14). */
   registeredAtIso: string;
   baseZoneLabel: string;
-  perception: Perception;
+  perception: PersistedPerception;
   conductType: string;
   vetoes: string[];
   spDay: string;

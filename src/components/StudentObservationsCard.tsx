@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { parsePerceptionText, SUPPORTED_PERCEPTION_VERSIONS } from "@/utils/perceptionObservation";
+import { parsePerceptionText, SUPPORTED_PERCEPTION_VERSIONS, describePersistedPerception } from "@/utils/perceptionObservation";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -345,7 +345,7 @@ export function PerceptionHistoryLine({
           {f.psr !== undefined
             ? ` · PSR: ${f.psr === "nao_informado" ? "não informado" : f.psr}`
             : ""}
-          {" · percepção: "}{f.percepcao?.replace("nao_informada", "não informada")}
+          {" · percepção: "}{describePersistedPerception(f.percepcao)}
           {f.sintomas !== undefined
             ? ` · sintomas: ${f.sintomas === "sim" ? "sim" : f.sintomas === "nao" ? "não" : "não perguntado"}`
             : ""}

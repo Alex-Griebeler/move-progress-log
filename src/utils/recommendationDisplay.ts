@@ -1,3 +1,5 @@
+import type { PerceptionResult } from "@/utils/effectiveConduct";
+
 /**
  * Formatação de APRESENTAÇÃO da recomendação de treino (refinamento R1).
  *
@@ -85,3 +87,41 @@ export const CONDUCT_TONE_BY_ZONE: Record<0 | 1 | 2 | 3 | 4, "ok" | "warn" | "ba
   1: "bad",
   0: "bad",
 };
+
+const lowerFirst = (text: string): string => text.charAt(0).toLowerCase() + text.slice(1);
+
+/** Veredito do aparelho em minúscula pra frase causal; zona 4 fala de carga
+ *  (copy canônica v9.2 Q6). */
+const deviceVerdictLower = (zone: 0 | 1 | 2 | 3 | 4): string =>
+  zone === 4 ? "aumentar a carga em 5%" : lowerFirst(VERDICT_BY_ZONE[zone]);
+
+/**
+ * Frase causal da PSR (spec v9.2 §4.4) — fonte ÚNICA: `conduct.perception`.
+ * `strainDisplay` já formatado (formatStrainDisplay) ou null.
+ * Retorna null quando a PSR não alterou nem foi vetada.
+ */
+export const perceptionCausalLine = (
+  p: PerceptionResult,
+  strainDisplay: string | null,
+): string | null => {
+  switch (p.outcome) {
+    case "unchanged":
+      return null;
+    case "raised":
+    case "lowered":
+    case "lowered_to_maintain":
+      return `Aparelho: ${deviceVerdictLower(p.baseZone)}. PSR ${p.psr}: ${lowerFirst(VERDICT_BY_ZONE[p.zoneAfterPsr])}.`;
+    case "vetoed":
+      return p.vetoReason === "strain"
+        ? `PSR ${p.psr} não altera a conduta: strain do dia alto${strainDisplay ? ` (${strainDisplay}/21)` : ""}.`
+        : `PSR ${p.psr} não altera a conduta: sinais objetivos no piso de segurança.`;
+  }
+};
+
+/** Eyebrow da conduta quando a PSR agiu (ou tentou agir). */
+export const perceptionEyebrow = (p: PerceptionResult): string | null =>
+  p.outcome === "vetoed"
+    ? "Ajuste por PSR não aplicado"
+    : p.outcome !== "unchanged"
+      ? "Ajuste por PSR"
+      : null;

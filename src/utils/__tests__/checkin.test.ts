@@ -1,13 +1,14 @@
 /**
  * Check-in v3 — tradutores e adapter (spec v7+v7.2 com GO; PR-B1).
- * Régua ±2 e bandas PSR ratificadas pelo Alex em 31/08.
+ * Bandas PSR ratificadas pelo Alex em 31/08; régua ±2 MORTA na v9.2 (03/09):
+ * o único tradutor é toPsrSignal.
  */
 import { describe, expect, it } from "vitest";
 import {
   buildPsrOnlyRecommendation,
-  derivePerceptionFromPsr,
   deriveZoneFromPsrOnly,
   normalizePsr,
+  toPsrSignal,
 } from "../checkin";
 
 describe("normalizePsr — domínio 0..10 inteiro (v6.1-M7)", () => {
@@ -23,36 +24,15 @@ describe("normalizePsr — domínio 0..10 inteiro (v6.1-M7)", () => {
   );
 });
 
-describe("derivePerceptionFromPsr — régua ±2 sobre score/10 (ratificada)", () => {
-  it("null é o ÚNICO caminho pra nao_informada; psr 0 responde", () => {
-    expect(derivePerceptionFromPsr(null, 70)).toBe("nao_informada");
-    expect(derivePerceptionFromPsr(0, 70)).toBe("pior");
-  });
-  it("limites EXATOS ±2 entram em pior/melhor", () => {
-    // score 50 → esperado 5.
-    expect(derivePerceptionFromPsr(3, 50)).toBe("pior"); // diff exatamente −2
-    expect(derivePerceptionFromPsr(7, 50)).toBe("melhor"); // diff exatamente +2
-    expect(derivePerceptionFromPsr(4, 50)).toBe("condizente");
-    expect(derivePerceptionFromPsr(6, 50)).toBe("condizente");
-  });
+describe("toPsrSignal — sinal indivisível {value, zone} (v9.2 E3)", () => {
   it.each([
-    // Degenerações CONHECIDAS (v7.2-M10) — fórmula ratificada, viram registro:
-    [0, 18, "condizente"], // diff −1,8: dia péssimo + PSR 0 fica condizente (piso do funil protege)
-    [0, 0, "condizente"],
-    [10, 100, "condizente"],
-    [10, 33, "melhor"],
-    [1, 45, "pior"],
-    [5, 34, "condizente"],
-    [7, 44, "melhor"],
-  ] as Array<[number, number, string]>)(
-    "psr %s + score %s → %s",
-    (psr, score, expected) => {
-      expect(derivePerceptionFromPsr(psr, score)).toBe(expected);
-    },
-  );
-  it("score fora de 0-100 é clampado defensivamente", () => {
-    expect(derivePerceptionFromPsr(8, 250)).toBe("pior"); // clamp 100 → esperado 10 → diff −2
-    expect(derivePerceptionFromPsr(2, -50)).toBe("melhor"); // clamp 0 → esperado 0 → diff +2
+    [null, null, null], [undefined, null, null], [NaN, null, null], [-1, null, null], [11, null, null], [5.5, null, null], ["7", null, null],
+    [0, 0, 0], [1, 1, 0], [2, 2, 1], [3, 3, 1], [4, 4, 2], [6, 6, 2], [7, 7, 3], [10, 10, 3],
+  ] as Array<[unknown, number | null, number | null]>)("%s → value %s / zone %s", (raw, value, zone) => {
+    expect(toPsrSignal(raw)).toEqual({ value, zone });
+  });
+  it("PSR 0 é resposta VÁLIDA (zona 0), nunca 'não informado'", () => {
+    expect(toPsrSignal(0)).toEqual({ value: 0, zone: 0 });
   });
 });
 

@@ -33,6 +33,21 @@ export interface StoredCheckIn {
   spDay: string;
 }
 
+/**
+ * Segmento Whoop do conductFingerprint (spec v9.2 §4.4 — CATEGÓRICO): só o
+ * veto de strain conhecido/alto decide a conduta; freshness (relógio do sync)
+ * e o VALOR do strain ficam de fora. Transições:
+ *   fresh/non_high → stale/unavailable  = igual   (check-in preservado)
+ *   fresh/high     → stale/high         = igual
+ *   non_high|unavailable → high         = muda    (elevação 2→3 pode cair)
+ *   high → unavailable                  = muda    (veto sumiu; conduta pode subir)
+ * Decisão: invalidação EXCEDENTE aceita (o flag entra mesmo quando o veto
+ * não participa da saída — conservador e simples).
+ */
+export const whoopFingerprintSegment = (
+  ctx: { strain: "non_high" | "high" | "unavailable" } | null,
+): string => (ctx ? (ctx.strain === "high" ? "strain-high" : "-") : "na");
+
 export const resolveCheckInState = (
   stored: StoredCheckIn | null,
   currentFingerprint: string | null,

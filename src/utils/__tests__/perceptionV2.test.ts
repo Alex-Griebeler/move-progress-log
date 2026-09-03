@@ -12,6 +12,7 @@ import {
   PERCEPTION_TEXT_VERSION,
   PERCEPTION_TEXT_VERSION_V2,
   SUPPORTED_PERCEPTION_VERSIONS,
+  describePersistedPerception,
   type PerceptionRecordV2,
 } from "../perceptionObservation";
 
@@ -106,5 +107,33 @@ describe("renderer do prontuário (source-based, v7.2-M4/M9)", () => {
     expect(card).toContain('f.fonte === "psr" ? "PSR"');
     // sintomas v1: renderiza SÓ quando o campo existe (histórico preservado).
     expect(card).toContain("f.sintomas !== undefined");
+  });
+});
+
+describe("v9.2 — vocabulário de concordância no campo percepcao= (formato v2 MANTIDO)", () => {
+  it.each(["nao_informada", "concordante", "discordante_acima", "discordante_abaixo"] as const)(
+    "round-trip de %s",
+    (value) => {
+      expect(parsePerceptionText(buildPerceptionTextV2(recordV2({ perception: value }))).fields.percepcao).toBe(value);
+    },
+  );
+  it("legado continua parseando (registros gravados antes da v9.2)", () => {
+    for (const legacy of ["condizente", "pior", "melhor"] as const) {
+      expect(parsePerceptionText(buildPerceptionTextV2(recordV2({ perception: legacy }))).fields.percepcao).toBe(legacy);
+    }
+  });
+  it("renderer mapeia os DOIS vocabulários para rótulo humano; desconhecido fica cru", () => {
+    expect(describePersistedPerception("condizente")).toBe("Concordante");
+    expect(describePersistedPerception("concordante")).toBe("Concordante");
+    expect(describePersistedPerception("melhor")).toBe("PSR acima do aparelho");
+    expect(describePersistedPerception("discordante_acima")).toBe("PSR acima do aparelho");
+    expect(describePersistedPerception("pior")).toBe("PSR abaixo do aparelho");
+    expect(describePersistedPerception("discordante_abaixo")).toBe("PSR abaixo do aparelho");
+    expect(describePersistedPerception("nao_informada")).toBe("não informada");
+    expect(describePersistedPerception("xyz")).toBe("xyz");
+  });
+  it("v2.1 NÃO é versão parseável/suportada (só v<inteiro>)", () => {
+    const parsed = parsePerceptionText("[percepcao_treino v2.1] | fonte=whoop | percepcao=concordante");
+    expect((SUPPORTED_PERCEPTION_VERSIONS as readonly string[]).includes(parsed.version ?? "")).toBe(false);
   });
 });

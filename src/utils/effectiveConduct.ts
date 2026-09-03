@@ -11,21 +11,65 @@
  *
  * A MÁQUINA DE SINTOMAS MORREU (decisão do dono, 31/08, emenda v7): "o
  * treino só deverá ser suspenso se o treinador decidir" — sintoma virou
- * OBSERVAÇÃO clínica no fluxo próprio, sem gate automático nenhum; a
- * elevação por percepção fica gated só por piso numérico + freshness/strain
- * do Whoop. Registros v1 antigos com sintomas seguem visíveis no prontuário.
+ * OBSERVAÇÃO clínica no fluxo próprio, sem gate automático nenhum.
+ *
+ * REGRA DE CONCORDÂNCIA (spec v9.2, 6 pontos ratificados 03/09; Nuuttila
+ * 2022 doi:10.1249/MSS.0000000000002968 — maioria de marcadores; Saw 2016
+ * doi:10.1136/bjsports-2015-094758): (1) concordam → segue o aparelho;
+ * (2) discordam sem piso → Manter o treino planejado; (3) piso numérico
+ * absoluto (Whoop ≤33, Oura <45, CRITICAL) só bloqueia SUBIR; (4) PSR 0–3 é
+ * TETO ABSOLUTO para qualquer base (2–3 → zona 1; 0–1 → zona 0); (5) só
+ * strain conhecido e alto veta a elevação 2→3 — sync velha NÃO veta;
+ * (6) todo veto vira frase visível (PerceptionResult, nunca appliedVetoes).
+ * A régua relativa ±2 morreu.
  */
 
 import type { TrainingRecommendation } from "@/utils/recoveryEngine";
 
-export type Perception = "nao_informada" | "pior" | "condizente" | "melhor";
+/**
+ * Sinal de PSR NORMALIZADO e indivisível (spec v9.2, E3): valor e banda
+ * nascem juntos em `toPsrSignal` (checkin.ts) — nunca viajam separados.
+ * Bandas = as do modo sem dispositivo (7–10→3 · 4–6→2 · 2–3→1 · 0–1→0).
+ */
+export type PsrSignal =
+  | { value: null; zone: null }
+  | { value: number; zone: 0 | 1 | 2 | 3 };
 
-/** Estados FECHADOS do contexto Whoop (R8-7). Ausente/indisponível = veto
- *  de elevação, não piso — na fase R8b (antes da R8d) o chamador passa
- *  "unavailable" e a elevação fica fail-closed pra Whoop. */
+/** Acordo aparelho × PSR (persistido em `percepcao=` e exibido). */
+export type PerceptionAgreement =
+  | "nao_informada"
+  | "concordante"
+  | "discordante_acima"
+  | "discordante_abaixo";
+
+/** O que a PSR fez com a conduta (fonte ÚNICA da copy — E4). */
+export type PerceptionOutcome =
+  | "unchanged"
+  | "raised"
+  | "lowered"
+  | "lowered_to_maintain"
+  | "vetoed";
+
+export type PerceptionVetoReason = "floor" | "strain" | null;
+
+export interface PerceptionResult {
+  agreement: PerceptionAgreement;
+  outcome: PerceptionOutcome;
+  vetoReason: PerceptionVetoReason;
+  psr: number | null;
+  baseZone: 0 | 1 | 2 | 3 | 4;
+  /** Zona após a PSR e ANTES da alternativa. */
+  zoneAfterPsr: 0 | 1 | 2 | 3 | 4;
+}
+
+/** Estados FECHADOS do contexto Whoop (R8-7). Desde a v9.2 (ponto 5
+ *  ratificado) só `strain === "high"` veta a elevação 2→3; freshness e
+ *  "unavailable" NÃO vetam (a sincronização não muda o recovery da noite). */
 export interface WhoopConductContext {
   freshness: "fresh" | "stale" | "unavailable";
   strain: "non_high" | "high" | "unavailable";
+  /** Valor medido (só informativo, pra copy); null quando não atribuível. */
+  strainValue?: number | null;
 }
 
 export interface ConductAlternative {
@@ -40,9 +84,8 @@ export interface ConductInput {
   base: TrainingRecommendation;
   source: "oura" | "whoop";
   score: number;
-  /** Derivada do PSR pela régua ±2 (derivePerceptionFromPsr) — o funil segue
-   *  consumindo a categoria relativa; PSR null → "nao_informada". */
-  perception: Perception;
+  /** PSR normalizado (toPsrSignal). value null → sem modulação. */
+  psr: PsrSignal;
   alternative: ConductAlternative | null;
   /** null para Oura (contexto não se aplica). */
   whoopContext: WhoopConductContext | null;
@@ -70,6 +113,8 @@ export interface EffectiveConduct {
   appliedVetoes: string[];
   /** "error": ação suspensa por dado incompleto (fonte pode estar errada). */
   suspended: "error" | null;
+  /** Resultado estruturado da PSR (v9.2) — a UI renderiza a frase daqui. */
+  perception: PerceptionResult;
 }
 
 export const ZONE_FROM_LABEL: Record<TrainingRecommendation["zone"], 0 | 1 | 2 | 3 | 4> = {
@@ -143,12 +188,23 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
     appliedAlternative: null,
     appliedVetoes: vetoes,
     suspended: null,
+    perception: {
+      agreement: "nao_informada", outcome: "unchanged", vetoReason: null,
+      psr: null, baseZone, zoneAfterPsr: baseZone,
+    },
     ...overrides,
   });
 
-  // 1) ERRO precede tudo: fonte pode estar errada — nada acionável.
+  // 1) ERRO precede tudo: fonte pode estar errada — nada acionável. A PSR
+  //    é semanticamente ignorada (A2 da revisão fria).
   if (input.hasPartialError) {
-    return baseConduct({ suspended: "error" });
+    return baseConduct({
+      suspended: "error",
+      perception: {
+        agreement: "nao_informada", outcome: "unchanged", vetoReason: null,
+        psr: null, baseZone, zoneAfterPsr: baseZone,
+      },
+    });
   }
 
   const floor = isNumericFloor(input);
@@ -156,44 +212,67 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
     (a) => a.kind === "fisiologico" && a.level === "CRITICAL",
   );
   if (hasCritical) {
-    vetoes.push("Sinal crítico presente — confirme com a aluna antes de manter o programado.");
+    vetoes.push("Sinal fisiológico crítico presente. Confirme a conduta antes do treino.");
   }
 
-  // 2) PERCEPÇÃO (via PSR→relativa)
+  // 2) PSR — matriz normativa v9.2 (§3). Ordem: teto absoluto (PSR 0–3) →
+  //    concordância → divergência (manter / elevar com gates / piso).
   let zone = baseZone;
   let capMaintain = false;
-  if (input.perception === "pior") {
-    zone = clampZone(Math.min(baseZone - 1, 2));
-    if (zone !== baseZone) {
-      vetoes.push("Conduta reduzida pela percepção da aluna (PSR abaixo do score).");
-    }
-  } else if (input.perception === "melhor") {
-    const elevationBlockers: string[] = [];
-    if (floor) elevationBlockers.push("sinais objetivos muito baixos (piso numérico)");
-    if (input.source === "whoop") {
-      if (input.whoopContext?.freshness !== "fresh") {
-        elevationBlockers.push("sincronização do Whoop não está fresca");
+  let agreement: PerceptionAgreement = "nao_informada";
+  let outcome: PerceptionOutcome = "unchanged";
+  let vetoReason: PerceptionVetoReason = null;
+  const psrZone = input.psr.zone;
+  if (psrZone !== null) {
+    const concordant =
+      (baseZone >= 3 && psrZone === 3) ||
+      (baseZone === 2 && psrZone === 2) ||
+      (baseZone === 1 && psrZone === 1) ||
+      (baseZone === 0 && psrZone === 0);
+    agreement = concordant
+      ? "concordante"
+      : psrZone > baseZone
+        ? "discordante_acima"
+        : "discordante_abaixo";
+    const strainVeto = input.source === "whoop" && input.whoopContext?.strain === "high";
+    if (psrZone <= 1) {
+      // Ponto 4: PSR 0–3 é teto absoluto para QUALQUER base.
+      if (psrZone < baseZone) {
+        zone = psrZone;
+        outcome = "lowered";
+      } else if (psrZone > baseZone) {
+        // (base 0, PSR 2–3): tentativa de subir barrada pelo piso — frase visível (ponto 6).
+        vetoReason = "floor";
+        outcome = "vetoed";
       }
-      if (input.whoopContext?.strain !== "non_high") {
-        elevationBlockers.push("strain do dia alto ou indisponível");
+    } else if (!concordant) {
+      if (baseZone >= 3) {
+        // (4|3, PSR 4–6): discordância sem piso → manter (derruba o increase).
+        zone = 3;
+        outcome = baseZone === 4 ? "lowered_to_maintain" : "unchanged";
+      } else if (baseZone === 2) {
+        // (2, PSR 7–10): elevação — gates = piso + strain conhecido alto.
+        if (floor) {
+          vetoReason = "floor";
+          outcome = "vetoed";
+        } else if (strainVeto) {
+          vetoReason = "strain";
+          outcome = "vetoed";
+        } else {
+          zone = 3;
+          capMaintain = true;
+          outcome = "raised";
+        }
+      } else {
+        // (1|0, PSR 4–10): zona ≤1 é sempre piso.
+        vetoReason = "floor";
+        outcome = "vetoed";
       }
-    }
-    if (elevationBlockers.length === 0) {
-      // Só zona base ≤2 SOBE; zona 3 já é o teto humano; zona 4 objetiva
-      // NÃO é desfeita por "melhor" (a progressão +5% foi autorizada por
-      // todos os gates numéricos — percepção não a apaga; revisão R8b).
-      if (baseZone <= 2) {
-        zone = clampZone(baseZone + 1);
-        capMaintain = true;
-        vetoes.push("Conduta elevada pela percepção da aluna (PSR acima do score) — carga nunca progride por percepção.");
-      }
-    } else {
-      vetoes.push(
-        `Elevação por percepção bloqueada: ${elevationBlockers.join("; ")}.`,
-      );
     }
   }
-  // "nao_informada"/"condizente": conduta = base (sem modulação por percepção).
+  const perceptionResult: PerceptionResult = {
+    agreement, outcome, vetoReason, psr: input.psr.value, baseZone, zoneAfterPsr: zone,
+  };
 
   // Teto permitido por base+percepção+vetos (alternativa nunca passa dele).
   const ceiling = zone;
@@ -245,5 +324,6 @@ export const computeEffectiveConduct = (input: ConductInput): EffectiveConduct =
     effectiveLoadAdjustmentPercent: load.decision === "block" ? null : load.percent,
     modulated: zone !== baseZone || appliedAlternative !== null,
     appliedAlternative,
+    perception: perceptionResult,
   });
 };
