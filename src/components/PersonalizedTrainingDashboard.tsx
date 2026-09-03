@@ -29,6 +29,7 @@ import {
   computeWhoopContext,
   newerUnscoredWhoopDay,
   WHOOP_SYNC_STALE_HOURS,
+  formatStrainDisplay,
 } from "@/utils/whoopRecommendation";
 import { useWhoopConnection, useSyncWhoop } from "@/hooks/useWhoopConnection";
 import { useIsAdmin } from "@/hooks/useUserRole";
@@ -49,11 +50,11 @@ import {
   validateRememberedPerception,
 } from "@/utils/perceptionObservation";
 import {
-  derivePerceptionFromPsr,
+  toPsrSignal,
   hashConductFingerprint,
   normalizePsr,
 } from "@/utils/checkin";
-import { deriveTrainingHeroState, resolveCheckInState } from "@/utils/trainingHeroState";
+import { deriveTrainingHeroState, resolveCheckInState, whoopFingerprintSegment } from "@/utils/trainingHeroState";
 import { createSerialQueue } from "@/utils/serialQueue";
 import CheckInForm from "@/components/checkin/CheckInForm";
 import AddObservationDialog from "@/components/checkin/AddObservationDialog";
@@ -71,6 +72,8 @@ import {
   SNAPSHOT_ZONE_SHORT,
   VERDICT_BY_ZONE,
   formatDoseShort,
+  perceptionCausalLine,
+  perceptionEyebrow,
 } from "@/utils/recommendationDisplay";
 import {
   AlertDialog,
@@ -319,7 +322,7 @@ const PersonalizedTrainingDashboard = ({
         })
       : null;
   const whoopConductContext = whoopCtx
-    ? ({ freshness: whoopCtx.freshness, strain: whoopCtx.strain } as const)
+    ? ({ freshness: whoopCtx.freshness, strain: whoopCtx.strain, strainValue: whoopCtx.strainValue } as const)
     : null;
   const conductFingerprint = earlySnapshot && activeRecommendation
     ? [
@@ -327,7 +330,10 @@ const PersonalizedTrainingDashboard = ({
         activeRecommendation.zone, activeRecommendation.loadDecision,
         activeRecommendation.loadAdjustmentPercent ?? "na",
         activeRecommendation.overrideApplied ? "ov" : "-", criticalSignature,
-        whoopConductContext ? `${whoopConductContext.freshness}/${whoopConductContext.strain}` : "na",
+        // v9.2: segmento CATEGÓRICO (whoopFingerprintSegment) — só o veto de
+        // strain conhecido/alto decide; freshness ficava aqui e apagava o
+        // check-in 3h após o sync (regressão do caso 59+PSR9).
+        whoopFingerprintSegment(whoopConductContext),
       ].join("|")
     : null;
   // Escopo por fingerprint: avaliação registrada só vale pra recomendação
@@ -364,10 +370,8 @@ const PersonalizedTrainingDashboard = ({
   );
   const registeredPsr =
     checkInState === "done" ? normalizePsr(assessment?.psr ?? null) : null;
-  const perception = derivePerceptionFromPsr(
-    registeredPsr,
-    earlySnapshot?.score ?? 0,
-  );
+  // v9.2: sinal normalizado {value, zone}; a matriz de concordância roda no funil.
+  const psrSignal = toPsrSignal(registeredPsr);
   // Alternativa também é MODULAÇÃO: fingerprint diferente = recomendação
   // mudou → a escolha antiga é limpa (não aplicada) — revisão R8b.
   const scopedAlternative =
@@ -390,7 +394,7 @@ const PersonalizedTrainingDashboard = ({
           base: activeRecommendation,
           source: earlySnapshot.source,
           score: earlySnapshot.score,
-          perception,
+          psr: psrSignal,
           alternative: conductAlternative,
           whoopContext: whoopConductContext,
           hasPartialError: isError,
@@ -530,16 +534,14 @@ const PersonalizedTrainingDashboard = ({
     // REGISTRO precisa gravar a conduta que o PSR commitado produz, senão o
     // banco diz "manter" e a tela revela "reduzir". O override (rest-day)
     // registra o estado exibido, que já é pós-done/skip.
-    const prospectivePerception = conductTypeOverride
-      ? perception
-      : derivePerceptionFromPsr(validPsr, earlySnapshot.score);
+    const prospectivePsr = conductTypeOverride ? psrSignal : toPsrSignal(validPsr);
     const prospectiveConduct = conductTypeOverride
       ? conduct
       : computeEffectiveConduct({
           base: activeRecommendation,
           source: earlySnapshot.source,
           score: earlySnapshot.score,
-          perception: prospectivePerception,
+          psr: prospectivePsr,
           alternative: conductAlternative,
           whoopContext: whoopConductContext,
           hasPartialError: isError,
@@ -572,7 +574,7 @@ const PersonalizedTrainingDashboard = ({
         conductFingerprintHash: hashConductFingerprint(conductFingerprint),
         registeredAtIso,
         baseZoneLabel: activeRecommendation.zone,
-        perception: prospectivePerception,
+        perception: prospectiveConduct.perception.agreement,
         conductType: conductTypeOverride ?? prospectiveConduct.prescription.trainingType,
         vetoes: prospectiveConduct.appliedVetoes,
         spDay: registrationDay,
@@ -661,7 +663,7 @@ const PersonalizedTrainingDashboard = ({
       conductFingerprintHash: hashConductFingerprint(conductFingerprint),
       registeredAtIso: scopedCheckInRecord.registeredAtIso ?? new Date().toISOString(),
       baseZoneLabel: activeRecommendation.zone,
-      perception,
+      perception: conduct?.perception.agreement ?? "nao_informada",
       conductType: conduct.prescription.trainingType,
       vetoes: conduct.appliedVetoes,
       spDay: todaySp,
@@ -1235,7 +1237,7 @@ const PersonalizedTrainingDashboard = ({
           base: activeRecommendation,
           source: earlySnapshot.source,
           score: earlySnapshot.score,
-          perception,
+          psr: psrSignal,
           alternative: null,
           whoopContext: whoopConductContext,
           hasPartialError: isError,
@@ -1244,16 +1246,17 @@ const PersonalizedTrainingDashboard = ({
   const psrStageZone = (psrStageConduct ?? conduct)?.effectiveZone ?? null;
   // "Conduta cresce E coloriza só quando DESVIA do planejado" (regra dos
   // mocks): desvio = zona efetiva ≤2 OU modulação aplicada.
-  const conductDeviates = conduct ? conduct.effectiveZone <= 2 || conduct.modulated : false;
+  // v9.2 (E9): tamanho/tom pelo effectiveZone; a frase causal (abaixo) diz o
+  // delta — "Manter" por concordância, discordância ou 4→3 é veredito pequeno.
+  const conductDeviates = conduct ? conduct.effectiveZone <= 2 : false;
   // Frases causais do DELTA REAL (U10/v8.1 + FRIA-6): PSR e alternativa
   // renderizam como causas SEPARADAS, em ordem — nunca mapa fixo.
-  const perceptionChangedZone =
-    baseZoneNumber !== null && psrStageZone !== null &&
-    psrStageZone !== baseZoneNumber && registeredPsr !== null;
-  const causalLine =
-    perceptionChangedZone && baseZoneNumber !== null && psrStageZone !== null
-      ? `PSR ${registeredPsr} ${psrStageZone < baseZoneNumber ? "rebaixou" : "elevou"}: ${VERDICT_BY_ZONE[baseZoneNumber]} → ${VERDICT_BY_ZONE[psrStageZone]}`
-      : null;
+  // Frase causal da PSR (v9.2): fonte única = conduct.perception (estágio
+  // pós-PSR, antes da alternativa); veto de percepção NUNCA vive em appliedVetoes.
+  const psrStagePerception = (psrStageConduct ?? conduct)?.perception ?? null;
+  const strainDisplay =
+    whoopConductContext?.strainValue != null ? formatStrainDisplay(whoopConductContext.strainValue) : null;
+  const causalLine = psrStagePerception ? perceptionCausalLine(psrStagePerception, strainDisplay) : null;
   const alternativeLine = conduct?.appliedAlternative
     ? psrStageZone !== null && conduct.effectiveZone !== psrStageZone
       ? `Alternativa "${conduct.appliedAlternative}": ${VERDICT_BY_ZONE[psrStageZone]} → ${VERDICT_BY_ZONE[conduct.effectiveZone]}`
@@ -1261,8 +1264,8 @@ const PersonalizedTrainingDashboard = ({
     : null;
   const modulationEyebrow = conduct?.appliedAlternative
     ? "Alternativa escolhida"
-    : perceptionChangedZone
-      ? "Ajuste por percepção"
+    : psrStagePerception
+      ? perceptionEyebrow(psrStagePerception)
       : null;
   // P8/E8: títulos datados NEUTROS pra qualquer snapshot ≠ hoje ("Fisiologia
   // · ontem"); o AVISO âmbar continua só ≥2 dias (decisão 1b intocada).
@@ -1420,9 +1423,9 @@ const PersonalizedTrainingDashboard = ({
                         · {formatDoseShort(conduct.prescription.intensity, conduct.prescription.duration)}
                       </span>
                     </p>
-                    {causalLine && <p className="mt-1 text-xs text-muted-foreground">{causalLine}</p>}
+                    {causalLine && <p className="mt-1 text-sm">{causalLine}</p>}
                     {alternativeLine && <p className="mt-1 text-xs text-muted-foreground">{alternativeLine}</p>}
-                    {conduct.modulated && baseZoneNumber !== null && (
+                    {conduct.modulated && baseZoneNumber !== null && !causalLine && (
                       <p className="mt-1 text-xs text-muted-foreground">
                         Recomendação do aparelho: {VERDICT_BY_ZONE[baseZoneNumber]} ·{" "}
                         {formatDoseShort(activeRecommendation!.intensity, activeRecommendation!.duration)}
@@ -1755,7 +1758,9 @@ const PersonalizedTrainingDashboard = ({
               → protocolos. O hero acima fica com anel/meta/check-in. */}
           {conduct && (
             <div ref={conductRegionRef} tabIndex={-1} className="mb-4 outline-none" aria-label="Conduta do dia">
-              <p className="text-xs font-semibold text-muted-foreground">Dia de recuperação</p>
+              <p className="text-xs font-semibold text-muted-foreground">
+                {modulationEyebrow ? `Dia de recuperação · ${modulationEyebrow}` : "Dia de recuperação"}
+              </p>
               <p className="mt-1 flex flex-wrap items-baseline gap-2">
                 <span aria-hidden="true" className="h-2 w-2 shrink-0 self-center rounded-full bg-destructive" />
                 <span className="text-xl font-semibold tracking-tight text-destructive">
@@ -1763,7 +1768,7 @@ const PersonalizedTrainingDashboard = ({
                 </span>
                 <span className="text-sm text-muted-foreground">· carga bloqueada hoje</span>
               </p>
-              {causalLine && <p className="mt-1 text-xs text-muted-foreground">{causalLine}</p>}
+              {causalLine && <p className="mt-1 text-sm">{causalLine}</p>}
               {alternativeLine && <p className="mt-1 text-xs text-muted-foreground">{alternativeLine}</p>}
               {conduct.appliedVetoes.length > 0 && (
                 <ul className="mt-1 space-y-0.5">

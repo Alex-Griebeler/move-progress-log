@@ -24,11 +24,12 @@ interface TrainingAlternative {
   fingerprint?: string;
 }
 
-/** Check-in v3 (spec v7): a avaliação é o PSR cru — a Perception relativa é
- *  DERIVADA no consumo (derivePerceptionFromPsr), nunca armazenada
- *  (v6.1-M7). Escopada por fingerprint COMPLETO: mudou
- *  score/zona/carga/critical/contexto, a modulação é invalidada na tela
- *  (o valor do PSR preenchido é preservado pra reconfirmação — U4). */
+/** Check-in v3 (spec v7 → v9.2): a avaliação é o PSR cru — o sinal
+ *  normalizado {value, zone} é DERIVADO no consumo (toPsrSignal) e a matriz
+ *  de concordância roda no funil; nada disso é armazenado (v6.1-M7).
+ *  Escopada por fingerprint: mudou score/zona/carga/critical/strain-alto,
+ *  a modulação é invalidada na tela (o valor do PSR preenchido é preservado
+ *  pra reconfirmação — U4). */
 export interface ConductAssessment {
   studentId: string;
   source: "oura" | "whoop";

@@ -2,10 +2,9 @@
  * Check-in v3 (redesign premium, spec v7+v7.2 com GO — 31/08):
  * PSR (percepção subjetiva de repouso, 0–10) como única pergunta do check-in.
  *
- * Três tradutores PUROS, nenhum toca o motor fisiológico:
- * - derivePerceptionFromPsr: PSR + score do aparelho → Perception relativa
- *   (régua ±2 ratificada) — o funil computeEffectiveConduct segue consumindo
- *   Perception e NÃO muda.
+ * Tradutores PUROS, nenhum toca o motor fisiológico:
+ * - toPsrSignal: PSR cru → sinal normalizado {value, zone} (spec v9.2) — a
+ *   régua relativa ±2 MORREU; o funil aplica a matriz de concordância.
  * - deriveZoneFromPsrOnly: bandas diretas pro modo SEM dispositivo
  *   (ratificadas: 7–10 manter · 4–6 reduzir 20% · 2–3 recuperação · 0–1
  *   descanso). Zona 4/progressão NUNCA nasce só de PSR.
@@ -18,7 +17,7 @@
  */
 
 import type { RecoverySource, TrainingRecommendation } from "@/utils/recoveryEngine";
-import type { Perception } from "@/utils/effectiveConduct";
+import type { PsrSignal } from "@/utils/effectiveConduct";
 import { PRESCRIPTION_BY_ZONE } from "@/utils/effectiveConduct";
 
 export const PSR_MIN = 0;
@@ -69,29 +68,6 @@ export const normalizePsr = (value: unknown): number | null => {
 };
 
 /**
- * Régua ±2 ratificada ("ok" do Alex, 31/08): o score do aparelho (0–100)
- * projeta um PSR esperado (score/10); desvio de 2+ pontos pra baixo = "pior",
- * 2+ pra cima = "melhor", dentro da faixa = "condizente".
- *
- * Degenerações CONHECIDAS e aceitas (v7.2-M10, viram teste, não mudança de
- * fórmula): score 18 + PSR 0 → diff −1,8 → "condizente" fica no histórico —
- * o piso numérico do funil já impede exposição num dia objetivamente ruim.
- */
-export const derivePerceptionFromPsr = (
-  psr: number | null,
-  deviceScore: number,
-): Perception => {
-  const normalized = normalizePsr(psr);
-  if (normalized === null) return "nao_informada";
-  // Clamp defensivo: o motor só produz 0–100, mas o tradutor não confia.
-  const score = Math.max(0, Math.min(100, deviceScore));
-  const diff = normalized - score / 10;
-  if (diff <= -2) return "pior";
-  if (diff >= 2) return "melhor";
-  return "condizente";
-};
-
-/**
  * Bandas diretas do modo SEM dispositivo (ratificadas): a banda É a conduta —
  * não há piso numérico nem freshness sem aparelho. Zona 4 é inalcançável.
  */
@@ -104,6 +80,17 @@ export const deriveZoneFromPsrOnly = (psr: number): 0 | 1 | 2 | 3 => {
   if (normalized >= 4) return 2;
   if (normalized >= 2) return 1;
   return 0;
+};
+
+/**
+ * Único tradutor PSR → sinal (E3 da spec v9.2): valor e banda nascem juntos.
+ * Qualquer valor inválido vira {null,null} (= "não informado"); PSR 0 é
+ * resposta válida (truthiness proibido — v6.1-M7).
+ */
+export const toPsrSignal = (value: unknown): PsrSignal => {
+  const normalized = normalizePsr(value);
+  if (normalized === null) return { value: null, zone: null };
+  return { value: normalized, zone: deriveZoneFromPsrOnly(normalized) };
 };
 
 const ZONE_LABEL_BY_NUMBER: Record<0 | 1 | 2 | 3, TrainingRecommendation["zone"]> = {

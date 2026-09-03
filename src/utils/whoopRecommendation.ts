@@ -95,6 +95,9 @@ export interface WhoopContextInput {
 export interface WhoopContextResult {
   freshness: "fresh" | "stale" | "unavailable";
   strain: "non_high" | "high" | "unavailable";
+  /** Valor do strain do dia (só com snapshot de HOJE e valor finito) — copy
+   *  do veto/alerta; NUNCA decide (v9.2 A3/A4). */
+  strainValue: number | null;
   /** "HH:mm" em America/Sao_Paulo, ou null sem sync. */
   syncDisplay: string | null;
   /** Alerta contextual de strain alto — só com snapshot de HOJE e sync
@@ -107,6 +110,11 @@ export interface WhoopContextResult {
     message: string;
   } | null;
 }
+
+/** Display canônico do strain (v9.2 A3): SEMPRE uma casa decimal em pt-BR
+ *  ("14,0", "14,3", "15,0") — a mesma função no alerta e na frase do veto. */
+export const formatStrainDisplay = (value: number): string =>
+  value.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 export const computeWhoopContext = (input: WhoopContextInput): WhoopContextResult => {
   let freshness: WhoopContextResult["freshness"];
@@ -152,11 +160,16 @@ export const computeWhoopContext = (input: WhoopContextInput): WhoopContextResul
           metric: "strain" as const,
           level: "WARNING" as const,
           shortLabel: "Strain do dia alto",
-          message: `Strain medido: ${(input.dayStrain as number).toFixed(1)}/21 na sincronização das ${syncDisplay} — faixa alta do Whoop (≥${WHOOP_HIGH_STRAIN_THRESHOLD}). Confirme esforço realizado e percepção atual antes de manter a sessão.`,
+          message: `Strain medido: ${formatStrainDisplay(input.dayStrain as number)}/21 na sincronização das ${syncDisplay} — faixa alta do Whoop (≥${WHOOP_HIGH_STRAIN_THRESHOLD}). Confirme esforço realizado e percepção atual antes de manter a sessão.`,
         }
       : null;
 
-  return { freshness, strain, syncDisplay, strainAlert };
+  const strainValue =
+    input.snapshotIsToday && input.dayStrain != null && Number.isFinite(input.dayStrain)
+      ? input.dayStrain
+      : null;
+
+  return { freshness, strain, strainValue, syncDisplay, strainAlert };
 };
 
 export interface WhoopRecommendationResult {

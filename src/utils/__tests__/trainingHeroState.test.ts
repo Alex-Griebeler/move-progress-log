@@ -4,6 +4,7 @@
  * loading → erro total → sem snapshot → sem recomendação → erro parcial →
  * check-in pendente → zona 0 (com/sem protocolos) → multi-vigente → normal.
  */
+import { whoopFingerprintSegment } from "../trainingHeroState";
 import { describe, expect, it } from "vitest";
 import {
   deriveTrainingHeroState,
@@ -137,5 +138,30 @@ describe("resolveCheckInState — transições com destruição (v7.2-M7 / v6.1-
   it("A→B→A NÃO ressuscita: o resolver é puro — com fpA de novo ele voltaria a valer SÓ se o armazenamento não tiver sido destruído; a destruição do storage é contrato do chamador (PR-B2), testado lá", () => {
     // O resolver responde pela VALIDADE, não pelo ciclo de vida do storage.
     expect(resolveCheckInState(stored, "fpA", "2026-08-31")).toBe("done");
+  });
+});
+
+describe("v9.2 — whoopFingerprintSegment (categórico) × resolveCheckInState", () => {
+  const fp = (strain: "non_high" | "high" | "unavailable") => `s1|whoop|2026-09-03|59|yellow|reduce|-20|-||${whoopFingerprintSegment({ strain })}`;
+  const stored = (conductFingerprint: string) => ({ studentId: "s1", state: "done" as const, conductFingerprint, spDay: "2026-09-03", registeredAtIso: "x", persistedConductType: null });
+
+  it("fresh/non_high → stale/unavailable preserva o check-in (regressão: sumia após 3h)", () => {
+    expect(whoopFingerprintSegment({ strain: "non_high" })).toBe(whoopFingerprintSegment({ strain: "unavailable" }));
+    expect(resolveCheckInState(stored(fp("non_high")), fp("unavailable"), "2026-09-03")).toBe("done");
+  });
+  it("high permanece high com sync stale (mesmo segmento); 14→18 dentro de high não invalida (fingerprint sem valor)", () => {
+    expect(whoopFingerprintSegment({ strain: "high" })).toBe("strain-high");
+    expect(resolveCheckInState(stored(fp("high")), fp("high"), "2026-09-03")).toBe("done");
+  });
+  it("non_high|unavailable → high invalida (pending); high → unavailable invalida (veto sumiu)", () => {
+    expect(resolveCheckInState(stored(fp("non_high")), fp("high"), "2026-09-03")).toBe("pending");
+    expect(resolveCheckInState(stored(fp("unavailable")), fp("high"), "2026-09-03")).toBe("pending");
+    expect(resolveCheckInState(stored(fp("high")), fp("unavailable"), "2026-09-03")).toBe("pending");
+  });
+  it("sem contexto Whoop (Oura) o segmento é '-' (expressão canônica da spec) e não contém freshness", () => {
+    expect(whoopFingerprintSegment(null)).toBe("-");
+    for (const st of ["non_high", "high", "unavailable"] as const) {
+      expect(whoopFingerprintSegment({ strain: st })).not.toMatch(/fresh|stale/);
+    }
   });
 });

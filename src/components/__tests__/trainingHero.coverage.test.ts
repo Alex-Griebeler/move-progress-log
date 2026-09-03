@@ -336,7 +336,9 @@ describe("R8b — percepção da aluna e conduta efetiva", () => {
   });
 
   it("default REAL continua 'não informada': PSR null → nao_informada via tradutor puro (v7)", () => {
-    expect(dash).toContain("derivePerceptionFromPsr(");
+    // v9.2: tradutor único do PSR (sinal indivisível); régua ±2 morreu
+    expect(dash).toContain("toPsrSignal(registeredPsr)");
+    expect(dash).not.toContain("derivePerceptionFromPsr");
     expect(dash).toContain("assessment?.psr ?? null");
   });
 
@@ -360,7 +362,7 @@ describe("R8b — percepção da aluna e conduta efetiva", () => {
 
   it("dois níveis preservados na forma nova (D1 ratificada): conduta como frase + aparelho como nota", () => {
     expect(dash).toContain("Recomendação do aparelho:");
-    expect(dash).toContain('"Ajuste por percepção"');
+    expect(dash).toContain('perceptionEyebrow(psrStagePerception)'); // v9.2: "Ajuste por PSR" / "Ajuste por PSR não aplicado" nascem do helper
     expect(dash).toContain("VERDICT_BY_ZONE[conduct.effectiveZone]");
   });
 
@@ -380,6 +382,29 @@ describe("R8b — percepção da aluna e conduta efetiva", () => {
   it("fingerprint completo invalida modulação quando a recomendação muda", () => {
     expect(dash).toContain("criticalSignature");
     expect(dash).toContain("conductAssessment.fingerprint === conductFingerprint");
+  });
+
+  it("v9.2: fingerprint CATEGÓRICO — segmento Whoop sem freshness (check-in não some após 3h)", () => {
+    expect(dash).toContain("whoopFingerprintSegment(whoopConductContext),");
+    expect(dash).not.toMatch(/\$\{whoopConductContext\.freshness\}/);
+  });
+
+  it("v9.2: frase causal da PSR vem de conduct.perception, em text-sm (não muted), nas DUAS superfícies; veto nunca no <ul> muted; 'Recomendação do aparelho' não duplica", () => {
+    expect(dash).toContain("const psrStagePerception = (psrStageConduct ?? conduct)?.perception ?? null;");
+    expect(dash).toContain("perceptionCausalLine(psrStagePerception, strainDisplay)");
+    expect(dash).toContain("perceptionEyebrow(psrStagePerception)");
+    expect((dash.match(/\{causalLine && <p className="mt-1 text-sm">\{causalLine\}<\/p>\}/g) ?? []).length).toBe(2);
+    expect(dash).not.toMatch(/causalLine && <p className="mt-1 text-xs text-muted-foreground"/);
+    expect(dash).toContain("{conduct.modulated && baseZoneNumber !== null && !causalLine && (");
+    expect(dash).toContain("const conductDeviates = conduct ? conduct.effectiveZone <= 2 : false;");
+    // as 3 derivações migraram; persistência grava o vocabulário novo
+    expect((dash.match(/psr: psrSignal,/g) ?? []).length).toBe(2);
+    expect(dash).toContain("psr: prospectivePsr,");
+    expect(dash).toContain("perception: prospectiveConduct.perception.agreement,");
+    expect(dash).toContain('perception: conduct?.perception.agreement ?? "nao_informada",');
+    expect(dash).toContain("strainValue: whoopCtx.strainValue");
+    // recovery_block também mostra o eyebrow canônico (E3 da review C1)
+    expect(dash).toContain("{modulationEyebrow ? `Dia de recuperação · ${modulationEyebrow}` : \"Dia de recuperação\"}");
   });
 });
 
