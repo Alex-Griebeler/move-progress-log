@@ -93,8 +93,9 @@ export function createAppQueryClient(): QueryClient {
 //   render) e checam a revogação NO MOMENTO DA CHAMADA — cobre a mutação
 //   construída antes da revogação cujo mutationFn ainda não começou (o
 //   TanStack aguarda onMutate antes de iniciar) e a janela entre o hook de
-//   cache e o callback. Os hooks de cache também travam. (O write que já foi
-//   ao servidor NÃO é cancelado por nada disto — só a publicação no cliente.)
+//   cache e o callback; a ENTREGA do execute()/mutateAsync é guardada na
+//   conclusão. Os hooks de cache também travam. (O write que já foi ao
+//   servidor NÃO é cancelado por nada disto — só a publicação no cliente.)
 // - Query nova/refetch de uma closure antiga: o `fetch` da instância nunca
 //   conclui; fetchQuery/ensureQueryData que devolveriam cache fresco sem
 //   passar pelo fetch também são barrados no client.
@@ -134,12 +135,13 @@ function guardMutationOptions<TData, TError, TVariables, TContext>(
   options: MutationOptions<TData, TError, TVariables, TContext>,
   revocation: IdentityRevocation,
 ): MutationOptions<TData, TError, TVariables, TContext> {
-  const { mutationFn, onSuccess, onError, onSettled } = options;
+  const { mutationFn, onMutate, onSuccess, onError, onSettled } = options;
   return {
     ...options,
     mutationFn: mutationFn
       ? (variables) => (revocation.revoked ? neverSettle() : mutationFn(variables))
       : mutationFn,
+    onMutate: onMutate ? (variables) => (revocation.revoked ? neverSettle() : onMutate(variables)) : onMutate,
     onSuccess: onSuccess
       ? (...args) => (revocation.revoked ? neverSettle() : onSuccess(...args))
       : onSuccess,
@@ -176,10 +178,19 @@ class IdentityMutationCache extends MutationCache {
     // (mutation.setOptions); a barreira precisa sobreviver a isso.
     if (!this.guarded.has(mutation)) {
       this.guarded.add(mutation);
-      const setOptions = mutation.setOptions.bind(mutation);
       const { revocation } = this;
+      const setOptions = mutation.setOptions.bind(mutation);
       mutation.setOptions = (next) => setOptions(guardMutationOptions(next, revocation));
       mutation.setOptions(mutation.options);
+      // A ENTREGA (mutateAsync resolve/rejeita) também é guardada: depois do
+      // último callback ainda há um intervalo até o `return data` do execute()
+      // — uma revogação ali não pode entregar o resultado de A ao chamador.
+      const execute = mutation.execute.bind(mutation);
+      mutation.execute = (variables) =>
+        execute(variables).then(
+          (value) => (revocation.revoked ? neverSettle() : value),
+          (error: unknown) => (revocation.revoked ? neverSettle() : Promise.reject(error)),
+        );
     }
     return mutation;
   }

@@ -167,24 +167,39 @@ describe("disposeIdentityQueryClient — revogação do client da identidade ant
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it("revogação entre o hook de cache e o callback de hook (re-render reaplicando opções): onSuccess não roda, mutateAsync não resolve", async () => {
+  it("revogação no ÚLTIMO intervalo do execute (depois do onSettled, antes do return): mutateAsync não entrega, mesmo com re-render reaplicando opções", async () => {
+    const client = createIdentityQueryClient();
+    const mutationFn = vi.fn(async (v: string) => `privado de A: ${v}`);
+    const onSuccess = vi.fn();
+    // onSettled roda; a revogação chega no microtask seguinte — depois do último
+    // callback guardado e antes do `dispatch success; return data`
+    const onSettled = vi.fn(() => {
+      queueMicrotask(() => revokeIdentityQueryClient(client));
+    });
+    const observer = new MutationObserver(client, { mutationFn, onSuccess, onSettled });
+    const consumer = vi.fn();
+    const pending = observer.mutate("payload").then(consumer);
+    observer.setOptions({ mutationFn, onSuccess, onSettled, meta: { rerender: true } }); // re-render
+    expect(await settledWithin(pending)).toBe("pending");
+    expect(onSuccess).toHaveBeenCalledTimes(1);
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(consumer, "continuação do mutateAsync de A rodou na sessão B").not.toHaveBeenCalled();
+  });
+
+  it("sem onSettled no consumidor: a entrega do execute ainda é guardada", async () => {
     const client = createIdentityQueryClient();
     let release!: (v: string) => void;
     const mutationFn = vi.fn((_v: string) => new Promise<string>((r) => { release = r; }));
-    const onSuccess = vi.fn();
-    const onSettled = vi.fn();
-    const observer = new MutationObserver(client, { mutationFn, onSuccess, onSettled });
-    const pending = observer.mutate("payload");
+    const observer = new MutationObserver(client, { mutationFn });
+    const consumer = vi.fn();
+    const pending = observer.mutate("payload").then(consumer, consumer);
     await vi.waitFor(() => expect(mutationFn).toHaveBeenCalledTimes(1));
-    // o componente re-renderiza e o observer reaplica as opções cruas na mutação
-    observer.setOptions({ mutationFn, onSuccess, onSettled, meta: { rerender: true } });
-    // a resposta chega e, no microtask seguinte (entre cache.onSuccess e options.onSuccess), a identidade é revogada
     release("ok");
+    // revoga num microtask: depois do início da conclusão, antes de entregar
     await Promise.resolve();
     revokeIdentityQueryClient(client);
     expect(await settledWithin(pending)).toBe("pending");
-    expect(onSuccess).not.toHaveBeenCalled();
-    expect(onSettled).not.toHaveBeenCalled();
+    expect(consumer).not.toHaveBeenCalled();
   });
 
   it("fetchQuery/ensureQueryData com cache FRESCO (sem passar pelo fetch) também não entregam depois da revogação", async () => {

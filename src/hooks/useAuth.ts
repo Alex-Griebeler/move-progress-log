@@ -7,9 +7,11 @@ export interface AuthContextValue {
   /** Client do estado privado da identidade corrente; null fora de "signed-in". */
   queryClient: QueryClient | null;
   /**
-   * Client das rotas sem casca privada. Também é trocado a cada época: uma
-   * página pública que consulte dados de sessão (ex.: OnboardingSuccessPage
-   * com hooks do Oura) não pode reter cache de uma identidade anterior.
+   * Client ESTÁVEL das rotas por token/sem sessão (onboarding, questionário,
+   * conexão Oura/Whoop): nunca é trocado — um formulário que continue montado
+   * durante uma troca de identidade em outra aba mantém o client (e a
+   * retomada de mutações pausadas) que seus observers capturaram. Página
+   * pública que LÊ sessão usa SessionEpochScope (client próprio por época).
    */
   publicQueryClient: QueryClient;
 }

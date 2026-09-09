@@ -91,10 +91,9 @@ export function AuthProvider({ children }: ProviderProps) {
       const next: AuthContextValue = {
         identity,
         queryClient: identity.status === "signed-in" ? createIdentityQueryClient() : null,
-        // Cache público novo por época; o anterior não é limpo (páginas por
-        // token que continuam montadas seguem usando o delas) — só deixa de
-        // ser alcançável por quem monta a partir daqui.
-        publicQueryClient: createAppQueryClient(),
+        // estável: trocar o client do provider desmonta (unmount) o anterior e
+        // páginas por token ainda montadas perderiam a retomada de mutações.
+        publicQueryClient: prev.publicQueryClient,
       };
       current.current = next;
       setValue(next);
@@ -156,20 +155,28 @@ export function IdentityScope({ children }: ProviderProps) {
   );
 }
 
-/** Provê o cache público da época corrente às rotas sem casca privada. */
+/** Provê o cache público ESTÁVEL às rotas por token/sem sessão. */
 export function PublicQueryScope({ children }: ProviderProps) {
   const client = usePublicQueryClient();
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }
 
 /**
- * Remonta os filhos a cada época de identidade. Para páginas públicas que
- * leem sessão/dados autenticados (OnboardingSuccessPage, OAuthConsentPage):
- * estado e observers da identidade anterior caem na troca. NÃO envolver o
- * AuthPage (o SIGNED_IN acontece no meio do fluxo de 2FA) nem páginas por
- * token com formulário (perderiam o preenchimento num login em outra aba).
+ * Escopo por época para páginas públicas que LEEM sessão/dados autenticados
+ * fora da casca (OnboardingSuccessPage com hooks do Oura, OAuthConsentPage):
+ * client revogável próprio + remontagem a cada época — estado, observers e
+ * cache da identidade anterior caem na troca; o client é revogado e limpo no
+ * unmount. NÃO envolver o AuthPage (o SIGNED_IN acontece no meio do fluxo de
+ * 2FA) nem páginas por token com formulário (perderiam o preenchimento num
+ * login em outra aba — elas usam o client público estável).
  */
-export function EpochRemount({ children }: ProviderProps) {
+export function SessionEpochScope({ children }: ProviderProps) {
   const { epoch } = useAuth();
-  return <Fragment key={epoch}>{children}</Fragment>;
+  return <SessionEpochInstance key={epoch}>{children}</SessionEpochInstance>;
+}
+
+function SessionEpochInstance({ children }: ProviderProps) {
+  const [client] = useState(createIdentityQueryClient);
+  useEffect(() => () => disposeIdentityQueryClient(client), [client]);
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }

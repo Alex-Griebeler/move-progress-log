@@ -21,7 +21,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { QueryClient, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useRef, useState } from "react";
@@ -175,7 +175,7 @@ vi.mock("@/hooks/usePasswordSecurity", () => ({
 // ---------------------------------------------------------------------------
 // Componentes/hooks de PRODUÇÃO sob teste
 // ---------------------------------------------------------------------------
-import { AuthProvider, EpochRemount, PublicQueryScope } from "@/contexts/AuthContext";
+import { AuthProvider, PublicQueryScope, SessionEpochScope } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { AdminRoute } from "@/components/AdminRoute";
@@ -300,6 +300,31 @@ function PublicProbe() {
   );
 }
 
+let tokenPageMounts = 0;
+/** Página por TOKEN (como StudentOnboardingPage): formulário com useMutation no
+ *  client público estável; precisa continuar funcionando se a identidade da
+ *  aba mudar (login em outra aba) enquanto ela está montada. */
+function TokenPageProbe() {
+  const send = useMutation({
+    mutationFn: async (name: string) => {
+      type Chain = { insert(v: unknown): Chain; select(c: string): { single(): PromiseLike<{ data: Student }> } };
+      const { data } = await (fake.client.from("students") as unknown as Chain).insert({ name }).select("id").single();
+      return data;
+    },
+  });
+  useEffect(() => {
+    tokenPageMounts += 1;
+  }, []);
+  return (
+    <div>
+      <p>página por token</p>
+      <button type="button" onClick={() => send.mutate("Convidada")}>Enviar cadastro</button>
+      {send.isSuccess && <p>cadastro enviado</p>}
+      {send.isError && <p>cadastro falhou</p>}
+    </div>
+  );
+}
+
 let publicSessionMounts = 0;
 /** Página pública que lê dado de SESSÃO (como OnboardingSuccessPage com os
  *  hooks do Oura): consulta `students` pelo singleton, fora da casca. */
@@ -368,7 +393,8 @@ function Harness({
                   element={realAuthPage ? <AuthPage /> : <AuthStub autoNavigate={authAutoNavigate} />}
                 />
                 <Route path="/publico" element={<PublicProbe />} />
-                <Route path="/publico-sessao" element={<EpochRemount><PublicSessionProbe /></EpochRemount>} />
+                <Route path="/publico-sessao" element={<SessionEpochScope><PublicSessionProbe /></SessionEpochScope>} />
+                <Route path="/token-page" element={<TokenPageProbe />} />
                 <Route
                   path="/*"
                   element={
@@ -487,6 +513,7 @@ beforeEach(() => {
   notifySpy.dismissAll.mockClear();
   authStubMounts = 0;
   publicSessionMounts = 0;
+  tokenPageMounts = 0;
 });
 afterEach(cleanup);
 
@@ -896,6 +923,23 @@ describe("A-001 — fronteira de identidade (A → logout → B na mesma aba)", 
     });
     expect(screen.queryByText("B-Bruna")).not.toBeInTheDocument();
     expect(screen.queryByText("A-Alice")).not.toBeInTheDocument();
+  });
+
+  it("12. página por token que continua montada durante a troca de identidade mantém client e mutação funcionando", async () => {
+    render(<Harness initialPath="/token-page" />);
+    expect(await screen.findByText("página por token")).toBeInTheDocument();
+    // login de B em outra aba enquanto a convidada preenche o formulário
+    await signIn(userB);
+    expect(tokenPageMounts, "formulário por token remontou na troca").toBe(1);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Enviar cadastro" }));
+    expect(await screen.findByText("cadastro enviado")).toBeInTheDocument();
+    expect(fake.state.requests.filter((r) => r.ops.some(([n]) => n === "insert"))).toHaveLength(1);
+    // e depois de um logout também
+    await signOutByEvent();
+    await user.click(screen.getByRole("button", { name: "Enviar cadastro" }));
+    await waitFor(() => expect(fake.state.requests.filter((r) => r.ops.some(([n]) => n === "insert"))).toHaveLength(2));
+    expect(tokenPageMounts).toBe(1);
   });
 
   it("7. AdminRoute e rotas públicas: A admin entra; B não herda a área nem o menu; público segue aberto", async () => {
