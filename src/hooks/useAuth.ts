@@ -6,6 +6,12 @@ export interface AuthContextValue {
   identity: AuthIdentity;
   /** Client do estado privado da identidade corrente; null fora de "signed-in". */
   queryClient: QueryClient | null;
+  /**
+   * Client das rotas sem casca privada. Também é trocado a cada época: uma
+   * página pública que consulte dados de sessão (ex.: OnboardingSuccessPage
+   * com hooks do Oura) não pode reter cache de uma identidade anterior.
+   */
+  publicQueryClient: QueryClient;
 }
 
 /** Provido por `AuthProvider` (src/contexts/AuthContext.tsx). */
@@ -31,4 +37,9 @@ export function useAuth(): AuthIdentity {
 /** QueryClient da identidade corrente (consumido pelo IdentityScope). */
 export function useIdentityQueryClient(): QueryClient | null {
   return useAuthContext().queryClient;
+}
+
+/** QueryClient público da época corrente (consumido pelo PublicQueryScope). */
+export function usePublicQueryClient(): QueryClient {
+  return useAuthContext().publicQueryClient;
 }

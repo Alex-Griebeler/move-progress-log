@@ -80,10 +80,11 @@ describe("A-001 — toasters reais remontados por época de identidade", () => {
     );
     await flushTimers();
 
-    // A publica nos DOIS sistemas
+    // A publica nos DOIS sistemas (e guarda o handle do shadcn para atualizar depois)
+    let shadcnHandle!: ReturnType<typeof shadcnToast>;
     await act(async () => {
       notify.success("sonner: aluna privada de A");
-      shadcnToast({ title: "shadcn: dado privado de A" });
+      shadcnHandle = shadcnToast({ title: "shadcn: dado privado de A" });
     });
     await flushTimers();
     expect(screen.getByText("sonner: aluna privada de A")).toBeInTheDocument();
@@ -110,6 +111,12 @@ describe("A-001 — toasters reais remontados por época de identidade", () => {
     expect(screen.queryByText("sonner: aluna privada de A")).not.toBeInTheDocument();
     expect(screen.queryByText("sonner tardio: Aluno: aluna de A")).not.toBeInTheDocument();
     expect(screen.queryByText("shadcn: dado privado de A")).not.toBeInTheDocument();
+    // update antigo por id no store do shadcn (reabrir) não ressuscita o toast de A
+    await act(async () => {
+      shadcnHandle.update({ id: shadcnHandle.id, title: "shadcn: dado privado de A (update)", open: true });
+    });
+    await flushTimers();
+    expect(screen.queryByText("shadcn: dado privado de A (update)")).not.toBeInTheDocument();
 
     // B publica depois de montar: aparece
     await act(async () => {

@@ -21,7 +21,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import { Link, MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useRef, useState } from "react";
@@ -175,11 +175,11 @@ vi.mock("@/hooks/usePasswordSecurity", () => ({
 // ---------------------------------------------------------------------------
 // Componentes/hooks de PRODUÇÃO sob teste
 // ---------------------------------------------------------------------------
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, EpochRemount, PublicQueryScope } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { AdminRoute } from "@/components/AdminRoute";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { createAppQueryClient } from "@/lib/authIdentity";
 import { useStudents, useCreateStudent, type Student } from "@/hooks/useStudents";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { useTrainingContext } from "@/contexts/TrainingContext";
@@ -300,6 +300,25 @@ function PublicProbe() {
   );
 }
 
+let publicSessionMounts = 0;
+/** Página pública que lê dado de SESSÃO (como OnboardingSuccessPage com os
+ *  hooks do Oura): consulta `students` pelo singleton, fora da casca. */
+function PublicSessionProbe() {
+  const { data } = useQuery({
+    queryKey: ["public-session-probe"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      type Chain = { select(c: string): Chain; order(c: string): PromiseLike<{ data: Student[] }> };
+      const { data } = await (fake.client.from("students") as unknown as Chain).select("id, name").order("name");
+      return data.map((s) => s.name);
+    },
+  });
+  useEffect(() => {
+    publicSessionMounts += 1;
+  }, []);
+  return <ul aria-label="pública-sessão">{(data ?? []).map((n) => <li key={n}>{n}</li>)}</ul>;
+}
+
 let authStubMounts = 0;
 /** Substitui o AuthPage: após o SIGNED_IN, navega para a rota pós-login (como
  *  o AuthPage real faz depois do signInWithPassword). `autoNavigate=false`
@@ -328,10 +347,9 @@ function AuthStub({ autoNavigate = true }: { autoNavigate?: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
-// Harness — mesma composição do App.tsx: AuthProvider → client público →
+// Harness — mesma composição do App.tsx: AuthProvider → PublicQueryScope →
 // ThemeProvider/TooltipProvider → Router → rotas públicas + ProtectedShell
 // ---------------------------------------------------------------------------
-let publicClient: QueryClient;
 
 function Harness({
   initialPath,
@@ -340,7 +358,7 @@ function Harness({
 }: { initialPath: string; authAutoNavigate?: boolean; realAuthPage?: boolean }) {
   return (
     <AuthProvider>
-      <QueryClientProvider client={publicClient}>
+      <PublicQueryScope>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
           <TooltipProvider>
             <MemoryRouter initialEntries={[initialPath]}>
@@ -350,6 +368,7 @@ function Harness({
                   element={realAuthPage ? <AuthPage /> : <AuthStub autoNavigate={authAutoNavigate} />}
                 />
                 <Route path="/publico" element={<PublicProbe />} />
+                <Route path="/publico-sessao" element={<EpochRemount><PublicSessionProbe /></EpochRemount>} />
                 <Route
                   path="/*"
                   element={
@@ -365,7 +384,7 @@ function Harness({
             </MemoryRouter>
           </TooltipProvider>
         </ThemeProvider>
-      </QueryClientProvider>
+      </PublicQueryScope>
     </AuthProvider>
   );
 }
@@ -467,7 +486,7 @@ beforeEach(() => {
   notifySpy.error.mockClear();
   notifySpy.dismissAll.mockClear();
   authStubMounts = 0;
-  publicClient = createAppQueryClient();
+  publicSessionMounts = 0;
 });
 afterEach(cleanup);
 
@@ -827,6 +846,56 @@ describe("A-001 — fronteira de identidade (A → logout → B na mesma aba)", 
     expect(studentSelects().length, "voltar de rota pública refez a lista").toBe(selectsBefore);
     expect(roleRequests().length).toBe(rolesBefore);
     expect(notifySpy.dismissAll).not.toHaveBeenCalled();
+  });
+
+  it("5b. INITIAL_SESSION atrasado (storage assíncrono) com a sessão de A NÃO desfaz SIGNED_IN de B nem SIGNED_OUT", async () => {
+    fake.state.emitInitialSession = false;
+    fake.state.getSessionOnce = new Promise<FakeSession>(() => {}); // bootstrap nunca responde
+    render(<Harness initialPath="/" />);
+    expect(await screen.findByText("Verificando acesso...")).toBeInTheDocument();
+    phase = "B";
+    await signIn(userB); // evento real (ex.: broadcast de outra aba) antes do bootstrap terminar
+    await expectBView();
+    const mountsB = probeMounts;
+    // agora o auth-js termina de ler o storage antigo e emite INITIAL_SESSION com A
+    await act(async () => {
+      fake.emit("INITIAL_SESSION", sessionOf(userA));
+    });
+    await expectBView();
+    expect(probeMounts, "B remontada por um INITIAL_SESSION antigo").toBe(mountsB);
+    expect(exposureIn("B")).toEqual([]);
+    // logout real seguido de INITIAL_SESSION antigo com A: continua deslogado
+    await signOutByEvent();
+    expect(await screen.findByText("Página de login")).toBeInTheDocument();
+    await act(async () => {
+      fake.emit("INITIAL_SESSION", sessionOf(userA));
+    });
+    expect(screen.getByText("Página de login")).toBeInTheDocument();
+    expect(screen.queryByText("A-Alice")).not.toBeInTheDocument();
+    expect(studentSelects().filter((r) => r.userId === userA.id)).toEqual([]);
+  });
+
+  it("11. página pública que lê dado de sessão (fora da casca) não retém cache de A para B", async () => {
+    fake.state.session = sessionOf(userA);
+    phase = "A";
+    render(<Harness initialPath="/publico-sessao" />);
+    expect(await screen.findByText("A-Alice")).toBeInTheDocument();
+    const mountsA = publicSessionMounts;
+    phase = "B";
+    const watch = watchDom(A_FORBIDDEN);
+    await signIn(userB);
+    expect(await screen.findByText("B-Bruna")).toBeInTheDocument();
+    expect(screen.queryByText("A-Alice")).not.toBeInTheDocument();
+    expect(publicSessionMounts).toBe(mountsA + 1);
+    const hits = watch.stop();
+    expect(hits).toEqual([]);
+    // logout: a página pública remonta sem sessão e não mostra nada de ninguém
+    await signOutByEvent();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    expect(screen.queryByText("B-Bruna")).not.toBeInTheDocument();
+    expect(screen.queryByText("A-Alice")).not.toBeInTheDocument();
   });
 
   it("7. AdminRoute e rotas públicas: A admin entra; B não herda a área nem o menu; público segue aberto", async () => {

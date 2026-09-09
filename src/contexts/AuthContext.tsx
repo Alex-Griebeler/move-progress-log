@@ -5,9 +5,16 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthContext, useAuth, useIdentityQueryClient, type AuthContextValue } from "@/hooks/useAuth";
+import {
+  AuthContext,
+  useAuth,
+  useIdentityQueryClient,
+  usePublicQueryClient,
+  type AuthContextValue,
+} from "@/hooks/useAuth";
 import {
   INITIAL_AUTH_IDENTITY,
+  createAppQueryClient,
   createIdentityQueryClient,
   disposeIdentityQueryClient,
   nextAuthIdentity,
@@ -20,7 +27,11 @@ interface ProviderProps {
   children: ReactNode;
 }
 
-const INITIAL_VALUE: AuthContextValue = { identity: INITIAL_AUTH_IDENTITY, queryClient: null };
+const createInitialValue = (): AuthContextValue => ({
+  identity: INITIAL_AUTH_IDENTITY,
+  queryClient: null,
+  publicQueryClient: createAppQueryClient(),
+});
 
 /**
  * Fecha toda notificação na tela na troca de identidade (o toaster do shadcn
@@ -44,20 +55,27 @@ function dismissPrivateNotifications() {
  *   antiga já não publica via React Query nem inicia mutação/query nova.
  *   (Limite: requisições diretas ao singleton do supabase-js por código já em
  *   execução — ver src/lib/authIdentity.ts.)
- * - `getSession()` é o bootstrap; se QUALQUER evento já foi aplicado, o
- *   snapshot inicial — possivelmente antigo — é descartado. Uma resposta
- *   inicial atrasada nunca restaura A depois de logout/B.
+ * - Bootstrap = `getSession()` e o evento `INITIAL_SESSION` (o auth-js só o
+ *   emite depois de ler o storage — que no preview do Lovable é assíncrono —
+ *   enquanto eventos de outra aba chegam pelo BroadcastChannel sem esperar).
+ *   Se QUALQUER evento real já foi aplicado, os dois snapshots iniciais —
+ *   possivelmente antigos — são descartados: uma resposta inicial atrasada
+ *   nunca restaura A depois de logout/B.
+ * - "Expiração" aqui é o evento do auth-js (SIGNED_OUT quando a renovação
+ *   falha de forma não recuperável). Token vencido sem evento (offline) não
+ *   fecha a fronteira — é o backend que rejeita a requisição.
  * - Eventos da mesma identidade (TOKEN_REFRESHED etc.) não alteram nada
  *   (o redutor devolve a mesma referência) → sem re-render, sem remontagem.
  * - O client vive no provider (não na casca): navegar para uma rota pública
  *   e voltar preserva o cache da MESMA identidade, como antes.
  */
 export function AuthProvider({ children }: ProviderProps) {
-  const [value, setValue] = useState<AuthContextValue>(INITIAL_VALUE);
-  const current = useRef<AuthContextValue>(INITIAL_VALUE);
+  const [value, setValue] = useState<AuthContextValue>(createInitialValue);
+  const current = useRef<AuthContextValue>(value);
 
   useEffect(() => {
     let active = true;
+    /** Um evento REAL (não bootstrap) já definiu a identidade. */
     let eventApplied = false;
 
     const apply = (session: AuthSessionLike) => {
@@ -73,6 +91,10 @@ export function AuthProvider({ children }: ProviderProps) {
       const next: AuthContextValue = {
         identity,
         queryClient: identity.status === "signed-in" ? createIdentityQueryClient() : null,
+        // Cache público novo por época; o anterior não é limpo (páginas por
+        // token que continuam montadas seguem usando o delas) — só deixa de
+        // ser alcançável por quem monta a partir daqui.
+        publicQueryClient: createAppQueryClient(),
       };
       current.current = next;
       setValue(next);
@@ -80,8 +102,12 @@ export function AuthProvider({ children }: ProviderProps) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      eventApplied = true;
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") {
+        if (eventApplied) return;
+      } else {
+        eventApplied = true;
+      }
       apply(session);
     });
 
@@ -128,4 +154,22 @@ export function IdentityScope({ children }: ProviderProps) {
       <Fragment key={epoch}>{children}</Fragment>
     </QueryClientProvider>
   );
+}
+
+/** Provê o cache público da época corrente às rotas sem casca privada. */
+export function PublicQueryScope({ children }: ProviderProps) {
+  const client = usePublicQueryClient();
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+}
+
+/**
+ * Remonta os filhos a cada época de identidade. Para páginas públicas que
+ * leem sessão/dados autenticados (OnboardingSuccessPage, OAuthConsentPage):
+ * estado e observers da identidade anterior caem na troca. NÃO envolver o
+ * AuthPage (o SIGNED_IN acontece no meio do fluxo de 2FA) nem páginas por
+ * token com formulário (perderiam o preenchimento num login em outra aba).
+ */
+export function EpochRemount({ children }: ProviderProps) {
+  const { epoch } = useAuth();
+  return <Fragment key={epoch}>{children}</Fragment>;
 }

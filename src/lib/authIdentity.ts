@@ -17,6 +17,11 @@ import {
   QueryCache,
   QueryClient,
   type DefaultError,
+  type EnsureInfiniteQueryDataOptions,
+  type EnsureQueryDataOptions,
+  type FetchInfiniteQueryOptions,
+  type FetchQueryOptions,
+  type InfiniteData,
   type MutationOptions,
   type MutationState,
   type QueryClientConfig,
@@ -83,12 +88,16 @@ export function createAppQueryClient(): QueryClient {
 // client faz qualquer operação dessa identidade terminar EM SILÊNCIO — a
 // promessa nunca conclui: não escreve, não notifica, não continua o laço.
 //
-// - Mutação em voo: os hooks de cache (onMutate/onSuccess/onError/onSettled)
-//   rodam ANTES dos callbacks de hook e antes de resolver o mutateAsync; com a
-//   identidade revogada eles ficam pendentes para sempre. (O write que já foi
-//   ao servidor NÃO é cancelado por isto — só a publicação no cliente.)
-// - Mutação/query NOVA de uma closure antiga: `build` troca a função por uma
-//   que nunca conclui — o mutationFn/queryFn nunca executa.
+// - Mutação: mutationFn e callbacks (onSuccess/onError/onSettled) são
+//   envolvidos NA INSTÂNCIA (via setOptions, que o observer reaplica a cada
+//   render) e checam a revogação NO MOMENTO DA CHAMADA — cobre a mutação
+//   construída antes da revogação cujo mutationFn ainda não começou (o
+//   TanStack aguarda onMutate antes de iniciar) e a janela entre o hook de
+//   cache e o callback. Os hooks de cache também travam. (O write que já foi
+//   ao servidor NÃO é cancelado por nada disto — só a publicação no cliente.)
+// - Query nova/refetch de uma closure antiga: o `fetch` da instância nunca
+//   conclui; fetchQuery/ensureQueryData que devolveriam cache fresco sem
+//   passar pelo fetch também são barrados no client.
 // - API assíncrona do client (invalidateQueries, refetchQueries, fetchQuery…)
 //   chamada por um callback já em andamento: nunca conclui — a continuação
 //   depois do `await` (toast, próxima escrita) não roda.
@@ -120,7 +129,30 @@ class IdentityRevocation {
   readonly hold = (): Promise<never> | undefined => (this.revoked ? neverSettle() : undefined);
 }
 
+/** Envolve mutationFn e callbacks para checarem a revogação ao serem CHAMADOS. */
+function guardMutationOptions<TData, TError, TVariables, TContext>(
+  options: MutationOptions<TData, TError, TVariables, TContext>,
+  revocation: IdentityRevocation,
+): MutationOptions<TData, TError, TVariables, TContext> {
+  const { mutationFn, onSuccess, onError, onSettled } = options;
+  return {
+    ...options,
+    mutationFn: mutationFn
+      ? (variables) => (revocation.revoked ? neverSettle() : mutationFn(variables))
+      : mutationFn,
+    onSuccess: onSuccess
+      ? (...args) => (revocation.revoked ? neverSettle() : onSuccess(...args))
+      : onSuccess,
+    onError: onError ? (...args) => (revocation.revoked ? neverSettle() : onError(...args)) : onError,
+    onSettled: onSettled
+      ? (...args) => (revocation.revoked ? neverSettle() : onSettled(...args))
+      : onSettled,
+  };
+}
+
 class IdentityMutationCache extends MutationCache {
+  private readonly guarded = new WeakSet<object>();
+
   constructor(private readonly revocation: IdentityRevocation) {
     super({
       onMutate: revocation.hold,
@@ -135,11 +167,21 @@ class IdentityMutationCache extends MutationCache {
     options: MutationOptions<TData, TError, TVariables, TContext>,
     state?: MutationState<TData, TError, TVariables, TContext>,
   ) {
-    return super.build(
+    const mutation = super.build(
       client,
       this.revocation.revoked ? { ...options, mutationFn: neverSettle, gcTime: Infinity } : options,
       state,
     );
+    // O MutationObserver reaplica as opções cruas em cada render
+    // (mutation.setOptions); a barreira precisa sobreviver a isso.
+    if (!this.guarded.has(mutation)) {
+      this.guarded.add(mutation);
+      const setOptions = mutation.setOptions.bind(mutation);
+      const { revocation } = this;
+      mutation.setOptions = (next) => setOptions(guardMutationOptions(next, revocation));
+      mutation.setOptions(mutation.options);
+    }
+    return mutation;
   }
 }
 
@@ -215,8 +257,39 @@ class IdentityQueryClient extends QueryClient {
   resumePausedMutations() {
     return this.guard(() => super.resumePausedMutations());
   }
-  // fetchQuery/prefetchQuery/ensureQueryData/fetchInfiniteQuery passam pelo
-  // `query.fetch` interceptado no IdentityQueryCache.
+  // A família fetch/ensure passa pelo `query.fetch` interceptado quando busca
+  // na rede, mas devolve cache fresco DIRETO quando o tem — por isso também
+  // é guardada aqui (entrada + conclusão).
+  fetchQuery<TQueryFnData, TError = DefaultError, TData = TQueryFnData, TQueryKey extends QueryKey = QueryKey, TPageParam = never>(
+    options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>,
+  ): Promise<TData> {
+    return this.guard(() => super.fetchQuery(options));
+  }
+  prefetchQuery<TQueryFnData = unknown, TError = DefaultError, TData = TQueryFnData, TQueryKey extends QueryKey = QueryKey>(
+    options: FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  ): Promise<void> {
+    return this.guard(() => super.prefetchQuery(options));
+  }
+  ensureQueryData<TQueryFnData, TError = DefaultError, TData = TQueryFnData, TQueryKey extends QueryKey = QueryKey>(
+    options: EnsureQueryDataOptions<TQueryFnData, TError, TData, TQueryKey>,
+  ): Promise<TData> {
+    return this.guard(() => super.ensureQueryData(options));
+  }
+  fetchInfiniteQuery<TQueryFnData, TError = DefaultError, TData = TQueryFnData, TQueryKey extends QueryKey = QueryKey, TPageParam = unknown>(
+    options: FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>,
+  ): Promise<InfiniteData<TData, TPageParam>> {
+    return this.guard(() => super.fetchInfiniteQuery(options));
+  }
+  prefetchInfiniteQuery<TQueryFnData, TError = DefaultError, TData = TQueryFnData, TQueryKey extends QueryKey = QueryKey, TPageParam = unknown>(
+    options: FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>,
+  ): Promise<void> {
+    return this.guard(() => super.prefetchInfiniteQuery(options));
+  }
+  ensureInfiniteQueryData<TQueryFnData, TError = DefaultError, TData = TQueryFnData, TQueryKey extends QueryKey = QueryKey, TPageParam = unknown>(
+    options: EnsureInfiniteQueryDataOptions<TQueryFnData, TError, TData, TQueryKey, TPageParam>,
+  ): Promise<InfiniteData<TData, TPageParam>> {
+    return this.guard(() => super.ensureInfiniteQueryData(options));
+  }
 }
 
 /** Client do estado privado de UMA identidade (ver AuthProvider/IdentityScope). */

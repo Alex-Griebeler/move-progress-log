@@ -153,6 +153,52 @@ describe("disposeIdentityQueryClient — revogação do client da identidade ant
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("mutação construída ANTES da revogação cujo mutationFn ainda não começou: nunca executa (mutate + dispose imediato)", async () => {
+    const client = createIdentityQueryClient();
+    const mutationFn = vi.fn(async (v: string) => v);
+    const onSuccess = vi.fn();
+    const onError = vi.fn();
+    const observer = new MutationObserver(client, { mutationFn, onSuccess, onError });
+    const pending = observer.mutate("escrita de A"); // execute() aguarda onMutate antes de chamar o mutationFn
+    disposeIdentityQueryClient(client);
+    expect(await settledWithin(pending)).toBe("pending");
+    expect(mutationFn).not.toHaveBeenCalled();
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("revogação entre o hook de cache e o callback de hook (re-render reaplicando opções): onSuccess não roda, mutateAsync não resolve", async () => {
+    const client = createIdentityQueryClient();
+    let release!: (v: string) => void;
+    const mutationFn = vi.fn((_v: string) => new Promise<string>((r) => { release = r; }));
+    const onSuccess = vi.fn();
+    const onSettled = vi.fn();
+    const observer = new MutationObserver(client, { mutationFn, onSuccess, onSettled });
+    const pending = observer.mutate("payload");
+    await vi.waitFor(() => expect(mutationFn).toHaveBeenCalledTimes(1));
+    // o componente re-renderiza e o observer reaplica as opções cruas na mutação
+    observer.setOptions({ mutationFn, onSuccess, onSettled, meta: { rerender: true } });
+    // a resposta chega e, no microtask seguinte (entre cache.onSuccess e options.onSuccess), a identidade é revogada
+    release("ok");
+    await Promise.resolve();
+    revokeIdentityQueryClient(client);
+    expect(await settledWithin(pending)).toBe("pending");
+    expect(onSuccess).not.toHaveBeenCalled();
+    expect(onSettled).not.toHaveBeenCalled();
+  });
+
+  it("fetchQuery/ensureQueryData com cache FRESCO (sem passar pelo fetch) também não entregam depois da revogação", async () => {
+    const client = createIdentityQueryClient();
+    client.setQueryData(["x"], "A");
+    const queryFn = vi.fn(async () => "rede");
+    const pending = client.fetchQuery({ queryKey: ["x"], queryFn, staleTime: Infinity });
+    const ensured = client.ensureQueryData({ queryKey: ["x"], queryFn });
+    disposeIdentityQueryClient(client);
+    expect(await settledWithin(pending)).toBe("pending");
+    expect(await settledWithin(ensured)).toBe("pending");
+    expect(queryFn).not.toHaveBeenCalled();
+  });
+
   it("query NOVA ou refetch de uma closure antiga nunca executa o queryFn; dispose é idempotente", async () => {
     const client = createIdentityQueryClient();
     const queryFn = vi.fn(async () => ["B-Bruna"]);

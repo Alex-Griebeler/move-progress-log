@@ -1,12 +1,10 @@
 import { AppToasters } from "@/components/AppToasters";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedShell } from "@/components/ProtectedShell";
 import { AdminRoute } from "@/components/AdminRoute";
 import { SkipToContent } from "@/components/SkipToContent";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { createAppQueryClient } from "@/lib/authIdentity";
+import { AuthProvider, EpochRemount, PublicQueryScope } from "@/contexts/AuthContext";
 import { lazy, Suspense } from "react";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { AuthDebugPanel } from "@/components/AuthDebugPanel";
@@ -45,18 +43,15 @@ const CoachConsole = lazy(() => import("./pages/CoachConsole"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const OAuthConsentPage = lazy(() => import("./pages/OAuthConsentPage"));
 
-// Cache PÚBLICO (rotas sem sessão: onboarding por token, consentimentos...).
-// O estado privado das rotas autenticadas vive em um QueryClient por identidade,
-// criado pelo AuthProvider e provido pelo IdentityScope dentro do ProtectedShell (A-001).
-const publicQueryClient = createAppQueryClient();
-
 const App = () => {
   const showAuthDebug = isAuthDebugEnabled();
 
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <QueryClientProvider client={publicQueryClient}>
+        {/* Cache público (rotas sem casca privada), trocado por época; o estado
+            privado vive no QueryClient por identidade do ProtectedShell (A-001). */}
+        <PublicQueryScope>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
             <TooltipProvider>
               <SkipToContent />
@@ -69,7 +64,8 @@ const App = () => {
                     <Route path={ROUTES.auth} element={<AuthPage />} />
                     <Route path={ROUTES.resetPassword} element={<ResetPasswordPage />} />
                     <Route path="/onboarding/:token" element={<StudentOnboardingPage />} />
-                    <Route path={ROUTES.onboardingSuccess} element={<OnboardingSuccessPage />} />
+                    {/* lê dados de sessão (Oura) fora da casca: remonta por época */}
+                    <Route path={ROUTES.onboardingSuccess} element={<EpochRemount><OnboardingSuccessPage /></EpochRemount>} />
                     <Route path={ROUTES.ouraError} element={<OuraErrorPage />} />
                     <Route path={ROUTES.whoopError} element={<WhoopErrorPage />} />
                     <Route path="/oura-connect/:token" element={<OuraConnectPage />} />
@@ -78,7 +74,7 @@ const App = () => {
                     <Route path={ROUTES.terms} element={<LegalPage variant="terms" />} />
                     <Route path={ROUTES.privacy} element={<LegalPage variant="privacy" />} />
                     <Route path={ROUTES.ouraConsent} element={<LegalPage variant="ouraConsent" />} />
-                    <Route path="/.lovable/oauth/consent" element={<OAuthConsentPage />} />
+                    <Route path="/.lovable/oauth/consent" element={<EpochRemount><OAuthConsentPage /></EpochRemount>} />
 
                     {/* Protected routes with sidebar — cache/estado por identidade (A-001) */}
                     <Route path="/*" element={
@@ -109,7 +105,7 @@ const App = () => {
               </BrowserRouter>
             </TooltipProvider>
           </ThemeProvider>
-        </QueryClientProvider>
+        </PublicQueryScope>
       </AuthProvider>
     </ErrorBoundary>
   );
