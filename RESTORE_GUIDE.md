@@ -115,7 +115,6 @@ supabase functions deploy oura-disconnect
 supabase functions deploy oura-sync
 supabase functions deploy oura-sync-all
 supabase functions deploy oura-sync-scheduled
-supabase functions deploy oura-sync-test
 supabase functions deploy process-voice-session
 supabase functions deploy suggest-regressions
 supabase functions deploy validate-student-invite

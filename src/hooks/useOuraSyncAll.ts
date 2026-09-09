@@ -5,19 +5,15 @@ import i18n from "@/i18n/pt-BR.json";
 import { logger } from "@/utils/logger";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { invalidateOuraQueries } from "./ouraQueryInvalidation";
+import { summarizeSyncAllByStudent, type SyncAllPairResult } from "@/utils/ouraSyncSummary";
 
 interface SyncAllResult {
   message: string;
+  /** pares (aluna, data) — desde o lookback não é "alunos" */
   total: number;
   success: number;
   failed: number;
-  results: Array<{
-    student_id: string;
-    student_name: string;
-    status: 'success' | 'failed';
-    attempt: number;
-    error?: string;
-  }>;
+  results: SyncAllPairResult[];
 }
 
 export const useOuraSyncAll = () => {
@@ -35,20 +31,26 @@ export const useOuraSyncAll = () => {
     onSuccess: async (data) => {
       await invalidateOuraQueries(queryClient);
 
-      if (data.failed > 0) {
+      const summary = summarizeSyncAllByStudent(data.results ?? []);
+
+      if (summary.studentsFailed > 0) {
         notify.warning(
           i18n.modules.oura.syncCompletedWithFailures
-            .replace("{{success}}", String(data.success))
-            .replace("{{failed}}", String(data.failed)),
+            .replace("{{success}}", String(summary.studentsOk))
+            .replace("{{failed}}", String(summary.studentsFailed)),
           {
-            description: i18n.modules.oura.checkLogs
+            description: `${i18n.modules.oura.checkLogs} Falhas: ${summary.failedNames.join(", ")}.`
           }
         );
+      } else if (summary.studentsWithData === 0 && summary.studentsTotal > 0) {
+        notify.warning("Sincronização concluída sem dados novos", {
+          description: `${summary.studentsTotal} aluna(s) consultada(s); o Oura não devolveu dados para hoje, ontem nem anteontem.`,
+        });
       } else {
         notify.success(
           i18n.modules.oura.syncCompleted,
           {
-            description: `${data.success} ${i18n.modules.oura.studentsSynced}`
+            description: `${summary.studentsOk} ${i18n.modules.oura.studentsSynced} · ${summary.studentsWithData} com dados novos`
           }
         );
       }

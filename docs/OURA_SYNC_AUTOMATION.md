@@ -345,10 +345,16 @@ Acesse `/admin/diagnostico-oura` para:
 ## 🗓️ Janela de datas e frescor (revisão 2026-09-09)
 
 - **`end_date` é EXCLUSIVO na API v2 do Oura.** `start_date=D&end_date=D` devolve zero documentos; `D..D+1` devolve o dia D (verificado no sandbox oficial para todos os endpoints diários, `sleep` e `workout`). O `oura-sync` pede `D..D+1` e **filtra pelo campo `day`** de cada documento — um documento de outro dia nunca é gravado como D.
-- **Lookback:** cada execução do `oura-sync-all` (cron ou botão "Sincronizar Todos") sincroniza **hoje, ontem e anteontem** (`lookback_days`, padrão 2, máximo 6), em sequência por aluna. Scores que o Oura finaliza depois da última execução do dia são recuperados na execução seguinte; o upsert preserva valores já gravados quando o payload vem esparso.
+- **Lookback:** cada execução do `oura-sync-all` (cron ou botão "Sincronizar Todos") sincroniza **hoje, ontem e anteontem** (`lookback_days`, padrão 2, máximo 6 — só configurável em chamada manual com service role/admin; o cron e a UI usam o padrão), em sequência por aluna. Hoje tem 3 tentativas; dias anteriores, 2 (o cron seguinte os revisita) — pior caso ≈ 110 s por aluna, abaixo do idle timeout de 150 s da edge function. Scores que o Oura finaliza depois da última execução do dia são recuperados na execução seguinte; o upsert preserva valores já gravados quando o payload vem esparso.
 - **`temperature_deviation`** é campo de topo do `daily_readiness` (não de `contributors`).
 - **Resultado por dia (`outcome`)** em `metrics_synced`: `no_data` | `partial` | `complete` (sono E prontidão). A coluna `status` do `oura_sync_logs` continua sendo o sucesso *técnico* da chamada.
 - **UI:** "Última sincronização" = última tentativa; "Último dado real" = dia mais recente com sono/prontidão. Sem dado real há 2+ dias sinaliza problema mesmo com tentativas recentes.
 - **Sonda (admin):** `oura-sync` com `{ student_id, date, probe: true }` consulta a API nas duas janelas (legado D..D e atual D..D+1) e devolve só contagens/dias; não grava métricas/logs/`last_sync_at` (só a renovação do token OAuth, se vencido). Exige **admin** (dono da aluna não passa). Disponível em Diagnósticos → card da aluna → "Sondar D..D vs D..D+1".
 - **Custo:** 5 alunas × 10 endpoints × 3 dias = 150 chamadas por execução (450/dia), muito abaixo do limite publicado (5.000/5 min).
 - `oura-sync-test` (mock que gravava 2025-11-03 em tabelas reais) foi removido.
+
+### Publish desta revisão (ordem obrigatória)
+1. Edge functions (`oura-sync`, `oura-sync-all`) **antes** do front — o front novo lê `outcome`; sem ele o toast do sync de 7 dias diria "sem dados".
+2. Migration `20260909180000_oura_cron_jobs_versioned.sql` (remove jobs fora do padrão que chamem `oura-sync-scheduled` e reagenda os três).
+3. **Apagar a função `oura-sync-test` implantada** (remover a pasta do repo não apaga a função remota): ela grava mock de 2025-11-03 em tabela real.
+4. Rodar a sonda em 2–3 alunas (hoje e um dia passado) e, se confirmar que a janela antiga trazia documento de outro dia, backfill com "Sincronizar últimos 7 dias" por aluna (o merge só preenche/substitui com valor real).

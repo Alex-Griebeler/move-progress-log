@@ -146,7 +146,12 @@ Deno.serve(async (req) => {
             let lastError = '';
             let settled: SyncResult | null = null;
 
-            for (let attempt = 1; attempt <= 3 && !settled; attempt++) {
+            // Orçamento de tempo: 3 tentativas só para HOJE; dias anteriores
+            // ganham 2 (o cron seguinte os revisita). Pior caso por aluna
+            // ≈ 3×15s + 2×(2×15s) + backoff ≈ 110s, abaixo do idle timeout
+            // de 150s da edge function.
+            const maxAttempts = dateStr === dates[0] ? 3 : 2;
+            for (let attempt = 1; attempt <= maxAttempts && !settled; attempt++) {
               try {
                 if (attempt > 1) {
                   await supabase.from('oura_sync_logs').insert({
@@ -179,12 +184,12 @@ Deno.serve(async (req) => {
                 settled = { student_id: studentId, student_name: studentName, date: dateStr, status: 'success', attempt, metrics_synced: syncData, outcome };
               } catch (error) {
                 lastError = (error as Error).message || String(error);
-                if (attempt === 3) {
+                if (attempt === maxAttempts) {
                   await supabase.from('oura_sync_logs').insert({
                     student_id: studentId, sync_date: dateStr, status: 'failed',
                     attempt_number: attempt, error_message: lastError
                   });
-                  settled = { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: 3, error: lastError };
+                  settled = { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt, error: lastError };
                 } else {
                   await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
                 }
@@ -192,7 +197,7 @@ Deno.serve(async (req) => {
             }
 
             studentResults.push(
-              settled ?? { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: 3, error: lastError },
+              settled ?? { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: maxAttempts, error: lastError },
             );
           }
 
@@ -207,16 +212,33 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Contagens por PAR (aluna, data)…
     const successCount = results.filter(r => r.status === 'success').length;
     const failedCount = results.filter(r => r.status === 'failed').length;
     const noDataCount = results.filter(r => r.status === 'success' && r.outcome === 'no_data').length;
     const withDataCount = results.filter(r => r.status === 'success' && r.outcome && r.outcome !== 'no_data').length;
+    // …e por ALUNA (o que a UI mostra): falhou se qualquer data falhou; tem
+    // dado se qualquer data trouxe dado.
+    const byStudent = new Map<string, { failed: boolean; withData: boolean }>();
+    for (const r of results) {
+      const agg = byStudent.get(r.student_id) ?? { failed: false, withData: false };
+      if (r.status === 'failed') agg.failed = true;
+      if (r.status === 'success' && r.outcome && r.outcome !== 'no_data') agg.withData = true;
+      byStudent.set(r.student_id, agg);
+    }
+    const studentsFailed = Array.from(byStudent.values()).filter(a => a.failed).length;
+    const studentsOk = byStudent.size - studentsFailed;
+    const studentsWithData = Array.from(byStudent.values()).filter(a => a.withData).length;
 
     return new Response(
       JSON.stringify({
-        message: `Sync completed: ${successCount} success (${withDataCount} with data, ${noDataCount} no data), ${failedCount} failed`,
+        message: `Sync completed: ${studentsOk}/${byStudent.size} students ok (${studentsWithData} with data); pairs: ${successCount} success (${withDataCount} with data, ${noDataCount} no data), ${failedCount} failed`,
         total: results.length,
         dates,
+        students_total: byStudent.size,
+        students_ok: studentsOk,
+        students_failed: studentsFailed,
+        students_with_data: studentsWithData,
         success: successCount,
         with_data: withDataCount,
         no_data: noDataCount,

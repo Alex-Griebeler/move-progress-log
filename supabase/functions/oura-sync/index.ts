@@ -326,6 +326,10 @@ Deno.serve(async (req) => {
       if (DEBUG) console.log('Calculated Brazil date:', syncDate);
     }
 
+    if (syncDate > todayInSaoPaulo()) {
+      return jsonResponse(400, { error: 'date não pode ser futura', date: syncDate });
+    }
+
     // Janela enviada à API: D..D+1 (end_date é EXCLUSIVO na API v2 — ver lib.ts);
     // a extração filtra pelo `day` do documento.
     const window = apiDateWindow(syncDate);

@@ -4,6 +4,7 @@ import {
   classifyOutcome,
   documentForDay,
   documentsForDay,
+  hasAnyMetricValue,
   longestSleepPeriodForDay,
   lookbackDates,
   mergePreservingExisting,
@@ -88,4 +89,10 @@ Deno.test("classifyOutcome: complete/partial/no_data", () => {
   assertEquals(classifyOutcome({ student_id: "s", date: "d", sleep_score: null, readiness_score: null }, true, false), "partial");
   assertEquals(classifyOutcome({ student_id: "s", date: "d", sleep_score: null, readiness_score: null }, false, false), "no_data");
   assertEquals(classifyOutcome(null, false, false), "no_data");
+});
+
+Deno.test("hasAnyMetricValue ignora student_id/date e conta zero como valor", () => {
+  assertEquals(hasAnyMetricValue({ student_id: "s", date: "d", sleep_score: null }), false);
+  assertEquals(hasAnyMetricValue({ student_id: "s", date: "d", stress_high_time: 0 }), true);
+  assertEquals(hasAnyMetricValue({ student_id: "s", date: "d" }), false);
 });
