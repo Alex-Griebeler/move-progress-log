@@ -1,11 +1,11 @@
 /**
- * A-001 — AuthProvider (fonte única de identidade) e IdentityScope (fronteira
- * do estado privado). Ver src/lib/authIdentity.ts para o modelo.
+ * A-001 — AuthProvider (fonte única de identidade + dono do client privado)
+ * e IdentityScope (fronteira do estado privado). Modelo em src/lib/authIdentity.ts.
  */
-import { useEffect, useState, type ReactNode } from "react";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
+import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthContext, useAuth } from "@/hooks/useAuth";
+import { AuthContext, useAuth, useIdentityQueryClient, type AuthContextValue } from "@/hooks/useAuth";
 import {
   INITIAL_AUTH_IDENTITY,
   createIdentityQueryClient,
@@ -20,26 +20,60 @@ interface ProviderProps {
   children: ReactNode;
 }
 
+const INITIAL_VALUE: AuthContextValue = { identity: INITIAL_AUTH_IDENTITY, queryClient: null };
+
 /**
- * Assina o auth do Supabase UMA vez, no topo da árvore, e publica a identidade.
+ * Fecha toda notificação na tela na troca de identidade. O sonner insere um
+ * toast recém-criado num setTimeout; um único dismiss síncrono não alcança o
+ * que ainda está na fila — por isso o segundo, no tick seguinte.
+ */
+function dismissPrivateNotifications() {
+  notify.dismissAll();
+  window.setTimeout(() => notify.dismissAll(), 0);
+}
+
+/**
+ * Assina o auth do Supabase UMA vez, no topo da árvore, publica a identidade
+ * e é dono do QueryClient privado de cada época.
  *
  * - O callback do onAuthStateChange só publica estado (síncrono): nenhuma
  *   chamada à API de auth lá dentro (reentrância/lock do auth-js).
+ * - Troca de identidade = fronteira SÍNCRONA no próprio evento: o client da
+ *   identidade anterior é revogado e limpo e os toasts fechados ANTES de o
+ *   React agendar a remontagem — entre o evento e o commit, a identidade
+ *   antiga já não publica nem escreve.
  * - `getSession()` é o bootstrap; se QUALQUER evento já foi aplicado, o
  *   snapshot inicial — possivelmente antigo — é descartado. Uma resposta
  *   inicial atrasada nunca restaura A depois de logout/B.
- * - Eventos da mesma identidade (TOKEN_REFRESHED etc.) não alteram o estado
+ * - Eventos da mesma identidade (TOKEN_REFRESHED etc.) não alteram nada
  *   (o redutor devolve a mesma referência) → sem re-render, sem remontagem.
+ * - O client vive no provider (não na casca): navegar para uma rota pública
+ *   e voltar preserva o cache da MESMA identidade, como antes.
  */
 export function AuthProvider({ children }: ProviderProps) {
-  const [identity, setIdentity] = useState(INITIAL_AUTH_IDENTITY);
+  const [value, setValue] = useState<AuthContextValue>(INITIAL_VALUE);
+  const current = useRef<AuthContextValue>(INITIAL_VALUE);
 
   useEffect(() => {
     let active = true;
     let eventApplied = false;
+
     const apply = (session: AuthSessionLike) => {
       if (!active) return;
-      setIdentity((prev) => nextAuthIdentity(prev, session));
+      const prev = current.current;
+      const identity = nextAuthIdentity(prev.identity, session);
+      if (identity === prev.identity) return;
+
+      if (prev.queryClient) {
+        disposeIdentityQueryClient(prev.queryClient);
+        dismissPrivateNotifications();
+      }
+      const next: AuthContextValue = {
+        identity,
+        queryClient: identity.status === "signed-in" ? createIdentityQueryClient() : null,
+      };
+      current.current = next;
+      setValue(next);
     };
 
     const {
@@ -63,41 +97,33 @@ export function AuthProvider({ children }: ProviderProps) {
     return () => {
       active = false;
       subscription.unsubscribe();
+      const client = current.current.queryClient;
+      if (client) disposeIdentityQueryClient(client);
     };
   }, []);
 
-  return <AuthContext.Provider value={identity}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 /**
- * Fronteira do estado privado: um QueryClient por época de identidade e a
- * subárvore remontada a cada troca. Só renderiza com identidade resolvida.
+ * Fronteira do estado privado: QueryClientProvider com o client da identidade
+ * corrente e a subárvore remontada a cada época. Só renderiza com identidade
+ * resolvida.
  *
- * Trocar só o `client` do QueryClientProvider não basta: cada useQuery cria
- * seu observer com o client do PRIMEIRO render, e estado de componente e de
- * contexto sobreviveriam à troca. Por isso `key={epoch}` remonta a instância
- * inteira: client novo antes de qualquer filho renderizar; no unmount o client
- * anterior é revogado e limpo (operações em voo/futuras nunca publicam) e os
- * toasts na tela são fechados (notificação privada não atravessa a troca).
+ * Trocar só o `client` do provider não basta: cada useQuery cria seu observer
+ * com o client do PRIMEIRO render, e estado de componente e de contexto
+ * sobreviveriam à troca. Por isso `key={epoch}` remonta tudo abaixo — com o
+ * client novo já em mãos antes de qualquer filho renderizar.
  */
 export function IdentityScope({ children }: ProviderProps) {
   const { userId, epoch } = useAuth();
+  const client: QueryClient | null = useIdentityQueryClient();
 
-  if (!userId) return null;
+  if (!userId || !client) return null;
 
-  return <IdentityQueryScope key={epoch}>{children}</IdentityQueryScope>;
-}
-
-function IdentityQueryScope({ children }: ProviderProps) {
-  const [client] = useState(createIdentityQueryClient);
-
-  useEffect(
-    () => () => {
-      disposeIdentityQueryClient(client);
-      notify.dismissAll();
-    },
-    [client],
+  return (
+    <QueryClientProvider client={client}>
+      <Fragment key={epoch}>{children}</Fragment>
+    </QueryClientProvider>
   );
-
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }

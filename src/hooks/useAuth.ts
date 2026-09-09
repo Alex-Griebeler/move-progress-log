@@ -1,8 +1,23 @@
 import { createContext, useContext } from "react";
+import type { QueryClient } from "@tanstack/react-query";
 import type { AuthIdentity } from "@/lib/authIdentity";
 
+export interface AuthContextValue {
+  identity: AuthIdentity;
+  /** Client do estado privado da identidade corrente; null fora de "signed-in". */
+  queryClient: QueryClient | null;
+}
+
 /** Provido por `AuthProvider` (src/contexts/AuthContext.tsx). */
-export const AuthContext = createContext<AuthIdentity | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+function useAuthContext(): AuthContextValue {
+  const value = useContext(AuthContext);
+  if (!value) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return value;
+}
 
 /**
  * Identidade autenticada corrente (status, userId, época).
@@ -10,9 +25,10 @@ export const AuthContext = createContext<AuthIdentity | undefined>(undefined);
  * a fronteira de cache derivam dela; nada assina o auth por conta própria.
  */
 export function useAuth(): AuthIdentity {
-  const identity = useContext(AuthContext);
-  if (!identity) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return identity;
+  return useAuthContext().identity;
+}
+
+/** QueryClient da identidade corrente (consumido pelo IdentityScope). */
+export function useIdentityQueryClient(): QueryClient | null {
+  return useAuthContext().queryClient;
 }

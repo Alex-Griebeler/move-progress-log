@@ -9,6 +9,7 @@ import {
   createIdentityQueryClient,
   disposeIdentityQueryClient,
   nextAuthIdentity,
+  revokeIdentityQueryClient,
 } from "../authIdentity";
 
 const session = (id: string) => ({ user: { id } }) as Parameters<typeof nextAuthIdentity>[1];
@@ -140,5 +141,68 @@ describe("disposeIdentityQueryClient — revogação do client da identidade ant
     const lateOther = client.fetchQuery({ queryKey: ["other"], queryFn });
     expect(await settledWithin(lateOther)).toBe("pending");
     expect(queryFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("callback já em andamento: a API assíncrona do client revogado nunca conclui (a continuação depois do await não roda)", async () => {
+    const client = createIdentityQueryClient();
+    await client.fetchQuery({ queryKey: ["students"], queryFn: async () => ["A-Alice"] });
+    const after = vi.fn();
+    // simula um onSuccess assíncrono de A: `await invalidateQueries(); notify.success()`
+    const callback = (async () => {
+      await client.invalidateQueries({ queryKey: ["students"] });
+      after("invalidate");
+    })();
+    // …e a revogação chega enquanto ele ainda está em andamento? Não: aqui a
+    // revogação já aconteceu quando o callback CHAMA a API — o caso coberto.
+    await callback;
+    expect(after).toHaveBeenCalledTimes(1);
+
+    revokeIdentityQueryClient(client);
+    const late = (async () => {
+      await client.invalidateQueries({ queryKey: ["students"] });
+      after("late-invalidate");
+    })();
+    const lateRefetch = client.refetchQueries({ queryKey: ["students"] });
+    const lateCancel = client.cancelQueries({ queryKey: ["students"] });
+    const lateReset = client.resetQueries({ queryKey: ["students"] });
+    expect(await settledWithin(late)).toBe("pending");
+    expect(await settledWithin(lateRefetch)).toBe("pending");
+    expect(await settledWithin(lateCancel)).toBe("pending");
+    expect(await settledWithin(lateReset)).toBe("pending");
+    expect(after).toHaveBeenCalledTimes(1);
+    // clear() continua funcionando após a revogação (descarte)
+    client.clear();
+    expect(client.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it("revogação é síncrona e desliga o GC das mutações pendentes (sem timer eterno de retenção)", async () => {
+    vi.useFakeTimers();
+    try {
+      const client = createIdentityQueryClient();
+      let release!: (v: string) => void;
+      const mutationFn = vi.fn((_v: string) => new Promise<string>((r) => { release = r; }));
+      const observer = new MutationObserver(client, { mutationFn, gcTime: 1000 });
+      const unsubscribe = observer.subscribe(() => {});
+      const pending = observer.mutate("payload");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(mutationFn).toHaveBeenCalledTimes(1);
+      const mutation = client.getMutationCache().getAll()[0];
+      expect(mutation).toBeDefined();
+
+      revokeIdentityQueryClient(client); // síncrono: já barra antes de qualquer commit do React
+      expect(mutation.options.gcTime).toBe(Infinity);
+      client.clear();
+      // ordem hostil: o componente de A desmonta DEPOIS do descarte (reagendaria o GC)
+      unsubscribe();
+      release("ok");
+      await vi.advanceTimersByTimeAsync(0);
+      expect(vi.getTimerCount(), "timer de GC vivo mantendo a mutação de A").toBe(0);
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+      expect(vi.getTimerCount()).toBe(0);
+      expect(mutation.state.status).toBe("pending");
+      void pending.catch(() => {});
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

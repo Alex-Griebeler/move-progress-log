@@ -22,7 +22,7 @@ import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
+import { Link, MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 
@@ -56,6 +56,8 @@ const fake = vi.hoisted(() => {
     holdMatcher: null as null | ((req: FakeRequest) => boolean),
     responder: null as null | ((req: FakeRequest) => Reply),
     nextId: 1,
+    usersByEmail: {} as Record<string, FakeUser>,
+    mfaFactors: [] as Array<{ id: string }>,
   };
 
   const emit = (event: AuthEvent, session: FakeSession) => {
@@ -128,6 +130,17 @@ const fake = vi.hoisted(() => {
         return { data: { session }, error: null };
       },
       getUser: async () => ({ data: { user: state.session?.user ?? null }, error: null }),
+      /** Login real (AuthPage): salva a sessão, emite SIGNED_IN e só então resolve. */
+      signInWithPassword: async ({ email }: { email: string; password: string }) => {
+        const user = state.usersByEmail[email];
+        if (!user) return { data: { session: null, user: null }, error: { message: "Invalid login credentials" } };
+        state.session = { user, access_token: `${user.id}-t1` };
+        emit("SIGNED_IN", state.session);
+        return { data: { session: state.session, user }, error: null };
+      },
+      mfa: {
+        listFactors: async () => ({ data: { totp: state.mfaFactors, all: state.mfaFactors }, error: null }),
+      },
       signOut: async () => {
         // auth-js remove a sessão e notifica SIGNED_OUT ANTES de resolver.
         state.session = null;
@@ -150,6 +163,14 @@ const notifySpy = vi.hoisted(() => ({
   dismissAll: vi.fn(),
 }));
 vi.mock("@/lib/notify", () => ({ notify: notifySpy }));
+// AuthPage real (cenário 9b): rate limit e força de senha vão à rede — mockados.
+vi.mock("@/lib/rateLimiter", () => ({
+  checkRateLimit: async () => ({ allowed: true, remainingAttempts: 5 }),
+  recordFailedAttempt: async () => {},
+}));
+vi.mock("@/hooks/usePasswordSecurity", () => ({
+  usePasswordSecurity: () => ({ checkPasswordSecurity: async () => null, checking: false }),
+}));
 
 // ---------------------------------------------------------------------------
 // Componentes/hooks de PRODUÇÃO sob teste
@@ -162,6 +183,7 @@ import { createAppQueryClient } from "@/lib/authIdentity";
 import { useStudents, useCreateStudent, type Student } from "@/hooks/useStudents";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { useTrainingContext } from "@/contexts/TrainingContext";
+import AuthPage from "@/pages/AuthPage";
 import { POST_LOGIN_ROUTE, ROUTES } from "@/constants/navigation";
 
 // ---------------------------------------------------------------------------
@@ -250,6 +272,7 @@ function StudentsProbe() {
         Importar duas
       </button>
       <p>check-in: {checkInRecord ? `${checkInRecord.studentId}/${checkInRecord.state}` : "nenhum"}</p>
+      <Link to="/publico">ir para pública</Link>
       <button
         type="button"
         onClick={() =>
@@ -269,7 +292,12 @@ function AdminProbe() {
 }
 
 function PublicProbe() {
-  return <p>página pública</p>;
+  return (
+    <div>
+      <p>página pública</p>
+      <Link to="/">voltar</Link>
+    </div>
+  );
 }
 
 let authStubMounts = 0;
@@ -305,7 +333,11 @@ function AuthStub({ autoNavigate = true }: { autoNavigate?: boolean }) {
 // ---------------------------------------------------------------------------
 let publicClient: QueryClient;
 
-function Harness({ initialPath, authAutoNavigate = true }: { initialPath: string; authAutoNavigate?: boolean }) {
+function Harness({
+  initialPath,
+  authAutoNavigate = true,
+  realAuthPage = false,
+}: { initialPath: string; authAutoNavigate?: boolean; realAuthPage?: boolean }) {
   return (
     <AuthProvider>
       <QueryClientProvider client={publicClient}>
@@ -313,7 +345,10 @@ function Harness({ initialPath, authAutoNavigate = true }: { initialPath: string
           <TooltipProvider>
             <MemoryRouter initialEntries={[initialPath]}>
               <Routes>
-                <Route path={ROUTES.auth} element={<AuthStub autoNavigate={authAutoNavigate} />} />
+                <Route
+                  path={ROUTES.auth}
+                  element={realAuthPage ? <AuthPage /> : <AuthStub autoNavigate={authAutoNavigate} />}
+                />
                 <Route path="/publico" element={<PublicProbe />} />
                 <Route
                   path="/*"
@@ -422,6 +457,8 @@ beforeEach(() => {
   fake.state.holdMatcher = null;
   fake.state.responder = responder;
   fake.state.nextId = 1;
+  fake.state.usersByEmail = { [userA.email]: userA, [userB.email]: userB };
+  fake.state.mfaFactors = [];
   renderLog.length = 0;
   adminAreaRenders.length = 0;
   probeMounts = 0;
@@ -643,40 +680,38 @@ describe("A-001 — fronteira de identidade (A → logout → B na mesma aba)", 
     expect(studentSelects().filter((r) => r.userId === userB.id).length, "invalidação de A refez a lista de B").toBe(bSelects);
   });
 
-  it("6c. janela evento→cleanup: mutação de A que conclui no MESMO tick do SIGNED_IN de B tem o toast fechado na transição e não refaz a lista de B", async () => {
+  it("6c. janela evento→commit: resposta de A no MESMO tick do SIGNED_IN de B não publica toast, não invalida B e não continua o laço", async () => {
     fake.state.session = sessionOf(userA);
     phase = "A";
     render(<Harness initialPath="/" />);
     await expectAFullyLoaded();
     const user = userEvent.setup();
     fake.state.holdMatcher = (req) => req.table === "students" && req.ops.some(([n]) => n === "insert");
-    await user.click(screen.getByRole("button", { name: "Criar aluno" }));
+    await user.click(screen.getByRole("button", { name: "Importar duas" }));
     await waitFor(() => expect(fake.state.held.length).toBe(1));
-    const heldInsert = fake.state.held[0];
+    const firstInsert = fake.state.held[0];
     fake.state.holdMatcher = null;
+    const insertsBefore = fake.state.requests.filter((r) => r.ops.some(([n]) => n === "insert")).length;
 
     phase = "B";
-    // troca direta A→B e resposta do INSERT de A no mesmo act: o callback de
-    // sucesso de A ainda roda (client de A vivo até o cleanup do commit)...
+    // troca direta A→B e resposta do 1º INSERT de A no mesmo tick, ANTES de o
+    // React remontar qualquer coisa: a barreira precisa ser síncrona no evento
     await act(async () => {
       fake.state.session = sessionOf(userB);
       fake.emit("SIGNED_IN", fake.state.session);
-      heldInsert.resolve(responder(heldInsert));
-      await Promise.resolve();
+      firstInsert.resolve(responder(firstInsert));
+      await new Promise((r) => setTimeout(r, 0));
     });
     await expectBView();
     await act(async () => {
-      await new Promise((r) => setTimeout(r, 20));
+      await new Promise((r) => setTimeout(r, 30));
     });
-    // ...mas a transição fecha todos os toasts DEPOIS dele, e a invalidação
-    // ficou no client de A (B fez exatamente UMA consulta própria).
-    const successOrder = notifySpy.success.mock.invocationCallOrder;
-    const dismissOrder = notifySpy.dismissAll.mock.invocationCallOrder;
-    expect(dismissOrder.length).toBeGreaterThanOrEqual(1);
-    if (successOrder.length > 0) {
-      expect(Math.max(...dismissOrder)).toBeGreaterThan(Math.max(...successOrder));
-    }
-    expect(studentSelects().filter((r) => r.userId === userB.id).length).toBe(1);
+    const inserts = fake.state.requests.filter((r) => r.ops.some(([n]) => n === "insert"));
+    expect(inserts.length, "2ª escrita do laço de A saiu na identidade B").toBe(insertsBefore);
+    expect(notifySpy.success, "toast da mutação de A na sessão B").not.toHaveBeenCalled();
+    expect(notifySpy.error).not.toHaveBeenCalled();
+    expect(notifySpy.dismissAll).toHaveBeenCalled();
+    expect(studentSelects().filter((r) => r.userId === userB.id).length, "invalidação de A refez a lista de B").toBe(1);
     expect(exposureIn("B")).toEqual([]);
   });
 
@@ -760,6 +795,38 @@ describe("A-001 — fronteira de identidade (A → logout → B na mesma aba)", 
     await signIn(userB); // signInWithPassword concluiu; AuthPage ainda vai abrir o dialog de 2FA
     expect(screen.getByText("estado local: aguardando-2fa")).toBeInTheDocument();
     expect(authStubMounts).toBe(mountsBefore);
+  });
+
+  it("9b. AuthPage REAL: signInWithPassword → SIGNED_IN → dialog de 2FA aparece (a página não remonta na troca de identidade)", async () => {
+    fake.state.mfaFactors = [{ id: "factor-1" }];
+    phase = "login";
+    render(<Harness initialPath="/auth" realAuthPage />);
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Email"), userB.email);
+    await user.type(screen.getByLabelText("Senha"), "senha-sintetica-123");
+    await user.click(screen.getByRole("button", { name: "Entrar" }));
+    expect(await screen.findByText("Verificação em Duas Etapas")).toBeInTheDocument();
+    // sessão já é B (SIGNED_IN emitido), mas a casca privada não montou: ainda em /auth
+    expect(fake.state.session?.user.id).toBe(userB.id);
+    expect(screen.queryByText("B-Bruna")).not.toBeInTheDocument();
+    expect(screen.queryByText("carregando alunos")).not.toBeInTheDocument();
+  });
+
+  it("10. navegar para rota pública e voltar (MESMA identidade) preserva o cache — a fronteira é a identidade, não a rota", async () => {
+    fake.state.session = sessionOf(userA);
+    phase = "A";
+    render(<Harness initialPath="/" />);
+    await expectAFullyLoaded();
+    const user = userEvent.setup();
+    const selectsBefore = studentSelects().length;
+    const rolesBefore = roleRequests().length;
+    await user.click(screen.getByRole("link", { name: "ir para pública" }));
+    expect(await screen.findByText("página pública")).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "voltar" }));
+    await expectAFullyLoaded();
+    expect(studentSelects().length, "voltar de rota pública refez a lista").toBe(selectsBefore);
+    expect(roleRequests().length).toBe(rolesBefore);
+    expect(notifySpy.dismissAll).not.toHaveBeenCalled();
   });
 
   it("7. AdminRoute e rotas públicas: A admin entra; B não herda a área nem o menu; público segue aberto", async () => {

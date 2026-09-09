@@ -89,6 +89,16 @@ export function createAppQueryClient(): QueryClient {
 //   ao servidor NÃO é cancelado por isto — só a publicação no cliente.)
 // - Mutação/query NOVA de uma closure antiga: `build` troca a função por uma
 //   que nunca conclui — o mutationFn/queryFn nunca executa.
+// - API assíncrona do client (invalidateQueries, refetchQueries, fetchQuery…)
+//   chamada por um callback já em andamento: nunca conclui — a continuação
+//   depois do `await` (toast, próxima escrita) não roda.
+// - Mutações eternamente pendentes não podem ficar reagendando GC (retenção):
+//   gcTime = Infinity desliga o timer (isValidTimeout) — sem observers e sem
+//   timer, o objeto só vive enquanto a closure do chamador viver.
+//
+// A revogação é SÍNCRONA no evento de auth (AuthProvider), antes de o React
+// desmontar a árvore: entre o evento e o commit a identidade antiga já não
+// publica nem escreve. `clear()` completa o descarte (cancela fetches em voo).
 // ---------------------------------------------------------------------------
 const neverSettle = (): Promise<never> => new Promise<never>(() => {});
 
@@ -115,7 +125,7 @@ class IdentityMutationCache extends MutationCache {
   ) {
     return super.build(
       client,
-      this.revocation.revoked ? { ...options, mutationFn: neverSettle } : options,
+      this.revocation.revoked ? { ...options, mutationFn: neverSettle, gcTime: Infinity } : options,
       state,
     );
   }
@@ -148,28 +158,61 @@ class IdentityQueryCache extends QueryCache {
   }
 }
 
-const revocations = new WeakMap<QueryClient, IdentityRevocation>();
+/** QueryClient cuja API assíncrona fica pendente para sempre após a revogação. */
+class IdentityQueryClient extends QueryClient {
+  constructor(readonly revocation: IdentityRevocation) {
+    super({
+      ...APP_QUERY_CLIENT_CONFIG,
+      queryCache: new IdentityQueryCache(revocation),
+      mutationCache: new IdentityMutationCache(revocation),
+    });
+  }
 
-/** Client do estado privado de UMA identidade (ver IdentityScope). */
+  private guard<T>(run: () => Promise<T>): Promise<T> {
+    return this.revocation.revoked ? neverSettle() : run();
+  }
+
+  invalidateQueries(...args: Parameters<QueryClient["invalidateQueries"]>) {
+    return this.guard(() => super.invalidateQueries(...args));
+  }
+  refetchQueries(...args: Parameters<QueryClient["refetchQueries"]>) {
+    return this.guard(() => super.refetchQueries(...args));
+  }
+  resetQueries(...args: Parameters<QueryClient["resetQueries"]>) {
+    return this.guard(() => super.resetQueries(...args));
+  }
+  cancelQueries(...args: Parameters<QueryClient["cancelQueries"]>) {
+    return this.guard(() => super.cancelQueries(...args));
+  }
+  resumePausedMutations() {
+    return this.guard(() => super.resumePausedMutations());
+  }
+  // fetchQuery/prefetchQuery/ensureQueryData/fetchInfiniteQuery passam pelo
+  // `query.fetch` interceptado no IdentityQueryCache.
+}
+
+/** Client do estado privado de UMA identidade (ver AuthProvider/IdentityScope). */
 export function createIdentityQueryClient(): QueryClient {
-  const revocation = new IdentityRevocation();
-  const client = new QueryClient({
-    ...APP_QUERY_CLIENT_CONFIG,
-    queryCache: new IdentityQueryCache(revocation),
-    mutationCache: new IdentityMutationCache(revocation),
-  });
-  revocations.set(client, revocation);
-  return client;
+  return new IdentityQueryClient(new IdentityRevocation());
 }
 
 /**
- * Descarta o client de uma identidade que deixou de ser a corrente:
- * revoga (operações em voo e futuras nunca concluem nem publicam) e limpa o
- * cache (fetches pendentes cancelados; nada resta para uma resposta tardia
- * encontrar). Idempotente.
+ * Revoga o client de uma identidade que deixou de ser a corrente — barreira
+ * síncrona de publicação/escrita (ver comentário acima). Idempotente.
+ */
+export function revokeIdentityQueryClient(client: QueryClient): void {
+  if (!(client instanceof IdentityQueryClient) || client.revocation.revoked) return;
+  client.revocation.revoked = true;
+  for (const mutation of client.getMutationCache().getAll()) {
+    mutation.setOptions({ ...mutation.options, gcTime: Infinity });
+  }
+}
+
+/**
+ * Revoga e limpa: fetches em voo cancelados, cache esvaziado — nada resta
+ * para uma resposta tardia encontrar. Idempotente.
  */
 export function disposeIdentityQueryClient(client: QueryClient): void {
-  const revocation = revocations.get(client);
-  if (revocation) revocation.revoked = true;
+  revokeIdentityQueryClient(client);
   client.clear();
 }
