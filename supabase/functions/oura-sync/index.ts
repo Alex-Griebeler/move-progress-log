@@ -1,4 +1,17 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import {
+  DATE_RE,
+  apiDateWindow,
+  classifyOutcome,
+  documentForDay,
+  hasAnyMetricValue,
+  longestSleepPeriodForDay,
+  mergePreservingExisting,
+  temperatureDeviationFrom,
+  todayInSaoPaulo,
+  workoutsForDay,
+  type LooseDoc,
+} from './lib.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +24,6 @@ const jsonHeaders = {
 };
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -50,25 +62,6 @@ const computeStats = (values: number[]) => {
     count: values.length,
   };
 };
-
-const mergePreservingExisting = (
-  incoming: Record<string, unknown>,
-  existing: Record<string, unknown> | null
-): Record<string, unknown> => {
-  if (!existing) return incoming;
-
-  const merged: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(incoming)) {
-    merged[key] = value ?? existing[key] ?? null;
-  }
-  return merged;
-};
-
-const hasAnyMetricValue = (metrics: Record<string, unknown>): boolean =>
-  Object.entries(metrics).some(([key, value]) => {
-    if (key === "student_id" || key === "date") return false;
-    return value !== null && value !== undefined;
-  });
 
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: jsonHeaders });
@@ -120,6 +113,9 @@ Deno.serve(async (req) => {
     const force_sync =
       forceSyncRaw === true ||
       (typeof forceSyncRaw === 'string' && forceSyncRaw.toLowerCase() === 'true');
+    // Sonda de diagnóstico (admin/service role): consulta a API nas duas janelas
+    // (D..D legado e D..D+1) e devolve só contagens/dias — NÃO grava nada.
+    const probe = rawPayload.probe === true;
 
     if (!student_id) {
       return jsonResponse(400, { error: 'student_id é obrigatório' });
@@ -320,8 +316,50 @@ Deno.serve(async (req) => {
       if (DEBUG) console.log('Using explicitly provided date:', syncDate);
     } else {
       // O-03: Intl.DateTimeFormat handles DST automatically
-      syncDate = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+      syncDate = todayInSaoPaulo();
       if (DEBUG) console.log('Calculated Brazil date:', syncDate);
+    }
+
+    // Janela enviada à API: D..D+1 (end_date é EXCLUSIVO na API v2 — ver lib.ts);
+    // a extração filtra pelo `day` do documento.
+    const window = apiDateWindow(syncDate);
+    const headers = {
+      Authorization: `Bearer ${currentAccessToken}`,
+    };
+    const OURA_TIMEOUT = 15_000;
+    const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+      Promise.race([
+        promise,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), ms))
+      ]);
+
+    if (probe) {
+      const probeEndpoints = ['daily_readiness', 'daily_sleep', 'sleep', 'daily_activity', 'workout'] as const;
+      const windows = {
+        legacy: { start_date: syncDate, end_date: syncDate },
+        current: window,
+      } as const;
+      const report: Record<string, Record<string, unknown>> = {};
+      for (const [label, w] of Object.entries(windows)) {
+        const rows: Record<string, unknown> = {};
+        for (const ep of probeEndpoints) {
+          try {
+            const res = await withTimeout(
+              fetch(`https://api.ouraring.com/v2/usercollection/${ep}?start_date=${w.start_date}&end_date=${w.end_date}`, { headers }),
+              OURA_TIMEOUT,
+              ep,
+            );
+            const body = res.ok ? await res.json().catch(() => null) : null;
+            const data: unknown[] = isPlainObject(body) && Array.isArray(body.data) ? body.data : [];
+            const days = Array.from(new Set(data.map((d) => (isPlainObject(d) && typeof d.day === 'string' ? d.day : '?')))).sort();
+            rows[ep] = { http: res.status, count: data.length, days, count_for_day: documentForDay(body, syncDate) ? 1 : 0 };
+          } catch (error) {
+            rows[ep] = { http: null, count: 0, days: [], error: (error as Error).message };
+          }
+        }
+        report[label] = rows;
+      }
+      return jsonResponse(200, { probe: true, date: syncDate, windows, report });
     }
 
     // O-05: Idempotency check — skip if already synced recently (unless force_sync=true)
@@ -365,17 +403,6 @@ Deno.serve(async (req) => {
     if (DEBUG) console.log('Final date for Oura API:', syncDate);
 
     // Fetch Oura data — O-01: Individual timeout per API call (15s)
-    const headers = {
-      Authorization: `Bearer ${currentAccessToken}`,
-    };
-
-    const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
-      Promise.race([
-        promise,
-        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), ms))
-      ]);
-
-    const OURA_TIMEOUT = 15_000;
     const endpointNames = [
       'readiness',
       'daily_sleep',
@@ -392,16 +419,16 @@ Deno.serve(async (req) => {
     const warnings: string[] = [];
 
     const apiCalls = [
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'readiness'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'daily_sleep'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/sleep?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'sleep_periods'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'readiness'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'daily_sleep'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/sleep?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'sleep_periods'),
       withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/heartrate?start_datetime=${syncDate}T00:00:00&end_datetime=${syncDate}T23:59:59`, { headers }), OURA_TIMEOUT, 'heartrate'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'activity'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/workout?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'workouts'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_stress?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'stress'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_spo2?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'spo2'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/vo2_max?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'vo2'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=${syncDate}&end_date=${syncDate}`, { headers }), OURA_TIMEOUT, 'resilience'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'activity'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/workout?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'workouts'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_stress?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'stress'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_spo2?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'spo2'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/vo2_max?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'vo2'),
+      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'resilience'),
     ];
 
     const results = await Promise.allSettled(apiCalls);
@@ -494,24 +521,21 @@ Deno.serve(async (req) => {
       console.log('Workouts:', { count: workoutsData?.data?.length || 0 });
     }
 
-    // Extract metrics
-    const readiness = readinessData?.data?.[0];
-    const dailySleep = dailySleepData?.data?.[0];
-    const activity = activityData?.data?.[0];
-    const stress = stressData?.data?.[0];
-    const spo2 = spo2Data?.data?.[0];
-    const vo2 = vo2Data?.data?.[0];
-    const resilience = resilienceData?.data?.[0];
-    const hasWorkoutsData = Array.isArray(workoutsData?.data) && workoutsData.data.length > 0;
+    // Extract metrics — SEMPRE o documento cujo `day` é o dia pedido (a janela
+    // D..D+1 pode trazer D+1; um documento de outro dia nunca é gravado como D).
+    const readiness: LooseDoc | null = documentForDay(readinessData, syncDate);
+    const dailySleep: LooseDoc | null = documentForDay(dailySleepData, syncDate);
+    const activity: LooseDoc | null = documentForDay(activityData, syncDate);
+    const stress: LooseDoc | null = documentForDay(stressData, syncDate);
+    const spo2: LooseDoc | null = documentForDay(spo2Data, syncDate);
+    const vo2: LooseDoc | null = documentForDay(vo2Data, syncDate);
+    const resilience: LooseDoc | null = documentForDay(resilienceData, syncDate);
+    const workoutsOfDay: LooseDoc[] = workoutsForDay(workoutsData, syncDate);
+    const hasWorkoutsData = workoutsOfDay.length > 0;
 
-    // Process sleep periods - get longest period or aggregate
-    let sleepPeriod = null;
-    if (sleepPeriodsData?.data && sleepPeriodsData.data.length > 0) {
-      sleepPeriod = sleepPeriodsData.data.reduce((longest: Record<string, unknown>, current: Record<string, unknown>) => {
-        return ((current.total_sleep_duration as number) || 0) > ((longest.total_sleep_duration as number) || 0) ? current : longest;
-      });
-      if (DEBUG) console.log('Selected sleep period:', { duration: sleepPeriod.total_sleep_duration, deep: sleepPeriod.deep_sleep_duration });
-    }
+    // Process sleep periods - longest period of the day (long_sleep vs naps)
+    const sleepPeriod: LooseDoc | null = longestSleepPeriodForDay(sleepPeriodsData, syncDate);
+    if (DEBUG && sleepPeriod) console.log('Selected sleep period:', { duration: sleepPeriod.total_sleep_duration, deep: sleepPeriod.deep_sleep_duration });
 
     let restingHeartRate = null;
     try {
@@ -618,7 +642,7 @@ Deno.serve(async (req) => {
       sleep_score: dailySleep?.score ?? null,
       hrv_balance: readiness?.contributors?.hrv_balance ?? null,
       resting_heart_rate: restingHeartRate,
-      temperature_deviation: readiness?.contributors?.temperature_deviation ?? null,
+      temperature_deviation: temperatureDeviationFrom(readiness), // campo de topo do daily_readiness
       activity_balance: readiness?.contributors?.activity_balance ?? null,
       
       // Activity metrics
@@ -697,6 +721,12 @@ Deno.serve(async (req) => {
       acuteMetrics.movement_30_sec !== null ||
       acuteMetrics.stress_samples !== null;
 
+    const outcome = classifyOutcome(
+      hasData ? (metrics as Record<string, unknown>) : null,
+      hasAcuteData,
+      hasWorkoutsData,
+    );
+
     if (!hasData && !hasAcuteData && !hasWorkoutsData) {
       if (DEBUG) console.log('No Oura data available for date:', syncDate);
 
@@ -712,6 +742,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
+          outcome,
           message: `Sem dados do Oura Ring para ${syncDate}.`,
           synced_metrics: null,
           date: syncDate,
@@ -731,13 +762,19 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (existingMetricRowError) {
-        console.warn('Failed to fetch existing daily metric for merge:', existingMetricRowError.message);
-        warnings.push('Falha ao buscar métrica diária anterior para merge.');
+        // Sem a linha anterior, o upsert rebaixaria para null tudo que o Oura
+        // não devolveu desta vez (payload esparso) — abortar preserva o histórico.
+        console.error('Failed to fetch existing daily metric for merge; aborting upsert:', existingMetricRowError.message);
+        return jsonResponse(500, {
+          error: 'Falha ao ler a métrica anterior; gravação abortada para não sobrescrever dados.',
+          details: existingMetricRowError.message,
+          date: syncDate,
+        });
       }
 
       const mergedMetrics = mergePreservingExisting(
         metrics as Record<string, unknown>,
-        !existingMetricRowError && isPlainObject(existingMetricRow) ? existingMetricRow : null
+        isPlainObject(existingMetricRow) ? existingMetricRow : null
       );
 
       // Upsert metrics
@@ -760,31 +797,32 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (existingAcuteRowError) {
-        console.warn('Failed to fetch existing acute metric for merge:', existingAcuteRowError.message);
-        warnings.push('Falha ao buscar métrica aguda anterior para merge.');
-      }
+        // Mesma regra: sem leitura prévia, não gravar (não bloqueante).
+        console.warn('Failed to fetch existing acute metric for merge; skipping acute upsert:', existingAcuteRowError.message);
+        warnings.push('Métricas agudas não gravadas: falha ao ler a linha anterior.');
+      } else {
+        const mergedAcuteMetrics = mergePreservingExisting(
+          acuteMetrics as Record<string, unknown>,
+          isPlainObject(existingAcuteRow) ? existingAcuteRow : null
+        );
 
-      const mergedAcuteMetrics = mergePreservingExisting(
-        acuteMetrics as Record<string, unknown>,
-        !existingAcuteRowError && isPlainObject(existingAcuteRow) ? existingAcuteRow : null
-      );
+        const { error: acuteUpsertError } = await supabaseClient
+          .from('oura_acute_metrics')
+          .upsert(mergedAcuteMetrics, { onConflict: 'student_id,date' });
 
-      const { error: acuteUpsertError } = await supabaseClient
-        .from('oura_acute_metrics')
-        .upsert(mergedAcuteMetrics, { onConflict: 'student_id,date' });
-
-      if (acuteUpsertError) {
-        // Non-blocking: main daily metrics are already persisted.
-        console.error('Failed to save acute metrics (non-blocking):', acuteUpsertError);
-        warnings.push('Falha ao salvar métricas agudas (não bloqueante).');
+        if (acuteUpsertError) {
+          // Non-blocking: main daily metrics are already persisted.
+          console.error('Failed to save acute metrics (non-blocking):', acuteUpsertError);
+          warnings.push('Falha ao salvar métricas agudas (não bloqueante).');
+        }
       }
     }
 
     // Save workouts
-    if (workoutsData?.data && workoutsData.data.length > 0) {
-      if (DEBUG) console.log(`Found ${workoutsData.data.length} workouts to save`);
+    if (hasWorkoutsData) {
+      if (DEBUG) console.log(`Found ${workoutsOfDay.length} workouts to save`);
       
-      const workouts = workoutsData.data.map((w: Record<string, unknown>) => {
+      const workouts = workoutsOfDay.map((w: Record<string, unknown>) => {
         const heartRate = w.heart_rate as Record<string, unknown> | undefined;
         return {
           student_id,
@@ -825,6 +863,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse(200, {
       success: true,
+      outcome,
       force_sync,
       synced_metrics: hasData ? metrics : null,
       has_acute_data: hasAcuteData,

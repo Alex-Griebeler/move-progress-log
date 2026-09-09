@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { spToday } from "@/hooks/useOuraMetrics";
+import { evaluateOuraFreshness } from "@/utils/ouraFreshness";
 import { logger } from "@/utils/logger";
 
 export interface StudentCardData {
@@ -38,6 +40,7 @@ export const useStudentsCardData = (studentIds: string[]) => {
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<StudentCardDataMap> => {
+      const today = spToday();
       const recentMetricsStartDate = new Date(
         Date.now() - 45 * 24 * 60 * 60 * 1000
       )
@@ -47,19 +50,28 @@ export const useStudentsCardData = (studentIds: string[]) => {
       // Query 1: Buscar métricas Oura mais recentes de todos os alunos
       const { data: allMetrics, error: metricsError } = await supabase
         .from("oura_metrics")
-        .select("student_id, readiness_score, date")
+        .select("student_id, readiness_score, sleep_score, date")
         .in("student_id", normalizedStudentIds)
         .gte("date", recentMetricsStartDate)
         .order("date", { ascending: false });
       if (metricsError) throw metricsError;
 
-      // Agrupar por student_id e pegar apenas o mais recente
+      // Agrupar por student_id e pegar apenas o mais recente; guardar também o
+      // último dia com DADO REAL (sono ou prontidão) — linha vazia de sync
+      // "sem dados" não conta como frescor.
       const latestMetricsByStudent: Record<string, { readiness_score: number | null }> = {};
+      const lastRealDataDateByStudent: Record<string, string> = {};
       allMetrics?.forEach((metric) => {
         if (!latestMetricsByStudent[metric.student_id]) {
           latestMetricsByStudent[metric.student_id] = {
             readiness_score: metric.readiness_score,
           };
+        }
+        if (
+          !lastRealDataDateByStudent[metric.student_id] &&
+          (metric.readiness_score !== null || metric.sleep_score !== null)
+        ) {
+          lastRealDataDateByStudent[metric.student_id] = metric.date;
         }
       });
 
@@ -128,16 +140,20 @@ export const useStudentsCardData = (studentIds: string[]) => {
       normalizedStudentIds.forEach((studentId) => {
         const connection = connectionsByStudent[studentId];
         const isConnected = !!connection?.is_active;
-        const lastSync = connection?.last_sync_at ? new Date(connection.last_sync_at) : null;
-        const isStale = lastSync ? Date.now() - lastSync.getTime() > 24 * 60 * 60 * 1000 : true;
         const recentFailed = failedLogsByStudent[studentId] || 0;
+        const freshness = evaluateOuraFreshness({
+          lastSyncAt: connection?.last_sync_at ?? null,
+          lastRealDataDate: lastRealDataDateByStudent[studentId] ?? null,
+          recentFailed,
+          today,
+        });
 
         result[studentId] = {
           ouraMetrics: latestMetricsByStudent[studentId] || null,
           importantObservations: observationsByStudent[studentId] || [],
           ouraStatus: {
             isConnected,
-            hasIssues: isConnected && (recentFailed > 0 || isStale),
+            hasIssues: isConnected && freshness.hasIssues,
           },
         };
       });

@@ -6,6 +6,7 @@ import { CheckCircle2, XCircle, AlertCircle, Clock, ChevronDown, ChevronUp } fro
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraWorkouts } from "@/hooks/useOuraWorkouts";
 import { useOuraSyncLogs } from "@/hooks/useOuraSyncLogs";
+import { OuraApiProbe } from "@/components/OuraApiProbe";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -226,23 +227,17 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
               ))}
             </div>
 
+            <OuraApiProbe studentId={studentId} />
+
             {sleepPeriodsStatus?.status === "empty" && (
               <div className="p-md rounded-radius-lg bg-muted">
                 <p className="text-xs text-muted-foreground">
-                  <strong>📌 Problema principal identificado:</strong> O endpoint{" "}
-                  <code className="bg-background px-1 py-0.5 rounded">
-                    /v2/usercollection/sleep
-                  </code>{" "}
-                  retorna status 200 mas sem períodos detalhados de sono.
+                  <strong>📌 Sem períodos detalhados de sono na última linha.</strong> Até 09/09/2026 o sync pedia{" "}
+                  <code className="bg-background px-1 py-0.5 rounded">start_date=end_date=D</code> e a API do Oura
+                  (end_date exclusivo) devolvia vazio para <code className="bg-background px-1 py-0.5 rounded">sleep</code> e{" "}
+                  <code className="bg-background px-1 py-0.5 rounded">daily_activity</code>. A janela agora é D..D+1;
+                  linhas antigas só se preenchem com uma sincronização dos últimos 7 dias. Use a sonda acima para conferir.
                 </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  <strong>Possíveis causas:</strong>
-                </p>
-                <ul className="text-xs text-muted-foreground mt-1 ml-4 space-y-1">
-                  <li>• Oura Ring não sincronizou com o app oficial</li>
-                  <li>• Dados ainda sendo processados pelo Oura (pode demorar horas)</li>
-                  <li>• Configurações da conta Oura ou permissões OAuth</li>
-                </ul>
               </div>
             )}
 

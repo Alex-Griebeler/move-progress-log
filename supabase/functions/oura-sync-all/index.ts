@@ -1,5 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { authenticateServiceRoleOrUserRole } from '../_shared/auth.ts';
+import { lookbackDates, todayInSaoPaulo } from '../oura-sync/lib.ts';
+
+/**
+ * Janela retroativa padrão: hoje, ontem e anteontem. O Oura finaliza scores ao
+ * longo do dia e a aluna sincroniza o anel quando quer — só buscar "hoje"
+ * deixava lacunas permanentes (dia que ficou pronto depois da última execução
+ * nunca era rebuscado). O upsert preserva valores já gravados.
+ */
+const DEFAULT_LOOKBACK_DAYS = 2;
+const MAX_LOOKBACK_DAYS = 6;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,10 +19,13 @@ const corsHeaders = {
 interface SyncResult {
   student_id: string;
   student_name: string;
+  date: string;
   status: 'success' | 'failed';
   attempt: number;
   error?: string;
   metrics_synced?: Record<string, unknown>;
+  /** no_data | partial | complete (vem do oura-sync); ausente em falha */
+  outcome?: string;
 }
 
 Deno.serve(async (req) => {
@@ -65,6 +78,10 @@ Deno.serve(async (req) => {
     const dryRun =
       body.dry_run === true ||
       (typeof body.dry_run === 'string' && body.dry_run.toLowerCase() === 'true');
+    const lookbackRaw = Number(body.lookback_days);
+    const lookbackDays = Number.isInteger(lookbackRaw)
+      ? Math.min(MAX_LOOKBACK_DAYS, Math.max(0, lookbackRaw))
+      : DEFAULT_LOOKBACK_DAYS;
 
     // --- Sync Logic ---
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -94,21 +111,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    // OA-04: data de hoje em America/Sao_Paulo + janela retroativa
+    const dates = lookbackDates(todayInSaoPaulo(), lookbackDays);
+
     if (dryRun) {
       return new Response(
         JSON.stringify({
           dry_run: true,
           message: `Dry-run OK: ${connections.length} active Oura connections ready for sync`,
           total_connections: connections.length,
+          dates,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
 
-    console.log(`Found ${connections.length} students with active Oura connections`);
-
-    // OA-04: Use Intl.DateTimeFormat for consistent Brazil date calculation
-    const dateStr = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Sao_Paulo' }).format(new Date());
+    console.log(`Found ${connections.length} students with active Oura connections; dates: ${dates.join(', ')}`);
 
     const results: SyncResult[] = [];
 
@@ -120,62 +138,88 @@ Deno.serve(async (req) => {
         batch.map(async (connection) => {
           const studentId = connection.student_id;
           const studentName = ((connection as Record<string, unknown>).students as Record<string, unknown>)?.name as string || 'Unknown';
-          let lastError = '';
+          const studentResults: SyncResult[] = [];
 
-          for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-              if (attempt > 1) {
-                await supabase.from('oura_sync_logs').insert({
-                  student_id: studentId, sync_date: dateStr, status: 'retrying',
-                  attempt_number: attempt, error_message: lastError
+          // Datas em SEQUÊNCIA por aluna (evita refresh concorrente do mesmo token
+          // e mantém ~10 chamadas em voo por aluna, como antes).
+          for (const dateStr of dates) {
+            let lastError = '';
+            let settled: SyncResult | null = null;
+
+            for (let attempt = 1; attempt <= 3 && !settled; attempt++) {
+              try {
+                if (attempt > 1) {
+                  await supabase.from('oura_sync_logs').insert({
+                    student_id: studentId, sync_date: dateStr, status: 'retrying',
+                    attempt_number: attempt, error_message: lastError
+                  });
+                }
+
+                // OA-01: Pass service role key as Authorization header
+                const { data: syncData, error: syncError } = await supabase.functions.invoke('oura-sync', {
+                  body: { student_id: studentId, date: dateStr, force_sync: true },
+                  headers: { Authorization: `Bearer ${supabaseKey}` }
                 });
-              }
 
-              // OA-01: Pass service role key as Authorization header
-              const { data: syncData, error: syncError } = await supabase.functions.invoke('oura-sync', {
-                body: { student_id: studentId, date: dateStr, force_sync: true },
-                headers: { Authorization: `Bearer ${supabaseKey}` }
-              });
+                if (syncError) throw syncError;
 
-              if (syncError) throw syncError;
+                const outcome =
+                  syncData && typeof syncData === 'object' && typeof (syncData as Record<string, unknown>).outcome === 'string'
+                    ? ((syncData as Record<string, unknown>).outcome as string)
+                    : undefined;
 
-              await supabase.from('oura_sync_logs').insert({
-                student_id: studentId, sync_date: dateStr, status: 'success',
-                attempt_number: attempt, metrics_synced: syncData
-              });
-
-              return { student_id: studentId, student_name: studentName, status: 'success' as const, attempt, metrics_synced: syncData };
-            } catch (error) {
-              lastError = (error as Error).message || String(error);
-              if (attempt === 3) {
+                // `status` continua sendo o sucesso TÉCNICO da chamada (CHECK da
+                // tabela: success/failed/retrying); o resultado de dados fica em
+                // metrics_synced.outcome (no_data | partial | complete).
                 await supabase.from('oura_sync_logs').insert({
-                  student_id: studentId, sync_date: dateStr, status: 'failed',
-                  attempt_number: attempt, error_message: lastError
+                  student_id: studentId, sync_date: dateStr, status: 'success',
+                  attempt_number: attempt, metrics_synced: syncData
                 });
-                return { student_id: studentId, student_name: studentName, status: 'failed' as const, attempt: 3, error: lastError };
+
+                settled = { student_id: studentId, student_name: studentName, date: dateStr, status: 'success', attempt, metrics_synced: syncData, outcome };
+              } catch (error) {
+                lastError = (error as Error).message || String(error);
+                if (attempt === 3) {
+                  await supabase.from('oura_sync_logs').insert({
+                    student_id: studentId, sync_date: dateStr, status: 'failed',
+                    attempt_number: attempt, error_message: lastError
+                  });
+                  settled = { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: 3, error: lastError };
+                } else {
+                  await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+                }
               }
-              await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
             }
+
+            studentResults.push(
+              settled ?? { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: 3, error: lastError },
+            );
           }
-          return { student_id: studentId, student_name: studentName, status: 'failed' as const, attempt: 3, error: lastError };
+
+          return studentResults;
         })
       );
 
       for (const result of batchResults) {
         if (result.status === 'fulfilled') {
-          results.push(result.value as SyncResult);
+          results.push(...(result.value as SyncResult[]));
         }
       }
     }
 
     const successCount = results.filter(r => r.status === 'success').length;
     const failedCount = results.filter(r => r.status === 'failed').length;
+    const noDataCount = results.filter(r => r.status === 'success' && r.outcome === 'no_data').length;
+    const withDataCount = results.filter(r => r.status === 'success' && r.outcome && r.outcome !== 'no_data').length;
 
     return new Response(
       JSON.stringify({
-        message: `Sync completed: ${successCount} success, ${failedCount} failed`,
+        message: `Sync completed: ${successCount} success (${withDataCount} with data, ${noDataCount} no data), ${failedCount} failed`,
         total: results.length,
+        dates,
         success: successCount,
+        with_data: withDataCount,
+        no_data: noDataCount,
         failed: failedCount,
         results
       }),

@@ -22,6 +22,8 @@ import {
   useDisconnectOura,
 } from "@/hooks/useOuraConnection";
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
+import { useOuraConnectionStatus } from "@/hooks/useOuraConnectionStatus";
+import { parseDateOnly } from "@/utils/ouraFreshness";
 import { useOfflineDetection } from "@/hooks/useOfflineDetection";
 import { SendOuraConnectDialog } from "@/components/SendOuraConnectDialog";
 import { format } from "date-fns";
@@ -45,6 +47,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
     refetchIntervalMs: 5000,
   });
   const { data: latestMetrics } = useLatestOuraMetrics(studentId);
+  const { data: connectionStatus } = useOuraConnectionStatus(studentId);
   const syncOura = useSyncOura();
   const disconnectOura = useDisconnectOura();
   const isOnline = useOfflineDetection();
@@ -80,8 +83,8 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
           setSyncError(null);
           
           toast.dismiss(syncToastId);
-          toast.success("Dados sincronizados com sucesso!", {
-            description: "As métricas do Oura Ring foram atualizadas dos últimos 7 dias.",
+          toast.success("Sincronização dos últimos 7 dias concluída", {
+            description: "Veja abaixo o último dia com dado real do Oura Ring.",
             duration: 5000,
           });
           
@@ -229,16 +232,25 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
               {connection.last_sync_at && (
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">
-                    Última sincronização:{" "}
+                    Última tentativa de sincronização:{" "}
                     {format(
                       new Date(connection.last_sync_at),
                       "dd/MM/yyyy 'às' HH:mm",
                       { locale: ptBR }
                     )}
                   </p>
+                  <p className="text-xs text-muted-foreground" data-testid="oura-last-real-data">
+                    Último dado real (sono/prontidão):{" "}
+                    {connectionStatus?.lastRealDataDate
+                      ? format(parseDateOnly(connectionStatus.lastRealDataDate), "dd/MM/yyyy", { locale: ptBR })
+                      : "nenhum ainda"}
+                  </p>
+                  {connectionStatus?.summary && connectionStatus.hasIssues && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400">{connectionStatus.summary}</p>
+                  )}
                   {latestMetrics && (
                     <p className="text-xs text-muted-foreground">
-                      Última métrica: {format(new Date(latestMetrics.date), "dd/MM/yyyy", { locale: ptBR })}
+                      Última linha registrada: {format(parseDateOnly(latestMetrics.date), "dd/MM/yyyy", { locale: ptBR })}
                     </p>
                   )}
                 </div>
@@ -274,11 +286,6 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
                     </>
                   )}
                 </Button>
-                
-                {/* Botão de sync com dados MOCK removido da UI de produção —
-                    gravava dados fictícios em oura_metrics reais (que alimentam
-                    a recomendação de treino). O hook useOuraTestSync e a edge
-                    oura-sync-test continuam disponíveis pra debug via admin. */}
                 <Button
                   variant="destructive"
                   onClick={() => setShowDisconnectDialog(true)}

@@ -205,20 +205,6 @@ describeIntegration('Oura Edge Functions — Auth Smoke Tests', { timeout: NETWO
     });
   });
 
-  describe('oura-sync-test', () => {
-    it('returns non-2xx without auth header', async () => {
-      const { status } = await callFunction('oura-sync-test');
-      expect(status).toBeGreaterThanOrEqual(400);
-      expect(status).toBeLessThan(600);
-    });
-
-    it('returns non-2xx with anon key (not a user JWT)', async () => {
-      const { status } = await callFunctionWithRetry('oura-sync-test', `Bearer ${ANON_KEY}`);
-      expect(status).toBeGreaterThanOrEqual(400);
-      expect(status).toBeLessThan(600);
-    });
-  });
-
   describe('validate-student-invite', () => {
     it('returns 400 when token is missing', async () => {
       const { status } = await callFunction('validate-student-invite', undefined, { method: 'GET' });
