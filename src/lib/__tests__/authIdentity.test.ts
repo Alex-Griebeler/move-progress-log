@@ -72,9 +72,34 @@ describe("disposeIdentityQueryClient — revogação do client da identidade ant
     expect(client.getQueryCache().getAll()).toHaveLength(0);
 
     release(["A-Alice"]);
-    await inflight;
+    // o chamador do fetchQuery (closure de A) não continua: nem com o cancelamento do clear()
+    expect(await settledWithin(inflight)).toBe("pending");
     expect(client.getQueryData(["students"])).toBeUndefined();
     expect(client.getQueryCache().getAll()).toHaveLength(0);
+  });
+
+  it("invalidação PENDENTE no momento da revogação: o clear() cancela a query, mas o `await invalidateQueries()` do callback de A nunca continua", async () => {
+    const client = createIdentityQueryClient();
+    let release!: (v: string[]) => void;
+    let calls = 0;
+    const queryFn = vi.fn(() => {
+      calls += 1;
+      return calls === 1 ? Promise.resolve(["A-Alice"]) : new Promise<string[]>((r) => { release = r; });
+    });
+    await client.fetchQuery({ queryKey: ["students"], queryFn, staleTime: 0 });
+    const after = vi.fn();
+    // onSuccess de A em andamento: await invalidateQueries() → refetch preso na rede
+    const callback = (async () => {
+      // refetchType "all": sem observer montado o refetch não seria disparado
+      await client.invalidateQueries({ queryKey: ["students"], refetchType: "all" });
+      after("toast de A na sessão B");
+    })();
+    await vi.waitFor(() => expect(calls).toBe(2));
+
+    disposeIdentityQueryClient(client); // revoga e limpa (cancela o refetch preso)
+    release(["A-Alice"]);
+    expect(await settledWithin(callback)).toBe("pending");
+    expect(after).not.toHaveBeenCalled();
   });
 
   it("mutação em voo que conclui depois da revogação: nem callbacks de hook, nem mutateAsync resolvem (o write já enviado não é cancelado)", async () => {

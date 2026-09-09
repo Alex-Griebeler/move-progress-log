@@ -1,5 +1,4 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { AppToasters } from "@/components/AppToasters";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -61,8 +60,7 @@ const App = () => {
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
             <TooltipProvider>
               <SkipToContent />
-              <Toaster />
-              <Sonner />
+              <AppToasters />
               {showAuthDebug && <AuthDebugPanel />}
               <BrowserRouter>
                 <Suspense fallback={<LoadingSpinner size="lg" text="Carregando página..." />}>

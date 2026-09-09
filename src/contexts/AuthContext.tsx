@@ -23,13 +23,13 @@ interface ProviderProps {
 const INITIAL_VALUE: AuthContextValue = { identity: INITIAL_AUTH_IDENTITY, queryClient: null };
 
 /**
- * Fecha toda notificação na tela na troca de identidade. O sonner insere um
- * toast recém-criado num setTimeout; um único dismiss síncrono não alcança o
- * que ainda está na fila — por isso o segundo, no tick seguinte.
+ * Fecha toda notificação na tela na troca de identidade (o toaster do shadcn
+ * guarda estado em módulo e o reproduziria numa instância nova). A remoção
+ * imediata do que já está na tela ou na fila do sonner é feita pela troca de
+ * instância dos toasters por época (AppToasters, key={epoch}).
  */
 function dismissPrivateNotifications() {
   notify.dismissAll();
-  window.setTimeout(() => notify.dismissAll(), 0);
 }
 
 /**
@@ -41,7 +41,9 @@ function dismissPrivateNotifications() {
  * - Troca de identidade = fronteira SÍNCRONA no próprio evento: o client da
  *   identidade anterior é revogado e limpo e os toasts fechados ANTES de o
  *   React agendar a remontagem — entre o evento e o commit, a identidade
- *   antiga já não publica nem escreve.
+ *   antiga já não publica via React Query nem inicia mutação/query nova.
+ *   (Limite: requisições diretas ao singleton do supabase-js por código já em
+ *   execução — ver src/lib/authIdentity.ts.)
  * - `getSession()` é o bootstrap; se QUALQUER evento já foi aplicado, o
  *   snapshot inicial — possivelmente antigo — é descartado. Uma resposta
  *   inicial atrasada nunca restaura A depois de logout/B.

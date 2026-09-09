@@ -98,7 +98,15 @@ export function createAppQueryClient(): QueryClient {
 //
 // A revogação é SÍNCRONA no evento de auth (AuthProvider), antes de o React
 // desmontar a árvore: entre o evento e o commit a identidade antiga já não
-// publica nem escreve. `clear()` completa o descarte (cancela fetches em voo).
+// publica via React Query nem inicia mutação/query nova. `clear()` completa o
+// descarte (cancela fetches em voo).
+//
+// LIMITE (residual documentado na PR): requisições emitidas DIRETAMENTE ao
+// singleton do supabase-js por código já em execução — etapas seguintes de um
+// mutationFn multi-etapa (laço da sincronização Oura, SELECT→INSERT do
+// getOrCreateStudent) ou fluxos imperativos (serialQueue do dashboard) — não
+// passam por aqui e sairiam com o token da identidade nova. Fechar isso exige
+// cliente de dados por época (migração dos consumidores), fora deste patch.
 // ---------------------------------------------------------------------------
 const neverSettle = (): Promise<never> => new Promise<never>(() => {});
 
@@ -151,8 +159,16 @@ class IdentityQueryCache extends QueryCache {
     if (!this.guarded.has(query)) {
       this.guarded.add(query);
       const fetch = query.fetch.bind(query);
-      query.fetch = (...args: Parameters<typeof fetch>) =>
-        this.revocation.revoked ? neverSettle() : fetch(...args);
+      const { revocation } = this;
+      query.fetch = (...args: Parameters<typeof fetch>) => {
+        if (revocation.revoked) return neverSettle();
+        // iniciado antes, concluído depois da revogação (ou cancelado pelo
+        // clear()): o chamador de fetchQuery/refetch também não continua
+        return fetch(...args).then(
+          (value) => (revocation.revoked ? neverSettle() : value),
+          (error: unknown) => (revocation.revoked ? neverSettle() : Promise.reject(error)),
+        );
+      };
     }
     return query;
   }
@@ -168,8 +184,16 @@ class IdentityQueryClient extends QueryClient {
     });
   }
 
+  /** Barreira na ENTRADA e na CONCLUSÃO: uma chamada iniciada antes da
+   *  revogação (ex.: `await invalidateQueries()` num onSuccess) que conclua
+   *  depois — inclusive liberada pelo `clear()` — também nunca entrega
+   *  resultado ao chamador. */
   private guard<T>(run: () => Promise<T>): Promise<T> {
-    return this.revocation.revoked ? neverSettle() : run();
+    if (this.revocation.revoked) return neverSettle();
+    return run().then(
+      (value) => (this.revocation.revoked ? neverSettle() : value),
+      (error: unknown) => (this.revocation.revoked ? neverSettle() : Promise.reject(error)),
+    );
   }
 
   invalidateQueries(...args: Parameters<QueryClient["invalidateQueries"]>) {
