@@ -47,7 +47,7 @@ const OAuthConsentPage = lazy(() => import("./pages/OAuthConsentPage"));
 
 // Cache PÚBLICO (rotas sem sessão: onboarding por token, consentimentos...).
 // O estado privado das rotas autenticadas vive em um QueryClient por identidade,
-// criado pelo IdentityScope dentro do ProtectedShell (A-001).
+// criado pelo AuthProvider e provido pelo IdentityScope dentro do ProtectedShell (A-001).
 const publicQueryClient = createAppQueryClient();
 
 const App = () => {

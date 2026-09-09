@@ -2,10 +2,10 @@
  * Casca das rotas autenticadas (antes inline no App.tsx).
  *
  * Ordem importa (A-001): ProtectedRoute só libera com identidade resolvida;
- * IdentityScope cria o cache privado por identidade e remonta tudo abaixo na
- * troca de conta — inclusive TrainingProvider (estado de check-in/conduta) e
- * GlobalSearch (resultados de busca em memória), que antes viviam fora da
- * fronteira e atravessavam o logout.
+ * IdentityScope provê o cache privado da identidade corrente (criado pelo
+ * AuthProvider) e remonta tudo abaixo na troca de conta — inclusive
+ * TrainingProvider (estado de check-in/conduta) e GlobalSearch (resultados de
+ * busca em memória), que antes viviam fora da fronteira e atravessavam o logout.
  */
 import type { ReactNode } from "react";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
