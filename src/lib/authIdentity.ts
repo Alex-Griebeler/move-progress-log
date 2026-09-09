@@ -94,8 +94,10 @@ export function createAppQueryClient(): QueryClient {
 //   construída antes da revogação cujo mutationFn ainda não começou (o
 //   TanStack aguarda onMutate antes de iniciar) e a janela entre o hook de
 //   cache e o callback; a ENTREGA do execute()/mutateAsync é guardada na
-//   conclusão. Os hooks de cache também travam. (O write que já foi ao
-//   servidor NÃO é cancelado por nada disto — só a publicação no cliente.)
+//   conclusão e os callbacks POR CHAMADA (mutate(vars, {onSuccess…})) não
+//   recebem a ação do observer. Os hooks de cache também travam. (O write
+//   que já foi ao servidor NÃO é cancelado por nada disto — só a publicação
+//   no cliente.)
 // - Query nova/refetch de uma closure antiga: o `fetch` da instância nunca
 //   conclui; fetchQuery/ensureQueryData que devolveriam cache fresco sem
 //   passar pelo fetch também são barrados no client.
@@ -154,6 +156,7 @@ function guardMutationOptions<TData, TError, TVariables, TContext>(
 
 class IdentityMutationCache extends MutationCache {
   private readonly guarded = new WeakSet<object>();
+  private readonly guardedObservers = new WeakSet<object>();
 
   constructor(private readonly revocation: IdentityRevocation) {
     super({
@@ -191,6 +194,20 @@ class IdentityMutationCache extends MutationCache {
           (value) => (revocation.revoked ? neverSettle() : value),
           (error: unknown) => (revocation.revoked ? neverSettle() : Promise.reject(error)),
         );
+      // Callbacks POR CHAMADA (`mutate(vars, { onSuccess… })`) são disparados
+      // pelo observer ao receber o `dispatch` de sucesso/erro — antes da
+      // barreira de entrega acima. Revogado, o observer não recebe a ação.
+      const addObserver = mutation.addObserver.bind(mutation);
+      mutation.addObserver = (observer) => {
+        if (!this.guardedObservers.has(observer)) {
+          this.guardedObservers.add(observer);
+          const onMutationUpdate = observer.onMutationUpdate.bind(observer);
+          observer.onMutationUpdate = (action) => {
+            if (!revocation.revoked) onMutationUpdate(action);
+          };
+        }
+        addObserver(observer);
+      };
     }
     return mutation;
   }

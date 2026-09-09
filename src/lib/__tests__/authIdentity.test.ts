@@ -186,6 +186,41 @@ describe("disposeIdentityQueryClient — revogação do client da identidade ant
     expect(consumer, "continuação do mutateAsync de A rodou na sessão B").not.toHaveBeenCalled();
   });
 
+  it("callbacks POR CHAMADA (mutate(vars, {onSuccess/onError})) com observer ainda assinado não rodam após revogação no último intervalo", async () => {
+    for (const outcome of ["success", "error"] as const) {
+      const client = createIdentityQueryClient();
+      const mutationFn = vi.fn(async (v: string) => {
+        if (outcome === "error") throw new Error(`falha de A: ${v}`);
+        return `privado de A: ${v}`;
+      });
+      const onSettled = vi.fn(() => {
+        queueMicrotask(() => disposeIdentityQueryClient(client));
+      });
+      const observer = new MutationObserver(client, { mutationFn, onSettled, retry: 0 });
+      const unsubscribe = observer.subscribe(() => {});
+      const perCall = { onSuccess: vi.fn(), onError: vi.fn(), onSettled: vi.fn() };
+      const consumer = vi.fn();
+      const pending = observer.mutate("payload", perCall).then(consumer, consumer);
+      expect(await settledWithin(pending)).toBe("pending");
+      expect(onSettled).toHaveBeenCalledTimes(1);
+      expect(perCall.onSuccess, outcome).not.toHaveBeenCalled();
+      expect(perCall.onError, outcome).not.toHaveBeenCalled();
+      expect(perCall.onSettled, outcome).not.toHaveBeenCalled();
+      expect(consumer).not.toHaveBeenCalled();
+      unsubscribe();
+    }
+  });
+
+  it("callbacks por chamada funcionam normalmente ANTES da revogação", async () => {
+    const client = createIdentityQueryClient();
+    const observer = new MutationObserver(client, { mutationFn: async (v: number) => v + 1 });
+    const unsubscribe = observer.subscribe(() => {});
+    const onSuccess = vi.fn();
+    await expect(observer.mutate(1, { onSuccess })).resolves.toBe(2);
+    expect(onSuccess).toHaveBeenCalledWith(2, 1, undefined);
+    unsubscribe();
+  });
+
   it("sem onSettled no consumidor: a entrega do execute ainda é guardada", async () => {
     const client = createIdentityQueryClient();
     let release!: (v: string) => void;

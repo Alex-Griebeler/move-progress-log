@@ -21,7 +21,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { QueryClient, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, onlineManager, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { useEffect, useRef, useState } from "react";
@@ -940,6 +940,27 @@ describe("A-001 — fronteira de identidade (A → logout → B na mesma aba)", 
     await user.click(screen.getByRole("button", { name: "Enviar cadastro" }));
     await waitFor(() => expect(fake.state.requests.filter((r) => r.ops.some(([n]) => n === "insert"))).toHaveLength(2));
     expect(tokenPageMounts).toBe(1);
+
+    // offline → envia (mutação pausada) → troca de identidade em outra aba → reconecta: retoma
+    await act(async () => {
+      onlineManager.setOnline(false);
+    });
+    try {
+      await user.click(screen.getByRole("button", { name: "Enviar cadastro" }));
+      await act(async () => {
+        await new Promise((r) => setTimeout(r, 20));
+      });
+      expect(fake.state.requests.filter((r) => r.ops.some(([n]) => n === "insert"))).toHaveLength(2); // pausada
+      await signIn(userA);
+      await act(async () => {
+        onlineManager.setOnline(true);
+      });
+      await waitFor(() => expect(fake.state.requests.filter((r) => r.ops.some(([n]) => n === "insert"))).toHaveLength(3));
+      expect(await screen.findByText("cadastro enviado")).toBeInTheDocument();
+      expect(tokenPageMounts).toBe(1);
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 
   it("7. AdminRoute e rotas públicas: A admin entra; B não herda a área nem o menu; público segue aberto", async () => {
