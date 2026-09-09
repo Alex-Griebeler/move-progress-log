@@ -183,4 +183,9 @@ function useToast() {
   };
 }
 
-export { useToast, toast };
+/** Fecha todos os toasts deste toaster (sem toastId o reducer atinge todos). */
+function dismissAllToasts() {
+  dispatch({ type: "DISMISS_TOAST" });
+}
+
+export { useToast, toast, dismissAllToasts };

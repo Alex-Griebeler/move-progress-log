@@ -8,11 +8,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthContext, useAuth } from "@/hooks/useAuth";
 import {
   INITIAL_AUTH_IDENTITY,
-  createAppQueryClient,
+  createIdentityQueryClient,
   disposeIdentityQueryClient,
   nextAuthIdentity,
   type AuthSessionLike,
 } from "@/lib/authIdentity";
+import { notify } from "@/lib/notify";
 import { logger } from "@/utils/logger";
 
 interface ProviderProps {
@@ -75,8 +76,9 @@ export function AuthProvider({ children }: ProviderProps) {
  * Trocar só o `client` do QueryClientProvider não basta: cada useQuery cria
  * seu observer com o client do PRIMEIRO render, e estado de componente e de
  * contexto sobreviveriam à troca. Por isso `key={epoch}` remonta a instância
- * inteira: client novo antes de qualquer filho renderizar; o client anterior
- * é descartado no unmount (callbacks de mutação desarmados + cache limpo).
+ * inteira: client novo antes de qualquer filho renderizar; no unmount o client
+ * anterior é revogado e limpo (operações em voo/futuras nunca publicam) e os
+ * toasts na tela são fechados (notificação privada não atravessa a troca).
  */
 export function IdentityScope({ children }: ProviderProps) {
   const { userId, epoch } = useAuth();
@@ -87,9 +89,15 @@ export function IdentityScope({ children }: ProviderProps) {
 }
 
 function IdentityQueryScope({ children }: ProviderProps) {
-  const [client] = useState(createAppQueryClient);
+  const [client] = useState(createIdentityQueryClient);
 
-  useEffect(() => () => disposeIdentityQueryClient(client), [client]);
+  useEffect(
+    () => () => {
+      disposeIdentityQueryClient(client);
+      notify.dismissAll();
+    },
+    [client],
+  );
 
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }

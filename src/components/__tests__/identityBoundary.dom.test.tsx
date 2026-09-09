@@ -24,7 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // ---------------------------------------------------------------------------
 // Supabase falso (hoisted: o vi.mock abaixo precisa dele)
@@ -147,6 +147,7 @@ const notifySpy = vi.hoisted(() => ({
   error: vi.fn(),
   info: vi.fn(),
   warning: vi.fn(),
+  dismissAll: vi.fn(),
 }));
 vi.mock("@/lib/notify", () => ({ notify: notifySpy }));
 
@@ -160,6 +161,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { createAppQueryClient } from "@/lib/authIdentity";
 import { useStudents, useCreateStudent, type Student } from "@/hooks/useStudents";
 import { useIsAdmin } from "@/hooks/useUserRole";
+import { useTrainingContext } from "@/contexts/TrainingContext";
 import { POST_LOGIN_ROUTE, ROUTES } from "@/constants/navigation";
 
 // ---------------------------------------------------------------------------
@@ -225,17 +227,36 @@ function StudentsProbe() {
   const { data, isLoading } = useStudents();
   const { isAdmin } = useIsAdmin();
   const create = useCreateStudent();
+  const { checkInRecord, setCheckInRecord } = useTrainingContext();
   const names = (data ?? []).map((s) => s.name);
   renderLog.push({ phase, names, isAdmin, loading: isLoading });
   useEffect(() => {
     probeMounts += 1;
   }, []);
+  /** Laço de importação (como ImportSessionsDialog): continuação assíncrona
+   *  que chama mutateAsync de novo depois de cada await. */
+  const importTwo = async () => {
+    await create.mutateAsync({ ...studentRow("Import-1", 0) });
+    await create.mutateAsync({ ...studentRow("Import-2", 0) });
+  };
   return (
     <div>
       {isLoading && <p>carregando alunos</p>}
       <ul aria-label="alunos">{names.map((n) => <li key={n}>{n}</li>)}</ul>
       <button type="button" onClick={() => create.mutate({ ...studentRow("Novo", 0) })}>
         Criar aluno
+      </button>
+      <button type="button" onClick={() => void importTwo()}>
+        Importar duas
+      </button>
+      <p>check-in: {checkInRecord ? `${checkInRecord.studentId}/${checkInRecord.state}` : "nenhum"}</p>
+      <button
+        type="button"
+        onClick={() =>
+          setCheckInRecord({ studentId: "aluna-de-A", state: "done", conductFingerprint: "fp", spDay: "2026-09-09", registeredAtIso: null, persistedConductType: null })
+        }
+      >
+        Registrar check-in
       </button>
     </div>
   );
@@ -251,19 +272,31 @@ function PublicProbe() {
   return <p>página pública</p>;
 }
 
+let authStubMounts = 0;
 /** Substitui o AuthPage: após o SIGNED_IN, navega para a rota pós-login (como
- *  o AuthPage real faz depois do signInWithPassword). */
-function AuthStub() {
+ *  o AuthPage real faz depois do signInWithPassword). `autoNavigate=false`
+ *  modela o AuthPage entre o SIGNED_IN e o dialog de 2FA (ainda em /auth). */
+function AuthStub({ autoNavigate = true }: { autoNavigate?: boolean }) {
   const navigate = useNavigate();
   const navRef = useRef(navigate);
   navRef.current = navigate;
+  const [localState, setLocalState] = useState("estado-inicial");
+  useEffect(() => {
+    authStubMounts += 1;
+  }, []);
   useEffect(() => {
     const { data: { subscription } } = fake.client.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") navRef.current(POST_LOGIN_ROUTE);
+      if (event === "SIGNED_IN" && autoNavigate) navRef.current(POST_LOGIN_ROUTE);
     });
     return () => subscription.unsubscribe();
-  }, []);
-  return <p>Página de login</p>;
+  }, [autoNavigate]);
+  return (
+    <div>
+      <p>Página de login</p>
+      <p>estado local: {localState}</p>
+      <button type="button" onClick={() => setLocalState("aguardando-2fa")}>Simular 2FA</button>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +305,7 @@ function AuthStub() {
 // ---------------------------------------------------------------------------
 let publicClient: QueryClient;
 
-function Harness({ initialPath }: { initialPath: string }) {
+function Harness({ initialPath, authAutoNavigate = true }: { initialPath: string; authAutoNavigate?: boolean }) {
   return (
     <AuthProvider>
       <QueryClientProvider client={publicClient}>
@@ -280,7 +313,7 @@ function Harness({ initialPath }: { initialPath: string }) {
           <TooltipProvider>
             <MemoryRouter initialEntries={[initialPath]}>
               <Routes>
-                <Route path={ROUTES.auth} element={<AuthStub />} />
+                <Route path={ROUTES.auth} element={<AuthStub autoNavigate={authAutoNavigate} />} />
                 <Route path="/publico" element={<PublicProbe />} />
                 <Route
                   path="/*"
@@ -373,6 +406,13 @@ beforeEach(() => {
     addListener: () => {}, removeListener: () => {},
     addEventListener: () => {}, removeEventListener: () => {}, dispatchEvent: () => false,
   })) as typeof window.matchMedia;
+  // cmdk/Radix (GlobalSearch) em jsdom
+  window.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof window.ResizeObserver;
+  Element.prototype.scrollIntoView ??= () => {};
   fake.state.session = null;
   fake.state.listeners.clear();
   fake.state.emitInitialSession = true;
@@ -388,6 +428,8 @@ beforeEach(() => {
   phase = "boot";
   notifySpy.success.mockClear();
   notifySpy.error.mockClear();
+  notifySpy.dismissAll.mockClear();
+  authStubMounts = 0;
   publicClient = createAppQueryClient();
 });
 afterEach(cleanup);
@@ -459,7 +501,9 @@ describe("A-001 — fronteira de identidade (A → logout → B na mesma aba)", 
     const cachedNames = (lastClient!.getQueryCache().getAll())
       .flatMap((q) => (Array.isArray(q.state.data) ? (q.state.data as Student[]).map((s) => s.name) : []));
     expect(cachedNames.filter((n) => STUDENTS[userA.id].includes(n))).toEqual([]);
-    expect(lastClient!.getQueryData(["user-role"]), "role de A na chave antiga do cache de B").toBeUndefined();
+    const roleEntries = lastClient!.getQueriesData({ queryKey: ["user-role"] });
+    expect(roleEntries.map(([key]) => key)).toEqual([["user-role", userB.id]]);
+    expect(roleEntries.map(([, role]) => role)).toEqual(["user"]);
   });
 
   it("3. logout por evento de auth (outra aba) e troca direta A→B funcionam sem o handler da sidebar", async () => {
@@ -597,6 +641,125 @@ describe("A-001 — fronteira de identidade (A → logout → B na mesma aba)", 
     expect(notifySpy.success, "toast da mutação de A apareceu na sessão B").not.toHaveBeenCalled();
     expect(notifySpy.error).not.toHaveBeenCalled();
     expect(studentSelects().filter((r) => r.userId === userB.id).length, "invalidação de A refez a lista de B").toBe(bSelects);
+  });
+
+  it("6c. janela evento→cleanup: mutação de A que conclui no MESMO tick do SIGNED_IN de B tem o toast fechado na transição e não refaz a lista de B", async () => {
+    fake.state.session = sessionOf(userA);
+    phase = "A";
+    render(<Harness initialPath="/" />);
+    await expectAFullyLoaded();
+    const user = userEvent.setup();
+    fake.state.holdMatcher = (req) => req.table === "students" && req.ops.some(([n]) => n === "insert");
+    await user.click(screen.getByRole("button", { name: "Criar aluno" }));
+    await waitFor(() => expect(fake.state.held.length).toBe(1));
+    const heldInsert = fake.state.held[0];
+    fake.state.holdMatcher = null;
+
+    phase = "B";
+    // troca direta A→B e resposta do INSERT de A no mesmo act: o callback de
+    // sucesso de A ainda roda (client de A vivo até o cleanup do commit)...
+    await act(async () => {
+      fake.state.session = sessionOf(userB);
+      fake.emit("SIGNED_IN", fake.state.session);
+      heldInsert.resolve(responder(heldInsert));
+      await Promise.resolve();
+    });
+    await expectBView();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 20));
+    });
+    // ...mas a transição fecha todos os toasts DEPOIS dele, e a invalidação
+    // ficou no client de A (B fez exatamente UMA consulta própria).
+    const successOrder = notifySpy.success.mock.invocationCallOrder;
+    const dismissOrder = notifySpy.dismissAll.mock.invocationCallOrder;
+    expect(dismissOrder.length).toBeGreaterThanOrEqual(1);
+    if (successOrder.length > 0) {
+      expect(Math.max(...dismissOrder)).toBeGreaterThan(Math.max(...successOrder));
+    }
+    expect(studentSelects().filter((r) => r.userId === userB.id).length).toBe(1);
+    expect(exposureIn("B")).toEqual([]);
+  });
+
+  it("6d. continuação assíncrona de A (laço com mutateAsync) não dispara escrita nova depois da troca para B", async () => {
+    fake.state.session = sessionOf(userA);
+    phase = "A";
+    render(<Harness initialPath="/" />);
+    await expectAFullyLoaded();
+    const user = userEvent.setup();
+    fake.state.holdMatcher = (req) => req.table === "students" && req.ops.some(([n]) => n === "insert");
+    await user.click(screen.getByRole("button", { name: "Importar duas" }));
+    await waitFor(() => expect(fake.state.held.length).toBe(1));
+    const firstInsert = fake.state.held[0];
+    fake.state.holdMatcher = null;
+
+    phase = "logout";
+    await signOutByEvent();
+    expect(await screen.findByText("Página de login")).toBeInTheDocument();
+    phase = "B";
+    await signIn(userB);
+    await expectBView();
+    const insertsBefore = fake.state.requests.filter((r) => r.ops.some(([n]) => n === "insert")).length;
+
+    // a 1ª escrita de A conclui agora; a continuação do laço tentaria a 2ª
+    // com a identidade B (getUser() → B) — deve morrer em silêncio
+    await release(firstInsert);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    const inserts = fake.state.requests.filter((r) => r.ops.some(([n]) => n === "insert"));
+    expect(inserts.length, "segunda escrita do laço de A saiu depois da troca").toBe(insertsBefore);
+    expect(inserts.some((r) => r.userId === userB.id), "escrita de A com a identidade de B").toBe(false);
+    expect(notifySpy.success).not.toHaveBeenCalled();
+    expect(notifySpy.error).not.toHaveBeenCalled();
+    await expectBView();
+  });
+
+  it("8. estado em memória por conta (TrainingContext) e busca global não atravessam a troca", async () => {
+    fake.state.session = sessionOf(userA);
+    phase = "A";
+    render(<Harness initialPath="/" />);
+    await expectAFullyLoaded();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Registrar check-in" }));
+    expect(screen.getByText("check-in: aluna-de-A/done")).toBeInTheDocument();
+
+    // busca global de A (Cmd+K) com resultado privado em memória
+    await user.keyboard("{Meta>}k{/Meta}");
+    const input = await screen.findByPlaceholderText("Buscar alunos, prescrições ou exercícios...");
+    await user.type(input, "Ali");
+    expect(await screen.findByText("A-Alice", {}, { timeout: 2000 })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    phase = "B";
+    const watch = watchDom(A_FORBIDDEN);
+    await signIn(userB);
+    await expectBView();
+    expect(screen.getByText("check-in: nenhum")).toBeInTheDocument();
+    await user.keyboard("{Meta>}k{/Meta}");
+    const inputB = await screen.findByPlaceholderText("Buscar alunos, prescrições ou exercícios...");
+    expect(inputB).toHaveValue("");
+    expect(screen.queryByText("A-Alice")).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    const hits = watch.stop();
+    expect(hits).toEqual([]);
+  });
+
+  it("9. o AuthPage NÃO remonta no SIGNED_IN (estado local do fluxo de 2FA preservado); a transição fecha os toasts", async () => {
+    fake.state.session = sessionOf(userA);
+    phase = "A";
+    render(<Harness initialPath="/" authAutoNavigate={false} />);
+    await expectAFullyLoaded();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Sair" }));
+    expect(await screen.findByText("Página de login")).toBeInTheDocument();
+    expect(notifySpy.dismissAll, "toasts de A ficaram na tela pública após o logout").toHaveBeenCalled();
+    const mountsBefore = authStubMounts;
+    await user.click(screen.getByRole("button", { name: "Simular 2FA" }));
+    expect(screen.getByText("estado local: aguardando-2fa")).toBeInTheDocument();
+
+    await signIn(userB); // signInWithPassword concluiu; AuthPage ainda vai abrir o dialog de 2FA
+    expect(screen.getByText("estado local: aguardando-2fa")).toBeInTheDocument();
+    expect(authStubMounts).toBe(mountsBefore);
   });
 
   it("7. AdminRoute e rotas públicas: A admin entra; B não herda a área nem o menu; público segue aberto", async () => {
