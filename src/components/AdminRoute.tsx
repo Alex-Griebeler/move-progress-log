@@ -1,32 +1,41 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import type { Session } from "@supabase/supabase-js";
+import { useAuth } from "@/hooks/useAuth";
 import { logger } from "@/utils/logger";
 
 interface AdminRouteProps {
   children: React.ReactNode;
 }
 
+/**
+ * Guard de admin. A identidade vem do AuthProvider (A-001): sem assinatura
+ * própria do auth e sem getSession concorrente. A consulta de role é
+ * escopada ao userId corrente e uma resposta que chegue depois da troca de
+ * identidade (cleanup do efeito) nunca é publicada.
+ */
 export function AdminRoute({ children }: AdminRouteProps) {
+  const { userId } = useAuth();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
+    let cancelled = false;
+    setIsAdmin(null);
 
-    const resolveAdmin = async (session: Session | null) => {
-      if (!isMounted) return;
-      if (!session) {
-        setIsAdmin(false);
-        return;
-      }
+    if (!userId) {
+      setIsAdmin(false);
+      return;
+    }
 
+    const resolveAdmin = async () => {
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", session.user.id)
+        .eq("user_id", userId)
         .eq("role", "admin")
         .maybeSingle();
+
+      if (cancelled) return;
 
       if (error) {
         logger.error("[AdminRoute] Failed to fetch user role", error);
@@ -37,22 +46,12 @@ export function AdminRoute({ children }: AdminRouteProps) {
       setIsAdmin(!!data);
     };
 
-    const bootstrap = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      await resolveAdmin(session);
-    };
-
-    void bootstrap();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      void resolveAdmin(session);
-    });
+    void resolveAdmin();
 
     return () => {
-      isMounted = false;
-      subscription.unsubscribe();
+      cancelled = true;
     };
-  }, []);
+  }, [userId]);
 
   if (isAdmin === null) {
     return (

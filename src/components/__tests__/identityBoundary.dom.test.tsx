@@ -2,15 +2,20 @@
 /**
  * A-001 — fronteira de identidade entre contas na MESMA aba (sem reload).
  *
- * Teste COMPORTAMENTAL (RTL/jsdom) que monta os componentes/hooks de PRODUÇÃO
- * (ProtectedRoute, AppSidebar, AdminRoute, useStudents/useCreateStudent,
- * useIsAdmin, TrainingProvider) com um Supabase falso controlável (eventos de
- * auth síncronos, respostas de rede seguráveis) e prova, na árvore renderizada
- * e em CADA commit do DOM, que a conta B nunca vê dados, role ou menu da conta A.
+ * Teste COMPORTAMENTAL (RTL/jsdom) que monta a casca de PRODUÇÃO das rotas
+ * autenticadas (AuthProvider → ProtectedShell = ProtectedRoute + IdentityScope
+ * + TrainingProvider + GlobalSearch + AppSidebar) e os hooks de produção
+ * (useStudents/useCreateStudent, useIsAdmin, AdminRoute) sobre um Supabase
+ * falso controlável (eventos de auth síncronos, respostas de rede seguráveis)
+ * e prova, na árvore renderizada e em CADA commit do DOM, que a conta B nunca
+ * vê dados, role ou menu da conta A.
  *
- * Fase "antes": a composição reproduz o App.tsx do SHA auditado (QueryClient
- * global + ProtectedRoute com sessão própria). Os cenários 1, 2, 3 e 7 falham
- * nessa base — é a reprodução da exposição.
+ * Reprodução registrada (commit anterior desta PR): com a composição do
+ * App.tsx auditado (QueryClient global + ProtectedRoute/AdminRoute com sessão
+ * própria) os cenários 1, 2, 3, 6b, 7 e 7b FALHAM — B recebe lista e menu
+ * admin de A já no primeiro render, resposta tardia de A entra na UI de B,
+ * o guard de admin de A vaza para B e a mutação antiga de A publica toast na
+ * sessão B. Os cenários 4, 5 e 6a são guardas da arquitetura nova.
  */
 import "@testing-library/jest-dom/vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
@@ -106,7 +111,15 @@ const fake = vi.hoisted(() => {
             if (state.listeners.has(cb)) cb("INITIAL_SESSION", state.session);
           });
         }
-        return { data: { subscription: { unsubscribe: () => state.listeners.delete(cb) } } };
+        return {
+          data: {
+            subscription: {
+              unsubscribe: () => {
+                state.listeners.delete(cb);
+              },
+            },
+          },
+        };
       },
       getSession: async () => {
         const once = state.getSessionOnce;
@@ -140,13 +153,11 @@ vi.mock("@/lib/notify", () => ({ notify: notifySpy }));
 // ---------------------------------------------------------------------------
 // Componentes/hooks de PRODUÇÃO sob teste
 // ---------------------------------------------------------------------------
-import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedShell } from "@/components/ProtectedShell";
 import { AdminRoute } from "@/components/AdminRoute";
-import { AppSidebar } from "@/components/AppSidebar";
-import { GlobalSearch } from "@/components/GlobalSearch";
-import { SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { TrainingProvider } from "@/contexts/TrainingContext";
+import { createAppQueryClient } from "@/lib/authIdentity";
 import { useStudents, useCreateStudent, type Student } from "@/hooks/useStudents";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import { POST_LOGIN_ROUTE, ROUTES } from "@/constants/navigation";
@@ -256,45 +267,38 @@ function AuthStub() {
 }
 
 // ---------------------------------------------------------------------------
-// Harness — composição idêntica ao App.tsx do SHA auditado (QueryClient global)
+// Harness — mesma composição do App.tsx: AuthProvider → client público →
+// ThemeProvider/TooltipProvider → Router → rotas públicas + ProtectedShell
 // ---------------------------------------------------------------------------
-let globalClient: QueryClient;
+let publicClient: QueryClient;
 
 function Harness({ initialPath }: { initialPath: string }) {
   return (
-    <QueryClientProvider client={globalClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-        <TooltipProvider>
-          <TrainingProvider>
+    <AuthProvider>
+      <QueryClientProvider client={publicClient}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <TooltipProvider>
             <MemoryRouter initialEntries={[initialPath]}>
-              <GlobalSearch />
               <Routes>
                 <Route path={ROUTES.auth} element={<AuthStub />} />
                 <Route path="/publico" element={<PublicProbe />} />
                 <Route
                   path="/*"
                   element={
-                    <ProtectedRoute>
-                      <SidebarProvider>
-                        <div className="flex min-h-screen w-full">
-                          <AppSidebar />
-                          <main>
-                            <Routes>
-                              <Route path="/" element={<StudentsProbe />} />
-                              <Route path="/admin/probe" element={<AdminRoute><AdminProbe /></AdminRoute>} />
-                            </Routes>
-                          </main>
-                        </div>
-                      </SidebarProvider>
-                    </ProtectedRoute>
+                    <ProtectedShell>
+                      <Routes>
+                        <Route path="/" element={<StudentsProbe />} />
+                        <Route path="/admin/probe" element={<AdminRoute><AdminProbe /></AdminRoute>} />
+                      </Routes>
+                    </ProtectedShell>
                   }
                 />
               </Routes>
             </MemoryRouter>
-          </TrainingProvider>
-        </TooltipProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+          </TooltipProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </AuthProvider>
   );
 }
 
@@ -384,9 +388,7 @@ beforeEach(() => {
   phase = "boot";
   notifySpy.success.mockClear();
   notifySpy.error.mockClear();
-  globalClient = new QueryClient({
-    defaultOptions: { queries: { staleTime: 60_000, retry: 1, refetchOnWindowFocus: false } },
-  });
+  publicClient = createAppQueryClient();
 });
 afterEach(cleanup);
 
