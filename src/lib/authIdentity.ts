@@ -105,8 +105,12 @@ export function createAppQueryClient(): QueryClient {
 // singleton do supabase-js por código já em execução — etapas seguintes de um
 // mutationFn multi-etapa (laço da sincronização Oura, SELECT→INSERT do
 // getOrCreateStudent) ou fluxos imperativos (serialQueue do dashboard) — não
-// passam por aqui e sairiam com o token da identidade nova. Fechar isso exige
-// cliente de dados por época (migração dos consumidores), fora deste patch.
+// passam por aqui e sairiam com o token da identidade nova; no padrão
+// `getUser()` → `insert({ trainer_id: user.id })`, a linha de A pode ser
+// gravada com o user.id de B. Rascunhos em localStorage (usePrescriptionDraft,
+// useSessionDraft, *DraftHistory) também não têm identidade na chave. Fechar
+// isso exige cliente de dados por época e chaves por userId (migração dos
+// consumidores), fora deste patch.
 // ---------------------------------------------------------------------------
 const neverSettle = (): Promise<never> => new Promise<never>(() => {});
 
