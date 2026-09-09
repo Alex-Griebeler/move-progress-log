@@ -12,6 +12,7 @@
  */
 
 import { toast } from "sonner";
+import { dismissAllToasts } from "@/hooks/use-toast";
 
 type ToastOptions = {
   description?: string;
@@ -113,9 +114,12 @@ export const notify = {
   },
 
   /**
-   * Remove todos os toasts
+   * Remove todos os toasts — do sonner E do toaster do shadcn (useToast).
+   * Usado na troca de identidade (A-001): notificação de uma conta não fica
+   * visível para a conta seguinte nem na tela pública após o logout.
    */
   dismissAll() {
     toast.dismiss();
+    dismissAllToasts();
   },
 };

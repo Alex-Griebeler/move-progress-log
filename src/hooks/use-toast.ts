@@ -183,4 +183,14 @@ function useToast() {
   };
 }
 
-export { useToast, toast };
+/**
+ * Fecha E remove todos os toasts deste toaster (sem toastId o reducer atinge
+ * todos). Só fechar deixaria o conteúdo no store em módulo até o timer de
+ * remoção — uma instância nova o releria e um update antigo poderia reabri-lo.
+ */
+function dismissAllToasts() {
+  dispatch({ type: "DISMISS_TOAST" });
+  dispatch({ type: "REMOVE_TOAST" });
+}
+
+export { useToast, toast, dismissAllToasts };
