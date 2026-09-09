@@ -80,7 +80,8 @@ export const OuraApiProbe = ({ studentId }: OuraApiProbeProps) => {
       </div>
       <p className="text-xs text-muted-foreground">
         Compara a janela antiga (<code>start_date=end_date=D</code>) com a atual (<code>D..D+1</code>) em cada
-        endpoint. Nada é gravado; só contagens e dias devolvidos pela API.
+        endpoint. Não grava métricas nem logs; só contagens e dias devolvidos pela API (o token OAuth pode ser
+        renovado se estiver vencido). Só admin.
       </p>
       {error && <p className="text-xs text-destructive">{error}</p>}
       {result && (

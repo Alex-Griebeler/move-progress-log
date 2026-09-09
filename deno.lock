@@ -118,6 +118,7 @@
         "npm:@dnd-kit/utilities@^3.2.2",
         "npm:@eslint/js@^9.32.0",
         "npm:@hookform/resolvers@^3.10.0",
+        "npm:@lovable.dev/mcp-js@0.21",
         "npm:@radix-ui/react-accordion@^1.2.11",
         "npm:@radix-ui/react-alert-dialog@^1.1.14",
         "npm:@radix-ui/react-aspect-ratio@^1.1.7",
@@ -149,6 +150,9 @@
         "npm:@supabase/supabase-js@^2.76.1",
         "npm:@tailwindcss/typography@~0.5.16",
         "npm:@tanstack/react-query@^5.83.0",
+        "npm:@testing-library/jest-dom@^6.9.1",
+        "npm:@testing-library/react@^16.3.3",
+        "npm:@testing-library/user-event@^14.6.6",
         "npm:@types/node@^22.16.5",
         "npm:@types/react-dom@^18.3.7",
         "npm:@types/react@^18.3.23",
@@ -166,6 +170,7 @@
         "npm:framer-motion@^11.18.2",
         "npm:globals@^15.15.0",
         "npm:input-otp@^1.4.2",
+        "npm:jsdom@^29.1.1",
         "npm:lovable-tagger@^1.1.11",
         "npm:lucide-react@0.462",
         "npm:next-themes@0.3",
@@ -189,7 +194,16 @@
         "npm:vite@^6.4.2",
         "npm:vitest@^4.0.18",
         "npm:zod@^3.25.76"
-      ]
+      ],
+      "overrides": {
+        "loader-utils": ">=2.0.4",
+        "tough-cookie": ">=5.0.0",
+        "semver": ">=7.5.2",
+        "yaml": ">=2.8.1",
+        "picomatch": ">=4.0.3",
+        "micromatch": ">=4.0.8",
+        "braces": ">=3.0.3"
+      }
     }
   }
 }

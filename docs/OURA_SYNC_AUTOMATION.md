@@ -349,6 +349,6 @@ Acesse `/admin/diagnostico-oura` para:
 - **`temperature_deviation`** é campo de topo do `daily_readiness` (não de `contributors`).
 - **Resultado por dia (`outcome`)** em `metrics_synced`: `no_data` | `partial` | `complete` (sono E prontidão). A coluna `status` do `oura_sync_logs` continua sendo o sucesso *técnico* da chamada.
 - **UI:** "Última sincronização" = última tentativa; "Último dado real" = dia mais recente com sono/prontidão. Sem dado real há 2+ dias sinaliza problema mesmo com tentativas recentes.
-- **Sonda (admin):** `oura-sync` com `{ student_id, date, probe: true }` consulta a API nas duas janelas (legado D..D e atual D..D+1) e devolve só contagens/dias, sem gravar nada — disponível em Diagnósticos → "Sonda da API do Oura".
+- **Sonda (admin):** `oura-sync` com `{ student_id, date, probe: true }` consulta a API nas duas janelas (legado D..D e atual D..D+1) e devolve só contagens/dias; não grava métricas/logs/`last_sync_at` (só a renovação do token OAuth, se vencido). Exige **admin** (dono da aluna não passa). Disponível em Diagnósticos → card da aluna → "Sondar D..D vs D..D+1".
 - **Custo:** 5 alunas × 10 endpoints × 3 dias = 150 chamadas por execução (450/dia), muito abaixo do limite publicado (5.000/5 min).
 - `oura-sync-test` (mock que gravava 2025-11-03 em tabelas reais) foi removido.

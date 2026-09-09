@@ -114,7 +114,9 @@ Deno.serve(async (req) => {
       forceSyncRaw === true ||
       (typeof forceSyncRaw === 'string' && forceSyncRaw.toLowerCase() === 'true');
     // Sonda de diagnóstico (admin/service role): consulta a API nas duas janelas
-    // (D..D legado e D..D+1) e devolve só contagens/dias — NÃO grava nada.
+    // (D..D legado e D..D+1) e devolve só contagens/dias. Não grava métricas,
+    // logs nem last_sync_at; a ÚNICA escrita possível é a renovação do token
+    // OAuth se ele estiver vencido (passo comum a qualquer chamada).
     const probe = rawPayload.probe === true;
 
     if (!student_id) {
@@ -154,6 +156,10 @@ Deno.serve(async (req) => {
       }
 
       const isAdmin = Boolean(adminRole);
+      // A sonda é diagnóstico de admin: dono da aluna (trainer) NÃO passa.
+      if (probe && !isAdmin) {
+        return jsonResponse(403, { error: 'Sonda da API do Oura exige admin.' });
+      }
       if (!isAdmin) {
         // Non-admin users can only sync students they own as trainer
         const { data: student, error: studentError } = await supabaseCheck
