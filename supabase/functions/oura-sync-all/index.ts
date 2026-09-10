@@ -6,7 +6,8 @@ import { buildWorkPlan, hasBudgetFor, lookbackDates, todayInSaoPaulo } from '../
  * Janela retroativa padrão: hoje, ontem e anteontem. O Oura finaliza scores ao
  * longo do dia e a aluna sincroniza o anel quando quer — só buscar "hoje"
  * deixava lacunas permanentes (dia que ficou pronto depois da última execução
- * nunca era rebuscado). O upsert preserva valores já gravados.
+ * nunca era rebuscado). O upsert preserva valores já gravados. Não há cursor
+ * entre execuções: cada uma recomeça por "hoje".
  */
 const DEFAULT_LOOKBACK_DAYS = 2;
 const MAX_LOOKBACK_DAYS = 6;
@@ -26,6 +27,15 @@ const EXECUTION_BUDGET_MS = 100_000;
 const ATTEMPT_ESTIMATE_MS = 32_000;
 /** Reserva para agregar, logar e responder depois da última espera. */
 const RESPONSE_RESERVE_MS = 5_000;
+
+/** Espera LIMITADA (não cancela a operação; garante que o chamador não fica preso). */
+const boundedWait = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+  Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), Math.max(0, ms))),
+  ]);
+
+const DB_TIMEOUT_MS = 8_000;
 
 /**
  * Chamada ao oura-sync com PRAZO EFETIVO: a espera é cancelada (AbortSignal)
@@ -52,13 +62,19 @@ async function invokeOuraSyncWithDeadline(
     });
     const text = await res.text();
     let parsed: unknown = null;
-    try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+    let parseFailed = false;
+    try { parsed = text ? JSON.parse(text) : null; } catch { parseFailed = true; }
     if (!res.ok) {
+      const rec = parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null;
       const message =
-        parsed && typeof parsed === 'object' && typeof (parsed as Record<string, unknown>).error === 'string'
-          ? ((parsed as Record<string, unknown>).error as string)
-          : `oura-sync respondeu HTTP ${res.status}`;
+        typeof rec?.error === 'string' ? (rec.error as string)
+        : typeof rec?.message === 'string' ? (rec.message as string)
+        : text ? `oura-sync respondeu HTTP ${res.status}: ${text.slice(0, 200)}`
+        : `oura-sync respondeu HTTP ${res.status}`;
       return { data: parsed, error: new Error(message) };
+    }
+    if (parseFailed || parsed === null || typeof parsed !== 'object') {
+      return { data: null, error: new Error('oura-sync respondeu 2xx sem JSON válido') };
     }
     return { data: parsed, error: null };
   } catch (error) {
@@ -95,13 +111,18 @@ Deno.serve(async (req) => {
   const deadline = startedAt + EXECUTION_BUDGET_MS;
 
   try {
-    const authResult = await authenticateServiceRoleOrUserRole(req, {
-      corsHeaders,
-      allowedRoles: ['admin'],
-      missingAuthMessage: 'Missing or invalid authorization header',
-      invalidTokenMessage: 'Invalid or expired token',
-      forbiddenMessage: 'Admin privileges required for this operation',
-    });
+    // Auth (getUser + user_roles para JWT de admin) com espera limitada.
+    const authResult = await boundedWait(
+      authenticateServiceRoleOrUserRole(req, {
+        corsHeaders,
+        allowedRoles: ['admin'],
+        missingAuthMessage: 'Missing or invalid authorization header',
+        invalidTokenMessage: 'Invalid or expired token',
+        forbiddenMessage: 'Admin privileges required for this operation',
+      }),
+      20_000,
+      'auth',
+    );
 
     if (authResult instanceof Response) {
       return authResult;
@@ -116,7 +137,7 @@ Deno.serve(async (req) => {
     }
 
     let body: Record<string, unknown> = {};
-    const rawBody = await req.text();
+    const rawBody = await boundedWait(req.text(), 5_000, 'request body');
     if (rawBody.trim().length > 0) {
       try {
         const parsed = JSON.parse(rawBody);
@@ -158,7 +179,8 @@ Deno.serve(async (req) => {
           name
         )
       `)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .abortSignal(AbortSignal.timeout(DB_TIMEOUT_MS));
 
     if (connectionsError) {
       console.error('Error fetching connections:', connectionsError);
@@ -192,6 +214,19 @@ Deno.serve(async (req) => {
     const results: SyncResult[] = [];
     let truncated = false;
 
+    /** Insert de log com teto e sem poder travar o fluxo (falha vira warn). */
+    const writeLog = async (row: Record<string, unknown>, label: string): Promise<void> => {
+      try {
+        const { error } = await supabase
+          .from('oura_sync_logs')
+          .insert(row)
+          .abortSignal(AbortSignal.timeout(DB_TIMEOUT_MS));
+        if (error) console.warn(`oura_sync_logs (${label}) insert failed:`, error.message);
+      } catch (error) {
+        console.warn(`oura_sync_logs (${label}) insert threw:`, (error as Error).message);
+      }
+    };
+
     // OA-02: lotes de 5 alunas em paralelo; data mais recente primeiro para
     // TODAS as alunas. Cada aluna nunca tem duas datas em voo ao mesmo tempo
     // (um lote termina antes do próximo começar) — sem refresh concorrente
@@ -199,6 +234,7 @@ Deno.serve(async (req) => {
     const BATCH_SIZE = 5;
     const plan = buildWorkPlan(dates, connections, BATCH_SIZE);
 
+    const runPlan = async (): Promise<void> => {
     for (const step of plan) {
       const dateStr = step.date;
       if (!hasBudgetFor(Date.now(), deadline, ATTEMPT_ESTIMATE_MS)) {
@@ -232,20 +268,18 @@ Deno.serve(async (req) => {
               if (attempt === 1) {
                 return { student_id: studentId, student_name: studentName, date: dateStr, status: 'skipped', attempt: 0, error: 'Orçamento de tempo esgotado antes da primeira tentativa.' };
               }
-              const { error: budgetLogError } = await supabase.from('oura_sync_logs').insert({
+              await writeLog({
                 student_id: studentId, sync_date: dateStr, status: 'failed',
                 attempt_number: attempt - 1, error_message: `${lastError} (sem orçamento para nova tentativa)`
-              });
-              if (budgetLogError) console.warn('oura_sync_logs (failed/budget) insert failed:', budgetLogError.message);
+              }, 'failed/budget');
               return { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: attempt - 1, error: `${lastError} (sem orçamento para nova tentativa)` };
             }
             try {
               if (attempt > 1) {
-                const { error: retryLogError } = await supabase.from('oura_sync_logs').insert({
+                await writeLog({
                   student_id: studentId, sync_date: dateStr, status: 'retrying',
                   attempt_number: attempt, error_message: lastError
-                });
-                if (retryLogError) console.warn('oura_sync_logs (retrying) insert failed:', retryLogError.message);
+                }, 'retrying');
               }
 
               // OA-01: service role key no Authorization; espera limitada ao
@@ -271,21 +305,19 @@ Deno.serve(async (req) => {
               // `status` continua sendo o sucesso TÉCNICO da chamada (CHECK da
               // tabela: success/failed/retrying); o resultado de dados fica em
               // metrics_synced.outcome (no_data | partial | complete).
-              const { error: successLogError } = await supabase.from('oura_sync_logs').insert({
+              await writeLog({
                 student_id: studentId, sync_date: dateStr, status: 'success',
                 attempt_number: attempt, metrics_synced: syncRecord ?? null
-              });
-              if (successLogError) console.warn('oura_sync_logs (success) insert failed:', successLogError.message);
+              }, 'success');
 
               return { student_id: studentId, student_name: studentName, date: dateStr, status: 'success', attempt, metrics_synced: syncRecord, outcome };
             } catch (error) {
               lastError = (error as Error).message || String(error);
               if (attempt === maxAttempts) {
-                const { error: failedLogError } = await supabase.from('oura_sync_logs').insert({
+                await writeLog({
                   student_id: studentId, sync_date: dateStr, status: 'failed',
                   attempt_number: attempt, error_message: lastError
-                });
-                if (failedLogError) console.warn('oura_sync_logs (failed) insert failed:', failedLogError.message);
+                }, 'failed');
                 return { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt, error: lastError };
               }
               await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
@@ -300,6 +332,36 @@ Deno.serve(async (req) => {
           results.push(result.value);
         } else {
           console.error('oura-sync-all: unexpected rejection in batch:', result.reason);
+        }
+      }
+    }
+    };
+
+    // GARANTIA da resposta: o plano corre contra o relógio. Se qualquer espera
+    // (filha, banco, log) ficar presa além do deadline, respondemos com o que
+    // já foi agregado (`truncated`); pares não concluídos entram como
+    // 'skipped' por orçamento. O que ainda estiver em voo pode terminar (ou
+    // ser cortado pelo runtime) — os upserts são idempotentes e o próximo
+    // cron reconsulta as mesmas datas.
+    const planSettled = await Promise.race([
+      runPlan().then(() => true, (error) => { console.error('oura-sync-all: plan failed:', error); return true; }),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), Math.max(0, deadline - Date.now()))),
+    ]);
+    if (!planSettled) {
+      truncated = true;
+      const done = new Set(results.map((r) => `${r.student_id}|${r.date}`));
+      for (const step of plan) {
+        for (const connection of step.items) {
+          const key = `${connection.student_id}|${step.date}`;
+          if (done.has(key)) continue;
+          results.push({
+            student_id: connection.student_id,
+            student_name: ((connection as Record<string, unknown>).students as Record<string, unknown>)?.name as string || 'Unknown',
+            date: step.date,
+            status: 'skipped',
+            attempt: 0,
+            error: 'Execução respondeu no deadline com este par ainda em andamento ou não iniciado.',
+          });
         }
       }
     }
