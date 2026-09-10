@@ -82,11 +82,8 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
           setSyncStatus("Sincronização concluída!");
           setSyncError(null);
           
+          // O feedback consolidado (dias com dados / sem dados) vem do hook useSyncOura.
           toast.dismiss(syncToastId);
-          toast.success("Sincronização dos últimos 7 dias concluída", {
-            description: "Veja abaixo o último dia com dado real do Oura Ring.",
-            duration: 5000,
-          });
           
           setTimeout(() => {
             setSyncProgress(0);

@@ -41,6 +41,13 @@ describe("evaluateOuraFreshness — tentativa × dado real", () => {
     expect(r.summary).toBe("Sem tentativa de sincronização há mais de 24h");
   });
 
+  it("linha com data futura não conta como frescor: problema, com frase própria", () => {
+    const r = evaluateOuraFreshness({ ...base, lastSyncAt: "2026-09-09T13:00:09Z", lastRealDataDate: "2026-09-12" });
+    expect(r.hasIssues).toBe(true);
+    expect(r.dataStale).toBe(true);
+    expect(r.summary).toBe("Dado com data futura (2026-09-12) — verificar registro");
+  });
+
   it("falha recente vem antes de tudo", () => {
     const r = evaluateOuraFreshness({ ...base, recentFailed: 2, lastSyncAt: "2026-09-09T13:00:09Z", lastRealDataDate: "2026-09-09" });
     expect(r.hasIssues).toBe(true);

@@ -12,6 +12,14 @@
 
 export const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Data válida no calendário (rejeita 2026-02-30, 2026-13-01…). */
+export const isValidCalendarDate = (date: string): boolean => {
+  if (!DATE_RE.test(date)) return false;
+  const [y, m, d] = date.split("-").map(Number);
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  return utc.getUTCFullYear() === y && utc.getUTCMonth() === m - 1 && utc.getUTCDate() === d;
+};
+
 /** Documento da API do Oura (JSON sem contrato tipado no repositório). */
 // deno-lint-ignore no-explicit-any
 export type LooseDoc = Record<string, any>;
@@ -125,3 +133,29 @@ export const temperatureDeviationFrom = (readiness: Doc | null): number | null =
   readiness && typeof readiness.temperature_deviation === "number"
     ? readiness.temperature_deviation
     : null;
+
+/**
+ * Plano de trabalho do oura-sync-all: data mais recente PRIMEIRO para todas
+ * as alunas (hoje > ontem > anteontem), em lotes. Se o orçamento de tempo da
+ * execução acabar, o que fica de fora são os dias mais antigos — que o cron
+ * seguinte revisita — nunca o dia de hoje.
+ */
+export interface WorkStep<T> {
+  date: string;
+  items: T[];
+}
+
+export const buildWorkPlan = <T>(dates: string[], items: T[], batchSize: number): WorkStep<T>[] => {
+  const steps: WorkStep<T>[] = [];
+  const size = Math.max(1, batchSize);
+  for (const date of dates) {
+    for (let i = 0; i < items.length; i += size) {
+      steps.push({ date, items: items.slice(i, i + size) });
+    }
+  }
+  return steps;
+};
+
+/** Há orçamento para mais um passo? (`now` e `deadline` em ms) */
+export const hasBudgetFor = (now: number, deadline: number, stepEstimateMs: number): boolean =>
+  deadline - now >= stepEstimateMs;

@@ -53,6 +53,7 @@ export const useStudentsCardData = (studentIds: string[]) => {
         .select("student_id, readiness_score, sleep_score, date")
         .in("student_id", normalizedStudentIds)
         .gte("date", recentMetricsStartDate)
+        .lte("date", today) // linha com data futura não vira "último dado real"
         .order("date", { ascending: false });
       if (metricsError) throw metricsError;
 

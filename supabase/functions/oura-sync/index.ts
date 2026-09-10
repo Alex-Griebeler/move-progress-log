@@ -4,7 +4,9 @@ import {
   apiDateWindow,
   classifyOutcome,
   documentForDay,
+  documentsForDay,
   hasAnyMetricValue,
+  isValidCalendarDate,
   longestSleepPeriodForDay,
   mergePreservingExisting,
   temperatureDeviationFrom,
@@ -125,8 +127,8 @@ Deno.serve(async (req) => {
     if (!UUID_RE.test(student_id)) {
       return jsonResponse(400, { error: 'student_id inválido' });
     }
-    if (date && !DATE_RE.test(date)) {
-      return jsonResponse(400, { error: 'date deve estar no formato YYYY-MM-DD' });
+    if (date && (!DATE_RE.test(date) || !isValidCalendarDate(date))) {
+      return jsonResponse(400, { error: 'date deve ser uma data válida no formato YYYY-MM-DD' });
     }
 
     if (!isServiceRole) {
@@ -336,12 +338,11 @@ Deno.serve(async (req) => {
     const headers = {
       Authorization: `Bearer ${currentAccessToken}`,
     };
+    // O-01: timeout por chamada via AbortSignal — cancela a requisição E a
+    // leitura do corpo (Promise.race só abandonava a promessa; o fetch e o
+    // res.json() continuavam sem teto).
     const OURA_TIMEOUT = 15_000;
-    const withTimeout = <T>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
-      Promise.race([
-        promise,
-        new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`Timeout: ${label} (${ms}ms)`)), ms))
-      ]);
+    const ouraFetch = (url: string) => fetch(url, { headers, signal: AbortSignal.timeout(OURA_TIMEOUT) });
 
     if (probe) {
       const probeEndpoints = ['daily_readiness', 'daily_sleep', 'sleep', 'daily_activity', 'workout'] as const;
@@ -349,25 +350,28 @@ Deno.serve(async (req) => {
         legacy: { start_date: syncDate, end_date: syncDate },
         current: window,
       } as const;
-      const report: Record<string, Record<string, unknown>> = {};
-      for (const [label, w] of Object.entries(windows)) {
-        const rows: Record<string, unknown> = {};
-        for (const ep of probeEndpoints) {
-          try {
-            const res = await withTimeout(
-              fetch(`https://api.ouraring.com/v2/usercollection/${ep}?start_date=${w.start_date}&end_date=${w.end_date}`, { headers }),
-              OURA_TIMEOUT,
-              ep,
-            );
-            const body = res.ok ? await res.json().catch(() => null) : null;
-            const data: unknown[] = isPlainObject(body) && Array.isArray(body.data) ? body.data : [];
-            const days = Array.from(new Set(data.map((d) => (isPlainObject(d) && typeof d.day === 'string' ? d.day : '?')))).sort();
-            rows[ep] = { http: res.status, count: data.length, days, count_for_day: documentForDay(body, syncDate) ? 1 : 0 };
-          } catch (error) {
-            rows[ep] = { http: null, count: 0, days: [], error: (error as Error).message };
-          }
+      // Mesmo extrator do sync para "dia presente"; 10 chamadas em PARALELO
+      // (teto ≈ 1 timeout, não 10).
+      const countForDay = (ep: string, body: unknown): number =>
+        ep === 'workout' ? workoutsForDay(body, syncDate).length : documentsForDay(body, syncDate).length;
+      const probeOne = async (ep: string, w: { start_date: string; end_date: string }): Promise<Record<string, unknown>> => {
+        try {
+          const res = await ouraFetch(`https://api.ouraring.com/v2/usercollection/${ep}?start_date=${w.start_date}&end_date=${w.end_date}`);
+          const body = res.ok ? await res.json().catch(() => null) : null;
+          const data: unknown[] = isPlainObject(body) && Array.isArray(body.data) ? body.data : [];
+          const days = Array.from(new Set(data.map((d) => (isPlainObject(d) && typeof d.day === 'string' ? d.day : '?')))).sort();
+          return { http: res.status, count: data.length, days, count_for_day: countForDay(ep, body) };
+        } catch (error) {
+          return { http: null, count: 0, days: [], error: (error as Error).message };
         }
-        report[label] = rows;
+      };
+      const labels = Object.keys(windows) as Array<keyof typeof windows>;
+      const rows = await Promise.all(
+        labels.flatMap((label) => probeEndpoints.map(async (ep) => [label, ep, await probeOne(ep, windows[label])] as const)),
+      );
+      const report: Record<string, Record<string, unknown>> = {};
+      for (const [label, ep, row] of rows) {
+        (report[label] ??= {})[ep] = row;
       }
       return jsonResponse(200, { probe: true, date: syncDate, windows, report });
     }
@@ -429,16 +433,16 @@ Deno.serve(async (req) => {
     const warnings: string[] = [];
 
     const apiCalls = [
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'readiness'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'daily_sleep'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/sleep?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'sleep_periods'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/heartrate?start_datetime=${syncDate}T00:00:00&end_datetime=${syncDate}T23:59:59`, { headers }), OURA_TIMEOUT, 'heartrate'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'activity'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/workout?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'workouts'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_stress?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'stress'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_spo2?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'spo2'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/vo2_max?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'vo2'),
-      withTimeout(fetch(`https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=${window.start_date}&end_date=${window.end_date}`, { headers }), OURA_TIMEOUT, 'resilience'),
+      ouraFetch(`https://api.ouraring.com/v2/usercollection/daily_readiness?start_date=${window.start_date}&end_date=${window.end_date}`),
+      ouraFetch(`https://api.ouraring.com/v2/usercollection/daily_sleep?start_date=${window.start_date}&end_date=${window.end_date}`),
+      ouraFetch(`https://api.ouraring.com/v2/usercollection/sleep?start_date=${window.start_date}&end_date=${window.end_date}`),
+      ouraFetch(`https://api.ouraring.com/v2/usercollection/heartrate?start_datetime=${syncDate}T00:00:00&end_datetime=${syncDate}T23:59:59`),
+      ouraFetch(`https://api.ouraring.com/v2/usercollection/daily_activity?start_date=${window.start_date}&end_date=${window.end_date}`),
+      ouraFetch(`https://api.ouraring.com/v2/usercollection/workout?start_date=${window.start_date}&end_date=${window.end_date}`),
+      ouraFetch(`https://api.ouraring.com/v2/usercollection/daily_stress?start_date=${window.start_date}&end_date=${window.end_date}`),
+      ouraFetch(`https://api.ouraring.com/v2/usercollection/daily_spo2?start_date=${window.start_date}&end_date=${window.end_date}`),
+      ouraFetch(`https://api.ouraring.com/v2/usercollection/vo2_max?start_date=${window.start_date}&end_date=${window.end_date}`),
+      ouraFetch(`https://api.ouraring.com/v2/usercollection/daily_resilience?start_date=${window.start_date}&end_date=${window.end_date}`),
     ];
 
     const results = await Promise.allSettled(apiCalls);

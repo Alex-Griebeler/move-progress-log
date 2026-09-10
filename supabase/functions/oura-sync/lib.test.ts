@@ -1,6 +1,9 @@
 import { assertEquals } from "jsr:@std/assert";
 import {
   apiDateWindow,
+  buildWorkPlan,
+  hasBudgetFor,
+  isValidCalendarDate,
   classifyOutcome,
   documentForDay,
   documentsForDay,
@@ -95,4 +98,26 @@ Deno.test("hasAnyMetricValue ignora student_id/date e conta zero como valor", ()
   assertEquals(hasAnyMetricValue({ student_id: "s", date: "d", sleep_score: null }), false);
   assertEquals(hasAnyMetricValue({ student_id: "s", date: "d", stress_high_time: 0 }), true);
   assertEquals(hasAnyMetricValue({ student_id: "s", date: "d" }), false);
+});
+
+Deno.test("isValidCalendarDate rejeita datas impossíveis e aceita bissexto", () => {
+  assertEquals(isValidCalendarDate("2026-02-30"), false);
+  assertEquals(isValidCalendarDate("2026-13-01"), false);
+  assertEquals(isValidCalendarDate("2028-02-29"), true);
+  assertEquals(isValidCalendarDate("2027-02-29"), false);
+  assertEquals(isValidCalendarDate("09/09/2026"), false);
+});
+
+Deno.test("buildWorkPlan: hoje para TODAS as alunas antes de ontem; lotes respeitam o tamanho", () => {
+  const plan = buildWorkPlan(["2026-09-09", "2026-09-08"], ["a", "b", "c", "d", "e", "f"], 5);
+  assertEquals(plan.map((s) => [s.date, s.items.length]), [
+    ["2026-09-09", 5], ["2026-09-09", 1], ["2026-09-08", 5], ["2026-09-08", 1],
+  ]);
+  assertEquals(buildWorkPlan(["2026-09-09"], [], 5), []);
+});
+
+Deno.test("hasBudgetFor: só segue se sobra pelo menos a estimativa do passo", () => {
+  assertEquals(hasBudgetFor(0, 120_000, 20_000), true);
+  assertEquals(hasBudgetFor(105_000, 120_000, 20_000), false);
+  assertEquals(hasBudgetFor(100_000, 120_000, 20_000), true);
 });

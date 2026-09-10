@@ -68,7 +68,10 @@ export const useOuraConnectionStatus = (studentId: string) => {
         .limit(1)
         .maybeSingle();
       if (lastRealError) {
+        // Falha de leitura NÃO é "nenhum dado ainda": deixa a query em erro
+        // em vez de afirmar ausência de histórico.
         logger.warn("[useOuraConnectionStatus] failed to load last real data date", lastRealError);
+        throw lastRealError;
       }
 
       const freshness = evaluateOuraFreshness({

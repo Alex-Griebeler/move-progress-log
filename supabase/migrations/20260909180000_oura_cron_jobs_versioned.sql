@@ -7,10 +7,12 @@
 -- 'oura-sync-evening' (0 21). `cron.schedule(jobname, …)` atualiza um job de
 -- mesmo nome (upsert por jobname/username) — não duplica.
 --
--- Defesa contra nome divergente: qualquer OUTRO job que invoque o
--- oura-sync-scheduled é removido antes, para nunca haver duas execuções no
--- mesmo minuto (duas cadeias oura-sync-all concorrentes na mesma aluna/data e
--- refresh concorrente do token OAuth).
+-- Defesa: TODO job que invoque o oura-sync-scheduled — qualquer nome (inclusive
+-- NULL), qualquer username — é removido por jobid antes de recriar os três.
+-- Resultado garantido: exatamente um job por horário, nunca duas execuções no
+-- mesmo minuto (duas cadeias oura-sync-all na mesma aluna/data e refresh
+-- concorrente do token OAuth). O upsert do pg_cron é por (jobname, username),
+-- então só recriar não bastaria se um job homônimo pertencesse a outro usuário.
 --
 -- A janela retroativa (hoje, ontem, anteontem) é decidida no oura-sync-all;
 -- o payload aqui é só rótulo/diagnóstico.
@@ -20,12 +22,11 @@ DECLARE
   j record;
 BEGIN
   FOR j IN
-    SELECT jobid, jobname
+    SELECT jobid, jobname, username
     FROM cron.job
     WHERE command ILIKE '%oura-sync-scheduled%'
-      AND jobname NOT IN ('oura-sync-morning', 'oura-sync-midmorning', 'oura-sync-evening')
   LOOP
-    RAISE NOTICE 'Removendo job de cron do Oura fora do padrão: % (%)', j.jobname, j.jobid;
+    RAISE NOTICE 'Removendo job de cron do Oura antes de recriar: % (jobid %, user %)', coalesce(j.jobname, '<sem nome>'), j.jobid, j.username;
     PERFORM cron.unschedule(j.jobid);
   END LOOP;
 END

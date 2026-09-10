@@ -45,7 +45,9 @@ export function evaluateOuraFreshness(input: OuraFreshnessInput): OuraFreshness 
   const attemptStale = !Number.isFinite(lastSyncMs) || now - lastSyncMs > DAY_MS;
 
   const realDataAgeDays = input.lastRealDataDate ? dayDiff(input.today, input.lastRealDataDate) : null;
-  const dataStale = realDataAgeDays === null || realDataAgeDays >= DATA_STALE_AFTER_DAYS;
+  // Data futura (linha gravada por caminho antigo) não é frescor: trata como problema.
+  const futureData = realDataAgeDays !== null && realDataAgeDays < 0;
+  const dataStale = realDataAgeDays === null || futureData || realDataAgeDays >= DATA_STALE_AFTER_DAYS;
 
   const hasIssues = input.recentFailed > 0 || attemptStale || dataStale;
 
@@ -53,6 +55,7 @@ export function evaluateOuraFreshness(input: OuraFreshnessInput): OuraFreshness 
   if (input.recentFailed > 0) summary = `${input.recentFailed} falha(s) de sincronização nas últimas 24h`;
   else if (attemptStale) summary = "Sem tentativa de sincronização há mais de 24h";
   else if (realDataAgeDays === null) summary = "Nenhum dado do Oura recebido ainda";
+  else if (futureData) summary = `Dado com data futura (${input.lastRealDataDate}) — verificar registro`;
   else if (dataStale) summary = `Último dado real há ${realDataAgeDays} dias (sincronizações sem dados)`;
   else if (realDataAgeDays === 0) summary = "Dados de hoje recebidos";
   else summary = "Último dado real de ontem";
