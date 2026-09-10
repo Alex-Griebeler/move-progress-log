@@ -15,8 +15,9 @@ const MAX_LOOKBACK_DAYS = 6;
  * Orçamento GLOBAL da execução: a edge function tem idle timeout de 150 s
  * (Supabase, qualquer plano). Cada passo (lote de até 5 alunas × 1 data) é
  * estimado no pior caso; passos que não cabem são PULADOS (status 'skipped',
- * sem log) e devolvidos como `truncated` — o cron seguinte os revisita. A
- * ordem do plano garante que "hoje" de todas as alunas vem antes de "ontem".
+ * sem log) e devolvidos como `truncated`. Sem cursor entre execuções, uma
+ * execução futura pode ou não alcançá-los. A ordem do plano prioriza "hoje"
+ * de todas as alunas antes de "ontem".
  */
 const EXECUTION_BUDGET_MS = 100_000;
 /**
@@ -255,6 +256,13 @@ Deno.serve(async (req) => {
       // Orçamento por par: 3 tentativas só para HOJE; dias anteriores ganham 2.
       const maxAttempts = dateStr === dates[0] ? 3 : 2;
 
+      // Cada par é PUBLICADO em `results` assim que conclui (não só ao fim do
+      // lote): se a resposta sair no deadline com um par do lote ainda preso,
+      // os já concluídos aparecem como o que são, não como 'skipped'.
+      const publish = (r: SyncResult): SyncResult => {
+        results.push(r);
+        return r;
+      };
       const batchResults = await Promise.allSettled(
         step.items.map(async (connection): Promise<SyncResult> => {
           const studentId = connection.student_id;
@@ -266,13 +274,13 @@ Deno.serve(async (req) => {
             if (!hasBudgetFor(Date.now(), deadline, ATTEMPT_ESTIMATE_MS)) {
               truncated = true;
               if (attempt === 1) {
-                return { student_id: studentId, student_name: studentName, date: dateStr, status: 'skipped', attempt: 0, error: 'Orçamento de tempo esgotado antes da primeira tentativa.' };
+                return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'skipped', attempt: 0, error: 'Orçamento de tempo esgotado antes da primeira tentativa.' });
               }
               await writeLog({
                 student_id: studentId, sync_date: dateStr, status: 'failed',
                 attempt_number: attempt - 1, error_message: `${lastError} (sem orçamento para nova tentativa)`
               }, 'failed/budget');
-              return { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: attempt - 1, error: `${lastError} (sem orçamento para nova tentativa)` };
+              return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: attempt - 1, error: `${lastError} (sem orçamento para nova tentativa)` });
             }
             try {
               if (attempt > 1) {
@@ -310,7 +318,7 @@ Deno.serve(async (req) => {
                 attempt_number: attempt, metrics_synced: syncRecord ?? null
               }, 'success');
 
-              return { student_id: studentId, student_name: studentName, date: dateStr, status: 'success', attempt, metrics_synced: syncRecord, outcome };
+              return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'success', attempt, metrics_synced: syncRecord, outcome });
             } catch (error) {
               lastError = (error as Error).message || String(error);
               if (attempt === maxAttempts) {
@@ -318,19 +326,17 @@ Deno.serve(async (req) => {
                   student_id: studentId, sync_date: dateStr, status: 'failed',
                   attempt_number: attempt, error_message: lastError
                 }, 'failed');
-                return { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt, error: lastError };
+                return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt, error: lastError });
               }
               await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
             }
           }
-          return { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: maxAttempts, error: lastError };
+          return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: maxAttempts, error: lastError });
         })
       );
 
       for (const result of batchResults) {
-        if (result.status === 'fulfilled') {
-          results.push(result.value);
-        } else {
+        if (result.status === 'rejected') {
           console.error('oura-sync-all: unexpected rejection in batch:', result.reason);
         }
       }
@@ -341,10 +347,10 @@ Deno.serve(async (req) => {
     // (filha, banco, log) ficar presa além do deadline, respondemos com o que
     // já foi agregado (`truncated`); pares não concluídos entram como
     // 'skipped' por orçamento. O que ainda estiver em voo pode terminar (ou
-    // ser cortado pelo runtime) — os upserts são idempotentes e o próximo
-    // cron reconsulta as mesmas datas.
+    // ser cortado pelo runtime) — os upserts são idempotentes; sem cursor, a
+    // reconsulta dessas datas por uma execução futura não é garantida.
     const planSettled = await Promise.race([
-      runPlan().then(() => true, (error) => { console.error('oura-sync-all: plan failed:', error); return true; }),
+      runPlan().then(() => true, (error) => { console.error('oura-sync-all: plan failed:', error); truncated = true; return false; }),
       new Promise<boolean>((resolve) => setTimeout(() => resolve(false), Math.max(0, deadline - Date.now()))),
     ]);
     if (!planSettled) {
