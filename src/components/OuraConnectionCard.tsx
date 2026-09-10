@@ -47,7 +47,11 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
     refetchIntervalMs: 5000,
   });
   const { data: latestMetrics } = useLatestOuraMetrics(studentId);
-  const { data: connectionStatus } = useOuraConnectionStatus(studentId);
+  const {
+    data: connectionStatus,
+    isLoading: statusLoading,
+    isError: statusError,
+  } = useOuraConnectionStatus(studentId);
   const syncOura = useSyncOura();
   const disconnectOura = useDisconnectOura();
   const isOnline = useOfflineDetection();
@@ -238,9 +242,13 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
                   </p>
                   <p className="text-xs text-muted-foreground" data-testid="oura-last-real-data">
                     Último dado real (sono/prontidão):{" "}
-                    {connectionStatus?.lastRealDataDate
-                      ? format(parseDateOnly(connectionStatus.lastRealDataDate), "dd/MM/yyyy", { locale: ptBR })
-                      : "nenhum ainda"}
+                    {statusError
+                      ? "não foi possível verificar"
+                      : statusLoading || !connectionStatus
+                        ? "verificando…"
+                        : connectionStatus.lastRealDataDate
+                          ? format(parseDateOnly(connectionStatus.lastRealDataDate), "dd/MM/yyyy", { locale: ptBR })
+                          : "nenhum ainda"}
                   </p>
                   {connectionStatus?.summary && connectionStatus.hasIssues && (
                     <p className="text-xs text-amber-600 dark:text-amber-400">{connectionStatus.summary}</p>

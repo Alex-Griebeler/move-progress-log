@@ -17,8 +17,13 @@ const MAX_LOOKBACK_DAYS = 6;
  * sem log) e devolvidos como `truncated` — o cron seguinte os revisita. A
  * ordem do plano garante que "hoje" de todas as alunas vem antes de "ontem".
  */
-const EXECUTION_BUDGET_MS = 110_000;
-const STEP_ESTIMATE_MS = 35_000; // pior caso de um lote: 2 tentativas × 15 s + backoff + I/O
+const EXECUTION_BUDGET_MS = 100_000;
+/**
+ * Pior caso de UMA tentativa do oura-sync: refresh OAuth (≤15 s, com signal)
+ * + 10 chamadas em paralelo (≤15 s cada, com signal) + banco/logs.
+ * Nenhuma tentativa começa sem este saldo; logo a última termina ≈ no prazo.
+ */
+const ATTEMPT_ESTIMATE_MS = 32_000;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -41,6 +46,10 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Relógio do orçamento começa na ENTRADA (autenticação e consultas contam).
+  const startedAt = Date.now();
+  const deadline = startedAt + EXECUTION_BUDGET_MS;
 
   try {
     const authResult = await authenticateServiceRoleOrUserRole(req, {
@@ -138,8 +147,6 @@ Deno.serve(async (req) => {
     console.log(`Found ${connections.length} students with active Oura connections; dates: ${dates.join(', ')}`);
 
     const results: SyncResult[] = [];
-    const startedAt = Date.now();
-    const deadline = startedAt + EXECUTION_BUDGET_MS;
     let truncated = false;
 
     // OA-02: lotes de 5 alunas em paralelo; data mais recente primeiro para
@@ -151,7 +158,7 @@ Deno.serve(async (req) => {
 
     for (const step of plan) {
       const dateStr = step.date;
-      if (!hasBudgetFor(Date.now(), deadline, STEP_ESTIMATE_MS)) {
+      if (!hasBudgetFor(Date.now(), deadline, ATTEMPT_ESTIMATE_MS)) {
         truncated = true;
         for (const connection of step.items) {
           results.push({
@@ -176,6 +183,19 @@ Deno.serve(async (req) => {
           let lastError = '';
 
           for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            // Orçamento checado antes de CADA tentativa (não só do lote).
+            if (!hasBudgetFor(Date.now(), deadline, ATTEMPT_ESTIMATE_MS)) {
+              truncated = true;
+              if (attempt === 1) {
+                return { student_id: studentId, student_name: studentName, date: dateStr, status: 'skipped', attempt: 0, error: 'Orçamento de tempo esgotado antes da primeira tentativa.' };
+              }
+              const { error: budgetLogError } = await supabase.from('oura_sync_logs').insert({
+                student_id: studentId, sync_date: dateStr, status: 'failed',
+                attempt_number: attempt - 1, error_message: `${lastError} (sem orçamento para nova tentativa)`
+              });
+              if (budgetLogError) console.warn('oura_sync_logs (failed/budget) insert failed:', budgetLogError.message);
+              return { student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: attempt - 1, error: `${lastError} (sem orçamento para nova tentativa)` };
+            }
             try {
               if (attempt > 1) {
                 const { error: retryLogError } = await supabase.from('oura_sync_logs').insert({
@@ -241,21 +261,26 @@ Deno.serve(async (req) => {
     const withDataCount = results.filter(r => r.status === 'success' && r.outcome && r.outcome !== 'no_data').length;
     // …e por ALUNA (o que a UI mostra): falhou se qualquer data falhou; tem
     // dado se qualquer data trouxe dado.
-    const byStudent = new Map<string, { failed: boolean; withData: boolean }>();
+    // …e por ALUNA: falhou se qualquer data falhou; INCOMPLETA se alguma data
+    // foi pulada por orçamento (não é OK nem falha); OK = todas as datas
+    // consultadas sem falha; tem dado se qualquer data trouxe dado.
+    const byStudent = new Map<string, { failed: boolean; skipped: boolean; withData: boolean }>();
     for (const r of results) {
-      const agg = byStudent.get(r.student_id) ?? { failed: false, withData: false };
+      const agg = byStudent.get(r.student_id) ?? { failed: false, skipped: false, withData: false };
       if (r.status === 'failed') agg.failed = true;
+      if (r.status === 'skipped') agg.skipped = true;
       if (r.status === 'success' && r.outcome && r.outcome !== 'no_data') agg.withData = true;
       byStudent.set(r.student_id, agg);
     }
     const studentsFailed = Array.from(byStudent.values()).filter(a => a.failed).length;
-    const studentsOk = byStudent.size - studentsFailed;
+    const studentsIncomplete = Array.from(byStudent.values()).filter(a => !a.failed && a.skipped).length;
+    const studentsOk = byStudent.size - studentsFailed - studentsIncomplete;
     const studentsWithData = Array.from(byStudent.values()).filter(a => a.withData).length;
     const skippedCount = results.filter(r => r.status === 'skipped').length;
 
     return new Response(
       JSON.stringify({
-        message: `Sync completed: ${studentsOk}/${byStudent.size} students ok (${studentsWithData} with data); pairs: ${successCount} success (${withDataCount} with data, ${noDataCount} no data), ${failedCount} failed, ${skippedCount} skipped${truncated ? ' (time budget)' : ''}`,
+        message: `Sync completed: ${studentsOk}/${byStudent.size} students ok, ${studentsIncomplete} incomplete (${studentsWithData} with data); pairs: ${successCount} success (${withDataCount} with data, ${noDataCount} no data), ${failedCount} failed, ${skippedCount} skipped${truncated ? ' (time budget)' : ''}`,
         total: results.length,
         dates,
         truncated,
@@ -264,6 +289,7 @@ Deno.serve(async (req) => {
         students_total: byStudent.size,
         students_ok: studentsOk,
         students_failed: studentsFailed,
+        students_incomplete: studentsIncomplete,
         students_with_data: studentsWithData,
         success: successCount,
         with_data: withDataCount,

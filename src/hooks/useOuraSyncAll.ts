@@ -13,6 +13,9 @@ interface SyncAllResult {
   total: number;
   success: number;
   failed: number;
+  /** execução cortada pelo orçamento de tempo: há datas não consultadas */
+  truncated?: boolean;
+  skipped?: number;
   results: SyncAllPairResult[];
 }
 
@@ -32,6 +35,10 @@ export const useOuraSyncAll = () => {
       await invalidateOuraQueries(queryClient);
 
       const summary = summarizeSyncAllByStudent(data.results ?? []);
+      const incompleteNote =
+        summary.studentsIncomplete > 0
+          ? ` Não consultadas em todas as datas (tempo esgotado): ${summary.incompleteNames.join(", ")}.`
+          : "";
 
       if (summary.studentsFailed > 0) {
         notify.warning(
@@ -39,9 +46,13 @@ export const useOuraSyncAll = () => {
             .replace("{{success}}", String(summary.studentsOk))
             .replace("{{failed}}", String(summary.studentsFailed)),
           {
-            description: `${i18n.modules.oura.checkLogs} Falhas: ${summary.failedNames.join(", ")}.`
+            description: `${i18n.modules.oura.checkLogs} Falhas: ${summary.failedNames.join(", ")}.${incompleteNote}`
           }
         );
+      } else if (summary.studentsIncomplete > 0) {
+        notify.warning("Sincronização incompleta (tempo esgotado)", {
+          description: `${summary.studentsOk} aluna(s) completas, ${summary.studentsWithData} com dados novos.${incompleteNote} Rode de novo ou aguarde o próximo cron.`,
+        });
       } else if (summary.studentsWithData === 0 && summary.studentsTotal > 0) {
         notify.warning("Sincronização concluída sem dados novos", {
           description: `${summary.studentsTotal} aluna(s) consultada(s); o Oura não devolveu dados para hoje, ontem nem anteontem.`,

@@ -28,7 +28,21 @@ describe("summarizeSyncAllByStudent — pares (aluna, data) → alunas", () => {
       { student_id: "a", status: "success" },
       { student_id: "b", status: "failed", error: "x" },
     ]);
-    expect(s).toEqual({ studentsTotal: 2, studentsOk: 1, studentsFailed: 1, studentsWithData: 0, failedNames: ["b"] });
+    expect(s).toEqual({ studentsTotal: 2, studentsOk: 1, studentsFailed: 1, studentsIncomplete: 0, studentsWithData: 0, failedNames: ["b"], incompleteNames: [] });
+  });
+
+  it("aluna com data pulada por orçamento é INCOMPLETA, não OK (e não é falha)", () => {
+    const s = summarizeSyncAllByStudent([
+      { student_id: "a", student_name: "A", date: "2026-09-09", status: "success", outcome: "complete" },
+      { student_id: "a", student_name: "A", date: "2026-09-08", status: "skipped" },
+      { student_id: "b", student_name: "B", date: "2026-09-09", status: "skipped" },
+      { student_id: "b", student_name: "B", date: "2026-09-08", status: "skipped" },
+    ]);
+    expect(s.studentsOk).toBe(0);
+    expect(s.studentsIncomplete).toBe(2);
+    expect(s.studentsFailed).toBe(0);
+    expect(s.studentsWithData).toBe(1);
+    expect(s.incompleteNames).toEqual(["A", "B"]);
   });
 
   it("vazio", () => {

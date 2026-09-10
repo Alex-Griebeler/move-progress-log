@@ -236,6 +236,9 @@ Deno.serve(async (req) => {
 
       const refreshResponse = await fetch('https://api.ouraring.com/oauth/token', {
         method: 'POST',
+        // Mesmo teto das chamadas de dados: um refresh travado não pode consumir
+        // o orçamento da execução inteira (cancela requisição e corpo).
+        signal: AbortSignal.timeout(15_000),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           grant_type: 'refresh_token',
