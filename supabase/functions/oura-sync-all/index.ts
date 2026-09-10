@@ -24,6 +24,49 @@ const EXECUTION_BUDGET_MS = 100_000;
  * Nenhuma tentativa começa sem este saldo; logo a última termina ≈ no prazo.
  */
 const ATTEMPT_ESTIMATE_MS = 32_000;
+/** Reserva para agregar, logar e responder depois da última espera. */
+const RESPONSE_RESERVE_MS = 5_000;
+
+/**
+ * Chamada ao oura-sync com PRAZO EFETIVO: a espera é cancelada (AbortSignal)
+ * quando o saldo do orçamento acaba — o chamador nunca fica pendurado além
+ * do deadline. A execução filha pode continuar e gravar; isso é aceito e
+ * fica registrado como falha por orçamento nesta execução.
+ */
+async function invokeOuraSyncWithDeadline(
+  supabaseUrl: string,
+  serviceKey: string,
+  body: Record<string, unknown>,
+  deadline: number,
+): Promise<{ data: unknown; error: Error | null }> {
+  const remaining = deadline - Date.now() - RESPONSE_RESERVE_MS;
+  if (remaining <= 0) {
+    return { data: null, error: new Error('Orçamento de tempo esgotado antes da chamada') };
+  }
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/oura-sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serviceKey}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(remaining),
+    });
+    const text = await res.text();
+    let parsed: unknown = null;
+    try { parsed = text ? JSON.parse(text) : null; } catch { parsed = null; }
+    if (!res.ok) {
+      const message =
+        parsed && typeof parsed === 'object' && typeof (parsed as Record<string, unknown>).error === 'string'
+          ? ((parsed as Record<string, unknown>).error as string)
+          : `oura-sync respondeu HTTP ${res.status}`;
+      return { data: parsed, error: new Error(message) };
+    }
+    return { data: parsed, error: null };
+  } catch (error) {
+    const err = error as Error;
+    const timedOut = err?.name === 'TimeoutError' || err?.name === 'AbortError';
+    return { data: null, error: new Error(timedOut ? 'Orçamento de tempo esgotado durante a chamada ao oura-sync' : err?.message || String(error)) };
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -167,7 +210,7 @@ Deno.serve(async (req) => {
             date: dateStr,
             status: 'skipped',
             attempt: 0,
-            error: 'Orçamento de tempo da execução esgotado; o próximo cron revisita esta data.',
+            error: 'Orçamento de tempo da execução esgotado nesta execução (sem cursor: uma execução futura pode ou não alcançar esta data).',
           });
         }
         continue;
@@ -205,29 +248,36 @@ Deno.serve(async (req) => {
                 if (retryLogError) console.warn('oura_sync_logs (retrying) insert failed:', retryLogError.message);
               }
 
-              // OA-01: Pass service role key as Authorization header
-              const { data: syncData, error: syncError } = await supabase.functions.invoke('oura-sync', {
-                body: { student_id: studentId, date: dateStr, force_sync: true },
-                headers: { Authorization: `Bearer ${supabaseKey}` }
-              });
+              // OA-01: service role key no Authorization; espera limitada ao
+              // saldo do orçamento (cancela a espera, não a execução filha).
+              const { data: syncData, error: syncError } = await invokeOuraSyncWithDeadline(
+                supabaseUrl,
+                supabaseKey,
+                { student_id: studentId, date: dateStr, force_sync: true },
+                deadline,
+              );
 
-              if (syncError) throw syncError;
+              if (syncError) {
+                if (syncError.message.includes('Orçamento de tempo')) truncated = true;
+                throw syncError;
+              }
 
-              const outcome =
-                syncData && typeof syncData === 'object' && typeof (syncData as Record<string, unknown>).outcome === 'string'
-                  ? ((syncData as Record<string, unknown>).outcome as string)
+              const syncRecord: Record<string, unknown> | undefined =
+                syncData && typeof syncData === 'object' && !Array.isArray(syncData)
+                  ? (syncData as Record<string, unknown>)
                   : undefined;
+              const outcome = typeof syncRecord?.outcome === 'string' ? (syncRecord.outcome as string) : undefined;
 
               // `status` continua sendo o sucesso TÉCNICO da chamada (CHECK da
               // tabela: success/failed/retrying); o resultado de dados fica em
               // metrics_synced.outcome (no_data | partial | complete).
               const { error: successLogError } = await supabase.from('oura_sync_logs').insert({
                 student_id: studentId, sync_date: dateStr, status: 'success',
-                attempt_number: attempt, metrics_synced: syncData
+                attempt_number: attempt, metrics_synced: syncRecord ?? null
               });
               if (successLogError) console.warn('oura_sync_logs (success) insert failed:', successLogError.message);
 
-              return { student_id: studentId, student_name: studentName, date: dateStr, status: 'success', attempt, metrics_synced: syncData, outcome };
+              return { student_id: studentId, student_name: studentName, date: dateStr, status: 'success', attempt, metrics_synced: syncRecord, outcome };
             } catch (error) {
               lastError = (error as Error).message || String(error);
               if (attempt === maxAttempts) {

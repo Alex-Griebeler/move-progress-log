@@ -35,9 +35,15 @@ export const useOuraSyncAll = () => {
       await invalidateOuraQueries(queryClient);
 
       const summary = summarizeSyncAllByStudent(data.results ?? []);
+      // Truncamento é sinal PRÓPRIO da execução (data.truncated), independente
+      // da classificação por aluna (uma aluna com falha E data pulada só
+      // aparece em "Falhas").
+      const skippedNames = Array.from(
+        new Set((data.results ?? []).filter((r) => r.status === "skipped").map((r) => r.student_name ?? r.student_id)),
+      );
       const incompleteNote =
-        summary.studentsIncomplete > 0
-          ? ` Não consultadas em todas as datas (tempo esgotado): ${summary.incompleteNames.join(", ")}.`
+        data.truncated || skippedNames.length > 0
+          ? ` Tempo esgotado: nem todas as datas foram consultadas${skippedNames.length ? ` (${skippedNames.join(", ")})` : ""}. Rode de novo ou aguarde o próximo cron.`
           : "";
 
       if (summary.studentsFailed > 0) {
@@ -49,19 +55,19 @@ export const useOuraSyncAll = () => {
             description: `${i18n.modules.oura.checkLogs} Falhas: ${summary.failedNames.join(", ")}.${incompleteNote}`
           }
         );
-      } else if (summary.studentsIncomplete > 0) {
+      } else if (summary.studentsIncomplete > 0 || data.truncated) {
         notify.warning("Sincronização incompleta (tempo esgotado)", {
-          description: `${summary.studentsOk} aluna(s) completas, ${summary.studentsWithData} com dados novos.${incompleteNote} Rode de novo ou aguarde o próximo cron.`,
+          description: `${summary.studentsOk} aluna(s) completas, ${summary.studentsWithData} com dados novos.${incompleteNote}`,
         });
       } else if (summary.studentsWithData === 0 && summary.studentsTotal > 0) {
         notify.warning("Sincronização concluída sem dados novos", {
-          description: `${summary.studentsTotal} aluna(s) consultada(s); o Oura não devolveu dados para hoje, ontem nem anteontem.`,
+          description: `${summary.studentsTotal} aluna(s) consultada(s); o Oura não devolveu dados para as datas consultadas.${incompleteNote}`,
         });
       } else {
         notify.success(
           i18n.modules.oura.syncCompleted,
           {
-            description: `${summary.studentsOk} ${i18n.modules.oura.studentsSynced} · ${summary.studentsWithData} com dados novos`
+            description: `${summary.studentsOk} ${i18n.modules.oura.studentsSynced} · ${summary.studentsWithData} com dados novos${incompleteNote}`
           }
         );
       }

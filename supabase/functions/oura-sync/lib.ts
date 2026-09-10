@@ -137,8 +137,9 @@ export const temperatureDeviationFrom = (readiness: Doc | null): number | null =
 /**
  * Plano de trabalho do oura-sync-all: data mais recente PRIMEIRO para todas
  * as alunas (hoje > ontem > anteontem), em lotes. Se o orçamento de tempo da
- * execução acabar, o que fica de fora são os dias mais antigos — que o cron
- * seguinte revisita — nunca o dia de hoje.
+ * execução acabar, o que fica de fora são preferencialmente os dias mais
+ * antigos; sob saturação forte (muitas alunas/lookback alto) até lotes de
+ * hoje podem ficar de fora — não há cursor entre execuções.
  */
 export interface WorkStep<T> {
   date: string;
