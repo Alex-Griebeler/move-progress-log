@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
+  ACUTE_METRIC_GROUPS,
   DATE_RE,
   apiDateWindow,
   classifyOutcome,
@@ -888,13 +889,19 @@ Deno.serve(async (req) => {
       force_sync,
       synced_metrics: hasData ? metrics : null,
       has_acute_data: hasAcuteData,
+      // Reflete o que foi GRAVADO (payload podado), não o payload cru: um grupo
+      // cuja série não veio fica ausente aqui (e intocado no banco) — o log
+      // em oura_sync_logs.metrics_synced não pode sugerir "HRV zerado".
       synced_acute: hasAcuteData
         ? {
-            samples_count_hrv: acuteMetrics.samples_count_hrv,
-            samples_count_hr_day: acuteMetrics.samples_count_hr_day,
-            hrv_night_min: acuteMetrics.hrv_night_min,
-            hrv_night_last: acuteMetrics.hrv_night_last,
-            hr_day_avg: acuteMetrics.hr_day_avg,
+            acute_groups_written: ACUTE_METRIC_GROUPS
+              .filter((group) => group.series in acuteUpsertPayload)
+              .map((group) => group.series),
+            samples_count_hrv: acuteUpsertPayload.samples_count_hrv ?? null,
+            samples_count_hr_day: acuteUpsertPayload.samples_count_hr_day ?? null,
+            hrv_night_min: acuteUpsertPayload.hrv_night_min ?? null,
+            hrv_night_last: acuteUpsertPayload.hrv_night_last ?? null,
+            hr_day_avg: acuteUpsertPayload.hr_day_avg ?? null,
           }
         : null,
       warnings,

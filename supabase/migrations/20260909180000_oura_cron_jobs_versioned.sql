@@ -38,9 +38,9 @@ DECLARE
   -- chamada, só `;` e espaço. Nada de `.*`: uma cauda permissiva deixaria
   -- passar `…) WHERE false AND (true)`, que NÃO executa a chamada.
   invoke_edge_re constant text :=
-    '^\s*SELECT\s+private\.invoke_cron_edge\(\s*''oura-sync-scheduled''\s*(,\s*''[^'']*''(\s*::\s*jsonb)?\s*)?\)\s*;?\s*$';
+    '^\s*SELECT\s+private\.invoke_cron_edge\s*\(\s*(function_name\s*:=\s*)?''oura-sync-scheduled''\s*(,\s*(body\s*:=\s*)?''[^'']*''(\s*::\s*jsonb)?\s*)?\)\s*;?\s*$';
   http_post_re constant text :=
-    '^\s*SELECT\s+net\.http_post\(\s*(url\s*:=\s*)?''https?://[^'']*/functions/v1/oura-sync-scheduled''(\s*,\s*([a-z_]+\s*:=\s*)?''[^'']*''(\s*::\s*jsonb)?)*\s*\)\s*;?\s*$';
+    '^\s*SELECT\s+net\.http_post\s*\(\s*(url\s*:=\s*)?''https?://[^'']*/functions/v1/oura-sync-scheduled''(\s*,\s*([a-z_]+\s*:=\s*)?''[^'']*''(\s*::\s*jsonb)?)*\s*\)\s*;?\s*$';
 BEGIN
   -- 1) Jobs que MENCIONAM a string sem serem uma invocação reconhecida
   --    (comentário, monitoramento, http_post para outra função): não tocar;

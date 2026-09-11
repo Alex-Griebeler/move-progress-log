@@ -9,9 +9,10 @@ O sistema de sincronização do Oura Ring foi completamente automatizado e otimi
 ## ✨ Funcionalidades Implementadas
 
 ### 1. **Sincronização Automática 3x ao Dia (06h, 10h e 18h de Brasília)**
-- ⏰ **Horários**: 6h e 18h (horário de Brasília, UTC-3)
+- ⏰ **Horários**: 6h, 10h e 18h (horário de Brasília, UTC-3) — 9h, 13h e 21h UTC no pg_cron
 - 🎯 **Objetivo**: Manter métricas sempre atualizadas
   - **6h**: Captura dados do sono/recuperação da noite
+  - **10h**: Pega scores que o Oura finaliza depois das 6h e anéis sincronizados ao acordar
   - **18h**: Captura dados de atividade do dia
 - 🔁 **Retry**: 3 tentativas com backoff exponencial (2s, 4s)
 - 📊 **Logs**: Todas as tentativas são registradas na tabela `oura_sync_logs`
@@ -144,23 +145,32 @@ Melhorias no logging para diagnóstico de problemas:
 
 O sistema usa **pg_cron** do PostgreSQL para agendar as sincronizações automáticas:
 
+Os três jobs estão versionados na migration `20260909180000_oura_cron_jobs_versioned.sql` (fonte de verdade); a forma é:
+
 ```sql
--- Sincronização da Manhã (6h Brasília = 9h UTC)
+-- Manhã (6h Brasília = 9h UTC)
 SELECT cron.schedule(
   'oura-sync-morning',
   '0 9 * * *',
-  $$ SELECT net.http_post(...) $$
+  $$SELECT private.invoke_cron_edge('oura-sync-scheduled', '{"time":"morning","schedule":"6h"}'::jsonb);$$
 );
 
--- Sincronização da Tarde (18h Brasília = 21h UTC)
+-- Meio da manhã (10h Brasília = 13h UTC)
+SELECT cron.schedule(
+  'oura-sync-midmorning',
+  '0 13 * * *',
+  $$SELECT private.invoke_cron_edge('oura-sync-scheduled', '{"time":"midmorning","schedule":"6h"}'::jsonb);$$
+);
+
+-- Tarde (18h Brasília = 21h UTC)
 SELECT cron.schedule(
   'oura-sync-evening',
   '0 21 * * *',
-  $$ SELECT net.http_post(...) $$
+  $$SELECT private.invoke_cron_edge('oura-sync-scheduled', '{"time":"evening","schedule":"18h"}'::jsonb);$$
 );
 ```
 
-### Por que 6h e 18h?
+### Por que 6h, 10h e 18h?
 
 **6h da manhã:**
 - ✅ Dados do sono da noite já processados pelo Oura

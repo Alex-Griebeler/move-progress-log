@@ -379,9 +379,11 @@ Deno.serve(async (req) => {
             date: step.date,
             status: 'skipped',
             attempt: 0,
-            error: started.has(key)
-              ? 'Execução respondeu no deadline com este par INICIADO e ainda sem desfecho (a chamada filha pode concluir por conta própria).'
-              : 'Execução respondeu no deadline antes de iniciar este par.',
+            error: planFailed
+              ? 'Plano de sincronização interrompido por exceção antes deste par ter desfecho.'
+              : started.has(key)
+                ? 'Execução respondeu no deadline com este par INICIADO e ainda sem desfecho (a chamada filha pode concluir por conta própria).'
+                : 'Execução respondeu no deadline antes de iniciar este par.',
           });
         }
       }
