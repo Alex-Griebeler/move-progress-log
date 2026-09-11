@@ -234,6 +234,9 @@ Deno.serve(async (req) => {
     // do token OAuth.
     const BATCH_SIZE = 5;
     const plan = buildWorkPlan(dates, connections, BATCH_SIZE);
+    // Pares cuja primeira tentativa começou (para distinguir, no deadline,
+    // "iniciado e ainda em voo" de "nunca iniciado").
+    const started = new Set<string>();
 
     const runPlan = async (): Promise<void> => {
     for (const step of plan) {
@@ -259,6 +262,9 @@ Deno.serve(async (req) => {
       // Cada par é PUBLICADO em `results` assim que conclui (não só ao fim do
       // lote): se a resposta sair no deadline com um par do lote ainda preso,
       // os já concluídos aparecem como o que são, não como 'skipped'.
+      // O resultado TERMINAL é publicado ANTES de esperar o insert do log
+      // (que pode levar até DB_TIMEOUT_MS): um par que concluiu a 94 s com
+      // dados não pode virar 'skipped' porque o log demorou até o deadline.
       const publish = (r: SyncResult): SyncResult => {
         results.push(r);
         return r;
@@ -268,6 +274,7 @@ Deno.serve(async (req) => {
           const studentId = connection.student_id;
           const studentName = ((connection as Record<string, unknown>).students as Record<string, unknown>)?.name as string || 'Unknown';
           let lastError = '';
+          started.add(`${studentId}|${dateStr}`);
 
           for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             // Orçamento checado antes de CADA tentativa (não só do lote).
@@ -276,11 +283,12 @@ Deno.serve(async (req) => {
               if (attempt === 1) {
                 return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'skipped', attempt: 0, error: 'Orçamento de tempo esgotado antes da primeira tentativa.' });
               }
+              const budgetFailure = publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: attempt - 1, error: `${lastError} (sem orçamento para nova tentativa)` });
               await writeLog({
                 student_id: studentId, sync_date: dateStr, status: 'failed',
                 attempt_number: attempt - 1, error_message: `${lastError} (sem orçamento para nova tentativa)`
               }, 'failed/budget');
-              return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: attempt - 1, error: `${lastError} (sem orçamento para nova tentativa)` });
+              return budgetFailure;
             }
             try {
               if (attempt > 1) {
@@ -313,20 +321,22 @@ Deno.serve(async (req) => {
               // `status` continua sendo o sucesso TÉCNICO da chamada (CHECK da
               // tabela: success/failed/retrying); o resultado de dados fica em
               // metrics_synced.outcome (no_data | partial | complete).
+              const successResult = publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'success', attempt, metrics_synced: syncRecord, outcome });
               await writeLog({
                 student_id: studentId, sync_date: dateStr, status: 'success',
                 attempt_number: attempt, metrics_synced: syncRecord ?? null
               }, 'success');
 
-              return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'success', attempt, metrics_synced: syncRecord, outcome });
+              return successResult;
             } catch (error) {
               lastError = (error as Error).message || String(error);
               if (attempt === maxAttempts) {
+                const finalFailure = publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt, error: lastError });
                 await writeLog({
                   student_id: studentId, sync_date: dateStr, status: 'failed',
                   attempt_number: attempt, error_message: lastError
                 }, 'failed');
-                return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt, error: lastError });
+                return finalFailure;
               }
               await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
             }
@@ -360,13 +370,18 @@ Deno.serve(async (req) => {
         for (const connection of step.items) {
           const key = `${connection.student_id}|${step.date}`;
           if (done.has(key)) continue;
+          // Só o que tem desfecho conhecido é success/failed; o resto é
+          // 'skipped' — mas dizendo se chegou a iniciar (a chamada filha pode
+          // ainda concluir e gravar; upsert idempotente).
           results.push({
             student_id: connection.student_id,
             student_name: ((connection as Record<string, unknown>).students as Record<string, unknown>)?.name as string || 'Unknown',
             date: step.date,
             status: 'skipped',
             attempt: 0,
-            error: 'Execução respondeu no deadline com este par ainda em andamento ou não iniciado.',
+            error: started.has(key)
+              ? 'Execução respondeu no deadline com este par INICIADO e ainda sem desfecho (a chamada filha pode concluir por conta própria).'
+              : 'Execução respondeu no deadline antes de iniciar este par.',
           });
         }
       }

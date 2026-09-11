@@ -106,6 +106,41 @@ export const mergePreservingExisting = (
   return merged;
 };
 
+/**
+ * Grupos das métricas agudas: série + estatísticas + contador. Quando a série
+ * NÃO veio nesta chamada (ex.: `sleep` falhou mas `heartrate` respondeu), o
+ * grupo inteiro sai do payload — senão o contador `0` (NOT NULL, número, não
+ * null) passaria pelo merge e rebaixaria um HRV válido já gravado a
+ * "indisponível" para o motor de recuperação (`samples_count_hrv > 0`).
+ * Linha nova: o DEFAULT 0 da coluna cobre o grupo omitido.
+ */
+export const ACUTE_METRIC_GROUPS: ReadonlyArray<{ series: string; fields: readonly string[] }> = [
+  {
+    series: "sleep_hrv_series",
+    fields: ["sleep_hrv_series", "hrv_night_min", "hrv_night_max", "hrv_night_last", "hrv_night_stddev", "samples_count_hrv"],
+  },
+  {
+    series: "sleep_hr_series",
+    fields: ["sleep_hr_series", "hr_night_min", "hr_night_max", "hr_night_last"],
+  },
+  {
+    series: "day_hr_series",
+    fields: ["day_hr_series", "hr_day_min", "hr_day_max", "hr_day_avg", "samples_count_hr_day"],
+  },
+];
+
+export const pruneAbsentAcuteGroups = (
+  acute: Record<string, unknown>,
+): Record<string, unknown> => {
+  const out: Record<string, unknown> = { ...acute };
+  for (const group of ACUTE_METRIC_GROUPS) {
+    if (acute[group.series] === null || acute[group.series] === undefined) {
+      for (const field of group.fields) delete out[field];
+    }
+  }
+  return out;
+};
+
 export const hasAnyMetricValue = (metrics: Record<string, unknown>): boolean =>
   Object.entries(metrics).some(([key, value]) => {
     if (key === "student_id" || key === "date") return false;

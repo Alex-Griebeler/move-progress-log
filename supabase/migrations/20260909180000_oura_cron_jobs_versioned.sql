@@ -7,8 +7,13 @@
 -- 'oura-sync-evening' (0 21). `cron.schedule(jobname, …)` atualiza um job de
 -- mesmo nome (upsert por jobname/username) — não duplica.
 --
--- Defesa: TODO job que invoque o oura-sync-scheduled — qualquer nome (inclusive
+-- Defesa: TODO job que INVOQUE o oura-sync-scheduled — qualquer nome (inclusive
 -- NULL), qualquer username — é removido por jobid antes de recriar os três.
+-- "Invocar" = uma das duas formas conhecidas: `private.invoke_cron_edge('oura-sync-scheduled', …)`
+-- (migrations deste repo) ou `net.http_post(…/functions/v1/oura-sync-scheduled…)`
+-- (forma bruta do Lovable). Um job que apenas MENCIONE a string (monitoramento,
+-- comentário) NÃO é removido: a migration para com erro e lista o jobid, para
+-- decisão humana — nunca apaga o que não reconhece.
 -- Resultado garantido: exatamente um job por horário, nunca duas execuções no
 -- mesmo minuto (duas cadeias oura-sync-all na mesma aluna/data e refresh
 -- concorrente do token OAuth). O upsert do pg_cron é por (jobname, username),
@@ -20,11 +25,30 @@
 DO $do$
 DECLARE
   j record;
+  unknown_jobs text := '';
 BEGIN
+  -- 1) Jobs que só MENCIONAM a string sem uma forma de invocação conhecida:
+  --    não tocar; abortar a migration para decisão humana.
+  FOR j IN
+    SELECT jobid, jobname, username, command
+    FROM cron.job
+    WHERE command ILIKE '%oura-sync-scheduled%'
+      AND command NOT ILIKE '%invoke_cron_edge(%''oura-sync-scheduled''%'
+      AND command NOT ILIKE '%net.http_post(%/functions/v1/oura-sync-scheduled%'
+  LOOP
+    unknown_jobs := unknown_jobs || format(' [jobid %s, nome %s, user %s: %s]', j.jobid, coalesce(j.jobname, '<sem nome>'), j.username, left(j.command, 120));
+  END LOOP;
+  IF unknown_jobs <> '' THEN
+    RAISE EXCEPTION 'Migration abortada: job(s) de cron mencionam oura-sync-scheduled sem forma de invocação conhecida; remover ou renomear manualmente antes de reaplicar:%', unknown_jobs;
+  END IF;
+
+  -- 2) Jobs que INVOCAM o oura-sync-scheduled (qualquer nome/usuário): remover
+  --    por jobid antes de recriar os três.
   FOR j IN
     SELECT jobid, jobname, username
     FROM cron.job
-    WHERE command ILIKE '%oura-sync-scheduled%'
+    WHERE command ILIKE '%invoke_cron_edge(%''oura-sync-scheduled''%'
+       OR command ILIKE '%net.http_post(%/functions/v1/oura-sync-scheduled%'
   LOOP
     RAISE NOTICE 'Removendo job de cron do Oura antes de recriar: % (jobid %, user %)', coalesce(j.jobname, '<sem nome>'), j.jobid, j.username;
     PERFORM cron.unschedule(j.jobid);

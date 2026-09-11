@@ -23,7 +23,7 @@ interface EndpointStatus {
 
 export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProps) => {
   const [showDetails, setShowDetails] = useState(false);
-  const { data: metrics } = useLatestOuraMetrics(studentId);
+  const { data: metrics, isLoading: metricsLoading, isError: metricsError, error: metricsErrorObj } = useLatestOuraMetrics(studentId);
   const { data: workouts } = useOuraWorkouts(studentId, 1);
   const { data: syncLogs } = useOuraSyncLogs(studentId, 5);
 
@@ -143,30 +143,64 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
     }
   };
 
+  if (metricsLoading) {
+    return (
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <Clock className="h-5 w-5 text-primary" />
+            Diagnóstico API Oura
+          </CardTitle>
+          <CardDescription>Carregando a última linha de métricas…</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  if (metricsError) {
+    return (
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <XCircle className="h-5 w-5 text-destructive" />
+            Diagnóstico API Oura
+          </CardTitle>
+          <CardDescription>
+            Não foi possível ler as métricas gravadas: {metricsErrorObj instanceof Error ? metricsErrorObj.message : "erro desconhecido"}.
+            A sonda abaixo consulta a API do Oura diretamente e não depende dessa leitura.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <OuraApiProbe studentId={studentId} />
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!metrics) {
+    // Sem NENHUMA linha em oura_metrics. É justamente o caso em que a sonda
+    // mais importa (sincronizações vazias): ela não pode ficar atrás de uma
+    // "primeira sincronização" que talvez nunca traga dado.
     return (
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <AlertCircle className="h-5 w-5 text-primary" />
-            Integração Oura não configurada
+            Sem métricas do Oura gravadas
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4 text-sm">
             <p className="text-muted-foreground leading-relaxed">
-              Para visualizar diagnósticos detalhados da API Oura, é necessário:
+              Nenhuma linha em <code className="bg-background px-1 py-0.5 rounded">oura_metrics</code> para esta aluna.
+              Isso acontece quando o Oura Ring ainda não foi conectado no perfil, quando ainda não houve sincronização,
+              ou quando todas as sincronizações voltaram vazias.
             </p>
-            <ol className="space-y-2 list-decimal list-inside text-muted-foreground ml-2">
-              <li>Conectar o Oura Ring do aluno através do perfil</li>
-              <li>Realizar a primeira sincronização de dados</li>
-              <li>Aguardar o processamento das métricas (pode levar alguns minutos)</li>
-            </ol>
-            <div className="pt-2 border-t border-border">
-              <p className="text-xs text-muted-foreground">
-                Os dados serão atualizados automaticamente após a configuração inicial.
-              </p>
-            </div>
+            <p className="text-muted-foreground leading-relaxed">
+              Se a conexão existe, use a sonda abaixo: ela pergunta à API do Oura o que existe para cada data,
+              sem gravar nada.
+            </p>
+            <OuraApiProbe studentId={studentId} />
           </div>
         </CardContent>
       </Card>

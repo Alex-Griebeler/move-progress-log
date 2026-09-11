@@ -13,6 +13,7 @@ import {
   mergePreservingExisting,
   nextCalendarDay,
   previousCalendarDay,
+  pruneAbsentAcuteGroups,
   temperatureDeviationFrom,
   workoutsForDay,
 } from "./lib.ts";
@@ -120,4 +121,54 @@ Deno.test("hasBudgetFor: só segue se sobra pelo menos a estimativa do passo", (
   assertEquals(hasBudgetFor(0, 120_000, 20_000), true);
   assertEquals(hasBudgetFor(105_000, 120_000, 20_000), false);
   assertEquals(hasBudgetFor(100_000, 120_000, 20_000), true);
+});
+
+Deno.test("pruneAbsentAcuteGroups: grupo cuja série não veio sai do payload — o contador 0 não rebaixa HRV válido já gravado", () => {
+  const incoming = {
+    student_id: "s1",
+    date: "2026-09-10",
+    sleep_hrv_series: null,
+    hrv_night_min: null,
+    hrv_night_max: null,
+    hrv_night_last: null,
+    hrv_night_stddev: null,
+    samples_count_hrv: 0,
+    sleep_hr_series: null,
+    hr_night_min: null,
+    hr_night_max: null,
+    hr_night_last: null,
+    day_hr_series: { samples: [{ bpm: 60 }] },
+    hr_day_min: 60,
+    hr_day_max: 60,
+    hr_day_avg: 60,
+    samples_count_hr_day: 1,
+    sleep_phase_5min: null,
+    movement_30_sec: null,
+    stress_samples: null,
+  };
+  const pruned = pruneAbsentAcuteGroups(incoming);
+  assertEquals("samples_count_hrv" in pruned, false);
+  assertEquals("sleep_hrv_series" in pruned, false);
+  assertEquals("hr_night_last" in pruned, false);
+  assertEquals(pruned.samples_count_hr_day, 1);
+  assertEquals(pruned.day_hr_series, { samples: [{ bpm: 60 }] });
+  assertEquals(pruned.student_id, "s1");
+
+  // Cenário do achado: linha existente com HRV válido; merge do payload podado
+  // mantém série, valor e CONTADOR (o merge do payload cru zerava o contador).
+  const existing = { sleep_hrv_series: { values: [20, 21] }, hrv_night_last: 21, samples_count_hrv: 2, day_hr_series: null, samples_count_hr_day: 0 };
+  const merged = mergePreservingExisting(pruned, existing);
+  assertEquals("samples_count_hrv" in merged, false); // upsert parcial: coluna intocada no banco
+  assertEquals(merged.samples_count_hr_day, 1);
+  const rawMerged = mergePreservingExisting(incoming, existing);
+  assertEquals(rawMerged.samples_count_hrv, 0); // documenta o defeito que a poda evita
+});
+
+Deno.test("pruneAbsentAcuteGroups: com todas as séries presentes, payload fica intacto", () => {
+  const full = {
+    sleep_hrv_series: { values: [1] }, hrv_night_min: 1, hrv_night_max: 1, hrv_night_last: 1, hrv_night_stddev: 0, samples_count_hrv: 1,
+    sleep_hr_series: { values: [50] }, hr_night_min: 50, hr_night_max: 50, hr_night_last: 50,
+    day_hr_series: { samples: [{ bpm: 70 }] }, hr_day_min: 70, hr_day_max: 70, hr_day_avg: 70, samples_count_hr_day: 1,
+  };
+  assertEquals(pruneAbsentAcuteGroups(full), full);
 });

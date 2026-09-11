@@ -13,6 +13,7 @@ import {
   todayInSaoPaulo,
   workoutsForDay,
   type LooseDoc,
+  pruneAbsentAcuteGroups,
 } from './lib.ts';
 
 const corsHeaders = {
@@ -726,7 +727,10 @@ Deno.serve(async (req) => {
       samples_count_hr_day: hrDayStats.count,
     };
     const metricColumnsForMerge = Object.keys(metrics).join(',');
-    const acuteMetricColumnsForMerge = Object.keys(acuteMetrics).join(',');
+    // Grupos agudos cuja série não veio saem do payload (ver lib.ts): o
+    // contador 0 nunca sobrescreve um contador válido já gravado.
+    const acuteUpsertPayload = pruneAbsentAcuteGroups(acuteMetrics as Record<string, unknown>);
+    const acuteMetricColumnsForMerge = Object.keys(acuteUpsertPayload).join(',');
 
     if (DEBUG) console.log('Extracted metrics:', metrics);
     // Check if all values are null (no data available)
@@ -819,7 +823,7 @@ Deno.serve(async (req) => {
         warnings.push('Métricas agudas não gravadas: falha ao ler a linha anterior.');
       } else {
         const mergedAcuteMetrics = mergePreservingExisting(
-          acuteMetrics as Record<string, unknown>,
+          acuteUpsertPayload,
           isPlainObject(existingAcuteRow) ? existingAcuteRow : null
         );
 
