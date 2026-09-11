@@ -7,15 +7,17 @@
 -- 'oura-sync-evening' (0 21). `cron.schedule(jobname, …)` atualiza um job de
 -- mesmo nome (upsert por jobname/username) — não duplica.
 --
--- Defesa: TODO job que INVOQUE o oura-sync-scheduled — qualquer nome (inclusive
--- NULL), qualquer username — é removido por jobid antes de recriar os três.
--- "Invocar" = o comando INTEIRO é uma das duas formas conhecidas (regex ancorado):
--- `SELECT private.invoke_cron_edge('oura-sync-scheduled', …)` (migrations deste
--- repo) ou `SELECT net.http_post('https://…/functions/v1/oura-sync-scheduled', …)`
--- (forma bruta). Um job que apenas MENCIONE a string (comentário, monitoramento,
--- http_post para outra função com a rota no body) NÃO é removido: a migration
--- para com erro e lista o jobid, para decisão humana — nunca apaga o que não
--- reconhece.
+-- Defesa: só é removido (por jobid, qualquer nome/usuário) o job cujo comando é
+-- EXATAMENTE um dos três comandos que esta migration gera (comparação
+-- case-sensitive, tolerando só espaço em volta e `;` final) — o de 10h é
+-- byte a byte o mesmo da migration 20260710130454. Não há regex de
+-- reconhecimento: cada regex "esperto" deixou passar um caso (chamada
+-- comentada, rota no body/query de outra função, literal em maiúsculas…).
+-- Qualquer OUTRO job que mencione `oura-sync-scheduled` (em qualquer caixa) faz
+-- a migration parar com erro listando jobid/nome/comando, para decisão humana —
+-- nunca apaga o que não reconhece byte a byte. Se os jobs de 6h/18h em produção
+-- (criados fora de migration) tiverem texto diferente, é ESPERADO que a
+-- migration aborte na primeira aplicação; ajustar/remover manualmente e reaplicar.
 -- Resultado garantido: exatamente um job por horário, nunca duas execuções no
 -- mesmo minuto (duas cadeias oura-sync-all na mesma aluna/data e refresh
 -- concorrente do token OAuth). O upsert do pg_cron é por (jobname, username),
@@ -28,46 +30,33 @@ DO $do$
 DECLARE
   j record;
   unknown_jobs text := '';
-  -- Formas de INVOCAÇÃO reconhecidas, ancoradas no comando inteiro (o `.`
-  -- casa quebra de linha no regex do Postgres): a chamada executável tem de
-  -- ser o próprio comando, e o destino tem de ser o argumento da chamada.
-  -- Substring solta ('%…%') não serve: pegaria chamada comentada ou rota
-  -- citada no body de um http_post para OUTRA função.
-  -- No http_post, a rota tem de vir logo depois da AUTORIDADE da URL
-  -- (host[:porta], sem `/`, `?` ou `#` antes): `…/monitor?target=/functions/v1/
-  -- oura-sync-scheduled` chama OUTRA função e não pode ser reconhecido.
-  -- Gramática dos argumentos: só literais simples (sem aspa interna),
-  -- opcionalmente nomeados (`nome :=`) e com `::jsonb`; depois do `)` da
-  -- chamada, só `;` e espaço. Nada de `.*`: uma cauda permissiva deixaria
-  -- passar `…) WHERE false AND (true)`, que NÃO executa a chamada.
-  invoke_edge_re constant text :=
-    '^\s*SELECT\s+private\.invoke_cron_edge\s*\(\s*(function_name\s*:=\s*)?''oura-sync-scheduled''\s*(,\s*(body\s*:=\s*)?''[^'']*''(\s*::\s*jsonb)?\s*)?\)\s*;?\s*$';
-  http_post_re constant text :=
-    '^\s*SELECT\s+net\.http_post\s*\(\s*(url\s*:=\s*)?''https?://[^/''?#[:space:]]+/functions/v1/oura-sync-scheduled''(\s*,\s*([a-z_]+\s*:=\s*)?''[^'']*''(\s*::\s*jsonb)?)*\s*\)\s*;?\s*$';
+  -- Os três comandos EXATOS (mesmo texto dos cron.schedule abaixo).
+  known_commands constant text[] := ARRAY[
+    $c$SELECT private.invoke_cron_edge('oura-sync-scheduled', '{"time":"morning","schedule":"6h"}'::jsonb)$c$,
+    $c$SELECT private.invoke_cron_edge('oura-sync-scheduled', '{"time":"midmorning","schedule":"6h"}'::jsonb)$c$,
+    $c$SELECT private.invoke_cron_edge('oura-sync-scheduled', '{"time":"evening","schedule":"18h"}'::jsonb)$c$
+  ];
 BEGIN
-  -- 1) Jobs que MENCIONAM a string sem serem uma invocação reconhecida
-  --    (comentário, monitoramento, http_post para outra função): não tocar;
-  --    abortar a migration listando-os, para decisão humana.
+  -- 1) Qualquer job que mencione a string (qualquer caixa) sem ser um dos três
+  --    comandos exatos: não tocar; abortar listando, para decisão humana.
   FOR j IN
     SELECT jobid, jobname, username, command
     FROM cron.job
     WHERE command ILIKE '%oura-sync-scheduled%'
-      AND command !~* invoke_edge_re
-      AND command !~* http_post_re
+      AND NOT (btrim(regexp_replace(btrim(command), ';\s*$', '')) = ANY (known_commands))
   LOOP
     unknown_jobs := unknown_jobs || format(' [jobid %s, nome %s, user %s: %s]', j.jobid, coalesce(j.jobname, '<sem nome>'), j.username, left(j.command, 160));
   END LOOP;
   IF unknown_jobs <> '' THEN
-    RAISE EXCEPTION 'Migration abortada: job(s) de cron mencionam oura-sync-scheduled sem forma de invocação reconhecida; remover ou renomear manualmente antes de reaplicar:%', unknown_jobs;
+    RAISE EXCEPTION 'Migration abortada: job(s) de cron mencionam oura-sync-scheduled com comando diferente dos três reconhecidos; remover ou ajustar manualmente antes de reaplicar:%', unknown_jobs;
   END IF;
 
-  -- 2) Jobs que INVOCAM o oura-sync-scheduled (qualquer nome/usuário): remover
+  -- 2) Jobs com um dos três comandos exatos (qualquer nome/usuário): remover
   --    por jobid antes de recriar os três.
   FOR j IN
     SELECT jobid, jobname, username
     FROM cron.job
-    WHERE command ~* invoke_edge_re
-       OR command ~* http_post_re
+    WHERE btrim(regexp_replace(btrim(command), ';\s*$', '')) = ANY (known_commands)
   LOOP
     RAISE NOTICE 'Removendo job de cron do Oura antes de recriar: % (jobid %, user %)', coalesce(j.jobname, '<sem nome>'), j.jobid, j.username;
     PERFORM cron.unschedule(j.jobid);
