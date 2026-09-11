@@ -151,8 +151,13 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
             <Clock className="h-5 w-5 text-primary" />
             Diagnóstico API Oura
           </CardTitle>
-          <CardDescription>Carregando a última linha de métricas…</CardDescription>
+          <CardDescription>
+            Carregando a última linha de métricas… A sonda abaixo não depende dessa leitura.
+          </CardDescription>
         </CardHeader>
+        <CardContent>
+          <OuraApiProbe studentId={studentId} />
+        </CardContent>
       </Card>
     );
   }

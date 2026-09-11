@@ -9,11 +9,13 @@
 --
 -- Defesa: TODO job que INVOQUE o oura-sync-scheduled — qualquer nome (inclusive
 -- NULL), qualquer username — é removido por jobid antes de recriar os três.
--- "Invocar" = uma das duas formas conhecidas: `private.invoke_cron_edge('oura-sync-scheduled', …)`
--- (migrations deste repo) ou `net.http_post(…/functions/v1/oura-sync-scheduled…)`
--- (forma bruta do Lovable). Um job que apenas MENCIONE a string (monitoramento,
--- comentário) NÃO é removido: a migration para com erro e lista o jobid, para
--- decisão humana — nunca apaga o que não reconhece.
+-- "Invocar" = o comando INTEIRO é uma das duas formas conhecidas (regex ancorado):
+-- `SELECT private.invoke_cron_edge('oura-sync-scheduled', …)` (migrations deste
+-- repo) ou `SELECT net.http_post('https://…/functions/v1/oura-sync-scheduled', …)`
+-- (forma bruta). Um job que apenas MENCIONE a string (comentário, monitoramento,
+-- http_post para outra função com a rota no body) NÃO é removido: a migration
+-- para com erro e lista o jobid, para decisão humana — nunca apaga o que não
+-- reconhece.
 -- Resultado garantido: exatamente um job por horário, nunca duas execuções no
 -- mesmo minuto (duas cadeias oura-sync-all na mesma aluna/data e refresh
 -- concorrente do token OAuth). O upsert do pg_cron é por (jobname, username),
@@ -26,20 +28,30 @@ DO $do$
 DECLARE
   j record;
   unknown_jobs text := '';
+  -- Formas de INVOCAÇÃO reconhecidas, ancoradas no comando inteiro (o `.`
+  -- casa quebra de linha no regex do Postgres): a chamada executável tem de
+  -- ser o próprio comando, e o destino tem de ser o argumento da chamada.
+  -- Substring solta ('%…%') não serve: pegaria chamada comentada ou rota
+  -- citada no body de um http_post para OUTRA função.
+  invoke_edge_re constant text :=
+    '^\s*SELECT\s+private\.invoke_cron_edge\(\s*''oura-sync-scheduled''\s*(,.*)?\)\s*;?\s*$';
+  http_post_re constant text :=
+    '^\s*SELECT\s+net\.http_post\(\s*(url\s*:=\s*)?''https?://[^'']*/functions/v1/oura-sync-scheduled''\s*(,.*)?\)\s*;?\s*$';
 BEGIN
-  -- 1) Jobs que só MENCIONAM a string sem uma forma de invocação conhecida:
-  --    não tocar; abortar a migration para decisão humana.
+  -- 1) Jobs que MENCIONAM a string sem serem uma invocação reconhecida
+  --    (comentário, monitoramento, http_post para outra função): não tocar;
+  --    abortar a migration listando-os, para decisão humana.
   FOR j IN
     SELECT jobid, jobname, username, command
     FROM cron.job
     WHERE command ILIKE '%oura-sync-scheduled%'
-      AND command NOT ILIKE '%invoke_cron_edge(%''oura-sync-scheduled''%'
-      AND command NOT ILIKE '%net.http_post(%/functions/v1/oura-sync-scheduled%'
+      AND command !~* invoke_edge_re
+      AND command !~* http_post_re
   LOOP
-    unknown_jobs := unknown_jobs || format(' [jobid %s, nome %s, user %s: %s]', j.jobid, coalesce(j.jobname, '<sem nome>'), j.username, left(j.command, 120));
+    unknown_jobs := unknown_jobs || format(' [jobid %s, nome %s, user %s: %s]', j.jobid, coalesce(j.jobname, '<sem nome>'), j.username, left(j.command, 160));
   END LOOP;
   IF unknown_jobs <> '' THEN
-    RAISE EXCEPTION 'Migration abortada: job(s) de cron mencionam oura-sync-scheduled sem forma de invocação conhecida; remover ou renomear manualmente antes de reaplicar:%', unknown_jobs;
+    RAISE EXCEPTION 'Migration abortada: job(s) de cron mencionam oura-sync-scheduled sem forma de invocação reconhecida; remover ou renomear manualmente antes de reaplicar:%', unknown_jobs;
   END IF;
 
   -- 2) Jobs que INVOCAM o oura-sync-scheduled (qualquer nome/usuário): remover
@@ -47,8 +59,8 @@ BEGIN
   FOR j IN
     SELECT jobid, jobname, username
     FROM cron.job
-    WHERE command ILIKE '%invoke_cron_edge(%''oura-sync-scheduled''%'
-       OR command ILIKE '%net.http_post(%/functions/v1/oura-sync-scheduled%'
+    WHERE command ~* invoke_edge_re
+       OR command ~* http_post_re
   LOOP
     RAISE NOTICE 'Removendo job de cron do Oura antes de recriar: % (jobid %, user %)', coalesce(j.jobname, '<sem nome>'), j.jobid, j.username;
     PERFORM cron.unschedule(j.jobid);

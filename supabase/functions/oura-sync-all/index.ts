@@ -364,12 +364,15 @@ Deno.serve(async (req) => {
       new Promise<boolean>((resolve) => setTimeout(() => resolve(false), Math.max(0, deadline - Date.now()))),
     ]);
     if (!planSettled) {
-      truncated = true;
+      // `truncated` só se algum par ficou SEM desfecho. Se o deadline pegou a
+      // execução apenas esperando o insert de um log (todos os pares já
+      // publicados), a consulta foi completa e a UI não deve dizer o contrário.
       const done = new Set(results.map((r) => `${r.student_id}|${r.date}`));
       for (const step of plan) {
         for (const connection of step.items) {
           const key = `${connection.student_id}|${step.date}`;
           if (done.has(key)) continue;
+          truncated = true;
           // Só o que tem desfecho conhecido é success/failed; o resto é
           // 'skipped' — mas dizendo se chegou a iniciar (a chamada filha pode
           // ainda concluir e gravar; upsert idempotente).
