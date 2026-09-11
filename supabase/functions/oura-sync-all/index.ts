@@ -213,7 +213,10 @@ Deno.serve(async (req) => {
     console.log(`Found ${connections.length} students with active Oura connections; dates: ${dates.join(', ')}`);
 
     const results: SyncResult[] = [];
-    let truncated = false;
+    // Plano rejeitado por exceção (o `truncated` da resposta é DERIVADO no
+    // fim: plano falhou OU algum par ficou sem desfecho — nunca por um retry
+    // negado por orçamento, porque o par tem desfecho `failed`).
+    let planFailed = false;
 
     /** Insert de log com teto e sem poder travar o fluxo (falha vira warn). */
     const writeLog = async (row: Record<string, unknown>, label: string): Promise<void> => {
@@ -242,7 +245,6 @@ Deno.serve(async (req) => {
     for (const step of plan) {
       const dateStr = step.date;
       if (!hasBudgetFor(Date.now(), deadline, ATTEMPT_ESTIMATE_MS)) {
-        truncated = true;
         for (const connection of step.items) {
           results.push({
             student_id: connection.student_id,
@@ -279,7 +281,6 @@ Deno.serve(async (req) => {
           for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             // Orçamento checado antes de CADA tentativa (não só do lote).
             if (!hasBudgetFor(Date.now(), deadline, ATTEMPT_ESTIMATE_MS)) {
-              truncated = true;
               if (attempt === 1) {
                 return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'skipped', attempt: 0, error: 'Orçamento de tempo esgotado antes da primeira tentativa.' });
               }
@@ -307,10 +308,7 @@ Deno.serve(async (req) => {
                 deadline,
               );
 
-              if (syncError) {
-                if (syncError.message.includes('Orçamento de tempo')) truncated = true;
-                throw syncError;
-              }
+              if (syncError) throw syncError;
 
               const syncRecord: Record<string, unknown> | undefined =
                 syncData && typeof syncData === 'object' && !Array.isArray(syncData)
@@ -360,7 +358,7 @@ Deno.serve(async (req) => {
     // ser cortado pelo runtime) — os upserts são idempotentes; sem cursor, a
     // reconsulta dessas datas por uma execução futura não é garantida.
     const planSettled = await Promise.race([
-      runPlan().then(() => true, (error) => { console.error('oura-sync-all: plan failed:', error); truncated = true; return false; }),
+      runPlan().then(() => true, (error) => { console.error('oura-sync-all: plan failed:', error); planFailed = true; return false; }),
       new Promise<boolean>((resolve) => setTimeout(() => resolve(false), Math.max(0, deadline - Date.now()))),
     ]);
     if (!planSettled) {
@@ -372,7 +370,6 @@ Deno.serve(async (req) => {
         for (const connection of step.items) {
           const key = `${connection.student_id}|${step.date}`;
           if (done.has(key)) continue;
-          truncated = true;
           // Só o que tem desfecho conhecido é success/failed; o resto é
           // 'skipped' — mas dizendo se chegou a iniciar (a chamada filha pode
           // ainda concluir e gravar; upsert idempotente).
@@ -413,6 +410,7 @@ Deno.serve(async (req) => {
     const studentsOk = byStudent.size - studentsFailed - studentsIncomplete;
     const studentsWithData = Array.from(byStudent.values()).filter(a => a.withData).length;
     const skippedCount = results.filter(r => r.status === 'skipped').length;
+    const truncated = planFailed || skippedCount > 0;
 
     return new Response(
       JSON.stringify({
