@@ -362,8 +362,20 @@ Deno.serve(async (req) => {
       const probeOne = async (ep: string, w: { start_date: string; end_date: string }): Promise<Record<string, unknown>> => {
         try {
           const res = await ouraFetch(`https://api.ouraring.com/v2/usercollection/${ep}?start_date=${w.start_date}&end_date=${w.end_date}`);
-          const body = res.ok ? await res.json().catch(() => null) : null;
-          const data: unknown[] = isPlainObject(body) && Array.isArray(body.data) ? body.data : [];
+          if (!res.ok) {
+            return { http: res.status, count: 0, days: [], error: `HTTP ${res.status}` };
+          }
+          // Corpo ilegível NÃO é "0 documentos": devolve erro com o status.
+          let body: unknown;
+          try {
+            body = await res.json();
+          } catch (parseError) {
+            return { http: res.status, count: 0, days: [], error: `corpo não é JSON válido: ${(parseError as Error).message}` };
+          }
+          if (!isPlainObject(body) || !Array.isArray(body.data)) {
+            return { http: res.status, count: 0, days: [], error: 'resposta sem o campo `data` esperado' };
+          }
+          const data: unknown[] = body.data;
           const days = Array.from(new Set(data.map((d) => (isPlainObject(d) && typeof d.day === 'string' ? d.day : '?')))).sort();
           return { http: res.status, count: data.length, days, count_for_day: countForDay(ep, body) };
         } catch (error) {
