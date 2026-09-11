@@ -739,9 +739,13 @@ Deno.serve(async (req) => {
     const hasAcuteData =
       acuteMetrics.samples_count_hrv > 0 ||
       acuteMetrics.samples_count_hr_day > 0 ||
+      acuteMetrics.sleep_hr_series !== null ||
       acuteMetrics.sleep_phase_5min !== null ||
       acuteMetrics.movement_30_sec !== null ||
       acuteMetrics.stress_samples !== null;
+    // Gravação aguda CONFIRMADA (upsert sem erro) — `synced_acute` na resposta
+    // e no log só pode declarar grupos que foram de fato persistidos.
+    let acuteWritten = false;
 
     const outcome = classifyOutcome(
       hasData ? (metrics as Record<string, unknown>) : null,
@@ -836,6 +840,8 @@ Deno.serve(async (req) => {
           // Non-blocking: main daily metrics are already persisted.
           console.error('Failed to save acute metrics (non-blocking):', acuteUpsertError);
           warnings.push('Falha ao salvar métricas agudas (não bloqueante).');
+        } else {
+          acuteWritten = true;
         }
       }
     }
@@ -892,7 +898,7 @@ Deno.serve(async (req) => {
       // Reflete o que foi GRAVADO (payload podado), não o payload cru: um grupo
       // cuja série não veio fica ausente aqui (e intocado no banco) — o log
       // em oura_sync_logs.metrics_synced não pode sugerir "HRV zerado".
-      synced_acute: hasAcuteData
+      synced_acute: acuteWritten
         ? {
             acute_groups_written: ACUTE_METRIC_GROUPS
               .filter((group) => group.series in acuteUpsertPayload)
