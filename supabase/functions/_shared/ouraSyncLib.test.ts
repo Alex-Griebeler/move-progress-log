@@ -10,7 +10,6 @@ import {
   hasAnyMetricValue,
   longestSleepPeriodForDay,
   lookbackDates,
-  mergePreservingExisting,
   nextCalendarDay,
   previousCalendarDay,
   pruneAbsentAcuteGroups,
@@ -77,14 +76,6 @@ Deno.test("temperatureDeviationFrom lê o campo de topo (0 e negativo preservado
   assertEquals(temperatureDeviationFrom({ temperature_deviation: 0 }), 0);
   assertEquals(temperatureDeviationFrom({ contributors: { temperature_deviation: 0.5 } }), null);
   assertEquals(temperatureDeviationFrom(null), null);
-});
-
-Deno.test("mergePreservingExisting nunca rebaixa valor existente para null", () => {
-  const merged = mergePreservingExisting(
-    { student_id: "s", date: "d", sleep_score: null, readiness_score: 80 },
-    { student_id: "s", date: "d", sleep_score: 77, readiness_score: 70 },
-  );
-  assertEquals(merged, { student_id: "s", date: "d", sleep_score: 77, readiness_score: 80 });
 });
 
 Deno.test("classifyOutcome: complete/partial/no_data", () => {
@@ -154,14 +145,12 @@ Deno.test("pruneAbsentAcuteGroups: grupo cuja série não veio sai do payload �
   assertEquals(pruned.day_hr_series, { samples: [{ bpm: 60 }] });
   assertEquals(pruned.student_id, "s1");
 
-  // Cenário do achado: linha existente com HRV válido; merge do payload podado
-  // mantém série, valor e CONTADOR (o merge do payload cru zerava o contador).
-  const existing = { sleep_hrv_series: { values: [20, 21] }, hrv_night_last: 21, samples_count_hrv: 2, day_hr_series: null, samples_count_hr_day: 0 };
-  const merged = mergePreservingExisting(pruned, existing);
-  assertEquals("samples_count_hrv" in merged, false); // upsert parcial: coluna intocada no banco
-  assertEquals(merged.samples_count_hr_day, 1);
-  const rawMerged = mergePreservingExisting(incoming, existing);
-  assertEquals(rawMerged.samples_count_hrv, 0); // documenta o defeito que a poda evita
+  // Cenário do achado: com o payload podado, o merge atômico do banco
+  // (upsert_oura_row_merge: só chaves presentes entram no SET) não toca o
+  // contador HRV gravado; o payload cru levaria `samples_count_hrv: 0`, que
+  // não é null e substituiria o valor válido.
+  assertEquals(incoming.samples_count_hrv, 0); // o que o banco receberia sem a poda
+  assertEquals(Object.keys(pruned).some((k) => k.startsWith("hrv_") || k === "samples_count_hrv"), false);
 });
 
 Deno.test("pruneAbsentAcuteGroups: com todas as séries presentes, payload fica intacto", () => {
