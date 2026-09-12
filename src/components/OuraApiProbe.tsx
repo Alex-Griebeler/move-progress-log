@@ -101,7 +101,7 @@ export const OuraApiProbe = ({ studentId }: OuraApiProbeProps) => {
                 const cell = (row?: ProbeRow) =>
                   row
                     ? row.error
-                      ? `erro: ${row.error}`
+                      ? `${row.http !== null ? `HTTP ${row.http} · ` : ""}erro: ${row.error}`
                       : `HTTP ${row.http} · ${row.count} doc(s)${row.days.length ? ` · dias ${row.days.join(", ")}` : ""}`
                     : "—";
                 return (

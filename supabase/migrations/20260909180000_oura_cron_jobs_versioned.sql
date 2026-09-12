@@ -38,17 +38,21 @@ DECLARE
   ];
 BEGIN
   -- 1) Qualquer job que mencione a string (qualquer caixa) sem ser um dos três
-  --    comandos exatos: não tocar; abortar listando, para decisão humana.
+  --    comandos exatos, OU que ocupe um dos três NOMES reservados com outro
+  --    comando (o `cron.schedule` abaixo faz upsert por nome/usuário e
+  --    sobrescreveria esse job em silêncio): não tocar; abortar listando,
+  --    para decisão humana.
   FOR j IN
     SELECT jobid, jobname, username, command
     FROM cron.job
-    WHERE command ILIKE '%oura-sync-scheduled%'
+    WHERE (command ILIKE '%oura-sync-scheduled%'
+           OR jobname IN ('oura-sync-morning', 'oura-sync-midmorning', 'oura-sync-evening'))
       AND NOT (btrim(regexp_replace(btrim(command), ';\s*$', '')) = ANY (known_commands))
   LOOP
     unknown_jobs := unknown_jobs || format(' [jobid %s, nome %s, user %s: %s]', j.jobid, coalesce(j.jobname, '<sem nome>'), j.username, left(j.command, 160));
   END LOOP;
   IF unknown_jobs <> '' THEN
-    RAISE EXCEPTION 'Migration abortada: job(s) de cron mencionam oura-sync-scheduled com comando diferente dos três reconhecidos; remover ou ajustar manualmente antes de reaplicar:%', unknown_jobs;
+    RAISE EXCEPTION 'Migration abortada: job(s) de cron mencionam oura-sync-scheduled ou ocupam um nome reservado (oura-sync-morning/midmorning/evening) com comando diferente dos três reconhecidos; remover ou ajustar manualmente antes de reaplicar:%', unknown_jobs;
   END IF;
 
   -- 2) Jobs com um dos três comandos exatos (qualquer nome/usuário): remover
