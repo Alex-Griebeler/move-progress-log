@@ -35,11 +35,14 @@ export function brokeredPreviewStorage() {
     new Promise((resolve) => {
       const requestId = newId();
       let done = false;
-      let timer: ReturnType<typeof setTimeout>;
+      // `null` (não `undefined`) de propósito: o autofix do bot do Lovable
+      // (no-undef-init) apaga `= undefined`, e sem init o prefer-const acusa
+      // no CI. Com `= null` + reatribuição, nenhuma das duas regras dispara.
+      let timer: ReturnType<typeof setTimeout> | null = null;
       const finish = (r: { ok: boolean; value?: string | null } | null) => {
         if (done) return;
         done = true;
-        clearTimeout(timer);
+        if (timer !== null) clearTimeout(timer);
         window.removeEventListener('message', onMessage);
         resolve(r);
       };
