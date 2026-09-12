@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { authenticateServiceRoleOrUserRole } from '../_shared/auth.ts';
-import { buildWorkPlan, hasBudgetFor, lookbackDates, todayInSaoPaulo } from '../oura-sync/lib.ts';
+import { buildWorkPlan, hasBudgetFor, lookbackDates, todayInSaoPaulo } from '../_shared/ouraSyncLib.ts';
 
 /**
  * Janela retroativa padrão: hoje, ontem e anteontem. O Oura finaliza scores ao

@@ -16,7 +16,7 @@ import {
   pruneAbsentAcuteGroups,
   temperatureDeviationFrom,
   workoutsForDay,
-} from "./lib.ts";
+} from "./ouraSyncLib.ts";
 
 Deno.test("apiDateWindow pede D..D+1 (end_date exclusivo na API v2), inclusive na virada de mês/ano", () => {
   assertEquals(apiDateWindow("2026-09-09"), { start_date: "2026-09-09", end_date: "2026-09-10" });
