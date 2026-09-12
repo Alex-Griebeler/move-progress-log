@@ -297,6 +297,16 @@ Deno.serve(async (req) => {
                   student_id: studentId, sync_date: dateStr, status: 'retrying',
                   attempt_number: attempt, error_message: lastError
                 }, 'retrying');
+                // O log de retry pode levar até DB_TIMEOUT_MS: revalidar o saldo
+                // logo antes do fetch, senão a tentativa começa sem os ~32 s.
+                if (!hasBudgetFor(Date.now(), deadline, ATTEMPT_ESTIMATE_MS)) {
+                  const budgetFailureAfterLog = publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: attempt - 1, error: `${lastError} (sem orçamento para nova tentativa)` });
+                  await writeLog({
+                    student_id: studentId, sync_date: dateStr, status: 'failed',
+                    attempt_number: attempt - 1, error_message: `${lastError} (sem orçamento para nova tentativa)`
+                  }, 'failed/budget');
+                  return budgetFailureAfterLog;
+                }
               }
 
               // OA-01: service role key no Authorization; espera limitada ao
