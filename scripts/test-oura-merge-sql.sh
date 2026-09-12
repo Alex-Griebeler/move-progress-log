@@ -17,7 +17,10 @@ DDL=$(mktemp)
   echo "CREATE TABLE IF NOT EXISTS public.students (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), trainer_id uuid, name text);"
   awk '/CREATE TABLE IF NOT EXISTS public.oura_metrics \(/,/\);/' supabase/migrations/20251030010328_82923690-2cfc-4eb8-b498-4af0297b29a6.sql
   for f in $(ls supabase/migrations/*.sql | sort); do grep -h "ALTER TABLE[^;]*oura_metrics ADD COLUMN[^;]*;" "$f" || true; done | sed 's/ALTER TABLE oura_metrics/ALTER TABLE public.oura_metrics/'
-  awk '/CREATE TABLE IF NOT EXISTS public.oura_acute_metrics \(/,/\);/' supabase/migrations/20260410161257_2a8c2f00-23fd-4b5f-9178-a4a480da324d.sql
+  # A PRIMEIRA criação (20260410102000) é a que vale em produção: INTEGER nos
+  # extremos de FC e NUMERIC(p,s) nas estatísticas. A 20260410161257 repete
+  # o CREATE TABLE IF NOT EXISTS com tipos mais largos e NÃO altera os tipos.
+  awk '/CREATE TABLE IF NOT EXISTS public.oura_acute_metrics \(/,/\);/' supabase/migrations/20260410102000_add_oura_acute_metrics.sql
   for f in $(ls supabase/migrations/*.sql | sort); do grep -h "ALTER TABLE[^;]*oura_acute_metrics ADD COLUMN[^;]*;" "$f" || true; done
 } > "$DDL"
 

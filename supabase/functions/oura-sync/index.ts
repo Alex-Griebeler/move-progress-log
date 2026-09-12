@@ -790,9 +790,11 @@ Deno.serve(async (req) => {
     if (hasData) {
       // Merge ATÔMICO no banco (RPC upsert_oura_row_merge): uma única
       // instrução INSERT … ON CONFLICT DO UPDATE SET col = COALESCE(novo, atual)
-      // — null novo nunca rebaixa valor gravado, e duas execuções concorrentes
-      // (cron × botão manual) não se sobrescrevem. Antes: leitura + merge em
-      // memória + upsert, com janela entre a leitura e a escrita.
+      // — null novo nunca rebaixa valor gravado, e o Postgres serializa o
+      // conflito por linha: acaba a perda por merge sobre leitura antiga
+      // (cron × botão manual). Entre dois valores NÃO nulos para a mesma
+      // coluna vence a última escrita. Antes: leitura + merge em memória +
+      // upsert, com janela entre a leitura e a escrita.
       const { error: mergeError } = await supabaseClient.rpc('upsert_oura_row_merge', {
         p_table: 'oura_metrics',
         p_row: metrics,

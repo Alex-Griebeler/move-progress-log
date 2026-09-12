@@ -57,6 +57,20 @@ DO $$ DECLARE a record; b record; BEGIN
   ASSERT b.samples_count_hrv = 0 AND b.samples_count_hr_day = 0 AND b.hr_day_avg = 70, 'T7b null explícito em linha nova -> DEFAULT';
 END $$;
 
+-- 7c) tipos REAIS de produção nas agudas: NUMERIC(6,2) arredonda; INTEGER rejeita decimal
+SELECT public.upsert_oura_row_merge('oura_acute_metrics', '{"student_id":"11111111-1111-1111-1111-111111111111","date":"2026-09-13","hr_day_avg":60.12345,"hrv_night_stddev":1.23456,"hr_day_max":150}');
+DO $$ DECLARE r record; BEGIN
+  SELECT * INTO r FROM public.oura_acute_metrics WHERE date = '2026-09-13';
+  ASSERT r.hr_day_avg = 60.12 AND r.hrv_night_stddev = 1.235 AND r.hr_day_max = 150, 'T7c numeric(p,s) arredonda, integer aceita inteiro';
+END $$;
+DO $$ BEGIN
+  BEGIN PERFORM public.upsert_oura_row_merge('oura_acute_metrics', '{"student_id":"11111111-1111-1111-1111-111111111111","date":"2026-09-13","hr_night_min":91.5}'); RAISE EXCEPTION 'T7d devia falhar: decimal em INTEGER'; EXCEPTION WHEN invalid_text_representation THEN NULL; END;
+END $$;
+DO $$ DECLARE r record; BEGIN
+  SELECT * INTO r FROM public.oura_acute_metrics WHERE date = '2026-09-13';
+  ASSERT r.hr_night_min IS NULL AND r.hr_day_avg = 60.12, 'T7e erro de cast não grava nada';
+END $$;
+
 -- 8) erros esperados (cada um tem de LANÇAR)
 DO $$ BEGIN
   BEGIN PERFORM public.upsert_oura_row_merge('students', '{"student_id":"11111111-1111-1111-1111-111111111111","date":"2026-09-10"}'); RAISE EXCEPTION 'T8a devia falhar'; EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
