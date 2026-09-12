@@ -13,8 +13,9 @@
 -- Só as chaves PRESENTES no JSON entram no INSERT e no SET: coluna omitida
 -- fica intocada na atualização e recebe o DEFAULT na inserção (é o que os
 -- grupos agudos podados precisam: `samples_count_* INTEGER NOT NULL DEFAULT 0`
--- nunca recebe null nem zero indevido). Chave que não é coluna da tabela →
--- erro (typo não é descartado em silêncio).
+-- nunca recebe null nem zero indevido). Null EXPLÍCITO numa coluna NOT NULL
+-- vale como chave ausente (preserva o gravado / DEFAULT na inserção). Chave
+-- que não é coluna da tabela → erro (typo não é descartado em silêncio).
 --
 -- Chamada só pelo service_role (edge functions): EXECUTE revogado de
 -- PUBLIC/anon/authenticated. SECURITY INVOKER: o service_role já ignora RLS;
@@ -32,6 +33,7 @@ DECLARE
   v_set         text[];
   v_key         text;
   v_col_exists  boolean;
+  v_nullable    text;
   v_has_updated boolean;
   v_sql         text;
 BEGIN
@@ -55,12 +57,20 @@ BEGIN
     IF v_key IN ('id', 'created_at', 'updated_at') THEN
       RAISE EXCEPTION 'upsert_oura_row_merge: coluna % não pode ser enviada', v_key USING ERRCODE = '22023';
     END IF;
-    SELECT EXISTS (
-      SELECT 1 FROM information_schema.columns
-      WHERE table_schema = 'public' AND table_name = p_table AND column_name = v_key
-    ) INTO v_col_exists;
-    IF NOT v_col_exists THEN
+    SELECT true, is_nullable INTO v_col_exists, v_nullable
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = p_table AND column_name = v_key;
+    IF v_col_exists IS DISTINCT FROM true THEN
       RAISE EXCEPTION 'upsert_oura_row_merge: coluna desconhecida em %: %', p_table, v_key USING ERRCODE = '42703';
+    END IF;
+    v_col_exists := NULL;
+    -- Null explícito numa coluna NOT NULL (ex.: samples_count_* das agudas)
+    -- vale como "não veio": sai do INSERT/SET — o INSERT não pode carregar
+    -- null nela (violaria o NOT NULL antes do ON CONFLICT), e no conflito
+    -- o valor gravado é preservado, exatamente como o COALESCE faria.
+    IF v_nullable = 'NO' AND v_key NOT IN ('student_id', 'date')
+       AND jsonb_typeof(p_row -> v_key) = 'null' THEN
+      CONTINUE;
     END IF;
     v_cols := array_append(v_cols, format('%I', v_key));
     IF v_key NOT IN ('student_id', 'date') THEN
