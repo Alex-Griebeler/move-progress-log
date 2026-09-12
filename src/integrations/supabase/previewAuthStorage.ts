@@ -35,9 +35,7 @@ export function brokeredPreviewStorage() {
     new Promise((resolve) => {
       const requestId = newId();
       let done = false;
-      // Inicializado explicitamente: com atribuição única e sem init, o
-      // prefer-const acusa (regressão recorrente dos commits do bot).
-      let timer: ReturnType<typeof setTimeout> | undefined = undefined;
+      let timer: ReturnType<typeof setTimeout>;
       const finish = (r: { ok: boolean; value?: string | null } | null) => {
         if (done) return;
         done = true;
