@@ -77,4 +77,15 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
+  {
+    // O workspace do Lovable reempurra uma cópia antiga deste arquivo a cada
+    // "Lovable update" (4x em 12/09/2026), sempre com `let timer: T;` sem init,
+    // e o prefer-const derruba o CI da main. A regra fica desligada SÓ aqui até
+    // o workspace do Lovable parar de reverter; a versão certa (`| null = null`)
+    // continua no arquivo.
+    files: ["src/integrations/supabase/previewAuthStorage.ts"],
+    rules: {
+      "prefer-const": "off",
+    },
+  },
 );
