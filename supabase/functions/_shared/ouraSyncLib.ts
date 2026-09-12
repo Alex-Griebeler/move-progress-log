@@ -1,6 +1,10 @@
 /**
  * Helpers puros do oura-sync (testáveis em Deno sem rede/Supabase).
  *
+ * Vive em `_shared/` porque o deploy do Lovable/Supabase empacota cada função
+ * isolada: `oura-sync-all` importando `../oura-sync/lib.ts` falhava no bundle
+ * com "Module not found". Só `_shared/` é visível às duas.
+ *
  * Janela de datas: a API v2 do Oura trata `end_date` como EXCLUSIVO —
  * `start_date=D&end_date=D` devolve zero documentos e `D..D+1` devolve o dia D
  * (verificado no sandbox oficial em 2026-09-09 para daily_activity,

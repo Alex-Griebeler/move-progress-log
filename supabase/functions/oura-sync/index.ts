@@ -15,7 +15,7 @@ import {
   workoutsForDay,
   type LooseDoc,
   pruneAbsentAcuteGroups,
-} from './lib.ts';
+} from '../_shared/ouraSyncLib.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
