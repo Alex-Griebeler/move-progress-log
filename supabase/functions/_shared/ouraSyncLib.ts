@@ -95,28 +95,13 @@ export const workoutsForDay = (payload: unknown, date: string): Doc[] => {
 };
 
 /**
- * Merge que preserva o valor anterior quando o novo é null (payload esparso do
- * Oura). Nunca rebaixa um campo preenchido para null.
- */
-export const mergePreservingExisting = (
-  incoming: Record<string, unknown>,
-  existing: Record<string, unknown> | null,
-): Record<string, unknown> => {
-  if (!existing) return incoming;
-  const merged: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(incoming)) {
-    merged[key] = value ?? existing[key] ?? null;
-  }
-  return merged;
-};
-
-/**
  * Grupos das métricas agudas: série + estatísticas + contador. Quando a série
  * NÃO veio nesta chamada (ex.: `sleep` falhou mas `heartrate` respondeu), o
  * grupo inteiro sai do payload — senão o contador `0` (NOT NULL, número, não
- * null) passaria pelo merge e rebaixaria um HRV válido já gravado a
+ * null) passaria pelo merge atômico do banco (`upsert_oura_row_merge`: só
+ * null novo preserva o antigo) e rebaixaria um HRV válido já gravado a
  * "indisponível" para o motor de recuperação (`samples_count_hrv > 0`).
- * Linha nova: o DEFAULT 0 da coluna cobre o grupo omitido.
+ * Coluna omitida fica intocada na atualização e recebe o DEFAULT 0 na inserção.
  */
 export const ACUTE_METRIC_GROUPS: ReadonlyArray<{ series: string; fields: readonly string[] }> = [
   {

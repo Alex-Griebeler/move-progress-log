@@ -9,7 +9,6 @@ import {
   hasAnyMetricValue,
   isValidCalendarDate,
   longestSleepPeriodForDay,
-  mergePreservingExisting,
   temperatureDeviationFrom,
   todayInSaoPaulo,
   workoutsForDay,
@@ -739,11 +738,9 @@ Deno.serve(async (req) => {
       samples_count_hrv: hrvStats.count,
       samples_count_hr_day: hrDayStats.count,
     };
-    const metricColumnsForMerge = Object.keys(metrics).join(',');
     // Grupos agudos cuja série não veio saem do payload (ver lib.ts): o
     // contador 0 nunca sobrescreve um contador válido já gravado.
     const acuteUpsertPayload = pruneAbsentAcuteGroups(acuteMetrics as Record<string, unknown>);
-    const acuteMetricColumnsForMerge = Object.keys(acuteUpsertPayload).join(',');
 
     if (DEBUG) console.log('Extracted metrics:', metrics);
     // Check if all values are null (no data available)
@@ -791,70 +788,36 @@ Deno.serve(async (req) => {
     }
 
     if (hasData) {
-      // O-11: Preserve previous non-null values when Oura returns sparse payloads.
-      const { data: existingMetricRow, error: existingMetricRowError } = await supabaseClient
-        .from('oura_metrics')
-        .select(metricColumnsForMerge)
-        .eq('student_id', student_id)
-        .eq('date', syncDate)
-        .maybeSingle();
+      // Merge ATÔMICO no banco (RPC upsert_oura_row_merge): uma única
+      // instrução INSERT … ON CONFLICT DO UPDATE SET col = COALESCE(novo, atual)
+      // — null novo nunca rebaixa valor gravado, e duas execuções concorrentes
+      // (cron × botão manual) não se sobrescrevem. Antes: leitura + merge em
+      // memória + upsert, com janela entre a leitura e a escrita.
+      const { error: mergeError } = await supabaseClient.rpc('upsert_oura_row_merge', {
+        p_table: 'oura_metrics',
+        p_row: metrics,
+      });
 
-      if (existingMetricRowError) {
-        // Sem a linha anterior, o upsert rebaixaria para null tudo que o Oura
-        // não devolveu desta vez (payload esparso) — abortar preserva o histórico.
-        console.error('Failed to fetch existing daily metric for merge; aborting upsert:', existingMetricRowError.message);
-        return jsonResponse(500, {
-          error: 'Falha ao ler a métrica anterior; gravação abortada para não sobrescrever dados.',
-          details: existingMetricRowError.message,
-          date: syncDate,
-        });
-      }
-
-      const mergedMetrics = mergePreservingExisting(
-        metrics as Record<string, unknown>,
-        isPlainObject(existingMetricRow) ? existingMetricRow : null
-      );
-
-      // Upsert metrics
-      const { error: upsertError } = await supabaseClient
-        .from('oura_metrics')
-        .upsert(mergedMetrics, { onConflict: 'student_id,date' });
-
-      if (upsertError) {
-        console.error('Failed to save metrics:', upsertError);
-        return jsonResponse(500, { error: upsertError.message });
+      if (mergeError) {
+        console.error('Failed to save metrics:', mergeError);
+        return jsonResponse(500, { error: mergeError.message });
       }
     }
 
     if (hasAcuteData) {
-      const { data: existingAcuteRow, error: existingAcuteRowError } = await supabaseClient
-        .from('oura_acute_metrics')
-        .select(acuteMetricColumnsForMerge)
-        .eq('student_id', student_id)
-        .eq('date', syncDate)
-        .maybeSingle();
+      // Mesmo merge atômico; só os grupos cuja série veio (payload podado) —
+      // coluna omitida fica intocada na atualização e com DEFAULT na inserção.
+      const { error: acuteMergeError } = await supabaseClient.rpc('upsert_oura_row_merge', {
+        p_table: 'oura_acute_metrics',
+        p_row: acuteUpsertPayload,
+      });
 
-      if (existingAcuteRowError) {
-        // Mesma regra: sem leitura prévia, não gravar (não bloqueante).
-        console.warn('Failed to fetch existing acute metric for merge; skipping acute upsert:', existingAcuteRowError.message);
-        warnings.push('Métricas agudas não gravadas: falha ao ler a linha anterior.');
+      if (acuteMergeError) {
+        // Non-blocking: main daily metrics are already persisted.
+        console.error('Failed to save acute metrics (non-blocking):', acuteMergeError);
+        warnings.push('Falha ao salvar métricas agudas (não bloqueante).');
       } else {
-        const mergedAcuteMetrics = mergePreservingExisting(
-          acuteUpsertPayload,
-          isPlainObject(existingAcuteRow) ? existingAcuteRow : null
-        );
-
-        const { error: acuteUpsertError } = await supabaseClient
-          .from('oura_acute_metrics')
-          .upsert(mergedAcuteMetrics, { onConflict: 'student_id,date' });
-
-        if (acuteUpsertError) {
-          // Non-blocking: main daily metrics are already persisted.
-          console.error('Failed to save acute metrics (non-blocking):', acuteUpsertError);
-          warnings.push('Falha ao salvar métricas agudas (não bloqueante).');
-        } else {
-          acuteWritten = true;
-        }
+        acuteWritten = true;
       }
     }
 
