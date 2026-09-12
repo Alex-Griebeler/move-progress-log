@@ -116,9 +116,16 @@ interface MultiDaySyncResult {
   success: boolean;
   total: number;
   successful: number;
+  /** Dias cuja resposta trouxe algum dado (outcome !== "no_data"). */
+  withData: number;
   failed: number;
   message: string;
 }
+
+const outcomeOf = (value: unknown): string | null =>
+  value && typeof value === "object" && typeof (value as Record<string, unknown>).outcome === "string"
+    ? ((value as Record<string, unknown>).outcome as string)
+    : null;
 
 type SyncResult = { status: "fulfilled"; value: unknown } | { status: "rejected"; reason: unknown };
 
@@ -177,6 +184,10 @@ export const useSyncOura = () => {
 
         const successful = results.filter((r) => r.status === "fulfilled").length;
         const failed = results.filter((r) => r.status === "rejected").length;
+        // Chamada bem-sucedida NÃO é dia com dado: "Sem dados do Oura" também é 200.
+        const withData = results.filter(
+          (r) => r.status === "fulfilled" && outcomeOf(r.value) !== null && outcomeOf(r.value) !== "no_data",
+        ).length;
 
         if (successful === 0) {
           throw new Error("Falha ao sincronizar todos os dias");
@@ -186,11 +197,12 @@ export const useSyncOura = () => {
           success: true,
           total: days,
           successful,
+          withData,
           failed,
           message:
             failed > 0
-              ? `Sincronizados ${successful} de ${days} dias (${failed} com problemas)`
-              : `Todos os ${days} dias sincronizados com sucesso!`,
+              ? `Consultados ${successful} de ${days} dias (${failed} com problemas); ${withData} com dados`
+              : `${withData} de ${days} dias com dados do Oura Ring`,
         };
       }
     },
@@ -221,11 +233,18 @@ export const useSyncOura = () => {
           : null;
       
       if (variables.days && variables.days > 1 && result?.message) {
+        const missing = result.successful - result.withData;
         const description = result.failed > 0
-          ? `${result.successful} dias sincronizados. Alguns dias podem não ter dados disponíveis ainda.`
-          : `${result.successful} dias sincronizados com sucesso!`;
-        
-        notify.success(result.message, { description });
+          ? `${result.successful} dias consultados. Alguns dias podem não ter dados disponíveis ainda.`
+          : missing > 0
+            ? `${missing} dia(s) sem dados no Oura (anel não sincronizado ou dia ainda não fechado).`
+            : "Todos os dias consultados trouxeram dados.";
+
+        if (result.withData === 0) {
+          notify.warning("Sem dados do Oura Ring nos últimos dias", { description: result.message });
+        } else {
+          notify.success(result.message, { description });
+        }
       } else if (singleDayNoDataMessage) {
         notify.warning("Sem novos dados do Oura Ring", {
           description: singleDayNoDataMessage,

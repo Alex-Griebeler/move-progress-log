@@ -8,10 +8,11 @@ O sistema de sincronização do Oura Ring foi completamente automatizado e otimi
 
 ## ✨ Funcionalidades Implementadas
 
-### 1. **Sincronização Automática 2x ao Dia**
-- ⏰ **Horários**: 6h e 18h (horário de Brasília, UTC-3)
+### 1. **Sincronização Automática 3x ao Dia (06h, 10h e 18h de Brasília)**
+- ⏰ **Horários**: 6h, 10h e 18h (horário de Brasília, UTC-3) — 9h, 13h e 21h UTC no pg_cron
 - 🎯 **Objetivo**: Manter métricas sempre atualizadas
   - **6h**: Captura dados do sono/recuperação da noite
+  - **10h**: Pega scores que o Oura finaliza depois das 6h e anéis sincronizados ao acordar
   - **18h**: Captura dados de atividade do dia
 - 🔁 **Retry**: 3 tentativas com backoff exponencial (2s, 4s)
 - 📊 **Logs**: Todas as tentativas são registradas na tabela `oura_sync_logs`
@@ -50,7 +51,7 @@ Melhorias no logging para diagnóstico de problemas:
 
 #### **oura-sync-scheduled** (NOVO)
 ```typescript
-// Roda via pg_cron 2x ao dia (6h e 18h Brasília)
+// Roda via pg_cron 3x ao dia (6h, 10h e 18h Brasília) — jobs versionados em 20260909180000_oura_cron_jobs_versioned.sql
 // Chama oura-sync-all para fazer o trabalho
 ```
 
@@ -144,23 +145,32 @@ Melhorias no logging para diagnóstico de problemas:
 
 O sistema usa **pg_cron** do PostgreSQL para agendar as sincronizações automáticas:
 
+Os três jobs estão versionados na migration `20260909180000_oura_cron_jobs_versioned.sql` (fonte de verdade); a forma é:
+
 ```sql
--- Sincronização da Manhã (6h Brasília = 9h UTC)
+-- Manhã (6h Brasília = 9h UTC)
 SELECT cron.schedule(
   'oura-sync-morning',
   '0 9 * * *',
-  $$ SELECT net.http_post(...) $$
+  $$SELECT private.invoke_cron_edge('oura-sync-scheduled', '{"time":"morning","schedule":"6h"}'::jsonb);$$
 );
 
--- Sincronização da Tarde (18h Brasília = 21h UTC)
+-- Meio da manhã (10h Brasília = 13h UTC)
+SELECT cron.schedule(
+  'oura-sync-midmorning',
+  '0 13 * * *',
+  $$SELECT private.invoke_cron_edge('oura-sync-scheduled', '{"time":"midmorning","schedule":"6h"}'::jsonb);$$
+);
+
+-- Tarde (18h Brasília = 21h UTC)
 SELECT cron.schedule(
   'oura-sync-evening',
   '0 21 * * *',
-  $$ SELECT net.http_post(...) $$
+  $$SELECT private.invoke_cron_edge('oura-sync-scheduled', '{"time":"evening","schedule":"18h"}'::jsonb);$$
 );
 ```
 
-### Por que 6h e 18h?
+### Por que 6h, 10h e 18h?
 
 **6h da manhã:**
 - ✅ Dados do sono da noite já processados pelo Oura
@@ -340,3 +350,22 @@ Acesse `/admin/diagnostico-oura` para:
 5. Em último caso: Reconectar Oura Ring
 
 **Desenvolvedor**: Verificar logs das edge functions e tabela `oura_sync_logs`
+
+
+## 🗓️ Janela de datas e frescor (revisão 2026-09-09)
+
+- **`end_date` é EXCLUSIVO na API v2 do Oura.** `start_date=D&end_date=D` devolve zero documentos; `D..D+1` devolve o dia D (verificado no sandbox oficial para todos os endpoints diários, `sleep` e `workout`). O `oura-sync` pede `D..D+1` e **filtra pelo campo `day`** de cada documento — um documento de outro dia nunca é gravado como D.
+- **Lookback:** cada execução do `oura-sync-all` (cron ou botão "Sincronizar Todos") sincroniza **hoje, ontem e anteontem** (`lookback_days`, padrão 2, máximo 6 — só configurável em chamada manual com service role/admin; o cron e a UI usam o padrão), em sequência por aluna. Hoje tem 3 tentativas; dias anteriores, 2. **Orçamento global de 100 s por execução, contado da entrada** (idle timeout da edge function = 150 s): nenhuma tentativa começa sem ~32 s de saldo (estimativa de uma tentativa: refresh OAuth ≤15 s + 10 chamadas em paralelo ≤15 s, todos com `AbortSignal.timeout`) e **a espera pela chamada ao `oura-sync` é cancelada ao esgotar o saldo** (`AbortSignal.timeout` no fetch interno; a execução filha pode concluir e gravar, e o par fica como falha por orçamento nesta execução). O plano roda "hoje" para todas as alunas antes de "ontem"; passos que não cabem são pulados (`status: skipped`, `truncated: true`, `students_incomplete` na resposta) e o botão/toast mostram "incompleta". **Sem cursor:** a execução seguinte recomeça por "hoje"; sob saturação recorrente (muitas alunas ou `lookback_days` alto), datas antigas podem sair da janela sem serem consultadas — nesse caso, reduzir o lookback ou dividir a execução. Timeouts das chamadas ao Oura via `AbortSignal.timeout` (cancelam requisição e leitura do corpo). Scores que o Oura finaliza depois da última execução do dia são recuperados na execução seguinte; o upsert preserva valores já gravados quando o payload vem esparso. Nas **métricas agudas**, cada grupo (série HRV do sono, série HR do sono, série HR do dia) só entra no upsert quando a série veio nesta chamada: se `sleep` falhou mas `heartrate` respondeu, o grupo HRV sai do payload e o contador `samples_count_hrv` gravado permanece (o motor de recuperação trata contador 0 como "sem HRV"). **Resposta no deadline:** cada par é publicado no agregado assim que tem desfecho, ANTES de esperar o insert do log; só pares sem desfecho viram `skipped`, com mensagem distinguindo "iniciado e em voo" de "não iniciado".
+- **`temperature_deviation`** é campo de topo do `daily_readiness` (não de `contributors`).
+- **Resultado por dia (`outcome`)** em `metrics_synced`: `no_data` | `partial` | `complete` (sono E prontidão) — descreve o que a API DEVOLVEU; falhas não bloqueantes de gravação (acute/workouts) aparecem em `warnings`. A coluna `status` do `oura_sync_logs` continua sendo o sucesso *técnico* da chamada.
+- **UI:** "Última sincronização" = última tentativa; "Último dado real" = dia mais recente com sono/prontidão. Sem dado real há 2+ dias sinaliza problema mesmo com tentativas recentes.
+- **Sonda (admin):** `oura-sync` com `{ student_id, date, probe: true }` consulta a API nas duas janelas (legado D..D e atual D..D+1) e devolve só contagens/dias; não grava métricas/logs/`last_sync_at` (só a renovação do token OAuth, se vencido). Exige **admin** (dono da aluna não passa). Disponível em Diagnósticos → card da aluna → "Sondar D..D vs D..D+1", inclusive quando a aluna **não tem nenhuma linha** em `oura_metrics` (é o caso em que a sonda mais importa) e quando a leitura das métricas falha.
+- **Cron versionado (migration `20260909180000`):** remove por jobid só os jobs cujo comando é **byte a byte** um dos três comandos que ela mesma gera (tolerando espaço em volta e `;` final; comparação case-sensitive) e recria os três (9h/13h/21h UTC). Não há regex de reconhecimento. Qualquer outro job que mencione `oura-sync-scheduled` (comentário, monitoramento, `net.http_post` bruto, payload diferente, literal em outra caixa) ou que ocupe um dos três nomes reservados (`oura-sync-morning/midmorning/evening`) com outro comando (o `cron.schedule` faria upsert por nome e o sobrescreveria) **aborta a migration** listando jobid/nome/comando, para decisão humana. Se os jobs de 6h/18h em produção tiverem texto diferente, a primeira aplicação aborta por desenho: ajustar ou remover manualmente e reaplicar. `truncated` na resposta do `oura-sync-all` só é verdadeiro quando algum par ficou sem desfecho, não quando o deadline pegou a execução apenas esperando um insert de log.
+- **Custo:** 5 alunas × 10 endpoints × 3 dias = 150 chamadas por execução (450/dia), muito abaixo do limite publicado (5.000/5 min).
+- `oura-sync-test` (mock que gravava 2025-11-03 em tabelas reais) foi removido.
+
+### Publish desta revisão (ordem obrigatória)
+1. Edge functions (`oura-sync`, `oura-sync-all`) **antes** do front — o front novo lê `outcome`; sem ele o toast do sync de 7 dias diria "sem dados".
+2. Migration `20260909180000_oura_cron_jobs_versioned.sql`: **antes**, ler `SELECT jobid, jobname, username, command FROM cron.job WHERE command ILIKE '%oura-sync-scheduled%' OR jobname LIKE 'oura-sync-%'` em produção. A migration só remove os jobs cujo comando é exatamente um dos três que ela gera; qualquer outro job que mencione `oura-sync-scheduled` ou ocupe um dos três nomes reservados com outro comando **aborta** a migration (nada é removido). Nesse caso, ajustar/remover o job manualmente e reaplicar.
+3. **Apagar a função `oura-sync-test` implantada** (remover a pasta do repo não apaga a função remota): ela grava mock de 2025-11-03 em tabela real.
+4. Rodar a sonda em 2–3 alunas (hoje e um dia passado). O resultado esperado é **legado D..D = 0 documentos e atual D..D+1 = 1 documento do dia D**: isso confirma que os dias vazios no histórico são lacunas da janela antiga, não ausência de dado no Oura. Nesse caso, backfill com "Sincronizar últimos 7 dias" por aluna (o merge só preenche/substitui com valor real). Se a sonda mostrar 0 nas duas janelas, a aluna não sincronizou o anel; não há o que recuperar.

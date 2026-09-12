@@ -55,7 +55,6 @@ fi
 baseline_count() {
   case "$1" in
     create-student-from-invite)       echo "6" ;;
-    oura-sync-test)                   echo "1" ;;
     smoke-test-integrity)             echo "1" ;;
     submit-precision12-questionnaire) echo "1" ;;
     *)                                echo "" ;;
@@ -68,7 +67,6 @@ baseline_count() {
 baseline_msg() {
   case "$1" in
     create-student-from-invite)       echo "type 'never'" ;;
-    oura-sync-test)                   echo "temperature_deviation" ;;
     smoke-test-integrity)             echo "string | undefined" ;;
     submit-precision12-questionnaire) echo "ts-expect-error" ;;
     *)                                echo "" ;;
@@ -78,7 +76,6 @@ baseline_msg() {
 short_reason() {
   case "$1" in
     create-student-from-invite)       echo "untyped Supabase client -> never on update/insert" ;;
-    oura-sync-test)                   echo "missing optional Oura contributor field (guarded by ?.)" ;;
     smoke-test-integrity)             echo "fetch url possibly-undefined (env-guarded, not a live route)" ;;
     submit-precision12-questionnaire) echo "dead @ts-expect-error directive" ;;
     *)                                echo "tracked type debt" ;;

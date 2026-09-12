@@ -29,10 +29,6 @@ verify_jwt = false
 [functions.oura-sync]
 verify_jwt = false
 
-# Service role endpoint - uses internal authentication for testing
-[functions.oura-sync-test]
-verify_jwt = false
-
 [functions.oura-disconnect]
 verify_jwt = true
 

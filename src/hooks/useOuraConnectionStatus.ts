@@ -1,11 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/utils/logger";
+import { spToday } from "@/hooks/useOuraMetrics";
+import { evaluateOuraFreshness } from "@/utils/ouraFreshness";
 
 interface OuraConnectionStatus {
   isConnected: boolean;
   hasIssues: boolean;
+  /** Última TENTATIVA (avança mesmo sem dados). */
   lastSyncAt: string | null;
+  /** Último dia com sono/prontidão de verdade. */
+  lastRealDataDate: string | null;
+  /** Frase curta do estado (badge/tooltip). */
+  summary: string | null;
   recentFailed: number;
 }
 
@@ -30,6 +37,8 @@ export const useOuraConnectionStatus = (studentId: string) => {
           isConnected: false,
           hasIssues: false,
           lastSyncAt: null,
+          lastRealDataDate: null,
+          summary: null,
           recentFailed: 0,
         };
       }
@@ -48,14 +57,36 @@ export const useOuraConnectionStatus = (studentId: string) => {
 
       const recentFailed = failedLogs?.length || 0;
 
-      // Verificar se última sync foi há mais de 24h
-      const lastSync = connection.last_sync_at ? new Date(connection.last_sync_at) : null;
-      const isStale = lastSync ? Date.now() - lastSync.getTime() > 24 * 60 * 60 * 1000 : true;
+      // Último DADO REAL (sono ou prontidão) — `last_sync_at` só diz que tentou.
+      const { data: lastReal, error: lastRealError } = await supabase
+        .from("oura_metrics")
+        .select("date")
+        .eq("student_id", studentId)
+        .or("sleep_score.not.is.null,readiness_score.not.is.null")
+        .lte("date", spToday())
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastRealError) {
+        // Falha de leitura NÃO é "nenhum dado ainda": deixa a query em erro
+        // em vez de afirmar ausência de histórico.
+        logger.warn("[useOuraConnectionStatus] failed to load last real data date", lastRealError);
+        throw lastRealError;
+      }
+
+      const freshness = evaluateOuraFreshness({
+        lastSyncAt: connection.last_sync_at,
+        lastRealDataDate: lastReal?.date ?? null,
+        recentFailed,
+        today: spToday(),
+      });
 
       return {
         isConnected: true,
-        hasIssues: recentFailed > 0 || isStale,
+        hasIssues: freshness.hasIssues,
         lastSyncAt: connection.last_sync_at,
+        lastRealDataDate: lastReal?.date ?? null,
+        summary: freshness.summary,
         recentFailed,
       };
     },
