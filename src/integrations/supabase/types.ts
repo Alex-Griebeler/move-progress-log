@@ -3693,6 +3693,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      upsert_oura_row_merge: {
+        Args: { p_row: Json; p_table: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "trainer" | "moderator"
