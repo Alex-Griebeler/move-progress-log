@@ -1,15 +1,5 @@
-# Publicação segura da versão atual
+# Substituir o secret do espelho de wearables
 
-## Objetivo
-Publicar a versão mais recente da `main` sem incluir o commit local indesejado e com o merge atômico do Oura funcionando em produção.
-
-## Etapas
-1. Descartar o estado local indesejado e sincronizar o projeto com a `main`.
-2. Aplicar a migração pendente `20260912150000_oura_upsert_merge_rpc.sql`.
-3. Republicar as funções Oura afetadas para usar o merge atômico.
-4. Verificar o resultado da atualização e os bloqueios críticos de segurança.
-5. Publicar o frontend atualizado em `move-progress-log.lovable.app`.
-6. Confirmar a versão publicada e executar uma verificação rápida dos fluxos essenciais.
-
-## Resultado esperado
-A versão pública ficará alinhada à `main`, sem a regressão local do timer e com a proteção contra sobrescrita de métricas Oura ativa.
+1. Abrir o formulário seguro para substituir o valor de `WEARABLE_MIRROR_SECRET`.
+2. Alex cola o novo valor diretamente no formulário; o valor não será exibido no chat.
+3. Não alterar arquivos, funções, migrations, crons ou policies, e não chamar nenhuma função.
