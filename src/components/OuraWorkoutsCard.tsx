@@ -118,7 +118,7 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Calorias</p>
-                    <p className="text-sm font-semibold">{workout.calories} kcal</p>
+                    <p className="text-sm font-semibold">{Math.round(workout.calories)} kcal</p>
                   </div>
                 </div>
               )}
