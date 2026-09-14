@@ -3864,25 +3864,7 @@ export type Database = {
         }
         Returns: undefined
       }
-      store_oura_tokens_before_mirror_lock: {
-        Args: {
-          p_access_token: string
-          p_refresh_token: string
-          p_student_id: string
-          p_token_expires_at: string
-        }
-        Returns: undefined
-      }
       store_whoop_tokens: {
-        Args: {
-          p_access_token: string
-          p_refresh_token: string
-          p_student_id: string
-          p_token_expires_at: string
-        }
-        Returns: undefined
-      }
-      store_whoop_tokens_before_mirror_lock: {
         Args: {
           p_access_token: string
           p_refresh_token: string
