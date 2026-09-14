@@ -1,8 +1,10 @@
 // wearable-mirror-export — exportador SOMENTE LEITURA do espelho Oura/Whoop para o app pessoal
 // (ag_performance). Plano: docs/ESPELHO_WEARABLES.md no repo ag-performance.
 //
-// Autenticação própria: cabeçalho x-wearable-mirror-secret comparado em tempo constante com o secret
-// WEARABLE_MIRROR_SECRET, ANTES de qualquer acesso ao banco. verify_jwt=false no gateway.
+// Autenticação própria: assinatura Ed25519 do app pessoal (cabeçalhos x-wearable-mirror-timestamp e
+// x-wearable-mirror-signature, janela de 5 min) conferida contra a chave PÚBLICA abaixo, ANTES de qualquer
+// acesso ao banco. A chave privada fica só no Vault do app pessoal; nenhum segredo é guardado aqui.
+// verify_jwt=false no gateway.
 // Entrada: { "schema_version": 1, "scope": "all" } ou
 //          { "schema_version": 1, "scope": "one", "grant_id": uuid, "destination_student_id": uuid }.
 // Saída: o snapshot montado por public.wearable_mirror_export_snapshot, conferido contra o contrato v1
@@ -12,6 +14,12 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.0";
 import { parseMirrorSnapshot } from "../_shared/wearableMirror/contract.ts";
+import { readBodyLimited, verifyMirrorRequest } from "../_shared/wearableMirror/signature.ts";
+
+// Chave pública Ed25519 do app pessoal (não é segredo). Trocar a chave = trocar esta linha.
+const WEARABLE_MIRROR_PUBLIC_KEY = "GtHx-sSkM9oiUKr97_WgV-GlqFkLQubqWZiNvMh4PNQ";
+// Destino que o app pessoal assina (host + caminho desta função); pedido assinado para outro endereço não vale.
+const WEARABLE_MIRROR_AUDIENCE = "zrgfrdmywxlemcuiqtqg.supabase.co/functions/v1/wearable-mirror-export";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -21,24 +29,28 @@ const json = (status: number, body: unknown) =>
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 
-function secretsMatch(provided: string | null, expected: string | undefined): boolean {
-  if (!provided || !expected || expected.length < 32) return false;
-  const a = new TextEncoder().encode(provided);
-  const b = new TextEncoder().encode(expected);
-  let diff = a.length ^ b.length;
-  for (let i = 0; i < Math.max(a.length, b.length); i++) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
-  return diff === 0;
-}
-
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json(405, { error: "method_not_allowed" });
-  if (!secretsMatch(req.headers.get("x-wearable-mirror-secret"), Deno.env.get("WEARABLE_MIRROR_SECRET"))) {
-    return json(401, { error: "unauthorized" });
+  let bodyText: string | null;
+  try {
+    bodyText = await readBodyLimited(req);
+  } catch {
+    return json(400, { error: "invalid_body" });
   }
+  if (bodyText === null) return json(401, { error: "unauthorized" });
+  const signed = await verifyMirrorRequest(
+    WEARABLE_MIRROR_PUBLIC_KEY,
+    WEARABLE_MIRROR_AUDIENCE,
+    bodyText,
+    req.headers.get("x-wearable-mirror-timestamp"),
+    req.headers.get("x-wearable-mirror-signature"),
+    Date.now() / 1000,
+  );
+  if (!signed) return json(401, { error: "unauthorized" });
 
   let body: Record<string, unknown>;
   try {
-    body = await req.json();
+    body = JSON.parse(bodyText);
   } catch {
     return json(400, { error: "invalid_body" });
   }

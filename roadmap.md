@@ -1,3 +1,0 @@
-- [ ] Criar o verificador de assinatura Ed25519 exatamente como fornecido
-- [ ] Substituir a autenticação da função exatamente como fornecido
-- [ ] Publicar somente wearable-mirror-export
