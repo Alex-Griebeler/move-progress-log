@@ -2742,6 +2742,7 @@ export type Database = {
           avatar_url: string | null
           birth_date: string | null
           created_at: string
+          external_source: string | null
           fitness_level: string | null
           height_cm: number | null
           home_gym_name: string | null
@@ -2766,6 +2767,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           created_at?: string
+          external_source?: string | null
           fitness_level?: string | null
           height_cm?: number | null
           home_gym_name?: string | null
@@ -2790,6 +2792,7 @@ export type Database = {
           avatar_url?: string | null
           birth_date?: string | null
           created_at?: string
+          external_source?: string | null
           fitness_level?: string | null
           height_cm?: number | null
           home_gym_name?: string | null
@@ -3083,6 +3086,171 @@ export type Database = {
           source?: string | null
           vo2_max?: number
           vo2_min?: number
+        }
+        Relationships: []
+      }
+      wearable_mirror_grants: {
+        Row: {
+          authorization_reference: string
+          authorized_at: string
+          authorized_by: string | null
+          created_at: string
+          destination_app: string
+          destination_student_id: string
+          history_from: string | null
+          id: string
+          next_refresh_allowed_at: string | null
+          oura_invite_id: string | null
+          providers: string[]
+          revision: number
+          revoked_at: string | null
+          source_student_id: string
+          updated_at: string
+          whoop_invite_id: string | null
+        }
+        Insert: {
+          authorization_reference: string
+          authorized_at?: string
+          authorized_by?: string | null
+          created_at?: string
+          destination_app?: string
+          destination_student_id: string
+          history_from?: string | null
+          id?: string
+          next_refresh_allowed_at?: string | null
+          oura_invite_id?: string | null
+          providers: string[]
+          revision?: number
+          revoked_at?: string | null
+          source_student_id: string
+          updated_at?: string
+          whoop_invite_id?: string | null
+        }
+        Update: {
+          authorization_reference?: string
+          authorized_at?: string
+          authorized_by?: string | null
+          created_at?: string
+          destination_app?: string
+          destination_student_id?: string
+          history_from?: string | null
+          id?: string
+          next_refresh_allowed_at?: string | null
+          oura_invite_id?: string | null
+          providers?: string[]
+          revision?: number
+          revoked_at?: string | null
+          source_student_id?: string
+          updated_at?: string
+          whoop_invite_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wearable_mirror_grants_oura_invite_id_fkey"
+            columns: ["oura_invite_id"]
+            isOneToOne: false
+            referencedRelation: "student_invites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wearable_mirror_grants_source_student_id_fkey"
+            columns: ["source_student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wearable_mirror_grants_whoop_invite_id_fkey"
+            columns: ["whoop_invite_id"]
+            isOneToOne: false
+            referencedRelation: "student_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wearable_mirror_operations: {
+        Row: {
+          attempts: number
+          current_step: string | null
+          error_code: string | null
+          finished_at: string | null
+          grant_id: string | null
+          grant_revision: number | null
+          id: string
+          kind: string
+          next_attempt_at: string | null
+          request_hash: string
+          request_id: string
+          requested_at: string
+          started_at: string | null
+          status: string
+          steps: Json
+        }
+        Insert: {
+          attempts?: number
+          current_step?: string | null
+          error_code?: string | null
+          finished_at?: string | null
+          grant_id?: string | null
+          grant_revision?: number | null
+          id?: string
+          kind: string
+          next_attempt_at?: string | null
+          request_hash: string
+          request_id: string
+          requested_at?: string
+          started_at?: string | null
+          status?: string
+          steps?: Json
+        }
+        Update: {
+          attempts?: number
+          current_step?: string | null
+          error_code?: string | null
+          finished_at?: string | null
+          grant_id?: string | null
+          grant_revision?: number | null
+          id?: string
+          kind?: string
+          next_attempt_at?: string | null
+          request_hash?: string
+          request_id?: string
+          requested_at?: string
+          started_at?: string | null
+          status?: string
+          steps?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wearable_mirror_operations_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "wearable_mirror_grants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wearable_sync_locks: {
+        Row: {
+          acquired_at: string
+          blocked_until: string | null
+          expires_at: string
+          lock_key: string
+          owner_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          blocked_until?: string | null
+          expires_at: string
+          lock_key: string
+          owner_id: string
+        }
+        Update: {
+          acquired_at?: string
+          blocked_until?: string | null
+          expires_at?: string
+          lock_key?: string
+          owner_id?: string
         }
         Relationships: []
       }
