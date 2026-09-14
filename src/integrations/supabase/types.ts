@@ -3171,6 +3171,7 @@ export type Database = {
       wearable_mirror_operations: {
         Row: {
           attempts: number
+          authorization_reference: string | null
           current_step: string | null
           error_code: string | null
           finished_at: string | null
@@ -3178,7 +3179,10 @@ export type Database = {
           grant_revision: number | null
           id: string
           kind: string
+          lease_owner: string | null
+          lease_until: string | null
           next_attempt_at: string | null
+          parent_operation_id: string | null
           request_hash: string
           request_id: string
           requested_at: string
@@ -3188,6 +3192,7 @@ export type Database = {
         }
         Insert: {
           attempts?: number
+          authorization_reference?: string | null
           current_step?: string | null
           error_code?: string | null
           finished_at?: string | null
@@ -3195,7 +3200,10 @@ export type Database = {
           grant_revision?: number | null
           id?: string
           kind: string
+          lease_owner?: string | null
+          lease_until?: string | null
           next_attempt_at?: string | null
+          parent_operation_id?: string | null
           request_hash: string
           request_id: string
           requested_at?: string
@@ -3205,6 +3213,7 @@ export type Database = {
         }
         Update: {
           attempts?: number
+          authorization_reference?: string | null
           current_step?: string | null
           error_code?: string | null
           finished_at?: string | null
@@ -3212,7 +3221,10 @@ export type Database = {
           grant_revision?: number | null
           id?: string
           kind?: string
+          lease_owner?: string | null
+          lease_until?: string | null
           next_attempt_at?: string | null
+          parent_operation_id?: string | null
           request_hash?: string
           request_id?: string
           requested_at?: string
@@ -3226,6 +3238,13 @@ export type Database = {
             columns: ["grant_id"]
             isOneToOne: false
             referencedRelation: "wearable_mirror_grants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wearable_mirror_operations_parent_operation_id_fkey"
+            columns: ["parent_operation_id"]
+            isOneToOne: false
+            referencedRelation: "wearable_mirror_operations"
             referencedColumns: ["id"]
           },
         ]
@@ -3865,11 +3884,22 @@ export type Database = {
         Args: { p_row: Json; p_table: string }
         Returns: undefined
       }
+      wearable_mirror_control: { Args: { p_body: Json }; Returns: Json }
       wearable_mirror_export_snapshot: {
         Args: {
           p_destination_student_id?: string
           p_grant_id?: string
           p_scope: string
+        }
+        Returns: Json
+      }
+      wearable_mirror_refresh_step: {
+        Args: {
+          p_destination: string
+          p_operation: string
+          p_owner: string
+          p_result?: string
+          p_retry_seconds?: number
         }
         Returns: Json
       }
