@@ -3865,6 +3865,14 @@ export type Database = {
         Args: { p_row: Json; p_table: string }
         Returns: undefined
       }
+      wearable_mirror_export_snapshot: {
+        Args: {
+          p_destination_student_id?: string
+          p_grant_id?: string
+          p_scope: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "trainer" | "moderator"
