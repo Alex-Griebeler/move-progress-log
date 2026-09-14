@@ -1,3 +1,4 @@
+import {syncContext,mirrorLogger} from '../_shared/wearableMirror/locks.ts';
 import { resolveFrontendUrl as sharedResolveFrontendUrl } from '../_shared/frontendOrigin.ts';
 import { peekInviteToken } from '../_shared/wearable/oauthState.ts';
 
@@ -40,6 +41,8 @@ const resolveFrontendUrl = (
   );
 
 Deno.serve(async (req) => {
+  const console = mirrorLogger;
+  let mirrorSync: ReturnType<typeof syncContext> | undefined;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -199,6 +202,15 @@ Deno.serve(async (req) => {
       clientSecretPresent: !!ouraClientSecret,
     });
 
+    mirrorSync = syncContext(supabaseUrl ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    const supabaseClient = mirrorSync.db;
+    try {
+      await mirrorSync.acquire(`oauth:oura:${student_id}`);
+    } catch (_lockError) {
+      // Trava ocupada/indisponível: o código OAuth não é trocado e o convite volta a valer para nova tentativa.
+      await releaseInviteForRetry('sync_busy');
+      return Response.redirect(buildOuraErrorUrl('token_exchange', validatedInvite.invite_token), 302);
+    }
     const tokenResponse = await fetch('https://api.ouraring.com/oauth/token', {
       method: 'POST',
       headers: {
@@ -247,7 +259,7 @@ Deno.serve(async (req) => {
     expiresAt.setSeconds(expiresAt.getSeconds() + tokenData.expires_in);
 
     // Reuse validation client for token storage
-    const supabaseClient = supabaseValidationClient;
+
 
     // Store tokens securely in Vault using database function
     const { error: insertError } = await supabaseClient.rpc('store_oura_tokens', {
@@ -264,6 +276,12 @@ Deno.serve(async (req) => {
       return Response.redirect(buildOuraErrorUrl('database', validatedInvite.invite_token), 302);
     }
 
+    // Tokens já gravados: falha momentânea ao soltar a trava não vira erro para o cliente nem pula o backfill.
+    try {
+      await mirrorSync.release(`oauth:oura:${student_id}`);
+    } catch (_releaseError) {
+      // segue: o finally close() tenta de novo e o lease vence sozinho
+    }
     console.log(`Oura connection saved for student ${student_id}`);
 
     // OCB-09 already atomically set is_used=true before the token exchange.
@@ -328,5 +346,5 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in oura-callback:', error);
     return new Response('Internal server error', { status: 500 });
-  }
+  } finally { await mirrorSync?.close(); }
 });

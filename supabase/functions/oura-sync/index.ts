@@ -1,3 +1,4 @@
+import {syncContext,mirrorLogger} from '../_shared/wearableMirror/locks.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   ACUTE_METRIC_GROUPS,
@@ -73,6 +74,8 @@ const isUnauthorizedStatus = (status: number): boolean =>
   status === 401 || status === 403;
 
 Deno.serve(async (req) => {
+  const console = mirrorLogger;
+  let mirrorSync: ReturnType<typeof syncContext> | undefined;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -181,7 +184,13 @@ Deno.serve(async (req) => {
       `Syncing Oura data for student ${student_id}, date: ${date || 'today'}, force_sync: ${force_sync}`
     );
 
-    const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
+    // Data calculada uma única vez: a trava de coleta e as gravações usam exatamente o mesmo dia.
+    const lockDate = date || todayInSaoPaulo();
+    const collectKey = `collect:oura:${student_id}:${lockDate}`;
+    mirrorSync = syncContext(supabaseUrl, serviceRoleKey);
+    const supabaseClient = mirrorSync.db;
+    await mirrorSync.acquire(collectKey);
+    await mirrorSync.acquire(`oauth:oura:${student_id}`);
 
     // Get Oura connection metadata
     const { data: connection, error: connError } = await supabaseClient
@@ -249,6 +258,11 @@ Deno.serve(async (req) => {
         }).toString(),
       });
 
+      if (refreshResponse.status === 429) {
+        const seconds = Math.min(86400,Math.max(60,Number(refreshResponse.headers.get('Retry-After'))||60));
+        await mirrorSync.block(seconds);
+        return new Response(JSON.stringify({error:'rate_limited'}),{status:429,headers:{...jsonHeaders,'Retry-After':String(seconds)}});
+      }
       if (!refreshResponse.ok) {
         const errorText = await refreshResponse.text();
         console.error('Token refresh failed:', {
@@ -319,6 +333,12 @@ Deno.serve(async (req) => {
       console.log('Token refreshed successfully');
     }
 
+    try {
+      await mirrorSync.release(`oauth:oura:${student_id}`);
+    } catch (_releaseError) {
+      // Tokens já gravados: segue a coleta; o finally close() tenta de novo e o lease vence sozinho.
+    }
+
     // Determine date to sync — O-03: Use Intl.DateTimeFormat for correct Brazil timezone
     let syncDate: string;
     const DEBUG = Deno.env.get('DEBUG_OURA') === 'true';
@@ -328,7 +348,7 @@ Deno.serve(async (req) => {
       if (DEBUG) console.log('Using explicitly provided date:', syncDate);
     } else {
       // O-03: Intl.DateTimeFormat handles DST automatically
-      syncDate = todayInSaoPaulo();
+      syncDate = lockDate;
       if (DEBUG) console.log('Calculated Brazil date:', syncDate);
     }
 
@@ -346,7 +366,18 @@ Deno.serve(async (req) => {
     // leitura do corpo (Promise.race só abandonava a promessa; o fetch e o
     // res.json() continuavam sem teto).
     const OURA_TIMEOUT = 15_000;
-    const ouraFetch = (url: string) => fetch(url, { headers, signal: AbortSignal.timeout(OURA_TIMEOUT) });
+    let mirrorRateLimit = 0;
+    const ouraFetch = async (url: string) => {
+      const res = await fetch(url, { headers, signal: mirrorSync!.signal() });
+      if (res.status === 429) {
+        const raw = res.headers.get('Retry-After');
+        const seconds = raw ? Number(raw) || Math.ceil((Date.parse(raw)-Date.now())/1000) : 60;
+        mirrorRateLimit = Math.max(mirrorRateLimit, Number.isFinite(seconds) ? seconds : 60, 60);
+        // Limite de dados bloqueia só a coleta deste dia; a reconexão OAuth do cliente continua possível.
+        await mirrorSync!.block(mirrorRateLimit, collectKey);
+      }
+      return res;
+    };
 
     if (probe) {
       const probeEndpoints = ['daily_readiness', 'daily_sleep', 'sleep', 'daily_activity', 'workout'] as const;
@@ -504,6 +535,10 @@ Deno.serve(async (req) => {
       (item) => item.response && item.response.ok
     );
     if (successfulEndpoints.length === 0) {
+      // 429 só quando nada veio: com parte dos endpoints ok, grava o que chegou e o limite vira aviso.
+      if (mirrorRateLimit) {
+        return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { ...jsonHeaders, 'Retry-After': String(mirrorRateLimit) } });
+      }
       return jsonResponse(502, {
         error: 'Falha ao consultar a API do Oura Ring',
         details: 'Nenhum endpoint retornou sucesso.',
@@ -802,7 +837,7 @@ Deno.serve(async (req) => {
 
       if (mergeError) {
         console.error('Failed to save metrics:', mergeError);
-        return jsonResponse(500, { error: mergeError.message });
+        return jsonResponse(500, { error: 'Falha ao gravar métricas do Oura Ring' });
       }
     }
 
@@ -890,8 +925,12 @@ Deno.serve(async (req) => {
       warnings,
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error in oura-sync:', error);
-    return jsonResponse(500, { error: message });
-  }
+    const code = error instanceof Error ? error.message : '';
+    if (code === 'sync_busy') return jsonResponse(423, { error: 'sync_busy' });
+    if (code === 'sync_blocked') {
+      const retryAfter = String((error as { retryAfter?: number }).retryAfter ?? 60);
+      return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { ...jsonHeaders, 'Retry-After': retryAfter } });
+    }
+    return jsonResponse(500, { error: 'Erro interno na sincronização do Oura Ring' });
+  } finally { await mirrorSync?.close(); }
 });

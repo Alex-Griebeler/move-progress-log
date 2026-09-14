@@ -128,3 +128,7 @@ verify_jwt = false
 # Espelho de wearables para o app pessoal: autenticação própria por segredo (x-wearable-mirror-secret), validada no código
 [functions.wearable-mirror-export]
 verify_jwt = false
+
+# Espelho de wearables: controle chamado pelo app pessoal com assinatura Ed25519 validada no código
+[functions.wearable-mirror-control]
+verify_jwt = false

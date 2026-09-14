@@ -99,7 +99,7 @@ Deno.test("ensureAccessToken: invalid_grant (400) logs, deactivates, returns per
   assertEquals(res.status, 401);
   assertEquals(calls.logs[0].table, "whoop_sync_logs");
   assertEquals(calls.logs[0].row.status, "failed");
-  assertEquals(calls.logs[0].row.error_message.startsWith("token_refresh: "), true);
+  assertEquals(calls.logs[0].row.error_message, "token_refresh_invalid");
   const deact = calls.updates.find((u) => u.table === "whoop_connections" && u.row.is_active === false);
   assertEquals(!!deact, true);
 });
@@ -167,7 +167,7 @@ Deno.test("ensureAccessToken: store_whoop_tokens RPC failure → TRANSIENT, no d
   assertEquals(res.permanent, false);
   assertEquals(res.status, 502);
   assertEquals(calls.logs[0].row.status, "failed");
-  assertEquals(calls.logs[0].row.error_message.includes("persistência"), true);
+  assertEquals(calls.logs[0].row.error_message, "token_refresh_unavailable");
   const deact = calls.updates.find((u) => u.table === "whoop_connections" && u.row.is_active === false);
   assertEquals(!!deact, false);
 });

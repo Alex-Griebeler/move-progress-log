@@ -1,3 +1,4 @@
+export class RateLimited extends Error { constructor(public seconds:number){super('rate_limited');} }
 import { assembleDailyMetrics, mapWorkouts } from '../_shared/wearable/mapWhoop.ts';
 import { WHOOP } from '../_shared/wearable/providerConfig.ts';
 
@@ -12,16 +13,26 @@ export interface Collections {
 }
 
 // Paginate one WHOOP v2 collection over [start, end].
-async function page(accessToken: string, path: string, start: string, end: string): Promise<Rec[]> {
+async function page(accessToken: string, path: string, start: string, end: string, signal: AbortSignal): Promise<Rec[]> {
   const out: Rec[] = [];
   let nextToken: string | undefined;
+  const seen = new Set<string>();
   do {
+    signal.throwIfAborted();
+    if (nextToken && seen.has(nextToken)) throw new Error("pagination_incomplete");
+    if (nextToken) seen.add(nextToken);
+    if (seen.size > 200) throw new Error("pagination_incomplete");
     const url = new URL(`${WHOOP.apiBase}${path}`);
     url.searchParams.set('start', start);
     url.searchParams.set('end', end);
     url.searchParams.set('limit', '25');
     if (nextToken) url.searchParams.set('nextToken', nextToken);
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const res = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]), headers: { Authorization: `Bearer ${accessToken}` } });
+    if (res.status === 429) {
+      const raw=res.headers.get('Retry-After');
+      const seconds=raw ? Number(raw)||Math.ceil((Date.parse(raw)-Date.now())/1000) : 60;
+      throw new RateLimited(Number.isFinite(seconds)?Math.max(60,seconds):60);
+    }
     if (!res.ok) throw new Error(`${path} ${res.status}`);
     const j = await res.json();
     out.push(...(j.records ?? []));
@@ -31,12 +42,13 @@ async function page(accessToken: string, path: string, start: string, end: strin
 }
 
 // Real network fetcher (prod). Injected in tests.
-export async function fetchCollectionsReal(accessToken: string, start: string, end: string): Promise<Collections> {
+export async function fetchCollectionsReal(accessToken: string, start: string, end: string, overall: AbortSignal = AbortSignal.timeout(75000)): Promise<Collections> {
+  const signal = AbortSignal.any([overall, AbortSignal.timeout(75000)]);
   const [cycles, recoveries, sleeps, workouts] = await Promise.all([
-    page(accessToken, '/v2/cycle', start, end),
-    page(accessToken, '/v2/recovery', start, end),
-    page(accessToken, '/v2/activity/sleep', start, end),
-    page(accessToken, '/v2/activity/workout', start, end),
+    page(accessToken, '/v2/cycle', start, end, signal),
+    page(accessToken, '/v2/recovery', start, end, signal),
+    page(accessToken, '/v2/activity/sleep', start, end, signal),
+    page(accessToken, '/v2/activity/workout', start, end, signal),
   ]);
   return { cycles, recoveries, sleeps, workouts };
 }
@@ -98,7 +110,7 @@ export async function syncStudent(
     });
     return { synced: rows.length, workouts_synced: workoutRows.length };
   } catch (e) {
-    await supa.from('whoop_sync_logs').insert({ student_id: args.student_id, status: 'failed', error_message: errorMessage(e) });
+    await supa.from('whoop_sync_logs').insert({ student_id: args.student_id, status: 'failed', error_message: 'sync_failed' });
     throw e;
   }
 }

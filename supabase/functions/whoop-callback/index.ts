@@ -1,3 +1,4 @@
+import {syncContext,mirrorLogger} from '../_shared/wearableMirror/locks.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { resolveFrontendUrl as sharedResolveFrontendUrl } from '../_shared/frontendOrigin.ts';
 import { claimInvite, parseState, peekInviteToken, releaseInvite } from '../_shared/wearable/oauthState.ts';
@@ -21,6 +22,8 @@ const decodeBase64Url = (value: string | null): string | null => {
 };
 
 Deno.serve(async (req) => {
+  const console = mirrorLogger;
+  let mirrorSync: ReturnType<typeof syncContext> | undefined;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -44,7 +47,8 @@ Deno.serve(async (req) => {
     const { student_id, invite_id, encodedOrigin } = parsed;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supa = createClient(supabaseUrl ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    mirrorSync = syncContext(supabaseUrl ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+    const supa = mirrorSync.db;
 
     const frontendUrl = sharedResolveFrontendUrl(req, decodeBase64Url(encodedOrigin));
     if (!frontendUrl) {
@@ -76,6 +80,13 @@ Deno.serve(async (req) => {
 
     const redirectUri = `${supabaseUrl}/functions/v1/whoop-callback`;
 
+    try {
+      await mirrorSync.acquire(`oauth:whoop:${student_id}`);
+    } catch (_lockError) {
+      // Trava ocupada/indisponível: o código OAuth não é trocado e o convite volta a valer para nova tentativa.
+      await releaseInvite(supa, invite_id);
+      return Response.redirect(errorUrl('token_exchange', invite.invite_token), 302);
+    }
     let tokens;
     try {
       tokens = await exchangeCode(WHOOP, code, redirectUri);
@@ -100,6 +111,12 @@ Deno.serve(async (req) => {
       return Response.redirect(errorUrl('database', invite.invite_token), 302);
     }
 
+    // Tokens já gravados: falha momentânea ao soltar a trava não vira erro para o cliente nem pula o backfill.
+    try {
+      await mirrorSync.release(`oauth:whoop:${student_id}`);
+    } catch (_releaseError) {
+      // segue: o finally close() tenta de novo e o lease vence sozinho
+    }
     await supa.from('student_invites').update({ used_at: new Date().toISOString() }).eq('id', invite_id);
 
     // Initial backfill (whoop-sync computes its own last-30-days window).
@@ -120,5 +137,5 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in whoop-callback:', error);
     return new Response('Internal server error', { status: 500 });
-  }
+  } finally { await mirrorSync?.close(); }
 });
