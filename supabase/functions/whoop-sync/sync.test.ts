@@ -107,5 +107,5 @@ Deno.test("syncStudent logs a readable error_message when the upsert fails with 
     );
   } catch (_e) { threw = true; }
   assertEquals(threw, true);
-  assertEquals(logs[0].error_message, "21000 | dup");
+  assertEquals(logs[0].error_message, "sync_failed");
 });

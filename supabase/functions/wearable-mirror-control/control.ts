@@ -40,7 +40,7 @@ export function validControl(b: Record<string, unknown>): boolean {
 export function validRequestedAt(v: unknown, nowMs = Date.now()): boolean {
   if (
     typeof v !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.\d{1,6})?Z$/.test(v)
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/.test(v)
   ) return false;
   const t = Date.parse(v);
   return Number.isFinite(t) && t <= nowMs + 5 * 60_000;

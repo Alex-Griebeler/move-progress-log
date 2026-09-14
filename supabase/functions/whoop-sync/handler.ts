@@ -62,7 +62,7 @@ export interface RefreshDeps {
 
 export type RefreshOutcome =
   | { ok: true; accessToken: string }
-  | { ok: false; status: number; error: string; permanent: boolean };
+  | { ok: false; status: number; error: string; permanent: boolean; retryAfter?: number };
 
 // Refresh the WHOOP access token when missing/near-expiry. On failure this
 // logs a whoop_sync_logs row (status=failed, error_message prefixed with
@@ -101,7 +101,7 @@ export async function ensureAccessToken(
     return { ok: true, accessToken: refreshed.access_token };
   } catch (e) {
     const permanent = isPermanentTokenFailure(e);
-    const msg = `token_refresh: ${errorMessage(e)}`;
+    const msg = permanent ? 'token_refresh_invalid' : 'token_refresh_unavailable';
     await supa.from('whoop_sync_logs').insert({
       student_id: args.student_id,
       status: 'failed',
@@ -110,6 +110,6 @@ export async function ensureAccessToken(
     if (permanent) {
       await supa.from('whoop_connections').update({ is_active: false }).eq('student_id', args.student_id);
     }
-    return { ok: false, status: permanent ? 401 : 502, error: msg, permanent };
+    return { ok: false, status: permanent ? 401 : e instanceof TokenHttpError && e.status === 429 ? 429 : 502, error: msg, permanent, retryAfter: e instanceof TokenHttpError ? e.retryAfter : undefined };
   }
 }

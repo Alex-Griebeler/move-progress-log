@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
 
     const { data: connections, error } = await supabase
       .from('whoop_connections')
-      .select('student_id, students ( name )')
+      .select('student_id, students ( name, external_source )')
       .eq('is_active', true);
     if (error) throw error;
     if (!connections || connections.length === 0) {
@@ -60,6 +60,15 @@ Deno.serve(async (req) => {
       for (const r of batchResults) if (r.status === 'fulfilled') results.push(r.value as SyncResult);
     }
 
+    // Fichas mínimas do espelho: sincronizadas, mas fora do nome e das contagens devolvidos à tela da Fabrik.
+    const externalIds = new Set(
+      connections
+        .filter((c) => ((c as Record<string, unknown>).students as Record<string, unknown> | null)?.external_source)
+        .map((c) => (c as Record<string, unknown>).student_id as string),
+    );
+    const visible = results.filter((r) => !externalIds.has(r.student_id));
+    results.length = 0;
+    results.push(...visible);
     const successCount = results.filter((r) => r.status === 'success').length;
     const failedCount = results.filter((r) => r.status === 'failed').length;
     return new Response(

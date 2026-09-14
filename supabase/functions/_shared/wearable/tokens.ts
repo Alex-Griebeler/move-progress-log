@@ -17,7 +17,7 @@ export class TokenHttpError extends Error {
   status: number;
   errorCode: string | null;
   body: string;
-  constructor(kind: string, status: number, body: string) {
+  constructor(kind: string, status: number, body: string, public retryAfter = 60) {
     let errorCode: string | null = null;
     try {
       const parsed = JSON.parse(body);
@@ -38,6 +38,7 @@ export class TokenHttpError extends Error {
 export async function refreshAccessToken(cfg: ProviderConfig, refreshToken: string): Promise<OAuthTokens> {
   const res = await fetch(cfg.tokenUrl, {
     method: "POST",
+    signal: AbortSignal.timeout(15000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "refresh_token",
@@ -49,7 +50,7 @@ export async function refreshAccessToken(cfg: ProviderConfig, refreshToken: stri
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new TokenHttpError("token refresh", res.status, body);
+    throw new TokenHttpError("token refresh", res.status, body, Math.min(86400,Math.max(60,Number(res.headers.get("Retry-After"))||60)));
   }
   return await res.json();
 }
@@ -58,6 +59,7 @@ export async function refreshAccessToken(cfg: ProviderConfig, refreshToken: stri
 export async function exchangeCode(cfg: ProviderConfig, code: string, redirectUri: string): Promise<OAuthTokens> {
   const res = await fetch(cfg.tokenUrl, {
     method: "POST",
+    signal: AbortSignal.timeout(15000),
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "authorization_code",
@@ -69,7 +71,7 @@ export async function exchangeCode(cfg: ProviderConfig, code: string, redirectUr
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new TokenHttpError("token exchange", res.status, body);
+    throw new TokenHttpError("token exchange", res.status, body, Math.min(86400,Math.max(60,Number(res.headers.get("Retry-After"))||60)));
   }
   return await res.json();
 }

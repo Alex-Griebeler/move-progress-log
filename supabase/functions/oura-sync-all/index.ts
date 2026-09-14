@@ -49,7 +49,7 @@ async function invokeOuraSyncWithDeadline(
   serviceKey: string,
   body: Record<string, unknown>,
   deadline: number,
-): Promise<{ data: unknown; error: Error | null }> {
+): Promise<{ data: unknown; error: (Error & { status?: number }) | null }> {
   const remaining = deadline - Date.now() - RESPONSE_RESERVE_MS;
   if (remaining <= 0) {
     return { data: null, error: new Error('Orçamento de tempo esgotado antes da chamada') };
@@ -72,7 +72,7 @@ async function invokeOuraSyncWithDeadline(
         : typeof rec?.message === 'string' ? (rec.message as string)
         : text ? `oura-sync respondeu HTTP ${res.status}: ${text.slice(0, 200)}`
         : `oura-sync respondeu HTTP ${res.status}`;
-      return { data: parsed, error: new Error(message) };
+      return { data: parsed, error: Object.assign(new Error(message), { status: res.status }) };
     }
     if (parseFailed || parsed === null || typeof parsed !== 'object') {
       return { data: null, error: new Error('oura-sync respondeu 2xx sem JSON válido') };
@@ -177,7 +177,8 @@ Deno.serve(async (req) => {
         student_id,
         students (
           id,
-          name
+          name,
+          external_source
         )
       `)
       .eq('is_active', true)
@@ -198,12 +199,16 @@ Deno.serve(async (req) => {
     // OA-04: data de hoje em America/Sao_Paulo + janela retroativa
     const dates = lookbackDates(todayInSaoPaulo(), lookbackDays);
 
+    // Fichas mínimas do espelho não entram nas contagens devolvidas à tela da Fabrik.
+    const visibleConnections = connections.filter(
+      (c) => !((c as Record<string, unknown>).students as Record<string, unknown> | null)?.external_source,
+    ).length;
     if (dryRun) {
       return new Response(
         JSON.stringify({
           dry_run: true,
-          message: `Dry-run OK: ${connections.length} active Oura connections ready for sync`,
-          total_connections: connections.length,
+          message: `Dry-run OK: ${visibleConnections} active Oura connections ready for sync`,
+          total_connections: visibleConnections,
           dates,
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
@@ -213,6 +218,15 @@ Deno.serve(async (req) => {
     console.log(`Found ${connections.length} students with active Oura connections; dates: ${dates.join(', ')}`);
 
     const results: SyncResult[] = [];
+    // Fichas mínimas do espelho (external_source preenchido): sincronizadas como as demais, mas fora do
+    // nome e das contagens devolvidos à tela da Fabrik.
+    const externalIds = new Set(
+      connections
+        .filter((c) => ((c as Record<string, unknown>).students as Record<string, unknown> | null)?.external_source)
+        .map((c) => c.student_id as string),
+    );
+    // Aluna com 429 do Oura nesta execução: sem nova tentativa e sem as datas seguintes (a próxima execução retoma).
+    const rateLimited = new Set<string>();
     // Plano rejeitado por exceção (o `truncated` da resposta é DERIVADO no
     // fim: plano falhou OU algum par ficou sem desfecho — nunca por um retry
     // negado por orçamento, porque o par tem desfecho `failed`).
@@ -276,6 +290,10 @@ Deno.serve(async (req) => {
           const studentId = connection.student_id;
           const studentName = ((connection as Record<string, unknown>).students as Record<string, unknown>)?.name as string || 'Unknown';
           let lastError = '';
+          if (rateLimited.has(studentId)) {
+            // "failed" (não "skipped"): a tela não pode dizer "tempo esgotado" quando o motivo é o limite do Oura.
+            return publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt: 0, error: 'Limite de consultas do Oura atingido nesta execução; a próxima execução retoma esta data.' });
+          }
           started.add(`${studentId}|${dateStr}`);
 
           for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -318,13 +336,31 @@ Deno.serve(async (req) => {
                 deadline,
               );
 
-              if (syncError) throw syncError;
+              if (syncError) {
+                const status = (syncError as { status?: number }).status;
+                if (status === 429 || status === 423) {
+                  // Definitivo nesta execução: 429 = limite do Oura (pula as próximas datas da aluna);
+                  // 423 = outra sincronização da mesma aluna/data em andamento.
+                  if (status === 429) rateLimited.add(studentId);
+                  const busy = publish({ student_id: studentId, student_name: studentName, date: dateStr, status: 'failed', attempt, error: status === 429 ? 'Limite de consultas do Oura atingido' : 'Sincronização desta data já em andamento' });
+                  await writeLog({
+                    student_id: studentId, sync_date: dateStr, status: 'failed',
+                    attempt_number: attempt, error_message: busy.error
+                  }, 'failed/limit');
+                  return busy;
+                }
+                throw syncError;
+              }
 
               const syncRecord: Record<string, unknown> | undefined =
                 syncData && typeof syncData === 'object' && !Array.isArray(syncData)
                   ? (syncData as Record<string, unknown>)
                   : undefined;
               const outcome = typeof syncRecord?.outcome === 'string' ? (syncRecord.outcome as string) : undefined;
+              // 429 parcial (200 com endpoint limitado): grava o que veio e poupa as datas seguintes desta aluna.
+              if (Array.isArray(syncRecord?.warnings) && (syncRecord.warnings as unknown[]).some((w) => typeof w === 'string' && w.includes('(429)'))) {
+                rateLimited.add(studentId);
+              }
 
               // `status` continua sendo o sucesso TÉCNICO da chamada (CHECK da
               // tabela: success/failed/retrying); o resultado de dados fica em
@@ -398,6 +434,11 @@ Deno.serve(async (req) => {
         }
       }
     }
+
+    // Fichas do espelho saem da resposta (nome e contagens) — continuam com log próprio em oura_sync_logs.
+    const visibleResults = results.filter((r) => !externalIds.has(r.student_id));
+    results.length = 0;
+    results.push(...visibleResults);
 
     // Contagens por PAR (aluna, data)…
     const successCount = results.filter(r => r.status === 'success').length;

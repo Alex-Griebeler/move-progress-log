@@ -282,10 +282,12 @@ Deno.serve(async (req: Request) => {
 
   // 6) active oura connections without recent metrics
   await runCheck("active_oura_connections_without_recent_metrics_7d", async () => {
+    // Fichas mínimas do espelho (external_source preenchido) não entram no teste de integridade da Fabrik.
     const { data: conns, error } = await admin
       .from("oura_connections")
-      .select("student_id")
-      .eq("is_active", true);
+      .select("student_id, students!inner(external_source)")
+      .eq("is_active", true)
+      .is("students.external_source", null);
     if (error) throw error;
     const studentIds = Array.from(new Set((conns ?? []).map((c: { student_id: string }) => c.student_id)));
     const stale: string[] = [];
