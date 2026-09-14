@@ -124,3 +124,7 @@ verify_jwt = false
 # ownership/admin role, path prefix, and refuses referenced PDFs.
 [functions.delete-dexa-temp-pdf]
 verify_jwt = false
+
+# Espelho de wearables para o app pessoal: autenticação própria por segredo (x-wearable-mirror-secret), validada no código
+[functions.wearable-mirror-export]
+verify_jwt = false
