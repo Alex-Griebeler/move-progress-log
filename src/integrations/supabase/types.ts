@@ -3253,21 +3253,27 @@ export type Database = {
         Row: {
           acquired_at: string
           blocked_until: string | null
+          collection_seen: boolean | null
           expires_at: string
+          header_seen: boolean | null
           lock_key: string
           owner_id: string
         }
         Insert: {
           acquired_at?: string
           blocked_until?: string | null
+          collection_seen?: boolean | null
           expires_at: string
+          header_seen?: boolean | null
           lock_key: string
           owner_id: string
         }
         Update: {
           acquired_at?: string
           blocked_until?: string | null
+          collection_seen?: boolean | null
           expires_at?: string
+          header_seen?: boolean | null
           lock_key?: string
           owner_id?: string
         }
@@ -3902,6 +3908,18 @@ export type Database = {
           p_retry_seconds?: number
         }
         Returns: Json
+      }
+      wearable_sync_acquire: {
+        Args: { p_key: string; p_owner: string }
+        Returns: boolean
+      }
+      wearable_sync_block: {
+        Args: { p_key?: string; p_owner: string; p_seconds: number }
+        Returns: undefined
+      }
+      wearable_sync_release: {
+        Args: { p_key: string; p_owner: string }
+        Returns: undefined
       }
     }
     Enums: {
