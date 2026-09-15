@@ -4,7 +4,9 @@
 
 **A causa está confirmada.** `assembleDailyMetrics` transforma `cycle.start` diretamente na data local de São Paulo, tanto para a chave de deduplicação quanto para `whoop_metrics.date` (`mapWhoop.ts:34-35, 55-65, 81-83`). O restante do sistema trata essa data como o dia real do Whoop; não existe compensação posterior de `+1 dia`.
 
-A regra proposta de **`cycle.start + 12 horas`, depois conversão para `America/Sao_Paulo`**, é uma correção estável e coerente com os casos normais citados: início às 23h cai no dia seguinte; início à 1h permanece no mesmo dia. Ela é uma convenção com corte ao meio-dia, não uma definição universal de “dia de despertar”; sono diurno iniciado antes do meio-dia é o principal caso-limite. Por isso, a regra deve ficar explícita e coberta por testes de fronteira.
+A regra de `cycle.start + 12 horas` fica **descartada**. A regra recomendada passa a ser: usar a data local do `sleep.end` do sono principal associado ao ciclo, convertida com o `sleep.timezone_offset` gravado pelo aparelho. Se o sono principal ainda não estiver disponível, usar provisoriamente a data local de `cycle.start`, com `cycle.timezone_offset`, avançando um dia somente quando o horário local for estritamente posterior a 12:00. Cochilos nunca definem a data.
+
+A documentação oficial confirma os vínculos e campos necessários, mas **não documenta o algoritmo usado pelo aplicativo para exibir um ciclo em uma data de calendário**. Portanto, a escolha de `sleep.end` se apoia no comportamento real confirmado no aplicativo em 15/09, não em uma garantia publicada pelo Whoop.
 
 **Não recomendo um `delete` remoto seguido de `upsert` remoto em duas chamadas.** Mesmo com o lock por cliente, uma falha entre as chamadas apagaria dados até a próxima sincronização. Recomendo uma função transacional no banco que, na mesma transação, remova as linhas antigas dos `cycle_id` recebidos e grave o lote novo.
 
@@ -12,6 +14,9 @@ A regra proposta de **`cycle.start + 12 horas`, depois conversão para `America/
 
 - O campo e a deduplicação usam hoje `dateInTz(c.start, tz)` sem deslocamento (`mapWhoop.ts:59,82`).
 - `whoop-sync` chama o mapper com `America/Sao_Paulo` e grava por conflito em `(student_id,date)` (`whoop-sync/sync.ts:85-89`).
+- As fixtures atuais têm `sleep.end`, `sleep.cycle_id` e `sleep.nap`, mas **não têm `timezone_offset` nem no ciclo nem no sono** (`fixtures/whoop_v2.ts:4-12,60-82`). Elas precisam ser completadas para testar a nova regra.
+- Na especificação oficial v2, `Cycle.start` e `Cycle.timezone_offset` são obrigatórios; `Cycle.end` é ausente no ciclo atual. Em `Sleep`, `start`, `end`, `timezone_offset`, `cycle_id` e `nap` são obrigatórios. Em `Recovery`, `cycle_id` e `sleep_id` são obrigatórios. Fontes: [Cycle](https://developer.whoop.com/docs/developing/user-data/cycle/), [Sleep](https://developer.whoop.com/docs/developing/user-data/sleep/), [Recovery](https://developer.whoop.com/docs/developing/user-data/recovery/) e [OpenAPI oficial](https://api.prod.whoop.com/developer/doc/openapi.json).
+- Como `Sleep.end` é obrigatório no contrato oficial, “sono ligado, mas sem `end`” é apenas defesa contra payload incompleto ou consistência eventual. A ausência realmente esperada é a do próprio registro de sono na coleção retornada; nesse caso vale a data provisória.
 - O índice único real é `UNIQUE (student_id,date)`; não há unicidade para `(student_id,cycle_id)`.
 - Há **334 linhas** em `whoop_metrics`; **todas as 334 têm `cycle_id`**.
 - Há **332 pares distintos `(student_id,cycle_id)`**: dois ciclos aparecem duas vezes, cada um em datas consecutivas. Isso confirma que já existem resíduos históricos que uma reconciliação por `cycle_id` deve remover.
@@ -53,50 +58,118 @@ A regra proposta de **`cycle.start + 12 horas`, depois conversão para `America/
 - Conexões criadas entre **09/07/2026 e 04/08/2026**.
 - Dados atuais entre **13/06/2026 e 14/09/2026**; por conexão: 49 a 92 linhas, total 334.
 - O endpoint aceita no máximo **90 dias por chamada** (`handler.ts:11-39`). As quatro coleções são paginadas em páginas de 25 e buscadas em paralelo, com 15 s por requisição e 75 s para o conjunto (`sync.ts:16-53`).
+- A busca atual envia exatamente o mesmo `start/end` para ciclos, recoveries e sleeps (`sync.ts:47-51`). Isso **não garante** que o sono principal do primeiro ciclo venha junto: cada coleção é filtrada pelos próprios intervalos, e a documentação não promete alinhamento entre eles.
+- Não existe margem finita oficialmente garantida para resolver isso apenas com a coleção. Recomenda-se buscar sleeps com **48 horas de antecedência operacional** e, para qualquer ciclo ainda sem sono principal, usar o endpoint oficial `GET /v2/cycle/{cycleId}/sleep`. A chamada direta é a garantia; as 48 horas apenas evitam chamadas extras na maioria dos casos.
 - O limite padrão documentado pelo Whoop é 100 requisições/minuto e 10.000/dia. O histórico atualmente armazenado cabe em **duas janelas por conexão**, mas cinco janelas longas em paralelo podem chegar perto do limite por minuto. A execução deve ser **sequencial, uma conexão por mensagem**, respeitando `429/Retry-After` e sem concorrer com os três horários automáticos.
 - “Histórico completo” deve signific inicialmente **todo o período já presente no app**, começando um dia antes da menor `date` de cada conexão. Buscar toda a vida da conta Whoop é possível em blocos de até 90 dias, mas o volume anterior a junho não está mensurado e não deve ser prometido sem uma leitura da API.
 
 ## D. Riscos avaliados
 
 1. **Colisão em `(student_id,date)`** — continua possível; o mapper deve deduplicar pela nova data antes de enviar o lote.
-2. **Dois ciclos no novo mesmo dia** — manter a regra atual: preferir ciclo com recovery; em empate, o início mais recente. Adicionar testes específicos usando a data deslocada.
+2. **Dois ciclos no mesmo dia rotulado** — manter a regra atual: preferir ciclo com recovery; em empate, o início mais recente. Isso também cobre ciclo provisório concorrendo com ciclo definitivo no mesmo dia.
 3. **Resíduo da data antiga** — confirmado por dois `cycle_id` já duplicados. Reconciliar todos os ciclos recebidos, não apenas a data mais recente.
 4. **Apagamento não atômico** — um `delete` separado antes do `upsert` pode deixar lacuna após timeout/429/erro. Usar uma única função transacional.
 5. **Limite da janela** — incluir um dia de sobreposição nas bordas para não perder ciclo que cruza o início/fim; nunca exceder 90 dias por chamada.
 6. **`whoop_workouts`** — nenhum impacto de chave ou data: usa `start_datetime/end_datetime` e conflito por `whoop_workout_id`. Não apagar nem migrar essa tabela.
 7. **Espelho** — existe **1 autorização Whoop ativa**, com 61 linhas da origem e janela de 90 dias. Como o contrato exporta `date`, o destino também precisa receber um snapshot completo após a correção. O payload não leva `cycle_id`; a remoção das datas antigas depende da semântica `complete: true` do importador e deve ser verificada no app destino.
-8. **Regra das 12 horas** — para sono diurno/turnos atípicos, o corte ao meio-dia pode não representar o despertar. É uma limitação conhecida e deve ser documentada no teste, não escondida.
+8. **Mudança de fuso durante o sono** — a data definitiva usa o offset do próprio sono, como decidido; não usa o offset do ciclo nem São Paulo. Um offset numérico preserva o contexto gravado pelo aparelho, embora não carregue regras históricas de uma zona IANA.
+9. **Sono sem score** — ainda define a data se for `nap = false` e tiver `end`; score não participa da rotulagem.
+10. **Ciclo sem recovery** — buscar o sono não-cochilo por `cycle_id`; se não estiver disponível, manter a data provisória.
+11. **Ciclo em andamento hoje** — normalmente recebe a data definitiva pelo sono que o abriu; se esse sono ainda não chegou na coleção, recebe data provisória e será reidentificado atomicamente numa sincronização posterior.
+12. **Cochilos** — `nap = true` é excluído tanto do vínculo por `recovery.sleep_id` quanto do fallback por `cycle_id`.
 
 ## E. Plano incremental — executar somente um passo por mensagem
 
-### Passo 1 — testes e mudança local, sem publicação
+### Passo 1 — mapper e testes, sem publicação
 
-Alterar somente o mapper, o sync e seus testes.
+Alterar somente `mapWhoop.ts`, suas fixtures e seus testes.
 
-Em `mapWhoop.ts`, introduzir uma função única e reutilizá-la nos dois pontos:
-
-```ts
-const cycleDateInTz = (cycleStart: string, tz: string): string =>
-  dateInTz(new Date(Date.parse(cycleStart) + 12 * 60 * 60 * 1000).toISOString(), tz);
-```
-
-Trocas exatas:
+Em `mapWhoop.ts`, remover o argumento fixo de timezone de `assembleDailyMetrics` e introduzir funções equivalentes a estas:
 
 ```ts
-const day = cycleDateInTz(c.start, tz);
+const OFFSET_RE = /^(Z|[+-]\d{2}:\d{2})$/;
+
+const offsetMinutes = (offset: string): number | null => {
+  if (offset === "Z") return 0;
+  if (!OFFSET_RE.test(offset)) return null;
+  const sign = offset.startsWith("-") ? -1 : 1;
+  const [hours, minutes] = offset.slice(1).split(":").map(Number);
+  return sign * (hours * 60 + minutes);
+};
+
+const localParts = (
+  iso: unknown,
+  offset: unknown,
+): { date: string; secondsOfDay: number } | null => {
+  if (typeof iso !== "string" || typeof offset !== "string") return null;
+  const instant = Date.parse(iso);
+  const minutes = offsetMinutes(offset);
+  if (!Number.isFinite(instant) || minutes === null) return null;
+  const shifted = new Date(instant + minutes * 60_000);
+  return {
+    date: shifted.toISOString().slice(0, 10),
+    secondsOfDay:
+      shifted.getUTCHours() * 3600 + shifted.getUTCMinutes() * 60 + shifted.getUTCSeconds(),
+  };
+};
+
+const shiftDate = (date: string, days: number): string => {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+};
+
+const cycleDate = (cycle: Rec, sleep?: Rec): string | null => {
+  if (sleep?.nap === false) {
+    const ended = localParts(sleep.end, sleep.timezone_offset);
+    if (ended) return ended.date;
+  }
+  const started = localParts(cycle.start, cycle.timezone_offset);
+  if (!started) return null;
+  return started.secondsOfDay > 12 * 3600 ? shiftDate(started.date, 1) : started.date;
+};
 ```
+
+Selecionar o sono principal assim:
 
 ```ts
-date: cycleDateInTz(c.start, tz),
+const linkedSleep = rec?.sleep_id ? sleepById.get(rec.sleep_id) : undefined;
+const primarySleep = linkedSleep?.nap === false
+  ? linkedSleep
+  : (sleepsByCycle.get(c.id) ?? [])
+      .filter((sleep) => sleep.nap === false)
+      .sort((a, b) => Date.parse(String(b.end ?? "")) - Date.parse(String(a.end ?? "")))[0];
 ```
 
-Adicionar testes para: 23h local → dia seguinte; 1h local → mesmo dia; fronteiras 11:59/12:00; ciclo inválido descartado; dois ciclos que colidem depois do deslocamento; preferência por recovery; empate pelo início mais recente.
+`sleepsByCycle` passa a armazenar arrays, não apenas um registro. Calcular `day = cycleDate(c, primarySleep)` antes da deduplicação; descartar somente ciclos sem `start/timezone_offset` válidos. Guardar junto o ciclo, o sono principal e a data escolhida, para usar **a mesma data** no agrupamento e no campo `date`.
 
-Em `sync.ts`, substituir o upsert direto de métricas por chamada à função transacional descrita no passo 2. Não tocar no fluxo de `whoop_workouts`.
+Atualizar fixtures com `timezone_offset` nos ciclos e sleeps. Adicionar testes para:
 
-**Prova:** testes do mapper e de `syncStudent` passam; busca textual confirma que `dateInTz(c.start, tz)` não continua nos dois pontos antigos; nenhuma função é publicada.
+- caso real: ciclo iniciado antes da meia-noite de 14/09, sono principal encerrado em 15/09 → `date = 2026-09-15`;
+- ciclo iniciado depois da meia-noite e sono encerrado no mesmo dia → a mesma data;
+- offset do sono prevalece sobre offset do ciclo;
+- sono principal sem score ainda define a data;
+- `recovery.sleep_id` prevalece sobre fallback por `cycle_id`;
+- cochilo ligado por engano ao recovery é ignorado;
+- cochilo nunca vence o fallback por `cycle_id`;
+- ciclo sem recovery usa sono não-cochilo pelo `cycle_id`;
+- ciclo atual sem sono retornado usa data provisória;
+- fallback iniciado antes, exatamente às e depois das 12:00 locais;
+- payload com offset inválido não usa São Paulo silenciosamente;
+- dois ciclos na mesma nova data: recovery vence; em empate, início mais recente;
+- ciclo inválido continua descartado.
 
-### Passo 2 — função transacional no banco, ainda sem publicação
+**Prova:** testes do mapper passam; não resta uso de `America/Sao_Paulo` para montar a data Whoop; nenhuma função é publicada.
+
+### Passo 2 — completar a coleta do sono, sem publicação
+
+Em `sync.ts`, separar a janela da coleção de sleeps: `sleepStart = start - 48 horas`, mantendo o mesmo `end` e respeitando que a janela total enviada a cada endpoint não ultrapasse 90 dias. Depois da coleta, identificar ciclos sem sono principal não-cochilo e buscar `GET /v2/cycle/{cycleId}/sleep` individualmente, com o mesmo timeout e tratamento de `429/Retry-After`. Resposta `404` mantém a data provisória; outras falhas abortam sem gravar.
+
+O endpoint por ciclo é necessário porque a documentação oficial não garante que consultas de coleções com a mesma janela tragam o sono associado ao primeiro ciclo. A margem de 48 horas é otimização, não garantia.
+
+**Prova:** teste da borda inicial mostra que um ciclo no começo da janela recebe seu sono da margem; teste de fallback simula sono ausente na coleção e encontrado pelo endpoint; teste `404` produz data provisória; teste `429` preserva o bloqueio existente; nenhuma escrita ou publicação.
+
+### Passo 3 — função transacional no banco, ainda sem publicação
 
 Criar uma migration aditiva com `public.replace_whoop_metrics_batch(p_student_id uuid, p_rows jsonb)`, `SECURITY INVOKER`, acesso somente para `service_role`.
 
@@ -113,13 +186,19 @@ O apagamento e a inserção ficam no mesmo corpo PL/pgSQL: qualquer erro desfaz 
 
 **Prova no banco:** consultar assinatura, `prosecdef = false`, privilégios (apenas `service_role`) e executar uma transação de teste que termina em `ROLLBACK`, provando remoção/reinserção sem persistir mudanças.
 
-### Passo 3 — publicar somente `whoop-sync`
+### Passo 4 — integrar a gravação e publicar somente `whoop-sync`
 
-Publicar `whoop-sync` com o mapper e a chamada transacional. Não publicar front, callback, sync-all ou espelho.
+Em `sync.ts`, substituir somente o upsert direto de `whoop_metrics` pela RPC transacional do passo 3. Manter intacto o fluxo de `whoop_workouts`. Publicar somente `whoop-sync`; não publicar front, callback, sync-all ou espelho.
 
 **Prova:** timestamp da publicação; smoke de uma conexão em janela curta; log `success`; para os ciclos retornados, uma linha por `(student_id,cycle_id)` e uma por `(student_id,date)`; o exemplo de 15/09 aparece em 15/09.
 
-### Passo 4 — corrigir o histórico, uma conexão por mensagem
+### Passo 5 — piloto controlado
+
+Sincronizar uma janela curta de uma conexão que contenha o caso confirmado de 14/09→15/09.
+
+**Prova no banco:** antes/depois por `cycle_id`; o ciclo existe uma única vez; a linha antiga de 14/09 desapareceu; a nova linha está em 15/09; recovery e strain permanecem no mesmo ciclo; não houve mudança em `whoop_workouts`.
+
+### Passo 6 — corrigir o histórico, uma conexão por mensagem
 
 Para cada uma das 5 conexões, fora dos horários automáticos, chamar `whoop-sync` sequencialmente em blocos de até 90 dias, começando um dia antes da menor data atual e terminando em agora. Parar imediatamente em 429, 423 ou 5xx e respeitar `Retry-After`.
 
@@ -136,14 +215,14 @@ WHERE student_id = '<cliente>';
 
 Também comparar as datas/strain recentes com o app oficial e confirmar log de sync `success`. Só seguir para a conexão seguinte após aprovação do resultado.
 
-### Passo 5 — auditoria global pós-correção
+### Passo 7 — auditoria global pós-correção
 
 Executar apenas leituras: todas as linhas com `cycle_id`; nenhum `(student_id,cycle_id)` repetido; nenhum `(student_id,date)` repetido; cinco conexões ainda ativas; datas máximas coerentes; últimos logs sem falha. Conferir nominalmente os dois ciclos hoje duplicados para provar que cada um ficou em uma única data.
 
-### Passo 6 — atualizar e provar o espelho
+### Passo 8 — atualizar e provar o espelho
 
 Disparar refresh somente da autorização Whoop ativa. Verificar que o snapshot da origem contém a janela completa corrigida e, no destino, que as datas antigas foram removidas — não apenas que as novas foram inseridas. Se o destino não substituir integralmente uma projeção `complete: true`, parar e planejar a correção do importador antes de repetir.
 
 ## Recomendação final
 
-Aprovar a regra de `+12h`, mas substituir o `delete` separado por reconciliação transacional. Para o volume atual, a correção histórica é pequena e viável sob os limites do Whoop quando executada sequencialmente. Não há compensação de data a remover no front, em relatórios, IA, RPCs ou crons.
+Aprovar a data pelo fim do sono principal e pelo offset gravado no próprio sono, com fallback provisório pelo ciclo e sem cochilos. Manter a reconciliação transacional, pois a data provisória pode mudar. Para o volume atual, a correção histórica é viável quando executada sequencialmente. Não há compensação de data a remover no front, em relatórios, IA, RPCs ou crons.
