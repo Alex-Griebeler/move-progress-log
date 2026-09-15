@@ -49,52 +49,6 @@ export const whoopFingerprintSegment = (
   ctx: { strain: "non_high" | "high" | "unavailable" } | null,
 ): string => (ctx?.strain === "high" ? "strain-high" : "-");
 
-export interface ObjectiveFingerprintContext {
-  source: "oura" | "whoop";
-  date: string;
-  score: number;
-  zone: string;
-  loadDecision: string;
-  loadAdjustmentPercent: number | null;
-  overrideApplied: boolean;
-  criticalSignature: string;
-  whoopSegment: string;
-}
-
-export interface DailyConductFingerprintInput {
-  studentId: string;
-  today: string;
-  objective: ObjectiveFingerprintContext | null;
-}
-
-/**
- * Identidade diária da fonte da conduta. Sem score fechado de hoje, todos os
- * motivos de indisponibilidade compartilham `student|psr|dia`; por isso uma
- * transição pending/missing/unscorable não invalida o check-in. Quando um
- * score objetivo de hoje chega, a fonte muda e o fingerprint necessariamente
- * muda, exigindo reconfirmação antes de trocar a conduta.
- */
-export const buildDailyConductFingerprint = (
-  input: DailyConductFingerprintInput,
-): string => {
-  const objective = input.objective;
-  if (objective === null || objective.date !== input.today) {
-    return `${input.studentId}|psr|${input.today}`;
-  }
-  return [
-    input.studentId,
-    objective.source,
-    objective.date,
-    objective.score,
-    objective.zone,
-    objective.loadDecision,
-    objective.loadAdjustmentPercent ?? "na",
-    objective.overrideApplied ? "ov" : "-",
-    objective.criticalSignature,
-    objective.whoopSegment,
-  ].join("|");
-};
-
 export const resolveCheckInState = (
   stored: StoredCheckIn | null,
   currentFingerprint: string | null,

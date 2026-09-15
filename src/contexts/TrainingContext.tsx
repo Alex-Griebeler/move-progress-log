@@ -29,11 +29,10 @@ interface TrainingAlternative {
  *  de concordância roda no funil; nada disso é armazenado (v6.1-M7).
  *  Escopada por fingerprint: mudou score/zona/carga/critical/strain-alto,
  *  a modulação é invalidada na tela (o valor do PSR preenchido é preservado
- *  pra reconfirmação — U4). No modo `psr`, `psr` e qualquer score persistido
- *  representam a escala explícita 0–10, nunca um score de aparelho 0–100. */
+ *  pra reconfirmação — U4). */
 export interface ConductAssessment {
   studentId: string;
-  source: "oura" | "whoop" | "psr";
+  source: "oura" | "whoop";
   snapshotDate: string;
   fingerprint: string;
   psr: number | null;
