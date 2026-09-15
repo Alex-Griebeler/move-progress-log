@@ -1,26 +1,34 @@
 import { assertEquals } from "jsr:@std/assert";
-import { assembleDailyMetrics, mapWorkouts } from "./mapWhoop.ts";
+import { assembleDailyMetrics, assembleDailyMetricsByWakeDate, mapWorkouts } from "./mapWhoop.ts";
 import { CYCLES, RECOVERIES, SLEEPS, WORKOUTS } from "./fixtures/whoop_v2.ts";
 
 Deno.test("assembleDailyMetrics joins cycle+recovery+sleep into one daily row", () => {
-  const rows = assembleDailyMetrics(CYCLES, RECOVERIES, SLEEPS);
-  assertEquals(rows.length, 1);
-  const r = rows[0];
-  assertEquals(r.cycle_id, 93845);
-  assertEquals(r.date, "2026-07-06"); // local date of primary sleep.end
-  assertEquals(r.recovery_score, 66);
-  assertEquals(r.hrv_rmssd, 41.8);
-  assertEquals(r.resting_heart_rate, 54);
-  assertEquals(r.day_strain, 12.4);
-  assertEquals(r.sleep_performance, 92);
-  assertEquals(r.deep_sleep_duration, 6600); // slow-wave ms -> s
-  assertEquals(r.rem_sleep_duration, 5880);
-  assertEquals(r.light_sleep_duration, 14900);
-  assertEquals(r.total_sleep_duration, 27380); // light+sws+rem
+  const rows = assembleDailyMetrics(CYCLES, RECOVERIES, SLEEPS, "America/Sao_Paulo");
+  assertEquals(rows, [{
+    date: "2026-07-06",
+    cycle_id: 93845,
+    recovery_score: 66,
+    hrv_rmssd: 41.8,
+    resting_heart_rate: 54,
+    spo2: 96.1,
+    skin_temp: 33.7,
+    day_strain: 12.4,
+    kilojoules: 8288.3,
+    sleep_performance: 92,
+    sleep_efficiency: 91.7,
+    respiratory_rate: 16.1,
+    total_sleep_duration: 27380,
+    deep_sleep_duration: 6600,
+    rem_sleep_duration: 5880,
+    light_sleep_duration: 14900,
+    awake_time: 1400,
+    disturbance_count: 12,
+    score_state: "SCORED",
+  }]);
 });
 
 Deno.test("assembleDailyMetrics tolerates missing recovery/sleep (nulls, no throw)", () => {
-  const rows = assembleDailyMetrics(CYCLES, [], []);
+  const rows = assembleDailyMetrics(CYCLES, [], [], "America/Sao_Paulo");
   assertEquals(rows.length, 1);
   assertEquals(rows[0].recovery_score, null);
   assertEquals(rows[0].total_sleep_duration, null);
@@ -56,7 +64,7 @@ Deno.test("assembleDailyMetrics dedupes cycles landing on the same labeled day (
   // next cycle starting the same local evening -> duplicate (student_id, date)
   // -> Postgres 21000 aborts the whole batched upsert.
   const earlier = { id: 93844, user_id: 10129, start: "2026-07-06T02:00:00.000Z", end: "2026-07-06T06:00:00.000Z", timezone_offset: "-03:00", score: { strain: 3.1, kilojoule: 1200 } };
-  const rows = assembleDailyMetrics([earlier, ...CYCLES], RECOVERIES, SLEEPS);
+  const rows = assembleDailyMetrics([earlier, ...CYCLES], RECOVERIES, SLEEPS, "America/Sao_Paulo");
   const dates = rows.map((r) => r.date);
   assertEquals(new Set(dates).size, dates.length); // no duplicate dates
   const day = rows.find((r) => r.date === "2026-07-06");
@@ -67,14 +75,14 @@ Deno.test("assembleDailyMetrics dedupes cycles landing on the same labeled day (
 Deno.test("assembleDailyMetrics prefers the cycle WITH a recovery on duplicate days", () => {
   // 93846 is newer but unscored; 93845 has the recovery -> 93845 wins the day.
   const newerUnscored = { id: 93846, user_id: 10129, start: "2026-07-06T20:00:00.000Z", end: null, timezone_offset: "-03:00", score: { strain: 1.2, kilojoule: 300 } };
-  const rows = assembleDailyMetrics([...CYCLES, newerUnscored], RECOVERIES, SLEEPS);
+  const rows = assembleDailyMetrics([...CYCLES, newerUnscored], RECOVERIES, SLEEPS, "America/Sao_Paulo");
   const day = rows.find((r) => r.date === "2026-07-06");
   assertEquals(day?.cycle_id, 93845);
   assertEquals(day?.recovery_score, 66);
 });
 
 Deno.test("assembleDailyMetrics drops cycles with unparseable start", () => {
-  const rows = assembleDailyMetrics([{ id: 1, start: null }, { id: 2 }, ...CYCLES], RECOVERIES, SLEEPS);
+  const rows = assembleDailyMetrics([{ id: 1, start: null }, { id: 2 }, ...CYCLES], RECOVERIES, SLEEPS, "America/Sao_Paulo");
   assertEquals(rows.length, 1);
   assertEquals(rows[0].cycle_id, 93845);
 });
@@ -101,27 +109,27 @@ const sleep = (
 ) => ({ id, cycle_id, user_id: 10129, start: "2026-09-14T23:00:00.000Z", end, timezone_offset, nap });
 
 Deno.test("uses wake date for a cycle that started before midnight", () => {
-  const c = cycle(1, "2026-09-15T02:30:00.000Z"); // 14/09 23:30 local
-  const s = sleep("main", 1, "2026-09-15T10:00:00.000Z");
-  assertEquals(assembleDailyMetrics([c], [], [s])[0].date, "2026-09-15");
+  const c = cycle(1, "2026-09-15T02:10:00.000Z"); // 14/09 23:10 local
+  const s = sleep("main", 1, "2026-09-15T09:40:00.000Z"); // 15/09 06:40 local
+  assertEquals(assembleDailyMetricsByWakeDate([c], [], [s])[0].date, "2026-09-15");
 });
 
 Deno.test("uses the same wake date when cycle starts after midnight", () => {
   const c = cycle(1, "2026-09-15T04:00:00.000Z"); // 15/09 01:00 local
   const s = sleep("main", 1, "2026-09-15T11:00:00.000Z");
-  assertEquals(assembleDailyMetrics([c], [], [s])[0].date, "2026-09-15");
+  assertEquals(assembleDailyMetricsByWakeDate([c], [], [s])[0].date, "2026-09-15");
 });
 
 Deno.test("sleep timezone offset takes precedence over cycle offset", () => {
   const c = cycle(1, "2026-09-15T04:00:00.000Z", "+10:00");
   const s = sleep("main", 1, "2026-09-15T01:00:00.000Z", "-03:00");
-  assertEquals(assembleDailyMetrics([c], [], [s])[0].date, "2026-09-14");
+  assertEquals(assembleDailyMetricsByWakeDate([c], [], [s])[0].date, "2026-09-14");
 });
 
 Deno.test("unscored primary sleep still defines the date", () => {
   const c = cycle(1, "2026-09-15T02:30:00.000Z");
   const s = { ...sleep("main", 1, "2026-09-15T10:00:00.000Z"), score_state: "UNSCORABLE" };
-  assertEquals(assembleDailyMetrics([c], [], [s])[0].date, "2026-09-15");
+  assertEquals(assembleDailyMetricsByWakeDate([c], [], [s])[0].date, "2026-09-15");
 });
 
 Deno.test("recovery sleep wins over another non-nap sleep in the cycle", () => {
@@ -129,7 +137,7 @@ Deno.test("recovery sleep wins over another non-nap sleep in the cycle", () => {
   const linked = sleep("linked", 1, "2026-09-15T02:00:00.000Z");
   const later = sleep("later", 1, "2026-09-16T12:00:00.000Z");
   const recovery = { cycle_id: 1, sleep_id: "linked", score_state: "SCORED" };
-  assertEquals(assembleDailyMetrics([c], [recovery], [linked, later])[0].date, "2026-09-14");
+  assertEquals(assembleDailyMetricsByWakeDate([c], [recovery], [linked, later])[0].date, "2026-09-14");
 });
 
 Deno.test("nap linked to recovery is ignored in favor of primary sleep", () => {
@@ -137,7 +145,7 @@ Deno.test("nap linked to recovery is ignored in favor of primary sleep", () => {
   const nap = sleep("nap", 1, "2026-09-16T12:00:00.000Z", "-03:00", true);
   const main = sleep("main", 1, "2026-09-15T10:00:00.000Z");
   const recovery = { cycle_id: 1, sleep_id: "nap", score_state: "SCORED" };
-  assertEquals(assembleDailyMetrics([c], [recovery], [nap, main])[0].date, "2026-09-15");
+  assertEquals(assembleDailyMetricsByWakeDate([c], [recovery], [nap, main])[0].date, "2026-09-15");
 });
 
 Deno.test("cycle without recovery uses the latest non-nap sleep by cycle id", () => {
@@ -145,23 +153,39 @@ Deno.test("cycle without recovery uses the latest non-nap sleep by cycle id", ()
   const nap = sleep("nap", 1, "2026-09-17T12:00:00.000Z", "-03:00", true);
   const older = sleep("older", 1, "2026-09-15T10:00:00.000Z");
   const latest = sleep("latest", 1, "2026-09-16T10:00:00.000Z");
-  assertEquals(assembleDailyMetrics([c], [], [nap, older, latest])[0].date, "2026-09-16");
+  assertEquals(assembleDailyMetricsByWakeDate([c], [], [nap, older, latest])[0].date, "2026-09-16");
+});
+
+Deno.test("nap never wins fallback by cycle id", () => {
+  const c = cycle(1, "2026-09-15T02:30:00.000Z");
+  const nap = sleep("nap", 1, "2026-09-17T12:00:00.000Z", "-03:00", true);
+  const main = sleep("main", 1, "2026-09-15T10:00:00.000Z");
+  assertEquals(assembleDailyMetricsByWakeDate([c], [], [nap, main])[0].date, "2026-09-15");
+});
+
+Deno.test("cycle without sleep uses provisional cycle date", () => {
+  const c = cycle(1, "2026-09-15T04:00:00.000Z");
+  assertEquals(assembleDailyMetricsByWakeDate([c], [], [])[0].date, "2026-09-15");
 });
 
 Deno.test("provisional date advances only after local noon", () => {
   const before = cycle(1, "2026-09-15T14:59:59.000Z"); // 11:59:59
   const noon = cycle(2, "2026-09-15T15:00:00.000Z");
   const after = cycle(3, "2026-09-15T15:00:01.000Z");
-  assertEquals(assembleDailyMetrics([before], [], [])[0].date, "2026-09-15");
-  assertEquals(assembleDailyMetrics([noon], [], [])[0].date, "2026-09-15");
-  assertEquals(assembleDailyMetrics([after], [], [])[0].date, "2026-09-16");
+  assertEquals(assembleDailyMetricsByWakeDate([before], [], [])[0].date, "2026-09-15");
+  assertEquals(assembleDailyMetricsByWakeDate([noon], [], [])[0].date, "2026-09-15");
+  assertEquals(assembleDailyMetricsByWakeDate([after], [], [])[0].date, "2026-09-16");
 });
 
 Deno.test("invalid offsets do not silently fall back to Sao Paulo", () => {
   const invalidCycle = cycle(1, "2026-09-15T04:00:00.000Z", "America/Sao_Paulo");
   const invalidSleep = sleep("main", 2, "2026-09-15T11:00:00.000Z", "+99:00");
-  assertEquals(assembleDailyMetrics([invalidCycle], [], []).length, 0);
-  assertEquals(assembleDailyMetrics([cycle(2, "2026-09-15T04:00:00.000Z")], [], [invalidSleep])[0].date, "2026-09-15");
+  assertEquals(assembleDailyMetricsByWakeDate([invalidCycle], [], []).length, 0);
+  assertEquals(assembleDailyMetricsByWakeDate([cycle(2, "2026-09-15T04:00:00.000Z")], [], [invalidSleep])[0].date, "2026-09-15");
+});
+
+Deno.test("new mapper drops cycles with invalid start", () => {
+  assertEquals(assembleDailyMetricsByWakeDate([{ id: 1, start: null, timezone_offset: "-03:00" }], [], []).length, 0);
 });
 
 Deno.test("duplicate wake date prefers recovery, then most recent start", () => {
@@ -171,7 +195,7 @@ Deno.test("duplicate wake date prefers recovery, then most recent start", () => 
     sleep("one", 1, "2026-09-15T10:00:00.000Z"),
     sleep("two", 2, "2026-09-15T11:00:00.000Z"),
   ];
-  assertEquals(assembleDailyMetrics([earlier, newer], [], sameDaySleeps)[0].cycle_id, 2);
+  assertEquals(assembleDailyMetricsByWakeDate([earlier, newer], [], sameDaySleeps)[0].cycle_id, 2);
   const recovery = { cycle_id: 1, sleep_id: "one", score_state: "SCORED" };
-  assertEquals(assembleDailyMetrics([earlier, newer], [recovery], sameDaySleeps)[0].cycle_id, 1);
+  assertEquals(assembleDailyMetricsByWakeDate([earlier, newer], [recovery], sameDaySleeps)[0].cycle_id, 1);
 });
