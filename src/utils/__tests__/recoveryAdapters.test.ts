@@ -188,6 +188,25 @@ describe("agudas só do MESMO dia (R4)", () => {
   });
 });
 
+describe("agudas zeradas são ausência, não queda", () => {
+  it("HRV/FC aguda ≤ 0 vira undefined — override e alertas agudos não disparam por intervalo sem leitura", async () => {
+    const { ouraToRecoveryInput } = await import("../recoveryAdapters");
+    const metrics = { date: "2026-09-15", readiness_score: 82, resting_heart_rate: 62 } as never;
+    const acute = {
+      date: "2026-09-15", samples_count_hrv: 90, samples_count_hr_day: 300,
+      hrv_night_last: 0, hrv_night_min: 0, hr_day_max: 104, hr_day_avg: 70,
+    } as never;
+    const input = ouraToRecoveryInput(metrics, acute)!;
+    expect(input.acute?.hrvNightLastMs).toBeUndefined();
+    expect(input.acute?.hrvNightMinMs).toBeUndefined();
+    expect(input.acute?.hrDayMaxBpm).toBe(104);
+
+    const valid = ouraToRecoveryInput(metrics, { ...(acute as object), hrv_night_last: 29, hrv_night_min: 18 } as never)!;
+    expect(valid.acute?.hrvNightLastMs).toBe(29);
+    expect(valid.acute?.hrvNightMinMs).toBe(18);
+  });
+});
+
 describe("ouraHistoryToRecoveryDays", () => {
   it("dia sem readiness ainda carrega calorias (fadiga), mas não conta score", () => {
     const days = ouraHistoryToRecoveryDays([

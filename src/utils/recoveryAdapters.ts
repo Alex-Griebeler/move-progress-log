@@ -19,6 +19,13 @@ import type {
 const num = (v: number | null | undefined): number | undefined =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
+// HRV e FC agudas de 0 (ou menos) não existem: é intervalo sem leitura que a sincronização
+// antiga gravou como 0. Tratar como ausente — senão "último bloco 0 ms" rebaixava a conduta.
+const positive = (v: number | null | undefined): number | undefined => {
+  const n = num(v);
+  return n !== undefined && n > 0 ? n : undefined;
+};
+
 // ── OURA ────────────────────────────────────────────────────────────────────
 
 /** Dia Oura → input do motor. null quando não há score fechado. */
@@ -38,13 +45,13 @@ export const ouraToRecoveryInput = (
     (acuteSameDay.samples_count_hrv > 0 || acuteSameDay.samples_count_hr_day > 0)
       ? {
           hrvNightLastMs:
-            acuteSameDay.samples_count_hrv > 0 ? num(acuteSameDay.hrv_night_last) : undefined,
+            acuteSameDay.samples_count_hrv > 0 ? positive(acuteSameDay.hrv_night_last) : undefined,
           hrvNightMinMs:
-            acuteSameDay.samples_count_hrv > 0 ? num(acuteSameDay.hrv_night_min) : undefined,
+            acuteSameDay.samples_count_hrv > 0 ? positive(acuteSameDay.hrv_night_min) : undefined,
           hrDayMaxBpm:
-            acuteSameDay.samples_count_hr_day > 0 ? num(acuteSameDay.hr_day_max) : undefined,
+            acuteSameDay.samples_count_hr_day > 0 ? positive(acuteSameDay.hr_day_max) : undefined,
           hrDayAvgBpm:
-            acuteSameDay.samples_count_hr_day > 0 ? num(acuteSameDay.hr_day_avg) : undefined,
+            acuteSameDay.samples_count_hr_day > 0 ? positive(acuteSameDay.hr_day_avg) : undefined,
         }
       : undefined;
 
