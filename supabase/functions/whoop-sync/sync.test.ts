@@ -70,6 +70,126 @@ Deno.test("syncStudent maps wake date → metrics RPC + unchanged workout upsert
   assertEquals(calls.logs[0].row.workouts_synced, 2);
 });
 
+Deno.test("syncStudent excludes a cycle that started before the window and includes one at its boundary", async () => {
+  // deno-lint-ignore no-explicit-any
+  const rpcs: any[] = [];
+  const supa = {
+    // deno-lint-ignore no-explicit-any
+    rpc(name: string, params: any) {
+      rpcs.push({ name, params });
+      return Promise.resolve({ error: null });
+    },
+    from() {
+      return {
+        upsert() { return Promise.resolve({ error: null }); },
+        insert() { return Promise.resolve({ error: null }); },
+      };
+    },
+  };
+  const before = {
+    ...CYCLES[0],
+    id: 1774162568,
+    start: "2026-09-06T23:59:59.999Z",
+  };
+  const boundary = {
+    ...CYCLES[0],
+    id: 1774162569,
+    start: "2026-09-07T00:00:00.000Z",
+  };
+
+  const result = await syncStudent(
+    {
+      supa,
+      fetchCollections: () => Promise.resolve({
+        cycles: [before, boundary],
+        recoveries: [],
+        sleeps: [],
+        workouts: [],
+      }),
+    },
+    { student_id: "s1", start: "2026-09-07T00:00:00.000Z", end: "2026-09-15T23:59:59.999Z", accessToken: "a" },
+  );
+
+  assertEquals(result.synced, 1);
+  assertEquals(rpcs.length, 1);
+  assertEquals(rpcs[0].params.p_rows.length, 1);
+  assertEquals(rpcs[0].params.p_rows[0].cycle_id, 1774162569);
+});
+
+Deno.test("syncStudent does not call metrics RPC when every cycle started before the window", async () => {
+  // deno-lint-ignore no-explicit-any
+  const calls: { rpcs: any[]; upserts: any[]; logs: any[] } = { rpcs: [], upserts: [], logs: [] };
+  const supa = {
+    // deno-lint-ignore no-explicit-any
+    rpc(name: string, params: any) {
+      calls.rpcs.push({ name, params });
+      return Promise.resolve({ error: null });
+    },
+    from(table: string) {
+      return {
+        // deno-lint-ignore no-explicit-any
+        upsert(rows: any[], opts: any) {
+          calls.upserts.push({ table, rows, opts });
+          return Promise.resolve({ error: null });
+        },
+        // deno-lint-ignore no-explicit-any
+        insert(row: any) {
+          calls.logs.push({ table, row });
+          return Promise.resolve({ error: null });
+        },
+      };
+    },
+  };
+  const oldCycle = { ...CYCLES[0], start: "2026-09-06T23:59:59.999Z" };
+
+  const result = await syncStudent(
+    { supa, fetchCollections: () => Promise.resolve({ cycles: [oldCycle], recoveries: [], sleeps: [], workouts: WORKOUTS }) },
+    { student_id: "s1", start: "2026-09-07T00:00:00.000Z", end: "2026-09-15T23:59:59.999Z", accessToken: "a" },
+  );
+
+  assertEquals(result.synced, 0);
+  assertEquals(result.workouts_synced, 2);
+  assertEquals(calls.rpcs.length, 0);
+  assertEquals(calls.logs[0].row.status, "success");
+  assertEquals(calls.logs[0].row.metrics_synced, 0);
+  assertEquals(calls.logs[0].row.workouts_synced, 2);
+  assertEquals(calls.upserts.length, 2);
+  assertEquals(calls.upserts[0].table, "whoop_workouts");
+  assertEquals(calls.upserts[1].table, "whoop_workouts");
+});
+
+Deno.test("syncStudent rejects an invalid start before fetching or writing", async () => {
+  let fetched = false;
+  let wrote = false;
+  const supa = {
+    rpc() { wrote = true; return Promise.resolve({ error: null }); },
+    from() {
+      return {
+        upsert() { wrote = true; return Promise.resolve({ error: null }); },
+        insert() { wrote = true; return Promise.resolve({ error: null }); },
+      };
+    },
+  };
+  let message = "";
+  try {
+    await syncStudent(
+      {
+        supa,
+        fetchCollections: () => {
+          fetched = true;
+          return Promise.resolve({ cycles: [], recoveries: [], sleeps: [], workouts: [] });
+        },
+      },
+      { student_id: "s1", start: "not-a-date", end: "2026-09-15", accessToken: "a" },
+    );
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+  assertEquals(message, "invalid_sync_start");
+  assertEquals(fetched, false);
+  assertEquals(wrote, false);
+});
+
 Deno.test("syncStudent logs a failure row and rethrows when the fetch fails", async () => {
   // deno-lint-ignore no-explicit-any
   const logs: any[] = [];
@@ -87,7 +207,7 @@ Deno.test("syncStudent logs a failure row and rethrows when the fetch fails", as
   try {
     await syncStudent(
       { supa, fetchCollections: () => Promise.reject(new Error("boom")) },
-      { student_id: "s1", start: "x", end: "y", accessToken: "a" },
+      { student_id: "s1", start: "2026-09-07", end: "2026-09-15", accessToken: "a" },
     );
   } catch (_e) {
     threw = true;
@@ -124,7 +244,7 @@ Deno.test("syncStudent logs a failure row and rethrows when the metrics RPC fail
   try {
     await syncStudent(
       { supa, fetchCollections: () => Promise.resolve({ cycles: CYCLES, recoveries: RECOVERIES, sleeps: SLEEPS, workouts: [] }) },
-      { student_id: "s1", start: "x", end: "y", accessToken: "a" },
+      { student_id: "s1", start: "2026-07-01", end: "2026-07-07", accessToken: "a" },
     );
   } catch (_e) { threw = true; }
   assertEquals(threw, true);
