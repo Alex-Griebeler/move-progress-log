@@ -2,10 +2,15 @@ import { assertEquals } from "jsr:@std/assert";
 import { errorMessage, syncStudent } from "./sync.ts";
 import { CYCLES, RECOVERIES, SLEEPS, WORKOUTS } from "../_shared/wearable/fixtures/whoop_v2.ts";
 
-Deno.test("syncStudent maps fixtures → whoop_metrics + whoop_workouts upserts + success log", async () => {
+Deno.test("syncStudent maps wake date → metrics RPC + unchanged workout upserts + success log", async () => {
   // deno-lint-ignore no-explicit-any
-  const calls: { upserts: any[]; logs: any[] } = { upserts: [], logs: [] };
+  const calls: { rpcs: any[]; upserts: any[]; logs: any[] } = { rpcs: [], upserts: [], logs: [] };
   const supa = {
+    // deno-lint-ignore no-explicit-any
+    rpc(name: string, params: any) {
+      calls.rpcs.push({ name, params });
+      return Promise.resolve({ error: null });
+    },
     from(table: string) {
       return {
         // deno-lint-ignore no-explicit-any
@@ -22,30 +27,43 @@ Deno.test("syncStudent maps fixtures → whoop_metrics + whoop_workouts upserts 
     },
   };
 
+  const cycles = [{
+    ...CYCLES[0],
+    start: "2026-09-15T02:10:00.000Z",
+    timezone_offset: "-03:00",
+  }];
+  const sleeps = [{
+    ...SLEEPS[0],
+    end: "2026-09-15T09:40:00.000Z",
+    timezone_offset: "-03:00",
+  }];
+
   const res = await syncStudent(
-    { supa, fetchCollections: () => Promise.resolve({ cycles: CYCLES, recoveries: RECOVERIES, sleeps: SLEEPS, workouts: WORKOUTS }) },
+    { supa, fetchCollections: () => Promise.resolve({ cycles, recoveries: RECOVERIES, sleeps, workouts: WORKOUTS }) },
     { student_id: "s1", start: "2026-06-07", end: "2026-07-07", accessToken: "a" },
   );
 
   assertEquals(res.synced, 1);
   assertEquals(res.workouts_synced, 2);
-  assertEquals(calls.upserts[0].table, "whoop_metrics");
-  assertEquals(calls.upserts[0].opts.onConflict, "student_id,date");
-  assertEquals(calls.upserts[0].rows[0].recovery_score, 66);
-  assertEquals(calls.upserts[0].rows[0].student_id, "s1");
+  assertEquals(calls.rpcs.length, 1);
+  assertEquals(calls.rpcs[0].name, "replace_whoop_metrics_batch");
+  assertEquals(calls.rpcs[0].params.p_student_id, "s1");
+  assertEquals(calls.rpcs[0].params.p_rows[0].date, "2026-09-15");
+  assertEquals(calls.rpcs[0].params.p_rows[0].recovery_score, 66);
+  assertEquals(calls.rpcs[0].params.p_rows[0].student_id, "s1");
   // Scored workouts: plain upsert (overwrites on re-sync).
-  assertEquals(calls.upserts[1].table, "whoop_workouts");
-  assertEquals(calls.upserts[1].opts.onConflict, "student_id,whoop_workout_id");
-  assertEquals(calls.upserts[1].opts.ignoreDuplicates, undefined);
-  assertEquals(calls.upserts[1].rows.length, 1);
-  assertEquals(calls.upserts[1].rows[0].whoop_workout_id, "7e8f13d1-6c1b-4a52-9d0e-2b4f8a91c303");
-  assertEquals(calls.upserts[1].rows[0].strain, 8.2);
-  assertEquals(calls.upserts[1].rows[0].student_id, "s1");
+  assertEquals(calls.upserts[0].table, "whoop_workouts");
+  assertEquals(calls.upserts[0].opts.onConflict, "student_id,whoop_workout_id");
+  assertEquals(calls.upserts[0].opts.ignoreDuplicates, undefined);
+  assertEquals(calls.upserts[0].rows.length, 1);
+  assertEquals(calls.upserts[0].rows[0].whoop_workout_id, "7e8f13d1-6c1b-4a52-9d0e-2b4f8a91c303");
+  assertEquals(calls.upserts[0].rows[0].strain, 8.2);
+  assertEquals(calls.upserts[0].rows[0].student_id, "s1");
   // Unscored workouts: insert-if-new only, never overwrite a persisted score.
-  assertEquals(calls.upserts[2].table, "whoop_workouts");
-  assertEquals(calls.upserts[2].opts.ignoreDuplicates, true);
-  assertEquals(calls.upserts[2].rows.length, 1);
-  assertEquals(calls.upserts[2].rows[0].strain, null); // PENDING_SCORE kept, nulls
+  assertEquals(calls.upserts[1].table, "whoop_workouts");
+  assertEquals(calls.upserts[1].opts.ignoreDuplicates, true);
+  assertEquals(calls.upserts[1].rows.length, 1);
+  assertEquals(calls.upserts[1].rows[0].strain, null); // PENDING_SCORE kept, nulls
   assertEquals(calls.logs[0].table, "whoop_sync_logs");
   assertEquals(calls.logs[0].row.status, "success");
   assertEquals(calls.logs[0].row.metrics_synced, 1);
@@ -87,13 +105,16 @@ Deno.test("errorMessage extracts PostgrestError fields instead of [object Object
   assertEquals(errorMessage("plain"), "plain");
 });
 
-Deno.test("syncStudent logs a readable error_message when the upsert fails with a PostgrestError", async () => {
+Deno.test("syncStudent logs a failure row and rethrows when the metrics RPC fails", async () => {
   // deno-lint-ignore no-explicit-any
   const logs: any[] = [];
   const supa = {
-    from(table: string) {
+    rpc() {
+      return Promise.resolve({ error: { code: "22023", message: "invalid metrics batch", hint: null, details: null } });
+    },
+    from() {
       return {
-        upsert() { return Promise.resolve({ error: { code: "21000", message: "dup", hint: null, details: null } }); },
+        upsert() { return Promise.resolve({ error: null }); },
         // deno-lint-ignore no-explicit-any
         insert(row: any) { logs.push(row); return Promise.resolve({ error: null }); },
       };
@@ -107,5 +128,6 @@ Deno.test("syncStudent logs a readable error_message when the upsert fails with 
     );
   } catch (_e) { threw = true; }
   assertEquals(threw, true);
+  assertEquals(logs[0].status, "failed");
   assertEquals(logs[0].error_message, "sync_failed");
 });
