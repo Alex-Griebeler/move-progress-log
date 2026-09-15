@@ -77,6 +77,24 @@ const isClosedWhoop = (row: WhoopLike): boolean =>
 const currentWhoop = (rows: WhoopLike[], today: string): WhoopLike | null =>
   rows.find((row) => row.date.localeCompare(today) === 0 && isClosedWhoop(row)) ?? null;
 
+const studioToday = (now: Date = new Date()): string => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    throw new Error("Não foi possível determinar a data do estúdio");
+  }
+
+  return `${year}-${month}-${day}`;
+};
+
 export const classifyTodayRecoveryAvailability = (
   ouraMetrics: OuraLike[] | null | undefined,
   whoopMetrics: WhoopLike[] | null | undefined,
@@ -106,7 +124,8 @@ export const classifyTodayRecoveryAvailability = (
 export const buildRecoverySnapshot = (
   ouraMetrics: OuraLike[] | null | undefined,
   whoopMetrics: WhoopLike[] | null | undefined,
-  today: string = new Date().toISOString().slice(0, 10),
+  // O dashboard omite `today`; UTC avançaria o dia às 21h em São Paulo.
+  today: string = studioToday(),
 ): RecoverySnapshot | null => {
   const oura = currentOura(ouraMetrics ?? [], today);
   const whoop = currentWhoop(whoopMetrics ?? [], today);
