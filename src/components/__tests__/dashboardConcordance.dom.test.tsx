@@ -72,16 +72,21 @@ import { TrainingProvider } from "@/contexts/TrainingContext";
 import { spToday } from "@/hooks/useOuraMetrics";
 import type { WhoopMetrics } from "@/hooks/useWhoopMetrics";
 
-const whoopRow = (): WhoopMetrics =>
+const whoopRow = (date = spToday()): WhoopMetrics =>
   ({
-    id: "w-today", student_id: "s1", date: spToday(), cycle_id: 1,
+    id: "w-today", student_id: "s1", date, cycle_id: 1,
     recovery_score: 59, hrv_rmssd: 60, resting_heart_rate: 52, spo2: 97, skin_temp: 33,
     day_strain: net.dayStrain, kilojoules: 5000, sleep_performance: 80, sleep_efficiency: 90,
     respiratory_rate: 14, total_sleep_duration: 25000, deep_sleep_duration: 5000,
     score_state: "SCORED",
   }) as unknown as WhoopMetrics;
 
-const Harness = () => {
+interface HarnessProps {
+  whoopMetrics?: WhoopMetrics[];
+  isError?: boolean;
+}
+
+const Harness = ({ whoopMetrics = [whoopRow()], isError = false }: HarnessProps) => {
   const [client] = [new QueryClient({ defaultOptions: { queries: { retry: false } } })];
   return (
     <QueryClientProvider client={client}>
@@ -90,11 +95,11 @@ const Harness = () => {
           <PersonalizedTrainingDashboard
             latestMetrics={null}
             recentMetrics={[]}
-            whoopMetrics={[whoopRow()]}
+            whoopMetrics={whoopMetrics}
             studentName="Alex"
             studentId="s1"
             isLoading={false}
-            isError={false}
+            isError={isError}
             latestOuraError={false}
           />
         </TrainingProvider>
@@ -111,6 +116,29 @@ const registerPsr9 = async () => {
 };
 
 describe("dashboard — regra de concordância na árvore renderizada (v9.2)", () => {
+  it("sem score fechado hoje mostra somente o aviso, sem conduta nem carga", () => {
+    render(<Harness whoopMetrics={[]} />);
+    expect(screen.getByText("Sem dados recentes de recuperação")).toBeVisible();
+    expect(screen.queryByLabelText("Conduta do dia")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sugestões de carga")).not.toBeInTheDocument();
+  });
+
+  it("score fechado somente ontem não vira conduta", () => {
+    const yesterday = new Date(`${spToday()}T12:00:00-03:00`);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const date = yesterday.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    render(<Harness whoopMetrics={[whoopRow(date)]} />);
+    expect(screen.getByText("Sem dados recentes de recuperação")).toBeVisible();
+    expect(screen.queryByLabelText("Conduta do dia")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sugestões de carga")).not.toBeInTheDocument();
+  });
+
+  it("erro sem score mantém o estado de erro atual", () => {
+    render(<Harness whoopMetrics={[]} isError />);
+    expect(screen.getByText("Não foi possível carregar os dados de recuperação.")).toBeVisible();
+    expect(screen.queryByText("Sem dados recentes de recuperação")).not.toBeInTheDocument();
+  });
+
   it("(a)+(e): 59 + PSR 9 com sync velha → Manter + frase; fresh→stale depois do registro preserva o check-in", async () => {
     net.lastSyncAt = new Date(Date.now() - 5 * 3_600_000).toISOString(); // stale desde o início
     net.dayStrain = 8;
