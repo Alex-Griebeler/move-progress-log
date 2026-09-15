@@ -31,18 +31,71 @@ type Rec = Record<string, any>;
 const msToS = (v: unknown): number | null =>
   typeof v === "number" ? Math.round(v / 1000) : null;
 
-const dateInTz = (iso: string, tz: string): string =>
-  new Intl.DateTimeFormat("sv-SE", { timeZone: tz }).format(new Date(iso));
+const OFFSET_RE = /^(Z|[+-]\d{2}:\d{2})$/;
+
+const offsetMinutes = (offset: string): number | null => {
+  if (offset === "Z") return 0;
+  if (!OFFSET_RE.test(offset)) return null;
+  const sign = offset.startsWith("-") ? -1 : 1;
+  const [hours, minutes] = offset.slice(1).split(":").map(Number);
+  if (hours > 23 || minutes > 59) return null;
+  return sign * (hours * 60 + minutes);
+};
+
+const localParts = (
+  iso: unknown,
+  offset: unknown,
+): { date: string; secondsOfDay: number } | null => {
+  if (typeof iso !== "string" || typeof offset !== "string") return null;
+  const instant = Date.parse(iso);
+  const minutes = offsetMinutes(offset);
+  if (!Number.isFinite(instant) || minutes === null) return null;
+  const shifted = new Date(instant + minutes * 60_000);
+  return {
+    date: shifted.toISOString().slice(0, 10),
+    secondsOfDay:
+      shifted.getUTCHours() * 3600 + shifted.getUTCMinutes() * 60 + shifted.getUTCSeconds(),
+  };
+};
+
+const shiftDate = (date: string, days: number): string => {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+};
+
+const cycleDate = (cycle: Rec, sleep?: Rec): string | null => {
+  if (sleep?.nap === false) {
+    const ended = localParts(sleep.end, sleep.timezone_offset);
+    if (ended) return ended.date;
+  }
+  const started = localParts(cycle.start, cycle.timezone_offset);
+  if (!started) return null;
+  return started.secondsOfDay > 12 * 3600 ? shiftDate(started.date, 1) : started.date;
+};
 
 export function assembleDailyMetrics(
   cycles: Rec[],
   recoveries: Rec[],
   sleeps: Rec[],
-  tz: string,
 ): WhoopMetricRow[] {
   const recByCycle = new Map<number, Rec>(recoveries.map((r) => [r.cycle_id, r]));
   const sleepById = new Map<string, Rec>(sleeps.map((s) => [s.id, s]));
-  const sleepByCycle = new Map<number, Rec>(sleeps.map((s) => [s.cycle_id, s]));
+  const sleepsByCycle = new Map<number, Rec[]>();
+  for (const sleep of sleeps) {
+    const current = sleepsByCycle.get(sleep.cycle_id) ?? [];
+    current.push(sleep);
+    sleepsByCycle.set(sleep.cycle_id, current);
+  }
+
+  const primarySleepFor = (cycle: Rec): Rec | undefined => {
+    const rec = recByCycle.get(cycle.id);
+    const linkedSleep = rec?.sleep_id ? sleepById.get(rec.sleep_id) : undefined;
+    if (linkedSleep?.nap === false) return linkedSleep;
+    return (sleepsByCycle.get(cycle.id) ?? [])
+      .filter((sleep) => sleep.nap === false)
+      .sort((a, b) => Date.parse(String(b.end ?? "")) - Date.parse(String(a.end ?? "")))[0];
+  };
 
   // whoop_metrics is UNIQUE (student_id, date): two cycles whose start falls
   // on the same local day (a cycle crossing local midnight, then the next one
@@ -53,20 +106,23 @@ export function assembleDailyMetrics(
   // day's readiness); among equals, the most recent start wins. Cycles with
   // unparseable start are dropped (nothing to key the date on).
   const startMs = (c: Rec): number => Date.parse(String(c?.start ?? ''));
-  const byDay = new Map<string, Rec>();
+  const byDay = new Map<string, { cycle: Rec; sleep?: Rec; day: string }>();
   for (const c of cycles) {
     if (!Number.isFinite(startMs(c))) continue;
-    const day = dateInTz(c.start, tz);
+    const sleep = primarySleepFor(c);
+    const day = cycleDate(c, sleep);
+    if (!day) continue;
     const prev = byDay.get(day);
-    if (!prev) { byDay.set(day, c); continue; }
+    if (!prev) { byDay.set(day, { cycle: c, sleep, day }); continue; }
     const cScore = recByCycle.has(c.id) ? 1 : 0;
-    const prevScore = recByCycle.has(prev.id) ? 1 : 0;
-    if (cScore > prevScore || (cScore === prevScore && startMs(c) > startMs(prev))) byDay.set(day, c);
+    const prevScore = recByCycle.has(prev.cycle.id) ? 1 : 0;
+    if (cScore > prevScore || (cScore === prevScore && startMs(c) > startMs(prev.cycle))) {
+      byDay.set(day, { cycle: c, sleep, day });
+    }
   }
 
-  return Array.from(byDay.values()).map((c) => {
+  return Array.from(byDay.values()).map(({ cycle: c, sleep, day }) => {
     const rec = recByCycle.get(c.id);
-    const sleep = (rec?.sleep_id && sleepById.get(rec.sleep_id)) || sleepByCycle.get(c.id);
     const rs = rec?.score ?? {};
     const ss = sleep?.score ?? {};
     const stg = ss.stage_summary ?? {};
@@ -79,7 +135,7 @@ export function assembleDailyMetrics(
       : null;
 
     return {
-      date: dateInTz(c.start, tz),
+      date: day,
       cycle_id: c.id,
       recovery_score: rs.recovery_score ?? null,
       hrv_rmssd: rs.hrv_rmssd_milli ?? null,

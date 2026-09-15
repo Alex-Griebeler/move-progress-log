@@ -7,6 +7,7 @@ export const CYCLES = [
     user_id: 10129,
     start: "2026-07-06T06:00:00.000Z",
     end: "2026-07-07T06:00:00.000Z",
+    timezone_offset: "-03:00",
     score: { strain: 12.4, kilojoule: 8288.3 },
   },
 ];
@@ -64,6 +65,7 @@ export const SLEEPS = [
     user_id: 10129,
     start: "2026-07-06T02:25:00.000Z",
     end: "2026-07-06T10:25:00.000Z",
+    timezone_offset: "-03:00",
     nap: false,
     score_state: "SCORED",
     score: {
