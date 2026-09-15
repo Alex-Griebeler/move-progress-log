@@ -1,5 +1,5 @@
 # Roadmap
 
-- [ ] Usar America/Sao_Paulo como data padrão do snapshot.
-- [ ] Provar padrão de São Paulo e precedência do today explícito.
-- [ ] Rodar testes dependentes e typecheck.
+- [x] Usar America/Sao_Paulo como data padrão do snapshot.
+- [x] Provar padrão de São Paulo e precedência do today explícito.
+- [x] Rodar testes dependentes e typecheck.
