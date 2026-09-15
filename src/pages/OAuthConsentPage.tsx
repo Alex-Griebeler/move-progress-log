@@ -13,14 +13,51 @@ type OAuthDetails = {
   redirect_to?: string;
   scope?: string;
 };
+type OAuthResult = { data: OAuthDetails | null; error: { message: string } | null };
 interface OAuthApi {
-  getAuthorizationDetails(id: string): Promise<{ data: OAuthDetails | null; error: { message: string } | null }>;
-  approveAuthorization(id: string): Promise<{ data: OAuthDetails | null; error: { message: string } | null }>;
-  denyAuthorization(id: string): Promise<{ data: OAuthDetails | null; error: { message: string } | null }>;
+  getAuthorizationDetails(id: string): Promise<OAuthResult>;
+  approveAuthorization(id: string): Promise<OAuthResult>;
+  denyAuthorization(id: string): Promise<OAuthResult>;
+}
+
+// The supabase.auth.oauth namespace only exists in @supabase/supabase-js >= 2.78.0.
+// This app pins 2.76.1, where supabase.auth.oauth is undefined, so we talk to the
+// GoTrue OAuth endpoints directly with the current session's access token.
+const AUTH_URL = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1`;
+const APIKEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+async function oauthRequest(path: string, body?: unknown): Promise<OAuthResult> {
+  const { data: sess } = await supabase.auth.getSession();
+  if (!sess.session) {
+    return { data: null, error: { message: "Sessão expirada. Faça login novamente." } };
+  }
+  const res = await fetch(`${AUTH_URL}${path}`, {
+    method: body === undefined ? "GET" : "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: APIKEY,
+      Authorization: `Bearer ${sess.session.access_token}`,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const payload = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message =
+      payload?.error_description ?? payload?.msg ?? payload?.message ?? payload?.error
+      ?? `O servidor de autorização respondeu ${res.status}.`;
+    return { data: null, error: { message: String(message) } };
+  }
+  return { data: payload as OAuthDetails, error: null };
 }
 
 function getOAuth(): OAuthApi {
-  return (supabase.auth as unknown as { oauth: OAuthApi }).oauth;
+  const consent = (id: string, action: "approve" | "deny") =>
+    oauthRequest(`/oauth/authorizations/${encodeURIComponent(id)}/consent`, { action });
+  return {
+    getAuthorizationDetails: (id) => oauthRequest(`/oauth/authorizations/${encodeURIComponent(id)}`),
+    approveAuthorization: (id) => consent(id, "approve"),
+    denyAuthorization: (id) => consent(id, "deny"),
+  };
 }
 
 export default function OAuthConsentPage() {
