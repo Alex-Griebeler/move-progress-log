@@ -1,240 +1,149 @@
-# Redesenho da página de detalhe do cliente
+# Revisão e plano — correção da data diária do Whoop
 
-## Objetivo
+## Parecer executivo
 
-Reorganizar `/alunos/:id` para que o treinador encontre rapidamente: quem é o cliente, o que foi planejado, o que fazer hoje, o que já foi realizado e como está evoluindo. A proposta preserva todas as ações atuais, os oito IDs de abas (`training`, `overview`, `sessions`, `exercises`, `prescriptions`, `assessments`, `oura`, `whoop`) e os links `?tab=` existentes.
+**A causa está confirmada.** `assembleDailyMetrics` transforma `cycle.start` diretamente na data local de São Paulo, tanto para a chave de deduplicação quanto para `whoop_metrics.date` (`mapWhoop.ts:34-35, 55-65, 81-83`). O restante do sistema trata essa data como o dia real do Whoop; não existe compensação posterior de `+1 dia`.
 
-## A) Mapa atual
+A regra proposta de **`cycle.start + 12 horas`, depois conversão para `America/Sao_Paulo`**, é uma correção estável e coerente com os casos normais citados: início às 23h cai no dia seguinte; início à 1h permanece no mesmo dia. Ela é uma convenção com corte ao meio-dia, não uma definição universal de “dia de despertar”; sono diurno iniciado antes do meio-dia é o principal caso-limite. Por isso, a regra deve ficar explícita e coberta por testes de fronteira.
 
-| Informação ou função | Onde aparece hoje | Duplicação ou problema |
-|---|---|---|
-| Avatar e nome | Cabeçalho | Sem duplicação relevante; são contexto persistente. |
-| Idade | Cabeçalho; recalculada como padrão em Avaliações | Duas fórmulas diferentes podem divergir em 1 ano. |
-| Nível de fitness | Chip no cabeçalho; edição do cadastro | O cabeçalho mistura identidade com informação de treino. |
-| Objetivos | Chips no cabeçalho; objetivo de cada prescrição em Prescrições; edição | Conceitos relacionados, mas sem uma área única que explique o plano proposto. |
-| Sexo, peso e altura | Edição do cadastro; usados como padrões em Avaliações | Não estão consultáveis em uma aba de perfil. |
-| FC máxima | Edição; zonas de FC em Treinamento | O valor-base e seu uso ficam separados. |
-| Preferências | Edição do cadastro | Não aparecem no acompanhamento normal. |
-| Limitações e histórico de lesões | Visão geral, dentro de observações clínicas; edição | Área correta, mas misturada com indicadores operacionais. |
-| Observações clínicas | Visão geral | Área única; deve continuar com criar/resolver. |
-| Cadastro incompleto | Linha/alerta abaixo do cabeçalho; abre edição | Compete visualmente com o trabalho diário e ocupa muito espaço. |
-| Meta semanal | Visão geral e tendência de Sessões | Duplicada: resumo mensal usa a mesma meta exibida na análise semanal. |
-| Adesão mensal e últimas 4 semanas | Visão geral | Sobrepõe a análise de frequência de 8 semanas em Sessões. |
-| Última sessão | Visão geral e lista de Sessões | Duplicada. |
-| Quantidade de exercícios em 30 dias | Visão geral; derivada das Sessões | Resumo isolado, sem decisão associada. |
-| Prescrições vigentes | Contagem em Visão geral; detalhes em Prescrições | Duplicada. |
-| Prescrição vigente/futura/encerrada | Prescrições | Não responde claramente “o que foi proposto agora”. |
-| Agenda, período, adaptações e preview do plano | Prescrições | Informação central para Treinamento, mas distante da ação diária. |
-| Atribuir e excluir prescrição | Prescrições | Funções essenciais a preservar. |
-| Prontidão/recovery atual | Treinamento; resumo e histórico em Oura/Whoop; Oura também em Visão geral | Principal duplicação da página. |
-| Sono, HRV, FC de repouso, atividade/strain e estresse | Treinamento em “Fisiologia”; Oura/Whoop; parte no resumo Oura da Visão geral | Mesmos sinais aparecem como dado bruto e como suporte à decisão. |
-| Check-in de percepção 0–10 | Treinamento | Único; inclui registrar, editar, refazer e pular. |
-| Conduta do dia e alternativas | Treinamento | Único; deve permanecer ligado ao check-in e ao dispositivo escolhido pelo motor. |
-| Alertas de recuperação | Treinamento; sinais equivalentes reaparecem nos históricos dos dispositivos | A mesma evidência é apresentada duas vezes com hierarquias diferentes. |
-| Sugestões de carga | Treinamento | Único; depende da prescrição vigente e da conduta efetiva. |
-| Iniciar sessão | Treinamento e ação global “Registrar sessão” | São entradas diferentes para o mesmo fluxo: uma leva prescrição pré-selecionada; a outra é administrativa. |
-| Sessões realizadas | Sessões; última sessão e adesão em Visão geral | Duplicada em resumos. |
-| Ver, editar, reabrir e finalizar sessão | Sessões e diálogos compartilhados | Único; preservar todos os caminhos e estados. |
-| Registro de sessão por voz | Cabeçalho, Treinamento e Sessões | Ação repetida, mas com contextos diferentes; deve usar o mesmo fluxo central. |
-| Evolução de carga, top-set, PR, volume e histórico por exercício | Exercícios | Único e bem delimitado. |
-| Avaliações, filtros, histórico e detalhe | Avaliações | Único; recebe idade, sexo, peso e altura como padrões. |
-| Relatórios | Botão no cabeçalho, página separada | Correto como destino externo ao conjunto de abas. |
-| Oura: prontidão, sono, atividade, estresse, treinos e métricas avançadas | Oura - Histórico; resumos em Treinamento e Visão geral | Duplicação de prontidão, sono, HRV, FC e atividade. |
-| Whoop: recovery, strain, sono, HRV, FC e métricas avançadas | Whoop; resumos em Treinamento | Duplicação de recovery, sono, HRV, FC e strain. |
-| Estado, última atualização, conectar, sincronizar, diagnosticar e revogar dispositivo | Linha abaixo do nome e rodapé das abas Oura/Whoop | Gestão fragmentada; dispositivo desconectado ocupa espaço permanente. |
+**Não recomendo um `delete` remoto seguido de `upsert` remoto em duas chamadas.** Mesmo com o lock por cliente, uma falha entre as chamadas apagaria dados até a próxima sincronização. Recomendo uma função transacional no banco que, na mesma transação, remova as linhas antigas dos `cycle_id` recebidos e grave o lote novo.
 
-## B) Nova estrutura
+## A. Evidência no código e no banco
 
-### Princípio de propriedade da informação
+- O campo e a deduplicação usam hoje `dateInTz(c.start, tz)` sem deslocamento (`mapWhoop.ts:59,82`).
+- `whoop-sync` chama o mapper com `America/Sao_Paulo` e grava por conflito em `(student_id,date)` (`whoop-sync/sync.ts:85-89`).
+- O índice único real é `UNIQUE (student_id,date)`; não há unicidade para `(student_id,cycle_id)`.
+- Há **334 linhas** em `whoop_metrics`; **todas as 334 têm `cycle_id`**.
+- Há **332 pares distintos `(student_id,cycle_id)`**: dois ciclos aparecem duas vezes, cada um em datas consecutivas. Isso confirma que já existem resíduos históricos que uma reconciliação por `cycle_id` deve remover.
+- Não há duas linhas atuais com o mesmo `(student_id,date)`, pois o índice único impede isso.
+- Não existem views ou materialized views lendo `whoop_metrics`.
 
-Cada dado tem uma aba “dona”. Outras abas podem mostrar apenas uma consequência operacional e um link para a fonte. Exemplo: **Treinamento** mostra “reduzir intensidade hoje” e “baseado no Oura”, mas sono, HRV e score bruto aparecem somente em **Oura**.
+## B. Todos os consumidores de `whoop_metrics.date`
 
-| ID preservado | Novo título | Pergunta respondida | Conteúdo proprietário | Visibilidade |
-|---|---|---|---|---|
-| `training` | **Treinamento** | “O que foi proposto e como conduzir o treino de hoje?” | Objetivos; frequência proposta; agenda disponível já registrada; plano vigente e futuro; adaptações; preview dos exercícios; check-in; conduta; alertas interpretados; sugestões de carga; iniciar sessão. Sem repetir números brutos do dispositivo. | Sempre; aba inicial. |
-| `overview` | **Perfil** | “Quem é este cliente e o que preciso considerar?” | Nascimento/idade, sexo, peso, altura, FC máxima, nível, preferências, limitações, lesões, observações clínicas e completude cadastral. | Sempre. |
-| `sessions` | **Sessões** | “O que foi realmente feito e com que regularidade?” | Meta semanal, adesão, última sessão, frequência e volume por semana, lista de sessões, detalhes e ações de registrar/ver/editar/reabrir/finalizar. Check-in histórico aparece apenas dentro da sessão à qual foi vinculado. | Sempre. |
-| `exercises` | **Evolução** | “Como cargas e desempenho evoluíram por exercício?” | Seletor de exercício, carga atual, PR, tendência, volume, gráfico e histórico de séries/repetições/carga/observações. | Sempre. |
-| `prescriptions` | **Planos anteriores** | “Quais propostas já foram encerradas?” | Somente prescrições encerradas, com período, objetivo, adaptações e preview. Planos vigentes/futuros são propriedade de Treinamento; esta aba pode ter link “Abrir plano atual”. | Sempre; usar estado vazio quando não houver histórico. |
-| `assessments` | **Avaliações** | “O que os testes mostram ao longo do tempo?” | Nova avaliação, filtros, resultados, comparação, histórico e detalhe técnico autorizado. | Sempre. |
-| `oura` | **Oura** | “O que o Oura mediu e como evoluiu?” | Status de atualização, prontidão, sono, HRV, FC, atividade, estresse, treinos e métricas avançadas em 7/30/90 dias. | Somente com conexão Oura ativa. |
-| `whoop` | **Whoop** | “O que o Whoop mediu e como evoluiu?” | Status de atualização, recovery, strain, sono, HRV, FC e métricas avançadas em 7/30/90 dias. | Somente com conexão Whoop ativa. |
+### Interface e consulta
 
-**Compatibilidade:** os valores técnicos permanecem iguais. Se uma conexão for revogada enquanto sua aba está ativa, mudar para `training` e atualizar `?tab=training`; links antigos para `oura`/`whoop` sem conexão também caem em `training` com aviso discreto. A aba `prescriptions` mantém o ID, mesmo com o título mais específico.
+1. `src/hooks/useWhoopMetrics.ts:59-83` — único acesso direto do front; ordena por `date` e filtra janelas de 7/30/90 dias pelo calendário de São Paulo.
+2. `src/pages/StudentDetailPage.tsx:100-115,407-414` — carrega 90 dias para a aba de treinamento e entrega as linhas ao painel.
+3. `src/components/student-detail/WhoopTabContent.tsx:91-140,250-370` — usa `date` no último score, pendências, gráficos, tabela e períodos.
+4. `src/components/PersonalizedTrainingDashboard.tsx:184-228,300-337,930-1030,1157-1170,1271-1310` — escolhe o dispositivo/dia, casa a recomendação, decide se o strain é “de hoje”, calcula desatualização, gera alertas e participa do identificador da conduta/check-in.
+5. `src/components/WhoopActivityCard.tsx:30-40` — mostra a data do card.
+6. `src/components/WhoopStudentDiagnosticsCard.tsx:16-20` — lê a linha mais recente; depende indiretamente da ordenação por `date`.
 
-## C) Cabeçalho
+### Recomendação, check-in, relatórios e IA
 
-### Fica
-- Voltar, avatar, nome e idade como contexto mínimo.
-- **Registrar sessão** como ação principal.
-- **Relatórios** e **Editar** no desktop.
-- No mobile: Registrar sessão visível; Relatórios, Editar e Gerenciar dispositivos em menu de ações, sem perder nenhuma função.
+7. `src/utils/recoverySnapshot.ts:62-102` — compara datas Oura/Whoop, escolhe o dispositivo mais recente e calcula desatualização.
+8. `src/utils/recoveryAdapters.ts:113-184` — leva `date` ao motor e monta o histórico/baseline dos 30 dias anteriores.
+9. `src/utils/whoopRecommendation.ts:28-75,185-214` — seleciona a linha do dia, separa histórico anterior e valida cobertura da janela.
+10. `src/utils/whoopRecommendation.ts:119-173` — recebe `snapshotIsToday`; a data errada torna o strain de hoje “indisponível”.
+11. O check-in/conduta não consulta a tabela diretamente, mas o painel inclui `source + date + score` no fingerprint. Corrigir a data muda corretamente o contexto da conduta atual; registros históricos não são reescritos.
+12. Não foi encontrado leitor direto de `whoop_metrics` em geradores de relatório ou funções de IA. Eles não exigem remoção de compensação.
 
-### Sai do cabeçalho
-- Chips de nível e objetivos: nível vai para Perfil; objetivos vão para Treinamento.
-- “Cadastro incompleto” como faixa global.
-- Estados de dispositivos desconectados.
-- Decoração animada, brilho e excesso de badges.
+### Funções, banco, espelho e agendamento
 
-### Novo destino de cadastro incompleto
-- No topo de **Perfil**, uma seção compacta “Cadastro” mostra completude, campos ausentes e ação “Completar cadastro”.
-- No cabeçalho, apenas um pequeno indicador junto de Editar quando houver pendência; sem listar campos ali.
+13. `supabase/functions/_shared/wearable/mapWhoop.ts` — único lugar que cria a data.
+14. `supabase/functions/whoop-sync/sync.ts` — grava o lote por data.
+15. `public.wearable_mirror_export_snapshot` — exporta `date` e filtra uma janela completa de 90 dias; é o único RPC que lê a tabela.
+16. `supabase/functions/_shared/wearableMirror/contract.ts` — valida a data e o intervalo exportado, sem deslocá-los.
+17. O banco tem três jobs ativos: **09:15, 13:15 e 21:15 UTC**. Todos chamam `whoop-sync-all`, que chama `whoop-sync` sem `start/end`; portanto cada execução busca os **últimos 30 dias**.
+18. Não existe compensação de `+1 dia` para remover. O `shiftDays` de `whoopRecommendation.ts` só calcula janelas de baseline; o `+1` no contrato do espelho só conta dias inclusivos.
 
-### Novo destino dos dispositivos
-- Abaixo do nome, exibir uma única linha somente quando houver conexão ativa: `Oura · atualizado há 7 min` e/ou `Whoop · atualizado há 12 min`.
-- Cada item abre sua própria aba. Não mostrar “sem vínculo”.
-- “Gerenciar dispositivos” fica no menu de ações e abre o painel existente para convidar, sincronizar e revogar. Dentro das abas conectadas, uma ação secundária “Gerenciar” abre o mesmo painel.
-- Revogação mantém confirmação explícita e informa que o histórico será preservado.
+## C. Volume atual e viabilidade da correção histórica
 
-## D) Esboços de layout
+- Existem **5 conexões Whoop ativas**.
+- Conexões criadas entre **09/07/2026 e 04/08/2026**.
+- Dados atuais entre **13/06/2026 e 14/09/2026**; por conexão: 49 a 92 linhas, total 334.
+- O endpoint aceita no máximo **90 dias por chamada** (`handler.ts:11-39`). As quatro coleções são paginadas em páginas de 25 e buscadas em paralelo, com 15 s por requisição e 75 s para o conjunto (`sync.ts:16-53`).
+- O limite padrão documentado pelo Whoop é 100 requisições/minuto e 10.000/dia. O histórico atualmente armazenado cabe em **duas janelas por conexão**, mas cinco janelas longas em paralelo podem chegar perto do limite por minuto. A execução deve ser **sequencial, uma conexão por mensagem**, respeitando `429/Retry-After` e sem concorrer com os três horários automáticos.
+- “Histórico completo” deve signific inicialmente **todo o período já presente no app**, começando um dia antes da menor `date` de cada conexão. Buscar toda a vida da conta Whoop é possível em blocos de até 90 dias, mas o volume anterior a junho não está mensurado e não deve ser prometido sem uma leitura da API.
 
-### Estrutura comum
+## D. Riscos avaliados
 
-**Desktop**
-```text
-Breadcrumb
-[avatar] Nome · idade                [Editar] [Relatórios] [Registrar sessão]
-         Oura · atualizado há 7 min
-──────────────────────────────────────────────────────────────────────────
-Treinamento | Perfil | Sessões | Evolução | Planos anteriores | Avaliações | Oura | Whoop
-──────────────────────────────────────────────────────────────────────────
-Título da aba + ação contextual
-Conteúdo principal em grade de 12 colunas; sem barra lateral permanente
+1. **Colisão em `(student_id,date)`** — continua possível; o mapper deve deduplicar pela nova data antes de enviar o lote.
+2. **Dois ciclos no novo mesmo dia** — manter a regra atual: preferir ciclo com recovery; em empate, o início mais recente. Adicionar testes específicos usando a data deslocada.
+3. **Resíduo da data antiga** — confirmado por dois `cycle_id` já duplicados. Reconciliar todos os ciclos recebidos, não apenas a data mais recente.
+4. **Apagamento não atômico** — um `delete` separado antes do `upsert` pode deixar lacuna após timeout/429/erro. Usar uma única função transacional.
+5. **Limite da janela** — incluir um dia de sobreposição nas bordas para não perder ciclo que cruza o início/fim; nunca exceder 90 dias por chamada.
+6. **`whoop_workouts`** — nenhum impacto de chave ou data: usa `start_datetime/end_datetime` e conflito por `whoop_workout_id`. Não apagar nem migrar essa tabela.
+7. **Espelho** — existe **1 autorização Whoop ativa**, com 61 linhas da origem e janela de 90 dias. Como o contrato exporta `date`, o destino também precisa receber um snapshot completo após a correção. O payload não leva `cycle_id`; a remoção das datas antigas depende da semântica `complete: true` do importador e deve ser verificada no app destino.
+8. **Regra das 12 horas** — para sono diurno/turnos atípicos, o corte ao meio-dia pode não representar o despertar. É uma limitação conhecida e deve ser documentada no teste, não escondida.
+
+## E. Plano incremental — executar somente um passo por mensagem
+
+### Passo 1 — testes e mudança local, sem publicação
+
+Alterar somente o mapper, o sync e seus testes.
+
+Em `mapWhoop.ts`, introduzir uma função única e reutilizá-la nos dois pontos:
+
+```ts
+const cycleDateInTz = (cycleStart: string, tz: string): string =>
+  dateInTz(new Date(Date.parse(cycleStart) + 12 * 60 * 60 * 1000).toISOString(), tz);
 ```
 
-**Mobile 375 px**
-```text
-[voltar] [avatar] Nome                         [⋯]
-                 Oura · há 7 min
-[ Registrar sessão ]
-[ Seção atual: Treinamento  ▾ ]  ← seletor abre lista de abas disponíveis
-Título da seção
-Conteúdo em uma coluna
+Trocas exatas:
+
+```ts
+const day = cycleDateInTz(c.start, tz);
 ```
 
-No mobile, evitar oito abas comprimidas ou escondidas por rolagem. O seletor mantém os mesmos IDs e atualiza o parâmetro da URL. Áreas de toque mínimas de 44 px, tabelas viram listas ou têm rolagem interna identificável, e a ação principal não encobre conteúdo.
+```ts
+date: cycleDateInTz(c.start, tz),
+```
 
-### `training` — Treinamento
-- **Desktop:** primeira faixa “Plano atual” em 8 colunas e “Disponibilidade” em 4; abaixo, “Hoje” em sequência: estado/check-in → conduta → sugestão de carga → iniciar sessão. Alertas ficam imediatamente antes da ação afetada. Planos futuros vêm abaixo; atribuir plano é ação no título.
-- **Mobile:** objetivos e frequência em resumo curto; agenda em lista por dia; exercícios do plano em expansão; depois check-in 0–10, conduta, cargas e botão de início em uma coluna.
-- **Vazios:** sem plano vigente oferece “Atribuir prescrição”; sem agenda informa “Agenda não definida”; sem dispositivo/check-in mantém treino possível, mas explica por que não há modulação automática; erro de dispositivo nunca vira “sem dados”.
+Adicionar testes para: 23h local → dia seguinte; 1h local → mesmo dia; fronteiras 11:59/12:00; ciclo inválido descartado; dois ciclos que colidem depois do deslocamento; preferência por recovery; empate pelo início mais recente.
 
-### `overview` — Perfil
-- **Desktop:** “Cadastro” e “Dados físicos” lado a lado; “Contexto do treino” (nível, preferências, FC máxima) abaixo; limitações, lesões e observações clínicas em bloco de largura total.
-- **Mobile:** cadastro/completude primeiro; dados físicos em pares; contexto; alertas clínicos; observações com ações no próprio item.
-- **Vazios:** cada campo ausente mostra `—`; observações vazias mostram “Nenhuma observação clínica ativa” com ação de adicionar; pendências nunca são confundidas com erro de carregamento.
+Em `sync.ts`, substituir o upsert direto de métricas por chamada à função transacional descrita no passo 2. Não tocar no fluxo de `whoop_workouts`.
 
-### `sessions` — Sessões
-- **Desktop:** cabeçalho com Registrar sessão; faixa única de aderência (meta, realizadas, tendência de 8 semanas e volume); filtros; sessões agrupadas por semana em grade.
-- **Mobile:** resumo de aderência horizontal compacto; filtros roláveis; sessões em lista com menu de ações. Detalhe, edição e reabertura permanecem em painel/modal.
-- **Vazios:** “Nenhuma sessão registrada” com CTA; filtro vazio oferece limpar filtro; falha de consulta oferece tentar novamente sem sugerir criar duplicata.
+**Prova:** testes do mapper e de `syncStudent` passam; busca textual confirma que `dateInTz(c.start, tz)` não continua nos dois pontos antigos; nenhuma função é publicada.
 
-### `exercises` — Evolução
-- **Desktop:** seletor pesquisável; quatro indicadores; gráfico amplo; tabela histórica.
-- **Mobile:** seletor full-width; indicadores 2×2; gráfico com altura fixa; tabela convertida em linhas empilhadas por data.
-- **Vazios:** sem sessões com exercícios explica a origem do histórico; exercício sem cargas mantém séries/repetições e diz “sem carga registrada”.
+### Passo 2 — função transacional no banco, ainda sem publicação
 
-### `prescriptions` — Planos anteriores
-- **Desktop:** filtros por período/status se o volume justificar; lista cronológica de planos encerrados; preview em painel lateral.
-- **Mobile:** lista compacta, um plano por linha; detalhes em painel de tela cheia.
-- **Vazios:** “Nenhum plano encerrado”; link para Treinamento, onde ficam plano atual, futuros e atribuição.
+Criar uma migration aditiva com `public.replace_whoop_metrics_batch(p_student_id uuid, p_rows jsonb)`, `SECURITY INVOKER`, acesso somente para `service_role`.
 
-### `assessments` — Avaliações
-- **Desktop:** título e Nova avaliação; resumo mais recente; filtros; histórico por data; detalhe em painel lateral.
-- **Mobile:** CTA full-width; filtros em rolagem horizontal; resultados em lista; detalhe em tela cheia.
-- **Vazios:** primeira avaliação com CTA; filtro sem resultado permite limpar; erro preserva distinção de “nenhuma avaliação”.
+Dentro de uma única transação da chamada, ela deve:
 
-### `oura` — Oura
-- **Desktop:** última atualização e Gerenciar; períodos 7/30/90; subáreas Resumo, Sono, Atividade, Estresse, Treinos e Avançado. Um indicador atual por métrica e uma série temporal — sem repetir na Treinamento.
-- **Mobile:** período em controle segmentado; resumo vertical; gráficos com altura estável; tabelas viram listas diárias expansíveis.
-- **Vazios:** a aba não existe sem conexão; conectada sem métricas informa processamento/sincronização; erro oferece tentar novamente. Diagnóstico técnico continua restrito a admin.
+1. validar que `p_rows` é array;
+2. validar que todas as linhas pertencem a `p_student_id` e têm `cycle_id/date`;
+3. rejeitar datas ou ciclos duplicados dentro do lote;
+4. apagar de `whoop_metrics` todas as linhas desse cliente cujo `cycle_id` esteja no lote;
+5. inserir o lote com `ON CONFLICT (student_id,date) DO UPDATE`, atualizando todos os campos sincronizados;
+6. devolver a quantidade gravada.
 
-### `whoop` — Whoop
-- **Desktop:** mesma gramática do Oura: atualização/Gerenciar, período, resumo de recovery, tendências de recovery/strain/sono e detalhe diário.
-- **Mobile:** indicadores 2×2, gráficos empilhados e dias em lista expansível.
-- **Vazios:** mesmas distinções entre “conectado aguardando dados”, erro e score em processamento; aba ausente sem conexão.
+O apagamento e a inserção ficam no mesmo corpo PL/pgSQL: qualquer erro desfaz ambos. A função deve funcionar sob o contexto autorizado do sync e respeitar o write guard existente.
 
-## Direção visual
+**Prova no banco:** consultar assinatura, `prosecdef = false`, privilégios (apenas `service_role`) e executar uma transação de teste que termina em `ROLLBACK`, provando remoção/reinserção sem persistir mudanças.
 
-- Paleta: superfícies areia muito claras, texto ardósia, bordas neutras e um único acento bronze por tela. Cores clínicas de sucesso/atenção/risco permanecem sem competir com o bronze.
-- Tipografia: família principal sóbria; todos os números, datas, unidades, scores e cargas em fonte mono com alinhamento tabular.
-- Cantos de 2–4 px, bordas finas, sombras mínimas; sem gradientes, brilho, shimmer, emojis ou cards aninhados.
-- Hierarquia inspirada em Apple Saúde/Oura/Whoop para métricas, Linear para densidade e Things para clareza de ações. Movimento curto e funcional, respeitando redução de movimento.
-- Todo texto novo usa “cliente” e “dispositivo”.
+### Passo 3 — publicar somente `whoop-sync`
 
-## E) Dados existentes versus funcionalidade nova
+Publicar `whoop-sync` com o mapper e a chamada transacional. Não publicar front, callback, sync-all ou espelho.
 
-### Possível apenas reorganizando o que já existe
-- Cabeçalho compacto, menu mobile e indicador condicional de dispositivos.
-- Abas Oura/Whoop condicionais às conexões, cada uma separada.
-- Perfil consultável com todos os campos já usados pelo formulário de edição.
-- Plano vigente/futuro em Treinamento, com objetivo, período, agenda/adaptações, preview, atribuição e exclusão.
-- Histórico de planos encerrados em `prescriptions`.
-- Centralizar adesão, meta semanal e última sessão em Sessões.
-- Manter check-in, conduta, alertas interpretados, sugestões de carga, alternativas e início de sessão.
-- Manter relatórios, avaliações, observações clínicas, evolução por exercício e gestão/revogação de dispositivos.
-- Calcular idade uma única vez e reaproveitar o mesmo valor.
+**Prova:** timestamp da publicação; smoke de uma conexão em janela curta; log `success`; para os ciclos retornados, uma linha por `(student_id,cycle_id)` e uma por `(student_id,date)`; o exemplo de 15/09 aparece em 15/09.
 
-### Exige funcionalidade ou dado novo
-- **Disponibilidade real do cliente** fora da agenda de uma prescrição: hoje existe frequência semanal proposta e adaptações/agenda atribuída, não uma agenda geral de disponibilidade.
-- **Explicação persistida de por que o plano atende objetivos/disponibilidade:** objetivos e plano existem, mas a justificativa explícita não é um dado estruturado.
-- **Adesão por sessão agendada versus faltas/cancelamentos:** hoje é possível comparar volume realizado com meta, mas não há necessariamente estados de presença, falta e cancelamento.
-- **Metas mensuráveis por objetivo** (peso-alvo, prazo, performance-alvo): não inferir a partir do rótulo do objetivo.
-- **Feed unificado entre dispositivos:** não necessário para o redesenho e exigiria regra nova de normalização; manter cada dispositivo separado.
+### Passo 4 — corrigir o histórico, uma conexão por mensagem
 
-## F) Plano de execução em etapas pequenas
+Para cada uma das 5 conexões, fora dos horários automáticos, chamar `whoop-sync` sequencialmente em blocos de até 90 dias, começando um dia antes da menor data atual e terminando em agora. Parar imediatamente em 429, 423 ou 5xx e respeitar `Retry-After`.
 
-### 1. Contrato de informação e navegação
-- Criar inventário tipado das abas com ID, título, ordem e regra de visibilidade.
-- Definir propriedade única de cada campo e ação antes de mover componentes.
-- **Risco:** quebrar `?tab=` ou abrir uma aba oculta.
-- **Testar:** todos os oito IDs; fallback de parâmetro inválido; conexão/revogação enquanto Oura/Whoop está ativa; deep link de avaliação.
+**Prova após cada conexão:**
 
-### 2. Cabeçalho e seletor mobile
-- Compactar identidade e ações; mover pendências; condicionar a linha de dispositivos; implementar seletor de seção em 375 px.
-- **Risco:** esconder Editar, Relatórios, Registrar sessão ou conexão de dispositivo.
-- **Testar:** todas as ações em desktop e 375 px, teclado, leitores de tela, nomes longos, zero/um/dois dispositivos e cadastro completo/incompleto.
+```sql
+SELECT count(*) AS rows,
+       count(*) FILTER (WHERE cycle_id IS NULL) AS sem_cycle_id,
+       count(*) - count(DISTINCT cycle_id) AS ciclos_repetidos,
+       min(date), max(date)
+FROM public.whoop_metrics
+WHERE student_id = '<cliente>';
+```
 
-### 3. Perfil como fonte cadastral e clínica
-- Reorganizar os campos existentes e observações sem mudar persistência.
-- Unificar o cálculo de idade.
-- **Risco:** perda de campos usados como padrão nas avaliações.
-- **Testar:** valores nulos, edição, salvamento, avaliação nova com idade/sexo/peso/altura e permissões de observações.
+Também comparar as datas/strain recentes com o app oficial e confirmar log de sync `success`. Só seguir para a conexão seguinte após aprovação do resultado.
 
-### 4. Treinamento e histórico de planos
-- Mover plano vigente/futuro, agenda, adaptações, preview e atribuição para Treinamento; deixar encerrados em Planos anteriores.
-- Integrar visualmente plano → check-in → conduta → carga → início, sem alterar as regras.
-- **Risco:** vazamento de prescrição entre clientes ou entre formas de abrir o registro.
-- **Testar:** sem/uma/várias prescrições vigentes; futura/encerrada; atribuir/excluir; pré-seleção ao iniciar; fechamento limpa `sessionPrescriptionId`.
+### Passo 5 — auditoria global pós-correção
 
-### 5. Sessões e Evolução
-- Concentrar meta, adesão, última sessão, frequência e volume em Sessões; remover resumos duplicados do Perfil.
-- Adaptar histórico de exercício para mobile sem mudar cálculos.
-- **Risco:** divergência na contagem de sessões futuras ou no volume.
-- **Testar:** meta × 4,33, sessões futuras excluídas da adesão, filtros, detalhe, edição, reabertura, finalização, voz, PRs e cargas nulas.
+Executar apenas leituras: todas as linhas com `cycle_id`; nenhum `(student_id,cycle_id)` repetido; nenhum `(student_id,date)` repetido; cinco conexões ainda ativas; datas máximas coerentes; últimos logs sem falha. Conferir nominalmente os dois ciclos hoje duplicados para provar que cada um ficou em uma única data.
 
-### 6. Oura e Whoop como fontes exclusivas de métricas
-- Remover números brutos repetidos de Treinamento/Perfil; manter ali apenas consequência e link para a fonte.
-- Centralizar status, atualização, sincronização, diagnóstico e revogação no painel de dispositivos e na aba conectada.
-- **Risco:** alterar a recomendação ao tentar apenas mudar apresentação.
-- **Testar:** janelas Oura de 30 dias e Whoop de 90 dias intactas; fonte escolhida, freshness, score pendente, dados antigos, erro parcial, conexão sem métricas e revogação com histórico preservado.
+### Passo 6 — atualizar e provar o espelho
 
-### 7. Polimento visual e acessibilidade
-- Aplicar tokens ardósia/areia/bronze, mono numérico, cantos retos, estados de foco e movimento reduzido.
-- **Risco:** contraste clínico insuficiente ou números truncados.
-- **Testar:** contraste claro/escuro, zoom 200%, teclado, redução de movimento e larguras 375, 768, 1024 e 1440 px.
+Disparar refresh somente da autorização Whoop ativa. Verificar que o snapshot da origem contém a janela completa corrigida e, no destino, que as datas antigas foram removidas — não apenas que as novas foram inseridas. Se o destino não substituir integralmente uma projeção `complete: true`, parar e planejar a correção do importador antes de repetir.
 
-### 8. Regressão funcional e publicação controlada
-- Testes de componentes para visibilidade das abas e propriedade única dos dados.
-- Testes ponta a ponta dos fluxos críticos: check-in, conduta, alerta, carga, iniciar/registrar por voz, ver/editar/reabrir/finalizar sessão, prescrição, avaliação, relatório, edição e revogação confirmada.
-- Comparar consultas antes/depois para preservar carregamento sob demanda e evitar tráfego extra.
-- Publicar primeiro em ambiente de teste com clientes representando: cadastro incompleto, sem dispositivo, Oura, Whoop, ambos, sem sessões e múltiplas prescrições.
+## Recomendação final
 
-## Critério de aceite
-
-- Nenhum dado do cliente aparece como conteúdo completo em mais de uma aba.
-- Todos os fluxos existentes continuam acessíveis e funcionais.
-- Os oito IDs e deep links continuam válidos.
-- Oura e Whoop aparecem somente quando conectados.
-- Em 375 px, nenhuma ação ou informação depende de rolagem horizontal invisível.
-- Nenhum valor novo é inventado; ausências usam `—` ou estado vazio específico.
+Aprovar a regra de `+12h`, mas substituir o `delete` separado por reconciliação transacional. Para o volume atual, a correção histórica é pequena e viável sob os limites do Whoop quando executada sequencialmente. Não há compensação de data a remover no front, em relatórios, IA, RPCs ou crons.
