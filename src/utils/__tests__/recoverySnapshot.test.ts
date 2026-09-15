@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildRecoverySnapshot,
   classifyTodayRecoveryAvailability,
@@ -6,6 +6,10 @@ import {
 } from "../recoverySnapshot";
 
 const TODAY = "2026-08-26";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const oura = (date: string, readiness: number | null) => ({
   date,
@@ -186,5 +190,29 @@ describe("buildRecoverySnapshot — contrato diário", () => {
       date: "2042-01-01",
       score: 90,
     });
+  });
+
+  it("o padrão usa o dia de São Paulo quando UTC já virou", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-27T02:30:00.000Z"));
+
+    const snapshot = buildRecoverySnapshot([
+      oura("2026-08-26", 81),
+      oura("2026-08-27", 90),
+    ], []);
+
+    expect(snapshot).toMatchObject({ date: "2026-08-26", score: 81 });
+  });
+
+  it("today explícito continua vencendo o padrão de São Paulo", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-27T02:30:00.000Z"));
+
+    const snapshot = buildRecoverySnapshot([
+      oura("2026-08-26", 81),
+      oura("2026-08-27", 90),
+    ], [], "2026-08-27");
+
+    expect(snapshot).toMatchObject({ date: "2026-08-27", score: 90 });
   });
 });
