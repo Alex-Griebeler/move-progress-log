@@ -49,11 +49,10 @@ describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
     expect(dash).not.toMatch(/\{recommendation!\.intensity\} · \{recommendation!\.duration\}/);
   });
 
-  it("origem/data com tom de ALERTA só com 2+ dias — decisão ratificada 28/08 (R8a: idade em calendário SP)", () => {
-    // Desde a R8a a idade vem de snapshotAgeDays (spToday/SP) — mesmo limiar
-    // de 2 dias, calendário único; D−1 tem badge neutro próprio (decisão 1b).
-    expect(dash).toMatch(/\{snapshotIsStale && \(/);
-    expect(dash).not.toMatch(/staleAfterDays=/);
+  it("dados anteriores não geram badge nem aviso de conduta antiga", () => {
+    expect(dash).not.toContain("StaleBadge");
+    expect(dash).not.toContain("snapshotIsStale");
+    expect(dash).not.toContain("Conduta calculada para");
   });
 
   it("a pilha de cards de alerta morreu; consolidação via partitionAlerts", () => {
@@ -93,9 +92,8 @@ describe("refinamento R1 — hierarquia enxuta e alertas consolidados", () => {
 });
 
 describe("hero único de recuperação", () => {
-  it("markup: usa ScoreRing + StaleBadge", () => {
+  it("markup: usa ScoreRing para o score fechado de hoje", () => {
     expect(dash).toContain("ScoreRing");
-    expect(dash).toContain("StaleBadge");
   });
 
   it("a fonte do hero vem do RecoverySnapshot (seleção semântica intocada)", () => {
@@ -157,15 +155,7 @@ describe("fachada Oura intocada (paridade)", () => {
     // A fase Oura-only acabou: o hero Whoop alimenta o motor via adapter.
     expect(dash).not.toContain("recomendação automática de treino usa dados do Oura");
     expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())");
-    // Estado pendente é ALCANÇÁVEL nos dois casos: sem dia fechado (estado
-    // vazio) e com hero de dia anterior (nota sob o hero — revisão fria).
-    expect(dash).toContain("recovery do dia ainda está sendo processado pelo aparelho");
-    expect(dash).toContain("const whoopStillProcessing = !snapshot && unscoredWhoopDay !== null;");
-    expect(dash).toMatch(/newerUnscoredWhoopDay\(whoopMetrics, snapshot\?\.date \?\? null\)/);
-    // UNSCORABLE é terminal — a UI não promete que "vai fechar" (auditoria 29/08).
-    expect(dash).toContain("não conseguiu pontuar");
-    expect(dash).toContain("ainda está processando no Whoop — mostrando o último dia fechado");
-    expect(dash).toContain("{whoopPendingNote && (");
+    expect(dash).toContain("Sem dados recentes de recuperação");
     expect(dash).toContain("Sem recovery utilizável para o dia mais recente");
   });
 });
@@ -245,7 +235,7 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
   });
 
   it("latestMetrics participa da DECISÃO da fonte — mas só dentro da janela (R8a)", () => {
-    expect(dash).toMatch(/buildRecoverySnapshot\(\s*latestInWindow \? \[latestInWindow, \.\.\.recentMetrics\] : recentMetrics,\s*whoopMetrics,\s*\)/);
+    expect(dash).toMatch(/buildRecoverySnapshot\(\s*latestInWindow \? \[latestInWindow, \.\.\.recentMetrics\] : recentMetrics,\s*whoopMetrics,\s*spToday\(\),\s*\)/);
   });
 
   it("prescrição e tiles Oura casam com o DIA do snapshot (não com latestMetrics de outra query)", () => {
@@ -275,20 +265,21 @@ describe("R7 — correções da auditoria (29/08)", () => {
     expect(dash).toContain("setSelectedAlternative({ ...alt, studentId, date: snapshot.date, fingerprint: conductFingerprint ?? undefined })");
   });
 
-  it("stale ganha nota explícita de conduta datada", () => {
-    expect(dash).toContain("Conduta calculada para {snapshotDayLabel}");
+  it("sem score fechado hoje não mostra conduta nem carga", () => {
+    const noSnapshotBranch = dash.slice(dash.indexOf("if (!snapshot) {"), dash.indexOf("// Deltas vs baseline"));
+    expect(noSnapshotBranch).toContain("Sem dados recentes de recuperação");
+    expect(noSnapshotBranch).not.toContain("Conduta do dia");
+    expect(noSnapshotBranch).not.toContain("Sugestões de carga");
   });
 
   it("baseline Oura ancorado no DIA do snapshot", () => {
     expect(dash).toMatch(/useOuraBaseline\(\s*studentId,\s*30,\s*earlySnapshot\?\.source === "oura" \? earlySnapshot\.date : undefined,?\s*\)/);
   });
 
-  it("títulos datados NEUTROS pra qualquer snapshot ≠ hoje (P8/E8; aviso âmbar segue ≥2d — decisão 1b)", () => {
-    expect(dash).toContain("`Atenção · ${sectionDayLabel}`");
-    expect(dash).toContain("`Fisiologia · ${sectionDayLabel}`");
-    expect(dash).toContain('? "ontem"');
-    // o AVISO datado continua ancorado no isStale (≥2 dias)
-    expect(dash).toContain("Conduta calculada para {snapshotDayLabel}");
+  it("seções do score fechado são sempre do dia atual", () => {
+    expect(dash).toContain("Atenção hoje");
+    expect(dash).toContain("Fisiologia de hoje");
+    expect(dash).not.toContain('· ontem');
   });
 
   it("carga: loading, erro e bloqueio são estados visíveis", () => {
@@ -303,18 +294,7 @@ describe("R7 — correções da auditoria (29/08)", () => {
   });
 });
 
-describe("R8a — badge ontem + janela Oura de calendário", () => {
-  it("D−1 e stale usam a MESMA idade ancorada em SP (calendário único)", () => {
-    expect(dash).toContain("const snapshotAgeDays = daysBetweenDateOnly(spToday(), snapshot.date);");
-    expect(dash).toContain("const snapshotIsStale = snapshotAgeDays >= 2;");
-    expect(dash).toMatch(/\{!snapshotIsStale && snapshotAgeDays === 1 && \(/);
-    expect(dash).toMatch(/\{snapshotIsStale && \(/);
-    expect(dash).toContain("ageDays={snapshotAgeDays}");
-    expect(dash).toContain('· ontem');
-    // nenhum consumidor restante do isStale de runtime no hero
-    expect(dash).not.toContain("snapshot.isStale");
-  });
-
+describe("R8a — janela Oura de calendário", () => {
   it("latest só entra na decisão da fonte DENTRO da janela de 30 dias", () => {
     expect(dash).toContain('const ouraWindowStart = shiftDateOnly(spToday(), -29);');
     expect(dash).toMatch(/latestMetrics && latestMetrics\.date >= ouraWindowStart \? latestMetrics : null/);

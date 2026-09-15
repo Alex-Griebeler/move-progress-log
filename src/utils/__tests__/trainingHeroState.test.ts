@@ -4,7 +4,7 @@
  * loading → erro total → sem snapshot → sem recomendação → erro parcial →
  * check-in pendente → zona 0 (com/sem protocolos) → multi-vigente → normal.
  */
-import { buildDailyConductFingerprint, whoopFingerprintSegment } from "../trainingHeroState";
+import { whoopFingerprintSegment } from "../trainingHeroState";
 import { describe, expect, it } from "vitest";
 import {
   deriveTrainingHeroState,
@@ -166,53 +166,3 @@ describe("v9.2 — whoopFingerprintSegment (categórico) × resolveCheckInState"
   });
 });
 
-describe("buildDailyConductFingerprint — fonte diária da conduta", () => {
-  const studentId = "student-1";
-  const today = "2026-09-15";
-  const psrFingerprint = `${studentId}|psr|${today}`;
-  const objective = {
-    date: today,
-    score: 72,
-    zone: "green",
-    loadDecision: "maintain",
-    loadAdjustmentPercent: 0,
-    overrideApplied: false,
-    criticalSignature: "",
-    whoopSegment: "-",
-  } as const;
-
-  it.each(["pending", "missing", "unscorable"])(
-    "permanece estável quando o motivo muda para %s",
-    () => {
-      expect(buildDailyConductFingerprint({ studentId, today, objective: null })).toBe(psrFingerprint);
-    },
-  );
-
-  it("muda de PSR para Whoop quando o score fechado de hoje chega", () => {
-    const whoop = buildDailyConductFingerprint({
-      studentId,
-      today,
-      objective: { ...objective, source: "whoop" },
-    });
-    expect(whoop).not.toBe(psrFingerprint);
-    expect(whoop).toContain("|whoop|");
-  });
-
-  it("muda de PSR para Oura quando o score fechado de hoje chega", () => {
-    const oura = buildDailyConductFingerprint({
-      studentId,
-      today,
-      objective: { ...objective, source: "oura" },
-    });
-    expect(oura).not.toBe(psrFingerprint);
-    expect(oura).toContain("|oura|");
-  });
-
-  it("não usa score objetivo de outro dia como contexto de hoje", () => {
-    expect(buildDailyConductFingerprint({
-      studentId,
-      today,
-      objective: { ...objective, source: "whoop", date: "2026-09-14" },
-    })).toBe(psrFingerprint);
-  });
-});

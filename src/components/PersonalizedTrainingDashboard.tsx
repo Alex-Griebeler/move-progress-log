@@ -20,14 +20,13 @@ import {
   AccordionTrigger,
 } from "./ui/accordion";
 import TrainingZonesCard from "./TrainingZonesCard";
-import { ScoreRing, MetricTile, StaleBadge, DataErrorState } from "./metrics";
+import { ScoreRing, MetricTile, DataErrorState } from "./metrics";
 import type { MetricDelta, MetricTone } from "./metrics";
 import { buildRecoverySnapshot } from "@/utils/recoverySnapshot";
 import { getTrainingAlternativesForZone } from "@/utils/trainingAlternatives";
 import {
   buildWhoopRecommendation,
   computeWhoopContext,
-  newerUnscoredWhoopDay,
   WHOOP_SYNC_STALE_HOURS,
   formatStrainDisplay,
 } from "@/utils/whoopRecommendation";
@@ -61,7 +60,7 @@ import AddObservationDialog from "@/components/checkin/AddObservationDialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { daysBetweenDateOnly, formatRelativeDay, parseLocalDate, shiftDateOnly } from "@/utils/relativeDate";
+import { shiftDateOnly } from "@/utils/relativeDate";
 import {
   partitionAlerts,
   stripAlertEmoji,
@@ -197,6 +196,7 @@ const PersonalizedTrainingDashboard = ({
   const earlySnapshot = buildRecoverySnapshot(
     latestInWindow ? [latestInWindow, ...recentMetrics] : recentMetrics,
     whoopMetrics,
+    spToday(),
   );
   // latestMetrics vem de query com cache próprio e pode estar um dia à
   // frente (ou atrás) do snapshot — a linha Oura consumida por prescrição e
@@ -931,19 +931,6 @@ const PersonalizedTrainingDashboard = ({
   // Whoop recovery (empate → Oura; Whoop PENDING_SCORE pulado).
   const snapshot = earlySnapshot;
 
-  // Dia Whoop mais novo que o exibido ainda processando (PENDING/UNSCORABLE):
-  // o snapshot pula esses dias. Dois usos — sem NENHUM dia fechado, o estado
-  // vazio ganha mensagem própria; com hero Whoop de um dia anterior, uma nota
-  // explícita ("hoje pendente + ontem fechado" não dispara isStale).
-  const unscoredWhoopDay = newerUnscoredWhoopDay(whoopMetrics, snapshot?.date ?? null);
-  const whoopStillProcessing = !snapshot && unscoredWhoopDay !== null;
-  const whoopPendingNote =
-    snapshot?.source === "whoop" && unscoredWhoopDay !== null
-      ? unscoredWhoopDay.state === "pending"
-        ? `O recovery de ${formatRelativeDay(unscoredWhoopDay.date)} ainda está processando no Whoop — mostrando o último dia fechado.`
-        : `O Whoop não conseguiu pontuar ${formatRelativeDay(unscoredWhoopDay.date)} (dado insuficiente no aparelho) — mostrando o último dia fechado.`
-      : null;
-
   // Contrato de estados: loading ≠ erro ≠ sem wearable (regra transversal).
   // isLoading é o OR do primeiro load das consultas Oura E Whoop: decidir a
   // fonte com metade do dado no ar mostrava prescrição Oura de ontem por um
@@ -965,13 +952,7 @@ const PersonalizedTrainingDashboard = ({
       <Card className="p-6">
         <div className="text-center text-muted-foreground">
           <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>
-            {whoopStillProcessing
-              ? unscoredWhoopDay?.state === "pending"
-                ? `O Whoop de ${studentName} sincronizou, mas o recovery do dia ainda está sendo processado pelo aparelho — a recomendação aparece quando o score fechar.`
-                : `O Whoop de ${studentName} sincronizou, mas não conseguiu pontuar o recovery do dia (dado insuficiente no aparelho).`
-              : `Ainda não há dados de recuperação para ${studentName}. Se o wearable já estiver conectado, aguarde a próxima sincronização; caso contrário, conecte Oura ou Whoop na aba correspondente.`}
-          </p>
+          <p>Sem dados recentes de recuperação</p>
         </div>
       </Card>
     );
@@ -998,18 +979,6 @@ const PersonalizedTrainingDashboard = ({
   // fisiologia Oura) SÓ renderiza quando o próprio hero é Oura — senão a
   // tela misturaria hero Whoop de hoje com análise de um Oura antigo.
   const ouraIsCurrent = snapshot.source === "oura";
-  // Idade ÚNICA do snapshot no calendário do produto (spToday/SP): gate do
-  // StaleBadge, badge D−1 e rótulos datados usam o MESMO relógio — misturar
-  // com o isStale do runtime dava badge errado fora do fuso SP (revisão R8a).
-  const snapshotAgeDays = daysBetweenDateOnly(spToday(), snapshot.date);
-  const snapshotIsStale = snapshotAgeDays >= 2;
-  // "hoje" só quando é hoje: com snapshot stale, os títulos carregam a data
-  // real — "Fisiologia de hoje" com dado de 3 dias atrás mentia (auditoria
-  // 29/08; a prescrição continuar visível é decisão ratificada, o rótulo é
-  // que precisa ser honesto).
-  const snapshotDayLabel = snapshotIsStale
-    ? parseLocalDate(snapshot.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })
-    : null;
   const hasOuraRecommendation = ouraIsCurrent && Boolean(ouraDayRow && recommendation);
   // R5: gate único da fonte ativa — Oura mantém o caminho histórico; Whoop
   // usa a recomendação montada pelo par {source, date} do snapshot.
@@ -1268,15 +1237,6 @@ const PersonalizedTrainingDashboard = ({
     : psrStagePerception
       ? perceptionEyebrow(psrStagePerception)
       : null;
-  // P8/E8: títulos datados NEUTROS pra qualquer snapshot ≠ hoje ("Fisiologia
-  // · ontem"); o AVISO âmbar continua só ≥2 dias (decisão 1b intocada).
-  const sectionDayLabel =
-    snapshotAgeDays === 0
-      ? null
-      : snapshotAgeDays === 1
-        ? "ontem"
-        : parseLocalDate(snapshot.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-
   return (
     <div className="space-y-6">
       {/* HERO — um único score de recuperação. Fonte/data só aparecem quando
@@ -1294,24 +1254,6 @@ const PersonalizedTrainingDashboard = ({
               <Badge variant="outline" className="font-normal">
                 {SNAPSHOT_ZONE_SHORT[snapshot.source][snapshot.zone]}
               </Badge>
-              {/* Origem/data só quando o dado está velho (2+ dias) — aí ela
-                  vira informação de decisão; no fluxo normal era ruído. */}
-              {snapshotIsStale && (
-                <StaleBadge
-                  date={snapshot.date}
-                  source={snapshot.source === "oura" ? "Oura" : "Whoop"}
-                  ageDays={snapshotAgeDays}
-                />
-              )}
-              {/* R8-1 (decisão 1b): D−1 ganha marca NEUTRA — informação sem
-                  alarme; o tom de alerta continua reservado ao isStale (2+
-                  dias, ratificado na R1). Dia ancorado no calendário do
-                  produto (spToday = America/Sao_Paulo). */}
-              {!snapshotIsStale && snapshotAgeDays === 1 && (
-                <Badge variant="outline" className="font-normal text-muted-foreground">
-                  {snapshot.source === "oura" ? "Oura" : "Whoop"} · ontem
-                </Badge>
-              )}
               {/* R8d visual: sync mora na MESMA linha dos badges — menos uma
                   fileira antes do título; unavailable ⇒ syncDisplay null, os
                   dois estados nunca coexistem. */}
@@ -1337,21 +1279,11 @@ const PersonalizedTrainingDashboard = ({
                 </span>
               )}
             </div>
-            {/* "Hoje pendente + ontem fechado" não dispara isStale (2 dias) —
-                sem esta linha, a prescrição de ontem passaria por atual. */}
-            {snapshotDayLabel && (
-              <p className="text-xs text-warning">
-                Conduta calculada para {snapshotDayLabel} — não é a leitura de hoje.
-              </p>
-            )}
             {snapshot.source === "whoop" && whoopCtx?.freshness === "unavailable" && (
               <p className="text-xs text-warning">
                 Estado da sincronização do Whoop indisponível — freshness e strain não
                 entram na decisão de hoje.
               </p>
-            )}
-            {whoopPendingNote && (
-              <p className="text-xs text-muted-foreground">{whoopPendingNote}</p>
             )}
             {/* Fonte decidida com uma das consultas em erro: o hero pode não
                 ser o dado mais novo — dizer isso é obrigação (auditoria 29/08). */}
@@ -1792,7 +1724,7 @@ const PersonalizedTrainingDashboard = ({
             </div>
           )}
           <p className="mb-3 text-sm font-medium">
-            Protocolos de recuperação{snapshotDayLabel ? ` · ${snapshotDayLabel}` : ""}
+            Protocolos de recuperação
           </p>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {activeRecommendation!.priorityProtocols!.map((protocol) => (
@@ -1853,7 +1785,7 @@ const PersonalizedTrainingDashboard = ({
                   : "h-4 w-4 text-warning"
               }
             />
-            {sectionDayLabel ? `Atenção · ${sectionDayLabel}` : "Atenção hoje"}
+            Atenção hoje
           </h3>
           <ul className="space-y-1.5 text-sm text-muted-foreground">
             {alertPartition.attention.map((alert, idx) => (
@@ -1892,7 +1824,7 @@ const PersonalizedTrainingDashboard = ({
         <div>
           <h3 className="mb-3 flex items-center gap-2 text-base font-semibold">
             <Activity className="h-4 w-4 text-primary" />
-            {sectionDayLabel ? `Fisiologia · ${sectionDayLabel}` : "Fisiologia de hoje"}
+            Fisiologia de hoje
           </h3>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
             {physiology.map((p) => {
