@@ -31,6 +31,9 @@ type Rec = Record<string, any>;
 const msToS = (v: unknown): number | null =>
   typeof v === "number" ? Math.round(v / 1000) : null;
 
+const dateInTz = (iso: string, tz: string): string =>
+  new Intl.DateTimeFormat("sv-SE", { timeZone: tz }).format(new Date(iso));
+
 const OFFSET_RE = /^(Z|[+-]\d{2}:\d{2})$/;
 
 const offsetMinutes = (offset: string): number | null => {
@@ -74,7 +77,76 @@ const cycleDate = (cycle: Rec, sleep?: Rec): string | null => {
   return started.secondsOfDay > 12 * 3600 ? shiftDate(started.date, 1) : started.date;
 };
 
+const mapMetricRow = (
+  cycle: Rec,
+  recovery: Rec | undefined,
+  sleep: Rec | undefined,
+  date: string,
+): WhoopMetricRow => {
+  const rs = recovery?.score ?? {};
+  const ss = sleep?.score ?? {};
+  const stg = ss.stage_summary ?? {};
+
+  const deep = msToS(stg.total_slow_wave_sleep_time_milli);
+  const rem = msToS(stg.total_rem_sleep_time_milli);
+  const light = msToS(stg.total_light_sleep_time_milli);
+  const total = [deep, rem, light].every((v) => v !== null)
+    ? (deep as number) + (rem as number) + (light as number)
+    : null;
+
+  return {
+    date,
+    cycle_id: cycle.id,
+    recovery_score: rs.recovery_score ?? null,
+    hrv_rmssd: rs.hrv_rmssd_milli ?? null,
+    resting_heart_rate: rs.resting_heart_rate ?? null,
+    spo2: rs.spo2_percentage ?? null,
+    skin_temp: rs.skin_temp_celsius ?? null,
+    day_strain: cycle.score?.strain ?? null,
+    kilojoules: cycle.score?.kilojoule ?? null,
+    sleep_performance: ss.sleep_performance_percentage ?? null,
+    sleep_efficiency: ss.sleep_efficiency_percentage ?? null,
+    respiratory_rate: ss.respiratory_rate ?? null,
+    total_sleep_duration: total,
+    deep_sleep_duration: deep,
+    rem_sleep_duration: rem,
+    light_sleep_duration: light,
+    awake_time: msToS(stg.total_awake_time_milli),
+    disturbance_count: stg.disturbance_count ?? null,
+    score_state: recovery?.score_state ?? sleep?.score_state ?? null,
+  };
+};
+
 export function assembleDailyMetrics(
+  cycles: Rec[],
+  recoveries: Rec[],
+  sleeps: Rec[],
+  tz: string,
+): WhoopMetricRow[] {
+  const recByCycle = new Map<number, Rec>(recoveries.map((r) => [r.cycle_id, r]));
+  const sleepById = new Map<string, Rec>(sleeps.map((s) => [s.id, s]));
+  const sleepByCycle = new Map<number, Rec>(sleeps.map((s) => [s.cycle_id, s]));
+
+  const startMs = (c: Rec): number => Date.parse(String(c?.start ?? ''));
+  const byDay = new Map<string, Rec>();
+  for (const c of cycles) {
+    if (!Number.isFinite(startMs(c))) continue;
+    const day = dateInTz(c.start, tz);
+    const prev = byDay.get(day);
+    if (!prev) { byDay.set(day, c); continue; }
+    const cScore = recByCycle.has(c.id) ? 1 : 0;
+    const prevScore = recByCycle.has(prev.id) ? 1 : 0;
+    if (cScore > prevScore || (cScore === prevScore && startMs(c) > startMs(prev))) byDay.set(day, c);
+  }
+
+  return Array.from(byDay.values()).map((c) => {
+    const rec = recByCycle.get(c.id);
+    const sleep = (rec?.sleep_id && sleepById.get(rec.sleep_id)) || sleepByCycle.get(c.id);
+    return mapMetricRow(c, rec, sleep, dateInTz(c.start, tz));
+  });
+}
+
+export function assembleDailyMetricsByWakeDate(
   cycles: Rec[],
   recoveries: Rec[],
   sleeps: Rec[],
@@ -123,38 +195,7 @@ export function assembleDailyMetrics(
 
   return Array.from(byDay.values()).map(({ cycle: c, sleep, day }) => {
     const rec = recByCycle.get(c.id);
-    const rs = rec?.score ?? {};
-    const ss = sleep?.score ?? {};
-    const stg = ss.stage_summary ?? {};
-
-    const deep = msToS(stg.total_slow_wave_sleep_time_milli);
-    const rem = msToS(stg.total_rem_sleep_time_milli);
-    const light = msToS(stg.total_light_sleep_time_milli);
-    const total = [deep, rem, light].every((v) => v !== null)
-      ? (deep as number) + (rem as number) + (light as number)
-      : null;
-
-    return {
-      date: day,
-      cycle_id: c.id,
-      recovery_score: rs.recovery_score ?? null,
-      hrv_rmssd: rs.hrv_rmssd_milli ?? null,
-      resting_heart_rate: rs.resting_heart_rate ?? null,
-      spo2: rs.spo2_percentage ?? null,
-      skin_temp: rs.skin_temp_celsius ?? null,
-      day_strain: c.score?.strain ?? null,
-      kilojoules: c.score?.kilojoule ?? null,
-      sleep_performance: ss.sleep_performance_percentage ?? null,
-      sleep_efficiency: ss.sleep_efficiency_percentage ?? null,
-      respiratory_rate: ss.respiratory_rate ?? null,
-      total_sleep_duration: total,
-      deep_sleep_duration: deep,
-      rem_sleep_duration: rem,
-      light_sleep_duration: light,
-      awake_time: msToS(stg.total_awake_time_milli),
-      disturbance_count: stg.disturbance_count ?? null,
-      score_state: rec?.score_state ?? sleep?.score_state ?? null,
-    };
+    return mapMetricRow(c, rec, sleep, day);
   });
 }
 
