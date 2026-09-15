@@ -58,8 +58,7 @@ A documentação oficial confirma os vínculos e campos necessários, mas **não
 - Conexões criadas entre **09/07/2026 e 04/08/2026**.
 - Dados atuais entre **13/06/2026 e 14/09/2026**; por conexão: 49 a 92 linhas, total 334.
 - O endpoint aceita no máximo **90 dias por chamada** (`handler.ts:11-39`). As quatro coleções são paginadas em páginas de 25 e buscadas em paralelo, com 15 s por requisição e 75 s para o conjunto (`sync.ts:16-53`).
-- A busca atual envia exatamente o mesmo `start/end` para ciclos, recoveries e sleeps (`sync.ts:47-51`). Isso **não garante** que o sono principal do primeiro ciclo venha junto: cada coleção é filtrada pelos próprios intervalos, e a documentação não promete alinhamento entre eles.
-- Não existe margem finita oficialmente garantida para resolver isso apenas com a coleção. Recomenda-se buscar sleeps com **48 horas de antecedência operacional** e, para qualquer ciclo ainda sem sono principal, usar o endpoint oficial `GET /v2/cycle/{cycleId}/sleep`. A chamada direta é a garantia; as 48 horas apenas evitam chamadas extras na maioria dos casos.
+- A busca atual envia exatamente o mesmo `start/end` para ciclos, recoveries e sleeps (`sync.ts:47-51`). Quando o sono não estiver no lote, será usada a data provisória calculada pelo início local do ciclo. Não haverá busca adicional de sleeps.
 - O limite padrão documentado pelo Whoop é 100 requisições/minuto e 10.000/dia. O histórico atualmente armazenado cabe em **duas janelas por conexão**, mas cinco janelas longas em paralelo podem chegar perto do limite por minuto. A execução deve ser **sequencial, uma conexão por mensagem**, respeitando `429/Retry-After` e sem concorrer com os três horários automáticos.
 - “Histórico completo” deve signific inicialmente **todo o período já presente no app**, começando um dia antes da menor `date` de cada conexão. Buscar toda a vida da conta Whoop é possível em blocos de até 90 dias, mas o volume anterior a junho não está mensurado e não deve ser prometido sem uma leitura da API.
 
@@ -161,13 +160,9 @@ Atualizar fixtures com `timezone_offset` nos ciclos e sleeps. Adicionar testes p
 
 **Prova:** testes do mapper passam; não resta uso de `America/Sao_Paulo` para montar a data Whoop; nenhuma função é publicada.
 
-### Passo 2 — completar a coleta do sono, sem publicação
+### Passo 2 — cancelado por decisão do dono
 
-Em `sync.ts`, separar a janela da coleção de sleeps: `sleepStart = start - 48 horas`, mantendo o mesmo `end` e respeitando que a janela total enviada a cada endpoint não ultrapasse 90 dias. Depois da coleta, identificar ciclos sem sono principal não-cochilo e buscar `GET /v2/cycle/{cycleId}/sleep` individualmente, com o mesmo timeout e tratamento de `429/Retry-After`. Resposta `404` mantém a data provisória; outras falhas abortam sem gravar.
-
-O endpoint por ciclo é necessário porque a documentação oficial não garante que consultas de coleções com a mesma janela tragam o sono associado ao primeiro ciclo. A margem de 48 horas é otimização, não garantia.
-
-**Prova:** teste da borda inicial mostra que um ciclo no começo da janela recebe seu sono da margem; teste de fallback simula sono ausente na coleção e encontrado pelo endpoint; teste `404` produz data provisória; teste `429` preserva o bloqueio existente; nenhuma escrita ou publicação.
+Não buscar sleeps com 48 horas de folga e não chamar `GET /v2/cycle/{cycleId}/sleep`. Quando o sono não estiver no lote, manter a data provisória já definida pelo mapper. Na correção histórica, os blocos de até 90 dias devem se sobrepor em 1 dia.
 
 ### Passo 3 — função transacional no banco, ainda sem publicação
 
@@ -200,7 +195,7 @@ Sincronizar uma janela curta de uma conexão que contenha o caso confirmado de 1
 
 ### Passo 6 — corrigir o histórico, uma conexão por mensagem
 
-Para cada uma das 5 conexões, fora dos horários automáticos, chamar `whoop-sync` sequencialmente em blocos de até 90 dias, começando um dia antes da menor data atual e terminando em agora. Parar imediatamente em 429, 423 ou 5xx e respeitar `Retry-After`.
+Para cada uma das 5 conexões, fora dos horários automáticos, chamar `whoop-sync` sequencialmente em blocos de até 90 dias, começando um dia antes da menor data atual, sobrepondo cada bloco consecutivo em 1 dia e terminando em agora. Parar imediatamente em 429, 423 ou 5xx e respeitar `Retry-After`.
 
 **Prova após cada conexão:**
 

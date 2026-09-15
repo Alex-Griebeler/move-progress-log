@@ -3845,6 +3845,10 @@ export type Database = {
         Returns: undefined
       }
       normalize_objective: { Args: { obj: string }; Returns: string }
+      replace_whoop_metrics_batch: {
+        Args: { p_rows: Json; p_student_id: string }
+        Returns: number
+      }
       search_exercises_by_name: {
         Args: { p_limit?: number; p_movement_pattern?: string; p_query: string }
         Returns: {
