@@ -1,17 +1,16 @@
-import { daysAgo } from "@/utils/relativeDate";
-
 /**
  * Contrato agnóstico de wearable pro HERO da aba Treinamento (plano Fase 2,
- * consenso Codex): score de recuperação mais recente entre Oura (readiness)
- * e Whoop (recovery), com fonte e data explícitas.
+ * consenso Codex): score de recuperação fechado de hoje entre Oura
+ * (readiness) e Whoop (recovery), com fonte e data explícitas.
  *
  * Regras ratificadas:
  * - Whoop: só dias com score fechado (`score_state === 'SCORED'`; null é
  *   tratado como fechado — linhas antigas sem o campo) e recovery não-nulo.
  * - Oura: só dias com readiness não-nulo.
- * - Vence o dado mais RECENTE; empate de data → Oura (dispositivo canônico).
- * - `isStale` a partir de 2 dias de CALENDÁRIO (não 48h literais) — a UI
- *   marca com tom de alerta.
+ * - Nunca usa um score de dia anterior; empate de hoje → Oura.
+ * - `today` é recebido pelo chamador para respeitar o calendário do produto.
+ * - `isStale` é mantido por compatibilidade e é sempre `false`, pois um
+ *   snapshot agora só pode representar o próprio dia `today`.
  *
  * Desde a R5, este par {source, date} também decide QUAL recomendação o
  * dashboard monta (Oura via fachada, Whoop via buildWhoopRecommendation) —
@@ -25,6 +24,15 @@ export interface RecoverySnapshot {
   date: string;
   zone: "alta" | "media" | "baixa";
   isStale: boolean;
+  availability: RecoveryAvailability;
+}
+
+export type WhoopAvailability = "scored" | "pending" | "unscorable" | "missing";
+export type OuraAvailability = "scored" | "pending" | "missing";
+
+export interface RecoveryAvailability {
+  oura: OuraAvailability;
+  whoop: WhoopAvailability;
 }
 
 interface OuraLike {
@@ -59,27 +67,54 @@ export const recoveryZone = (
   return "baixa";
 };
 
-const latestOura = (rows: OuraLike[]): OuraLike | null =>
-  rows
-    .filter((r) => r.readiness_score !== null)
-    .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+const currentOura = (rows: OuraLike[], today: string): OuraLike | null =>
+  rows.find((row) => row.date.localeCompare(today) === 0 && row.readiness_score !== null) ?? null;
 
-const latestWhoop = (rows: WhoopLike[]): WhoopLike | null =>
-  rows
-    .filter(
-      (r) =>
-        r.recovery_score !== null &&
-        (r.score_state === null || r.score_state === "SCORED"),
-    )
-    .sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+const isClosedWhoop = (row: WhoopLike): boolean =>
+  row.recovery_score !== null &&
+  (row.score_state === null || row.score_state === "SCORED");
+
+const currentWhoop = (rows: WhoopLike[], today: string): WhoopLike | null =>
+  rows.find((row) => row.date.localeCompare(today) === 0 && isClosedWhoop(row)) ?? null;
+
+export const classifyTodayRecoveryAvailability = (
+  ouraMetrics: OuraLike[] | null | undefined,
+  whoopMetrics: WhoopLike[] | null | undefined,
+  today: string,
+): RecoveryAvailability => {
+  const ouraToday = (ouraMetrics ?? []).filter((row) => row.date === today);
+  const whoopToday = (whoopMetrics ?? []).filter((row) => row.date === today);
+
+  const oura: OuraAvailability = ouraToday.length === 0
+    ? "missing"
+    : ouraToday.some((row) => row.readiness_score !== null)
+      ? "scored"
+      : "pending";
+
+  let whoop: WhoopAvailability = "missing";
+  if (whoopToday.some(isClosedWhoop)) {
+    whoop = "scored";
+  } else if (whoopToday.some((row) => row.score_state === "UNSCORABLE")) {
+    whoop = "unscorable";
+  } else if (whoopToday.length > 0) {
+    whoop = "pending";
+  }
+
+  return { oura, whoop };
+};
 
 export const buildRecoverySnapshot = (
   ouraMetrics: OuraLike[] | null | undefined,
   whoopMetrics: WhoopLike[] | null | undefined,
-  now: Date = new Date(),
+  today: string = new Date().toISOString().slice(0, 10),
 ): RecoverySnapshot | null => {
-  const oura = latestOura(ouraMetrics ?? []);
-  const whoop = latestWhoop(whoopMetrics ?? []);
+  const oura = currentOura(ouraMetrics ?? [], today);
+  const whoop = currentWhoop(whoopMetrics ?? [], today);
+  const availability = classifyTodayRecoveryAvailability(
+    ouraMetrics,
+    whoopMetrics,
+    today,
+  );
 
   let pick: { source: "oura" | "whoop"; score: number; date: string } | null = null;
   if (oura && whoop) {
@@ -98,6 +133,7 @@ export const buildRecoverySnapshot = (
   return {
     ...pick,
     zone: recoveryZone(pick.score, pick.source),
-    isStale: daysAgo(pick.date, now) >= 2,
+    isStale: false,
+    availability,
   };
 };
