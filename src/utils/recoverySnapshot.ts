@@ -68,14 +68,14 @@ export const recoveryZone = (
 };
 
 const currentOura = (rows: OuraLike[], today: string): OuraLike | null =>
-  rows.find((row) => row.date === today && row.readiness_score !== null) ?? null;
+  rows.find((row) => row.date.localeCompare(today) === 0 && row.readiness_score !== null) ?? null;
 
 const isClosedWhoop = (row: WhoopLike): boolean =>
   row.recovery_score !== null &&
   (row.score_state === null || row.score_state === "SCORED");
 
 const currentWhoop = (rows: WhoopLike[], today: string): WhoopLike | null =>
-  rows.find((row) => row.date === today && isClosedWhoop(row)) ?? null;
+  rows.find((row) => row.date.localeCompare(today) === 0 && isClosedWhoop(row)) ?? null;
 
 export const classifyTodayRecoveryAvailability = (
   ouraMetrics: OuraLike[] | null | undefined,
