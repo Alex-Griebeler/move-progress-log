@@ -1,5 +1,5 @@
 # Roadmap
 
-- [x] Registrar no plano que a chegada posterior de score objetivo exige reconfirmação do check-in.
-- [x] Implementar somente o contrato diário puro de recuperação e seus testes.
-- [x] Rodar os testes do snapshot e seus dependentes diretos.
+- [ ] Usar America/Sao_Paulo como data padrão do snapshot.
+- [ ] Provar padrão de São Paulo e precedência do today explícito.
+- [ ] Rodar testes dependentes e typecheck.
