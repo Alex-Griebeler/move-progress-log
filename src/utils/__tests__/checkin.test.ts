@@ -5,6 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
+  buildPsrOnlyConduct,
   buildPsrOnlyRecommendation,
   deriveZoneFromPsrOnly,
   normalizePsr,
@@ -58,29 +59,59 @@ describe("deriveZoneFromPsrOnly — bandas ratificadas (7-10/4-6/2-3/0-1)", () =
 describe("buildPsrOnlyRecommendation — adapter documentado (v7.2-B3)", () => {
   it("NUNCA emite increase; cargas por banda batem a tabela ratificada", () => {
     for (let psr = 0; psr <= 10; psr++) {
-      expect(buildPsrOnlyRecommendation(psr).loadDecision).not.toBe("increase");
+      expect(buildPsrOnlyRecommendation(psr, "missing").loadDecision).not.toBe("increase");
     }
-    expect(buildPsrOnlyRecommendation(8)).toMatchObject({ loadDecision: "maintain", loadAdjustmentPercent: 0 });
-    expect(buildPsrOnlyRecommendation(5)).toMatchObject({ loadDecision: "reduce", loadAdjustmentPercent: -20 });
-    expect(buildPsrOnlyRecommendation(2)).toMatchObject({ loadDecision: "block", loadAdjustmentPercent: null });
-    expect(buildPsrOnlyRecommendation(0)).toMatchObject({ loadDecision: "block", loadAdjustmentPercent: null });
+    expect(buildPsrOnlyRecommendation(8, "missing")).toMatchObject({ loadDecision: "maintain", loadAdjustmentPercent: 0 });
+    expect(buildPsrOnlyRecommendation(5, "missing")).toMatchObject({ loadDecision: "reduce", loadAdjustmentPercent: -20 });
+    expect(buildPsrOnlyRecommendation(2, "missing")).toMatchObject({ loadDecision: "block", loadAdjustmentPercent: null });
+    expect(buildPsrOnlyRecommendation(0, "missing")).toMatchObject({ loadDecision: "block", loadAdjustmentPercent: null });
   });
   it("alerts sempre vazio e SEM protocolos (zona 0 por PSR usa descanso sem protocolos)", () => {
-    const rec = buildPsrOnlyRecommendation(0);
+    const rec = buildPsrOnlyRecommendation(0, "missing");
     expect(rec.alerts).toEqual([]);
     expect(rec.priorityProtocols).toBeUndefined();
     expect(rec.zone).toBe("red");
   });
   it("recoveryScore é o PRÓPRIO PSR (escala 0-10, nunca 0-100) e source é psr", () => {
-    const rec = buildPsrOnlyRecommendation(7);
+    const rec = buildPsrOnlyRecommendation(7, "no_device");
     expect(rec.recoveryScore).toBe(7);
     expect(rec.source).toBe("psr");
     expect(rec.zone).toBe("green");
     expect(rec.overrideApplied).toBe(false);
   });
-  it("auditoria declara o motor fisiológico como pulado", () => {
-    expect(buildPsrOnlyRecommendation(4).skippedRules).toEqual([
-      { rule: "motor_fisiologico", reason: "sem dispositivo conectado" },
-    ]);
+  it.each([
+    ["pending", "ainda está pendente"],
+    ["unscorable", "não conseguiu pontuar"],
+    ["missing", "não há dados da última noite"],
+    ["no_device", "não há dispositivo conectado"],
+  ] as const)("motivo %s aparece no texto e na auditoria", (reason, phrase) => {
+    const rec = buildPsrOnlyRecommendation(4, reason);
+    expect(rec.reason).toContain(phrase);
+    expect(rec.skippedRules[0]?.reason).toContain(phrase);
+  });
+});
+
+describe("buildPsrOnlyConduct — contrato puro da orientação por percepção", () => {
+  it.each([
+    [8, "maintain", 0],
+    [5, "reduce", -20],
+    [2, "block", null],
+    [0, "block", null],
+  ] as const)("PSR %s produz a decisão esperada sem progressão", (psr, decision, percent) => {
+    const result = buildPsrOnlyConduct(psr, "missing");
+    expect(result.status).toBe("ready");
+    if (result.status !== "ready") throw new Error("orientação esperada");
+    expect(result.recommendation.loadDecision).toBe(decision);
+    expect(result.recommendation.loadAdjustmentPercent).toBe(percent);
+    expect(result.recommendation.loadDecision).not.toBe("increase");
+    expect(result.recommendation.recoveryScore).toBe(psr);
+  });
+
+  it.each([null, undefined, -1, 11, 4.5])("PSR inválido %s devolve sem orientação", (psr) => {
+    expect(buildPsrOnlyConduct(psr, "pending")).toEqual({
+      status: "no_guidance",
+      recommendation: null,
+      reason: "sem orientação",
+    });
   });
 });
