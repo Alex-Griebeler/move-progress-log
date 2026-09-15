@@ -39,6 +39,11 @@ const toNumberArray = (value: unknown): number[] => {
     .filter((num) => Number.isFinite(num));
 };
 
+// HRV/FC de 0 não existem: é intervalo sem leitura (null → 0 no parser). A série gravada mantém
+// o 0 para preservar o alinhamento de tempo, mas as estatísticas usam só amostras reais.
+const validPhysiologicalSamples = (values: readonly number[]): number[] =>
+  values.filter((value) => Number.isFinite(value) && value > 0);
+
 const computeStats = (values: number[]) => {
   if (values.length === 0) {
     return {
@@ -651,8 +656,8 @@ Deno.serve(async (req) => {
       : [];
     const dayHrValues = dayHrSamples.map((sample: { bpm: number }) => sample.bpm);
 
-    const hrvStats = computeStats(sleepHrvValues);
-    const hrNightStats = computeStats(sleepHrValues);
+    const hrvStats = computeStats(validPhysiologicalSamples(sleepHrvValues));
+    const hrNightStats = computeStats(validPhysiologicalSamples(sleepHrValues));
     const hrDayStats = computeStats(dayHrValues);
 
     const sleepHrvSeries =
