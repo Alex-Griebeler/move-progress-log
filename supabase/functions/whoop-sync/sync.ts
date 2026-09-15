@@ -1,5 +1,5 @@
 export class RateLimited extends Error { constructor(public seconds:number){super('rate_limited');} }
-import { assembleDailyMetrics, mapWorkouts } from '../_shared/wearable/mapWhoop.ts';
+import { assembleDailyMetricsByWakeDate, mapWorkouts } from '../_shared/wearable/mapWhoop.ts';
 import { WHOOP } from '../_shared/wearable/providerConfig.ts';
 
 // deno-lint-ignore no-explicit-any
@@ -82,10 +82,13 @@ export async function syncStudent(
   const { supa } = deps;
   try {
     const { cycles, recoveries, sleeps, workouts } = await deps.fetchCollections(args.accessToken, args.start, args.end);
-    const rows = assembleDailyMetrics(cycles, recoveries, sleeps, 'America/Sao_Paulo')
+    const rows = assembleDailyMetricsByWakeDate(cycles, recoveries, sleeps)
       .map((r) => ({ ...r, student_id: args.student_id }));
     if (rows.length) {
-      const { error } = await supa.from('whoop_metrics').upsert(rows, { onConflict: 'student_id,date' });
+      const { error } = await supa.rpc('replace_whoop_metrics_batch', {
+        p_student_id: args.student_id,
+        p_rows: rows,
+      });
       if (error) throw error;
     }
     const workoutRows = mapWorkouts(workouts).map((w) => ({ ...w, student_id: args.student_id }));
