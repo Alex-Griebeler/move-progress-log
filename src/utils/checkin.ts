@@ -8,7 +8,10 @@
  * - deriveZoneFromPsrOnly: bandas diretas pro modo SEM dispositivo
  *   (ratificadas: 7–10 manter · 4–6 reduzir 20% · 2–3 recuperação · 0–1
  *   descanso). Zona 4/progressão NUNCA nasce só de PSR.
- * - buildPsrOnlyRecommendation: adapter que materializa a banda numa
+ * - buildPsrOnlyRecommendation: adapter que materializa a banda e registra
+ *   por que não há score objetivo de hoje.
+ * - buildPsrOnlyConduct: contrato explícito entre orientação e ausência de
+ *   PSR; nunca inventa uma conduta quando a percepção não foi informada.
  *   recomendação consumível pelas cargas/alternativas (PR-C2), com todos os
  *   campos documentados — nada de recomendação sintética improvisada.
  *
@@ -54,6 +57,12 @@ export type ConductRecommendation = Omit<TrainingRecommendation, "source"> & {
 export type PsrOnlyRecommendation = Omit<TrainingRecommendation, "source"> & {
   source: "psr";
 };
+
+export type PsrOnlyReason = "pending" | "unscorable" | "missing" | "no_device";
+
+export type PsrOnlyConduct =
+  | { status: "ready"; recommendation: PsrOnlyRecommendation }
+  | { status: "no_guidance"; recommendation: null; reason: "sem orientação" };
 
 /**
  * Valida o domínio do PSR: inteiro 0..10. Qualquer outra coisa (NaN,
@@ -117,6 +126,13 @@ const FATIGUE_BY_PSR_ZONE: Record<0 | 1 | 2 | 3, TrainingRecommendation["fatigue
   0: "high",
 };
 
+const PSR_REASON_TEXT: Record<PsrOnlyReason, string> = {
+  pending: "o score objetivo de hoje ainda está pendente",
+  unscorable: "o dispositivo não conseguiu pontuar a recuperação de hoje",
+  missing: "não há dados da última noite",
+  no_device: "não há dispositivo conectado",
+};
+
 /**
  * Adapter do modo sem dispositivo (v7.2-B3). Campos documentados:
  * - recoveryScore = o PRÓPRIO PSR (escala 0–10) — NUNCA exibir como 0–100;
@@ -129,10 +145,14 @@ const FATIGUE_BY_PSR_ZONE: Record<0 | 1 | 2 | 3, TrainingRecommendation["fatigue
  * - confidence 0 = "não se aplica" (o modo não tem modelo de confiança;
  *   nenhum consumidor do modo exibe o campo).
  */
-export const buildPsrOnlyRecommendation = (psr: number): PsrOnlyRecommendation => {
+export const buildPsrOnlyRecommendation = (
+  psr: number,
+  reason: PsrOnlyReason,
+): PsrOnlyRecommendation => {
   const zone = deriveZoneFromPsrOnly(psr);
   const prescription = PRESCRIPTION_BY_ZONE[zone];
   const load = LOAD_BY_PSR_ZONE[zone];
+  const reasonText = PSR_REASON_TEXT[reason];
   return {
     trainingType: prescription.trainingType,
     intensity: prescription.intensity,
@@ -143,8 +163,7 @@ export const buildPsrOnlyRecommendation = (psr: number): PsrOnlyRecommendation =
     loadDecision: load.decision,
     loadAdjustmentPercent: load.percent,
     overrideApplied: false,
-    reason:
-      "Conduta derivada da percepção subjetiva de repouso (PSR) — aluna sem dispositivo conectado.",
+    reason: `Conduta derivada da percepção subjetiva de repouso (PSR), pois ${reasonText}.`,
     alerts: [],
     confidence: 0,
     emoji: prescription.emoji,
@@ -152,7 +171,26 @@ export const buildPsrOnlyRecommendation = (psr: number): PsrOnlyRecommendation =
     source: "psr",
     evaluatedRules: ["psr_only_band"],
     skippedRules: [
-      { rule: "motor_fisiologico", reason: "sem dispositivo conectado" },
+      { rule: "motor_fisiologico", reason: reasonText },
     ],
+  };
+};
+
+/**
+ * Porta pura do modo percepção. O valor é normalizado antes da construção:
+ * null ou qualquer PSR fora da escala inteira 0–10 produz explicitamente
+ * "sem orientação", sem recomendação, carga ou progressão implícita.
+ */
+export const buildPsrOnlyConduct = (
+  psr: unknown,
+  reason: PsrOnlyReason,
+): PsrOnlyConduct => {
+  const normalized = normalizePsr(psr);
+  if (normalized === null) {
+    return { status: "no_guidance", recommendation: null, reason: "sem orientação" };
+  }
+  return {
+    status: "ready",
+    recommendation: buildPsrOnlyRecommendation(normalized, reason),
   };
 };
