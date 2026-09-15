@@ -80,9 +80,15 @@ export async function syncStudent(
   args: { student_id: string; start: string; end: string; accessToken: string },
 ): Promise<{ synced: number; workouts_synced: number }> {
   const { supa } = deps;
+  const startInstant = Date.parse(args.start);
+  if (!Number.isFinite(startInstant)) throw new Error('invalid_sync_start');
   try {
     const { cycles, recoveries, sleeps, workouts } = await deps.fetchCollections(args.accessToken, args.start, args.end);
-    const rows = assembleDailyMetricsByWakeDate(cycles, recoveries, sleeps)
+    const cyclesInWindow = cycles.filter((cycle) => {
+      const cycleStart = Date.parse(typeof cycle.start === 'string' ? cycle.start : '');
+      return Number.isFinite(cycleStart) && cycleStart >= startInstant;
+    });
+    const rows = assembleDailyMetricsByWakeDate(cyclesInWindow, recoveries, sleeps)
       .map((r) => ({ ...r, student_id: args.student_id }));
     if (rows.length) {
       const { error } = await supa.rpc('replace_whoop_metrics_batch', {
