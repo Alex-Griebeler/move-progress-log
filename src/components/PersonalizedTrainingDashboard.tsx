@@ -1106,7 +1106,8 @@ const PersonalizedTrainingDashboard = ({
       ),
     });
   }
-  if (ouraIsCurrent && hasAcuteHrv && acuteDayRow?.hrv_night_min != null) {
+  // HRV mínima 0 é intervalo sem leitura (sincronização antiga), não medida: sem tile.
+  if (ouraIsCurrent && hasAcuteHrv && acuteDayRow?.hrv_night_min != null && acuteDayRow.hrv_night_min > 0) {
     physiology.push({
       key: "hrv-aguda",
       metric: "hrv_aguda",
@@ -1119,7 +1120,7 @@ const PersonalizedTrainingDashboard = ({
             // Os alertas de HRV aguda podem vir do ÚLTIMO BLOCO da noite,
             // não só da mínima — sem esta linha, o tile marcaria atenção
             // mostrando um número que não é o que disparou o sinal.
-            acuteDayRow.hrv_night_last != null
+            acuteDayRow.hrv_night_last != null && acuteDayRow.hrv_night_last > 0
               ? `último bloco: ${Math.round(acuteDayRow.hrv_night_last)} ms`
               : undefined
           }
