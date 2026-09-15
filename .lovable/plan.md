@@ -1,5 +1,10 @@
-# Substituir o secret do espelho de wearables
+# Inserir autorização de espelho da Paola
 
-1. Abrir o formulário seguro para substituir o valor de `WEARABLE_MIRROR_SECRET`.
-2. Alex cola o novo valor diretamente no formulário; o valor não será exibido no chat.
-3. Não alterar arquivos, funções, migrations, crons ou policies, e não chamar nenhuma função.
+1. Executar uma única vez, pela ferramenta de alteração de dados do banco, exatamente o `INSERT` fornecido.
+2. Não criar migration nem alterar arquivos, funções, configurações ou outros dados.
+3. Retornar somente o `id` gerado pela inserção.
+
+## Validação
+
+- A própria cláusula `RETURNING id` confirmará a criação da única autorização solicitada.
+- Se o comando falhar, interromper sem repetir a inserção e informar apenas o erro.
