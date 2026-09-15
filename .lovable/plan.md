@@ -78,7 +78,7 @@ Quando um aparelho fechado orientar e o outro estiver pendente, usar nota secund
 
 5. **Fingerprint e check-in**
    - Criar fingerprint estável do contexto PSR: `studentId|psr|today`, independente do valor respondido e do motivo (`pending`, `missing`, `unscorable`). Isso evita ciclo entre resposta, recomendação e fingerprint.
-   - Se um score objetivo chegar no meio do dia, a fonte muda de `psr` para `oura/whoop`; o fingerprint muda, o check-in anterior é invalidado para a conduta nova e o PSR fica como rascunho para reconfirmação, seguindo a regra atual.
+   - Se um score objetivo chegar no meio do dia, a fonte muda de `psr` para `oura/whoop`; a tela avisa que há um dado novo e pede reconfirmação explícita do check-in. A conduta não muda em silêncio; o PSR anterior fica como rascunho para a nova confirmação.
    - Mudanças apenas entre `pending/missing/unscorable`, sem mudança da fonte da conduta, preservam o check-in.
 
 6. **Tipos e persistência — `TrainingContext.tsx`, `checkin.ts`, `perceptionObservation.ts`**
@@ -98,7 +98,7 @@ Quando um aparelho fechado orientar e o outro estiver pendente, usar nota secund
 
 ## D. Riscos e comportamento esperado
 
-- **Fonte muda no meio do dia:** score objetivo chegando substitui PSR-only, invalida a conduta/check-in anterior e exige reconfirmação. Não trocar silenciosamente mantendo o “Registrado”.
+- **Fonte muda no meio do dia:** score objetivo chegando invalida a conduta/check-in PSR anterior; a tela avisa e pede reconfirmação antes de aplicar a nova conduta. Nunca trocar em silêncio mantendo o “Registrado”.
 - **Check-in já respondido:** o registro PSR permanece no prontuário como fato histórico. Uma nova confirmação com wearable pode criar outro registro do mesmo dia, com fonte diferente; isso é auditável e não deve sobrescrever o primeiro.
 - **Histórico e relatórios:** métricas antigas permanecem intactas. O histórico de percepção já reconhece `fonte=psr` e escala 0–10; testar que nenhuma apresentação trata esse valor como score 0–100 ou agrega fontes diferentes.
 - **Sem PSR e sem noite:** nenhuma orientação e nenhuma carga são mostradas. Se o treinador escolher “Iniciar sem check-in”, manter a sessão livre já prevista, sem fingir uma recomendação.
