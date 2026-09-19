@@ -92,7 +92,7 @@ export const MetricTile = ({
         className,
       )}
     >
-      <p className="text-[10.5px] font-medium uppercase tracking-widest text-muted-foreground">
+      <p className="text-xs font-medium text-muted-foreground">
         {label}
       </p>
       <div className="mt-1 flex items-baseline gap-2">
@@ -103,7 +103,7 @@ export const MetricTile = ({
           <span className="text-xs text-muted-foreground">{unit}</span>
         )}
         {delta && DeltaIcon && (
-          <span className={cn("inline-flex items-center gap-0.5 text-[11px] font-semibold", deltaColor)}>
+          <span className={cn("inline-flex items-center gap-0.5 text-xs font-semibold", deltaColor)}>
             <DeltaIcon className="h-3 w-3" aria-hidden="true" />
             {delta.text}
           </span>
@@ -111,7 +111,7 @@ export const MetricTile = ({
       </div>
       {children}
       {alert && (
-        <p className={cn("mt-1 text-[11px] font-medium", alertText)} aria-hidden="true">
+        <p className={cn("mt-1 text-xs font-medium", alertText)} aria-hidden="true">
           {alert.label}
           {alert.extraCount > 0 && (
             <span className="ml-1 font-normal text-muted-foreground">

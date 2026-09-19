@@ -67,8 +67,11 @@ const CheckInForm = ({
     <div className="mt-1 grid gap-x-3 gap-y-2 sm:grid-cols-[auto_1fr] sm:items-start">
       <span className="text-sm font-medium sm:pt-2.5">Percepção subjetiva de repouso</span>
       <div className="space-y-2">
+        {/* UX-09: a 375px a escala é uma grade de 6 colunas (0–5 / 6–10) —
+            nada de "10" órfão numa 3ª linha; do sm em diante, régua contínua.
+            Radiogroup/roving intactos (a ordem do DOM não muda). */}
         <div
-          className="flex flex-wrap gap-1.5"
+          className="grid grid-cols-6 gap-1.5 sm:flex sm:flex-wrap"
           role="radiogroup"
           aria-label="Percepção subjetiva de repouso, de 0 a 10"
         >
@@ -83,8 +86,8 @@ const CheckInForm = ({
               onClick={() => onSelectPsr(value)}
               onKeyDown={(e) => handleKeyDown(e, value)}
               className={cn(
-                "rounded-md border text-[13px] tabular-nums",
-                "min-h-[44px] min-w-[44px] sm:min-h-[40px] sm:min-w-[36px]",
+                "rounded-md border text-sm tabular-nums",
+                "min-h-[44px] w-full sm:min-h-[40px] sm:w-auto sm:min-w-[36px]",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 psr === value
                   ? "border-foreground bg-foreground font-semibold text-background"
@@ -100,23 +103,27 @@ const CheckInForm = ({
 
       <div className="space-y-2 sm:col-start-2">
       {staleDataNotice && (
-        <p className="text-xs text-warning">
+        <p className="text-sm text-warning">
           Os dados do aparelho foram atualizados — confirme o check-in para recalcular a conduta.
         </p>
       )}
       {editNotice && !staleDataNotice && (
-        <p className="text-xs text-muted-foreground">Registre novamente para atualizar a conduta.</p>
+        <p className="text-sm text-muted-foreground">Registre novamente para atualizar a conduta.</p>
       )}
       {reconciliationFailed && (
-        <p className="text-xs text-warning">
+        <p className="text-sm text-warning">
           Não foi possível verificar um check-in anterior.{" "}
-          <button type="button" className="underline" onClick={onRetryReconciliation}>
+          <button
+            type="button"
+            className="inline-flex min-h-10 items-center underline"
+            onClick={onRetryReconciliation}
+          >
             Tentar novamente
           </button>
         </p>
       )}
       {saveState === "error" && (
-        <p className="text-xs text-destructive">Check-in não foi salvo.</p>
+        <p className="text-sm text-destructive">Check-in não foi salvo.</p>
       )}
 
       {/* Slot RESERVADO de 44px: em repouso fica vazio (o botão está ausente
@@ -138,7 +145,7 @@ const CheckInForm = ({
           </Button>
         )}
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-0 text-xs text-muted-foreground sm:justify-start">
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-0 text-sm text-muted-foreground sm:justify-start">
         <button
           type="button"
           className="inline-flex min-h-[44px] items-center hover:text-foreground"

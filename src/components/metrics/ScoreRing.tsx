@@ -73,7 +73,7 @@ export const ScoreRing = ({
             strokeWidth={s.stroke}
             strokeLinecap="round"
             strokeDasharray={`${dash} ${circumference}`}
-            className={cn("transition-all duration-500", TONE_STROKE[tone])}
+            className={cn("transition-[stroke-dasharray] duration-200 motion-reduce:transition-none", TONE_STROKE[tone])}
           />
         )}
       </svg>
@@ -82,7 +82,7 @@ export const ScoreRing = ({
           {score ?? "—"}
         </span>
         {label && size === "hero" && (
-          <span className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+          <span className="mt-1 text-xs text-muted-foreground">
             {label}
           </span>
         )}

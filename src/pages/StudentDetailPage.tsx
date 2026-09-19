@@ -6,19 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Info, Mic, Users, AlertCircle, User, Filter, Pencil } from "lucide-react";
+import { ArrowLeft, Calendar, Activity, FileText, TrendingUp, Mic, Users, Pencil } from "lucide-react";
 import { PrescriptionsTabContent } from "@/components/student-detail/PrescriptionsTabContent";
 import { OuraTabContent } from "@/components/student-detail/OuraTabContent";
 import { WhoopTabContent } from "@/components/student-detail/WhoopTabContent";
 import { SessionsTabContent } from "@/components/student-detail/SessionsTabContent";
 import { ExercisesTabContent } from "@/components/student-detail/ExercisesTabContent";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StudentAvatarImage } from "@/components/StudentAvatarImage";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import TrainingZonesCard from "@/components/TrainingZonesCard";
-import ProtocolRecommendationsCard from "@/components/ProtocolRecommendationsCard";
 import { useIsAdmin } from "@/hooks/useUserRole";
 import PersonalizedTrainingDashboard from "@/components/PersonalizedTrainingDashboard";
 import { RecordIndividualSessionDialog } from "@/components/RecordIndividualSessionDialog";
@@ -34,8 +30,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWhoopMetrics } from "@/hooks/useWhoopMetrics";
 import { WHOOP_RECOMMENDATION_WINDOW_DAYS } from "@/utils/whoopRecommendation";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
+import { useWhoopConnection } from "@/hooks/useWhoopConnection";
 import { useState, useMemo, useEffect } from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useReopenWorkoutSession, useFinalizeWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { NAV_LABELS } from "@/constants/navigation";
@@ -90,7 +86,12 @@ const StudentDetailPage = () => {
   const needsLatestOura =
     activeTab === "training" || activeTab === "overview" || activeTab === "oura";
 
-  const { data: student, isLoading: loadingStudent } = useStudentById(id ?? null);
+  const {
+    data: student,
+    isLoading: loadingStudent,
+    error: studentError,
+    refetch: refetchStudent,
+  } = useStudentById(id ?? null);
   const { data: sessions, isLoading: loadingSessions, isError: sessionsError, refetch: refetchSessions } = useSessionsWithExercises(
     needsSessions ? studentId : ""
   );
@@ -101,18 +102,21 @@ const StudentDetailPage = () => {
   // esparso, 30 linhas atravessavam meses e 7 scores antigos liberavam a
   // recomendação como se fossem recentes. Consequência aceita: aluna com
   // sync ruim vê "sem recomendação" (que é a verdade clínica).
-  const { data: ouraMetrics, isLoading: loadingOuraMetrics, isError: ouraMetricsError } = useOuraMetrics(
+  const { data: ouraMetrics, isLoading: loadingOuraMetrics, isError: ouraMetricsError, refetch: refetchOuraMetrics } = useOuraMetrics(
     needsOuraHistory ? studentId : "",
     { days: 30 }
   );
-  const { data: latestOuraMetrics, isLoading: loadingLatestOura, isError: latestOuraError } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
+  const { data: latestOuraMetrics, isLoading: loadingLatestOura, isError: latestOuraError, refetch: refetchLatestOura } = useLatestOuraMetrics(needsLatestOura ? studentId : "");
   const { data: ouraConnection } = useOuraConnection(studentId);
+  // Mesma chave de cache que o dashboard já consulta — só para o selo do
+  // aparelho no header (UX-20: aluna só-Whoop também é sinalizada).
+  const { data: whoopConnection } = useWhoopConnection(studentId);
   // R5: a recomendação Whoop precisa do baseline de 30 dias ANTERIORES ao
   // DIA DO SNAPSHOT — que pode estar dias atrás de hoje (a query ancora em
   // hoje). 90 dias cobrem snapshot de até 59 dias atrás; do 60º em diante o
   // baseline é descartado pelo guard de truncamento (not_evaluated), nunca
   // calculado com número errado.
-  const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError } = useWhoopMetrics(needsWhoop ? studentId : "", { days: WHOOP_RECOMMENDATION_WINDOW_DAYS });
+  const { data: whoopMetrics, isLoading: loadingWhoopMetrics, isError: whoopMetricsError, refetch: refetchWhoopMetrics } = useWhoopMetrics(needsWhoop ? studentId : "", { days: WHOOP_RECOMMENDATION_WINDOW_DAYS });
   const { isAdmin } = useIsAdmin();
   const [recordSessionOpen, setRecordSessionOpen] = useState(false);
   // R8c: prescrição que alimentou a sugestão de carga → pré-seleção da sessão.
@@ -157,8 +161,23 @@ const StudentDetailPage = () => {
   if (loadingStudent) {
     return (
       <PageLayout>
-        <Skeleton className="h-10 w-64" />
-        <Skeleton className="h-96 w-full" />
+        <StudentHeaderSkeleton />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </PageLayout>
+    );
+  }
+
+  // Erro de rede ≠ cadastro inexistente (PGRST116 = .single() sem linha).
+  const studentNotFound =
+    !studentError || (studentError as { code?: string }).code === "PGRST116";
+  if (!student && !studentNotFound) {
+    return (
+      <PageLayout>
+        <ErrorState
+          title="Não foi possível carregar o cadastro"
+          description="Verifique a conexão e tente novamente."
+          onRetry={() => void refetchStudent()}
+        />
       </PageLayout>
     );
   }
@@ -167,10 +186,10 @@ const StudentDetailPage = () => {
     return (
       <PageLayout>
         <ErrorState
-          title="Aluno não encontrado"
-          description="O aluno que você está procurando não existe ou foi removido."
+          title="Cadastro não encontrado"
+          description="Este cadastro não existe ou foi removido."
           onRetry={() => navigate(ROUTES.students)}
-          retryLabel="Voltar para Alunos"
+          retryLabel="Voltar para a lista"
         />
       </PageLayout>
     );
@@ -186,7 +205,7 @@ const StudentDetailPage = () => {
     if (!student.fitness_level) missing.push('Nível de fitness');
     if (!student.objectives) missing.push('Objetivos');
     if (!student.weight_kg || !student.height_cm) missing.push('Peso/Altura');
-    if (!student.max_heart_rate) missing.push('FC Máxima');
+    if (!student.max_heart_rate) missing.push('FC máxima');
     
     return missing;
   };
@@ -209,166 +228,121 @@ const StudentDetailPage = () => {
         ]}
       />
       
-      {loadingStudent ? (
-        <StudentHeaderSkeleton />
-      ) : (
-        <Card className="bg-card border border-primary/15 shadow-sm rounded-xl mb-md animate-fade-in">
-          <CardContent className="p-lg">
-            <div className="flex flex-col md:flex-row items-start justify-between gap-lg">
-              {/* Coluna 1: Perfil */}
-              <div className="flex gap-md items-start w-full md:w-auto">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  onClick={() => navigate(ROUTES.students)} 
-                  aria-label="Voltar para lista de alunos"
-                  className="shrink-0"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </Button>
-                
-                <Avatar
-                  onClick={() => setEditStudentOpen(true)}
-                  aria-label="Editar dados do aluno"
-                  className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-primary/20 ring-offset-4 ring-offset-background transition-transform duration-300 hover:scale-105 cursor-pointer shrink-0 self-center m-2"
-                >
-                  <StudentAvatarImage avatarUrl={student.avatar_url} className="object-cover" />
-                  <AvatarFallback className="text-2xl md:text-3xl font-bold">
-                    {student.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="space-y-sm flex-1 min-w-0">
-                  <div>
-                    <h1 className="text-2xl md:text-3xl font-bold mb-xs break-words leading-tight">{student.name}</h1>
+      {/* Header — UX 18/09: sem motion decorativa (UX-16), avatar não é uma
+          segunda porta de edição só para mouse (UX-19), sem tooltips que
+          repetem o rótulo (UX-23), cadastro incompleto numa linha (UX-18) e
+          um único CTA primário de sessão por tela (UX-02, ver abaixo). */}
+      <Card className="bg-card border border-primary/15 shadow-sm rounded-xl mb-md">
+        <CardContent className="p-lg">
+          <div className="flex flex-col md:flex-row items-start justify-between gap-lg">
+            {/* Coluna 1: Perfil */}
+            <div className="flex gap-md items-start w-full md:w-auto">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate(ROUTES.students)}
+                aria-label="Voltar para a lista de alunos"
+                className="h-10 w-10 shrink-0"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+
+              <Avatar className="h-20 w-20 md:h-24 md:w-24 ring-4 ring-primary/20 ring-offset-4 ring-offset-background shrink-0 self-center m-2">
+                <StudentAvatarImage avatarUrl={student.avatar_url} className="object-cover" />
+                <AvatarFallback className="text-2xl md:text-3xl font-bold" aria-hidden="true">
+                  {student.name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="space-y-sm flex-1 min-w-0">
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold mb-xs break-words leading-tight">{student.name}</h1>
+                  {age !== null && (
                     <div className="flex items-center gap-xs text-sm text-muted-foreground flex-wrap">
-                      <Calendar className="h-4 w-4 shrink-0" />
+                      <Calendar className="h-4 w-4 shrink-0" aria-hidden="true" />
                       <span>{age} anos</span>
                     </div>
-                  </div>
-                  
-                  {/* Badges Row com stagger animation */}
-                  <div className="flex flex-wrap gap-xs">
-                    {student.fitness_level && (
-                      <Badge
-                        variant="secondary"
-                        className="gap-xs animate-fade-in"
-                        style={{ animationDelay: '0ms' }}
-                      >
-                        <TrendingUp className="h-3 w-3" />
-                        {formatFitnessLevel(student.fitness_level)}
-                      </Badge>
-                    )}
-                    {ouraConnection?.is_active && (
-                      <Badge 
-                        variant="default" 
-                        className="gap-xs animate-fade-in shimmer-border"
-                        style={{ animationDelay: '100ms' }}
-                      >
-                        <Activity className="h-3 w-3 animate-pulse" />
-                        Oura Conectado
-                      </Badge>
-                    )}
-                    {student.objectives?.slice(0, 2).map((obj, index) => (
-                      <Badge 
-                        key={obj}
-                        variant="outline" 
-                        className="gap-xs animate-fade-in"
-                        style={{ animationDelay: `${(index + 2) * 100}ms` }}
-                      >
-                        {getObjectiveLabel(obj)}
-                      </Badge>
-                    ))}
-                  </div>
+                  )}
                 </div>
-              </div>
-              
-              {/* Coluna 2: Ações */}
-              <div className="flex flex-col sm:flex-row gap-sm w-full md:w-auto">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={() => setEditStudentOpen(true)}
-                        className="gap-2 w-full sm:w-auto"
-                        variant="outline"
-                        aria-label="Editar aluno"
-                      >
-                        <Pencil className="h-4 w-4" />
-                        Editar
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Editar dados cadastrais do aluno</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        onClick={() => navigate(ROUTES.studentReports(id!))}
-                        className="gap-2 w-full sm:w-auto"
-                        variant="outline"
-                        aria-label="Ver Relatórios"
-                      >
-                        <FileText className="h-4 w-4" />
-                        Relatórios
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Visualizar e gerar relatórios periódicos de evolução</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        onClick={() => setRecordSessionOpen(true)} 
-                       className="gap-2 w-full sm:w-auto"
-                        variant="default"
-                        aria-label={NAV_LABELS.recordSession}
-                      >
-                        <Mic className="h-4 w-4" />
-                        {NAV_LABELS.recordSession}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Grave uma sessão de treino usando sua voz</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <div className="flex flex-wrap gap-xs">
+                  {student.fitness_level && (
+                    <Badge variant="secondary" className="gap-xs">
+                      <TrendingUp className="h-3 w-3" aria-hidden="true" />
+                      {formatFitnessLevel(student.fitness_level)}
+                    </Badge>
+                  )}
+                  {(ouraConnection?.is_active || whoopConnection?.is_active) && (
+                    <Badge variant="outline" className="gap-xs">
+                      <Activity className="h-3 w-3" aria-hidden="true" />
+                      {ouraConnection?.is_active && whoopConnection?.is_active
+                        ? "Oura e Whoop conectados"
+                        : ouraConnection?.is_active
+                          ? "Oura conectado"
+                          : "Whoop conectado"}
+                    </Badge>
+                  )}
+                  {student.objectives?.slice(0, 2).map((obj) => (
+                    <Badge key={obj} variant="outline">
+                      {getObjectiveLabel(obj)}
+                    </Badge>
+                  ))}
+                </div>
+
+                {hasIncompleteData && (
+                  <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+                    <span>
+                      Cadastro incompleto:{" "}
+                      <span className="text-foreground">{missingFields.join(", ")}</span>
+                    </span>
+                    <button
+                      type="button"
+                      className="inline-flex min-h-10 items-center text-primary underline-offset-4 hover:underline"
+                      onClick={() => setEditStudentOpen(true)}
+                    >
+                      Completar cadastro
+                    </button>
+                  </p>
+                )}
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Alerta de Dados Incompletos - Detalhado */}
-      {hasIncompleteData && (
-        <Alert className="border-warning/30 bg-warning/5">
-          <AlertCircle className="h-5 w-5 text-warning" />
-          <AlertDescription className="text-foreground">
-            <span className="font-semibold block mb-1">Dados incompletos detectados</span>
-            <span className="text-sm text-muted-foreground">
-              Complete os seguintes campos para melhor análise: <strong className="text-foreground">{missingFields.join(', ')}</strong>
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-2 gap-2"
-              onClick={() => setEditStudentOpen(true)}
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              Completar cadastro
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+            {/* Coluna 2: Ações. UX-02 (decisão registrada 19/09): na aba
+                Treinamento o CTA primário de sessão é o "Iniciar treino" do
+                hero (respeita check-in, conduta e prescrição escopada) — o
+                "Registrar sessão" do header vira outline e nunca compete. Nas
+                outras abas ele mantém o visual atual. */}
+            <div className="flex flex-col sm:flex-row gap-sm w-full md:w-auto">
+              <Button
+                onClick={() => setEditStudentOpen(true)}
+                className="gap-2 w-full sm:w-auto"
+                variant="outline"
+              >
+                <Pencil className="h-4 w-4" aria-hidden="true" />
+                Editar
+              </Button>
 
+              <Button
+                onClick={() => navigate(ROUTES.studentReports(id!))}
+                className="gap-2 w-full sm:w-auto"
+                variant="outline"
+              >
+                <FileText className="h-4 w-4" aria-hidden="true" />
+                Relatórios
+              </Button>
+
+              <Button
+                onClick={() => setRecordSessionOpen(true)}
+                className="gap-2 w-full sm:w-auto"
+                variant={activeTab === "training" ? "outline" : "default"}
+              >
+                <Mic className="h-4 w-4" aria-hidden="true" />
+                {NAV_LABELS.recordSession}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList
           aria-label="Seções do perfil do aluno"
@@ -400,7 +374,7 @@ const StudentDetailPage = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="training" className="space-y-6 animate-fade-in">
+        <TabsContent value="training" className="space-y-6 animate-in fade-in-0 duration-150 motion-reduce:animate-none">
           <PersonalizedTrainingDashboard
             latestMetrics={latestOuraMetrics}
             recentMetrics={ouraMetrics || []}
@@ -412,7 +386,14 @@ const StudentDetailPage = () => {
             // latestOuraError TAMBÉM suspende ação: com histórico cacheado e
             // latest falhando, a fonte decidida pode estar errada (Codex R7).
             isError={ouraMetricsError || whoopMetricsError || latestOuraError}
-              latestOuraError={latestOuraError}
+            latestOuraError={latestOuraError}
+            onRetry={() => {
+              void refetchOuraMetrics();
+              void refetchWhoopMetrics();
+              void refetchLatestOura();
+            }}
+            hasOuraConnection={ouraConnection === undefined ? null : Boolean(ouraConnection)}
+            onConnectDevice={(device) => setActiveTab(device)}
             onStartTraining={(prescriptionId) => {
               setSessionPrescriptionId(prescriptionId ?? null);
               setRecordSessionOpen(true);
@@ -420,7 +401,7 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="overview" className="space-y-6 animate-fade-in">
+        <TabsContent value="overview" className="space-y-6 animate-in fade-in-0 duration-150 motion-reduce:animate-none">
           <StudentOverviewDashboard
             student={student}
             sessions={sessions || []}
@@ -432,7 +413,7 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="sessions" className="space-y-4 animate-fade-in">
+        <TabsContent value="sessions" className="space-y-4 animate-in fade-in-0 duration-150 motion-reduce:animate-none">
           <SessionsTabContent
             studentName={student.name}
             sessions={sessions}
@@ -455,7 +436,7 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="exercises" className="space-y-4 animate-fade-in">
+        <TabsContent value="exercises" className="space-y-4 animate-in fade-in-0 duration-150 motion-reduce:animate-none">
           <ExercisesTabContent
             studentId={studentId}
             sessions={sessions}
@@ -465,7 +446,7 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="prescriptions" className="space-y-4 animate-fade-in">
+        <TabsContent value="prescriptions" className="space-y-4 animate-in fade-in-0 duration-150 motion-reduce:animate-none">
           <PrescriptionsTabContent
             studentId={studentId}
             assignments={assignments}
@@ -475,7 +456,7 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="assessments" className="space-y-4 animate-fade-in">
+        <TabsContent value="assessments" className="space-y-4 animate-in fade-in-0 duration-150 motion-reduce:animate-none">
           <AssessmentsTab
             studentId={id!}
             studentBirthDate={student.birth_date ?? null}
@@ -493,7 +474,7 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="oura" className="space-y-6 animate-fade-in">
+        <TabsContent value="oura" className="space-y-6 animate-in fade-in-0 duration-150 motion-reduce:animate-none">
           <OuraTabContent
             studentId={studentId}
             studentName={student?.name}
@@ -502,7 +483,7 @@ const StudentDetailPage = () => {
           />
         </TabsContent>
 
-        <TabsContent value="whoop" className="space-y-6 animate-fade-in">
+        <TabsContent value="whoop" className="space-y-6 animate-in fade-in-0 duration-150 motion-reduce:animate-none">
           <WhoopTabContent
             studentId={studentId}
             studentName={student?.name ?? "Aluno"}

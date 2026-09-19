@@ -118,6 +118,26 @@ export const perceptionCausalLine = (
   }
 };
 
+/**
+ * UX 18/09 (UX-05): os vetos do funil (effectiveConduct) são gravados no
+ * prontuário com a redação técnica — a TELA mostra a versão do treinador.
+ * Mapa só de apresentação: a string persistida não muda; redação
+ * desconhecida passa intacta (nunca some um veto).
+ */
+export const formatConductVeto = (veto: string): string => {
+  const zone4 = veto.match(/^Alternativa "(.+)" ignorada: zona 4 nunca nasce de ação humana\.$/);
+  if (zone4) return `Alternativa "${zone4[1]}" não aplicada: progredir só com os sinais do aparelho.`;
+  const ceiling = veto.match(/^Alternativa "(.+)" acima do teto permitido \(.+\) — não aplicada\.$/);
+  if (ceiling) return `Alternativa "${ceiling[1]}" não aplicada: acima do permitido hoje.`;
+  if (veto === "Carga da alternativa limitada ao teto da conduta.") {
+    return "Carga da alternativa limitada à conduta de hoje.";
+  }
+  if (veto === "Carga permanece bloqueada pela recomendação-base (block é absoluto).") {
+    return "Carga segue bloqueada pelos sinais do aparelho.";
+  }
+  return veto;
+};
+
 /** Eyebrow da conduta quando a PSR agiu (ou tentou agir). */
 export const perceptionEyebrow = (p: PerceptionResult): string | null =>
   p.outcome === "vetoed"

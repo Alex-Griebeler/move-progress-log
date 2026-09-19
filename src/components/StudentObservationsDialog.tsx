@@ -2,8 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertCircle, CheckCircle } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { formatDateSP, formatTimeSP } from "@/utils/displayFormat";
 
 interface StudentObservationsDialogProps {
   open: boolean;
@@ -34,16 +33,6 @@ export function StudentObservationsDialog({
     }
   };
   
-  const getCategoryIcon = (category: string | null) => {
-    switch (category) {
-      case 'dor': return '🩹';
-      case 'mobilidade': return '🤸';
-      case 'força': return '💪';
-      case 'técnica': return '🎯';
-      default: return '📋';
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh]">
@@ -57,9 +46,9 @@ export function StudentObservationsDialog({
         <ScrollArea className="h-full max-h-[60vh] pr-4">
           {observations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <CheckCircle className="h-16 w-16 mb-4 text-green-500" />
+              <CheckCircle className="h-8 w-8 mb-4 text-success" aria-hidden="true" />
               <p className="text-lg font-medium">Nenhuma observação importante</p>
-              <p className="text-sm">Este aluno não possui alertas ativos</p>
+              <p className="text-sm">Nenhum alerta ativo.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -70,9 +59,8 @@ export function StudentObservationsDialog({
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl">{getCategoryIcon(obs.categories?.[0] || null)}</span>
                       <Badge variant={getSeverityColor(obs.severity)}>
-                        {obs.severity || 'N/A'}
+                        {obs.severity || 'sem gravidade'}
                       </Badge>
                       {obs.categories && obs.categories.length > 0 && (
                         <Badge variant="outline" className="capitalize">
@@ -82,7 +70,7 @@ export function StudentObservationsDialog({
                     </div>
                     {obs.created_at && (
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(obs.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        {formatDateSP(obs.created_at, true)} às {formatTimeSP(obs.created_at)}
                       </span>
                     )}
                   </div>
