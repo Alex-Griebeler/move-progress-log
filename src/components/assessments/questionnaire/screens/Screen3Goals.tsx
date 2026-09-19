@@ -14,15 +14,6 @@ import {
 export function Screen3Goals() {
   return (
     <section className="space-y-5">
-      <header>
-        <h2
-          tabIndex={-1}
-          className="text-sm font-semibold text-muted-foreground focus-visible:outline-none"
-        >
-          Objetivos e histórico
-        </h2>
-      </header>
-
       <CheckboxArrayField
         name="goals"
         label="Quais são seus principais objetivos com este programa?"

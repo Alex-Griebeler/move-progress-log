@@ -14,15 +14,6 @@ import { BooleanField } from "../fields/QuestionnaireFields";
 export function Screen2ParQ() {
   return (
     <section className="space-y-5">
-      <header>
-        <h2
-          tabIndex={-1}
-          className="text-sm font-semibold text-muted-foreground focus-visible:outline-none"
-        >
-          Triagem de segurança (PAR-Q)
-        </h2>
-      </header>
-
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription className="text-sm">

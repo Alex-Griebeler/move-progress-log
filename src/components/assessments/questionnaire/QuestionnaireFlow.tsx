@@ -6,6 +6,10 @@
  * - Validação por etapa via `form.trigger(fieldsOfCurrentScreen)`
  * - Submit final só na tela 8
  * - Progress bar “Tela X de 8”
+ * - Tela de abertura (fora da contagem) diz para que serve, quanto tempo
+ *   leva e que o link não guarda respostas parciais
+ * - Erro de envio NÃO desmonta o formulário: a página passa `submitError`
+ *   e o botão vira "Tentar novamente" com as mesmas respostas (UX-10)
  *
  * Acessibilidade:
  *   - Foco vai pro topo do screen ou primeiro erro ao trocar de tela
@@ -16,10 +20,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm, FormProvider, type FieldPath } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronLeft, ChevronRight, Loader2, Send } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, Send } from "lucide-react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
   buildPrecision12QuestionnaireSchema,
@@ -43,19 +48,21 @@ type FieldName = FieldPath<FormValues>;
 interface QuestionnaireFlowProps {
   requireBirthdate: boolean;
   onSubmit: (payload: Record<string, unknown>) => Promise<void> | void;
+  /** Mensagem do último envio que falhou; o formulário segue montado. */
+  submitError?: string | null;
 }
 
 const TOTAL_SCREENS = 8;
 
 const SCREEN_TITLES = [
   "Identificação",
-  "Triagem de segurança",
+  "Triagem de segurança (PAR-Q)",
   "Objetivos e histórico",
   "Disponibilidade e recursos",
   "Saúde, dor e medicação",
-  "Sono e estresse",
-  "Wearable e perfil",
-  "Confirmação",
+  "Sono, recuperação e estresse",
+  "Wearable e perfil comportamental",
+  "Confirmação e consentimento",
 ] as const;
 
 const SCREEN_FIELDS: Record<number, readonly FieldName[]> = {
@@ -235,7 +242,9 @@ const defaultValues: Partial<FormValues> = {
 export function QuestionnaireFlow({
   requireBirthdate,
   onSubmit,
+  submitError = null,
 }: QuestionnaireFlowProps) {
+  const [started, setStarted] = useState(false);
   const [screenIndex, setScreenIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -246,12 +255,20 @@ export function QuestionnaireFlow({
     mode: "onSubmit",
   });
 
-  // Foco no topo ao trocar de tela
+  // Foco no título ao trocar de tela; rolagem respeita redução de movimento.
   useEffect(() => {
-    containerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!started) return;
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    containerRef.current?.scrollIntoView?.({
+      behavior: reduceMotion ? "auto" : "smooth",
+      block: "start",
+    });
     const heading = containerRef.current?.querySelector<HTMLElement>("h2");
     heading?.focus();
-  }, [screenIndex]);
+  }, [screenIndex, started]);
 
   const isLastScreen = screenIndex === TOTAL_SCREENS - 1;
 
@@ -279,17 +296,51 @@ export function QuestionnaireFlow({
 
   const progressPct = ((screenIndex + 1) / TOTAL_SCREENS) * 100;
 
+  if (!started) {
+    return (
+      <div className="flex min-h-screen items-start justify-center bg-background p-3 sm:p-6">
+        <Card className="w-full max-w-2xl">
+          <CardHeader className="space-y-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Fabrik
+            </p>
+            <h1 className="text-xl font-semibold">Questionário Precision 12</h1>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <p>
+              Suas respostas ajudam o treinador a montar o seu plano com
+              segurança.
+            </p>
+            <p>São {TOTAL_SCREENS} telas curtas, de 10 a 15 minutos no total.</p>
+            <p>
+              Responda de uma vez: o link não guarda respostas parciais se a
+              página for fechada.
+            </p>
+            <Button type="button" className="w-full sm:w-auto" onClick={() => setStarted(true)}>
+              Começar
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-start justify-center bg-background p-3 sm:p-6">
       <Card className="w-full max-w-2xl" ref={containerRef}>
         <CardHeader>
-          <div className="flex items-baseline justify-between">
-            <CardTitle className="text-lg" tabIndex={-1}>
-              <span className="block text-xs font-normal text-muted-foreground">
-                Tela {screenIndex + 1} de {TOTAL_SCREENS}
-              </span>
-              <span>{SCREEN_TITLES[screenIndex]}</span>
-            </CardTitle>
+          {/* Um título por tela (UX-12): o h2 abaixo é o único cabeçalho;
+              as telas não repetem o nome. */}
+          <div>
+            <p className="text-xs text-muted-foreground">
+              Tela {screenIndex + 1} de {TOTAL_SCREENS}
+            </p>
+            <h2
+              tabIndex={-1}
+              className="text-lg font-semibold leading-none tracking-tight focus-visible:outline-none"
+            >
+              {SCREEN_TITLES[screenIndex]}
+            </h2>
           </div>
           <Progress
             value={progressPct}
@@ -313,6 +364,20 @@ export function QuestionnaireFlow({
               noValidate
             >
               <ScreenSwitcher index={screenIndex} />
+
+              {isLastScreen && submitError && !isSubmitting && (
+                <Alert variant="destructive" role="alert">
+                  <AlertTriangle className="h-4 w-4" aria-hidden />
+                  <AlertDescription>
+                    {submitError} Suas respostas continuam aqui.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isSubmitting && (
+                <p className="sr-only" role="status" aria-live="polite">
+                  Enviando suas respostas…
+                </p>
+              )}
 
               <div
                 className="flex items-center justify-between gap-3 border-t pt-4"
@@ -341,7 +406,7 @@ export function QuestionnaireFlow({
                     ) : (
                       <Send className="mr-1 h-4 w-4" />
                     )}
-                    Enviar questionário
+                    {submitError ? "Tentar novamente" : "Enviar questionário"}
                   </Button>
                 )}
               </div>

@@ -32,15 +32,6 @@ export function Screen5Health() {
 
   return (
     <section className="space-y-5">
-      <header>
-        <h2
-          tabIndex={-1}
-          className="text-sm font-semibold text-muted-foreground focus-visible:outline-none"
-        >
-          Saúde, dor e medicação
-        </h2>
-      </header>
-
       <RadioField
         name="pain_status"
         label="Você sente atualmente alguma dor, desconforto ou limitação ao se movimentar?"

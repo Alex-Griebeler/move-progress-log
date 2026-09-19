@@ -23,15 +23,6 @@ const WEEKLY_FREQUENCY_OPTIONS = WEEKLY_FREQUENCY_VALUES.map((n) => ({
 export function Screen4Availability() {
   return (
     <section className="space-y-5">
-      <header>
-        <h2
-          tabIndex={-1}
-          className="text-sm font-semibold text-muted-foreground focus-visible:outline-none"
-        >
-          Disponibilidade e recursos
-        </h2>
-      </header>
-
       <RadioField
         name="session_duration"
         label="Quanto tempo real você tem disponível para treinar por sessão?"
