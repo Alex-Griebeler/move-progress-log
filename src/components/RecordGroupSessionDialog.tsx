@@ -4,9 +4,8 @@ import { ExerciseFirstSessionEntry } from "./ExerciseFirstSessionEntry";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { MultiSegmentRecorder } from "./MultiSegmentRecorder";
 import { ManualSessionEntry } from "./ManualSessionEntry";
@@ -30,7 +29,7 @@ import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { logger } from "@/utils/logger";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { formatSessionTime, getCurrentSessionTimeHHmm } from "@/utils/sessionTime";
-import { formatSessionDate } from "@/utils/sessionDate";
+import { formatKg } from "@/utils/displayFormat";
 import {
   normalizeExerciseLibraryMatchName,
   type ExerciseLibraryMatch,
@@ -54,6 +53,16 @@ import { ExercisePreviewCard } from "@/components/session/ExercisePreviewCard";
 import { ObservationPreview } from "@/components/session/ObservationPreview";
 import { ValidationAlerts } from "@/components/session/ValidationAlerts";
 import { PrescriptionSidebar } from "@/components/session/PrescriptionSidebar";
+import { DiscardSessionConfirm } from "@/components/session/DiscardSessionConfirm";
+import { STICKY_FOOTER_CLASS } from "@/components/session/dialogLayout";
+import { describePartialGroupSave, type GroupSaveOutcome } from "@/components/session/groupSaveOutcome";
+import {
+  forgetLocallySaved,
+  hasRecentGroupSession,
+  readLocallySaved,
+  rememberLocallySaved,
+  type SessionsClient,
+} from "@/components/session/groupSessionIdempotency";
 
 // ─── Local Types ────────────────────────────────────────
 
@@ -147,6 +156,17 @@ const isAssignmentScheduleAdaptations = (
   return hasWeekdays || hasTime;
 };
 
+/** Marcador estável do aviso "prescrito mas não citado" (liga o botão de incluir). */
+const UNMENTIONED_MARKER = 'prescrito, mas não citado no áudio';
+
+/** Erro de lote parcial já comunicado na tela; o chamador só preserva o rascunho. */
+class PartialGroupSaveError extends Error {
+  constructor() {
+    super('Salvamento parcial');
+    this.name = 'PartialGroupSaveError';
+  }
+}
+
 // ─── Component Types ────────────────────────────────────────
 
 interface RecordGroupSessionDialogProps {
@@ -201,6 +221,10 @@ function ManualEntryWithToggle({
   onAddStudent: () => void;
 }) {
   const [entryMode, setEntryMode] = useState<'by-exercise' | 'by-student'>('by-exercise');
+  const entryModes = [
+    { key: 'by-exercise' as const, label: 'Por exercício' },
+    { key: 'by-student' as const, label: 'Por pessoa' },
+  ];
 
   const exercises = prescriptionDetails?.exercises?.filter((ex) => ex.should_track !== false).map((ex) => ({
     id: ex.id, exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps,
@@ -212,15 +236,19 @@ function ManualEntryWithToggle({
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        <Button variant={entryMode === 'by-exercise' ? 'default' : 'outline'} size="sm"
-          onClick={() => setEntryMode('by-exercise')}>
-          Por Exercício
-        </Button>
-        <Button variant={entryMode === 'by-student' ? 'default' : 'outline'} size="sm"
-          onClick={() => setEntryMode('by-student')}>
-          Por Aluno
-        </Button>
+      <div className="flex gap-2" role="group" aria-label="Forma de preenchimento">
+        {entryModes.map((mode) => (
+          <Button
+            key={mode.key}
+            type="button"
+            variant={entryMode === mode.key ? 'default' : 'outline'}
+            size="touch"
+            aria-pressed={entryMode === mode.key}
+            onClick={() => setEntryMode(mode.key)}
+          >
+            {mode.label}
+          </Button>
+        ))}
       </div>
 
       {entryMode === 'by-exercise' ? (
@@ -277,10 +305,40 @@ export function RecordGroupSessionDialog({
   const [showValidation, setShowValidation] = useState(false);
   const [showAddStudentDialog, setShowAddStudentDialog] = useState(false);
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
+  // Salvamento manual em lote NÃO é atômico entre alunas. Guardamos quem já
+  // foi salvo nesta abertura para o "tentar de novo" enviar só as que faltam
+  // (sem duplicar) e para dizer isso na tela.
+  const [manualSavedStudentIds, setManualSavedStudentIds] = useState<string[]>([]);
+  // Registro incompleto de outra hora (mesma prescrição e data) — só informa;
+  // o horário nunca é trocado sozinho (revisão da #369).
+  const [pendingLocalRecord, setPendingLocalRecord] = useState<{ time: string; names: string[] } | null>(null);
+  const [lastPartialSave, setLastPartialSave] = useState<GroupSaveOutcome | null>(null);
+  // Guarda de saída: trechos de voz já transcritos e confirmação pendente.
+  const [voiceSegmentCount, setVoiceSegmentCount] = useState(0);
+  const [discardAction, setDiscardAction] = useState<null | 'close' | 'back'>(null);
 
   // When prop is provided (e.g. opened from /prescricoes), use it.
   // Otherwise, the user must pick a prescription explicitly in the context-setup step.
   const effectivePrescriptionId = prescriptionId ?? selectedPrescriptionId;
+
+  // Ao entrar no registro manual, lê se há aula incompleta desta prescrição e
+  // data em outro horário (registro local da aba) para avisar — sem trocar o
+  // horário sozinho.
+  useEffect(() => {
+    if (!open || dialogState !== 'manual-entry' || isReopening) {
+      setPendingLocalRecord(null);
+      return;
+    }
+    const rec = readLocallySaved(effectivePrescriptionId ?? null, date);
+    if (!rec || rec.ids.length === 0) {
+      setPendingLocalRecord(null);
+      return;
+    }
+    const names = rec.ids
+      .map((id) => selectedStudents.find((st) => st.id === id)?.name)
+      .filter((n): n is string => Boolean(n));
+    setPendingLocalRecord({ time: rec.time, names });
+  }, [open, dialogState, isReopening, effectivePrescriptionId, date, selectedStudents]);
   const requiresPrescriptionSelection = !prescriptionId;
 
   // Shared hook for exercise replacement
@@ -477,7 +535,7 @@ export function RecordGroupSessionDialog({
       const matchingStudent = selectedStudents.find(s => s.name.toLowerCase() === student.student_name.toLowerCase());
       const studentWeight = matchingStudent?.weight_kg;
       
-      if (student.exercises.length === 0) errors.push(`❌ ${student.student_name} foi mencionado mas não tem exercícios registrados`);
+      if (student.exercises.length === 0) errors.push(`${student.student_name}: citado no áudio, mas sem exercícios registrados`);
       
       if (prescribedExercises.length > 0) {
         prescribedExercises.forEach((prescribed: PrescriptionExerciseDetail) => {
@@ -487,32 +545,32 @@ export function RecordGroupSessionDialog({
             const executedName = ex.executed_exercise_name.toLowerCase().trim();
             return executedName.includes(prescribedName) || prescribedName.includes(executedName) || executedName === prescribedName;
           });
-          if (!wasExecuted) warnings.push(`⚠️ ${student.student_name}: "${prescribed.exercise_name || prescribed.exercises_library?.name}" prescrito mas NÃO mencionado no áudio`);
+          if (!wasExecuted) warnings.push(`${student.student_name}: "${prescribed.exercise_name || prescribed.exercises_library?.name}" ${UNMENTIONED_MARKER}`);
         });
       }
       
       student.exercises.forEach((ex, idx) => {
         const exName = ex.executed_exercise_name || `Exercício ${idx + 1}`;
-        if (!ex.reps || ex.reps <= 0) errors.push(`❌ ${student.student_name} - ${exName}: faltam repetições`);
-        if (!ex.load_breakdown || ex.load_breakdown.trim() === '') warnings.push(`⚠️ ${student.student_name} - ${exName}: sem descrição de carga`);
-        if (ex.load_kg === null || ex.load_kg === 0) warnings.push(`⚠️ ${student.student_name} - ${exName}: sem carga calculada`);
+        if (!ex.reps || ex.reps <= 0) errors.push(`${student.student_name} · ${exName}: faltam repetições`);
+        if (!ex.load_breakdown || ex.load_breakdown.trim() === '') warnings.push(`${student.student_name} · ${exName}: sem descrição da carga`);
+        if (ex.load_kg === null || ex.load_kg === 0) warnings.push(`${student.student_name} · ${exName}: sem carga calculada`);
         const isPesoCorporal = ex.load_breakdown?.toLowerCase().includes('peso corporal');
-        if (isPesoCorporal && ex.load_kg === null && studentWeight) errors.push(`❌ ${student.student_name} - ${exName}: peso corporal não foi calculado automaticamente (aluno tem ${studentWeight} kg cadastrado)`);
+        if (isPesoCorporal && ex.load_kg === null && studentWeight) errors.push(`${student.student_name} · ${exName}: peso corporal não calculado (peso cadastrado: ${formatKg(studentWeight)})`);
       });
-      
+
       student.clinical_observations.forEach((obs, idx) => {
-        if (!obs.severity) errors.push(`❌ ${student.student_name}: Observação clínica ${idx+1} sem severidade`);
-        if (!obs.observation_text || obs.observation_text.trim() === '') errors.push(`❌ ${student.student_name}: Observação clínica ${idx+1} sem texto`);
+        if (!obs.severity) errors.push(`${student.student_name}: observação clínica ${idx+1} sem severidade`);
+        if (!obs.observation_text || obs.observation_text.trim() === '') errors.push(`${student.student_name}: observação clínica ${idx+1} sem texto`);
       });
-      
+
       if (student.recording_numbers.length === 1 && accumulatedRecordings.length > 1) {
-        warnings.push(`⚠️ ${student.student_name} só aparece na gravação ${student.recording_numbers[0]}`);
+        warnings.push(`${student.student_name} só aparece na gravação ${student.recording_numbers[0]}`);
       }
     });
-    
+
     selectedStudents.forEach(student => {
       if (!merged.find(m => m.student_name.toLowerCase() === student.name.toLowerCase())) {
-        warnings.push(`⚠️ ${student.name} não foi mencionado em nenhuma gravação`);
+        warnings.push(`${student.name}: não citado em nenhuma gravação`);
       }
     });
     
@@ -614,6 +672,7 @@ export function RecordGroupSessionDialog({
     setDialogState('mode-selection');
     setAccumulatedRecordings([]);
     setCurrentRecordingNumber(1);
+    setVoiceSegmentCount(0);
     setMergedStudents([]);
     setValidationIssues({ errors: [], warnings: [] });
   };
@@ -652,11 +711,11 @@ export function RecordGroupSessionDialog({
     // Reabertura: captura os IDs antigos ANTES, mas só deleta DEPOIS do create
     // novo ter sucesso — a ordem antiga (delete→create) perdia o histórico se
     // qualquer criação falhasse no meio (achado CRÍTICO da auditoria R3).
-    let staleSessionIds: string[] = [];
+    let staleSessions: Array<{ id: string; student_id: string }> = [];
     if (isReopening && reopenDate && normalizedReopenTime) {
       const { data: existingSessions, error: existingSessionsError } = await supabase
         .from('workout_sessions')
-        .select('id')
+        .select('id, student_id')
         .eq('prescription_id', effectivePrescriptionId)
         .eq('date', reopenDate)
         .eq('time', normalizedReopenTime);
@@ -665,7 +724,7 @@ export function RecordGroupSessionDialog({
         notify.error("Erro ao consolidar dados", { description: "Não foi possível localizar as sessões existentes." });
         return;
       }
-      staleSessionIds = (existingSessions || []).map(s => s.id);
+      staleSessions = existingSessions || [];
     }
 
     const sessionsToSave: GroupSessionToSave[] = mergedStudents.map(merged => {
@@ -674,10 +733,19 @@ export function RecordGroupSessionDialog({
       return { student_id: student.id, student_name: student.name, exercises: merged.exercises, clinical_observations: merged.clinical_observations || [] };
     }).filter((s): s is GroupSessionToSave => s !== null);
 
-    await createGroupSessions.mutateAsync({ prescriptionId: effectivePrescriptionId, date, time, sessions: sessionsToSave });
+    const results = await createGroupSessions.mutateAsync({ prescriptionId: effectivePrescriptionId, date, time, sessions: sessionsToSave });
+    // O hook já avisa quem salvou e quem falhou (toasts próprios). Aqui só
+    // decidimos o que fazer com cada pessoa (revisão da #369).
+    const succeededNames = new Set(results.filter(r => r.success).map(r => r.student.toLowerCase()));
+    const failedNames = new Set(results.filter(r => !r.success).map(r => r.student.toLowerCase()));
+    const succeededStudentIds = new Set(
+      sessionsToSave.filter(s => succeededNames.has(s.student_name.toLowerCase())).map(s => s.student_id),
+    );
 
-    // Sessões novas criadas com sucesso — agora sim remover as antigas (por ID
-    // capturado; se a limpeza falhar, sobra duplicata recuperável, nunca perda).
+    // Reabertura: remove as sessões antigas SÓ de quem gravou a nova — quem
+    // falhou mantém o histórico (antes, uma falha parcial apagava as antigas
+    // de todos). Se a limpeza falhar, sobra duplicata recuperável, nunca perda.
+    const staleSessionIds = staleSessions.filter(s => succeededStudentIds.has(s.student_id)).map(s => s.id);
     if (staleSessionIds.length > 0) {
       const { error: deleteExercisesError } = await supabase
         .from('exercises')
@@ -721,7 +789,7 @@ export function RecordGroupSessionDialog({
     let hasAudioSegmentsInsertError = false;
     for (const merged of mergedStudents) {
       const student = selectedStudents.find(s => s.name.toLowerCase() === merged.student_name.toLowerCase());
-      if (!student) continue;
+      if (!student || !succeededStudentIds.has(student.id)) continue;
 
       const sessionData = latestSessionByStudent.get(student.id);
       if (!sessionData) continue;
@@ -760,10 +828,18 @@ export function RecordGroupSessionDialog({
 
     if (hasAudioSegmentsInsertError) {
       notify.warning("Sessão salva com pendências", {
-        description: "Alguns segmentos de áudio não foram salvos. Os exercícios da sessão foram preservados.",
+        description: "Algumas transcrições não foram salvas. Os exercícios da sessão foram preservados.",
       });
     }
 
+    // Falha parcial: o diálogo continua aberto só com quem falhou — "Salvar"
+    // de novo não regrava quem já entrou e ninguém perde a gravação.
+    if (failedNames.size > 0) {
+      setMergedStudents(prev => prev.filter(m => failedNames.has(m.student_name.toLowerCase())));
+      return;
+    }
+
+    setVoiceSegmentCount(0);
     setSelectedStudents([]);
     setAccumulatedRecordings([]);
     setCurrentRecordingNumber(1);
@@ -806,15 +882,43 @@ export function RecordGroupSessionDialog({
         throw new Error("Dados incompletos");
       }
 
-      const sessionsToCreate = data.studentExercises.map(se => {
-        const student = selectedStudents.find(s => s.id === se.studentId);
-        return {
-          student_id: se.studentId, student_name: student?.name || '',
-          exercises: se.exercises.map(ex => ({ exercise_library_id: ex.exercise_library_id ?? null, executed_exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps, reserve_reps: ex.reserve_reps || null, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown, observations: ex.observations, is_best_set: false }))
-        };
-      });
+      // Quem já foi salvo numa tentativa anterior NÃO é reenviado — evita
+      // sessão duplicada no "tentar de novo". Duas fontes:
+      // - memória desta abertura do diálogo (confiável: mesma aula);
+      // - registro local da aba, SÓ se for a mesma aula (mesmo horário) E o
+      //   banco confirmar a sessão com exercícios — nunca pula gravação de
+      //   outra aula da mesma pessoa no mesmo dia.
+      const localRecord = readLocallySaved(effectivePrescriptionId ?? null, date);
+      const confirmedFromLocal: string[] = [];
+      if (localRecord && localRecord.time === time) {
+        for (const id of localRecord.ids) {
+          if (manualSavedStudentIds.includes(id)) continue;
+          const inDb = await hasRecentGroupSession(
+            supabase as unknown as SessionsClient,
+            { studentId: id, date, time, prescriptionId: effectivePrescriptionId ?? null },
+          );
+          if (inDb) confirmedFromLocal.push(id);
+        }
+      }
+      const alreadySaved = new Set([...manualSavedStudentIds, ...confirmedFromLocal]);
+      const sessionsToCreate = data.studentExercises
+        .filter(se => !alreadySaved.has(se.studentId))
+        .map(se => {
+          const student = selectedStudents.find(s => s.id === se.studentId);
+          return {
+            student_id: se.studentId, student_name: student?.name || '',
+            exercises: se.exercises.map(ex => ({ exercise_library_id: ex.exercise_library_id ?? null, executed_exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps, reserve_reps: ex.reserve_reps || null, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown, observations: ex.observations, is_best_set: false }))
+          };
+        });
 
-      for (const session of sessionsToCreate) {
+      const saveOneStudent = async (session: (typeof sessionsToCreate)[number]): Promise<"created" | "existing"> => {
+        // Idempotência: não regrava quem já entrou (fechar/reabrir após falha
+        // parcial, ou outro aparelho com o mesmo rascunho).
+        const alreadyInDb = await hasRecentGroupSession(
+          supabase as unknown as SessionsClient,
+          { studentId: session.student_id, date, time, prescriptionId: effectivePrescriptionId ?? null },
+        );
+        if (alreadyInDb) return "existing";
         const { data: workoutSession, error: sessionError } = await supabase.from("workout_sessions").insert({ student_id: session.student_id, prescription_id: effectivePrescriptionId, date, time, session_type: 'group', trainer_name: trainer, is_finalized: true, can_reopen: true }).select("id").single();
         if (sessionError) throw sessionError;
         const exercisesToInsert = session.exercises.map((ex) => ({ session_id: workoutSession.id, exercise_library_id: ex.exercise_library_id ?? null, exercise_name: ex.executed_exercise_name, sets: ex.sets, reps: ex.reps, reserve_reps: ex.reserve_reps || null, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown, observations: ex.observations || null }));
@@ -826,9 +930,48 @@ export function RecordGroupSessionDialog({
           if (rollbackError) logger.error("Falha ao reverter sessão órfã (grupo manual):", rollbackError);
           throw exercisesError;
         }
+        return "created";
+      };
+
+      // Cada pessoa é salva e contabilizada separadamente; uma falha não
+      // esconde as que já entraram.
+      const outcome: GroupSaveOutcome = {
+        saved: selectedStudents
+          .filter(s => alreadySaved.has(s.id))
+          .map(s => (confirmedFromLocal.includes(s.id) ? `${s.name} (já registrada)` : s.name)),
+        failed: [],
+      };
+      const newlySavedIds: string[] = [];
+      for (const session of sessionsToCreate) {
+        try {
+          const result = await saveOneStudent(session);
+          newlySavedIds.push(session.student_id);
+          outcome.saved.push(result === "existing" ? `${session.student_name} (já registrada)` : session.student_name);
+        } catch (studentError) {
+          logger.error(`Erro ao salvar a sessão de ${session.student_name}:`, studentError);
+          outcome.failed.push({ name: session.student_name, reason: buildErrorDescription(studentError) || 'erro desconhecido' });
+        }
       }
-      
-      notify.success("Sessões registradas com sucesso", { description: `${sessionsToCreate.length} sessão(ões) criada(s) manualmente` });
+
+      if (outcome.failed.length > 0) {
+        if (newlySavedIds.length > 0) {
+          setManualSavedStudentIds(prev => [...prev, ...newlySavedIds]);
+          rememberLocallySaved(effectivePrescriptionId ?? null, date, time, newlySavedIds);
+        }
+        setLastPartialSave(outcome);
+        notify.error(
+          outcome.saved.length === 0 ? "Sessões não salvas" : "Algumas sessões não foram salvas",
+          { description: describePartialGroupSave(outcome) },
+        );
+        // Mantém o rascunho (ExerciseFirstSessionEntry só limpa em sucesso).
+        throw new PartialGroupSaveError();
+      }
+
+      const total = outcome.saved.length;
+      notify.success(total === 1 ? "1 sessão salva" : `${total} sessões salvas`, { description: outcome.saved.join(", ") });
+      setManualSavedStudentIds([]);
+      forgetLocallySaved(effectivePrescriptionId ?? null, date);
+      setLastPartialSave(null);
       setDialogState('context-setup');
       setSelectedStudents([]);
       setTrainer('');
@@ -837,30 +980,69 @@ export function RecordGroupSessionDialog({
       setHasAutoSelected(false);
       onOpenChange(false);
     } catch (error) {
+      if (error instanceof PartialGroupSaveError) throw error;
       logger.error("Erro no salvamento manual:", error);
       let errorMessage = "Erro desconhecido";
       if (error instanceof Error) {
         if (error.message.includes('connection')) errorMessage = "Erro de conexão com o banco de dados";
-        else if (error.message.includes('foreign key')) errorMessage = "Erro: aluno ou prescrição não encontrados";
+        else if (error.message.includes('foreign key')) errorMessage = "Pessoa ou prescrição não encontrada";
         else errorMessage = error.message;
       }
-      notify.error("Erro ao salvar sessões", { description: errorMessage });
+      if (!(error instanceof Error && ['Dados incompletos', 'Nenhum aluno selecionado', 'Nome do treinador é obrigatório'].includes(error.message))) {
+        notify.error("Não foi possível salvar as sessões", { description: errorMessage });
+      }
       throw error;
     } finally { setIsSaving(false); }
   };
 
   // ─── Close Protection ────────────────────────────────────────
 
+  // O que se perde ao fechar/voltar agora. A entrada manual tem rascunho
+  // automático (volta ao reabrir); gravações e revisão de voz, não.
+  const pendingLoss: string | null = (() => {
+    const recordings = Math.max(voiceSegmentCount, accumulatedRecordings.length);
+    if (['recording', 'preview', 'edit'].includes(dialogState) && recordings > 0) {
+      return recordings === 1
+        ? 'A gravação transcrita e a revisão serão descartadas.'
+        : `As ${recordings} gravações transcritas e a revisão serão descartadas.`;
+    }
+    return null;
+  })();
+
+  const closeDialog = () => {
+    // Reset internal prescription selection so the next open starts clean
+    setSelectedPrescriptionId(null);
+    onOpenChange(false);
+  };
+
   const handleCloseAttempt = (shouldClose: boolean) => {
+    if (shouldClose) {
+      onOpenChange(true);
+      return;
+    }
+    if (pendingLoss && !createGroupSessions.isPending) {
+      setDiscardAction('close');
+      return;
+    }
     if (dialogState === 'manual-entry' && hasUnsavedChanges({ date, time, trainer, prescriptionId: effectivePrescriptionId, selectedStudents, studentExercises: {} })) {
-      const confirmed = window.confirm('⚠️ Você tem alterações não salvas. Seu rascunho foi salvo automaticamente e estará disponível quando você reabrir. Deseja sair mesmo assim?');
-      if (!confirmed) return;
+      notify.info("Rascunho guardado", { description: "Os dados digitados voltam quando você reabrir o registro desta prescrição." });
     }
-    if (!shouldClose) {
-      // Reset internal prescription selection so the next open starts clean
-      setSelectedPrescriptionId(null);
+    closeDialog();
+  };
+
+  const handleBackFromVoice = () => {
+    if (pendingLoss) {
+      setDiscardAction('back');
+      return;
     }
-    onOpenChange(shouldClose);
+    handleBack();
+  };
+
+  const handleConfirmDiscard = () => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === 'close') closeDialog();
+    else if (action === 'back') handleBack();
   };
 
   useEffect(() => {
@@ -919,6 +1101,10 @@ export function RecordGroupSessionDialog({
       setTime(getCurrentSessionTimeHHmm());
       setHasAutoSelected(false);
       setTrainer('');
+      setManualSavedStudentIds([]);
+      setLastPartialSave(null);
+      setVoiceSegmentCount(0);
+      setDiscardAction(null);
     }
   }, [open]);
 
@@ -939,13 +1125,13 @@ export function RecordGroupSessionDialog({
         exercise_library_id: prescribed.exercise_library_id ?? null,
         executed_exercise_name: prescribed.exercise_name || prescribed.exercises_library?.name || '',
         sets: parseInt(prescribed.sets) || null, reps: null, reserve_reps: prescribed.pse || null, load_kg: null, load_breakdown: '',
-        observations: '⚠️ Exercício prescrito mas não mencionado - preencher manualmente', is_best_set: false,
+        observations: 'Prescrito, não citado no áudio: preencher', is_best_set: false,
       }));
       return { ...student, exercises: [...student.exercises, ...newExercises] };
     });
     setMergedStudents(updatedMergedStudents);
     setValidationIssues(validateMergedData(updatedMergedStudents));
-    notify.success('Exercícios não mencionados adicionados para edição manual');
+    notify.success('Exercícios não citados incluídos para preenchimento');
   };
 
   // ─── Render ────────────────────────────────────────
@@ -960,11 +1146,11 @@ export function RecordGroupSessionDialog({
           <DialogTitle className="flex items-center gap-2">
             {dialogState === 'context-setup' && NAV_LABELS.recordGroupSession}
             {dialogState === 'mode-selection' && (<><User className="h-5 w-5" />Escolher modo de registro</>)}
-            {dialogState === 'recording' && (<><Mic className="h-5 w-5" />🎤 Gravação {currentRecordingNumber}</>)}
-            {dialogState === 'manual-entry' && (<><BookOpen className="h-5 w-5" />Registro manual da sessão</>)}
-            {dialogState === 'processing' && 'Processando...'}
-            {dialogState === 'preview' && 'Preview da sessão'}
-            {dialogState === 'edit' && `Editando: ${mergedStudents[editingStudentIndex]?.student_name}`}
+            {dialogState === 'recording' && (<><Mic className="h-5 w-5" aria-hidden="true" />Gravação {currentRecordingNumber}</>)}
+            {dialogState === 'manual-entry' && (<><BookOpen className="h-5 w-5" aria-hidden="true" />Registro manual da sessão</>)}
+            {dialogState === 'processing' && 'Processando…'}
+            {dialogState === 'preview' && 'Revisar sessão'}
+            {dialogState === 'edit' && `Corrigindo: ${mergedStudents[editingStudentIndex]?.student_name}`}
           </DialogTitle>
         </DialogHeader>
 
@@ -1051,9 +1237,9 @@ export function RecordGroupSessionDialog({
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <Users className="h-4 w-4" /> Alunos Participantes
+                  <Users className="h-4 w-4" aria-hidden="true" /> Participantes
                   <Badge variant="secondary" className="ml-auto">{selectedStudents.length}</Badge>
-                  <Button type="button" variant="ghost" size="sm" onClick={handleAddStudentToGroup} className="gap-1.5">
+                  <Button type="button" variant="ghost" size="sm" onClick={handleAddStudentToGroup} className="min-h-10 gap-1.5">
                     <UserPlus className="h-3.5 w-3.5" /> Adicionar
                   </Button>
                 </CardTitle>
@@ -1082,6 +1268,7 @@ export function RecordGroupSessionDialog({
               </div>
               <div className="lg:col-span-3">
                 <MultiSegmentRecorder
+                  onSegmentsChange={setVoiceSegmentCount}
                   prescriptionId={effectivePrescriptionId || undefined}
                   selectedStudents={selectedStudents.map(s => ({ id: s.id, name: s.name, weight_kg: s.weight_kg }))}
                   date={date} time={time}
@@ -1165,6 +1352,27 @@ export function RecordGroupSessionDialog({
           </div>
         )}
 
+        {dialogState === 'manual-entry' && !lastPartialSave && pendingLocalRecord && pendingLocalRecord.time !== time && (
+          <Alert variant="info" className="mb-4" aria-live="polite">
+            <AlertDescription className="flex flex-wrap items-center gap-2">
+              <span>
+                Há um registro não concluído desta prescrição às {pendingLocalRecord.time}
+                {pendingLocalRecord.names.length > 0 ? ` (${pendingLocalRecord.names.join(", ")} já salvas)` : ""}.
+                Para retomar essa aula, use o mesmo horário.
+              </span>
+              <Button type="button" size="sm" variant="outline" className="min-h-10" onClick={() => setTime(pendingLocalRecord.time)}>
+                Usar {pendingLocalRecord.time}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {dialogState === 'manual-entry' && lastPartialSave && (
+          <Alert variant="warning" className="mb-4" aria-live="polite">
+            <AlertDescription>{describePartialGroupSave(lastPartialSave)}</AlertDescription>
+          </Alert>
+        )}
+
         {dialogState === 'manual-entry' && (
           <ManualEntryWithToggle
             prescriptionDetails={prescriptionDetails}
@@ -1179,28 +1387,27 @@ export function RecordGroupSessionDialog({
 
         {dialogState === 'preview' && mergedStudents.length > 0 && (
           <div className="space-y-4">
-            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-              <span>📅 {formatSessionDate(date)}</span>
-              <span>🕐 {time}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-base">{accumulatedRecordings.length} gravação(ões) realizada(s)</Badge>
-            </div>
+            {accumulatedRecordings.length > 1 && (
+              <p className="text-sm text-muted-foreground">{accumulatedRecordings.length} gravações consolidadas</p>
+            )}
 
             <ValidationAlerts
               errors={validationIssues.errors}
               warnings={validationIssues.warnings}
-              showAddUnmentioned={validationIssues.warnings.some(w => w.includes('NÃO mencionado no áudio'))}
+              showAddUnmentioned={validationIssues.warnings.some(w => w.includes(UNMENTIONED_MARKER))}
               onAddUnmentionedExercises={handleAddUnmentionedExercises}
             />
 
-            <ScrollArea className="max-h-[500px]">
+            {/* A rolagem é a do próprio diálogo (sem scroll dentro de scroll) */}
+            <div>
               {mergedStudents.map((student, idx) => (
                 <Card key={idx} className="mb-4">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 flex-wrap">
-                      <User className="h-5 w-5" /> {student.student_name}
-                      <Badge variant="outline" className="text-xs">Gravações: {student.recording_numbers.join(', ')}</Badge>
+                      <User className="h-5 w-5" aria-hidden="true" /> {student.student_name}
+                      {accumulatedRecordings.length > 1 && (
+                        <Badge variant="outline" className="text-xs">Gravações: {student.recording_numbers.join(', ')}</Badge>
+                      )}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -1208,7 +1415,7 @@ export function RecordGroupSessionDialog({
                       <ObservationPreview observations={student.clinical_observations} />
                     )}
                     <div>
-                      <p className="font-semibold text-sm mb-2">💪 {student.exercises.length} Exercício(s)</p>
+                      <p className="font-semibold text-sm mb-2">{student.exercises.length === 1 ? '1 exercício' : `${student.exercises.length} exercícios`}</p>
                       <div className="space-y-2">
                         {student.exercises.map((ex, exIdx) => (
                           <ExercisePreviewCard key={exIdx} exercise={ex} />
@@ -1218,12 +1425,12 @@ export function RecordGroupSessionDialog({
                   </CardContent>
                 </Card>
               ))}
-            </ScrollArea>
+            </div>
           </div>
         )}
 
         {dialogState === 'edit' && mergedStudents[editingStudentIndex] && (
-          <ScrollArea className="max-h-[600px] pr-4">
+          <div>
             <div className="space-y-6">
               <ObservationEditor
                 observations={editableObservations}
@@ -1249,14 +1456,16 @@ export function RecordGroupSessionDialog({
                 onOpenExerciseSelection={openExerciseSelection}
               />
             </div>
-          </ScrollArea>
+          </div>
         )}
 
-        <DialogFooter>
+        {/* CTA sempre à vista: rodapé fixo no fundo do diálogo que rola (a entrada
+            manual tem rodapé próprio). */}
+        <DialogFooter className={dialogState === 'manual-entry' ? "hidden" : STICKY_FOOTER_CLASS}>
           {dialogState === 'context-setup' && (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={() => {
+              <Button variant="ghost" size="touch" onClick={closeDialog}>Cancelar</Button>
+              <Button size="touch" onClick={() => {
                 if (!isContextValid) {
                   setShowValidation(true);
                   notify.error(
@@ -1273,32 +1482,43 @@ export function RecordGroupSessionDialog({
           )}
           
           {dialogState === 'mode-selection' && (
-            <Button variant="ghost" onClick={() => setDialogState('context-setup')}>Voltar</Button>
+            <Button variant="ghost" size="touch" onClick={() => setDialogState('context-setup')}>Voltar</Button>
+          )}
+
+          {dialogState === 'recording' && (
+            <Button variant="ghost" size="touch" onClick={handleBackFromVoice}>Voltar</Button>
           )}
 
           {dialogState === 'preview' && (
             <>
-              <Button variant="ghost" onClick={handleBack} disabled={createGroupSessions.isPending}>Voltar</Button>
-              <Button variant="outline" onClick={handleStartEditing}><Pencil className="h-4 w-4 mr-2" />Editar Dados</Button>
-              <Button onClick={handleSave} disabled={validationIssues.errors.length > 0 || createGroupSessions.isPending}>
-                <Save className="h-4 w-4 mr-2" />{createGroupSessions.isPending ? "Salvando..." : "Salvar Sessão"}
+              <Button variant="ghost" size="touch" onClick={handleBackFromVoice} disabled={createGroupSessions.isPending}>Voltar</Button>
+              <Button variant="ghost" size="touch" onClick={handleStartEditing} disabled={createGroupSessions.isPending}><Pencil className="h-4 w-4" aria-hidden="true" />Corrigir dados</Button>
+              <Button size="touch" onClick={handleSave} disabled={validationIssues.errors.length > 0 || createGroupSessions.isPending}>
+                <Save className="h-4 w-4" aria-hidden="true" />{createGroupSessions.isPending ? "Salvando…" : "Salvar sessão"}
               </Button>
             </>
           )}
 
           {dialogState === 'edit' && (
             <>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => handleNavigateStudent('prev')} disabled={editingStudentIndex === 0}><ChevronLeft className="h-4 w-4" /></Button>
-                <span className="text-sm text-muted-foreground">Aluno {editingStudentIndex + 1} de {mergedStudents.length}</span>
-                <Button variant="outline" size="sm" onClick={() => handleNavigateStudent('next')} disabled={editingStudentIndex === mergedStudents.length - 1}><ChevronRight className="h-4 w-4" /></Button>
+              <div className="flex items-center justify-center gap-2">
+                <Button variant="outline" size="icon-touch" aria-label="Pessoa anterior" onClick={() => handleNavigateStudent('prev')} disabled={editingStudentIndex === 0}><ChevronLeft className="h-4 w-4" /></Button>
+                <span className="text-sm text-muted-foreground">{editingStudentIndex + 1} de {mergedStudents.length}</span>
+                <Button variant="outline" size="icon-touch" aria-label="Próxima pessoa" onClick={() => handleNavigateStudent('next')} disabled={editingStudentIndex === mergedStudents.length - 1}><ChevronRight className="h-4 w-4" /></Button>
               </div>
-              <Button variant="outline" onClick={() => setDialogState('preview')}>Cancelar</Button>
-              <Button onClick={handleSaveEdits}><Save className="h-4 w-4 mr-2" />Salvar Edições</Button>
+              <Button variant="ghost" size="touch" onClick={() => setDialogState('preview')}>Descartar correções</Button>
+              <Button size="touch" onClick={handleSaveEdits}>Concluir correção</Button>
             </>
           )}
         </DialogFooter>
       </DialogContent>
+
+      <DiscardSessionConfirm
+        open={discardAction !== null}
+        onOpenChange={(next) => { if (!next) setDiscardAction(null); }}
+        onConfirm={handleConfirmDiscard}
+        description={pendingLoss ?? 'Os dados desta sessão ainda não foram salvos.'}
+      />
 
       <ExerciseSelectionDialog open={exerciseSelectionOpen} onOpenChange={setExerciseSelectionOpen}
         currentExerciseName={selectedExerciseForReplacement?.currentName || ""} onExerciseSelected={handleExerciseSelected} autoSuggest={true} />

@@ -130,7 +130,7 @@ export function CreateSubfolderDialog({
                 <SelectValue placeholder="Raiz (sem pasta pai)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="root">📁 Raiz (sem pasta pai)</SelectItem>
+                <SelectItem value="root">Raiz (sem pasta pai)</SelectItem>
                 {eligibleParents.map((folder) => (
                   <SelectItem key={folder.id} value={folder.id}>
                     <span style={{ paddingLeft: `${folder.level * 12}px` }}>

@@ -55,7 +55,7 @@ export function DraggablePrescriptionCard({
     >
       {/* Drag Handle - sempre visível */}
       <button
-        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-grab active:cursor-grabbing touch-none p-2 hover:bg-accent rounded-md transition-colors opacity-40 group-hover:opacity-100"
+        className="absolute left-2 top-1/2 -translate-y-1/2 z-10 cursor-grab active:cursor-grabbing touch-none p-2 hover:bg-accent rounded-md transition-colors opacity-40 group-hover:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100"
         {...attributes}
         {...listeners}
         aria-label={`Reordenar prescrição ${prescription.name}`}

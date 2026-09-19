@@ -113,16 +113,16 @@ function WarningsPanel({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null;
 
   return (
-    <Card className="border-amber-200 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800">
+    <Card className="border-warning/50">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2 text-amber-700 dark:text-amber-400">
-          <AlertTriangle className="h-4 w-4" />
+        <CardTitle className="text-sm flex items-center gap-2 text-foreground">
+          <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
           Observações da IA ({warnings.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1.5">
         {warnings.map((warning, i) => (
-          <p key={i} className="text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+          <p key={i} className="text-xs text-foreground flex items-start gap-2">
             <span className="shrink-0 mt-0.5">•</span>
             <span>{warning}</span>
           </p>
@@ -257,7 +257,7 @@ function SafetyFiltersPanel({ mesocycle }: { mesocycle: GeneratedMesocycle }) {
         {audienceRestrictions.length > 0 && (
           <>
             <Separator className="my-2" />
-            <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex items-center gap-1">
+            <p className="text-xs font-medium text-foreground flex items-center gap-1">
               <Info className="h-3 w-3" />
               Preset: {mesocycle.metadata.audiencePreset}
             </p>
@@ -319,8 +319,8 @@ function PhaseDetail({ phase }: { phase: SessionPhase }) {
                         </div>
                       </div>
                       {exercise.executionCues && (
-                        <p className="text-[10px] text-muted-foreground italic leading-relaxed">
-                          💡 {exercise.executionCues}
+                        <p className="text-xs text-muted-foreground italic leading-relaxed">
+                          {exercise.executionCues}
                         </p>
                       )}
                     </div>
@@ -380,7 +380,7 @@ function WorkoutCard({ workout }: { workout: GeneratedWorkout }) {
                 {workout.coreTriplanarCheck[key as keyof typeof workout.coreTriplanarCheck] ? (
                   <CheckCircle2 className="h-3 w-3 text-emerald-500" />
                 ) : (
-                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                  <AlertTriangle className="h-3 w-3 text-warning" aria-hidden="true" />
                 )}
                 {label}
               </span>
@@ -439,7 +439,7 @@ export function MesocyclePreview({ mesocycle, warnings = [] }: MesocyclePreviewP
           {weekCount} semanas
         </Badge>
         {mesocycle.metadata.audiencePreset && mesocycle.metadata.audiencePreset !== "adulto" && (
-          <Badge variant="outline" className="gap-1 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400">
+          <Badge variant="outline" className="gap-1 border-warning/50 text-foreground">
             <Shield className="h-3 w-3" />
             {mesocycle.metadata.audiencePreset === "senior_70" ? "70+" : "Adolescente"}
           </Badge>

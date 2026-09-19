@@ -8,7 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSessionDetail } from "@/hooks/useSessionDetail";
 import { useExercisesLibrary } from "@/hooks/useExercisesLibrary";
-import { Calendar, Clock, Users, Dumbbell, TrendingUp, User, Award, Filter } from "lucide-react";
+import { Calendar, Clock, Users, Dumbbell, TrendingUp, User, Filter } from "lucide-react";
+import { formatKg, formatNumberBR } from "@/utils/displayFormat";
+import { SessionStatusBadge } from "@/components/session/SessionStatusBadge";
 import { useNavigate } from "react-router-dom";
 import { LoadingState } from "./LoadingState";
 import { ErrorState } from "./ErrorState";
@@ -88,11 +90,11 @@ export const SessionDetailDialog = ({
   onEditSession,
 }: SessionDetailDialogProps) => {
   const navigate = useNavigate();
-  const { data: session, isLoading, error } = useSessionDetail(sessionId);
+  const { data: session, isLoading, error, refetch } = useSessionDetail(sessionId);
   const { data: exercisesLibrary } = useExercisesLibrary();
   
   const [movementPatternFilter, setMovementPatternFilter] = useState<string>("all");
-  const [intensityFilter, setIntensityFilter] = useState<string>("all");
+
 
   const exercisePatternByName = useMemo(() => {
     const map = new Map<string, string>();
@@ -142,18 +144,9 @@ export const SessionDetailDialog = ({
     }, 0);
   };
 
-  const getIntensityBadge = (volume: number) => {
-    if (volume > 5000) return { label: "Alta", variant: "destructive" as const };
-    if (volume > 2000) return { label: "Moderada", variant: "default" as const };
-    return { label: "Leve", variant: "secondary" as const };
-  };
-
-  const getExerciseIntensity = (exercise: SessionExercise): string => {
-    const volume = (resolveExerciseLoad(exercise).kg || 0) * (exercise.sets || 0) * (exercise.reps || 0);
-    if (volume > 500) return "alta";
-    if (volume > 200) return "moderada";
-    return "leve";
-  };
+  // "Intensidade" (Leve/Moderada/Alta) foi removida (revisão UX-06): era um
+  // recorte do próprio volume total, com rótulo que induzia leitura errada
+  // (3×3×100 kg aparecia como "Leve"). O volume já está na tela.
 
   const filteredExercises = useMemo(() => {
     if (!session?.exercises) return [];
@@ -168,12 +161,8 @@ export const SessionDetailDialog = ({
       });
     }
 
-    if (intensityFilter !== "all") {
-      filtered = filtered.filter(ex => getExerciseIntensity(ex) === intensityFilter);
-    }
-
     return filtered;
-  }, [session?.exercises, movementPatternFilter, intensityFilter, getExerciseMovementPattern]);
+  }, [session?.exercises, movementPatternFilter, getExerciseMovementPattern]);
 
   const movementPatterns = useMemo(() => {
     if (!session?.exercises) return [];
@@ -207,7 +196,7 @@ export const SessionDetailDialog = ({
         </div>
         {exercise.is_best_set && (
           <Badge variant="secondary" className="text-xs">
-            Best Set
+            Melhor série
           </Badge>
         )}
       </div>
@@ -225,9 +214,11 @@ export const SessionDetailDialog = ({
 
         {error && (
           <div className="py-8">
-            <ErrorState 
-              title="Erro ao carregar sessão"
-              description="Não foi possível carregar os detalhes desta sessão."
+            <ErrorState
+              title="Não foi possível carregar a sessão"
+              description="A sessão continua salva. Verifique a conexão e tente de novo."
+              onRetry={() => { void refetch(); }}
+              retryLabel="Tentar de novo"
             />
           </div>
         )}
@@ -236,7 +227,7 @@ export const SessionDetailDialog = ({
           <div className="py-8">
             <ErrorState
               title="Sessão não encontrada"
-              description="Não foi possível encontrar os dados desta sessão. Tente novamente ou recarregue a página."
+              description="Esta sessão pode ter sido removida. Feche e atualize a lista."
             />
           </div>
         )}
@@ -252,16 +243,14 @@ export const SessionDetailDialog = ({
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <DialogTitle className="text-2xl mb-2">
+                  <DialogTitle className="text-xl mb-2">
                     Sessão de {session.student.name}
                   </DialogTitle>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant={session.session_type === "individual" ? "default" : "secondary"}>
                       {session.session_type === "individual" ? "Individual" : "Grupo"}
                     </Badge>
-                    <Badge variant={session.is_finalized ? "outline" : "default"}>
-                      {session.is_finalized ? "Finalizada" : "Em andamento"}
-                    </Badge>
+                    <SessionStatusBadge isFinalized={session.is_finalized} />
                   </div>
                 </div>
               </div>
@@ -272,8 +261,8 @@ export const SessionDetailDialog = ({
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Informações da Sessão
+                    <Calendar className="h-5 w-5" aria-hidden="true" />
+                    Informações da sessão
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -314,8 +303,8 @@ export const SessionDetailDialog = ({
                 </CardContent>
               </Card>
 
-              {/* Métricas Agregadas */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Métricas agregadas: só o que não deriva uma da outra */}
+              <div className="grid grid-cols-2 gap-4">
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-3">
@@ -323,7 +312,7 @@ export const SessionDetailDialog = ({
                         <Dumbbell className="h-6 w-6 text-primary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Total de Exercícios</p>
+                        <p className="text-sm text-muted-foreground">Exercícios</p>
                         <p className="text-2xl font-bold">{session.exercises.length}</p>
                       </div>
                     </div>
@@ -336,23 +325,9 @@ export const SessionDetailDialog = ({
                         <TrendingUp className="h-6 w-6 text-secondary" />
                       </div>
                       <div>
-                        <p className="text-sm text-muted-foreground">Volume Total</p>
-                        <p className="text-2xl font-bold">{calculateTotalVolume().toFixed(0)} kg</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-md bg-accent/10">
-                        <Award className="h-6 w-6 text-accent" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Intensidade</p>
-                        <Badge {...getIntensityBadge(calculateTotalVolume())} className="mt-1">
-                          {getIntensityBadge(calculateTotalVolume()).label}
-                        </Badge>
+                        <p className="text-sm text-muted-foreground">Volume total</p>
+                        <p className="text-2xl font-bold">{formatNumberBR(calculateTotalVolume())} kg</p>
+                        <p className="text-xs text-muted-foreground">carga × séries × reps</p>
                       </div>
                     </div>
                   </CardContent>
@@ -364,8 +339,8 @@ export const SessionDetailDialog = ({
                 <CardHeader>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
-                      <Filter className="h-5 w-5" />
-                      Exercícios Realizados
+                      <Filter className="h-5 w-5" aria-hidden="true" />
+                      Exercícios realizados
                     </CardTitle>
                     <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
                       <Select value={movementPatternFilter} onValueChange={setMovementPatternFilter}>
@@ -384,17 +359,7 @@ export const SessionDetailDialog = ({
                           )}
                         </SelectContent>
                       </Select>
-                      <Select value={intensityFilter} onValueChange={setIntensityFilter}>
-                        <SelectTrigger className="w-full sm:w-[150px]">
-                          <SelectValue placeholder="Intensidade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas</SelectItem>
-                          <SelectItem value="alta">Alta</SelectItem>
-                          <SelectItem value="moderada">Moderada</SelectItem>
-                          <SelectItem value="leve">Leve</SelectItem>
-                        </SelectContent>
-                      </Select>
+
                     </div>
                   </div>
                 </CardHeader>
@@ -411,7 +376,6 @@ export const SessionDetailDialog = ({
                         {filteredExercises.map((exercise) => {
                           const pattern = getExerciseMovementPattern(exercise);
                           const resolvedLoad = resolveExerciseLoad(exercise);
-                          const intensity = getExerciseIntensity(exercise);
 
                           return (
                             <div key={exercise.id} className="rounded-lg border bg-muted/20 p-4">
@@ -426,25 +390,11 @@ export const SessionDetailDialog = ({
                                       : "Carregando padrão..."}
                                   </p>
                                 </div>
-                                <div className="flex shrink-0 flex-col items-end gap-2">
-                                  {exercise.is_best_set && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      Best Set
-                                    </Badge>
-                                  )}
-                                  <Badge
-                                    variant={
-                                      intensity === "alta"
-                                        ? "destructive"
-                                        : intensity === "moderada"
-                                        ? "default"
-                                        : "secondary"
-                                    }
-                                    className="capitalize"
-                                  >
-                                    {intensity}
+                                {exercise.is_best_set && (
+                                  <Badge variant="secondary" className="shrink-0 text-xs">
+                                    Melhor série
                                   </Badge>
-                                </div>
+                                )}
                               </div>
 
                               <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
@@ -460,7 +410,7 @@ export const SessionDetailDialog = ({
                                   <p className="text-xs text-muted-foreground">Carga</p>
                                   <p className="mt-1 font-semibold">
                                     {resolvedLoad.kg !== null
-                                      ? `${resolvedLoad.kg} kg`
+                                      ? formatKg(resolvedLoad.kg)
                                       : resolvedLoad.text || "—"}
                                   </p>
                                 </div>
@@ -489,7 +439,6 @@ export const SessionDetailDialog = ({
                               <TableHead className="text-center">Séries</TableHead>
                               <TableHead className="text-center">Reps</TableHead>
                               <TableHead className="text-center">Carga</TableHead>
-                              <TableHead className="text-center">Intensidade</TableHead>
                               <TableHead>Observações</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -513,7 +462,7 @@ export const SessionDetailDialog = ({
                                         <>
                                           <p className="font-medium">
                                             {resolvedLoad.kg !== null
-                                              ? `${resolvedLoad.kg} kg`
+                                              ? formatKg(resolvedLoad.kg)
                                               : resolvedLoad.text || "—"}
                                           </p>
                                           {resolvedLoad.kg !== null && resolvedLoad.text && (
@@ -526,18 +475,7 @@ export const SessionDetailDialog = ({
                                     })()}
                                   </div>
                                 </TableCell>
-                                <TableCell className="text-center">
-                                  <Badge
-                                    variant={
-                                      getExerciseIntensity(exercise) === "alta" ? "destructive" :
-                                      getExerciseIntensity(exercise) === "moderada" ? "default" :
-                                      "secondary"
-                                    }
-                                    className="capitalize"
-                                  >
-                                    {getExerciseIntensity(exercise)}
-                                  </Badge>
-                                </TableCell>
+
                                 <TableCell>
                                   {exercise.observations ? (
                                     <p className="text-sm text-muted-foreground max-w-xs truncate">
@@ -559,20 +497,20 @@ export const SessionDetailDialog = ({
             </div>
 
             <DialogFooter className="flex-col sm:flex-row gap-2 mt-6">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>
                 Fechar
               </Button>
-              <Button variant="secondary" onClick={handleGoToStudent}>
-                Ver Perfil do Aluno
+              <Button variant="ghost" onClick={handleGoToStudent}>
+                Ver perfil
               </Button>
               {!session.is_finalized && onEditSession && (
-                <Button variant="outline" onClick={handleEdit}>
-                  Editar Sessão
+                <Button variant="default" onClick={handleEdit}>
+                  Editar sessão
                 </Button>
               )}
               {session.is_finalized && session.can_reopen && onReopenSession && (
                 <Button variant="default" onClick={handleReopen}>
-                  Reabrir Sessão
+                  Reabrir sessão
                 </Button>
               )}
             </DialogFooter>

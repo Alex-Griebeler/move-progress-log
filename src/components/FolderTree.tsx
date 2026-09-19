@@ -230,7 +230,7 @@ function FolderTreeNode({
           {/* Drag handle */}
           <button
             type="button"
-            className="cursor-grab active:cursor-grabbing touch-none p-1 rounded-md text-muted-foreground opacity-50 hover:opacity-100 hover:bg-accent transition-smooth focus-visible-ring"
+            className="flex h-10 w-10 shrink-0 items-center justify-center cursor-grab active:cursor-grabbing touch-none rounded-md text-muted-foreground opacity-60 hover:opacity-100 hover:bg-accent transition-colors focus-visible-ring [@media(pointer:coarse)]:opacity-100"
             {...attributes}
             {...listeners}
             aria-label={`Mover pasta ${folder.name}`}
@@ -243,7 +243,7 @@ function FolderTreeNode({
             variant="ghost"
             size="sm"
             onClick={onToggle}
-            className="h-6 w-6 p-0 transition-smooth hover:scale-110 focus-visible-ring"
+            className="h-10 w-10 shrink-0 p-0 focus-visible-ring"
             aria-label={isExpanded ? "Recolher pasta" : "Expandir pasta"}
           >
             {isExpanded ? (
@@ -286,14 +286,15 @@ function FolderTreeNode({
                 variant="ghost"
                 size="sm"
                 onClick={() => onCreateSubfolder(folder.id)}
-                className="h-8 w-8 p-0"
+                className="h-10 w-10 p-0"
                 title="Criar subpasta"
+                aria-label={`Criar subpasta em ${folder.name}`}
               >
                 <FolderPlus className="h-4 w-4" />
               </Button>
             ) : (
               <span
-                className="inline-flex items-center justify-center h-8 w-8 p-0 opacity-30 cursor-not-allowed"
+                className="inline-flex items-center justify-center h-10 w-10 p-0 opacity-30 cursor-not-allowed"
                 title="Limite de 5 níveis atingido"
                 aria-label="Limite de 5 níveis atingido"
               >
@@ -307,7 +308,8 @@ function FolderTreeNode({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0"
+                  className="h-10 w-10 p-0"
+                  aria-label={`Mais ações da pasta ${folder.name}`}
                 >
                   <MoreVertical className="h-4 w-4" />
                 </Button>

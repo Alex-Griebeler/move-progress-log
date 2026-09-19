@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Save, CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { useDebounce } from "@/hooks/useDebounce";
 import { logger } from "@/utils/logger";
+import { formatTimeSP } from "@/utils/displayFormat";
 
 interface TranscriptionEditorProps {
   segmentId?: string;
@@ -29,7 +29,7 @@ export function TranscriptionEditor({
   const [editedText, setEditedText] = useState(initialEditedTranscription || rawTranscription);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
 
   const debouncedText = useDebounce(editedText, 2000);
 
@@ -46,7 +46,6 @@ export function TranscriptionEditor({
       if (error) throw error;
 
       setLastSaved(new Date());
-      setHasUnsavedChanges(false);
       onTranscriptionChange(text);
     } catch (error) {
       logger.error('Error saving transcription:', error);
@@ -66,26 +65,22 @@ export function TranscriptionEditor({
 
   const handleTextChange = (value: string) => {
     setEditedText(value);
-    setHasUnsavedChanges(true);
     if (!autoSave) {
       onTranscriptionChange(value);
     }
   };
 
-  const handleManualSave = async () => {
-    await saveTranscription(editedText);
-  };
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-lg">
-              Segmento {segmentOrder}
+            <CardTitle className="text-base">
+              Trecho {segmentOrder}
             </CardTitle>
             <CardDescription>
-              Edite a transcrição conforme necessário
+              Corrija a transcrição se algo foi entendido errado
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
@@ -98,21 +93,17 @@ export function TranscriptionEditor({
             {!isSaving && lastSaved && (
               <Badge variant="default" className="gap-1">
                 <CheckCircle className="h-3 w-3" />
-                Salvo {lastSaved.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                Salvo {formatTimeSP(lastSaved)}
               </Badge>
             )}
-            {!isSaving && hasUnsavedChanges && !autoSave && (
-              <Badge variant="outline">
-                Não salvo
-              </Badge>
-            )}
+
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
           <label className="text-sm font-medium mb-2 block">
-            Transcrição Original
+            Transcrição original
           </label>
           <div className="p-3 bg-muted rounded-md text-sm text-muted-foreground">
             {rawTranscription}
@@ -121,7 +112,7 @@ export function TranscriptionEditor({
         
         <div>
           <label className="text-sm font-medium mb-2 block">
-            Transcrição Editada
+            Transcrição corrigida
           </label>
           <Textarea
             value={editedText}
@@ -131,23 +122,13 @@ export function TranscriptionEditor({
             className="resize-none"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            {autoSave 
-              ? "Salvamento automático ativado - suas alterações são salvas automaticamente"
-              : "Clique em 'Salvar Edição' para salvar suas alterações"
-            }
+            {autoSave
+              ? "As alterações são salvas automaticamente."
+              : "A correção entra na revisão da sessão."}
           </p>
         </div>
 
-        {!autoSave && (
-          <Button 
-            onClick={handleManualSave}
-            disabled={isSaving || !hasUnsavedChanges}
-            className="w-full"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Salvar Edição
-          </Button>
-        )}
+
       </CardContent>
     </Card>
   );

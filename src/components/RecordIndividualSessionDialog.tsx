@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MultiSegmentRecorder } from "./MultiSegmentRecorder";
@@ -13,7 +12,7 @@ import { usePrescriptionDetails } from "@/hooks/usePrescriptions";
 import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert } from "@/integrations/supabase/types";
-import { Mic, Save, BookOpen } from "lucide-react";
+import { Mic, Save, BookOpen, AlertTriangle, Pencil, Plus } from "lucide-react";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
 import { useQuery } from "@tanstack/react-query";
@@ -43,7 +42,55 @@ import { ExerciseEditor } from "@/components/session/ExerciseEditor";
 import { ObservationEditor } from "@/components/session/ObservationEditor";
 import { ExercisePreviewCard } from "@/components/session/ExercisePreviewCard";
 import { ObservationPreview } from "@/components/session/ObservationPreview";
+import { DiscardSessionConfirm } from "@/components/session/DiscardSessionConfirm";
+import { STICKY_FOOTER_CLASS } from "@/components/session/dialogLayout";
+import { ExerciseFirstSessionEntry } from "./ExerciseFirstSessionEntry";
 import { format } from "date-fns";
+
+/** Payload do ExerciseFirstSessionEntry (entrada manual por exercício). */
+interface ManualEntryPayload {
+  studentExercises: Array<{
+    studentId: string;
+    exercises: Array<{
+      exercise_library_id?: string | null;
+      exercise_name: string;
+      sets: number;
+      reps: number;
+      reserve_reps?: string | null;
+      load_kg: number | null;
+      load_breakdown: string;
+      observations: string;
+    }>;
+  }>;
+}
+
+/** Campos da prescrição que a entrada manual usa (mesmo recorte do grupo). */
+interface PrescriptionExerciseForEntry {
+  id: string;
+  exercise_library_id?: string | null;
+  exercise_name?: string;
+  sets: string;
+  reps: string;
+  rir?: string | null;
+  interval_seconds: number | null;
+  pse: string | null;
+  training_method: string | null;
+  observations: string | null;
+  should_track?: boolean | null;
+  category?: string | null;
+}
+
+const blankExercise = (): SessionExercise => ({
+  executed_exercise_name: '',
+  exercise_library_id: null,
+  sets: null,
+  reps: null,
+  reserve_reps: null,
+  load_kg: null,
+  load_breakdown: '',
+  observations: null,
+  is_best_set: false,
+});
 
 interface RecordIndividualSessionDialogProps {
   open: boolean;
@@ -59,7 +106,11 @@ interface RecordIndividualSessionDialogProps {
   initialPrescriptionId?: string | null;
 }
 
-type DialogState = 'setup' | 'recording' | 'processing' | 'preview' | 'edit';
+// Manual é o caminho padrão (decisão de produto 19/09); voz é atalho.
+// 'manual-entry' = entrada por exercício da prescrição (ExerciseFirstSessionEntry);
+// 'edit' serve à revisão pós-voz e à entrada manual sem prescrição/reabertura.
+type DialogState = 'setup' | 'manual-entry' | 'recording' | 'processing' | 'preview' | 'edit';
+type EntryMode = 'manual' | 'voice';
 
 interface SessionData {
   sessions: Array<{
@@ -85,6 +136,13 @@ export function RecordIndividualSessionDialog({
 }: RecordIndividualSessionDialogProps) {
   const getTodayDate = () => format(new Date(), "yyyy-MM-dd");
   const [dialogState, setDialogState] = useState<DialogState>('setup');
+  const [entryMode, setEntryMode] = useState<EntryMode>('manual');
+  // Trechos já transcritos dentro do gravador (antes do "Revisar sessão").
+  const [voiceSegmentCount, setVoiceSegmentCount] = useState(0);
+  // Retrato dos exercícios ao entrar na edição manual — diz se há algo a perder.
+  const [manualBaseline, setManualBaseline] = useState<string>('[]');
+  const [discardAction, setDiscardAction] = useState<null | 'close' | 'back'>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   useEffect(() => {
     if (open && !existingSessionId && initialPrescriptionId) {
@@ -182,7 +240,7 @@ export function RecordIndividualSessionDialog({
       if (sessionError) throw sessionError;
       const { data: exercises, error: exercisesError } = await supabase
         .from('exercises')
-        .select('id, session_id, exercise_library_id, exercise_name, sets, reps, load_kg, load_breakdown, observations, is_best_set')
+        .select('id, session_id, exercise_library_id, exercise_name, sets, reps, reserve_reps, load_kg, load_breakdown, observations, is_best_set')
         .eq('session_id', existingSessionId);
       if (exercisesError) throw exercisesError;
       return { session, exercises };
@@ -205,6 +263,7 @@ export function RecordIndividualSessionDialog({
         const convertedExercises: SessionExercise[] = exercises.map(ex => ({
           exercise_library_id: ex.exercise_library_id ?? null,
           executed_exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps || 0,
+          reserve_reps: ex.reserve_reps ?? null,
           load_kg: ex.load_kg, load_breakdown: ex.load_breakdown || '', observations: ex.observations, is_best_set: ex.is_best_set || false,
         }));
         logger.debug('Carregando exercícios existentes:', convertedExercises.length);
@@ -230,7 +289,7 @@ export function RecordIndividualSessionDialog({
   });
 
   const prescriptionOptions = [
-    { id: null, name: "Sessão Livre (sem prescrição)" },
+    { id: null, name: "Sem prescrição (sessão livre)" },
     ...(prescriptions?.map(p => ({ id: p.prescription_id, name: p.workout_prescriptions.name })) || [])
   ];
 
@@ -267,15 +326,72 @@ export function RecordIndividualSessionDialog({
 
   // ─── Handlers ────────────────────────────────────────
 
+  // Exercícios da prescrição escolhida no formato da entrada por exercício.
+  const manualPrescriptionExercises = useMemo(
+    () =>
+      ((selectedPrescriptionDetails?.exercises ?? []) as PrescriptionExerciseForEntry[])
+        .filter((ex) => ex.should_track !== false)
+        .map((ex) => ({
+          id: ex.id,
+          exercise_name: ex.exercise_name ?? '',
+          sets: ex.sets,
+          reps: ex.reps,
+          exercise_library_id: ex.exercise_library_id ?? null,
+          rir: ex.rir ?? null,
+          interval_seconds: ex.interval_seconds,
+          pse: ex.pse,
+          training_method: ex.training_method,
+          observations: ex.observations,
+          category: ex.category || null,
+        })),
+    [selectedPrescriptionDetails?.exercises]
+  );
+
+  const validateContext = () => {
+    if (!trainerName.trim()) { notify.error("Selecione o treinador antes de continuar"); return false; }
+    if (!date || !time) { notify.error("Preencha data e horário antes de continuar"); return false; }
+    return true;
+  };
+
   const handleStartRecording = () => {
-    if (!trainerName.trim()) { notify.error("Por favor, selecione o treinador antes de continuar"); return; }
-    if (!date || !time) { notify.error("Por favor, preencha data e horário antes de continuar"); return; }
+    if (!validateContext()) return;
+    setEntryMode('voice');
+    setVoiceSegmentCount(0);
     setDialogState('recording');
+  };
+
+  const enterManualEdit = (exercises: SessionExercise[]) => {
+    setEditableExercises(exercises);
+    setEditableObservations([]);
+    setMergedData({ clinical_observations: [], exercises });
+    setManualBaseline(JSON.stringify(exercises));
+    setDialogState('edit');
+  };
+
+  const handleStartManual = () => {
+    if (!validateContext()) return;
+    setEntryMode('manual');
+    // Reabertura: edita os exercícios já registrados (a persistência substitui
+    // os antigos, então a lista precisa partir deles).
+    if (isReopening) {
+      enterManualEdit(existingExercises.length > 0 ? existingExercises : [blankExercise()]);
+      return;
+    }
+    if (selectedPrescriptionId && manualPrescriptionExercises.length > 0) {
+      setDialogState('manual-entry');
+      return;
+    }
+    // Sem prescrição (ou prescrição sem exercícios rastreáveis): lista livre.
+    enterManualEdit([blankExercise()]);
   };
 
   useEffect(() => {
     if (!open) {
       setDialogState('setup');
+      setEntryMode('manual');
+      setVoiceSegmentCount(0);
+      setManualBaseline('[]');
+      setDiscardAction(null);
       setSelectedPrescriptionId(null);
       setDate(getTodayDate());
       setTime(getCurrentSessionTimeHHmm());
@@ -329,9 +445,51 @@ export function RecordIndividualSessionDialog({
     setDialogState('setup');
     setAccumulatedRecordings([]);
     setCurrentRecordingNumber(1);
-    setMergedData(null);
+    setVoiceSegmentCount(0);
+    setMergedData(isReopening && existingExercises.length > 0 ? { clinical_observations: [], exercises: existingExercises } : null);
+    setEditableExercises(isReopening ? existingExercises : []);
+    setEditableObservations([]);
     setShowValidationDialog(false);
     setExercisesNeedingValidation([]);
+  };
+
+  // ─── Guarda de saída ────────────────────────────────────────
+  // O que se perde se o treinador fechar/voltar agora. A entrada por
+  // exercício tem rascunho automático, então não entra aqui.
+  const pendingLoss: string | null = (() => {
+    const recordings = Math.max(voiceSegmentCount, accumulatedRecordings.length);
+    if (entryMode === 'voice' && ['recording', 'preview', 'edit'].includes(dialogState) && recordings > 0) {
+      return recordings === 1
+        ? 'A gravação transcrita será descartada.'
+        : `As ${recordings} gravações transcritas serão descartadas.`;
+    }
+    if (entryMode === 'manual' && dialogState === 'edit' && JSON.stringify(editableExercises) !== manualBaseline) {
+      return 'Os exercícios digitados serão descartados.';
+    }
+    return null;
+  })();
+
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen && pendingLoss && !isSaving) {
+      setDiscardAction('close');
+      return;
+    }
+    onOpenChange(nextOpen);
+  };
+
+  const handleBackToSetup = () => {
+    if (pendingLoss) {
+      setDiscardAction('back');
+      return;
+    }
+    handleBack();
+  };
+
+  const handleConfirmDiscard = () => {
+    const action = discardAction;
+    setDiscardAction(null);
+    if (action === 'close') onOpenChange(false);
+    else if (action === 'back') handleBack();
   };
 
   // ─── Validation ────────────────────────────────────────
@@ -359,7 +517,34 @@ export function RecordIndividualSessionDialog({
   const handleSave = async () => {
     if (!mergedData) return;
     if (!validateExercisesBeforeSave()) return;
+    await persistSession(editableExercises, editableObservations);
+  };
 
+  // Entrada manual por exercício: converte o payload e usa a MESMA persistência
+  // (insert + rollback best-effort do #216). Lança em caso de falha para que o
+  // rascunho local seja preservado pelo ExerciseFirstSessionEntry.
+  const handleSaveManualEntry = async (payload: ManualEntryPayload) => {
+    const own = payload.studentExercises.find((se) => se.studentId === studentId);
+    const exercises: SessionExercise[] = (own?.exercises ?? []).map((ex) => ({
+      exercise_library_id: ex.exercise_library_id ?? null,
+      executed_exercise_name: ex.exercise_name,
+      sets: ex.sets,
+      reps: ex.reps,
+      reserve_reps: ex.reserve_reps || null,
+      load_kg: ex.load_kg,
+      load_breakdown: ex.load_breakdown,
+      observations: ex.observations || null,
+      is_best_set: false,
+    }));
+    const saved = await persistSession(exercises, []);
+    if (!saved) throw new Error('Falha ao salvar a sessão');
+  };
+
+  const persistSession = async (
+    exercisesToSave: SessionExercise[],
+    observationsToSave: IndividualObservation[],
+  ): Promise<boolean> => {
+    setIsSaving(true);
     try {
       let sessionId: string;
       // Atomicidade (#5): só guarda o id quando criamos uma sessão NOVA, para
@@ -389,7 +574,6 @@ export function RecordIndividualSessionDialog({
         const { error: updateError } = await supabase.from('workout_sessions').update({ trainer_name: trainerName, is_finalized: true, updated_at: new Date().toISOString() }).eq('id', existingSessionId);
         if (updateError) throw updateError;
         sessionId = existingSessionId;
-        notify.info("Atualizando sessão existente", { description: "Substituindo exercícios com dados consolidados" });
       } else {
         const { data: session, error: sessionError } = await supabase.from('workout_sessions').insert({ student_id: studentId, prescription_id: selectedPrescriptionId, date, time, trainer_name: trainerName, is_finalized: true, session_type: 'individual' }).select('id').single();
         if (sessionError) throw sessionError;
@@ -397,12 +581,14 @@ export function RecordIndividualSessionDialog({
         createdSessionId = session.id;
       }
 
-      const exercises = editableExercises.map(ex => ({
+      const exercises = exercisesToSave.map(ex => ({
         session_id: sessionId,
         exercise_library_id: resolveSessionExerciseLibraryId(ex),
         exercise_name: ex.executed_exercise_name,
         sets: ex.sets,
         reps: ex.reps,
+        // PSE: digitada na entrada manual ou extraída pela voz (quando houver).
+        reserve_reps: ex.reserve_reps ?? null,
         load_kg: ex.load_kg,
         load_breakdown: ex.load_breakdown,
         observations: ex.observations,
@@ -440,38 +626,51 @@ export function RecordIndividualSessionDialog({
         }
       }
 
-      if (editableObservations && editableObservations.length > 0) {
-        const observations = editableObservations.map(obs => ({ student_id: studentId, session_id: sessionId, observation_text: obs.observation_text, categories: obs.category ? [obs.category] : null, severity: obs.severity }));
+      if (observationsToSave && observationsToSave.length > 0) {
+        const observations = observationsToSave.map(obs => ({ student_id: studentId, session_id: sessionId, observation_text: obs.observation_text, categories: obs.category ? [obs.category] : null, severity: obs.severity }));
         const { error: observationsError } = await supabase.from('student_observations').insert(observations);
         if (observationsError) throw observationsError;
       }
 
-      notify.success(isReopening ? "Sessão atualizada com sucesso" : i18n.modules.workouts.sessionCreated, { description: isReopening ? "Novos dados adicionados à sessão" : `${accumulatedRecordings.length} ${i18n.modules.workouts.recording}` });
+      const count = exercisesToSave.length;
+      notify.success(isReopening ? `Sessão de ${studentName} atualizada` : `Sessão de ${studentName} salva`, {
+        description: count === 1 ? '1 exercício' : `${count} exercícios`,
+      });
       if (!isReopening) onSessionCreated?.(sessionId, date);
       onOpenChange(false);
+      return true;
     } catch (error: unknown) {
       logger.error('Error saving session:', error);
-      notify.error(i18n.feedback.genericError, { description: buildErrorDescription(error) || "Tente novamente" });
+      notify.error("Não foi possível salvar a sessão", { description: buildErrorDescription(error) || "Tente novamente" });
+      return false;
+    } finally {
+      setIsSaving(false);
     }
   };
 
   // ─── Render ────────────────────────────────────────
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent forceMount className="max-w-2xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+      <DialogContent
+        forceMount
+        className={`${dialogState === 'manual-entry' ? 'max-w-5xl' : 'max-w-2xl'} max-h-[90vh] overflow-y-auto`}
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Mic className="h-5 w-5" />
-            {dialogState === 'setup' && (isReopening ? `Continuar sessão - ${studentName}` : `${NAV_LABELS.recordIndividualSession} - ${studentName}`)}
-            {dialogState === 'recording' && `🎤 Gravação ${currentRecordingNumber} - ${studentName}`}
-            {dialogState === 'preview' && (isReopening ? `Atualizando sessão - ${studentName}` : `Preview da sessão - ${studentName}`)}
+          <DialogTitle>
+            {dialogState === 'setup' && (isReopening ? `Continuar sessão · ${studentName}` : `${NAV_LABELS.recordIndividualSession} · ${studentName}`)}
+            {dialogState === 'manual-entry' && `${NAV_LABELS.recordIndividualSession} · ${studentName}`}
+            {dialogState === 'recording' && `Gravação ${currentRecordingNumber} · ${studentName}`}
+            {dialogState === 'preview' && (isReopening ? `Revisar atualização · ${studentName}` : `Revisar sessão · ${studentName}`)}
+            {dialogState === 'edit' && (entryMode === 'manual' ? `${isReopening ? 'Continuar sessão' : NAV_LABELS.recordIndividualSession} · ${studentName}` : `Corrigir dados · ${studentName}`)}
           </DialogTitle>
-          
-          {/* Step indicator */}
+
+          {/* Indicador de etapas: manual tem 2, voz tem 3 */}
           <div className="flex items-center gap-2 pt-2">
-            {['Configurar', 'Gravar', 'Revisar'].map((step, i) => {
-              const stepMap: Record<DialogState, number> = { setup: 0, recording: 1, processing: 2, preview: 2, edit: 2 };
+            {(entryMode === 'manual' ? ['Configurar', 'Registrar'] : ['Configurar', 'Gravar', 'Revisar']).map((step, i) => {
+              const stepMap: Record<DialogState, number> = entryMode === 'manual'
+                ? { setup: 0, 'manual-entry': 1, recording: 1, processing: 1, preview: 1, edit: 1 }
+                : { setup: 0, 'manual-entry': 1, recording: 1, processing: 2, preview: 2, edit: 2 };
               const currentStep = stepMap[dialogState];
               const isCompleted = i < currentStep;
               const isCurrent = i === currentStep;
@@ -504,8 +703,23 @@ export function RecordIndividualSessionDialog({
           </div>
         )}
 
+        {dialogState === 'manual-entry' && (
+          <ExerciseFirstSessionEntry
+            prescriptionExercises={manualPrescriptionExercises}
+            selectedStudents={[{ id: studentId, name: studentName, weight_kg: studentWeightKg }]}
+            date={date}
+            time={time}
+            trainer={trainerName}
+            prescriptionId={selectedPrescriptionId}
+            draftScope={`individual-${studentId}`}
+            onSave={handleSaveManualEntry}
+            onCancel={() => setDialogState('setup')}
+          />
+        )}
+
         {dialogState === 'recording' && (
           <MultiSegmentRecorder
+            onSegmentsChange={setVoiceSegmentCount}
             prescriptionId={selectedPrescriptionId || undefined}
             selectedStudents={[{ id: studentId, name: studentName, weight_kg: studentWeightKg }]}
             date={date} time={time}
@@ -552,16 +766,15 @@ export function RecordIndividualSessionDialog({
 
         {dialogState === 'preview' && mergedData && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-base">{accumulatedRecordings.length} gravação(ões) realizada(s)</Badge>
-            </div>
-            <Alert><AlertDescription>Revise os dados consolidados antes de salvar</AlertDescription></Alert>
+            {accumulatedRecordings.length > 1 && (
+              <p className="text-sm text-muted-foreground">{accumulatedRecordings.length} gravações consolidadas</p>
+            )}
 
             <ObservationPreview observations={mergedData.clinical_observations} />
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-sm">💪 Exercícios Executados ({mergedData.exercises.length})</CardTitle>
+                <CardTitle className="text-sm">Exercícios executados ({mergedData.exercises.length})</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
@@ -604,46 +817,13 @@ export function RecordIndividualSessionDialog({
           </div>
         )}
 
-        <DialogFooter>
-          {dialogState === 'setup' && (
-            <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={handleStartRecording}><Mic className="h-4 w-4 mr-2" />Iniciar Gravação</Button>
-            </>
-          )}
-
-          {dialogState === 'preview' && (
-            <>
-              <Button variant="ghost" onClick={handleBack}>← Voltar</Button>
-              <Button variant="outline" onClick={() => setDialogState('edit')}>✏️ Editar Dados</Button>
-              <Button variant="outline" onClick={handleAddAnotherRecording} disabled={!mergedData || accumulatedRecordings.length >= MAX_RECORDINGS}>
-                <Mic className="h-4 w-4 mr-2" />Adicionar Gravação
-              </Button>
-              <Button onClick={() => { if (!validateExercisesBeforeSave()) return; handleSave(); }}>
-                <Save className="h-4 w-4 mr-2" />Finalizar e Salvar
-              </Button>
-            </>
-          )}
-
-          {dialogState === 'edit' && (
-            <>
-              <Button variant="outline" onClick={() => { if (mergedData) { setEditableObservations(mergedData.clinical_observations); setEditableExercises(mergedData.exercises); } setDialogState('preview'); }}>← Cancelar Edição</Button>
-              <Button onClick={() => {
-                if (!validateExercisesBeforeSave()) return;
-                setMergedData({ clinical_observations: editableObservations, exercises: editableExercises });
-                setDialogState('preview');
-                notify.success("Edições aplicadas", { description: "Dados validados e prontos para salvar" });
-              }}>✅ Aplicar Edições</Button>
-            </>
-          )}
-        </DialogFooter>
-
-        {/* Validation Alert */}
+        {/* Validação fica ACIMA do rodapé para ficar junto do botão que a disparou */}
         {showValidationDialog && (
-          <Alert className="mt-4 border-red-500 bg-red-50 dark:bg-red-950 dark:border-red-700">
+          <Alert variant="destructive" className="mt-4" role="alert">
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               <div className="space-y-3">
-                <p className="font-semibold text-red-900 dark:text-red-100">❌ Campos obrigatórios não preenchidos</p>
+                <p className="font-semibold">Faltam campos obrigatórios</p>
                 <div className="space-y-2">
                   {exercisesNeedingValidation.map(idx => {
                     const ex = editableExercises[idx];
@@ -663,14 +843,80 @@ export function RecordIndividualSessionDialog({
                     );
                   })}
                 </div>
-                <div className="flex justify-end mt-4">
-                  <Button size="sm" onClick={() => { setShowValidationDialog(false); setDialogState('edit'); notify.error("Corrija os campos obrigatórios", { description: "Complete todos os dados antes de salvar" }); }} variant="destructive">✏️ Corrigir Agora</Button>
-                </div>
+                {dialogState !== 'edit' && (
+                  <div className="flex justify-end mt-4">
+                    <Button size="touch" onClick={() => { setShowValidationDialog(false); setDialogState('edit'); }} variant="destructive">
+                      <Pencil className="h-4 w-4" aria-hidden="true" />Corrigir agora
+                    </Button>
+                  </div>
+                )}
               </div>
             </AlertDescription>
           </Alert>
         )}
+
+        {/* CTA sempre à vista: rodapé fixo no fundo do diálogo que rola (a entrada
+            por exercício tem rodapé próprio). */}
+        <DialogFooter className={dialogState === 'manual-entry' ? "hidden" : STICKY_FOOTER_CLASS}>
+          {dialogState === 'setup' && (
+            <>
+              <Button variant="ghost" size="touch" onClick={handleStartRecording}>
+                <Mic className="h-4 w-4" aria-hidden="true" />{NAV_LABELS.recordByVoice}
+              </Button>
+              <Button size="touch" onClick={handleStartManual}>
+                <BookOpen className="h-4 w-4" aria-hidden="true" />{NAV_LABELS.fillManually}
+              </Button>
+            </>
+          )}
+
+          {dialogState === 'recording' && (
+            <Button variant="ghost" size="touch" onClick={handleBackToSetup}>Voltar</Button>
+          )}
+
+          {dialogState === 'preview' && (
+            <>
+              <Button variant="ghost" size="touch" onClick={handleBackToSetup} disabled={isSaving}>Voltar</Button>
+              <Button variant="ghost" size="touch" onClick={handleAddAnotherRecording} disabled={isSaving || !mergedData || accumulatedRecordings.length >= MAX_RECORDINGS}>
+                <Plus className="h-4 w-4" aria-hidden="true" />Adicionar gravação
+              </Button>
+              <Button variant="ghost" size="touch" onClick={() => setDialogState('edit')} disabled={isSaving}>
+                <Pencil className="h-4 w-4" aria-hidden="true" />Corrigir dados
+              </Button>
+              <Button size="touch" onClick={handleSave} disabled={isSaving}>
+                <Save className="h-4 w-4" aria-hidden="true" />{isSaving ? 'Salvando…' : 'Salvar sessão'}
+              </Button>
+            </>
+          )}
+
+          {dialogState === 'edit' && entryMode === 'voice' && (
+            <>
+              <Button variant="ghost" size="touch" onClick={() => { if (mergedData) { setEditableObservations(mergedData.clinical_observations); setEditableExercises(mergedData.exercises); } setShowValidationDialog(false); setDialogState('preview'); }}>Descartar correções</Button>
+              <Button size="touch" onClick={() => {
+                if (!validateExercisesBeforeSave()) return;
+                setShowValidationDialog(false);
+                setMergedData({ clinical_observations: editableObservations, exercises: editableExercises });
+                setDialogState('preview');
+              }}>Concluir correção</Button>
+            </>
+          )}
+
+          {dialogState === 'edit' && entryMode === 'manual' && (
+            <>
+              <Button variant="ghost" size="touch" onClick={handleBackToSetup} disabled={isSaving}>Voltar</Button>
+              <Button size="touch" disabled={isSaving || editableExercises.length === 0} onClick={() => void handleSave()}>
+                <Save className="h-4 w-4" aria-hidden="true" />{isSaving ? 'Salvando…' : 'Salvar sessão'}
+              </Button>
+            </>
+          )}
+        </DialogFooter>
       </DialogContent>
+
+      <DiscardSessionConfirm
+        open={discardAction !== null}
+        onOpenChange={(next) => { if (!next) setDiscardAction(null); }}
+        onConfirm={handleConfirmDiscard}
+        description={pendingLoss ?? 'Os dados desta sessão ainda não foram salvos.'}
+      />
 
       <ExerciseSelectionDialog open={exerciseSelectionOpen} onOpenChange={setExerciseSelectionOpen}
         currentExerciseName={selectedExerciseForReplacement?.currentName || ""} onExerciseSelected={handleExerciseSelected} autoSuggest={true} />

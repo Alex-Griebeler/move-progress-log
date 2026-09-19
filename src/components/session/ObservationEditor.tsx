@@ -40,15 +40,16 @@ export function ObservationEditor<T extends BaseObservation>({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg flex items-center justify-between">
-          🩺 Observações Clínicas
+        <CardTitle className="text-base flex items-center justify-between gap-2">
+          Observações clínicas
           <Button
             size="sm"
             variant="outline"
+            className="min-h-10"
             onClick={() => onObservationsChange([...observations, createEmpty()])}
           >
             <Plus className="h-4 w-4 mr-2" />
-            Adicionar Observação
+            Adicionar observação
           </Button>
         </CardTitle>
       </CardHeader>
@@ -59,7 +60,8 @@ export function ObservationEditor<T extends BaseObservation>({
               <Label className="font-semibold">Observação {idx + 1}</Label>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                aria-label={`Remover observação ${idx + 1}`}
                 onClick={() => removeObservation(idx)}
               >
                 <Trash className="h-4 w-4 text-destructive" />

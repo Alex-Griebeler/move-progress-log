@@ -15,9 +15,7 @@ import {
 import { usePrescriptionDetails, WorkoutPrescription, PrescriptionExercise } from "@/hooks/usePrescriptions";
 import { useFolders } from "@/hooks/useFolders";
 import { useIsModerator } from "@/hooks/useUserRole";
-import { Calendar, Users, ClipboardList, Pencil, MoreVertical, FolderInput, FolderX, Trash2, Monitor } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { Users, ClipboardList, Pencil, MoreVertical, FolderInput, FolderX, Trash2, Monitor } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { memo, useState } from "react";
 import { PrescriptionTVMode } from "@/components/PrescriptionTVMode";
@@ -83,14 +81,14 @@ const getAssignmentBadge = (count: number) => {
     return (
       <Badge variant="outline-warning" className="gap-xs">
         <div className="h-2 w-2 rounded-full bg-warning" />
-        1 aluno
+        1 pessoa
       </Badge>
     );
   }
   return (
     <Badge variant="outline-success" className="gap-xs">
       <div className="h-2 w-2 rounded-full bg-success" />
-      {count} alunos
+      {count} pessoas
     </Badge>
   );
 };
@@ -120,7 +118,7 @@ const PrescriptionCardComponent = ({
         <div className="flex items-start justify-between gap-sm flex-wrap">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-sm mb-2">
-              <CardTitle className="text-2xl">{prescription.name}</CardTitle>
+              <CardTitle className="text-xl">{prescription.name}</CardTitle>
               {getAssignmentBadge(prescription.assigned_students_count || 0)}
             </div>
             {prescription.objective && (
@@ -128,71 +126,63 @@ const PrescriptionCardComponent = ({
                 {prescription.objective}
               </CardDescription>
             )}
-            <div className="flex items-center gap-xs text-sm text-muted-foreground mt-3">
-              <Calendar className="h-4 w-4" />
-              <span>
-                Criada em {format(new Date(prescription.created_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-              </span>
-            </div>
           </div>
+          {/* Um CTA visível por cartão (revisão UX-22): registrar sessão para
+              quem registra; editar para os demais. O resto vai no menu. */}
           <div className="flex gap-xs flex-wrap items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-2"
-              onClick={() => setTvMode(true)}
-              title="Modo TV"
-            >
-              <Monitor className="h-4 w-4" />
-              Modo TV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => onEdit(prescription.id)}
-            >
-              <Pencil className="h-4 w-4" />
-              Editar
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={() => onAssign(prescription.id)}
-            >
-              <Users className="h-4 w-4" />
-              Atribuir
-            </Button>
             {isModerator && (
               <Button
                 variant="default"
                 size="sm"
-                className="gap-2"
+                className="min-h-10 gap-2"
                 onClick={() => onAddSession(prescription.id)}
               >
                 <ClipboardList className="h-4 w-4" />
-                Registrar Sessão
+                Registrar sessão
+              </Button>
+            )}
+            {!isModerator && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-10 gap-2"
+                onClick={() => onEdit(prescription.id)}
+              >
+                <Pencil className="h-4 w-4" />
+                Editar
               </Button>
             )}
 
-            {/* Context Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9"
+                  aria-label={`Mais ações de ${prescription.name}`}
                 >
                   <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">Menu da prescrição</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 bg-background z-50">
+                <DropdownMenuItem onClick={() => setTvMode(true)}>
+                  <Monitor className="h-4 w-4 mr-2" />
+                  Modo TV
+                </DropdownMenuItem>
+                {isModerator && (
+                  <DropdownMenuItem onClick={() => onEdit(prescription.id)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => onAssign(prescription.id)}>
+                  <Users className="h-4 w-4 mr-2" />
+                  Atribuir
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <FolderInput className="h-4 w-4 mr-2" />
-                    Mover para Pasta
+                    Mover para pasta
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent className="bg-background z-50">
                     {folders && folders.length > 0 ? (
@@ -219,7 +209,7 @@ const PrescriptionCardComponent = ({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => onRemoveFromFolder(prescription.id)}>
                       <FolderX className="h-4 w-4 mr-2" />
-                      Remover da Pasta
+                      Remover da pasta
                     </DropdownMenuItem>
                   </>
                 )}
@@ -232,7 +222,7 @@ const PrescriptionCardComponent = ({
                       className="text-destructive focus:text-destructive"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Excluir Prescrição
+                      Excluir prescrição
                     </DropdownMenuItem>
                   </>
                 )}
@@ -253,17 +243,17 @@ const PrescriptionCardComponent = ({
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="font-semibold text-center uppercase tracking-wider">Exercício</TableHead>
-                  <TableHead className="font-semibold text-center uppercase tracking-wider">Sets x Reps / Int</TableHead>
-                  <TableHead className="font-semibold text-center uppercase tracking-wider">
+                  <TableHead className="font-semibold text-center">Exercício</TableHead>
+                  <TableHead className="font-semibold text-center">Séries × reps / intervalo</TableHead>
+                  <TableHead className="font-semibold text-center">
                     {prescription.prescription_type === 'individual' ? 'Carga' : 'PSE'}
                   </TableHead>
                   {prescription.prescription_type === 'individual' && (
-                    <TableHead className="font-semibold text-center uppercase tracking-wider">RR</TableHead>
+                    <TableHead className="font-semibold text-center">Reserva</TableHead>
                   )}
-                  <TableHead className="font-semibold text-center uppercase tracking-wider">Método</TableHead>
+                  <TableHead className="font-semibold text-center">Método</TableHead>
                   {hasAnyObservations && (
-                    <TableHead className="font-semibold text-center uppercase tracking-wider">OBS</TableHead>
+                    <TableHead className="font-semibold text-center">Observações</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
@@ -276,7 +266,7 @@ const PrescriptionCardComponent = ({
                       const isFirstInGroup = exIndex === 0;
                       const isLastInGroup = exIndex === group.exercises.length - 1;
 
-                      const setsReps = `${exercise.sets} x ${exercise.reps}`;
+                      const setsReps = `${exercise.sets} × ${exercise.reps}`;
                       const interval = exercise.interval_seconds ? ` / ${exercise.interval_seconds}s` : '';
                       const setsRepsInt = `${setsReps}${interval}`;
 

@@ -937,7 +937,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
       }
       
       if (errors.length === 0 && skippedDuplicates === 0) {
-        toast.success("Importação concluída com sucesso!", {
+        toast.success("Importação concluída", {
           description: `${processed} sessão(ões) importada(s) com ${validRows} linha(s) válida(s).${formatUnlinkedExerciseWarning(
             unlinkedExerciseReport.totalRows
           )}`,
@@ -1082,7 +1082,7 @@ export const ImportSessionsDialog = ({ open, onOpenChange }: ImportSessionsDialo
                 <Alert>
                   <CheckCircle2 className="h-4 w-4" />
                   <AlertDescription>
-                    <strong>Importação concluída com sucesso!</strong>
+                    <strong>Importação concluída</strong>
                     <br />
                     {status.processed} sessão(ões) importada(s).
                     {status.unlinkedExerciseRows > 0 && (

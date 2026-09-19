@@ -97,11 +97,13 @@ export function SortableExerciseItem({
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-2 flex-1">
           <button
-            className="mt-1 cursor-grab active:cursor-grabbing touch-none"
+            type="button"
+            className="-ml-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-md cursor-grab active:cursor-grabbing touch-none hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={`Reordenar exercício ${index + 1} (segure e arraste, ou Espaço e setas)`}
             {...attributes}
             {...listeners}
           >
-            <GripVertical className="h-5 w-5 text-muted-foreground hover:text-foreground transition-colors" />
+            <GripVertical className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
           </button>
           <div className="flex flex-col gap-3 flex-1">
             <span className="text-sm font-medium text-muted-foreground">
@@ -203,7 +205,7 @@ export function SortableExerciseItem({
 
         <div className="grid grid-cols-3 gap-2">
           <div className="space-y-2">
-            <Label>Sets *</Label>
+            <Label>Séries *</Label>
             <Input
               value={exercise.sets}
               onChange={(e) => onUpdate("sets", e.target.value)}
@@ -219,9 +221,11 @@ export function SortableExerciseItem({
             />
           </div>
           <div className="space-y-2">
-            <Label>Int (s)</Label>
+            <Label>Intervalo (s)</Label>
             <Input
               type="number"
+              inputMode="numeric"
+              className="number-input-clean"
               value={exercise.interval_seconds}
               onChange={(e) => onUpdate("interval_seconds", e.target.value)}
               placeholder="60"
@@ -240,7 +244,7 @@ export function SortableExerciseItem({
               />
             </div>
             <div className="space-y-2">
-              <Label>RR</Label>
+              <Label>Reserva</Label>
               <Input
                 value={exercise.rir}
                 onChange={(e) => onUpdate("rir", e.target.value)}

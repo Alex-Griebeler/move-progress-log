@@ -5,22 +5,25 @@ import { History } from "lucide-react";
 import { useExerciseLoadHistory } from "@/hooks/useExerciseLoadHistory";
 import { formatDistanceToNow, parseISO, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { formatKg } from "@/utils/displayFormat";
 
 interface ExerciseLoadHistoryPopoverProps {
   exerciseName: string;
   exerciseLibraryId?: string | null;
   prescriptionId: string;
   children: React.ReactNode;
-  /** For TV mode dark theme */
-  darkMode?: boolean;
 }
 
+/**
+ * Histórico da última carga por pessoa atribuída. Usa só tokens do tema
+ * (revisão UX-08 do Codex: a paleta hex paralela do modo TV foi removida) e
+ * fica acima do overlay do modo TV (z-[110]).
+ */
 export const ExerciseLoadHistoryPopover = ({
   exerciseName,
   exerciseLibraryId,
   prescriptionId,
   children,
-  darkMode = false,
 }: ExerciseLoadHistoryPopoverProps) => {
   const [open, setOpen] = useState(false);
 
@@ -37,44 +40,21 @@ export const ExerciseLoadHistoryPopover = ({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
-          className="group inline-flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+          className="group inline-flex min-h-10 items-center gap-1 rounded-md px-1 cursor-pointer hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           type="button"
           title="Ver histórico de cargas"
         >
           {children}
-          <History
-            className={`h-3.5 w-3.5 opacity-0 group-hover:opacity-60 transition-opacity ${
-              darkMode ? "text-[#888]" : "text-muted-foreground"
-            }`}
-          />
+          <History className="h-3.5 w-3.5 text-muted-foreground opacity-60" aria-hidden="true" />
+          <span className="sr-only">: ver histórico de cargas de {exerciseName}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        className={`w-80 p-0 ${
-          darkMode
-            ? "bg-[#1a1a1a] border-[#333] text-[#f0f0f0]"
-            : ""
-        }`}
-        align="center"
-        sideOffset={8}
-      >
-        {/* Header */}
-        <div
-          className={`px-4 py-3 border-b ${
-            darkMode ? "border-[#333]" : "border-border"
-          }`}
-        >
+      <PopoverContent className="z-[110] w-80 p-0" align="center" sideOffset={8}>
+        <div className="px-4 py-3 border-b border-border">
           <p className="font-semibold text-sm truncate">{exerciseName}</p>
-          <p
-            className={`text-xs mt-0.5 ${
-              darkMode ? "text-[#888]" : "text-muted-foreground"
-            }`}
-          >
-            Histórico de cargas
-          </p>
+          <p className="text-xs mt-0.5 text-muted-foreground">Histórico de cargas</p>
         </div>
 
-        {/* Body */}
         <div className="px-4 py-3 space-y-2 max-h-60 overflow-y-auto">
           {isLoading ? (
             <>
@@ -83,14 +63,10 @@ export const ExerciseLoadHistoryPopover = ({
               <Skeleton className="h-6 w-3/4" />
             </>
           ) : !hasStudents ? (
-            <p
-              className={`text-xs text-center py-2 ${
-                darkMode ? "text-[#666]" : "text-muted-foreground"
-              }`}
-            >
-              Nenhum aluno atribuído
+            <p className="text-xs text-center py-2 text-muted-foreground">
+              Ninguém atribuído a esta prescrição
             </p>
-          ) : history && history.length > 0 ? (
+          ) : (
             history.map((item) => {
               const isStale =
                 item.lastDate &&
@@ -99,40 +75,18 @@ export const ExerciseLoadHistoryPopover = ({
               return (
                 <div
                   key={item.studentId}
-                  className={`flex items-center justify-between gap-2 text-sm py-1 ${
-                    darkMode
-                      ? "border-b border-[#222] last:border-0"
-                      : "border-b border-border/50 last:border-0"
-                  }`}
+                  className="flex items-center justify-between gap-2 text-sm py-1 border-b border-border/50 last:border-0"
                 >
-                  <span
-                    className={`font-medium truncate flex-1 min-w-0 ${
-                      darkMode ? "text-[#e0e0e0]" : ""
-                    }`}
-                  >
-                    {item.studentName}
-                  </span>
+                  <span className="font-medium truncate flex-1 min-w-0">{item.studentName}</span>
                   {item.lastDate ? (
                     <div className="flex flex-col items-end shrink-0 text-right">
                       <div className="flex items-center gap-2">
-                        <span
-                          className={`font-semibold ${
-                            darkMode ? "text-[#f0f0f0]" : ""
-                          }`}
-                        >
+                        <span className="font-semibold">
                           {item.lastLoadKg
-                            ? `${item.lastLoadKg} kg`
+                            ? formatKg(item.lastLoadKg)
                             : item.lastLoadDescription || "—"}
                         </span>
-                        <span
-                          className={`text-xs ${
-                            isStale
-                              ? "text-warning"
-                              : darkMode
-                              ? "text-[#777]"
-                              : "text-muted-foreground"
-                          }`}
-                        >
+                        <span className={`text-xs ${isStale ? "text-warning" : "text-muted-foreground"}`}>
                           {formatDistanceToNow(parseISO(item.lastDate), {
                             addSuffix: true,
                             locale: ptBR,
@@ -141,9 +95,7 @@ export const ExerciseLoadHistoryPopover = ({
                       </div>
                       {item.lastObservations && (
                         <span
-                          className={`text-xs italic mt-0.5 max-w-[200px] truncate ${
-                            darkMode ? "text-[#999]" : "text-muted-foreground"
-                          }`}
+                          className="text-xs italic mt-0.5 max-w-[200px] truncate text-muted-foreground"
                           title={item.lastObservations}
                         >
                           {item.lastObservations}
@@ -151,25 +103,11 @@ export const ExerciseLoadHistoryPopover = ({
                       )}
                     </div>
                   ) : (
-                    <span
-                      className={`text-xs italic ${
-                        darkMode ? "text-[#555]" : "text-muted-foreground"
-                      }`}
-                    >
-                      sem registro
-                    </span>
+                    <span className="text-xs italic text-muted-foreground">sem registro</span>
                   )}
                 </div>
               );
             })
-          ) : (
-            <p
-              className={`text-xs text-center py-2 ${
-                darkMode ? "text-[#666]" : "text-muted-foreground"
-              }`}
-            >
-              Sem dados disponíveis
-            </p>
           )}
         </div>
       </PopoverContent>

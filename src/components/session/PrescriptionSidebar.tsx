@@ -1,6 +1,5 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface PrescriptionExercise {
   id?: string;
@@ -17,46 +16,47 @@ interface PrescriptionSidebarProps {
   exercises: PrescriptionExercise[];
 }
 
+/**
+ * Roteiro da prescrição ao lado do gravador. No celular fica compacto
+ * (rolagem própria, altura limitada) para o gravador aparecer sem rolar
+ * a tela inteira; no desktop acompanha a altura do gravador.
+ */
 export function PrescriptionSidebar({ exercises }: PrescriptionSidebarProps) {
   const trackable = exercises.filter((ex) => ex.should_track !== false);
 
   return (
-    <Card className="h-[600px] flex flex-col">
+    <Card className="flex max-h-64 flex-col lg:h-[600px] lg:max-h-none">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Prescrição - Exercícios a Registrar</CardTitle>
-          <Badge variant="secondary">{trackable.length} exercícios</Badge>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">Exercícios a registrar</CardTitle>
+          <Badge variant="secondary">{trackable.length}</Badge>
         </div>
       </CardHeader>
-      <CardContent className="flex-1 overflow-hidden p-0">
-        <ScrollArea className="h-full px-6 pb-6">
-          {trackable.map((exercise, index) => (
-            <div
-              key={exercise.id || index}
-              className="mb-4 p-3 border rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-            >
-              <div className="font-medium text-sm mb-1">
-                {exercise.exercise_name || exercise.exercises_library?.name}
-              </div>
-              <div className="text-xs text-muted-foreground space-y-0.5">
-                {exercise.sets && exercise.reps && (
-                  <div>📊 {exercise.sets} x {exercise.reps}</div>
-                )}
-                {exercise.training_method && (
-                  <div>🎯 {exercise.training_method}</div>
-                )}
-                {exercise.observations && (
-                  <div className="mt-1 text-xs italic">💬 {exercise.observations}</div>
-                )}
-              </div>
+      <CardContent className="flex-1 overflow-y-auto px-6 pb-6 pt-0">
+        {trackable.map((exercise, index) => (
+          <div
+            key={exercise.id || index}
+            className="mb-3 rounded-lg border bg-muted/30 p-3"
+          >
+            <div className="mb-1 text-sm font-medium">
+              {exercise.exercise_name || exercise.exercises_library?.name}
             </div>
-          ))}
-          {trackable.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              <p className="text-sm">Nenhum exercício para rastrear nesta prescrição</p>
+            <div className="space-y-0.5 text-xs text-muted-foreground">
+              {exercise.sets && exercise.reps && (
+                <div>{exercise.sets} × {exercise.reps}</div>
+              )}
+              {exercise.training_method && <div>Método: {exercise.training_method}</div>}
+              {exercise.observations && (
+                <div className="mt-1 italic">{exercise.observations}</div>
+              )}
             </div>
-          )}
-        </ScrollArea>
+          </div>
+        ))}
+        {trackable.length === 0 && (
+          <div className="py-8 text-center text-muted-foreground">
+            <p className="text-sm">Nenhum exercício para registrar nesta prescrição</p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

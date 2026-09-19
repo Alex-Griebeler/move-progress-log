@@ -96,7 +96,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
         exercises: validExercises,
       });
       
-      toast.success(`✅ Sessão registrada com sucesso!`, {
+      toast.success("Sessão registrada", {
         description: `${validExercises.length} exercícios foram salvos para ${studentName}.`
       });
       
@@ -227,7 +227,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
                       onChange={(e) => updateExercise(index, "load", e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      💡 Digite "lb" que converto automaticamente para kg (1 lb = 0,45 kg)
+                      Valores em lb são convertidos para kg (1 lb = 0,45 kg).
                     </p>
                   </div>
                 </div>

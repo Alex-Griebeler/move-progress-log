@@ -8,10 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { Trash, Loader2, Mic, ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
+import { LoadBreakdownInput } from "@/components/session/LoadBreakdownInput";
+import { LOAD_BREAKDOWN_LABEL, LOAD_TOTAL_LABEL } from "@/components/session/loadCopy";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
+import { LoadingState } from "./LoadingState";
 
 interface EditGroupSessionDialogProps {
   open: boolean;
@@ -169,6 +170,10 @@ export function EditGroupSessionDialog({
     setEditableExercises(updated);
   };
 
+  const patchExercise = (index: number, patch: Partial<Exercise>) => {
+    setEditableExercises((prev) => prev.map((ex, i) => (i === index ? { ...ex, ...patch } : ex)));
+  };
+
   const removeExercise = (index: number) => {
     setEditableExercises(editableExercises.filter((_, i) => i !== index));
   };
@@ -317,27 +322,47 @@ export function EditGroupSessionDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh]">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar Sessão em Grupo</DialogTitle>
+          <DialogTitle>Editar sessão em grupo</DialogTitle>
           {sessionsData.length > 0 && (
+            // Paginação entre pessoas fica aqui, junto do nome — o rodapé
+            // guarda uma única ação principal.
             <div className="flex items-center gap-2 mt-2">
-              <Badge variant="outline">
-                Aluno {currentStudentIndex + 1} de {sessionsData.length}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                {currentStudent?.studentName}
-              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handlePrevious}
+                disabled={currentStudentIndex === 0 || loading}
+                aria-label="Pessoa anterior"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="min-w-0 flex-1 text-center" aria-live="polite">
+                <p className="truncate text-sm font-medium">{currentStudent?.studentName}</p>
+                <p className="text-xs text-muted-foreground">
+                  {currentStudentIndex + 1} de {sessionsData.length}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleNext}
+                disabled={currentStudentIndex === sessionsData.length - 1 || loading}
+                aria-label="Próxima pessoa"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           )}
         </DialogHeader>
 
         {loading && sessionsData.length === 0 ? (
           <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <LoadingState text="Carregando sessões do grupo…" />
           </div>
         ) : currentStudent ? (
-          <ScrollArea className="max-h-[calc(90vh-250px)] pr-4">
+          <div>
             <div className="space-y-4">
               <Label className="text-base">Exercícios ({editableExercises.length})</Label>
               {editableExercises.map((exercise, idx) => (
@@ -347,17 +372,18 @@ export function EditGroupSessionDialog({
                       <CardTitle className="text-sm">Exercício {idx + 1}</CardTitle>
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => removeExercise(idx)}
-                        className="h-6 w-6 p-0 text-destructive"
+                        aria-label={`Remover exercício ${idx + 1}`}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       >
-                        <Trash className="h-3 w-3" />
+                        <Trash className="h-4 w-4" />
                       </Button>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="space-y-2">
-                      <Label className="text-xs">Nome do Exercício *</Label>
+                      <Label className="text-xs">Exercício *</Label>
                       <div className="flex gap-2">
                         <Input
                           value={exercise.exercise_name}
@@ -385,9 +411,12 @@ export function EditGroupSessionDialog({
 
                     <div className="grid gap-3 md:grid-cols-4">
                       <div className="space-y-2">
-                        <Label className="text-xs">Séries</Label>
+                        <Label className="text-xs" htmlFor={`group-edit-sets-${idx}`}>Séries</Label>
                         <Input
+                          id={`group-edit-sets-${idx}`}
                           type="number"
+                          inputMode="numeric"
+                          className="number-input-clean min-h-11 text-base"
                           value={exercise.sets}
                           onChange={(e) => updateExercise(idx, 'sets', parseInt(e.target.value) || 0)}
                           min="1"
@@ -395,9 +424,12 @@ export function EditGroupSessionDialog({
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs">Reps</Label>
+                        <Label className="text-xs" htmlFor={`group-edit-reps-${idx}`}>Reps</Label>
                         <Input
+                          id={`group-edit-reps-${idx}`}
                           type="number"
+                          inputMode="numeric"
+                          className="number-input-clean min-h-11 text-base"
                           value={exercise.reps}
                           onChange={(e) => updateExercise(idx, 'reps', parseInt(e.target.value) || 0)}
                           min="1"
@@ -405,21 +437,29 @@ export function EditGroupSessionDialog({
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs">Carga (kg)</Label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={exercise.load_kg || ''}
-                          onChange={(e) => updateExercise(idx, 'load_kg', parseFloat(e.target.value) || null)}
+                        <Label className="text-xs" htmlFor={`group-edit-breakdown-${idx}`}>{LOAD_BREAKDOWN_LABEL}</Label>
+                        <LoadBreakdownInput
+                          id={`group-edit-breakdown-${idx}`}
+                          value={exercise.load_breakdown}
+                          onChange={(v) => updateExercise(idx, 'load_breakdown', v)}
+                          onCalculated={(expanded, kg) =>
+                            patchExercise(idx, kg !== null ? { load_breakdown: expanded, load_kg: kg } : { load_breakdown: expanded })
+                          }
+                          exerciseName={exercise.exercise_name}
+                          className="min-h-11 text-base"
                         />
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-xs">Descrição Carga</Label>
+                        <Label className="text-xs" htmlFor={`group-edit-total-${idx}`}>{LOAD_TOTAL_LABEL}</Label>
                         <Input
-                          value={exercise.load_breakdown}
-                          onChange={(e) => updateExercise(idx, 'load_breakdown', e.target.value)}
-                          placeholder="Ex: 20kg"
+                          id={`group-edit-total-${idx}`}
+                          type="number"
+                          step="0.1"
+                          inputMode="decimal"
+                          className="number-input-clean min-h-11 text-base"
+                          value={exercise.load_kg ?? ''}
+                          onChange={(e) => updateExercise(idx, 'load_kg', e.target.value === '' ? null : parseFloat(e.target.value.replace(',', '.')))}
                         />
                       </div>
                     </div>
@@ -437,61 +477,40 @@ export function EditGroupSessionDialog({
                 </Card>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         ) : null}
 
+        {/* Um CTA; o resto em texto. Filhos diretos do DialogFooter para o
+            empilhamento do celular funcionar (antes estouravam 375px). */}
         <DialogFooter className="gap-2">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentStudentIndex === 0 || loading}
-              >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Anterior
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleNext}
-                disabled={currentStudentIndex === sessionsData.length - 1 || loading}
-              >
-                Próximo
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
-
-            <div className="flex gap-2">
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                Cancelar
-              </Button>
-              {onReopenForRecording && prescriptionId && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    onReopenForRecording(prescriptionId, date, time);
-                    onOpenChange(false);
-                  }}
-                  disabled={loading}
-                >
-                  <Mic className="h-4 w-4 mr-2" />
-                  Adicionar Gravações
-                </Button>
-              )}
-              <Button onClick={handleSaveCurrentStudent} disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Salvando...
-                  </>
-                ) : currentStudentIndex === sessionsData.length - 1 ? (
-                  "Salvar e Concluir"
-                ) : (
-                  "Salvar e Avançar"
-                )}
-              </Button>
-            </div>
-          </div>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          {onReopenForRecording && prescriptionId && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                onReopenForRecording(prescriptionId, date, time);
+                onOpenChange(false);
+              }}
+              disabled={loading}
+            >
+              <Mic className="h-4 w-4 mr-2" />
+              Adicionar gravações
+            </Button>
+          )}
+          <Button onClick={handleSaveCurrentStudent} disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Salvando…
+              </>
+            ) : currentStudentIndex === sessionsData.length - 1 ? (
+              "Salvar e concluir"
+            ) : (
+              "Salvar e avançar"
+            )}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

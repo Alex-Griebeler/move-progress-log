@@ -65,7 +65,7 @@ export function ExerciseSelectionDialog({
 
       if (data.success && data.suggested) {
         setSuggestedExercise(data.suggested);
-        notify.success("Sugestão encontrada! ✨", {
+        notify.success("Sugestão encontrada", {
           description: `Exercício similar: ${data.suggested.name}`,
         });
       } else {
@@ -138,9 +138,9 @@ export function ExerciseSelectionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh]">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Selecionar Exercício Cadastrado</DialogTitle>
+          <DialogTitle>Escolher exercício cadastrado</DialogTitle>
           <p className="text-sm text-muted-foreground">
             Exercício mencionado: <strong>{currentExerciseName}</strong>
           </p>
@@ -149,53 +149,51 @@ export function ExerciseSelectionDialog({
         <div className="space-y-4">
           {/* Sugestão da IA */}
           {isLoadingSuggestion && (
-            <Card className="p-4 bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800">
+            <Card className="p-4 border-primary/30" role="status">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-purple-600 animate-pulse" />
-                <p className="text-sm text-purple-900 dark:text-purple-100">
-                  Buscando exercício similar com IA...
+                <Sparkles className="h-5 w-5 text-primary animate-pulse" aria-hidden="true" />
+                <p className="text-sm text-foreground">
+                  Buscando exercício parecido no catálogo…
                 </p>
               </div>
             </Card>
           )}
 
           {suggestedExercise && !isLoadingSuggestion && (
-            <Card className="p-4 bg-purple-50 dark:bg-purple-950 border-purple-200 dark:border-purple-800">
+            <Card className="p-4 border-primary/30">
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-purple-600" />
-                  <h4 className="font-semibold text-purple-900 dark:text-purple-100">
-                    Exercício Sugerido pela IA
+                  <Sparkles className="h-5 w-5 text-primary" aria-hidden="true" />
+                  <h4 className="font-semibold text-foreground">
+                    Sugestão do catálogo
                   </h4>
                 </div>
-                
-                <div className="flex items-center justify-between">
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="font-medium text-purple-900 dark:text-purple-100">
+                    <p className="font-medium text-foreground">
                       {suggestedExercise.name}
                     </p>
-                    <p className="text-xs text-purple-700 dark:text-purple-300">
-                      Exercício mais similar encontrado
+                    <p className="text-xs text-muted-foreground">
+                      O mais parecido com o que foi citado
                     </p>
                   </div>
-                  
+
                   <div className="flex gap-2">
                     <Button
-                      size="sm"
-                      onClick={handleAcceptSuggestion}
-                      className="gap-2"
-                    >
-                      <CheckCircle className="h-4 w-4" />
-                      Confirmar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
+                      variant="ghost"
                       onClick={handleRejectSuggestion}
                       className="gap-2"
                     >
                       <XCircle className="h-4 w-4" />
-                      Rejeitar
+                      Não é este
+                    </Button>
+                    <Button
+                      onClick={handleAcceptSuggestion}
+                      className="gap-2"
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      Usar este
                     </Button>
                   </div>
                 </div>
@@ -205,7 +203,7 @@ export function ExerciseSelectionDialog({
 
           {/* Campo de busca */}
           <div className="space-y-2">
-            <Label htmlFor="search-exercise">Buscar Exercício</Label>
+            <Label htmlFor="search-exercise">Buscar exercício</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -221,7 +219,7 @@ export function ExerciseSelectionDialog({
           {/* Lista de exercícios */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Exercícios Cadastrados</Label>
+              <Label>Exercícios cadastrados</Label>
               <Badge variant="secondary">
                 {filteredExercises.length} {filteredExercises.length === 1 ? 'exercício' : 'exercícios'}
               </Badge>
@@ -230,8 +228,8 @@ export function ExerciseSelectionDialog({
             <ScrollArea className="h-[300px] border rounded-md">
               <div className="p-4 space-y-2">
                 {isLoading ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">
-                    Carregando exercícios...
+                  <p className="text-sm text-muted-foreground text-center py-8" role="status">
+                    Carregando exercícios…
                   </p>
                 ) : filteredExercises.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
@@ -251,7 +249,7 @@ export function ExerciseSelectionDialog({
                       <div key={exercise.id}>
                         {showSeparator && (
                           <div className="border-t border-border my-2 pt-2">
-                            <p className="text-[10px] text-muted-foreground mb-1">Outros exercícios</p>
+                            <p className="text-xs text-muted-foreground mb-1">Outros exercícios</p>
                           </div>
                         )}
                         <Button
@@ -261,12 +259,12 @@ export function ExerciseSelectionDialog({
                         >
                           <span className="truncate">{exercise.name}</span>
                           {isSamePattern && (
-                            <Badge variant="secondary" className="ml-auto text-[9px] shrink-0">
+                            <Badge variant="secondary" className="ml-auto text-xs shrink-0">
                               mesmo padrão
                             </Badge>
                           )}
                           {!isSamePattern && isSameCategory && (
-                            <Badge variant="outline" className="ml-auto text-[9px] shrink-0">
+                            <Badge variant="outline" className="ml-auto text-xs shrink-0">
                               mesma categoria
                             </Badge>
                           )}

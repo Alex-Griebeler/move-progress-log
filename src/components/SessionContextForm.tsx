@@ -26,7 +26,7 @@ export function SessionContextForm({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="date">Data</Label>
+          <Label htmlFor="date">Data *</Label>
           <Input
             id="date"
             type="date"
@@ -35,7 +35,7 @@ export function SessionContextForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="time">Horário</Label>
+          <Label htmlFor="time">Horário *</Label>
           <Input
             id="time"
             type="time"

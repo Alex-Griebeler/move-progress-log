@@ -99,8 +99,10 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
   const editEntityId = prescriptionId ? `edit-${prescriptionId}` : 'edit';
   const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } = usePrescriptionDraft(editEntityId);
 
+  // Toque: só arrasta após segurar 150 ms (o diálogo rola com o dedo sem
+  // disparar arrasto acidental). Teclado: Espaço + setas reordenam.
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -337,7 +339,7 @@ export function EditPrescriptionDialog({ open, onOpenChange, prescriptionId }: E
 
       sonnerToast.dismiss(loadingToastId);
       toast({
-        title: "Regressões sugeridas com sucesso!",
+        title: "Regressões sugeridas",
         description: "A IA sugeriu 3 exercícios de regressão baseados no padrão de movimento.",
       });
     } catch (error: unknown) {

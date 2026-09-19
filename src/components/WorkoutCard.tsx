@@ -56,7 +56,7 @@ const WorkoutCard = memo(({
 }: WorkoutCardProps) => {
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
   
-  const displayName = name?.trim() || 'Aluno Desconhecido';
+  const displayName = name?.trim() || 'Pessoa sem nome';
   const initials = displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
   
   const sessionTypeLabel = sessionType === 'group' ? 'Grupo' : 'Individual';
@@ -73,13 +73,23 @@ const WorkoutCard = memo(({
   
   return (
     <>
-      <Card 
-        className={`min-h-[120px] h-auto ${onClick ? 'card-interactive hover:shadow-premium' : ''} overflow-hidden transition-smooth`}
-        onClick={onClick}
+      {/* A abertura do card é um <button> real (teclado: Tab + Enter/Espaço,
+          foco visível). Ele cobre o card inteiro (absolute inset-0); o
+          menu de ações é irmão (z-10), nunca aninhado no botão. */}
+      <Card
+        className={`relative min-h-[120px] h-auto ${onClick ? 'card-interactive hover:shadow-premium focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2' : ''} overflow-hidden transition-smooth`}
       >
         <CardHeader className="h-full flex flex-col justify-between p-lg pb-sm">
           <div className="flex items-start justify-between gap-sm">
-            <div className="flex items-center gap-sm flex-1 min-w-0">
+            {onClick && (
+              <button
+                type="button"
+                onClick={onClick}
+                aria-label={`Ver sessão de ${displayName}, ${formatSessionDate(date, "dd MMM")}`}
+                className="absolute inset-0 z-0 rounded-[inherit] focus-visible:outline-none"
+              />
+            )}
+            <div className="pointer-events-none flex items-center gap-sm flex-1 min-w-0">
               <Avatar className="h-16 w-16 shrink-0">
                 <AvatarImage src={avatarUrl || undefined} />
                 <AvatarFallback className="bg-primary/10 text-foreground text-lg font-semibold">
@@ -114,11 +124,11 @@ const WorkoutCard = memo(({
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button 
-                  variant="ghost" 
-                  size="icon-sm"
-                  className="shrink-0"
-                  aria-label="Menu de ações da sessão"
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative z-10 shrink-0"
+                  aria-label={`Ações da sessão de ${displayName}`}
                 >
                   <MoreVertical className="h-4 w-4" />
                 </Button>
@@ -132,7 +142,7 @@ const WorkoutCard = memo(({
                     }}
                   >
                     <Edit className="h-4 w-4 mr-2" />
-                    Editar Sessão
+                    Editar sessão
                   </DropdownMenuItem>
                 )}
                 
@@ -143,13 +153,13 @@ const WorkoutCard = memo(({
                   }}
                 >
                   <Eye className="h-4 w-4 mr-2" />
-                  Ver Detalhes
+                  Ver detalhes
                 </DropdownMenuItem>
                 
                 {!isFinalized && onFinalize && (
                   <DropdownMenuItem onClick={handleFinalizeClick}>
                     <Check className="h-4 w-4 mr-2" />
-                    Finalizar Sessão
+                    Finalizar sessão
                   </DropdownMenuItem>
                 )}
                 
@@ -161,7 +171,7 @@ const WorkoutCard = memo(({
                     }}
                   >
                     <FolderOpen className="h-4 w-4 mr-2" />
-                    Reabrir Sessão
+                    Reabrir sessão
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
