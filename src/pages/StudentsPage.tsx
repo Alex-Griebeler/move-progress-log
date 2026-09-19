@@ -85,6 +85,8 @@ interface StudentCardProps {
   student: Student;
   cardData: StudentCardData | undefined;
   recovery: StudentRecoveryToday | undefined;
+  /** Estado da consulta da leitura de hoje: erro nunca vira "sem leitura". */
+  recoveryStatus: "loading" | "error" | "ready";
   inactive7d: boolean;
   onEdit: (student: Student) => void;
   onDelete: (id: string) => void;
@@ -99,6 +101,7 @@ const StudentCard = memo(({
   student,
   cardData,
   recovery,
+  recoveryStatus,
   inactive7d,
   onEdit,
   onDelete,
@@ -229,9 +232,13 @@ const StudentCard = memo(({
                 <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
                 Oura sem sincronizar
               </p>
-            ) : hasDevice ? (
+            ) : hasDevice || recoveryStatus !== "ready" ? (
               <p className="border-t border-border/50 pt-sm text-caption text-muted-foreground">
-                Sem leitura de hoje
+                {recoveryStatus === "loading"
+                  ? "Carregando leitura de hoje"
+                  : recoveryStatus === "error"
+                    ? "Leitura de hoje indisponível"
+                    : "Sem leitura de hoje"}
               </p>
             ) : null}
 
@@ -276,6 +283,7 @@ const StudentCard = memo(({
     prevProps.student.updated_at === nextProps.student.updated_at &&
     prevProps.cardData === nextProps.cardData &&
     prevProps.recovery === nextProps.recovery &&
+    prevProps.recoveryStatus === nextProps.recoveryStatus &&
     prevProps.inactive7d === nextProps.inactive7d;
 });
 
@@ -317,7 +325,16 @@ const StudentsPage = () => {
   // Batch hook - busca dados de todos os alunos em 3 queries em vez de N*3
   const studentIds = useMemo(() => students?.map(s => s.id) ?? [], [students]);
   const { data: studentsCardData } = useStudentsCardData(studentIds);
-  const { data: recoveryToday } = useStudentsRecoveryToday(studentIds);
+  const {
+    data: recoveryToday,
+    isLoading: isRecoveryLoading,
+    isError: isRecoveryError,
+  } = useStudentsRecoveryToday(studentIds);
+  const recoveryStatus: "loading" | "error" | "ready" = isRecoveryError
+    ? "error"
+    : isRecoveryLoading
+      ? "loading"
+      : "ready";
   // Mesma RPC do KPI "Sem treinar há 7+ dias" da home.
   const { data: inactive7dSet } = useStudentsActivityFilter(INACTIVE_7D_FILTER);
 
@@ -488,14 +505,19 @@ const StudentsPage = () => {
               aria-label="Ordenar lista"
               className="rounded-md border p-0.5"
             >
-              <ToggleGroupItem value="attention" className="h-9 px-3 text-sm">
+              <ToggleGroupItem value="attention" className="h-10 px-3 text-sm">
                 Atenção primeiro
               </ToggleGroupItem>
-              <ToggleGroupItem value="alpha" className="h-9 px-3 text-sm">
+              <ToggleGroupItem value="alpha" className="h-10 px-3 text-sm">
                 A–Z
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
+          {sortMode === "attention" && recoveryStatus === "error" && (
+            <p className="text-caption text-muted-foreground" role="status">
+              Leituras de hoje indisponíveis. A ordem por atenção considera só treinos e observações.
+            </p>
+          )}
         </div>
 
         {activityFilterLabel && ActivityFilterIcon && (
@@ -538,7 +560,7 @@ const StudentsPage = () => {
             description="Verifique a conexão e tente de novo. Nenhum cadastro foi alterado."
             onRetry={() => refetch()}
           />
-        ) : isLoading || isApplyingActivityFilter ? (
+        ) : isLoading || isApplyingActivityFilter || (sortMode === "attention" && recoveryStatus === "loading") ? (
           <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <StudentCardSkeleton key={i} />
@@ -552,6 +574,7 @@ const StudentsPage = () => {
                 student={student}
                 cardData={studentsCardData?.[student.id]}
                 recovery={recoveryToday?.[student.id]}
+                recoveryStatus={recoveryStatus}
                 inactive7d={inactive7dSet?.has(student.id) ?? false}
                 onEdit={setEditingStudent}
                 onDelete={setDeletingStudentId}

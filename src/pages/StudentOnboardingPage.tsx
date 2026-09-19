@@ -139,7 +139,7 @@ export default function StudentOnboardingPage() {
 
       if (result.redirect_to_oura && result.oura_auth_url) {
         toast.info("Conectando ao Oura Ring", {
-          description: "Você será redirecionado para autorizar o acesso aos seus dados",
+          description: "A página de autorização do Oura vai abrir em seguida",
           duration: 2000,
         });
 

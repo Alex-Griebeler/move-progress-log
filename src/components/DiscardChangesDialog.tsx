@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { buttonVariants } from "@/components/ui/button";
 
 interface DiscardChangesDialogProps {
   open: boolean;
@@ -35,7 +36,7 @@ export function DiscardChangesDialog({ open, onKeepEditing, onDiscard }: Discard
           <AlertDialogCancel onClick={onKeepEditing}>Continuar editando</AlertDialogCancel>
           <AlertDialogAction
             onClick={onDiscard}
-            className="bg-destructive text-destructive-foreground"
+            className={buttonVariants({ variant: "destructive" })}
           >
             Descartar
           </AlertDialogAction>

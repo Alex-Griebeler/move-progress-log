@@ -214,7 +214,7 @@ export default function ResetPasswordPage() {
           <CardDescription>
             {isUpdatePasswordStep
               ? "Crie uma senha forte para a sua conta."
-              : "Enviamos um link de recuperação para o seu email."}
+              : "Informe seu email para receber o link de recuperação."}
           </CardDescription>
         </CardHeader>
         <CardContent>
