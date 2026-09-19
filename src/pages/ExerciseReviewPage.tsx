@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,6 +18,7 @@ import { ExerciseDimensionReview } from "@/components/ExerciseDimensionReview";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { ErrorState } from "@/components/ErrorState";
 import { DiscardDraftDialog } from "@/components/assessments/DiscardDraftDialog";
+import { LEAVE_GUARD_HISTORY, useLeavePageGuard } from "@/hooks/useLeavePageGuard";
 import {
   EXERCISE_CATEGORIES,
   MOVEMENT_PATTERNS,
@@ -57,89 +58,6 @@ const CORE_SUBCATEGORY_OPTIONS: Record<string, string> = {
 };
 
 const LEGACY_REVIEW_PAGE_SIZE = 25;
-
-/** Destino especial: o usuário pediu Voltar/Avançar no navegador. */
-export const LEAVE_GUARD_HISTORY = "__history__";
-
-/**
- * Guarda de saída da revisão em lote (UX-29). O app usa <BrowserRouter>
- * (sem data router), então `useBlocker` não existe. Três portas de saída:
- * - clique em link interno (captura) → diálogo com o destino;
- * - Voltar/Avançar do navegador → uma entrada SENTINELA (mesma URL) é
- *   empilhada enquanto houver edições; o Voltar consome a sentinela, a página
- *   continua montada e o diálogo abre com LEAVE_GUARD_HISTORY;
- * - fechar/recarregar a aba → `beforeunload`.
- * `rearm()` recoloca a sentinela quando o usuário decide continuar editando;
- * `leaveViaHistory()` desliga a guarda e só então volta no histórico.
- */
-export const useLeavePageGuard = (active: boolean, onBlockedNavigation: (href: string) => void) => {
-  const sentinelOnTopRef = useRef(false);
-  const bypassRef = useRef(false);
-
-  const pushSentinel = useCallback(() => {
-    if (sentinelOnTopRef.current) return;
-    window.history.pushState({ ...(window.history.state ?? {}), fabrikLeaveGuard: true }, "", window.location.href);
-    sentinelOnTopRef.current = true;
-  }, []);
-
-  useEffect(() => {
-    if (!active) return;
-    bypassRef.current = false;
-    pushSentinel();
-
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-
-    const handlePopState = () => {
-      if (bypassRef.current) return;
-      if (!sentinelOnTopRef.current) return;
-      if ((window.history.state as { fabrikLeaveGuard?: boolean } | null)?.fabrikLeaveGuard) return;
-      // A sentinela foi consumida pelo Voltar: a página segue montada.
-      sentinelOnTopRef.current = false;
-      onBlockedNavigation(LEAVE_GUARD_HISTORY);
-    };
-
-    const handleClickCapture = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.button !== 0) return;
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const anchor = (event.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
-      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return;
-      const url = new URL(anchor.href, window.location.href);
-      if (url.origin !== window.location.origin) return;
-      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
-      event.preventDefault();
-      event.stopPropagation();
-      onBlockedNavigation(`${url.pathname}${url.search}${url.hash}`);
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("popstate", handlePopState);
-    document.addEventListener("click", handleClickCapture, true);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("popstate", handlePopState);
-      document.removeEventListener("click", handleClickCapture, true);
-    };
-  }, [active, onBlockedNavigation, pushSentinel]);
-
-  /** Usuário escolheu continuar editando depois de um Voltar bloqueado. */
-  const rearm = useCallback(() => {
-    // O AlertDialog também dispara onOpenChange(false) depois do "Sair": se a
-    // saída já começou (bypass), não recoloca a sentinela.
-    if (active && !bypassRef.current) pushSentinel();
-  }, [active, pushSentinel]);
-
-  /** Usuário confirmou sair depois de um Voltar: desliga a guarda e volta. */
-  const leaveViaHistory = useCallback(() => {
-    bypassRef.current = true;
-    sentinelOnTopRef.current = false;
-    window.history.back();
-  }, []);
-
-  return { rearm, leaveViaHistory };
-};
 
 interface EditedExercise {
   id: string;
@@ -427,11 +345,8 @@ const ExerciseReviewPage = () => {
       <DiscardDraftDialog
         open={pendingHref !== null}
         onOpenChange={(open) => {
-          if (!open) {
-            // Continuar editando após um Voltar: recoloca a sentinela.
-            if (pendingHref === LEAVE_GUARD_HISTORY) leaveGuard.rearm();
-            setPendingHref(null);
-          }
+          // Continuar editando: a sentinela já foi recolocada pela guarda.
+          if (!open) setPendingHref(null);
         }}
         title={`Sair com ${pluralAlteracoes(pendingCount)} não salva${pendingCount === 1 ? "" : "s"}?`}
         description="As edições desta revisão serão perdidas."
@@ -442,7 +357,8 @@ const ExerciseReviewPage = () => {
           setEdits({});
           setDimensionEditCount(0);
           if (href === LEAVE_GUARD_HISTORY) leaveGuard.leaveViaHistory();
-          else if (href) navigate(href);
+          // replace: o destino substitui a sentinela (sem Voltar "morto" depois).
+          else if (href) navigate(href, { replace: true });
         }}
       />
       <DiscardDraftDialog

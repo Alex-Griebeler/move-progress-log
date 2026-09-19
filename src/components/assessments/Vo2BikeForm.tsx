@@ -366,6 +366,8 @@ export const Vo2BikeForm = ({
                   type="button"
                   variant="outline"
                   onClick={() => stagesArray.append(blankStage(stagesArray.fields.length + 1))}
+                  disabled={stagesArray.fields.length >= 20}
+                  title={stagesArray.fields.length >= 20 ? "Limite de 20 estágios" : undefined}
                 >
                   <Plus className="mr-1 h-4 w-4" aria-hidden /> Adicionar estágio
                 </Button>

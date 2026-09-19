@@ -289,9 +289,9 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
                 </div>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   <MetricTile
-                    label="Strain do dia (0 a 21)"
+                    label="Strain do dia"
                     value={latestScored.day_strain !== null ? formatDecimalBR(latestScored.day_strain, 1) : null}
-                    footnote="escala 0–21"
+                    footnote="escala 0 a 21"
                   />
                   <MetricTile
                     label="HRV noturna"

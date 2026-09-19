@@ -357,7 +357,8 @@ export const HandgripForm = ({
               <strong>Melhor geral:</strong>{" "}
               <span className="font-mono">{formatDecimalBR(bestOverall, 1)} kg</span>{" "}
              <span className="text-muted-foreground text-xs">
-                (maior valor entre as duas mãos)
+                (maior valor entre as duas mãos; a classificação Mathiowetz usa a
+                média das 3 tentativas da mão direita)
               </span>
             </div>
 
