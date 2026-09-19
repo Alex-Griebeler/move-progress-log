@@ -72,15 +72,15 @@ const StudentsComparisonPage = () => {
     type: 'website',
     url: true,
   });
-  
+
   const [searchParams] = useSearchParams();
-  
+
   // Read query params and initialize state
   const initialStudents = searchParams.get('students')?.split(',').filter(Boolean) || [];
   const initialPrescription = searchParams.get('prescription') || 'all';
   const initialStartDateStr = searchParams.get('startDate');
   const initialEndDateStr = searchParams.get('endDate');
-  
+
   const [selectedStudents, setSelectedStudents] = useState<string[]>(initialStudents);
   const [startDate, setStartDate] = useState<Date | undefined>(
     initialStartDateStr ? new Date(initialStartDateStr) : undefined
@@ -92,7 +92,7 @@ const StudentsComparisonPage = () => {
   const [selectedPrescription, setSelectedPrescription] = useState<string>(initialPrescription);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [exerciseSearchQuery, setExerciseSearchQuery] = useState<string>("");
-  
+
   const { data: students, isLoading: studentsLoading } = useStudents();
   const normalizedSelectedStudents = useMemo(
     () => Array.from(new Set(selectedStudents)).sort(),
@@ -262,7 +262,7 @@ const StudentsComparisonPage = () => {
             lastSessionDate: filteredSessions[0]?.date || null,
             activePrescription: assignments[0]?.prescription?.name || null,
             avgLoad: Math.round(avgLoad * 10) / 10,
-            exerciseDetails: exerciseDetails.sort((a, b) => 
+            exerciseDetails: exerciseDetails.sort((a, b) =>
               new Date(b.date).getTime() - new Date(a.date).getTime()
             ),
           } as StudentStats;
@@ -306,13 +306,6 @@ const StudentsComparisonPage = () => {
           { label: NAV_LABELS.students, href: "/alunos" },
           { label: NAV_LABELS.studentsComparison },
         ]}
-        actions={
-          <Link to="/alunos">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-        }
       />
 
         <Card>
@@ -328,7 +321,7 @@ const StudentsComparisonPage = () => {
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Data Inicial</label>
+                <span className="text-sm font-medium">Data inicial</span>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -355,7 +348,7 @@ const StudentsComparisonPage = () => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Data Final</label>
+                <span className="text-sm font-medium">Data final</span>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -404,7 +397,8 @@ const StudentsComparisonPage = () => {
                       <div className="relative">
                         <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                          placeholder="Buscar exercício..."
+                          placeholder="Buscar exercício"
+                          aria-label="Buscar exercício"
                           value={exerciseSearchQuery}
                           onChange={(e) => setExerciseSearchQuery(e.target.value)}
                           className="pl-8 h-9"
@@ -416,9 +410,9 @@ const StudentsComparisonPage = () => {
                         {exercises
                           ?.filter((ex) => matchesSearch(ex.name, exerciseSearchQuery))
                           .map((exercise) => (
-                            <div
+                            <label
                               key={exercise.id}
-                              className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent transition-colors"
+                              className="flex min-h-10 cursor-pointer items-center gap-2 p-2 rounded-lg hover:bg-accent transition-colors"
                             >
                               <Checkbox
                                 checked={selectedExercises.includes(exercise.name)}
@@ -437,10 +431,10 @@ const StudentsComparisonPage = () => {
                                   selectedExercises.length >= 10
                                 }
                               />
-                              <label className="flex-1 cursor-pointer text-sm">
+                              <span className="flex-1 text-sm">
                                 {exercise.name}
-                              </label>
-                            </div>
+                              </span>
+                            </label>
                           ))}
                       </div>
                     </ScrollArea>
@@ -508,7 +502,8 @@ const StudentsComparisonPage = () => {
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar aluno..."
+                  placeholder="Buscar por nome"
+                  aria-label="Buscar por nome"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -516,13 +511,13 @@ const StudentsComparisonPage = () => {
               </div>
               <ScrollArea className="h-[560px] pr-4">
                 {studentsLoading ? (
-                  <LoadingSpinner size="sm" text="Carregando alunos..." />
+                  <LoadingSpinner size="sm" text="Carregando cadastros" />
                 ) : (
                   <div className="space-y-3">
                     {filteredStudents?.map((student) => (
-                      <div
+                      <label
                         key={student.id}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent transition-colors"
+                        className="flex min-h-10 cursor-pointer items-center gap-3 p-2 rounded-lg hover:bg-accent transition-colors"
                       >
                         <Checkbox
                           checked={selectedStudents.includes(student.id)}
@@ -532,10 +527,10 @@ const StudentsComparisonPage = () => {
                             selectedStudents.length >= 10
                           }
                         />
-                        <label className="flex-1 cursor-pointer text-sm">
+                        <span className="flex-1 text-sm">
                           {student.name}
-                        </label>
-                      </div>
+                        </span>
+                      </label>
                     ))}
                   </div>
                 )}
@@ -547,12 +542,12 @@ const StudentsComparisonPage = () => {
             {selectedStudents.length === 0 ? (
               <Card className="h-full">
                 <CardContent className="flex flex-col items-center justify-center py-20">
-                  <Users className="h-16 w-16 text-muted-foreground mb-4" />
-                  <p className="text-xl font-semibold text-muted-foreground mb-2">
-                    Nenhum aluno selecionado
+                  <Users className="h-8 w-8 text-muted-foreground mb-4" aria-hidden="true" />
+                  <p className="text-h3 text-foreground mb-1">
+                    Nenhum cadastro selecionado
                   </p>
                   <p className="text-sm text-muted-foreground text-center max-w-md">
-                    Selecione até 10 alunos na lista ao lado para visualizar e comparar seus dados
+                    Selecione até 10 cadastros na lista para comparar.
                   </p>
                 </CardContent>
               </Card>
@@ -586,7 +581,7 @@ const StudentsComparisonPage = () => {
                               <TabsTrigger value="summary">Resumo</TabsTrigger>
                               <TabsTrigger value="details">Detalhes</TabsTrigger>
                             </TabsList>
-                            
+
                             <TabsContent value="summary" className="space-y-3 mt-4">
                               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">

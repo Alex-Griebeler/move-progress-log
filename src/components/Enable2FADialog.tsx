@@ -71,7 +71,7 @@ export const Enable2FADialog = ({ open, onOpenChange }: Enable2FADialogProps) =>
 
       if (error) throw error;
 
-      toast.success('2FA ativado com sucesso!', {
+      toast.success('2FA ativado', {
         description: 'Sua conta agora está mais segura',
       });
       
@@ -94,7 +94,7 @@ export const Enable2FADialog = ({ open, onOpenChange }: Enable2FADialogProps) =>
   const copySecret = () => {
     navigator.clipboard.writeText(secret);
     setCopied(true);
-    toast.success('Código copiado!');
+    toast.success('Código copiado');
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -162,9 +162,10 @@ export const Enable2FADialog = ({ open, onOpenChange }: Enable2FADialogProps) =>
                     variant="outline"
                     size="icon"
                     onClick={copySecret}
+                    aria-label={copied ? "Código copiado" : "Copiar código"}
                   >
                     {copied ? (
-                      <Check className="h-4 w-4 text-green-600" />
+                      <Check className="h-4 w-4 text-success" />
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}

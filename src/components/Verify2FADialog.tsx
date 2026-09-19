@@ -42,7 +42,7 @@ export const Verify2FADialog = ({ open, onOpenChange, factorId, redirectTo }: Ve
 
       if (error) throw error;
 
-      toast.success('Login realizado com sucesso!');
+      toast.success('Login realizado');
       onOpenChange(false);
       navigate(redirectTo ?? POST_LOGIN_ROUTE);
     } catch (error: unknown) {

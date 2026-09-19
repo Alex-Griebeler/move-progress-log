@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DiscardChangesDialog } from "@/components/DiscardChangesDialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -124,7 +125,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
 
   const onSubmit = async (data: FormData) => {
     const loader = notify.loading(i18n.feedback.saving);
-    
+
     try {
       setIsUploadingAvatar(true);
 
@@ -178,13 +179,13 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
         height_cm: data.height_cm,
         sex: null,
       });
-      
+
       loader.dismiss();
       form.reset();
       setAvatarFile(null);
       setAvatarPreview(null);
       onOpenChange(false);
-      
+
       // Notify parent component about the new student
       if (onStudentCreated && newStudent) {
         onStudentCreated(newStudent);
@@ -196,13 +197,26 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
     }
   };
 
+  // Fechar com dados preenchidos pede confirmação (Esc, fora do modal, X, Cancelar).
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // Ler isDirty no render assina o proxy do react-hook-form.
+  const { isDirty } = form.formState;
+  const requestOpenChange = (next: boolean) => {
+    if (!next && (isDirty || !!avatarPreview) && !createStudent.isPending) {
+      setConfirmDiscard(true);
+      return;
+    }
+    onOpenChange(next);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={requestOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>{NAV_LABELS.addStudent}</DialogTitle>
           <DialogDescription>
-            Cadastre um novo aluno no sistema
+            Dados básicos para planejar os treinos. Só o nome é obrigatório.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -249,12 +263,12 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                 <FormItem>
                   <FormLabel>{i18n.forms.fullName}</FormLabel>
                   <FormControl>
-                    <Input 
+                    <Input
                       id="add-student-name"
                       name="student-name"
                       autoComplete="name"
-                      placeholder={i18n.forms.placeholder.name} 
-                      {...field} 
+                      placeholder={i18n.forms.placeholder.name}
+                      {...field}
                     />
                   </FormControl>
                   <FormMessage />
@@ -283,7 +297,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                   <FormItem>
                     <FormLabel>Sessões/semana</FormLabel>
                     <FormControl>
-                      <Input type="number" min="1" max="7" {...field} />
+                      <Input type="number" inputMode="numeric" min="1" max="7" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -299,11 +313,12 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                   <FormItem>
                     <FormLabel>Peso (kg)</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
+                      <Input
+                        type="number"
                         step="0.1"
-                        placeholder="Ex: 70.5" 
-                        {...field} 
+                        inputMode="decimal"
+                        placeholder="Ex.: 70,5"
+                        {...field}
                         value={field.value || ""}
                         onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
                       />
@@ -319,11 +334,12 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                   <FormItem>
                     <FormLabel>Altura (cm)</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
+                      <Input
+                        type="number"
                         step="0.1"
-                        placeholder="Ex: 175" 
-                        {...field} 
+                        inputMode="decimal"
+                        placeholder="Ex.: 175"
+                        {...field}
                         value={field.value || ""}
                         onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
                       />
@@ -364,10 +380,11 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                 <FormItem>
                   <FormLabel>FC Máx. (bpm)</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="Se vazio, usa fórmula 220-idade" 
-                      {...field} 
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="Se vazio, usa 220 − idade"
+                      {...field}
                       value={field.value || ""}
                       onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
                     />
@@ -387,7 +404,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                     {STUDENT_OBJECTIVES.map((objective) => {
                       const isChecked = field.value?.includes(objective.value) || false;
                       const isDisabled = !isChecked && (field.value?.length || 0) >= MAX_OBJECTIVES;
-                      
+
                       return (
                         <div key={objective.value} className="flex items-center gap-xs">
                           <Checkbox
@@ -395,7 +412,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                             disabled={isDisabled}
                             onCheckedChange={(checked) => {
                               const current = field.value || [];
-                              const updated = checked 
+                              const updated = checked
                                 ? [...current, objective.value]
                                 : current.filter(v => v !== objective.value);
                               field.onChange(updated);
@@ -408,15 +425,15 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                       );
                     })}
                   </div>
-                  
+
                   {/* Badges dos objetivos selecionados */}
                   {field.value && field.value.length > 0 && (
                     <div className="flex flex-wrap gap-xs mt-xs">
                       {field.value.map((value) => (
                         <Badge key={value} variant="secondary" className="gap-1">
                           {getObjectiveLabel(value)}
-                          <X 
-                            className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                          <X
+                            className="h-3 w-3 cursor-pointer hover:text-destructive"
                             onClick={() => {
                               field.onChange(field.value!.filter(v => v !== value));
                             }}
@@ -437,7 +454,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                 <FormItem>
                   <FormLabel>Limitações</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       placeholder="Ex: Dor no joelho, problemas na lombar..."
                       className="resize-none"
                       {...field}
@@ -455,7 +472,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                 <FormItem>
                   <FormLabel>Histórico de Lesões</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       placeholder="Descreva lesões anteriores relevantes..."
                       className="resize-none"
                       {...field}
@@ -473,7 +490,7 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                 <FormItem>
                   <FormLabel>Preferências</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <Textarea
                       placeholder="Ex: Prefere treinos curtos, gosta de exercícios com peso livre..."
                       className="resize-none"
                       {...field}
@@ -483,12 +500,12 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
                 </FormItem>
               )}
             />
-            <div className="flex gap-sm pt-lg">
+            <div className="sticky bottom-0 -mx-1 flex gap-sm border-t bg-background px-1 pt-md pb-1">
                 <Button
                   type="button"
                   variant="outline"
                   className="flex-1"
-                  onClick={() => onOpenChange(false)}
+                  onClick={() => requestOpenChange(false)}
                 >
                   {i18n.actions.cancel}
                 </Button>
@@ -512,5 +529,14 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
         </Form>
       </DialogContent>
     </Dialog>
+    <DiscardChangesDialog
+      open={confirmDiscard}
+      onKeepEditing={() => setConfirmDiscard(false)}
+      onDiscard={() => {
+        setConfirmDiscard(false);
+        onOpenChange(false);
+      }}
+    />
+    </>
   );
 };
