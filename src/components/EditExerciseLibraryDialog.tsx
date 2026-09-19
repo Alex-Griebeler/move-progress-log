@@ -217,14 +217,14 @@ export const EditExerciseLibraryDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Editar Exercício</DialogTitle>
+          <DialogTitle>Editar exercício</DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 overflow-y-auto pr-4">
           <form onSubmit={handleSubmit} className="space-y-4" id="edit-exercise-form">
             {/* Basic Info Section */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">Informações Básicas</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Informações básicas</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2 col-span-2">
@@ -366,7 +366,7 @@ export const EditExerciseLibraryDialog = ({
 
             {/* Classification Section */}
             <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-medium text-muted-foreground">Classificação Biomecânica</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Classificação biomecânica</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -470,7 +470,7 @@ export const EditExerciseLibraryDialog = ({
 
             {/* Dimension Scores Section */}
             <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-medium text-muted-foreground">Scores de Classificação (0-5)</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Scores de classificação (0–5)</h3>
               
               <div className="grid grid-cols-3 gap-4">
                 {Object.entries(EXERCISE_DIMENSIONS).map(([key, dim]) => {
@@ -512,7 +512,7 @@ export const EditExerciseLibraryDialog = ({
 
             {/* Defaults Section */}
             <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-medium text-muted-foreground">Prescrição Padrão</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Prescrição padrão</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -632,7 +632,7 @@ export const EditExerciseLibraryDialog = ({
 
             {/* Video and Description */}
             <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-medium text-muted-foreground">Mídia e Descrição</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Mídia e descrição</h3>
               
               <div className="space-y-2">
                 <Label htmlFor="edit-video-url">URL do Vídeo</Label>
@@ -659,7 +659,7 @@ export const EditExerciseLibraryDialog = ({
 
             {/* Equipment Section */}
             <div className="space-y-4 pt-4 border-t border-border">
-              <h3 className="text-sm font-medium text-muted-foreground">Equipamentos Necessários</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Equipamentos necessários</h3>
               
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-2 border rounded-md">
                 {ALL_EQUIPMENT.map((equipment) => (
@@ -693,7 +693,7 @@ export const EditExerciseLibraryDialog = ({
             className="w-full" 
             disabled={updateExercise.isPending}
           >
-            {updateExercise.isPending ? "Salvando..." : "Salvar Alterações"}
+            {updateExercise.isPending ? "Salvando…" : "Salvar alterações"}
           </Button>
         </div>
       </DialogContent>

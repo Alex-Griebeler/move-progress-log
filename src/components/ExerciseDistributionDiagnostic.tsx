@@ -125,19 +125,19 @@ export const ExerciseDistributionDiagnostic = () => {
           <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 space-y-2">
             <h4 className="font-medium flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-4 w-4" />
-              Problemas de Integridade
+              Problemas de integridade
             </h4>
             {data.issues.noCategory > 0 && (
-              <p className="text-sm">⚠️ {data.issues.noCategory} exercícios sem categoria</p>
+              <p className="text-sm">{data.issues.noCategory} exercícios sem categoria</p>
             )}
             {data.issues.nullMovementInForce > 0 && (
-              <p className="text-sm">⚠️ {data.issues.nullMovementInForce} exercícios de Força sem padrão de movimento</p>
+              <p className="text-sm">{data.issues.nullMovementInForce} exercícios de força sem padrão de movimento</p>
             )}
             {data.issues.nullSubcategory > 0 && (
-              <p className="text-sm text-muted-foreground">ℹ️ {data.issues.nullSubcategory} exercícios sem subcategoria</p>
+              <p className="text-sm text-muted-foreground">{data.issues.nullSubcategory} exercícios sem subcategoria</p>
             )}
             {data.issues.nullLevel > 0 && (
-              <p className="text-sm text-muted-foreground">ℹ️ {data.issues.nullLevel} exercícios sem nível definido</p>
+              <p className="text-sm text-muted-foreground">{data.issues.nullLevel} exercícios sem nível definido</p>
             )}
           </div>
         )}

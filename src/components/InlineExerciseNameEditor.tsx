@@ -65,7 +65,7 @@ export const InlineExerciseNameEditor = ({
       {duplicates && duplicates.length > 0 && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className="flex items-center gap-1 text-xs text-amber-600">
+            <div className="flex items-center gap-1 text-xs text-warning">
               <AlertTriangle className="h-3 w-3" />
               <span>{duplicates.length} similar(es)</span>
             </div>
