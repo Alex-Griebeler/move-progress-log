@@ -38,23 +38,49 @@ const groupExercises = (exercises: PrescriptionExercise[]) => {
   return groups;
 };
 
+const FOCUSABLE = 'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
 export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: PrescriptionTVModeProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Esc fecha; Tab fica preso dentro do overlay (é um diálogo modal).
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") onClose();
+    if (e.key === "Escape") {
+      onClose();
+      return;
+    }
+    if (e.key !== "Tab" || !containerRef.current) return;
+    const focusables = Array.from(containerRef.current.querySelectorAll<HTMLElement>(FOCUSABLE));
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+    if (!active || !containerRef.current.contains(active)) {
+      e.preventDefault();
+      first.focus();
+    } else if (e.shiftKey && active === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+    }
   }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     document.addEventListener("keydown", handleKeyDown);
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = "hidden";
     document.body.style.paddingRight = `${scrollbarWidth}px`;
+    closeButtonRef.current?.focus();
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
       document.body.style.paddingRight = "";
+      previouslyFocused?.focus?.();
     };
   }, [open, handleKeyDown]);
 
@@ -69,49 +95,51 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
   return createPortal(
     <div
       ref={containerRef}
-      className="fixed inset-0 z-[100] flex flex-col overflow-auto animate-fade-in bg-background text-foreground"
+      className="fixed inset-0 z-[100] flex flex-col overflow-y-auto bg-background text-foreground"
       role="dialog"
       aria-modal="true"
       aria-label={`Modo TV — ${prescription.name}`}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-10 py-6 shrink-0 border-b border-border">
-        <div className="flex items-center gap-4">
-          <Monitor className="h-8 w-8 text-muted-foreground" />
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">{prescription.name}</h1>
+      <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-10 sm:py-6 shrink-0 border-b border-border">
+        <div className="flex min-w-0 items-center gap-4">
+          <Monitor className="hidden h-8 w-8 shrink-0 text-muted-foreground sm:block" aria-hidden="true" />
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-4xl">{prescription.name}</h1>
             {prescription.objective && (
-              <p className="text-xl mt-1 text-muted-foreground">{prescription.objective}</p>
+              <p className="text-base mt-1 text-muted-foreground sm:text-xl">{prescription.objective}</p>
             )}
           </div>
         </div>
         <Button
-          variant="ghost"
+          ref={closeButtonRef}
+          variant="outline"
           size="lg"
           onClick={onClose}
-          className="text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className="shrink-0"
           aria-label="Sair do modo TV"
         >
-          <X className="h-6 w-6 mr-2" />
-          <span className="text-lg">ESC</span>
+          <X className="h-5 w-5" aria-hidden="true" />
+          Sair
         </Button>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 px-10 py-8">
-        <div className="rounded-lg overflow-hidden border border-border">
-          <table className="w-full text-lg">
+      {/* Tabela: rolagem horizontal própria quando não cabe (tablet em
+          retrato) — nenhuma coluna é cortada. */}
+      <div className="flex-1 px-4 py-6 sm:px-10 sm:py-8">
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full min-w-[720px] text-lg">
             <thead>
               <tr className="bg-muted border-b border-border">
-                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">Exercício</th>
-                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">Sets × Reps / Int</th>
-                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">{intensityLabel}</th>
+                <th className="font-semibold text-lg text-center py-4 px-4 text-muted-foreground">Exercício</th>
+                <th className="font-semibold text-lg text-center py-4 px-4 text-muted-foreground">Séries × reps / intervalo</th>
+                <th className="font-semibold text-lg text-center py-4 px-4 text-muted-foreground">{intensityLabel}</th>
                 {prescription.prescription_type === 'individual' && (
-                  <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">RR</th>
+                  <th className="font-semibold text-lg text-center py-4 px-4 text-muted-foreground">Reserva</th>
                 )}
-                <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">Método</th>
+                <th className="font-semibold text-lg text-center py-4 px-4 text-muted-foreground">Método</th>
                 {hasAnyObservations && (
-                  <th className="font-bold text-xl text-center uppercase tracking-wider py-5 px-6 text-muted-foreground">OBS</th>
+                  <th className="font-semibold text-lg text-center py-4 px-4 text-muted-foreground">Observações</th>
                 )}
               </tr>
             </thead>
@@ -144,7 +172,6 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
                           exerciseName={exercise.exercise_name}
                           exerciseLibraryId={exercise.exercise_library_id}
                           prescriptionId={prescription.id}
-                          darkMode
                         >
                           {intensityValue ? (
                             <span className="text-xl font-semibold text-foreground/90">{intensityValue}</span>
@@ -201,8 +228,9 @@ export const PrescriptionTVMode = ({ open, onClose, prescription, exercises }: P
             </p>
           );
         })()}
-        <p className="text-sm text-muted-foreground/60">
-          Pressione ESC para sair do modo TV
+        {/* Só faz sentido com teclado físico; no toque o botão "Sair" basta. */}
+        <p className="hidden text-sm text-muted-foreground [@media(pointer:fine)]:block">
+          Esc também fecha o modo TV
         </p>
       </div>
     </div>,
