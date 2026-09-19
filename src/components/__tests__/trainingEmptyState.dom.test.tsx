@@ -5,8 +5,8 @@
  * check-in" / "Editar check-in" (UX-08), na árvore renderizada.
  *
  * Invariante preservada (decisão do Alex 15/09): sem score de HOJE não há
- * conduta nem carga — o estado vazio só ganha CAMINHO (iniciar sem conduta e
- * conectar aparelho quando nenhum está conectado), nunca modo PSR.
+ * conduta nem carga, nunca modo PSR. Em 20/09 o dono pediu o estado vazio de
+ * volta ao formato anterior: só a frase curta, sem CTA nem links.
  */
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
@@ -129,36 +129,20 @@ const Harness = ({
   );
 };
 
-describe("aba Treinamento — estado sem score de hoje tem caminho (UX-01)", () => {
-  it("sem aparelho: frase curta, Iniciar treino sem prescrição e links para conectar", async () => {
+describe("aba Treinamento — estado sem score de hoje (revertido em 20/09 a pedido do dono)", () => {
+  it("mostra só a frase curta: sem CTA, sem links de conexão, sem conduta/carga/check-in", () => {
     net.whoopConnection = null;
     const onStartTraining = vi.fn();
     const onConnectDevice = vi.fn();
-    const user = userEvent.setup();
     render(<Harness onStartTraining={onStartTraining} onConnectDevice={onConnectDevice} />);
     expect(screen.getByText("Sem dados recentes de recuperação")).toBeVisible();
-    // nunca conduta nem carga nem check-in PSR
+    expect(screen.queryByRole("button", { name: "Iniciar treino" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Conectar Oura" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Conectar Whoop" })).not.toBeInTheDocument();
+    // invariantes que seguem valendo: sem conduta, sem carga, sem PSR
     expect(screen.queryByLabelText("Conduta do dia")).not.toBeInTheDocument();
     expect(screen.queryByText("Sugestões de carga")).not.toBeInTheDocument();
     expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Iniciar treino" }));
-    expect(onStartTraining).toHaveBeenCalledWith(null);
-    await user.click(screen.getByRole("button", { name: "Conectar Oura" }));
-    await user.click(screen.getByRole("button", { name: "Conectar Whoop" }));
-    expect(onConnectDevice.mock.calls).toEqual([["oura"], ["whoop"]]);
-  });
-
-  it("com aparelho conectado (sem score de hoje): só Iniciar treino, sem convite a conectar", () => {
-    net.whoopConnection = null;
-    render(<Harness hasOuraConnection />);
-    expect(screen.getByRole("button", { name: "Iniciar treino" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Conectar Oura" })).not.toBeInTheDocument();
-  });
-
-  it("conexão desconhecida (carregando/erro) não afirma 'sem aparelho'", () => {
-    net.whoopConnection = null;
-    render(<Harness hasOuraConnection={null} />);
-    expect(screen.queryByRole("button", { name: "Conectar Oura" })).not.toBeInTheDocument();
   });
 
   it("erro total oferece Tentar novamente (não vira estado vazio)", async () => {

@@ -384,7 +384,7 @@ function Harness({
   return (
     <AuthProvider>
       <PublicQueryScope>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
           <TooltipProvider>
             <MemoryRouter initialEntries={[initialPath]}>
               <Routes>

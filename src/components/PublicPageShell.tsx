@@ -45,12 +45,6 @@ export function PublicPageShell({
 }: PublicPageShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="px-4 pt-6 pb-4">
-        <div className={cn("mx-auto w-full", WIDTH_CLASS[width])}>
-          <FabrikWordmark />
-        </div>
-      </header>
-
       <main
         id="main-content"
         tabIndex={-1}
@@ -62,21 +56,6 @@ export function PublicPageShell({
         <div className={cn("mx-auto w-full", WIDTH_CLASS[width], className)}>{children}</div>
       </main>
 
-      {showLegalLinks && (
-        <footer className="px-4 pb-6">
-          <nav
-            aria-label="Documentos legais"
-            className={cn("mx-auto flex w-full gap-4 text-caption text-muted-foreground", WIDTH_CLASS[width])}
-          >
-            <Link to={ROUTES.terms} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center hover:text-foreground">
-              Termos de uso
-            </Link>
-            <Link to={ROUTES.privacy} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center hover:text-foreground">
-              Privacidade
-            </Link>
-          </nav>
-        </footer>
-      )}
     </div>
   );
 }

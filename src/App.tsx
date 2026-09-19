@@ -52,7 +52,7 @@ const App = () => {
         {/* Cache público estável (rotas por token/sem sessão); o estado privado
             vive no QueryClient por identidade do ProtectedShell (A-001). */}
         <PublicQueryScope>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
             <TooltipProvider>
               <SkipToContent />
               <AppToasters />
