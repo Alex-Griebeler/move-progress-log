@@ -38,7 +38,8 @@ describe("Nível Fabrik — nomenclatura pública", () => {
   });
 
   it("badge público usa prefixo F de Fabrik, preservando boyle_score internamente", () => {
-    expect(libraryPageSrc).toContain("F{exercise.boyle_score}");
+    // Escore por extenso no card (revisão UX 18/09): rótulo "Nível Fabrik" + valor.
+    expect(libraryPageSrc).toContain('<dd className="tabular-nums text-right">{exercise.boyle_score}</dd>');
     expect(libraryPageSrc).toContain("Nível Fabrik");
     expect(libraryPageSrc).not.toContain(">B{exercise.boyle_score}<");
   });
