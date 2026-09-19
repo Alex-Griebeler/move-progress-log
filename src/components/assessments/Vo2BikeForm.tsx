@@ -63,6 +63,7 @@ import {
 } from "@/utils/assessmentValidation";
 import { calcFcMaxPredicted, calcPercentFcMax, calcVo2Bike } from "@/utils/vo2";
 import type { AssessmentType } from "@/types/assessment";
+import { STICKY_FORM_FOOTER } from "./formDialogLayout";
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -763,7 +764,7 @@ export const Vo2BikeForm = ({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className={STICKY_FORM_FOOTER}>
               <Button
                 type="button"
                 variant="outline"

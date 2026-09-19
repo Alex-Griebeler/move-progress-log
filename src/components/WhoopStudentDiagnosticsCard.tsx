@@ -55,7 +55,7 @@ export const WhoopStudentDiagnosticsCard = ({ studentId, studentName }: WhoopStu
               </span>
             </div>
             <div>
-              <span className="text-muted-foreground">Strain</span>
+              <span className="text-muted-foreground">Strain (0 a 21)</span>
               <br />
               <span className="font-medium">{formatNumberBR(latest.day_strain, 1)}</span>
             </div>

@@ -289,7 +289,7 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
                 </div>
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   <MetricTile
-                    label="Strain"
+                    label="Strain do dia (0 a 21)"
                     value={latestScored.day_strain !== null ? formatDecimalBR(latestScored.day_strain, 1) : null}
                     footnote="escala 0–21"
                   />
@@ -338,7 +338,7 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
           <Card>
             <CardContent className="p-4">
               <p className={SECTION_LABEL}>
-                Strain · últimos {period} dias
+                Strain do dia (0 a 21) · últimos {period} dias
               </p>
               <LazyChart height={170}>
                 <TrendChart

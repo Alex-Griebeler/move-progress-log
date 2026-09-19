@@ -52,6 +52,7 @@ import {
   sitToStandSchema,
   sitToStandSupportsSchema,
 } from "@/utils/assessmentValidation";
+import { STICKY_FORM_FOOTER } from "./formDialogLayout";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Schema do form (combina base + sit-to-stand)
@@ -442,7 +443,7 @@ export const SitToStandForm = ({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className={STICKY_FORM_FOOTER}>
               <Button
                 type="button"
                 variant="outline"

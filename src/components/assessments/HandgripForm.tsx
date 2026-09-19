@@ -52,6 +52,7 @@ import {
   handgripSchema,
   localTodayIso,
 } from "@/utils/assessmentValidation";
+import { STICKY_FORM_FOOTER } from "./formDialogLayout";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Schema do form (base + handgrip)
@@ -378,7 +379,7 @@ export const HandgripForm = ({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className={STICKY_FORM_FOOTER}>
               <Button
                 type="button"
                 variant="outline"

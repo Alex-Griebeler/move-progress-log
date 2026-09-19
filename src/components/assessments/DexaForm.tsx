@@ -84,6 +84,7 @@ import {
   type DexaExtraction,
   type DexaExtractionFieldName,
 } from "@/utils/dexaPdfExtraction";
+import { STICKY_FORM_FOOTER } from "./formDialogLayout";
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -1007,7 +1008,7 @@ export const DexaForm = ({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className={STICKY_FORM_FOOTER}>
               <Button
                 type="button"
                 variant="outline"
