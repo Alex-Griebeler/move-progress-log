@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Brain, BarChart2, FileText, Send, Loader2, ClipboardList } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Precision12Console } from '@/components/precision12/Precision12Console';
 
 type Tab = 'coach' | 'analyst' | 'report' | 'precision12';
@@ -70,18 +71,24 @@ export default function CoachConsole() {
     onSuccess: d => setReport(d.report),
   });
 
-  const tabs: { id: Tab; label: string; icon: typeof Brain; color: string }[] = [
-    { id: 'coach',       label: 'AI Coach',     icon: Brain,         color: 'text-purple-500' },
-    { id: 'analyst',     label: 'Analista',     icon: BarChart2,     color: 'text-blue-500' },
-    { id: 'report',      label: 'Relatório',    icon: FileText,      color: 'text-green-500' },
-    { id: 'precision12', label: 'Precision 12', icon: ClipboardList, color: 'text-rose-500' },
+  // Ícones em tom neutro: roxo/azul/verde/rosa não existem na paleta.
+  const tabs: { id: Tab; label: string; icon: typeof Brain }[] = [
+    { id: 'coach',       label: 'AI Coach',     icon: Brain },
+    { id: 'analyst',     label: 'Analista',     icon: BarChart2 },
+    { id: 'report',      label: 'Relatório',    icon: FileText },
+    { id: 'precision12', label: 'Precision 12', icon: ClipboardList },
   ];
 
+  // Resultado anunciado ao leitor de tela; erro sem mensagem técnica crua.
   const Output = ({ text, error }: { text: string; error?: Error | null }) => (
-    <>
+    <div aria-live='polite'>
       {text  && <div className='p-4 bg-muted rounded-lg whitespace-pre-wrap text-sm leading-relaxed'>{text}</div>}
-      {error && <p className='text-destructive text-sm'>{error.message}</p>}
-    </>
+      {error && (
+        <p role='alert' className='text-destructive text-sm'>
+          Não foi possível gerar a resposta agora. Tente de novo em instantes.
+        </p>
+      )}
+    </div>
   );
 
   return (
@@ -90,41 +97,43 @@ export default function CoachConsole() {
       <div className='p-6 space-y-6'>
 
         <Select value={studentId} onValueChange={setStudentId}>
-          <SelectTrigger className='w-72'><SelectValue placeholder='Selecionar atleta' /></SelectTrigger>
+          <SelectTrigger className='w-full sm:w-72' aria-label='Atleta'><SelectValue placeholder='Selecionar atleta' /></SelectTrigger>
           <SelectContent>{students?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
         </Select>
 
-        <div className='flex gap-2 border-b pb-1'>
-          {tabs.map(t => {
-            const Icon = t.icon;
-            return (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-t text-sm font-medium transition-colors ${tab === t.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-                <Icon className={`h-4 w-4 ${t.color}`} />{t.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Abas com o primitive Radix (tablist/tab/tabpanel, aria-selected,
+            setas do teclado) no lugar de botões soltos (UX-07 Codex). */}
+        <Tabs value={tab} onValueChange={v => setTab(v as Tab)}>
+          <TabsList className='flex h-auto w-full justify-start overflow-x-auto sm:w-auto'>
+            {tabs.map(t => {
+              const Icon = t.icon;
+              return (
+                <TabsTrigger key={t.id} value={t.id} className='min-h-10 shrink-0 gap-2'>
+                  <Icon className='h-4 w-4' aria-hidden />{t.label}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
 
-        {tab === 'coach' && (
+          <TabsContent value='coach'>
           <Card>
-            <CardHeader><CardTitle className='flex items-center gap-2'><Brain className='h-5 w-5 text-purple-500' />AI Coach</CardTitle></CardHeader>
+            <CardHeader><CardTitle className='flex items-center gap-2'><Brain className='h-5 w-5 text-primary' aria-hidden />AI Coach</CardTitle></CardHeader>
             <CardContent className='space-y-4'>
-              <Textarea placeholder='Pergunte sobre o atleta... ex: Como está a progressão de carga?' value={question} onChange={e => setQuestion(e.target.value)} rows={3} />
+              <Textarea placeholder='Pergunte sobre o atleta. Ex.: como está a progressão de carga?' aria-label='Pergunta para o AI Coach' value={question} onChange={e => setQuestion(e.target.value)} rows={3} />
               <Button onClick={() => coachMut.mutate()} disabled={!studentId || !question || coachMut.isPending}>
-                {coachMut.isPending ? <><Loader2 className='h-4 w-4 mr-2 animate-spin' />Analisando...</> : <><Send className='h-4 w-4 mr-2' />Perguntar ao Coach</>}
+                {coachMut.isPending ? <><Loader2 className='h-4 w-4 mr-2 animate-spin' />Analisando…</> : <><Send className='h-4 w-4 mr-2' />Perguntar ao coach</>}
               </Button>
               <Output text={coachOut} error={coachMut.error as Error} />
             </CardContent>
           </Card>
-        )}
+          </TabsContent>
 
-        {tab === 'analyst' && (
+          <TabsContent value='analyst'>
           <Card>
-            <CardHeader><CardTitle className='flex items-center gap-2'><BarChart2 className='h-5 w-5 text-blue-500' />Analista de Treinamento</CardTitle></CardHeader>
+            <CardHeader><CardTitle className='flex items-center gap-2'><BarChart2 className='h-5 w-5 text-primary' aria-hidden />Analista de treinamento</CardTitle></CardHeader>
             <CardContent className='space-y-4'>
               <Select value={String(period)} onValueChange={v => setPeriod(Number(v))}>
-                <SelectTrigger className='w-36'><SelectValue /></SelectTrigger>
+                <SelectTrigger className='w-36' aria-label='Período da análise'><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value='7'>7 dias</SelectItem>
                   <SelectItem value='30'>30 dias</SelectItem>
@@ -132,16 +141,16 @@ export default function CoachConsole() {
                 </SelectContent>
               </Select>
               <Button onClick={() => analystMut.mutate()} disabled={!studentId || analystMut.isPending}>
-                {analystMut.isPending ? <><Loader2 className='h-4 w-4 mr-2 animate-spin' />Analisando...</> : <><BarChart2 className='h-4 w-4 mr-2' />Gerar Análise</>}
+                {analystMut.isPending ? <><Loader2 className='h-4 w-4 mr-2 animate-spin' />Analisando…</> : <><BarChart2 className='h-4 w-4 mr-2' />Gerar análise</>}
               </Button>
               <Output text={analystOut} error={analystMut.error as Error} />
             </CardContent>
           </Card>
-        )}
+          </TabsContent>
 
-        {tab === 'report' && (
+          <TabsContent value='report'>
           <Card>
-            <CardHeader><CardTitle className='flex items-center gap-2'><FileText className='h-5 w-5 text-green-500' />Gerador de Relatórios</CardTitle></CardHeader>
+            <CardHeader><CardTitle className='flex items-center gap-2'><FileText className='h-5 w-5 text-primary' aria-hidden />Gerador de relatórios</CardTitle></CardHeader>
             <CardContent className='space-y-4'>
               <div className='flex gap-4 flex-wrap items-end'>
                 <div className='space-y-1'>
@@ -156,14 +165,17 @@ export default function CoachConsole() {
                 </div>
               </div>
               <Button onClick={() => reportMut.mutate()} disabled={!studentId || !dateFrom || !dateTo || reportMut.isPending}>
-                {reportMut.isPending ? <><Loader2 className='h-4 w-4 mr-2 animate-spin' />Gerando...</> : <><FileText className='h-4 w-4 mr-2' />Gerar Relatório</>}
+                {reportMut.isPending ? <><Loader2 className='h-4 w-4 mr-2 animate-spin' />Gerando…</> : <><FileText className='h-4 w-4 mr-2' />Gerar relatório</>}
               </Button>
               <Output text={reportOut} error={reportMut.error as Error} />
             </CardContent>
           </Card>
-        )}
+          </TabsContent>
 
-        {tab === 'precision12' && <Precision12Console />}
+          <TabsContent value='precision12'>
+            <Precision12Console />
+          </TabsContent>
+        </Tabs>
       </div>
     </PageLayout>
   );

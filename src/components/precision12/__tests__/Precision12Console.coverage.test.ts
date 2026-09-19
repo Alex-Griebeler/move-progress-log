@@ -87,9 +87,11 @@ describe("E4.2 CoachConsole — sanity", () => {
     );
   });
 
-  it("renderiza Precision12Console quando tab === 'precision12'", () => {
+  it("renderiza Precision12Console no painel da aba 'precision12'", () => {
+    // Abas migradas para o primitive Radix (revisão UX 18/09): o painel da
+    // aba é quem monta o console.
     expect(coachConsoleSource).toMatch(
-      /tab\s*===\s*'precision12'\s*&&\s*<Precision12Console\s*\/>/,
+      /<TabsContent\s+value='precision12'>\s*<Precision12Console\s*\/>/,
     );
   });
 
