@@ -44,7 +44,7 @@ export function Precision12KpiCards({ data }: Precision12KpiCardsProps) {
       value: data.students.length,
       icon: Users,
       tone: "text-foreground",
-      description: "Total de alunos com program_tier precision_12 ou assessment P12",
+      description: "Total de alunos no programa Precision 12 ou com avaliação Precision 12",
     },
     {
       label: "PAR-Q bloqueados",
@@ -57,22 +57,22 @@ export function Precision12KpiCards({ data }: Precision12KpiCardsProps) {
       label: "Questionários pendentes",
       value: questionnairePending,
       icon: ClipboardList,
-      tone: "text-amber-600",
-      description: "Link enviado, aluno ainda não respondeu",
+      tone: "text-warning",
+      description: "Link enviado e ainda sem resposta",
     },
     {
       label: "Avaliações em andamento",
       value: data.statusCounts.in_progress,
       icon: Clock,
-      tone: "text-blue-600",
-      description: "Qualquer tipo Precision 12 com status in_progress",
+      tone: "text-info",
+      description: "Avaliações Precision 12 iniciadas e ainda não concluídas",
     },
     {
       label: "Avaliações concluídas",
       value: data.statusCounts.completed,
       icon: CheckCircle2,
-      tone: "text-emerald-600",
-      description: "Total de assessments Precision 12 com status completed",
+      tone: "text-success",
+      description: "Total de avaliações Precision 12 concluídas",
     },
   ];
 

@@ -760,7 +760,9 @@ describe("E5.6b — fila: F-1 altura estável + F-3 ordem + F-2 destrutivo difer
     expect(precision12ActionQueueSource).toMatch(
       /border-rose-500\/50/,
     );
-    expect(precision12ActionQueueSource).toMatch(/text-rose-300/);
+    expect(precision12ActionQueueSource).toMatch(/dark:text-rose-300/);
+    // Tema claro (tema segue o sistema desde a Onda 1): tom escuro legível.
+    expect(precision12ActionQueueSource).toMatch(/\btext-rose-700\b/);
     expect(precision12ActionQueueSource).toMatch(/hover:bg-rose-500\/10/);
     // Defesa: não pode regredir pro token destructive (FALHA WCAG em dark).
     expect(precision12ActionQueueSource).not.toMatch(

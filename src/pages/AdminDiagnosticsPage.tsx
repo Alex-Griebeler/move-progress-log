@@ -15,6 +15,7 @@ import { useIsAdmin } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { NAV_LABELS, ROUTES } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
+import { formatNumberBR } from "@/utils/displayFormat";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { getWebPageSchema, getBreadcrumbSchema } from "@/utils/structuredData";
@@ -322,7 +323,7 @@ const AdminDiagnosticsPage = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5" />
-              Importar Exercícios
+              Importar exercícios
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -339,7 +340,7 @@ const AdminDiagnosticsPage = () => {
                   className="w-full"
                 >
                   {importing ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando JSON...</>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando JSON…</>
                   ) : (
                     <><Upload className="h-4 w-4 mr-2" />Importar JSON</>
                   )}
@@ -367,17 +368,17 @@ const AdminDiagnosticsPage = () => {
                   {importingXlsx && importProgress ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lote {Math.ceil(importProgress.current / BATCH_SIZE)}/{Math.ceil(importProgress.total / BATCH_SIZE)}…</>
                   ) : importingXlsx ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lendo planilha...</>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Lendo planilha…</>
                   ) : (
-                    <><FileSpreadsheet className="h-4 w-4 mr-2" />Importar Planilha XLSX</>
+                    <><FileSpreadsheet className="h-4 w-4 mr-2" />Importar planilha XLSX</>
                   )}
                 </Button>
               </div>
             </div>
 
             {xlsxDebug && (
-              <div className="rounded-md border border-amber-500 p-4 space-y-2 text-sm bg-amber-500/10">
-                <p className="font-semibold text-amber-600">📊 Debug da Planilha (frontend)</p>
+              <div className="rounded-md border border-warning/40 p-4 space-y-2 text-sm bg-warning/10">
+                <p className="font-semibold text-foreground">Debug da planilha (frontend)</p>
                 <pre className="text-xs max-h-60 overflow-auto bg-muted p-2 rounded">
                   {JSON.stringify(xlsxDebug, null, 2)}
                 </pre>
@@ -416,8 +417,8 @@ const AdminDiagnosticsPage = () => {
                 )}
                 {importResult.debug_samples && (
                   <details open>
-                    <summary className="cursor-pointer text-amber-600 font-medium">
-                      🔍 Debug: primeiros exercícios recebidos
+                    <summary className="cursor-pointer font-medium text-foreground">
+                      Debug: primeiros exercícios recebidos
                     </summary>
                     <pre className="text-xs mt-1 max-h-60 overflow-auto bg-muted p-2 rounded">
                       {JSON.stringify(importResult.debug_samples, null, 2)}
@@ -475,7 +476,7 @@ const AdminDiagnosticsPage = () => {
                             {duplicateConfidenceLabel[candidate.confidence]}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            Score {(candidate.score * 100).toFixed(0)}%
+                            Score {formatNumberBR(candidate.score * 100, 0)}%
                           </span>
                         </div>
 
@@ -488,14 +489,12 @@ const AdminDiagnosticsPage = () => {
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
-                          size="sm"
                           onClick={() => navigate(ROUTES.studentDetail(candidate.studentA.id))}
                         >
                           Abrir A
                         </Button>
                         <Button
                           variant="outline"
-                          size="sm"
                           onClick={() => navigate(ROUTES.studentDetail(candidate.studentB.id))}
                         >
                           Abrir B
@@ -544,10 +543,9 @@ const AdminDiagnosticsPage = () => {
                   <h3 className="text-xl font-semibold">{student.name}</h3>
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => navigate(ROUTES.studentDetail(student.id))}
                   >
-                    Ver Detalhes
+                    Ver detalhes
                   </Button>
                 </div>
                 <OuraApiDiagnosticsCard studentId={student.id} />

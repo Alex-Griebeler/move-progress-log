@@ -312,7 +312,10 @@ export function Precision12ActionQueue({
                           // `destructive` porque em tema dark o token resolve
                           // pra rgb(158,46,46), dando contraste 2.22 sobre
                           // bg-card — falha WCAG AA. rose-300 dá 8.56.
-                          className="border-rose-500/50 text-rose-300 hover:border-rose-400 hover:bg-rose-500/10 hover:text-rose-200"
+                          // Revisão UX 18/09: o tema agora segue o sistema;
+                          // no claro rose-300 sobre fundo claro reprova, então
+                          // o claro usa rose-700 e o escuro mantém rose-300.
+                          className="border-rose-500/50 text-rose-700 hover:border-rose-400 hover:bg-rose-500/10 hover:text-rose-800 dark:text-rose-300 dark:hover:text-rose-200"
                           onClick={() =>
                             setRevokeTarget({
                               studentId: item.studentId,

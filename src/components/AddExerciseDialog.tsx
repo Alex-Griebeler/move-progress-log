@@ -342,8 +342,8 @@ export const AddExerciseDialog = ({
                     required
                   />
                   {duplicates && duplicates.length > 0 && (
-                    <Alert variant="default" className="border-accent/50 bg-accent/10">
-                      <AlertTriangle className="h-4 w-4 text-accent-foreground" />
+                    <Alert variant="default" className="border-warning/40 bg-warning/10">
+                      <AlertTriangle className="h-4 w-4 text-warning" aria-hidden />
                       <AlertDescription className="text-sm">
                         Exercício(s) similar(es) encontrado(s):
                         <ul className="mt-1 list-disc list-inside">

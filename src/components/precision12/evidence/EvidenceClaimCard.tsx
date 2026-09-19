@@ -52,10 +52,10 @@ const RISK_LEVEL_VARIANT: Record<
 const RISK_LEVEL_BORDER: Record<EvidenceRiskLanguageLevel, string> = {
   // Cores sóbrias propositadamente — sem alarmismo. `destructive` aqui é
   // visualmente vermelho-pálido (variant shadcn), nunca emergência.
-  reassuring: "border-emerald-500/40",
+  reassuring: "border-success/40",
   informational: "border-border",
-  watchful: "border-amber-500/40",
-  actionable: "border-rose-500/40",
+  watchful: "border-warning/40",
+  actionable: "border-destructive/40",
 };
 
 export function EvidenceClaimCard({
@@ -183,11 +183,11 @@ export function EvidenceClaimCard({
           >
             <h4
               id={`evidence-${claim.metric}-principles`}
-              className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"
+              className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
             >
               Princípios (debug)
             </h4>
-            <ul className="mt-1 grid grid-cols-2 gap-x-3 text-[11px] text-muted-foreground">
+            <ul className="mt-1 grid grid-cols-2 gap-x-3 text-xs text-muted-foreground">
               {(
                 [
                   ["real_endpoint", claim.principles.real_endpoint],

@@ -354,7 +354,7 @@ function GeneratedLinkView({
             aria-label="Copiar link"
           >
             {copied ? (
-              <Check className="h-4 w-4 text-emerald-600" aria-hidden />
+              <Check className="h-4 w-4 text-success" aria-hidden />
             ) : (
               <ClipboardCopy className="h-4 w-4" aria-hidden />
             )}
