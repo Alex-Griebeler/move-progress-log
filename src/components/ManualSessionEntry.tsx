@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { LOAD_BREAKDOWN_LABEL, LOAD_BREAKDOWN_PLACEHOLDER } from "@/components/session/loadCopy";
 import { Trash, ChevronLeft, ChevronRight, BookOpen, Save, Loader2, History, UserPlus, AlertTriangle } from "lucide-react";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { useSessionDraft } from "@/hooks/useSessionDraft";
@@ -23,6 +23,7 @@ import {
 } from "@/constants/units";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { expandLoadShorthand } from "@/utils/loadShorthand";
+import { formatKg } from "@/utils/displayFormat";
 
 type StudentExerciseEntry = {
   exercise_library_id?: string | null;
@@ -338,7 +339,7 @@ export function ManualSessionEntry({
               </>
             ) : lastSaved ? (
               <>
-                <Save className="h-3 w-3 text-green-600" />
+                <Save className="h-3 w-3 text-success" aria-hidden="true" />
                 <span className="text-muted-foreground">
                   Rascunho salvo {formatDistanceToNow(lastSaved, { addSuffix: true, locale: ptBR })}
                 </span>
@@ -350,7 +351,7 @@ export function ManualSessionEntry({
               variant="ghost"
               size="sm"
               onClick={() => setHistoryDialogOpen(true)}
-              className="text-xs gap-1"
+              className="min-h-10 text-xs gap-1"
             >
               <History className="h-3 w-3" />
               Histórico
@@ -359,7 +360,7 @@ export function ManualSessionEntry({
               variant="ghost"
               size="sm"
               onClick={clearDraft}
-              className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="min-h-10 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <Trash className="h-3 w-3 mr-1" />
               Limpar rascunho
@@ -376,10 +377,10 @@ export function ManualSessionEntry({
             variant="outline"
             size="sm"
             onClick={onAddStudent}
-            className="gap-1.5"
+            className="min-h-10 gap-1.5"
           >
             <UserPlus className="h-4 w-4" />
-            Adicionar Aluno
+            Adicionar pessoa
           </Button>
         </div>
       )}
@@ -398,11 +399,11 @@ export function ManualSessionEntry({
 
         <div className="text-center">
           <p className="text-sm text-muted-foreground">
-            Aluno {currentStudentIndex + 1} de {selectedStudents.length}
+            {currentStudentIndex + 1} de {selectedStudents.length}
           </p>
           <h3 className="text-lg font-semibold">{currentStudent.name}</h3>
           {currentStudent.weight_kg && (
-            <p className="text-xs text-muted-foreground">Peso: {currentStudent.weight_kg} kg</p>
+            <p className="text-xs text-muted-foreground">Peso: {formatKg(currentStudent.weight_kg)}</p>
           )}
         </div>
 
@@ -421,7 +422,7 @@ export function ManualSessionEntry({
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Exercícios - {currentStudent.name}</span>
+            <span>Exercícios · {currentStudent.name}</span>
             <div className="flex gap-2">
               {getManualReviewCount(currentStudent.id) > 0 && (
                 <Badge variant="destructive" className="gap-1">
@@ -440,17 +441,17 @@ export function ManualSessionEntry({
               const prescribedEx = prescriptionExercises[idx];
               const requiresReview = needsManualReview(exercise);
               return (
-                <div key={idx} className={`border-b pb-4 last:border-0 last:pb-0 ${requiresReview ? 'bg-amber-50/50 dark:bg-amber-950/20 rounded-lg p-3 -mx-3' : ''}`}>
+                <div key={idx} className={`border-b pb-4 last:border-0 last:pb-0 ${requiresReview ? 'border-l-4 border-l-warning pl-3' : ''}`}>
                    <div className="flex items-start justify-between mb-3">
                      <div className="flex-1 space-y-2">
                        <div className="flex items-center justify-between">
-                         <Label className="text-xs">Nome do Exercício *</Label>
+                         <Label className="text-xs">Exercício *</Label>
                          <div className="flex gap-1">
                            <Button
                              variant="ghost"
                              size="sm"
                              onClick={() => openExerciseSelection(currentStudent.id, idx)}
-                             className="h-9 px-3 gap-1 text-primary hover:text-primary"
+                             className="min-h-10 px-3 gap-1 text-primary hover:text-primary"
                              title="Substituir por exercício cadastrado"
                            >
                              <BookOpen className="h-4 w-4" />
@@ -460,7 +461,8 @@ export function ManualSessionEntry({
                              variant="ghost"
                              size="sm"
                              onClick={() => removeExercise(currentStudent.id, idx)}
-                             className="h-9 w-9 p-0 text-destructive hover:text-destructive"
+                             aria-label={`Remover exercício ${idx + 1}`}
+                             className="h-10 w-10 p-0 text-destructive hover:text-destructive"
                            >
                              <Trash className="h-4 w-4" />
                            </Button>
@@ -492,6 +494,7 @@ export function ManualSessionEntry({
                       <Label className="text-xs">Séries *</Label>
                       <Input
                         type="number"
+                        inputMode="numeric"
                         value={exercise.sets}
                         onChange={(e) => updateExercise(currentStudent.id, idx, 'sets', parseInt(e.target.value) || 0)}
                         min="1"
@@ -503,6 +506,7 @@ export function ManualSessionEntry({
                       <Label className="text-xs">Reps *</Label>
                       <Input
                         type="number"
+                        inputMode="numeric"
                         value={exercise.reps}
                         onChange={(e) => updateExercise(currentStudent.id, idx, 'reps', parseInt(e.target.value) || 0)}
                         min="1"
@@ -511,9 +515,9 @@ export function ManualSessionEntry({
                     </div>
 
                     <div className="space-y-1">
-                      <Label className="text-xs">Descrição Carga {!isLoadExemptCategory(exercise.exercise_name) && '*'}</Label>
+                      <Label className="text-xs">{LOAD_BREAKDOWN_LABEL} {!isLoadExemptCategory(exercise.exercise_name) && '*'}</Label>
                         <Input
-                          placeholder="Ex: 20kg, 2x10kg, 10cl b20"
+                          placeholder={LOAD_BREAKDOWN_PLACEHOLDER}
                           value={exercise.load_breakdown}
                           onChange={(e) => updateExercise(currentStudent.id, idx, 'load_breakdown', e.target.value)}
                           onBlur={() => handleLoadBlur(currentStudent.id, idx)}
@@ -523,26 +527,11 @@ export function ManualSessionEntry({
 
                     <div className="space-y-1">
                       <div className="flex items-center gap-1.5">
-                        <Label className="text-xs">Carga (kg)</Label>
-                        {requiresReview && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="outline" className="gap-1 text-amber-600 border-amber-600 dark:text-amber-400 dark:border-amber-400 cursor-help">
-                                <AlertTriangle className="h-2.5 w-2.5" />
-                                Revisar
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent className="max-w-xs">
-                              <p className="font-medium">Carga não calculada automaticamente</p>
-                              <p className="text-muted-foreground text-xs mt-1">
-                                Verifique a descrição da carga e insira o valor manualmente.
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
+                        <Label className="text-xs">Total (kg)</Label>
                       </div>
                       <Input
                         type="number"
+                        inputMode="decimal"
                         step="0.1"
                         min={MIN_LOAD_KG}
                         max={MAX_LOAD_KG}
@@ -553,13 +542,13 @@ export function ManualSessionEntry({
                         }}
                         disabled={exercise.load_breakdown.toLowerCase().includes('peso corporal')}
                         className={`number-input-clean text-center font-mono ${
-                          requiresReview ? 'border-amber-500 focus-visible:ring-amber-500' : ''
+                          requiresReview ? 'border-warning focus-visible:ring-warning' : ''
                         }`}
                       />
                       {requiresReview && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-                          <AlertTriangle className="h-3 w-3" />
-                          Carga não calculada. Insira manualmente.
+                        <p className="text-xs text-foreground flex items-center gap-1">
+                          <AlertTriangle className="h-3 w-3 text-warning" aria-hidden="true" />
+                          Total não calculado: confira a descrição ou digite o valor.
                         </p>
                       )}
                       {exercise.load_kg !== null && !isValidLoad(exercise.load_kg) && (
@@ -612,7 +601,7 @@ export function ManualSessionEntry({
           ) : (
             <>
               <Save className="h-4 w-4" />
-              Salvar Sessão
+              Salvar sessão
             </>
           )}
         </Button>

@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getSeverityVariant, getCategoryIcon } from "@/types/sessionRecording";
+import { getSeverityVariant } from "@/types/sessionRecording";
 
 interface ObservationPreviewProps {
   observations: Array<{
@@ -18,7 +18,7 @@ export function ObservationPreview({ observations }: ObservationPreviewProps) {
     <Card>
       <CardHeader>
         <CardTitle className="text-sm">
-          🩺 Observações Clínicas ({observations.length})
+          Observações clínicas ({observations.length})
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -30,7 +30,6 @@ export function ObservationPreview({ observations }: ObservationPreviewProps) {
               </Badge>
               {obs.categories?.map((cat, catIdx) => (
                 <Badge key={catIdx} variant="outline" className="text-xs">
-                  <span className="mr-1">{getCategoryIcon(cat)}</span>
                   {cat}
                 </Badge>
               ))}

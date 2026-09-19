@@ -2,12 +2,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Plus, Trash } from "lucide-react";
 import { SessionExercise } from "@/types/sessionRecording";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
 import { notify } from "@/lib/notify";
+import { formatKg } from "@/utils/displayFormat";
+import { LOAD_BREAKDOWN_LABEL, LOAD_BREAKDOWN_PLACEHOLDER, LOAD_TOTAL_LABEL } from "./loadCopy";
 
 interface ExerciseEditorProps {
   exercises: SessionExercise[];
@@ -56,11 +58,11 @@ export function ExerciseEditor({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg flex items-center justify-between">
-          💪 Exercícios Executados
-          <Button size="sm" variant="outline" onClick={addExercise}>
+        <CardTitle className="text-base flex items-center justify-between gap-2">
+          Exercícios executados
+          <Button size="sm" variant="outline" className="min-h-10" onClick={addExercise}>
             <Plus className="h-4 w-4 mr-2" />
-            Adicionar Exercício
+            Adicionar exercício
           </Button>
         </CardTitle>
       </CardHeader>
@@ -73,9 +75,9 @@ export function ExerciseEditor({
                 variant="ghost"
                 size="icon"
                 onClick={() => removeExercise(idx)}
-                aria-label="Remover exercício"
+                aria-label={`Remover exercício ${idx + 1}`}
                 title="Remover exercício"
-                className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
+                className="h-10 w-10 text-destructive hover:text-destructive hover:bg-destructive/10"
               >
                 <Trash className="h-4 w-4" />
               </Button>
@@ -84,21 +86,22 @@ export function ExerciseEditor({
             {/* Name + Replace */}
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-xs">Nome do Exercício *</Label>
+                <Label className="text-xs">Exercício *</Label>
                 <div className="flex gap-2">
                   <Input
                     value={ex.executed_exercise_name}
                     readOnly
+                    placeholder="Escolha no catálogo"
                     className="flex-1"
-                    title="Use o botão ao lado para substituir o exercício"
+                    title="Use o botão ao lado para escolher o exercício"
                   />
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => onOpenExerciseSelection(idx)}
                     className="h-10 w-10 shrink-0"
-                    aria-label="Substituir por exercício cadastrado"
-                    title="Substituir por exercício cadastrado"
+                    aria-label="Escolher exercício cadastrado"
+                    title="Escolher exercício cadastrado"
                   >
                     <BookOpen className="h-4 w-4" />
                   </Button>
@@ -106,11 +109,13 @@ export function ExerciseEditor({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs">
-                  Repetições <span className="text-destructive">*</span>
+                <Label className="text-xs" htmlFor={`ee-reps-${idx}`}>
+                  Reps <span className="text-destructive">*</span>
                 </Label>
                 <Input
+                  id={`ee-reps-${idx}`}
                   type="number"
+                  inputMode="numeric"
                   value={ex.reps ?? ''}
                   onChange={(e) =>
                     updateExercise(idx, {
@@ -120,19 +125,21 @@ export function ExerciseEditor({
                   placeholder="Obrigatório"
                   className={
                     ex.reps === 0 || ex.reps === null
-                      ? 'number-input-clean border-destructive text-center focus:border-destructive'
-                      : 'number-input-clean text-center'
+                      ? 'number-input-clean min-h-11 text-base border-destructive text-center focus:border-destructive'
+                      : 'number-input-clean min-h-11 text-base text-center'
                   }
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs flex items-center gap-1">
+                <Label className="text-xs flex items-center gap-1" htmlFor={`ee-sets-${idx}`}>
                   Séries
                   {requireSets && <span className="text-destructive">*</span>}
                 </Label>
                 <Input
+                  id={`ee-sets-${idx}`}
                   type="number"
+                  inputMode="numeric"
                   value={ex.sets ?? ''}
                   onChange={(e) =>
                     updateExercise(idx, {
@@ -142,36 +149,39 @@ export function ExerciseEditor({
                   placeholder={requireSets ? 'Obrigatório' : 'Auto'}
                   className={
                     requireSets && (ex.sets === null || ex.sets === 0)
-                      ? 'number-input-clean border-destructive text-center focus:border-destructive'
-                      : 'number-input-clean text-center'
+                      ? 'number-input-clean min-h-11 text-base border-destructive text-center focus:border-destructive'
+                      : 'number-input-clean min-h-11 text-base text-center'
                   }
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs">Carga (kg)</Label>
+                <Label className="text-xs" htmlFor={`ee-total-${idx}`}>{LOAD_TOTAL_LABEL}</Label>
                 <Input
+                  id={`ee-total-${idx}`}
                   type="number"
                   step="0.1"
+                  inputMode="decimal"
                   value={ex.load_kg ?? ''}
                   onChange={(e) =>
                     updateExercise(idx, {
-                      load_kg: e.target.value ? parseFloat(e.target.value) : null,
+                      load_kg: e.target.value ? parseFloat(e.target.value.replace(',', '.')) : null,
                     })
                   }
-                  className="number-input-clean text-center font-mono"
+                  className="number-input-clean min-h-11 text-base text-center font-mono"
                 />
               </div>
             </div>
 
             {/* Load Breakdown */}
             <div className="space-y-2">
-              <Label className="text-xs flex items-center gap-1">
-                Descrição da Carga
+              <Label className="text-xs flex items-center gap-1" htmlFor={`ee-breakdown-${idx}`}>
+                {LOAD_BREAKDOWN_LABEL}
                 <span className="text-destructive">*</span>
               </Label>
               <div className="flex gap-2">
                 <Input
+                  id={`ee-breakdown-${idx}`}
                   value={ex.load_breakdown || ''}
                   onChange={(e) => {
                     const newBreakdown = e.target.value;
@@ -184,23 +194,23 @@ export function ExerciseEditor({
                     }
                     updateExercise(idx, updates);
                   }}
-                  placeholder="Ex: (25 lb + 2 kg) de cada lado + barra 10 kg"
+                  placeholder={LOAD_BREAKDOWN_PLACEHOLDER}
                   className={
                     !ex.load_breakdown || ex.load_kg === null || ex.load_kg === 0
-                      ? 'text-sm border-destructive focus:border-destructive'
-                      : 'text-sm'
+                      ? 'min-h-11 text-base border-destructive focus:border-destructive'
+                      : 'min-h-11 text-base'
                   }
                 />
                 {!autoCalculateLoad && (
                   <Button
                     variant="outline"
-                    size="sm"
+                    className="min-h-11"
                     onClick={() => {
                       if (ex.load_breakdown) {
                         const calculated = calculateLoadFromBreakdown(ex.load_breakdown);
                         if (calculated !== null) {
                           updateExercise(idx, { load_kg: calculated });
-                          notify.info('Carga calculada', { description: `${calculated} kg` });
+                          notify.info('Carga calculada', { description: formatKg(calculated) });
                         }
                       }
                     }}
@@ -209,14 +219,7 @@ export function ExerciseEditor({
                   </Button>
                 )}
               </div>
-              {ex.load_kg !== null && (
-                <div className="flex items-center gap-2 p-2 bg-primary/10 rounded-md">
-                  <span className="text-xs text-muted-foreground">Carga Total:</span>
-                  <Badge variant="default" className="font-bold">
-                    {ex.load_kg} kg
-                  </Badge>
-                </div>
-              )}
+
             </div>
 
             {/* Observations */}
@@ -232,17 +235,18 @@ export function ExerciseEditor({
               />
             </div>
 
-            {/* Best set + Delete */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={ex.is_best_set}
-                  onChange={(e) => updateExercise(idx, { is_best_set: e.target.checked })}
-                />
-                <Label className="text-xs">Melhor série</Label>
-              </div>
-            </div>
+            {/* Melhor série: alvo de toque inteiro na linha (checkbox + rótulo) */}
+            <label
+              htmlFor={`ee-best-${idx}`}
+              className="flex min-h-10 cursor-pointer items-center gap-2 text-sm"
+            >
+              <Checkbox
+                id={`ee-best-${idx}`}
+                checked={ex.is_best_set}
+                onCheckedChange={(checked) => updateExercise(idx, { is_best_set: checked === true })}
+              />
+              Melhor série
+            </label>
           </div>
         ))}
       </CardContent>

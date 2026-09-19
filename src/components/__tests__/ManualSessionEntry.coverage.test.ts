@@ -18,7 +18,7 @@ const code = stripComments(source);
 
 describe('ManualSessionEntry — carga total editável', () => {
   it('mantém campo Carga (kg) como input numérico editável pelo coach', () => {
-    expect(code).toContain('<Label className="text-xs">Carga (kg)</Label>');
+    expect(code).toContain('<Label className="text-xs">Total (kg)</Label>');
     expect(code).toMatch(/<Input[\s\S]*?type="number"[\s\S]*?step="0\.1"[\s\S]*?value=\{exercise\.load_kg \|\| ''\}/);
     expect(code).toMatch(/onChange=\{\(e\) => \{[\s\S]*?updateExercise\(currentStudent\.id, idx, 'load_kg', value\);[\s\S]*?\}\}/);
   });

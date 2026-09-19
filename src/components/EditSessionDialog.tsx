@@ -20,8 +20,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
-import { Trash, Loader2, Mic, BookOpen } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Trash, Loader2, Mic, BookOpen, AlertTriangle } from "lucide-react";
+import { SessionStatusBadge } from "@/components/session/SessionStatusBadge";
+import { LoadBreakdownInput } from "@/components/session/LoadBreakdownInput";
+import { LOAD_BREAKDOWN_LABEL, LOAD_TOTAL_LABEL } from "@/components/session/loadCopy";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatSessionTime } from "@/utils/sessionTime";
 import { formatSessionDate } from "@/utils/sessionDate";
@@ -141,6 +143,10 @@ export function EditSessionDialog({
     const updated = [...exercises];
     updated[index] = { ...updated[index], [field]: value };
     setExercises(updated);
+  };
+
+  const patchExercise = (index: number, patch: Partial<Exercise>) => {
+    setExercises((prev) => prev.map((ex, i) => (i === index ? { ...ex, ...patch } : ex)));
   };
 
   const removeExercise = (index: number) => {
@@ -287,7 +293,7 @@ export function EditSessionDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           {loading && !exercises.length ? (
             <div className="flex items-center justify-center p-8">
               <Loader2 className="h-8 w-8 animate-spin" />
@@ -303,26 +309,26 @@ export function EditSessionDialog({
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
-                    <DialogTitle className="text-2xl mb-2">
-                      Editar Sessão de {studentName}
+                    <DialogTitle className="text-xl mb-2">
+                      Editar sessão de {studentName}
                     </DialogTitle>
                     <div className="flex flex-wrap gap-2">
                       <Badge variant={sessionData.session_type === "individual" ? "default" : "secondary"}>
                         {sessionData.session_type === "individual" ? "Individual" : "Grupo"}
                       </Badge>
-                      <Badge variant={sessionData.is_finalized ? "outline" : "default"}>
-                        {sessionData.is_finalized ? "Finalizada" : "Em edição"}
-                      </Badge>
+                      <SessionStatusBadge isFinalized={sessionData.is_finalized} />
                     </div>
                   </div>
                 </div>
               </DialogHeader>
 
-              <ScrollArea className="max-h-[calc(90vh-200px)] pr-4 mt-6">
+              {/* Rolagem única: a do próprio diálogo (o ScrollArea com só
+                  max-h cortava os últimos exercícios). */}
+              <div className="mt-6">
                 <div className="space-y-6">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-sm">Informações da Sessão</CardTitle>
+                      <CardTitle className="text-sm">Informações da sessão</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -357,28 +363,30 @@ export function EditSessionDialog({
                     {exercises.map((exercise, idx) => {
                       const needsAttention = exercise.sets === 0 || exercise.reps === 0;
                       return (
-                        <Card key={exercise.id} className={needsAttention ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20' : ''}>
+                        <Card key={exercise.id} className={needsAttention ? 'border-warning' : ''}>
                           <CardHeader>
                             <div className="flex items-center justify-between">
                               <CardTitle className="text-sm">Exercício {idx + 1}</CardTitle>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => removeExercise(idx)}
-                                className="h-6 w-6 p-0 text-destructive"
+                                aria-label={`Remover exercício ${idx + 1}`}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
-                                <Trash className="h-3 w-3" />
+                                <Trash className="h-4 w-4" />
                               </Button>
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-3">
                             {needsAttention && (
-                              <div className="mb-3 text-sm text-amber-600 dark:text-amber-400 font-medium flex items-center gap-2">
-                                ⚠️ Exercício não registrado no áudio - preencher manualmente
+                              <div className="mb-3 text-sm text-foreground font-medium flex items-center gap-2">
+                                <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                                Séries ou repetições em branco: preencha antes de finalizar.
                               </div>
                             )}
                             <div className="space-y-2">
-                              <Label className="text-xs">Nome do Exercício *</Label>
+                              <Label className="text-xs">Exercício *</Label>
                               <div className="flex gap-2">
                                 <Input
                                   value={exercise.exercise_name}
@@ -406,9 +414,12 @@ export function EditSessionDialog({
 
                             <div className="grid gap-3 md:grid-cols-4">
                               <div className="space-y-2">
-                                <Label className="text-xs">Séries</Label>
+                                <Label className="text-xs" htmlFor={`edit-sets-${exercise.id}`}>Séries</Label>
                                 <Input
+                                  id={`edit-sets-${exercise.id}`}
                                   type="number"
+                                  inputMode="numeric"
+                                  className="number-input-clean min-h-11 text-base"
                                   value={exercise.sets}
                                   onChange={(e) => updateExercise(idx, 'sets', parseInt(e.target.value) || 0)}
                                   min="1"
@@ -416,9 +427,12 @@ export function EditSessionDialog({
                               </div>
 
                               <div className="space-y-2">
-                                <Label className="text-xs">Reps</Label>
+                                <Label className="text-xs" htmlFor={`edit-reps-${exercise.id}`}>Reps</Label>
                                 <Input
+                                  id={`edit-reps-${exercise.id}`}
                                   type="number"
+                                  inputMode="numeric"
+                                  className="number-input-clean min-h-11 text-base"
                                   value={exercise.reps}
                                   onChange={(e) => updateExercise(idx, 'reps', parseInt(e.target.value) || 0)}
                                   min="1"
@@ -426,21 +440,29 @@ export function EditSessionDialog({
                               </div>
 
                               <div className="space-y-2">
-                                <Label className="text-xs">Carga (kg)</Label>
-                                <Input
-                                  type="number"
-                                  step="0.1"
-                                  value={exercise.load_kg || ''}
-                                  onChange={(e) => updateExercise(idx, 'load_kg', parseFloat(e.target.value) || null)}
+                                <Label className="text-xs" htmlFor={`edit-breakdown-${exercise.id}`}>{LOAD_BREAKDOWN_LABEL}</Label>
+                                <LoadBreakdownInput
+                                  id={`edit-breakdown-${exercise.id}`}
+                                  value={exercise.load_breakdown}
+                                  onChange={(v) => updateExercise(idx, 'load_breakdown', v)}
+                                  onCalculated={(expanded, kg) =>
+                                    patchExercise(idx, kg !== null ? { load_breakdown: expanded, load_kg: kg } : { load_breakdown: expanded })
+                                  }
+                                  exerciseName={exercise.exercise_name}
+                                  className="min-h-11 text-base"
                                 />
                               </div>
 
                               <div className="space-y-2">
-                                <Label className="text-xs">Descrição Carga</Label>
+                                <Label className="text-xs" htmlFor={`edit-total-${exercise.id}`}>{LOAD_TOTAL_LABEL}</Label>
                                 <Input
-                                  value={exercise.load_breakdown}
-                                  onChange={(e) => updateExercise(idx, 'load_breakdown', e.target.value)}
-                                  placeholder="Ex: 20kg"
+                                  id={`edit-total-${exercise.id}`}
+                                  type="number"
+                                  step="0.1"
+                                  inputMode="decimal"
+                                  className="number-input-clean min-h-11 text-base"
+                                  value={exercise.load_kg ?? ''}
+                                  onChange={(e) => updateExercise(idx, 'load_kg', e.target.value === '' ? null : parseFloat(e.target.value.replace(',', '.')))}
                                 />
                               </div>
                             </div>
@@ -460,11 +482,11 @@ export function EditSessionDialog({
                     })}
                   </div>
                 </div>
-              </ScrollArea>
+              </div>
             </>
           ) : (
             <DialogHeader>
-              <DialogTitle>Editar Sessão</DialogTitle>
+              <DialogTitle>Editar sessão</DialogTitle>
             </DialogHeader>
           )}
 
@@ -482,7 +504,7 @@ export function EditSessionDialog({
                 disabled={loading}
               >
                 <Mic className="h-4 w-4 mr-2" />
-                Adicionar Gravações
+                Adicionar gravações
               </Button>
             )}
             <Button variant="outline" onClick={() => handleSave(false)} disabled={loading}>
@@ -492,7 +514,7 @@ export function EditSessionDialog({
                   Salvando...
                 </>
               ) : (
-                "Salvar Rascunho"
+                "Salvar rascunho"
               )}
             </Button>
             {sessionData && !sessionData.is_finalized && (
@@ -503,7 +525,7 @@ export function EditSessionDialog({
                     Finalizando...
                   </>
                 ) : (
-                  "Finalizar Sessão"
+                  "Finalizar sessão"
                 )}
               </Button>
             )}

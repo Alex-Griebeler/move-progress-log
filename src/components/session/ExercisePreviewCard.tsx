@@ -1,5 +1,7 @@
 import { Badge } from "@/components/ui/badge";
+import { AlertTriangle } from "lucide-react";
 import { SessionExercise } from "@/types/sessionRecording";
+import { formatKg } from "@/utils/displayFormat";
 
 interface ExercisePreviewCardProps {
   exercise: SessionExercise;
@@ -16,7 +18,7 @@ export function ExercisePreviewCard({ exercise: ex }: ExercisePreviewCardProps) 
     <div
       className={`p-3 rounded-lg ${
         needsManualInput
-          ? 'bg-amber-50 dark:bg-amber-950/20 border-2 border-amber-300 dark:border-amber-700'
+          ? 'border-2 border-warning bg-muted/30'
           : 'bg-muted/50'
       }`}
     >
@@ -25,11 +27,9 @@ export function ExercisePreviewCard({ exercise: ex }: ExercisePreviewCardProps) 
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold">{ex.executed_exercise_name}</p>
             {needsManualInput && (
-              <Badge
-                variant="outline"
-                className="bg-amber-100 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100 border-amber-400 dark:border-amber-600"
-              >
-                ⚠️ Preencher Manualmente
+              <Badge variant="outline" className="gap-1 border-warning text-foreground">
+                <AlertTriangle className="h-3 w-3 text-warning" aria-hidden="true" />
+                Preencher
               </Badge>
             )}
           </div>
@@ -42,15 +42,15 @@ export function ExercisePreviewCard({ exercise: ex }: ExercisePreviewCardProps) 
         </div>
         {ex.is_best_set && (
           <Badge variant="secondary" className="text-xs">
-            🏆 Melhor série
+            Melhor série
           </Badge>
         )}
       </div>
 
-      <div className="grid grid-cols-4 gap-2 text-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-sm">
         <div>
           <span className="text-muted-foreground">Séries: </span>
-          <span className={`font-semibold ${needsManualInput ? 'text-amber-700 dark:text-amber-400' : ''}`}>
+          <span className="font-semibold">
             {ex.sets !== null && ex.sets !== undefined ? (
               ex.sets
             ) : (
@@ -60,7 +60,7 @@ export function ExercisePreviewCard({ exercise: ex }: ExercisePreviewCardProps) 
         </div>
         <div>
           <span className="text-muted-foreground">Reps: </span>
-          <span className={`font-semibold ${needsManualInput ? 'text-amber-700 dark:text-amber-400' : ''}`}>
+          <span className="font-semibold">
             {ex.reps || '-'}
           </span>
         </div>
@@ -78,11 +78,11 @@ export function ExercisePreviewCard({ exercise: ex }: ExercisePreviewCardProps) 
           <span className="text-muted-foreground">Carga: </span>
           <div className="flex flex-col">
             {ex.load_kg !== null && ex.load_kg !== undefined ? (
-              <span className={`font-bold ${needsManualInput ? 'text-amber-700 dark:text-amber-400' : 'text-primary'}`}>
-                {ex.load_kg} kg
+              <span className="font-bold">
+                {formatKg(ex.load_kg)}
               </span>
             ) : needsManualInput ? (
-              <span className="text-amber-700 dark:text-amber-400 font-semibold">-</span>
+              <span className="font-semibold">-</span>
             ) : null}
             {ex.load_breakdown && (
               <span className="text-xs text-muted-foreground">{ex.load_breakdown}</span>
@@ -95,7 +95,7 @@ export function ExercisePreviewCard({ exercise: ex }: ExercisePreviewCardProps) 
         <p
           className={`text-xs mt-2 ${
             needsManualInput
-              ? 'text-amber-900 dark:text-amber-100 font-medium'
+              ? 'text-foreground font-medium'
               : 'text-muted-foreground'
           }`}
         >
