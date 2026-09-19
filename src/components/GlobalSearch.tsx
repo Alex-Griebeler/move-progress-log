@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Search, Users, FileText, Dumbbell, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { ROUTES } from "@/constants/navigation";
+import { ROUTES, SEARCH_GROUP_HEADINGS } from "@/constants/navigation";
 import { useDebounce } from "@/hooks/useDebounce";
 import { logger } from "@/utils/logger";
 import { getMovementPatternLabel } from "@/constants/backToBasics";
@@ -18,12 +18,6 @@ interface SearchResult {
 
 const TYPE_ORDER: SearchResult["type"][] = ["student", "prescription", "exercise"];
 
-/** Rótulo do grupo (plural explícito — antes "Prescrição" + "s" = "Prescriçãos"). */
-export const SEARCH_GROUP_HEADINGS: Record<SearchResult["type"], string> = {
-  student: "Alunos",
-  prescription: "Prescrições",
-  exercise: "Exercícios",
-};
 
 interface GlobalSearchProps {
   /** Estado controlado pela casca (botão "Buscar" no cabeçalho). */

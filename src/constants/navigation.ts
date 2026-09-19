@@ -171,3 +171,10 @@ export const NAV_LABELS = {
 } as const;
 
 export type NavLabel = typeof NAV_LABELS[keyof typeof NAV_LABELS];
+
+/** Busca global: rótulo de cada grupo (plural explícito — antes "Prescrição" + "s" = "Prescriçãos"). */
+export const SEARCH_GROUP_HEADINGS: Record<"student" | "prescription" | "exercise", string> = {
+  student: "Alunos",
+  prescription: "Prescrições",
+  exercise: "Exercícios",
+};

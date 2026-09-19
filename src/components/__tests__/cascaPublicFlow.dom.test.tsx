@@ -25,7 +25,7 @@ import OuraErrorPage from "@/pages/OuraErrorPage";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SEARCH_GROUP_HEADINGS } from "@/components/GlobalSearch";
+import { SEARCH_GROUP_HEADINGS } from "@/constants/navigation";
 
 const Where = () => {
   const loc = useLocation();
