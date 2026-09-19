@@ -63,8 +63,9 @@ import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
 import EmptyState from "@/components/EmptyState";
-import { LoadingState } from "@/components/LoadingState";
 import { ErrorState } from "@/components/ErrorState";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SessionStatusBadge } from "@/components/session/SessionStatusBadge";
 import { NAV_LABELS, ROUTES } from "@/constants/navigation";
 import { matchesSearch } from "@/utils/searchNormalize";
 import { cn } from "@/lib/utils";
@@ -136,6 +137,7 @@ export default function SessionsPage() {
     isLoading,
     error,
     refetch,
+    isRefetching,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -176,11 +178,6 @@ export default function SessionsPage() {
     return prescriptions.filter((p) => matchesSearch(p.name, prescriptionSearchTerm));
   }, [prescriptions, prescriptionSearchTerm]);
 
-  // Calculate total volume for a session
-  const calculateTotalVolume = (session: SessionWithDetails) => {
-    if (!session.exercises || session.exercises.length === 0) return 0;
-    return session.exercises.reduce((sum, ex) => sum + (ex.load_kg || 0), 0);
-  };
 
   // Clear all filters
   const handleClearFilters = () => {
@@ -246,25 +243,8 @@ export default function SessionsPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <PageLayout>
-        <LoadingState text="Carregando sessões..." />
-      </PageLayout>
-    );
-  }
-
-  if (error) {
-    return (
-      <PageLayout>
-        <ErrorState 
-          title="Erro ao carregar sessões" 
-          description={error.message}
-          onRetry={refetch}
-        />
-      </PageLayout>
-    );
-  }
+  // Chips de atalho: alternam (tocar de novo desliga) e anunciam o estado.
+  const presetChipClass = "min-h-10";
 
   return (
     <PageLayout
@@ -324,19 +304,26 @@ export default function SessionsPage() {
             <Button
               variant="ghost"
               size="sm"
+              className="min-h-10"
+              aria-expanded={filtersOpen}
               onClick={() => setFiltersOpen(!filtersOpen)}
             >
-              {filtersOpen ? "Ocultar" : "Mostrar"}
+              {filtersOpen ? "Ocultar" : "Mais filtros"}
             </Button>
           </CardHeader>
 
           <CardContent className="pt-0">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtros rápidos">
               <Button
                 type="button"
                 variant={isTodayPresetActive ? "default" : "outline"}
                 size="sm"
-                onClick={applyTodayPreset}
+                className={presetChipClass}
+                aria-pressed={isTodayPresetActive}
+                onClick={() => {
+                  if (isTodayPresetActive) { setStartDate(undefined); setEndDate(undefined); }
+                  else applyTodayPreset();
+                }}
               >
                 Hoje
               </Button>
@@ -344,7 +331,12 @@ export default function SessionsPage() {
                 type="button"
                 variant={isWeekPresetActive ? "default" : "outline"}
                 size="sm"
-                onClick={applyWeekPreset}
+                className={presetChipClass}
+                aria-pressed={isWeekPresetActive}
+                onClick={() => {
+                  if (isWeekPresetActive) { setStartDate(undefined); setEndDate(undefined); }
+                  else applyWeekPreset();
+                }}
               >
                 Esta semana
               </Button>
@@ -352,7 +344,9 @@ export default function SessionsPage() {
                 type="button"
                 variant={finalizedFilter === "editing" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setFinalizedFilter("editing")}
+                className={presetChipClass}
+                aria-pressed={finalizedFilter === "editing"}
+                onClick={() => setFinalizedFilter(finalizedFilter === "editing" ? "all" : "editing")}
               >
                 Em edição
               </Button>
@@ -360,7 +354,9 @@ export default function SessionsPage() {
                 type="button"
                 variant={sessionType === "individual" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSessionType("individual")}
+                className={presetChipClass}
+                aria-pressed={sessionType === "individual"}
+                onClick={() => setSessionType(sessionType === "individual" ? "all" : "individual")}
               >
                 Individual
               </Button>
@@ -368,12 +364,14 @@ export default function SessionsPage() {
                 type="button"
                 variant={sessionType === "group" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSessionType("group")}
+                className={presetChipClass}
+                aria-pressed={sessionType === "group"}
+                onClick={() => setSessionType(sessionType === "group" ? "all" : "group")}
               >
                 Grupo
               </Button>
               {hasActiveFilters && (
-                <Button type="button" variant="ghost" size="sm" onClick={handleClearFilters}>
+                <Button type="button" variant="ghost" size="sm" className={presetChipClass} onClick={handleClearFilters}>
                   Limpar
                 </Button>
               )}
@@ -482,7 +480,7 @@ export default function SessionsPage() {
 
                 {/* Session Type Filter */}
                 <div className="space-y-2">
-                  <Label>Tipo de Sessão</Label>
+                  <Label>Tipo de sessão</Label>
                   <RadioGroup value={sessionType} onValueChange={(v) => setSessionType(v as "all" | "individual" | "group")}>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="all" id="type-all" />
@@ -523,7 +521,7 @@ export default function SessionsPage() {
 
                 {/* Date Range */}
                 <div className="space-y-2">
-                  <Label>Data Início</Label>
+                  <Label>Data inicial</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start">
@@ -543,7 +541,7 @@ export default function SessionsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Data Fim</Label>
+                  <Label>Data final</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start">
@@ -564,7 +562,7 @@ export default function SessionsPage() {
 
                 {/* Time Range */}
                 <div className="space-y-2">
-                  <Label>Horário Início</Label>
+                  <Label>Horário inicial</Label>
                   <Input
                     type="time"
                     value={startTime}
@@ -573,7 +571,7 @@ export default function SessionsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Horário Fim</Label>
+                  <Label>Horário final</Label>
                   <Input
                     type="time"
                     value={endTime}
@@ -585,7 +583,7 @@ export default function SessionsPage() {
               <div className="flex justify-end gap-2 pt-md border-t">
                 <Button variant="outline" onClick={handleClearFilters} disabled={!hasActiveFilters}>
                   <X className="h-4 w-4 mr-2" />
-                  Limpar Filtros
+                  Limpar filtros
                 </Button>
               </div>
             </CardContent>
@@ -596,21 +594,39 @@ export default function SessionsPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              {sessions.length} {sessions.length === 1 ? "sessão carregada" : "sessões carregadas"}
+              {isLoading || error
+                ? "Sessões"
+                : `${sessions.length}${hasNextPage ? "+" : ""} ${sessions.length === 1 && !hasNextPage ? "sessão" : "sessões"}`}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {sessions.length === 0 ? (
+            {isLoading ? (
+              // Cabeçalho e filtros continuam no lugar; só a lista espera.
+              <div className="space-y-2" aria-busy="true" aria-label="Carregando sessões">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : error ? (
+              // Erro nunca vira "nenhuma sessão".
+              <ErrorState
+                title="Não foi possível carregar as sessões"
+                description="As sessões continuam salvas. Verifique a conexão e tente de novo."
+                onRetry={() => { void refetch(); }}
+                retryLabel={isRefetching ? "Tentando…" : "Tentar de novo"}
+              />
+            ) : sessions.length === 0 ? (
               <EmptyState
                 icon={<ClipboardList className="h-8 w-8 text-muted-foreground" />}
                 title="Nenhuma sessão encontrada"
-                description={hasActiveFilters 
+                description={hasActiveFilters
                   ? "Tente ajustar os filtros para encontrar sessões."
-                  : "Comece registrando a primeira sessão de treino."}
-                primaryAction={{
-                  label: "Registrar Sessão",
-                  onClick: () => setGroupDialogOpen(true)
-                }}
+                  : "Nenhuma sessão registrada ainda. Sessões individuais são registradas na página de cada pessoa."}
+                primaryAction={
+                  hasActiveFilters
+                    ? { label: "Limpar filtros", onClick: handleClearFilters }
+                    : { label: NAV_LABELS.recordGroupSession, onClick: () => setGroupDialogOpen(true) }
+                }
               />
             ) : (
               <div className="rounded-md border">
@@ -626,20 +642,26 @@ export default function SessionsPage() {
                   </TableHeader>
                   <TableBody>
                     {sessions.map((session) => {
-                      const totalVolume = calculateTotalVolume(session);
-                      const exerciseCount = session.exercises?.length || 0;
-                      
                       return (
-                        <TableRow 
+                        <TableRow
                           key={session.id}
-                          className="cursor-pointer hover:bg-muted/50"
+                          className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                          tabIndex={0}
+                          aria-label={`Ver sessão de ${session.student?.name ?? "pessoa"} em ${formatSessionDate(session.date)} às ${formatSessionTime(session.time)}`}
                           onClick={() => handleViewDetails(session.id)}
+                          onKeyDown={(e) => {
+                            if (e.target !== e.currentTarget) return;
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              handleViewDetails(session.id);
+                            }
+                          }}
                         >
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
-                              <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                              <CalendarIcon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                               {formatSessionDate(session.date)}
-                              <Clock className="h-4 w-4 text-muted-foreground ml-2" />
+                              <Clock className="h-4 w-4 text-muted-foreground ml-2" aria-hidden="true" />
                               {formatSessionTime(session.time)}
                             </div>
                           </TableCell>
@@ -664,34 +686,30 @@ export default function SessionsPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {session.is_finalized ? (
-                              <Badge variant="success">Finalizada</Badge>
-                            ) : (
-                              <Badge variant="warning">Em edição</Badge>
-                            )}
+                            <SessionStatusBadge isFinalized={!!session.is_finalized} />
                           </TableCell>
-                          <TableCell onClick={(e) => e.stopPropagation()}>
+                          <TableCell onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
+                                <Button variant="ghost" size="icon" aria-label={`Ações da sessão de ${session.student?.name ?? "pessoa"}`}>
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => handleViewDetails(session.id)}>
                                   <Eye className="h-4 w-4 mr-2" />
-                                  Ver Detalhes
+                                  Ver detalhes
                                 </DropdownMenuItem>
                                 {!session.is_finalized && (
                                   <DropdownMenuItem onClick={() => handleEditSession(session.id)}>
                                     <Edit className="h-4 w-4 mr-2" />
-                                    Editar Sessão
+                                    Editar sessão
                                   </DropdownMenuItem>
                                 )}
                                 {session.is_finalized && session.can_reopen && (
                                   <DropdownMenuItem onClick={() => handleReopen(session.id)}>
                                     <RotateCcw className="h-4 w-4 mr-2" />
-                                    Reabrir Sessão
+                                    Reabrir sessão
                                   </DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
@@ -711,7 +729,7 @@ export default function SessionsPage() {
                   onClick={() => fetchNextPage()}
                   disabled={isFetchingNextPage}
                 >
-                  {isFetchingNextPage ? "Carregando mais..." : "Carregar mais sessões"}
+                  {isFetchingNextPage ? "Carregando…" : "Mostrar mais sessões"}
                 </Button>
               </div>
             )}
@@ -746,19 +764,18 @@ export default function SessionsPage() {
       <Dialog open={studentSelectionOpen} onOpenChange={setStudentSelectionOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Selecionar Aluno</DialogTitle>
+            <DialogTitle>Sessão individual</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Escolha um aluno para registrar a sessão individual. Para registrar sessões individuais, 
-              navegue até a página do aluno específico.
+              Escolha a pessoa. O registro abre na página dela, junto do check-in e da conduta do dia.
             </p>
             <div className="max-h-96 overflow-y-auto space-y-2">
               {students?.map((student) => (
                 <Button
                   key={student.id}
                   variant="outline"
-                  className="w-full justify-start"
+                  className="w-full justify-start min-h-11"
                   onClick={() => {
                     setStudentSelectionOpen(false);
                     navigate(ROUTES.studentDetail(student.id));

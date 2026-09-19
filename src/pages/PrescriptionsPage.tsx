@@ -29,6 +29,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { PageLoadingSkeleton } from "@/components/PageLoadingSkeleton";
 import { PrescriptionCardSkeleton } from "@/components/skeletons/PrescriptionCardSkeleton";
 import EmptyState from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useIsModerator } from "@/hooks/useUserRole";
@@ -53,7 +54,13 @@ export default function PrescriptionsPage() {
   useSEOHead(SEO_PRESETS.private);
   
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: allPrescriptions, isLoading } = usePrescriptions();
+  const {
+    data: allPrescriptions,
+    isLoading,
+    isError: isPrescriptionsError,
+    refetch: refetchPrescriptions,
+    isFetching: isRefetchingPrescriptions,
+  } = usePrescriptions();
   const { data: folders } = useFolders();
   const movePrescription = useMovePrescription();
   const reorderPrescriptions = useReorderPrescriptions();
@@ -468,7 +475,7 @@ export default function PrescriptionsPage() {
               aria-label="Nova prescrição"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Nova Prescrição
+              Nova prescrição
             </Button>
           </div>
         }
@@ -499,7 +506,7 @@ export default function PrescriptionsPage() {
               variant="ghost"
               size="sm"
               onClick={clearStagnantFilter}
-              className="ml-auto h-7 px-sm"
+              className="ml-auto min-h-10 px-sm"
               aria-label="Limpar filtro de prescrições estagnadas"
             >
               <X className="h-3 w-3 mr-1" />
@@ -525,7 +532,15 @@ export default function PrescriptionsPage() {
           />
         )}
 
-        {isLoading || isApplyingStagnantFilter ? (
+        {isPrescriptionsError && !allPrescriptions ? (
+          // Falha de rede/permissão NUNCA vira o vazio de primeiro uso.
+          <ErrorState
+            title="Não foi possível carregar as prescrições"
+            description="Suas prescrições continuam salvas. Verifique a conexão e tente de novo."
+            onRetry={() => { void refetchPrescriptions(); }}
+            retryLabel={isRefetchingPrescriptions ? "Tentando…" : "Tentar de novo"}
+          />
+        ) : isLoading || isApplyingStagnantFilter ? (
           <div className="space-y-md">
             {[...Array(4)].map((_, i) => (
               <PrescriptionCardSkeleton key={i} />
@@ -588,11 +603,11 @@ export default function PrescriptionsPage() {
             title="Nenhuma prescrição encontrada"
             description="Nenhuma prescrição corresponde aos critérios de busca. Tente ajustar os termos de busca, limpar os filtros ou criar uma nova prescrição."
             primaryAction={{
-              label: "Limpar Filtros",
+              label: "Limpar filtros",
               onClick: () => setSearchFilters({})
             }}
             secondaryAction={{
-              label: "Nova Prescrição",
+              label: "Nova prescrição",
               onClick: () => setCreateDialogOpen(true)
             }}
           />
@@ -600,7 +615,7 @@ export default function PrescriptionsPage() {
           <EmptyState
             icon={<FileWarning className="h-6 w-6" />}
             title="Nenhuma prescrição estagnada"
-            description={`Não há prescrições com atribuição ativa que estejam sem atualização há ${stagnantWeeks}+ semanas. Tudo em dia!`}
+            description={`Nenhuma prescrição com atribuição ativa está sem atualização há ${stagnantWeeks}+ semanas.`}
             primaryAction={{
               label: "Limpar filtro",
               onClick: clearStagnantFilter,
@@ -612,7 +627,7 @@ export default function PrescriptionsPage() {
             title="Comece criando sua primeira prescrição"
             description="Prescrições são templates de treino que você pode atribuir aos seus alunos. Organize exercícios, defina séries e repetições, e acompanhe a evolução de forma estruturada."
             primaryAction={{
-              label: "Criar Primeira Prescrição",
+              label: "Criar primeira prescrição",
               onClick: () => setCreateDialogOpen(true)
             }}
           />
