@@ -30,6 +30,7 @@ import { formatSessionDate } from "@/utils/sessionDate";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { invalidateSessionQueries } from "@/hooks/sessionQueryInvalidation";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
+import { LoadingState } from "./LoadingState";
 
 interface EditSessionDialogProps {
   open: boolean;
@@ -296,7 +297,7 @@ export function EditSessionDialog({
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           {loading && !exercises.length ? (
             <div className="flex items-center justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
+              <LoadingState text="Carregando sessão…" />
             </div>
           ) : sessionData ? (
             <>

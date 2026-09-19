@@ -12,6 +12,7 @@ import { LoadBreakdownInput } from "@/components/session/LoadBreakdownInput";
 import { LOAD_BREAKDOWN_LABEL, LOAD_TOTAL_LABEL } from "@/components/session/loadCopy";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
+import { LoadingState } from "./LoadingState";
 
 interface EditGroupSessionDialogProps {
   open: boolean;
@@ -358,7 +359,7 @@ export function EditGroupSessionDialog({
 
         {loading && sessionsData.length === 0 ? (
           <div className="flex items-center justify-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <LoadingState text="Carregando sessões do grupo…" />
           </div>
         ) : currentStudent ? (
           <div>

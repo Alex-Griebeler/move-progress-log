@@ -266,7 +266,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
   const getConfidenceBadge = (confidence: number, matched: boolean) => {
     if (!matched) return <Badge variant="destructive" className="text-xs"><XCircle className="h-3 w-3 mr-1" />Sem match</Badge>;
     if (confidence >= 70) return <Badge className="bg-emerald-600 text-xs"><CheckCircle2 className="h-3 w-3 mr-1" />{confidence}%</Badge>;
-    if (confidence >= 40) return <Badge className="bg-amber-500 text-xs"><AlertTriangle className="h-3 w-3 mr-1" />{confidence}%</Badge>;
+    if (confidence >= 40) return <Badge variant="warning" className="text-xs"><AlertTriangle className="h-3 w-3 mr-1" />{confidence}%</Badge>;
     return <Badge variant="destructive" className="text-xs"><XCircle className="h-3 w-3 mr-1" />{confidence}%</Badge>;
   };
 

@@ -54,6 +54,7 @@ import { ObservationPreview } from "@/components/session/ObservationPreview";
 import { ValidationAlerts } from "@/components/session/ValidationAlerts";
 import { PrescriptionSidebar } from "@/components/session/PrescriptionSidebar";
 import { DiscardSessionConfirm } from "@/components/session/DiscardSessionConfirm";
+import { STICKY_FOOTER_CLASS } from "@/components/session/dialogLayout";
 import { describePartialGroupSave, type GroupSaveOutcome } from "@/components/session/groupSaveOutcome";
 
 // ─── Local Types ────────────────────────────────────────
@@ -1375,7 +1376,9 @@ export function RecordGroupSessionDialog({
           </div>
         )}
 
-        <DialogFooter className="gap-2">
+        {/* CTA sempre à vista: rodapé fixo no fundo do diálogo que rola (a entrada
+            manual tem rodapé próprio). */}
+        <DialogFooter className={dialogState === 'manual-entry' ? "hidden" : STICKY_FOOTER_CLASS}>
           {dialogState === 'context-setup' && (
             <>
               <Button variant="ghost" size="touch" onClick={closeDialog}>Cancelar</Button>

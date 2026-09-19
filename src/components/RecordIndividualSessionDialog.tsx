@@ -43,6 +43,7 @@ import { ObservationEditor } from "@/components/session/ObservationEditor";
 import { ExercisePreviewCard } from "@/components/session/ExercisePreviewCard";
 import { ObservationPreview } from "@/components/session/ObservationPreview";
 import { DiscardSessionConfirm } from "@/components/session/DiscardSessionConfirm";
+import { STICKY_FOOTER_CLASS } from "@/components/session/dialogLayout";
 import { ExerciseFirstSessionEntry } from "./ExerciseFirstSessionEntry";
 import { format } from "date-fns";
 
@@ -853,7 +854,9 @@ export function RecordIndividualSessionDialog({
           </Alert>
         )}
 
-        <DialogFooter className="gap-2">
+        {/* CTA sempre à vista: rodapé fixo no fundo do diálogo que rola (a entrada
+            por exercício tem rodapé próprio). */}
+        <DialogFooter className={dialogState === 'manual-entry' ? "hidden" : STICKY_FOOTER_CLASS}>
           {dialogState === 'setup' && (
             <>
               <Button variant="ghost" size="touch" onClick={handleStartRecording}>

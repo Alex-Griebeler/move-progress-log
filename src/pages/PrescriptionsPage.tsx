@@ -696,7 +696,7 @@ export default function PrescriptionsPage() {
                 <AlertDialogDescription>
                   As prescrições dentro desta pasta não serão excluídas, apenas movidas para "Sem Pasta".
                   {selectedFolder.children && selectedFolder.children.length > 0 && (
-                    <span className="block mt-2 font-medium text-amber-600">
+                    <span className="block mt-2 font-medium text-warning">
                       Atenção: Esta pasta contém {selectedFolder.children.length} subpasta(s) que também serão excluídas.
                     </span>
                   )}
