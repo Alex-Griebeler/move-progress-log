@@ -35,6 +35,11 @@ import {
   normalizeExerciseSessionName,
 } from "@/utils/exerciseSessionKeys";
 import { formatDistanceToNow } from "date-fns";
+import { formatKg } from "@/utils/displayFormat";
+import { LOAD_BREAKDOWN_LABEL, LOAD_BREAKDOWN_PLACEHOLDER } from "@/components/session/loadCopy";
+
+/** Último campo com Enter encadeado (0=carga, 1=reps, 2=PSE, 3=total). */
+const LAST_FIELD_IDX = 3;
 import { ptBR } from "date-fns/locale";
 import { notify } from "@/lib/notify";
 import { logger } from "@/utils/logger";
@@ -86,6 +91,9 @@ interface ExerciseFirstSessionEntryProps {
   }) => Promise<void>;
   onCancel?: () => void;
   onAddStudent?: () => void;
+  /** Escopo do rascunho local. O individual passa um escopo próprio para
+   *  não restaurar o rascunho do grupo da mesma prescrição. */
+  draftScope?: string;
 }
 
 const parseManualLoadKg = (value: string): number | null => {
@@ -108,6 +116,7 @@ export function ExerciseFirstSessionEntry({
   prescriptionId,
   onSave,
   onCancel,
+  draftScope,
 }: ExerciseFirstSessionEntryProps) {
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -115,7 +124,9 @@ export function ExerciseFirstSessionEntry({
   // Draft autosave (localStorage via shared hook). Use a mode-specific
   // entityId so we don't collide with the per-student manual flow, which
   // uses the default key.
-  const draftEntityId = `exercise-first-${prescriptionId ?? "no-prescription"}`;
+  const draftEntityId = `exercise-first-${draftScope ? `${draftScope}-` : ""}${prescriptionId ?? "no-prescription"}`;
+  // Com uma pessoa só (sessão individual) somem os controles de grupo.
+  const isSingleStudent = selectedStudents.length === 1;
   const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } =
     useSessionDraft(draftEntityId);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
@@ -160,7 +171,8 @@ export function ExerciseFirstSessionEntry({
   // Library lookup for exercise metadata
   const { data: exercisesLibrary } = useExercisesLibrary();
 
-  // Input refs for keyboard navigation: [studentIdx][field] where field: 0=load, 1=total, 2=reps, 3=reserve, 4=obs
+  // Refs para o fluxo de teclado, na ordem visual do card:
+  // [studentIdx][field] com field 0=carga, 1=reps, 2=PSE, 3=total.
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   // Last session history
@@ -177,11 +189,6 @@ export function ExerciseFirstSessionEntry({
 
   const totalExercises = prescriptionExercises.length;
   const currentPrescribed = prescriptionExercises[exerciseIndex];
-
-  // Ensure refs array matches student count
-  useEffect(() => {
-    inputRefs.current = selectedStudents.map(() => [null, null, null, null, null]);
-  }, [selectedStudents]);
 
   // Restore draft once per mount when one exists in localStorage. Walks
   // the draft's studentExercises and merges into `data`; prescription
@@ -331,26 +338,34 @@ export function ExerciseFirstSessionEntry({
     []
   );
 
-  // Keyboard flow: Enter → next field → next student
+  // Fluxo de teclado: Enter → próximo campo → carga da próxima pessoa.
+  // No último campo da última pessoa, Enter só fecha o teclado.
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent, studentIdx: number, fieldIdx: number) => {
+    (e: React.KeyboardEvent<HTMLInputElement>, studentIdx: number, fieldIdx: number) => {
       if (e.key !== "Enter") return;
       e.preventDefault();
 
-      // field 0=load, 1=total, 2=reps, 3=reserve, 4=obs
-      if (fieldIdx < 4) {
-        // Move to next field same student
+      if (fieldIdx < LAST_FIELD_IDX) {
         inputRefs.current[studentIdx]?.[fieldIdx + 1]?.focus();
+        return;
+      }
+      const nextStudent = studentIdx + 1;
+      if (nextStudent < selectedStudents.length) {
+        inputRefs.current[nextStudent]?.[0]?.focus();
       } else {
-        // Move to load of next student
-        const nextStudent = studentIdx + 1;
-        if (nextStudent < selectedStudents.length) {
-          inputRefs.current[nextStudent]?.[0]?.focus();
-        }
+        e.currentTarget.blur();
       }
     },
     [selectedStudents.length]
   );
+
+  const setInputRef = (studentIdx: number, fieldIdx: number) => (el: HTMLInputElement | null) => {
+    if (!inputRefs.current[studentIdx]) inputRefs.current[studentIdx] = [null, null, null, null];
+    inputRefs.current[studentIdx][fieldIdx] = el;
+  };
+
+  const enterHint = (studentIdx: number, fieldIdx: number): "next" | "done" =>
+    fieldIdx === LAST_FIELD_IDX && studentIdx === selectedStudents.length - 1 ? "done" : "next";
 
   const handleApplyToAll = useCallback(() => {
     const firstFilled = selectedStudents.find((s) => {
@@ -371,7 +386,7 @@ export function ExerciseFirstSessionEntry({
       }
     });
     if (count === 0) {
-      notify.info("Todos os alunos já possuem carga preenchida");
+      notify.info("Todas as pessoas já têm carga preenchida");
       return;
     }
     setData((prev) => {
@@ -393,7 +408,7 @@ export function ExerciseFirstSessionEntry({
       });
       return updated;
     });
-    notify.success(`Carga aplicada para ${count} aluno(s)`);
+    notify.success(count === 1 ? "Carga aplicada a 1 pessoa" : `Carga aplicada a ${count} pessoas`);
   }, [data, exerciseIndex, selectedStudents]);
 
   const handleRepeatLastLoad = useCallback(
@@ -515,7 +530,7 @@ export function ExerciseFirstSessionEntry({
     })
   );
 
-  const renderTouchStudentCard = (student: StudentInfo) => {
+  const renderTouchStudentCard = (student: StudentInfo, studentIdx: number) => {
     const entry = data[student.id]?.[exerciseIndex];
     if (!entry) return null;
 
@@ -527,11 +542,13 @@ export function ExerciseFirstSessionEntry({
       <div key={student.id} className="rounded-xl border border-border bg-card p-3 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-sm font-semibold leading-tight">{student.name}</p>
+            {!isSingleStudent && (
+              <p className="text-sm font-semibold leading-tight">{student.name}</p>
+            )}
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className="text-xs text-muted-foreground">{entry.exercise_name}</span>
               {isSubstituted && (
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-xs">
                   substituído
                 </Badge>
               )}
@@ -553,7 +570,7 @@ export function ExerciseFirstSessionEntry({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-medium text-foreground">
-                  Última: {last.load_breakdown ? compressLoadShorthand(last.load_breakdown) : "—"} = {last.load_kg ?? "—"}kg ×{last.reps ?? "—"}
+                  Última: {last.load_breakdown ? compressLoadShorthand(last.load_breakdown) : "—"} = {formatKg(last.load_kg)} × {last.reps ?? "—"}
                   {last.reserve_reps && ` · PSE ${last.reserve_reps}`}
                 </p>
                 {last.date && (
@@ -580,35 +597,49 @@ export function ExerciseFirstSessionEntry({
 
         <div className="mt-3 grid grid-cols-2 gap-3">
           <div className="col-span-2">
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
-              Carga parcial
+            <label
+              htmlFor={`load-${student.id}-${exerciseIndex}`}
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
+              {LOAD_BREAKDOWN_LABEL}
             </label>
             <Input
+              id={`load-${student.id}-${exerciseIndex}`}
+              ref={setInputRef(studentIdx, 0)}
+              onKeyDown={(e) => handleKeyDown(e, studentIdx, 0)}
+              enterKeyHint={enterHint(studentIdx, 0)}
               value={entry.load_breakdown}
               onChange={(e) => updateField(student.id, exerciseIndex, "load_breakdown", e.target.value)}
               onBlur={() => handleLoadBlur(student.id, exerciseIndex)}
-              placeholder="2x24, KB32, 10cl b15"
+              placeholder={LOAD_BREAKDOWN_PLACEHOLDER}
               className={`min-h-11 text-base ${
                 deviation
-                  ? "border-amber-500 focus-visible:ring-amber-500"
+                  ? "border-warning focus-visible:ring-warning"
                   : !isLoadExemptCategory(entry.exercise_name) && !entry.load_breakdown
                   ? "border-destructive/50"
                   : ""
               }`}
             />
             {deviation && (
-              <p className="mt-1 flex items-center gap-1 text-xs text-amber-600">
-                <AlertTriangle className="h-3.5 w-3.5" />
+              <p className="mt-1 flex items-center gap-1 text-xs text-warning">
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
                 Desvio maior que 30% da última carga.
               </p>
             )}
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor={`reps-${student.id}-${exerciseIndex}`}
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
               Reps
             </label>
             <Input
+              id={`reps-${student.id}-${exerciseIndex}`}
+              ref={setInputRef(studentIdx, 1)}
+              onKeyDown={(e) => handleKeyDown(e, studentIdx, 1)}
+              enterKeyHint={enterHint(studentIdx, 1)}
               type="number"
               value={entry.reps || ""}
               onChange={(e) =>
@@ -623,10 +654,17 @@ export function ExerciseFirstSessionEntry({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor={`pse-${student.id}-${exerciseIndex}`}
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
               PSE
             </label>
             <Input
+              id={`pse-${student.id}-${exerciseIndex}`}
+              ref={setInputRef(studentIdx, 2)}
+              onKeyDown={(e) => handleKeyDown(e, studentIdx, 2)}
+              enterKeyHint={enterHint(studentIdx, 2)}
               value={entry.reserve_reps}
               onChange={(e) => updateField(student.id, exerciseIndex, "reserve_reps", e.target.value)}
               placeholder="7-8, em barra, leve"
@@ -635,16 +673,23 @@ export function ExerciseFirstSessionEntry({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+            <label
+              htmlFor={`total-${student.id}-${exerciseIndex}`}
+              className="mb-1 block text-xs font-medium text-muted-foreground"
+            >
               Total
             </label>
             <Input
+              id={`total-${student.id}-${exerciseIndex}`}
+              ref={setInputRef(studentIdx, 3)}
+              onKeyDown={(e) => handleKeyDown(e, studentIdx, 3)}
+              enterKeyHint={enterHint(studentIdx, 3)}
               type="number"
               step="0.1"
               inputMode="decimal"
               value={entry.load_kg ?? ""}
               onChange={(e) => handleManualLoadKgChange(student.id, exerciseIndex, e.target.value)}
-              placeholder="—"
+              placeholder="kg"
               className="number-input-clean min-h-11 text-center font-mono text-base"
             />
             {entry.load_kg_manual_override && (
@@ -699,7 +744,7 @@ export function ExerciseFirstSessionEntry({
               </>
             ) : lastSaved ? (
               <>
-                <Save className="h-3 w-3 text-green-600" />
+                <Save className="h-3 w-3 text-success" aria-hidden="true" />
                 <span className="text-muted-foreground">
                   Rascunho salvo {formatDistanceToNow(lastSaved, { addSuffix: true, locale: ptBR })}
                 </span>
@@ -711,7 +756,7 @@ export function ExerciseFirstSessionEntry({
               variant="ghost"
               size="sm"
               onClick={() => setHistoryDialogOpen(true)}
-              className="text-xs gap-1"
+              className="min-h-10 text-xs gap-1"
             >
               <History className="h-3 w-3" />
               Histórico
@@ -720,7 +765,7 @@ export function ExerciseFirstSessionEntry({
               variant="ghost"
               size="sm"
               onClick={clearDraft}
-              className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="min-h-10 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <Trash className="h-3 w-3 mr-1" />
               Limpar rascunho
@@ -773,20 +818,22 @@ export function ExerciseFirstSessionEntry({
           Each card has full-width fields so observations is comfortable
           (was previously squeezed inside a desktop-only Table). */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center justify-between">
-            <span>{selectedStudents.length} alunos</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleApplyToAll}
-              className="gap-1 h-7 text-xs"
-            >
-              <Copy className="h-3 w-3" />
-              Aplicar carga p/ todos
-            </Button>
-          </CardTitle>
-        </CardHeader>
+        {!isSingleStudent && (
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span>{selectedStudents.length} pessoas</span>
+              <Button
+                variant="ghost"
+                size="touch"
+                onClick={handleApplyToAll}
+                className="gap-1 text-xs"
+              >
+                <Copy className="h-3 w-3" aria-hidden="true" />
+                Aplicar carga a todos
+              </Button>
+            </CardTitle>
+          </CardHeader>
+        )}
         <CardContent className="space-y-3 p-3 sm:p-4">
           {selectedStudents.map(renderTouchStudentCard)}
         </CardContent>
@@ -802,9 +849,11 @@ export function ExerciseFirstSessionEntry({
             <p className="truncate text-sm font-semibold">{currentPrescribed.exercise_name}</p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Badge variant="secondary">{selectedStudents.length} alunos</Badge>
+            {!isSingleStudent && (
+              <Badge variant="secondary">{selectedStudents.length} pessoas</Badge>
+            )}
             {onCancel && (
-              <Button onClick={onCancel} variant="ghost" size="sm" disabled={isSubmitting}>
+              <Button onClick={onCancel} variant="ghost" size="sm" className="min-h-10" disabled={isSubmitting}>
                 Voltar
               </Button>
             )}
@@ -827,10 +876,10 @@ export function ExerciseFirstSessionEntry({
                 onClick={() => setExerciseIndex(idx)}
                 aria-label={`Ir para exercício ${idx + 1} de ${totalExercises}`}
                 aria-current={idx === exerciseIndex ? "step" : undefined}
-                className="group flex h-8 min-w-8 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="group flex h-10 min-w-10 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <span
-                  className={`h-2 rounded-full transition-all group-hover:scale-125 ${
+                  className={`h-2 rounded-full transition-colors ${
                     idx === exerciseIndex
                       ? "w-6 bg-primary"
                       : allFilled
@@ -889,7 +938,7 @@ export function ExerciseFirstSessionEntry({
             ) : (
               <>
                 <Save className="h-4 w-4" />
-                <span className="hidden sm:inline">Salvar Sessão</span>
+                <span className="hidden sm:inline">Salvar sessão</span>
                 <span className="sm:hidden">Salvar</span>
               </>
             )}

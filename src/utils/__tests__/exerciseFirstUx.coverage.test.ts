@@ -143,7 +143,7 @@ describe("ExerciseFirstSessionEntry — UX overhaul", () => {
 
     it("aplicar carga p/ todos continua presente (handleApplyToAll)", () => {
       expect(componentSrc).toContain("handleApplyToAll");
-      expect(componentSrc).toContain("Aplicar carga p/ todos");
+      expect(componentSrc).toContain("Aplicar carga a todos");
     });
 
     it("troca de exercício (openSubstitution) continua presente", () => {

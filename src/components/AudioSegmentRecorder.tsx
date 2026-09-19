@@ -57,13 +57,7 @@ export function AudioSegmentRecorder({
       clearInterval(durationIntervalRef.current);
     }
 
-    let processingToastId: string | number | undefined;
-
     try {
-      processingToastId = sonnerToast.loading(`Processando Segmento ${currentSegmentNumber}...`, {
-        description: "Convertendo fala em texto com IA",
-      });
-
       const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
       const reader = new FileReader();
       reader.readAsDataURL(audioBlob);
@@ -93,29 +87,22 @@ export function AudioSegmentRecorder({
           segmentOrder: currentSegmentNumber,
           rawTranscription: data.transcription,
           audioDuration: duration,
-          extractedData: data.data, // 🔥 INCLUIR DADOS ESTRUTURADOS!
+          extractedData: data.data, // dados estruturados extraídos pela edge
         };
 
+        // O resultado aparece na própria tela (transcrição + botão de revisar);
+        // sem toast de progresso.
         onSegmentComplete(segment);
-
-        sonnerToast.dismiss(processingToastId);
-        sonnerToast.success(`Segmento ${currentSegmentNumber} processado! ✅`, {
-          description: "Revise e edite a transcrição se necessário",
-        });
       } else {
         throw new Error(data.error || "Erro ao processar áudio");
       }
     } catch (error: unknown) {
       logger.error("Error processing audio:", error);
 
-      if (processingToastId) sonnerToast.dismiss(processingToastId);
-
       const errorMsg = buildErrorDescription(error) || "Erro ao processar gravação";
-      sonnerToast.error("Erro no processamento", {
-        description: errorMsg,
-      });
-
+      // O diálogo pai já avisa o erro; só avisamos aqui quando não há pai.
       if (onError) onError(errorMsg);
+      else sonnerToast.error("Não foi possível transcrever o trecho", { description: errorMsg });
     } finally {
       setIsProcessing(false);
       setRecordingDuration(0);
@@ -131,11 +118,7 @@ export function AudioSegmentRecorder({
   const startRecording = useCallback(async () => {
     if (isRecording || isProcessing) return;
 
-    let permissionToastId: string | number | undefined;
-
     try {
-      permissionToastId = sonnerToast.loading("Solicitando acesso ao microfone...");
-
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           sampleRate: 16000,
@@ -171,23 +154,14 @@ export function AudioSegmentRecorder({
         setRecordingDuration((prev) => prev + 1);
       }, 1000);
 
-      if (permissionToastId) sonnerToast.dismiss(permissionToastId);
-
-      sonnerToast.success(`Gravando Segmento ${currentSegmentNumber}! 🎙️`, {
-        description: "Fale sobre a sessão. Clique em 'Parar' quando terminar este segmento.",
-      });
     } catch (error: unknown) {
       logger.error("Error starting recording:", error);
-      if (permissionToastId) sonnerToast.dismiss(permissionToastId);
 
       const errorMsg = buildErrorDescription(error) || "Não foi possível iniciar a gravação";
-      sonnerToast.error("Erro ao acessar microfone", {
-        description: errorMsg,
-      });
-
-      if (onError) onError(errorMsg);
+      if (onError) onError(`Microfone indisponível: ${errorMsg}`);
+      else sonnerToast.error("Microfone indisponível", { description: errorMsg });
     }
-  }, [isRecording, isProcessing, currentSegmentNumber, onError, processAudioSegment]);
+  }, [isRecording, isProcessing, onError, processAudioSegment]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -204,14 +178,14 @@ export function AudioSegmentRecorder({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Gravação de Áudio - Segmento {currentSegmentNumber}</CardTitle>
+        <CardTitle className="text-base">Trecho {currentSegmentNumber}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {isRecording && (
           <div className="text-center">
-            <div className="inline-flex items-center gap-2 text-destructive font-medium">
-              <div className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
-              Gravando... {formatDuration(recordingDuration)}
+            <div className="inline-flex items-center gap-2 text-destructive font-medium" aria-live="polite">
+              <div className="h-3 w-3 rounded-full bg-destructive animate-pulse" aria-hidden="true" />
+              Gravando {formatDuration(recordingDuration)}
             </div>
           </div>
         )}
@@ -219,8 +193,8 @@ export function AudioSegmentRecorder({
         {isProcessing && (
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p className="mt-2 text-sm text-muted-foreground">
-              Processando áudio e transcrevendo...
+            <p className="mt-2 text-sm text-muted-foreground" aria-live="polite">
+              Transcrevendo o trecho…
             </p>
           </div>
         )}
@@ -229,14 +203,14 @@ export function AudioSegmentRecorder({
           {!isRecording && !isProcessing && (
             <Button onClick={startRecording} className="flex-1" size="lg">
               <Mic className="h-5 w-5 mr-2" />
-              Iniciar Gravação
+              Começar a gravar
             </Button>
           )}
 
           {isRecording && (
             <Button onClick={stopRecording} variant="destructive" className="flex-1" size="lg">
               <Square className="h-5 w-5 mr-2" />
-              Parar Gravação
+              Parar e transcrever
             </Button>
           )}
         </div>

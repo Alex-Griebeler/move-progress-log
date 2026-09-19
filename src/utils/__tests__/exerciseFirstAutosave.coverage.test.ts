@@ -50,7 +50,8 @@ describe("ExerciseFirstSessionEntry — autosave de rascunho", () => {
 
     it("usa entityId distinto do modo Por Aluno para não colidir no localStorage", () => {
       expect(componentSrc).toMatch(/useSessionDraft\(draftEntityId\)/);
-      expect(componentSrc).toMatch(/exercise-first-\$\{prescriptionId\b/);
+      // O escopo opcional (sessão individual) entra antes do id da prescrição.
+      expect(componentSrc).toMatch(/`exercise-first-\$\{draftScope[\s\S]{0,40}?\$\{prescriptionId\b/);
     });
   });
 
