@@ -46,7 +46,10 @@ import { UserCog, Loader2, KeyRound, AlertTriangle } from "lucide-react";
 
 const editUserSchema = z.object({
   fullName: z.string().min(3, "Nome deve ter pelo menos 3 caracteres").max(100),
-  email: z.string().email("Email inválido"),
+  // A lista não conhece o e-mail real (sem auth.admin no front): vazio =
+  // manter o atual. Antes o campo vinha com um endereço fictício e salvar
+  // podia sobrescrever o e-mail de login.
+  email: z.string().email("E-mail inválido").or(z.literal("")),
   role: z.enum(["admin", "moderator", "user"]),
   newPassword: z.string().optional(),
 });
@@ -138,7 +141,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
         body: {
           userId: user.id,
           fullName: values.fullName,
-          email: values.email,
+          email: values.email || undefined,
           role: values.role,
           newPassword: values.newPassword || undefined,
         },
@@ -156,7 +159,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
         throw new Error(data.error);
       }
 
-      notify.success("Usuário atualizado com sucesso!");
+      notify.success("Usuário atualizado");
       onOpenChange(false);
       onSuccess();
     } catch (error: unknown) {
@@ -173,18 +176,20 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
     if (!user) return;
 
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+      const email = form.getValues("email");
+      if (!email) return;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) throw error;
 
-      notify.success("Email de reset enviado!", {
-        description: `Um link de redefinição foi enviado para ${user.email}`,
+      notify.success("E-mail de redefinição enviado", {
+        description: `Um link de redefinição foi enviado para ${email}`,
       });
     } catch (error: unknown) {
       logger.error("Error sending reset email:", error);
-      notify.error("Erro ao enviar email", {
+      notify.error("Erro ao enviar e-mail", {
         description: buildErrorDescription(error) || "Tente novamente mais tarde",
       });
     }
@@ -199,7 +204,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserCog className="h-5 w-5" />
-              Editar Usuário
+              Editar usuário
             </DialogTitle>
             <DialogDescription>
               Atualize as informações do usuário {user.full_name}
@@ -213,7 +218,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
                 name="fullName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nome Completo *</FormLabel>
+                    <FormLabel>Nome completo *</FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -227,9 +232,9 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email *</FormLabel>
+                    <FormLabel>E-mail</FormLabel>
                     <FormControl>
-                      <Input type="email" {...field} />
+                      <Input type="email" inputMode="email" placeholder="Deixe vazio para manter o atual" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -273,7 +278,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
                 name="newPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nova Senha (opcional)</FormLabel>
+                    <FormLabel>Nova senha (opcional)</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="Deixe vazio para não alterar" {...field} />
                     </FormControl>
@@ -288,15 +293,17 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
               <div className="flex items-center gap-sm p-md bg-muted rounded-lg">
                 <KeyRound className="h-4 w-4 text-muted-foreground" />
                 <div className="flex-1 text-sm">
-                  Ou envie um email de redefinição de senha
+                  {form.watch("email")
+                    ? "Ou envie um e-mail de redefinição de senha"
+                    : "Informe o e-mail acima para enviar a redefinição de senha"}
                 </div>
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
                   onClick={handleResetPassword}
+                  disabled={!form.watch("email")}
                 >
-                  Enviar Email
+                  Enviar e-mail
                 </Button>
               </div>
 
@@ -311,7 +318,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Salvar Alterações
+                  Salvar alterações
                 </Button>
               </DialogFooter>
             </form>
@@ -324,7 +331,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Confirmar Alteração de Perfil
+              Confirmar alteração de perfil
             </AlertDialogTitle>
             <AlertDialogDescription>
               Você está prestes a remover o perfil de <strong>Administrador</strong> deste usuário.
@@ -336,7 +343,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={confirmRoleChange}>
-              Confirmar Alteração
+              Confirmar alteração
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
