@@ -24,9 +24,9 @@ export const OuraConnectionStatus = ({ studentId, hasConnection }: OuraConnectio
       metrics.activity_score === null)
   ) {
     return (
-      <Alert variant="default" className="border-amber-200 bg-amber-50">
-        <AlertCircle className="h-4 w-4 text-amber-600" />
-        <AlertDescription className="text-amber-800">
+      <Alert variant="default" className="border-warning/40 bg-warning/10">
+        <AlertCircle className="h-4 w-4 text-warning" aria-hidden />
+        <AlertDescription className="text-sm text-foreground">
           Conectado ao Oura Ring, aguardando sincronização de dados.
         </AlertDescription>
       </Alert>
@@ -41,10 +41,10 @@ export const OuraConnectionStatus = ({ studentId, hasConnection }: OuraConnectio
 
   if (missingMetrics.length > 0) {
     return (
-      <Alert variant="default" className="border-blue-200 bg-blue-50">
-        <AlertCircle className="h-4 w-4 text-blue-600" />
-        <AlertDescription className="text-blue-800 text-sm">
-          Alguns dados do Oura Ring ainda não foram sincronizados: {missingMetrics.join(", ")}
+      <Alert variant="default" className="border-info/40 bg-info/10">
+        <AlertCircle className="h-4 w-4 text-info" aria-hidden />
+        <AlertDescription className="text-sm text-foreground">
+          Ainda sem sincronizar: {missingMetrics.join(", ")}.
         </AlertDescription>
       </Alert>
     );
@@ -52,10 +52,10 @@ export const OuraConnectionStatus = ({ studentId, hasConnection }: OuraConnectio
 
   // Tudo OK
   return (
-    <Alert variant="default" className="border-green-200 bg-green-50">
-      <CheckCircle2 className="h-4 w-4 text-green-600" />
-      <AlertDescription className="text-green-800 text-sm">
-        Dados do Oura Ring sincronizados com sucesso
+    <Alert variant="default" className="border-success/40 bg-success/10">
+      <CheckCircle2 className="h-4 w-4 text-success" aria-hidden />
+      <AlertDescription className="text-sm text-foreground">
+        Dados do Oura Ring sincronizados
       </AlertDescription>
     </Alert>
   );

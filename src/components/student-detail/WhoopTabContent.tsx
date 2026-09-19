@@ -1,6 +1,6 @@
 import { ReactNode, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,7 +9,17 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Activity, RefreshCw } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Activity, Loader2, RefreshCw } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -31,7 +41,19 @@ import { SendWhoopConnectDialog } from "@/components/SendWhoopConnectDialog";
 import { ScoreRing, MetricTile, TrendChart, StaleBadge, DataErrorState } from "@/components/metrics";
 import type { TrendPoint } from "@/components/metrics";
 import { LazyChart } from "@/components/LazyChart";
-import { formatRelativeDay } from "@/utils/relativeDate";
+import { formatRelativeDay, parseLocalDate } from "@/utils/relativeDate";
+import { STUDIO_TIME_ZONE, formatDecimalBR, formatNumberBR, formatTimeSP } from "@/utils/displayFormat";
+
+/** Dia (YYYY-MM-DD) de um instante no fuso do estúdio. */
+const spDateOf = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-CA", { timeZone: STUDIO_TIME_ZONE });
+
+/** "hoje às 07:42" / "ontem às 23:10" — dia e hora no fuso do estúdio. */
+const formatSyncMoment = (iso: string) =>
+  `${formatRelativeDay(spDateOf(iso), parseLocalDate(spToday()))} às ${formatTimeSP(iso)}`;
+
+/** Rótulo de seção/gráfico — 12px, menor token da escala. */
+const SECTION_LABEL = "mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground";
 
 type Period = 7 | 30 | 90;
 
@@ -87,6 +109,7 @@ const chartTooltipStyle = {
 export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabContentProps) => {
   const [period, setPeriod] = useState<Period>(30);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [disconnectOpen, setDisconnectOpen] = useState(false);
   const { data: connection, isLoading: loadingConnection, isError: connectionError, refetch: refetchConnection } = useWhoopConnection(studentId);
   const { data: metrics, isLoading, isError, refetch } = useWhoopMetrics(studentId, {
     days: period,
@@ -149,6 +172,7 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
           key={p}
           variant={period === p ? "secondary" : "outline"}
           size="sm"
+          className="h-10 min-w-10"
           aria-pressed={period === p}
           onClick={() => setPeriod(p)}
         >
@@ -171,14 +195,13 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
                 <p className="font-medium">Whoop conectado</p>
                 <p className="text-sm text-muted-foreground">
                   {connection.last_sync_at
-                    ? `Última sincronização: ${formatRelativeDay(new Date(connection.last_sync_at))} às ${new Date(connection.last_sync_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+                    ? `Última sincronização: ${formatSyncMoment(connection.last_sync_at)}`
                     : "Aguardando primeira sincronização"}
                 </p>
               </div>
               <Button
                 variant="outline"
-                size="sm"
-                onClick={() => disconnectWhoop.mutate(studentId)}
+                onClick={() => setDisconnectOpen(true)}
                 disabled={disconnectWhoop.isPending}
               >
                 Desconectar
@@ -187,9 +210,9 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
           ) : (
             <div className="flex flex-wrap items-center justify-between gap-3 py-1">
               <p className="text-sm text-muted-foreground">
-                Gere um link para o aluno autorizar o compartilhamento dos dados.
+                Gere um link para {studentName} autorizar o compartilhamento dos dados.
               </p>
-              <Button size="sm" onClick={() => setConnectOpen(true)}>
+              <Button onClick={() => setConnectOpen(true)}>
                 <Activity className="mr-2 h-4 w-4" />
                 Conectar Whoop
               </Button>
@@ -222,7 +245,7 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
           <Activity className="mb-4 h-12 w-12 text-muted-foreground" />
           <p className="font-medium">Whoop não conectado</p>
           <p className="mb-4 mt-2 text-sm text-muted-foreground">
-            Gere um link para o aluno autorizar o compartilhamento dos dados do Whoop.
+            Gere um link para {studentName} autorizar o compartilhamento dos dados do Whoop.
           </p>
           <Button onClick={() => setConnectOpen(true)}>
             <Activity className="mr-2 h-4 w-4" />
@@ -238,8 +261,8 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
           <Activity className="mb-4 h-12 w-12 text-muted-foreground" />
           <p className="text-muted-foreground">Sem dados do Whoop no período selecionado</p>
           <p className="mt-2 text-sm text-muted-foreground">
-            Os dados aparecem após a sincronização — o sync roda 3x ao dia
-            {isAdmin ? ", ou use o Sincronizar acima" : ""}.
+            Os dados aparecem após a sincronização, que roda três vezes ao dia
+            {isAdmin ? ". Para buscar agora, use Sincronizar agora" : ""}.
           </p>
         </CardContent>
       </Card>
@@ -252,7 +275,7 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
             <CardContent className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
               <ScoreRing
                 value={latestScored.recovery_score}
-                label="recovery"
+                label="recuperação"
                 tone={recoveryTone(latestScored.recovery_score)}
               />
               <div className="min-w-0 flex-1 space-y-3">
@@ -267,10 +290,11 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                   <MetricTile
                     label="Strain"
-                    value={latestScored.day_strain !== null ? latestScored.day_strain.toFixed(1) : null}
+                    value={latestScored.day_strain !== null ? formatDecimalBR(latestScored.day_strain, 1) : null}
+                    footnote="escala 0–21"
                   />
                   <MetricTile
-                    label="HRV"
+                    label="HRV noturna"
                     value={latestScored.hrv_rmssd !== null ? Math.round(latestScored.hrv_rmssd) : null}
                     unit="ms"
                   />
@@ -297,8 +321,8 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardContent className="p-4">
-              <p className="mb-2 text-[10.5px] uppercase tracking-widest text-muted-foreground">
-                Recovery · últimos {period} dias
+              <p className={SECTION_LABEL}>
+                Recuperação · últimos {period} dias
               </p>
               <LazyChart height={170}>
                 <TrendChart
@@ -313,7 +337,7 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="mb-2 text-[10.5px] uppercase tracking-widest text-muted-foreground">
+              <p className={SECTION_LABEL}>
                 Strain · últimos {period} dias
               </p>
               <LazyChart height={170}>
@@ -332,7 +356,7 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
         {hasSleepStages && (
           <Card>
             <CardContent className="p-4">
-              <p className="mb-2 text-[10.5px] uppercase tracking-widest text-muted-foreground">
+              <p className={SECTION_LABEL}>
                 Fases do sono (horas) · últimos {period} dias
               </p>
               <LazyChart height={200}>
@@ -358,25 +382,31 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
             <div className="max-h-80 overflow-y-auto overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-card">
-                  <tr className="border-b text-left text-[10.5px] uppercase tracking-widest text-muted-foreground">
-                    {["Dia", "Recovery", "Strain", "HRV", "FCR", "Sono", "Efic.", "FR", "SpO2", "Temp. pele", "Despertares", "Status"].map((h) => (
-                      <th key={h} className="px-4 py-2 font-medium">{h}</th>
+                  <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    {["Dia", "Recuperação", "Strain", "HRV", "FCR", "Sono", "Efic.", "FR", "SpO2", "Temp. pele", "Despertares", "Status"].map((h, i) => (
+                      <th
+                        key={h}
+                        scope="col"
+                        className={i === 0 ? "sticky left-0 z-10 bg-card px-4 py-2 font-medium" : "whitespace-nowrap px-4 py-2 font-medium"}
+                      >
+                        {h}
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((m) => (
                     <tr key={m.id} className="border-b last:border-b-0">
-                      <td className="whitespace-nowrap px-4 py-2 text-muted-foreground">{shortDay(m.date)}</td>
+                      <th scope="row" className="sticky left-0 bg-card whitespace-nowrap px-4 py-2 text-left font-normal text-muted-foreground">{shortDay(m.date)}</th>
                       <td className="px-4 py-2">{m.recovery_score !== null ? `${m.recovery_score}%` : "—"}</td>
-                      <td className="px-4 py-2">{m.day_strain !== null ? m.day_strain.toFixed(1) : "—"}</td>
+                      <td className="px-4 py-2">{formatDecimalBR(m.day_strain, 1)}</td>
                       <td className="whitespace-nowrap px-4 py-2">{m.hrv_rmssd !== null ? `${Math.round(m.hrv_rmssd)} ms` : "—"}</td>
                       <td className="whitespace-nowrap px-4 py-2">{m.resting_heart_rate !== null ? `${m.resting_heart_rate} bpm` : "—"}</td>
                       <td className="whitespace-nowrap px-4 py-2">{fmtSleep(m.total_sleep_duration)}</td>
                       <td className="px-4 py-2">{m.sleep_efficiency !== null ? `${Math.round(m.sleep_efficiency)}%` : "—"}</td>
-                      <td className="whitespace-nowrap px-4 py-2">{m.respiratory_rate !== null ? `${m.respiratory_rate.toFixed(1)}/min` : "—"}</td>
-                      <td className="px-4 py-2">{m.spo2 !== null ? `${m.spo2.toFixed(1)}%` : "—"}</td>
-                      <td className="whitespace-nowrap px-4 py-2">{m.skin_temp !== null ? `${m.skin_temp.toFixed(1)}°C` : "—"}</td>
+                      <td className="whitespace-nowrap px-4 py-2">{m.respiratory_rate !== null ? `${formatNumberBR(m.respiratory_rate, 1)}/min` : "—"}</td>
+                      <td className="px-4 py-2">{m.spo2 !== null ? `${formatNumberBR(m.spo2, 1)}%` : "—"}</td>
+                      <td className="whitespace-nowrap px-4 py-2">{m.skin_temp !== null ? `${formatNumberBR(m.skin_temp, 1)} °C` : "—"}</td>
                       <td className="px-4 py-2">{m.disturbance_count ?? "—"}</td>
                       <td className="px-4 py-2">
                         {m.score_state === "PENDING_SCORE" && (
@@ -408,13 +438,12 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
         {isAdmin && connection && (
           <Button
             variant="outline"
-            size="sm"
             onClick={() => syncWhoop.mutate(studentId)}
             disabled={syncWhoop.isPending}
             className="gap-2"
           >
             <RefreshCw className={syncWhoop.isPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
-            {syncWhoop.isPending ? "Sincronizando..." : "Sincronizar agora"}
+            {syncWhoop.isPending ? "Sincronizando…" : "Sincronizar agora"}
           </Button>
         )}
       </div>
@@ -422,6 +451,34 @@ export const WhoopTabContent = ({ studentId, studentName, isAdmin }: WhoopTabCon
       {body}
 
       {footer}
+
+      <AlertDialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Desconectar o Whoop de {studentName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os dados já sincronizados ficam preservados, mas novos dados deixam
+              de chegar. Para reconectar será preciso enviar um novo link e
+              autorizar de novo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={disconnectWhoop.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              disabled={disconnectWhoop.isPending}
+              onClick={() =>
+                disconnectWhoop.mutate(studentId, {
+                  onSettled: () => setDisconnectOpen(false),
+                })
+              }
+            >
+              {disconnectWhoop.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+              Desconectar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <SendWhoopConnectDialog
         open={connectOpen}

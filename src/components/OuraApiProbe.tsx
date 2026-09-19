@@ -70,10 +70,10 @@ export const OuraApiProbe = ({ studentId }: OuraApiProbeProps) => {
             value={date}
             max={spToday()}
             onChange={(e) => setDate(e.target.value)}
-            className="h-8 w-40"
+            className="h-10 w-40"
           />
         </div>
-        <Button size="sm" variant="outline" onClick={run} disabled={busy || !date}>
+        <Button variant="outline" onClick={run} disabled={busy || !date}>
           {busy ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Radar className="h-4 w-4 mr-1" />}
           Sondar D..D vs D..D+1
         </Button>
@@ -83,7 +83,7 @@ export const OuraApiProbe = ({ studentId }: OuraApiProbeProps) => {
         endpoint. Não grava métricas nem logs; só contagens e dias devolvidos pela API (o token OAuth pode ser
         renovado se estiver vencido). Só admin.
       </p>
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
       {result && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -108,7 +108,7 @@ export const OuraApiProbe = ({ studentId }: OuraApiProbeProps) => {
                   <tr key={ep} className="border-t">
                     <td className="py-1 pr-2 font-mono">{ep}</td>
                     <td className="py-1 pr-2">{cell(legacy)}</td>
-                    <td className={`py-1 pr-2 ${current?.count_for_day ? "text-green-600 dark:text-green-400" : ""}`}>
+                    <td className={`py-1 pr-2 ${current?.count_for_day ? "text-success" : ""}`}>
                       {cell(current)}
                       {current?.count_for_day ? ` · dia ${result.date} presente` : ""}
                     </td>

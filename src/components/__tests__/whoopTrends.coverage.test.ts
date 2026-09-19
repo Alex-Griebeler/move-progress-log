@@ -80,7 +80,19 @@ describe("WhoopTabContent", () => {
   });
 
   it("última sync com hora relativa", () => {
-    expect(tab).toContain("formatRelativeDay(new Date(connection.last_sync_at))");
+    // Dia relativo + hora, ambos no fuso do estúdio (revisão UX 18/09).
+    expect(tab).toContain("formatSyncMoment(connection.last_sync_at)");
+    expect(tab).toContain("formatRelativeDay(spDateOf(iso), parseLocalDate(spToday()))");
+    expect(tab).toContain("formatTimeSP(iso)");
+  });
+
+  it("Desconectar pede confirmação (AlertDialog, igual ao Oura) antes de revogar", () => {
+    expect(tab).toContain("onClick={() => setDisconnectOpen(true)}");
+    expect(tab).toContain("<AlertDialog open={disconnectOpen}");
+    // A única chamada da mutação fica dentro da ação do diálogo.
+    expect(tab.match(/disconnectWhoop\.mutate\(/g)).toHaveLength(1);
+    const actionIdx = tab.indexOf("<AlertDialogAction");
+    expect(tab.indexOf("disconnectWhoop.mutate(")).toBeGreaterThan(actionIdx);
   });
 
   it("faixas 67/34 e zero emoji", () => {
