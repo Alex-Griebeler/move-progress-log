@@ -4,7 +4,7 @@ import { logger } from "@/utils/logger";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
-import { AlertCircle, Activity, Target } from "lucide-react";
+import { AlertCircle, Target } from "lucide-react";
 import { OuraMetrics, spToday } from "@/hooks/useOuraMetrics";
 import { WhoopMetrics } from "@/hooks/useWhoopMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
@@ -20,6 +20,8 @@ import {
   AccordionTrigger,
 } from "./ui/accordion";
 import TrainingZonesCard from "./TrainingZonesCard";
+import InfoDisclosure from "./InfoDisclosure";
+import { formatDecimalBR, formatKg, formatNumberBR, formatTimeSP } from "@/utils/displayFormat";
 import { ScoreRing, MetricTile, DataErrorState } from "./metrics";
 import type { MetricDelta, MetricTone } from "./metrics";
 import { buildRecoverySnapshot } from "@/utils/recoverySnapshot";
@@ -70,13 +72,14 @@ import {
   CONDUCT_TONE_BY_ZONE,
   SNAPSHOT_ZONE_SHORT,
   VERDICT_BY_ZONE,
+  formatConductVeto,
   formatDoseShort,
   perceptionCausalLine,
   perceptionEyebrow,
 } from "@/utils/recommendationDisplay";
 import {
   AlertDialog,
-  AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -100,21 +103,25 @@ interface PersonalizedTrainingDashboardProps {
    */
   latestOuraError?: boolean;
   onStartTraining?: (prescriptionId?: string | null) => void;
+  /** Recarrega as consultas de recuperação (erro total/parcial). */
+  onRetry?: () => void;
+  /**
+   * Conexão Oura resolvida: true = ativa, false = nenhuma, null/undefined =
+   * desconhecida (carregando/erro). Só com "nenhuma" nos DOIS aparelhos o
+   * estado vazio oferece o caminho de conexão.
+   */
+  hasOuraConnection?: boolean | null;
+  /** Leva à aba do aparelho para conectar (estado vazio sem aparelho). */
+  onConnectDevice?: (device: "oura" | "whoop") => void;
 }
 
-const ZONE_LABEL: Record<string, string> = {
-  green_high: "Verde Alta",
-  green: "Verde",
-  yellow: "Amarela",
-  orange: "Laranja",
-  red: "Vermelha",
-};
-
+// UX 18/09 (UX-05): "Fallback"/códigos da fonte da carga viram linguagem do
+// treinador — o detalhe mora no ⓘ de cada exercício.
 const SOURCE_LABEL: Record<string, string> = {
   last_valid: "Última carga válida",
-  best_recent_equivalent: "Melhor recente equivalente",
+  best_recent_equivalent: "Melhor carga recente equivalente",
   same_block: "Última do bloco atual",
-  fallback_keep: "Fallback manter carga",
+  fallback_keep: "Manter carga (sem referência melhor)",
   insufficient: "Dados insuficientes",
 };
 
@@ -129,16 +136,6 @@ const formatDuration = (seconds: number | null) => {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours}h ${minutes}min`;
-};
-
-const formatLoad = (value: number | null | undefined) => {
-  if (value === null || value === undefined) return "--";
-  return `${value.toFixed(1)} kg`;
-};
-
-const formatAdjustmentPercent = (value: number | null) => {
-  if (value === null) return "--";
-  return `${value > 0 ? "+" : ""}${value}%`;
 };
 
 const getSuggestionStatusLabel = (status: string) => {
@@ -163,6 +160,9 @@ const PersonalizedTrainingDashboard = ({
   isError = false,
   latestOuraError = false,
   onStartTraining,
+  onRetry,
+  hasOuraConnection,
+  onConnectDevice,
 }: PersonalizedTrainingDashboardProps) => {
   // 30 dias: é o que a UI promete nos deltas ("vs 30d") — o default do hook
   // era 14 e ninguém percebia a divergência.
@@ -280,6 +280,7 @@ const PersonalizedTrainingDashboard = ({
     invalidateConductSync();
   }, [studentId]);
   const conductRegionRef = useRef<HTMLDivElement | null>(null);
+  const heroRef = useRef<HTMLDivElement | null>(null);
   const lastRegisteredVerdictRef = useRef<string | null>(null);
   const skipHintShownRef = useRef(false);
   // Escolha de alternativa é estado GLOBAL: sem casar {studentId, date},
@@ -423,6 +424,7 @@ const PersonalizedTrainingDashboard = ({
     data: loadResult,
     isLoading: loadSuggestionsLoading,
     isError: loadSuggestionsError,
+    refetch: refetchLoadSuggestions,
   } = useLoadSuggestions(
     studentId,
     conduct?.suspended ? null : conductRecommendation,
@@ -898,6 +900,9 @@ const PersonalizedTrainingDashboard = ({
       skipHintShownRef.current = true;
       toast({ title: "Check-in pulado", description: "Você pode fazê-lo depois pela linha do check-in." });
     }
+    // UX-08: o formulário desmonta sob o foco — a conduta revelada recebe o
+    // foco (mesma região do Registrar), senão o Tab recomeça do topo.
+    requestAnimationFrame(() => conductRegionRef.current?.focus());
   };
   const reopenCheckIn = () => {
     // FRIA-3: reabrir é INTERAÇÃO — fecha a janela de cold start antes de
@@ -908,6 +913,13 @@ const PersonalizedTrainingDashboard = ({
     setSelectedAlternative(null);
     setCheckInRecord(null); // valor do PSR fica como rascunho no form
     setEditingCheckIn(true);
+    // UX-08: o botão some sob o dedo — o foco vai para o rádio com tab stop
+    // da escala reaberta (roving tabindex do próprio CheckInForm).
+    requestAnimationFrame(() =>
+      heroRef.current
+        ?.querySelector<HTMLElement>('[role="radiogroup"] [tabindex="0"]')
+        ?.focus(),
+    );
   };
 
   // "registrado 08:10 · Refazer" quando o registro tem >3h (U14) — mesmo
@@ -921,9 +933,7 @@ const PersonalizedTrainingDashboard = ({
     whoopClockMs - registeredAtMs > 3 * 3_600_000;
   const registeredAtDisplay =
     registeredAtMs !== null && Number.isFinite(registeredAtMs)
-      ? new Date(registeredAtMs).toLocaleTimeString("pt-BR", {
-          hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo",
-        })
+      ? formatTimeSP(registeredAtMs)
       : null;
 
 
@@ -937,22 +947,57 @@ const PersonalizedTrainingDashboard = ({
   // instante e trocava pra Whoop de hoje (auditoria 29/08). Refetches não
   // passam por aqui (isLoading ≠ isFetching).
   if (isLoading) {
+    // UX-24: silhueta do hero (anel + coluna de texto) — a tela não "pula"
+    // quando o dado chega.
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-48 w-full rounded-lg" />
-        <Skeleton className="h-24 w-full rounded-lg" />
-      </div>
+      <Card className="border-l-2 border-l-primary p-6" aria-busy="true" aria-label="Carregando recuperação de hoje">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+          <Skeleton className="h-[150px] w-[150px] shrink-0 rounded-full" />
+          <div className="flex-1 space-y-3">
+            <Skeleton className="h-5 w-32 rounded-md" />
+            <Skeleton className="h-6 w-full max-w-sm rounded-md" />
+            <Skeleton className="h-11 w-36 rounded-md" />
+          </div>
+        </div>
+      </Card>
     );
   }
   if (isError && !snapshot) {
-    return <DataErrorState what="os dados de recuperação" />;
+    return <DataErrorState what="os dados de recuperação" onRetry={onRetry} />;
   }
   if (!snapshot) {
+    // UX-01 (decisão do Alex 15/09: só score de HOJE, sem modo PSR): a frase
+    // curta fica, e o estado ganha CAMINHO — iniciar a sessão pelo mesmo
+    // fluxo do hero (sem conduta, sem prescrição escopada) e, quando nenhum
+    // aparelho está conectado, ir à aba do aparelho para conectar.
+    const noDeviceConnected =
+      hasOuraConnection === false && whoopConnection === null && !whoopConnectionError;
     return (
-      <Card className="p-6">
-        <div className="text-center text-muted-foreground">
-          <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Sem dados recentes de recuperação</p>
+      <Card className="border-l-2 border-l-primary p-6">
+        <div className="flex flex-col items-start gap-3">
+          <p className="text-base font-medium">Sem dados recentes de recuperação</p>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Button onClick={() => onStartTraining?.(null)}>Iniciar treino</Button>
+            {noDeviceConnected && onConnectDevice && (
+              <span className="flex flex-wrap items-center gap-x-3 text-sm">
+                <button
+                  type="button"
+                  className="inline-flex min-h-10 items-center text-primary underline-offset-4 hover:underline"
+                  onClick={() => onConnectDevice("oura")}
+                >
+                  Conectar Oura
+                </button>
+                <span aria-hidden="true" className="text-muted-foreground">·</span>
+                <button
+                  type="button"
+                  className="inline-flex min-h-10 items-center text-primary underline-offset-4 hover:underline"
+                  onClick={() => onConnectDevice("whoop")}
+                >
+                  Conectar Whoop
+                </button>
+              </span>
+            )}
+          </div>
         </div>
       </Card>
     );
@@ -972,7 +1017,7 @@ const PersonalizedTrainingDashboard = ({
     if (rounded === 0) return { text: "na média 30d", direction: "flat" };
     const direction = rounded > 0 ? "up" : "down";
     const positive = opts.lowerIsBetter ? rounded < 0 : rounded > 0;
-    return { text: `${rounded > 0 ? "+" : ""}${rounded} vs 30d`, direction, positive };
+    return { text: `${rounded > 0 ? "+" : ""}${formatDecimalBR(rounded, opts.decimals ?? 0)} vs 30d`, direction, positive };
   };
 
   // Conteúdo derivado de Oura (recomendação, carga, protocolos, alertas e
@@ -1039,7 +1084,6 @@ const PersonalizedTrainingDashboard = ({
           value={ouraDayRow.resting_heart_rate}
           unit="bpm"
           delta={baselineDelta(ouraDayRow.resting_heart_rate, baseline?.avgRHR, { lowerIsBetter: true })}
-          footnote="abaixo = melhor"
         />
       ),
     });
@@ -1051,10 +1095,9 @@ const PersonalizedTrainingDashboard = ({
       tile: (
         <MetricTile
           label="Temperatura"
-          value={`${t > 0 ? "+" : ""}${t.toFixed(1)}`}
+          value={`${t > 0 ? "+" : ""}${formatNumberBR(t, 1)}`}
           unit="°C"
           tone={Math.abs(t) >= 0.5 ? "warning" : "neutral"}
-          footnote="desvio vs pessoal"
         />
       ),
     });
@@ -1068,7 +1111,7 @@ const PersonalizedTrainingDashboard = ({
           value={ouraDayRow.activity_score}
           footnote={
             ouraDayRow.steps !== null
-              ? `${ouraDayRow.steps.toLocaleString("pt-BR")} passos`
+              ? `${formatNumberBR(ouraDayRow.steps)} passos`
               : undefined
           }
         />
@@ -1129,7 +1172,7 @@ const PersonalizedTrainingDashboard = ({
       physiology.push({
         key: "strain",
         metric: "strain",
-        tile: <MetricTile label="Strain" value={w.day_strain.toFixed(1)} />,
+        tile: <MetricTile label="Strain" value={formatStrainDisplay(w.day_strain)} />,
       });
     }
     if (w?.hrv_rmssd != null) {
@@ -1237,12 +1280,29 @@ const PersonalizedTrainingDashboard = ({
     : psrStagePerception
       ? perceptionEyebrow(psrStagePerception)
       : null;
+  // Alternativas do dia (UX-10): a opção IGUAL à conduta exibida (zona +
+  // carga) não é escolha — vira "Conduta atual"; sem nenhuma diferente, o
+  // botão "Ver alternativas" nem aparece.
+  const alternativesForToday = getTrainingAlternativesForZone(
+    // Zona FINAL do motor (já com fadiga/override); score cru só
+    // no fallback raro sem recomendação da fonte ativa.
+    hasActionableRecommendation && activeRecommendation ? activeRecommendation.zone : null,
+    snapshot.score,
+  ).map((alt) => ({
+    alt,
+    isCurrent:
+      conduct !== null &&
+      alt.targetZone === conduct.effectiveZone &&
+      alt.targetLoadDecision === conduct.effectiveLoadDecision &&
+      (alt.targetAdjustmentPercent ?? null) === (conduct.effectiveLoadAdjustmentPercent ?? null),
+  }));
+  const hasSelectableAlternative = alternativesForToday.some((a) => !a.isCurrent);
   return (
     <div className="space-y-6">
       {/* HERO — um único score de recuperação. Fonte/data só aparecem quando
           o dado está velho (decisão ratificada 28/08); o tom da zona e o
           rótulo curto carregam a interpretação no fluxo normal. */}
-      <Card className="border-l-2 border-l-primary p-6">
+      <Card ref={heroRef} className="border-l-2 border-l-primary p-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
           <ScoreRing
             value={snapshot.score}
@@ -1250,51 +1310,49 @@ const PersonalizedTrainingDashboard = ({
             tone={SNAPSHOT_TONE[snapshot.zone]}
           />
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <Badge variant="outline" className="font-normal">
                 {SNAPSHOT_ZONE_SHORT[snapshot.source][snapshot.zone]}
               </Badge>
               {/* R8d visual: sync mora na MESMA linha dos badges — menos uma
                   fileira antes do título; unavailable ⇒ syncDisplay null, os
-                  dois estados nunca coexistem. */}
+                  dois estados nunca coexistem. UX-03/07: aviso em text-sm e
+                  "Sincronizar agora" com alvo de 40px. */}
               {snapshot.source === "whoop" && whoopCtx?.syncDisplay && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   Dados sincronizados às {whoopCtx.syncDisplay}
                   {whoopCtx.freshness === "stale" && (
                     <span className="text-warning">
                       {" "}— desatualizado para decisão pré-sessão (&gt;{WHOOP_SYNC_STALE_HOURS}h)
                     </span>
                   )}
-                  {whoopCtx.freshness === "stale" && isAdmin && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="ml-1 h-6 px-2 text-xs"
-                      disabled={syncWhoop.isPending}
-                      onClick={() => syncWhoop.mutate(studentId)}
-                    >
-                      {syncWhoop.isPending ? "Sincronizando…" : "Sincronizar agora"}
-                    </Button>
-                  )}
                 </span>
+              )}
+              {snapshot.source === "whoop" && whoopCtx?.syncDisplay && whoopCtx.freshness === "stale" && isAdmin && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="min-h-10"
+                  disabled={syncWhoop.isPending}
+                  onClick={() => syncWhoop.mutate(studentId)}
+                >
+                  {syncWhoop.isPending ? "Sincronizando…" : "Sincronizar agora"}
+                </Button>
               )}
             </div>
             {snapshot.source === "whoop" && whoopCtx?.freshness === "unavailable" && (
-              <p className="text-xs text-warning">
-                Estado da sincronização do Whoop indisponível — freshness e strain não
+              <p className="text-sm text-warning">
+                Estado da sincronização do Whoop indisponível — horário do sync e strain não
                 entram na decisão de hoje.
               </p>
             )}
-            {/* Fonte decidida com uma das consultas em erro: o hero pode não
-                ser o dado mais novo — dizer isso é obrigação (auditoria 29/08). */}
-            {isError && (
-              <p className="text-xs text-warning">
-                Parte dos dados de wearable não carregou — a fonte exibida pode não ser a mais
-                recente. Recarregue a página para confirmar.
-              </p>
-            )}
+            {/* UX-05: o anúncio diz a decisão com o vocabulário da tela — nunca
+                o trainingType interno nem a data ISO; a conduta só é anunciada
+                depois do check-in (fluxo em dois tempos). */}
             <span className="sr-only" role="status">
-              {`Recomendação por ${snapshot.source === "oura" ? "Oura" : "Whoop"}, dia ${snapshot.date}${activeRecommendation ? `: ${activeRecommendation.trainingType}` : ""}`}
+              {heroState.showConduct && conduct
+                ? `Conduta do dia: ${VERDICT_BY_ZONE[conduct.effectiveZone]}`
+                : `${snapshot.source === "oura" ? "Prontidão" : "Recovery"} de hoje: ${snapshot.score}`}
             </span>
             {hasActionableRecommendation ? (
               <>
@@ -1347,7 +1405,7 @@ const PersonalizedTrainingDashboard = ({
                             ? `text-xl font-semibold tracking-tight ${
                                 conductTone === "warn" ? "text-warning" : conductTone === "bad" ? "text-destructive" : ""
                               }`
-                            : "text-[15px] font-semibold"
+                            : "text-base font-semibold"
                         }
                       >
                         {VERDICT_BY_ZONE[conduct.effectiveZone]}
@@ -1357,9 +1415,9 @@ const PersonalizedTrainingDashboard = ({
                       </span>
                     </p>
                     {causalLine && <p className="mt-1 text-sm">{causalLine}</p>}
-                    {alternativeLine && <p className="mt-1 text-xs text-muted-foreground">{alternativeLine}</p>}
+                    {alternativeLine && <p className="mt-1 text-sm">{alternativeLine}</p>}
                     {conduct.modulated && baseZoneNumber !== null && !causalLine && (
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-1 text-sm text-muted-foreground">
                         Recomendação do aparelho: {VERDICT_BY_ZONE[baseZoneNumber]} ·{" "}
                         {formatDoseShort(activeRecommendation!.intensity, activeRecommendation!.duration)}
                       </p>
@@ -1367,7 +1425,7 @@ const PersonalizedTrainingDashboard = ({
                     {conduct.appliedVetoes.length > 0 && (
                       <ul className="mt-1 space-y-0.5">
                         {conduct.appliedVetoes.map((v, i) => (
-                          <li key={i} className="text-xs text-muted-foreground">• {v}</li>
+                          <li key={i} className="text-sm">{formatConductVeto(v)}</li>
                         ))}
                       </ul>
                     )}
@@ -1378,7 +1436,7 @@ const PersonalizedTrainingDashboard = ({
                     porta aberta ("Fazer check-in"); observação disponível o
                     dia todo (U5). */}
                 {heroState.composition !== "arrival" && !heroState.showCheckInForm && (
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-muted-foreground">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
                     {checkInState === "done" ? (
                       <>
                         <span>
@@ -1431,9 +1489,11 @@ const PersonalizedTrainingDashboard = ({
                     >
                       Registrar dia de descanso
                     </Button>
-                    <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
-                      Ver alternativas
-                    </Button>
+                    {hasSelectableAlternative && (
+                      <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
+                        Ver alternativas
+                      </Button>
+                    )}
                   </div>
                 )}
                 {(heroState.primaryAction === "start" || heroState.primaryAction === "start_disabled") && (
@@ -1442,12 +1502,13 @@ const PersonalizedTrainingDashboard = ({
                         ÚNICO (v5.1-2); o card de carga mostra só a faixa. */}
                     {prescriptionSelectionPending && loadResult?.mode === "selection_required" && (
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-warning">Escolha a prescrição do dia:</span>
+                        <span className="text-sm text-warning">Escolha a prescrição do dia:</span>
                         {loadResult.availablePrescriptions.map((p) => (
                           <Button
                             key={p.id}
                             size="sm"
                             variant="outline"
+                            className="min-h-10"
                             onClick={() => setSelectedLoadPrescriptionId(p.id)}
                           >
                             {p.name}
@@ -1456,16 +1517,29 @@ const PersonalizedTrainingDashboard = ({
                       </div>
                     )}
                     {!sessionScopeResolved && !prescriptionSelectionPending && (
-                      <p className="text-xs text-muted-foreground">
-                        {loadSuggestionsError || loadResult?.mode === "suspended"
-                          ? "Prescrições indisponíveis — recarregue antes de iniciar."
-                          : "Carregando prescrições…"}
-                      </p>
+                      loadSuggestionsError || loadResult?.mode === "suspended" ? (
+                        <p className="text-sm text-muted-foreground">
+                          Prescrições indisponíveis.{" "}
+                          <button
+                            type="button"
+                            className="inline-flex min-h-10 items-center text-primary underline"
+                            onClick={() => void refetchLoadSuggestions()}
+                          >
+                            Tentar novamente
+                          </button>
+                        </p>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">Carregando prescrições…</p>
+                      )
                     )}
                     {conductSyncState === "error" && (
-                      <p className="text-xs text-destructive">
+                      <p className="text-sm text-destructive">
                         Conduta não foi atualizada no prontuário.{" "}
-                        <button type="button" className="underline" onClick={persistConductUpdate}>
+                        <button
+                          type="button"
+                          className="inline-flex min-h-10 items-center underline"
+                          onClick={persistConductUpdate}
+                        >
                           Tentar novamente
                         </button>
                       </p>
@@ -1481,25 +1555,42 @@ const PersonalizedTrainingDashboard = ({
                       >
                         {conductSyncState === "saving" ? "Atualizando conduta…" : "Iniciar treino"}
                       </Button>
-                      <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
-                        Ver alternativas
-                      </Button>
+                      {hasSelectableAlternative && (
+                        <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
+                          Ver alternativas
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )}
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                {isLoading
-                  ? "Carregando recomendação do dia…"
-                  : isError
-                    ? "Recomendação suspensa: parte dos dados de wearable não carregou e a fonte do dia pode estar errada. Recarregue a página."
-                    : snapshot.source === "oura" && latestOuraError
-                    ? "Não foi possível carregar o score do dia — a recomendação fica indisponível. Recarregue a página para tentar de novo."
-                    : snapshot.source === "oura"
-                      ? "Sem score de prontidão fechado para o dia mais recente — a recomendação automática fica indisponível até a próxima sincronização. Use o histórico da aba Oura para calibrar o treino."
-                      : "Sem recovery utilizável para o dia mais recente — use o histórico da aba Whoop para calibrar o treino do dia."}
-              </p>
+              // UX-11: o erro parcial é dito UMA vez (aqui), com ação de
+              // tentar de novo; a fonte pode estar errada, então nada de CTA de
+              // sessão. Sem recomendação por falta de dado (não erro), o
+              // caminho é o mesmo do estado vazio: iniciar sem conduta.
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {isLoading
+                    ? "Carregando recomendação do dia…"
+                    : isError
+                      ? "Recomendação suspensa: parte dos dados do aparelho não carregou e a fonte do dia pode estar errada."
+                      : snapshot.source === "oura" && latestOuraError
+                      ? "Não foi possível carregar o score do dia — recomendação indisponível."
+                      : snapshot.source === "oura"
+                        ? "Sem score de prontidão fechado para hoje — recomendação indisponível até a próxima sincronização."
+                        : "Sem recovery utilizável para hoje — recomendação indisponível."}
+                </p>
+                {!isLoading && (isError || (snapshot.source === "oura" && latestOuraError)) ? (
+                  onRetry && (
+                    <Button variant="outline" onClick={onRetry}>
+                      Tentar novamente
+                    </Button>
+                  )
+                ) : !isLoading ? (
+                  <Button onClick={() => onStartTraining?.(null)}>Iniciar treino</Button>
+                ) : null}
+              </div>
             )}
           </div>
         </div>
@@ -1519,117 +1610,116 @@ const PersonalizedTrainingDashboard = ({
       {heroState.showLoads && hasActionableRecommendation && loadResult?.mode === "suspended" && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-2">Sugestões de carga</h3>
-          <p className="text-sm text-muted-foreground">
-            Suspensa: {loadResult.fallbackReason ?? "erro ao consultar prescrições"} — recarregue a
-            página. (Erro não vira “sem prescrição”.)
-          </p>
+          <DataErrorState what="as prescrições do dia" onRetry={() => void refetchLoadSuggestions()} />
         </Card>
       )}
       {heroState.showLoads && hasActionableRecommendation && loadSuggestions && loadSuggestions.length > 0 && (
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
+          {/* UX-04/UX-22: o veredito do hero manda — sem badge de zona
+              concorrente; meta do plano e disclaimer vão para o ⓘ; badge só
+              quando o status NÃO é o automático; a carga (kg → kg) é o
+              elemento mais pesado de cada linha. */}
+          <div className="mb-4 flex items-center gap-2">
             <h3 className="text-lg font-semibold">Sugestões de carga</h3>
-            <Badge variant="outline">
-              Zona {ZONE_LABEL[conductRecommendation!.zone] ?? conductRecommendation!.zone}
-            </Badge>
+            <InfoDisclosure label="Detalhes das sugestões de carga">
+              <div className="space-y-2">
+                {loadResult?.mode === "prescription" && (
+                  <p>
+                    Plano vigente: <strong>{loadResult.prescriptionName ?? "prescrição"}</strong>, na ordem
+                    do plano.
+                    {loadResult.fallbackReason ? ` ${loadResult.fallbackReason.replace(/\.$/, "")}.` : ""}
+                  </p>
+                )}
+                <p className="text-muted-foreground">
+                  Referência pelo histórico real de execução. Validar a carga antes da série.
+                </p>
+              </div>
+            </InfoDisclosure>
           </div>
-          {loadResult?.mode === "prescription" && (
-            <p className="text-sm text-muted-foreground mb-3">
-              Plano vigente: <strong>{loadResult.prescriptionName ?? "prescrição"}</strong> — exercícios
-              na ordem do plano.
-              {loadResult.fallbackReason ? ` ${loadResult.fallbackReason.replace(/\.$/, "")}.` : ""}
-            </p>
-          )}
           {loadSuggestionsError && (
-            <p className="text-sm text-warning mb-3">
-              Falha ao atualizar — estas sugestões podem estar desatualizadas. Recarregue antes
-              de usar.
+            <p className="mb-3 text-sm text-warning">
+              Falha ao atualizar — estas sugestões podem estar desatualizadas.{" "}
+              <button
+                type="button"
+                className="inline-flex min-h-10 items-center underline"
+                onClick={() => void refetchLoadSuggestions()}
+              >
+                Tentar novamente
+              </button>
             </p>
           )}
           {loadResult?.mode === "fallback_recent" && (
-            <p className="text-sm text-warning mb-3">
-              {loadResult.fallbackReason} (top por peso, 90 dias).
+            <p className="mb-3 text-sm text-warning">
+              {loadResult.fallbackReason} (maiores cargas dos últimos 90 dias).
             </p>
           )}
-          <p className="text-xs text-muted-foreground mb-4">
-            Referência por histórico real do aluno. A sugestão deve ser validada pelo coach antes da execução.
-          </p>
           {/* Passe visual: lista única com divisores no lugar de caixa por
               exercício (caixa-em-caixa deixava o card pesado). */}
           <div className="divide-y rounded-lg border">
             {loadSuggestions.map((item) => (
               <div key={item.key} className="p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h4 className="font-semibold">{item.exerciseName}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {formatLoad(item.lastLoadKg)}
-                      <span className="mx-2 text-muted-foreground/60">→</span>
-                      <span className="font-semibold text-foreground">
-                        {formatLoad(item.suggestedLoadKg)}
-                      </span>
-                      {item.adjustmentPercent !== null && (
-                        <span className="ml-2 text-xs font-semibold text-primary">
-                          {formatAdjustmentPercent(item.adjustmentPercent)}
-                        </span>
-                      )}
+                    <p className="text-lg font-semibold tabular-nums leading-tight">
+                      <span className="font-normal text-muted-foreground">{formatKg(item.lastLoadKg)}</span>
+                      <span aria-hidden="true" className="mx-2 font-normal text-muted-foreground">→</span>
+                      <span className="sr-only"> para </span>
+                      {formatKg(item.suggestedLoadKg)}
                     </p>
-                  </div>
-                  <Badge
-                    variant={
-                      item.status === "insufficient" || item.status === "blocked" || item.status === "suspended"
-                        ? "destructive"
-                        : "secondary"
-                    }
-                  >
-                    {getSuggestionStatusLabel(item.status)}
-                  </Badge>
-                </div>
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-xs font-medium text-primary">
-                    Ver detalhes da regra
-                  </summary>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
-                    <div>
-                      <p className="text-muted-foreground">Regra aplicada</p>
-                      <p className="font-semibold">{item.ruleApplied}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Referência</p>
-                      <p className="font-semibold">
-                        {formatLoad(item.referenceLoadKg)} @ {item.referenceReps ?? "--"} reps
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Incremento</p>
-                      <p className="font-semibold">
-                        {item.incrementKg} kg{" "}
-                        <span className="font-normal text-muted-foreground">
-                          ({item.incrementSource === "cadastrado" ? "cadastrado na biblioteca" : "inferido do equipamento"})
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Fonte</p>
-                      <p className="font-semibold">{SOURCE_LABEL[item.source] ?? item.source}</p>
-                    </div>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <h4 className="mt-1 text-sm font-medium">{item.exerciseName}</h4>
                     {item.guardrails.includes("pain_recent") && (
-                      <Badge variant="destructive">Guardrail: dor recente</Badge>
+                      <p className="mt-1 text-sm text-destructive">Dor recente registrada</p>
                     )}
                     {item.guardrails.includes("technique_inconsistent") && (
-                      <Badge variant="outline">Guardrail: técnica inconsistente</Badge>
+                      <p className="mt-1 text-sm text-warning">Técnica inconsistente registrada</p>
                     )}
                   </div>
-                  {/* Notas textuais (ex.: adaptação individual) — códigos
-                      conhecidos viram badge acima; o resto é frase visível. */}
-                  {item.guardrails
-                    .filter((g) => g !== "pain_recent" && g !== "technique_inconsistent")
-                    .map((g, i) => (
-                      <p key={i} className="mt-1 text-xs text-muted-foreground">{g}</p>
-                    ))}
-                </details>
+                  <div className="flex shrink-0 items-center gap-3">
+                    {item.status !== "automatic" && (
+                      <Badge
+                        variant={
+                          item.status === "insufficient" || item.status === "blocked" || item.status === "suspended"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {getSuggestionStatusLabel(item.status)}
+                      </Badge>
+                    )}
+                    <InfoDisclosure label={`Como a carga de ${item.exerciseName} foi calculada`}>
+                      <dl className="grid grid-cols-2 gap-x-3 gap-y-2">
+                        <div className="col-span-2">
+                          <dt className="text-muted-foreground">Regra</dt>
+                          <dd className="font-medium">{item.ruleApplied}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Referência</dt>
+                          <dd className="font-medium tabular-nums">
+                            {formatKg(item.referenceLoadKg)} × {item.referenceReps ?? "—"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Incremento</dt>
+                          <dd className="font-medium tabular-nums">{formatKg(item.incrementKg)}</dd>
+                        </div>
+                        <div className="col-span-2">
+                          <dt className="text-muted-foreground">Origem</dt>
+                          <dd className="font-medium">
+                            {SOURCE_LABEL[item.source] ?? item.source} · incremento{" "}
+                            {item.incrementSource === "cadastrado" ? "cadastrado na biblioteca" : "inferido do equipamento"}
+                          </dd>
+                        </div>
+                      </dl>
+                      {/* Notas textuais (ex.: adaptação individual) — códigos
+                          conhecidos viram linha visível acima. */}
+                      {item.guardrails
+                        .filter((g) => g !== "pain_recent" && g !== "technique_inconsistent")
+                        .map((g, i) => (
+                          <p key={i} className="mt-2 text-muted-foreground">{g}</p>
+                        ))}
+                    </InfoDisclosure>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -1644,10 +1734,7 @@ const PersonalizedTrainingDashboard = ({
       {heroState.showLoads && hasActionableRecommendation && loadSuggestionsError && !loadResult && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-2">Sugestões de carga</h3>
-          <p className="text-sm text-muted-foreground">
-            Não foi possível calcular as sugestões de carga — recarregue a página para tentar de
-            novo. (Sem sugestão não significa sem exercício elegível.)
-          </p>
+          <DataErrorState what="as sugestões de carga" onRetry={() => void refetchLoadSuggestions()} />
         </Card>
       )}
       {heroState.showLoads && hasActionableRecommendation && sessionScopeResolved && loadSuggestions && loadSuggestions.length === 0 && (
@@ -1656,11 +1743,10 @@ const PersonalizedTrainingDashboard = ({
           <p className="text-sm text-muted-foreground">
             {loadResult?.fallbackReason
               ? `Sem sugestões: ${loadResult.fallbackReason}.`
-              : "Dados insuficientes de histórico para sugerir carga numérica neste momento."}
+              : "Histórico insuficiente para sugerir carga numérica."}
           </p>
         </Card>
       )}
-
       {/* Protocolos prioritários (readiness crítico) */}
       {heroState.composition === "recovery_block" && hasActionableRecommendation && activeRecommendation?.priorityProtocols && activeRecommendation.priorityProtocols.length > 0 && (
         <Card className="border-destructive/50 bg-destructive/5 p-6" role="region" aria-label="Dia de recuperação">
@@ -1701,12 +1787,17 @@ const PersonalizedTrainingDashboard = ({
                 </span>
                 <span className="text-sm text-muted-foreground">· carga bloqueada hoje</span>
               </p>
+              {/* UX-13: a instrução clínica do dia de recuperação sobe para
+                  junto do veredito, em texto de leitura (não rodapé cinza). */}
+              <p className="mt-1 text-sm">
+                Se o quadro persistir por 3 ou mais dias, encaminhar a profissional de saúde.
+              </p>
               {causalLine && <p className="mt-1 text-sm">{causalLine}</p>}
-              {alternativeLine && <p className="mt-1 text-xs text-muted-foreground">{alternativeLine}</p>}
+              {alternativeLine && <p className="mt-1 text-sm">{alternativeLine}</p>}
               {conduct.appliedVetoes.length > 0 && (
                 <ul className="mt-1 space-y-0.5">
                   {conduct.appliedVetoes.map((v, i) => (
-                    <li key={i} className="text-xs text-muted-foreground">• {v}</li>
+                    <li key={i} className="text-sm">{formatConductVeto(v)}</li>
                   ))}
                 </ul>
               )}
@@ -1717,14 +1808,16 @@ const PersonalizedTrainingDashboard = ({
                 >
                   Registrar dia de descanso
                 </Button>
-                <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
-                  Ver alternativas
-                </Button>
+                {hasSelectableAlternative && (
+                  <Button variant="ghost" onClick={() => setShowAlternatives(true)}>
+                    Ver alternativas
+                  </Button>
+                )}
               </div>
             </div>
           )}
           <p className="mb-3 text-sm font-medium">
-            Protocolos de recuperação
+            Protocolos de recuperação, na ordem sugerida
           </p>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {activeRecommendation!.priorityProtocols!.map((protocol) => (
@@ -1750,12 +1843,6 @@ const PersonalizedTrainingDashboard = ({
                 </div>
               </div>
             ))}
-          </div>
-          <div className="mt-6 p-4 bg-muted/30 rounded-lg">
-            <p className="text-sm text-muted-foreground">
-              Seguir a ordem sugerida. Se o quadro persistir por 3 ou mais dias,
-              encaminhar a profissional de saúde.
-            </p>
           </div>
         </Card>
       )}
@@ -1823,15 +1910,22 @@ const PersonalizedTrainingDashboard = ({
       {physiology.length > 0 && (
         <div>
           <h3 className="mb-3 flex items-center gap-2 text-base font-semibold">
-            <Activity className="h-4 w-4 text-primary" />
             Fisiologia de hoje
+            <InfoDisclosure label="Como ler a fisiologia de hoje">
+              <p>
+                Variações comparadas com a média pessoal dos últimos 30 dias. FC de repouso
+                abaixo da média é melhor; temperatura é o desvio em relação ao padrão pessoal.
+              </p>
+            </InfoDisclosure>
           </h3>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
             {physiology.map((p) => {
               // FRIA-4: sinais absorvidos pelo bloco de recuperação moram lá
               // UMA vez — os tiles não repetem o estado de alerta nesse dia.
+              // UX-21: mesma regra quando o card "Atenção hoje" aparece — ele
+              // já lista todos os sinais; o tile não repete o mesmo aviso.
               const tileAlert =
-                heroState.composition === "recovery_block"
+                heroState.composition === "recovery_block" || alertPartition.showAttentionCard
                   ? undefined
                   : p.metric ? alertPartition.byTile.get(p.metric) : undefined;
               return (
@@ -1855,7 +1949,7 @@ const PersonalizedTrainingDashboard = ({
               </span>
             </AccordionTrigger>
             <AccordionContent>
-              <TrainingZonesCard maxHeartRate={maxHeartRate} />
+              <TrainingZonesCard maxHeartRate={maxHeartRate} embedded />
             </AccordionContent>
           </AccordionItem>
         </Accordion>
@@ -1871,45 +1965,50 @@ const PersonalizedTrainingDashboard = ({
         studentName={studentName}
       />
 
-      {/* Dialog de alternativas */}
+      {/* Dialog de alternativas — UX-10: título/descrição em português e
+          sentence case; a opção IGUAL à conduta exibida (mesma zona e mesma
+          carga) aparece como "Conduta atual" e não é selecionável — escolher
+          o que já vale só gravava de novo a mesma conduta com rótulo de
+          modulação. Rodapé = Cancelar. */}
       <AlertDialog open={showAlternatives} onOpenChange={setShowAlternatives}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Alternativas de Treino</AlertDialogTitle>
+            <AlertDialogTitle>Alternativas para hoje</AlertDialogTitle>
             <AlertDialogDescription>
-              Com base no {snapshot.source === "oura" ? "readiness" : "recovery"} de{" "}
-              <strong>{activeRecommendation?.recoveryScore ?? snapshot.score}</strong>,
-              estas são as opções:
+              {snapshot.source === "oura" ? "Prontidão" : "Recovery"}{" "}
+              <strong>{activeRecommendation?.recoveryScore ?? snapshot.score}</strong>
+              {conduct ? ` · conduta atual: ${VERDICT_BY_ZONE[conduct.effectiveZone]}` : ""}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-3 my-4">
-            {getTrainingAlternativesForZone(
-              // Zona FINAL do motor (já com fadiga/override); score cru só
-              // no fallback raro sem recomendação da fonte ativa.
-              hasActionableRecommendation && activeRecommendation ? activeRecommendation.zone : null,
-              snapshot.score,
-            ).map((alt, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  setSelectedAlternative({ ...alt, studentId, date: snapshot.date, fingerprint: conductFingerprint ?? undefined });
-                  setShowAlternatives(false);
-                }}
-                className="w-full p-4 border rounded-lg hover:bg-muted/50 transition-colors text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                aria-label={`Selecionar alternativa: ${alt.type}`}
-              >
-                <h4 className="font-semibold text-base">{alt.type}</h4>
-                <p className="text-sm text-muted-foreground mt-1">{alt.description}</p>
-              </button>
-            ))}
+            {alternativesForToday.map(({ alt, isCurrent }, idx) => {
+              return (
+                <button
+                  key={idx}
+                  type="button"
+                  disabled={isCurrent}
+                  onClick={() => {
+                    setSelectedAlternative({ ...alt, studentId, date: snapshot.date, fingerprint: conductFingerprint ?? undefined });
+                    setShowAlternatives(false);
+                  }}
+                  className="w-full p-4 border rounded-lg hover:bg-muted/50 transition-colors text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-default disabled:hover:bg-transparent"
+                  aria-label={isCurrent ? `${alt.type} (conduta atual)` : `Selecionar alternativa: ${alt.type}`}
+                >
+                  <span className="flex flex-wrap items-baseline gap-2">
+                    <span className="font-semibold text-base">{alt.type}</span>
+                    {isCurrent && <span className="text-sm text-muted-foreground">Conduta atual</span>}
+                  </span>
+                  <span className="mt-1 block text-sm text-muted-foreground">{alt.description}</span>
+                </button>
+              );
+            })}
           </div>
           <AlertDialogFooter>
-            <AlertDialogAction>Entendi</AlertDialogAction>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
   );
 };
-
 export default PersonalizedTrainingDashboard;

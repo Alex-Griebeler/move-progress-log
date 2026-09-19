@@ -156,7 +156,9 @@ describe("fachada Oura intocada (paridade)", () => {
     expect(dash).not.toContain("recomendação automática de treino usa dados do Oura");
     expect(dash).toContain("buildWhoopRecommendation(whoopMetrics, earlySnapshot.date, spToday())");
     expect(dash).toContain("Sem dados recentes de recuperação");
-    expect(dash).toContain("Sem recovery utilizável para o dia mais recente");
+    // UX 18/09: literal encurtado ("para hoje"); a propriedade (Whoop sem
+    // recovery utilizável tem estado próprio) segue coberta.
+    expect(dash).toContain("Sem recovery utilizável para hoje");
   });
 });
 
@@ -215,7 +217,8 @@ describe("R5 — fiação Whoop na recomendação (fonte ativa)", () => {
   });
 
   it("markup: nomenclatura source-aware no diálogo de alternativas", () => {
-    expect(dash).toContain('snapshot.source === "oura" ? "readiness" : "recovery"');
+    // UX-10 (18/09): "readiness" em inglês virou "Prontidão" (vocabulário do hero).
+    expect(dash).toContain('snapshot.source === "oura" ? "Prontidão" : "Recovery"');
   });
 
   it("página busca a janela da recomendação (constante compartilhada, não número solto)", () => {
@@ -253,10 +256,13 @@ describe("R7 — correções da auditoria (29/08)", () => {
   });
 
   it("erro parcial de wearable é dito no hero E suspende ação (2ª rodada)", () => {
-    expect(dash).toContain("Parte dos dados de wearable não carregou");
+    // UX-11 (18/09): o aviso é dito UMA vez (antes saía duplicado, fora e
+    // dentro do ternário) e ganhou "Tentar novamente"; "wearable" → "aparelho".
+    expect(dash).not.toContain("Parte dos dados de wearable não carregou");
     expect(dash).toContain("const hasActionableRecommendation = hasActiveRecommendation && !isError;");
     expect(dash).toContain("{hasActionableRecommendation ? (");
-    expect(dash).toContain("Recomendação suspensa: parte dos dados de wearable não carregou");
+    expect(dash).toContain("Recomendação suspensa: parte dos dados do aparelho não carregou");
+    expect(dash.match(/parte dos dados do aparelho não carregou/gi)?.length).toBe(1);
   });
 
   it("alternativa escolhida é escopada por {studentId, date}", () => {
