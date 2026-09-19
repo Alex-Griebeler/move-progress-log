@@ -14,13 +14,13 @@ export const StatCardSkeleton = () => {
     <Card className="animate-fade-in">
       <CardHeader className="pb-sm">
         <div className="flex items-center justify-between">
-          <Skeleton className="h-4 w-24 rounded-radius-sm" />
-          <Skeleton className="h-8 w-8 rounded-radius-md" />
+          <Skeleton className="h-4 w-24 rounded-sm" />
+          <Skeleton className="h-8 w-8 rounded-md" />
         </div>
       </CardHeader>
       <CardContent className="space-y-sm">
-        <Skeleton className="h-9 w-20 rounded-radius-sm" />
-        <Skeleton className="h-3 w-36 rounded-radius-sm" />
+        <Skeleton className="h-9 w-20 rounded-sm" />
+        <Skeleton className="h-3 w-36 rounded-sm" />
       </CardContent>
     </Card>
   );

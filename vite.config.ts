@@ -108,6 +108,6 @@ export default defineConfig(({ mode }) => ({
   test: {
     // Deno edge-function tests live under supabase/functions and run via
     // `deno test`, not vitest (they import jsr:/npm: specifiers).
-    exclude: [...configDefaults.exclude, "supabase/functions/**"],
+    exclude: [...configDefaults.exclude, "supabase/functions/**", ".claude/**"],
   },
 }));

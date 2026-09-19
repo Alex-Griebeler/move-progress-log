@@ -10,11 +10,11 @@ const badgeVariants = cva(
       variant: {
         default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
         secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
+        destructive: "border-transparent bg-destructive text-destructive-foreground",
         outline: "text-foreground",
-        success: "border-transparent bg-success text-success-foreground hover:bg-success/80",
-        info: "border-transparent bg-info text-info-foreground hover:bg-info/80",
-        warning: "border-transparent bg-warning text-warning-foreground hover:bg-warning/80",
+        success: "border-transparent bg-success text-success-foreground",
+        info: "border-transparent bg-info text-info-foreground",
+        warning: "border-transparent bg-warning text-warning-foreground",
         // Outline semantic variants
         "outline-success": "border-success/50 text-success bg-success/5 hover:bg-success/10",
         "outline-warning": "border-warning/50 text-warning bg-warning/5 hover:bg-warning/10",

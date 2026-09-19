@@ -62,7 +62,7 @@ const EmptyState = ({
     >
       {/* Ícone com background premium */}
       <div className={cn(
-        "rounded-radius-xl p-lg shadow-subtle",
+        "rounded-xl p-lg shadow-xs",
         variantStyles[variant]
       )}>
         {icon || <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />}

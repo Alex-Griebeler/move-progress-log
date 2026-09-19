@@ -1,8 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
-    <script>document.documentElement.classList.add('dark')</script>
     <meta charset="UTF-8" />
+    <!-- Tema antes do primeiro paint (evita lampejo claro para quem usa escuro).
+         Mesma chave do next-themes ("theme"): light | dark | system. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          var dark = t === "dark" || ((!t || t === "system") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) document.documentElement.classList.add("dark");
+          document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) {}
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- AUD-S01: Content Security Policy para proteção contra XSS -->
@@ -16,8 +27,12 @@
                    frame-src 'self' https://js.stripe.com;
                    worker-src 'self' blob:;">
     
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
     <title>Fabrik Performance · Sistema de Treino</title>
-    <meta name="description" content="Fabrik Performance - Sistema de registro e acompanhamento de treinos. Studio boutique com metodologia exclusiva Body & Mind Fitness no Lago Sul, Brasília." />
+    <meta name="description" content="Fabrik Performance - Sistema de registro e acompanhamento de treinos. Studio boutique no Lago Sul, Brasília." />
     <meta name="keywords" content="treino funcional, personal trainer, oura ring, recuperação, performance, HIIT, yoga, mindfulness, Brasília, Lago Sul" />
     <meta name="author" content="Fabrik Performance" />
 
@@ -27,7 +42,6 @@
     <meta property="og:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/zrUqxx13YrhgB4BbYHMTyfYPr0J2/social-images/social-1761554431969-Logo Fabrik.png">
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/zrUqxx13YrhgB4BbYHMTyfYPr0J2/social-images/social-1761554431969-Logo Fabrik.png">
     <meta property="og:title" content="Fabrik Performance - Sistema de Registro de Treinos">
   <meta name="twitter:title" content="Fabrik Performance - Sistema de Registro de Treinos">

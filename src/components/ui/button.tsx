@@ -27,19 +27,19 @@ const buttonVariants = cva(
         ghost: "hover:bg-accent hover:text-accent-foreground",
         
         // Destructive action - ações perigosas
-        destructive: "bg-destructive text-destructive-foreground shadow-md hover:shadow-lg hover:bg-destructive/90 active:scale-[0.98]",
+        destructive: "bg-destructive text-destructive-foreground shadow-md hover:shadow-lg active:scale-[0.98]",
         
         // Link style - texto inline
         link: "text-primary underline-offset-4 hover:underline",
         
         // Success action - confirmações positivas
-        success: "bg-success text-success-foreground shadow-md hover:shadow-lg hover:bg-success/90 active:scale-[0.98]",
+        success: "bg-success text-success-foreground shadow-md hover:shadow-lg active:scale-[0.98]",
         
         // Info action - informações
-        info: "bg-info text-info-foreground shadow-sm hover:shadow-md hover:bg-info/90",
+        info: "bg-info text-info-foreground shadow-sm hover:shadow-md",
         
         // Warning action - alertas
-        warning: "bg-warning text-warning-foreground shadow-sm hover:shadow-md hover:bg-warning/90",
+        warning: "bg-warning text-warning-foreground shadow-sm hover:shadow-md",
         
       },
       size: {

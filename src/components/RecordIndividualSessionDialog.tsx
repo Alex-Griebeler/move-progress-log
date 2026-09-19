@@ -654,7 +654,7 @@ export function RecordIndividualSessionDialog({
                     if (!ex.load_breakdown || ex.load_kg === null || ex.load_kg === 0) issues.push("Carga (obrigatório)");
                     if (ex.reps === null || ex.reps === 0) issues.push("Repetições (obrigatório)");
                     return (
-                      <div key={idx} className="text-sm text-destructive bg-destructive/10 p-sm rounded-radius-md border border-destructive/20">
+                      <div key={idx} className="text-sm text-destructive bg-destructive/10 p-sm rounded-md border border-destructive/20">
                         <strong>Exercício #{idx + 1}:</strong> {ex.executed_exercise_name || '(sem nome)'}
                         <ul className="list-disc list-inside ml-lg mt-xs">
                           {issues.map((issue, i) => (<li key={i}>{issue}</li>))}

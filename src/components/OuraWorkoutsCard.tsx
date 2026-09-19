@@ -113,7 +113,7 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
               {/* Calories */}
               {workout.calories && (
                 <div className="flex items-center gap-sm">
-                  <div className="p-sm rounded-radius-lg bg-accent/50">
+                  <div className="p-sm rounded-lg bg-accent/50">
                     <Flame className="h-4 w-4 text-destructive" />
                   </div>
                   <div>
@@ -126,7 +126,7 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
               {/* Heart Rate */}
               {workout.average_heart_rate && (
                 <div className="flex items-center gap-sm">
-                  <div className="p-sm rounded-radius-lg bg-destructive/10">
+                  <div className="p-sm rounded-lg bg-destructive/10">
                     <Heart className="h-4 w-4 text-destructive" />
                   </div>
                   <div>
@@ -146,7 +146,7 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
               {/* Distance */}
               {workout.distance && (
                 <div className="flex items-center gap-sm">
-                  <div className="p-sm rounded-radius-lg bg-primary/10">
+                  <div className="p-sm rounded-lg bg-primary/10">
                     <MapPin className="h-4 w-4 text-primary" />
                   </div>
                   <div>

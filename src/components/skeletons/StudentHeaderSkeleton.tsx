@@ -20,11 +20,11 @@ export const StudentHeaderSkeleton = () => {
             
             <div className="space-y-sm flex-1 min-w-0">
               <div className="space-y-xs">
-                <Skeleton className="h-8 w-56 rounded-radius-sm" />
+                <Skeleton className="h-8 w-56 rounded-sm" />
                 <div className="flex items-center gap-xs">
                   <Skeleton className="h-4 w-4 rounded-full shrink-0" />
-                  <Skeleton className="h-4 w-24 rounded-radius-sm" />
-                  <Skeleton className="h-4 w-28 rounded-radius-sm" />
+                  <Skeleton className="h-4 w-24 rounded-sm" />
+                  <Skeleton className="h-4 w-28 rounded-sm" />
                 </div>
               </div>
               
@@ -39,8 +39,8 @@ export const StudentHeaderSkeleton = () => {
           
           {/* Coluna 2: Ações */}
           <div className="flex flex-col sm:flex-row gap-sm w-full md:w-auto">
-            <Skeleton className="h-10 w-full sm:w-36 rounded-radius-md" />
-            <Skeleton className="h-10 w-full sm:w-44 rounded-radius-md" />
+            <Skeleton className="h-10 w-full sm:w-36 rounded-md" />
+            <Skeleton className="h-10 w-full sm:w-44 rounded-md" />
           </div>
         </div>
       </CardContent>

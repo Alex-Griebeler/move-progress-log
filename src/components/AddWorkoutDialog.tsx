@@ -191,7 +191,7 @@ const AddWorkoutDialog = ({ onWorkoutAdded }: { onWorkoutAdded: () => void }) =>
             </div>
 
             {exercises.map((exercise, index) => (
-              <div key={index} className="p-lg border rounded-radius-lg space-y-md relative bg-muted/30">
+              <div key={index} className="p-lg border rounded-lg space-y-md relative bg-muted/30">
                 {exercises.length > 1 && (
                   <Button
                     type="button"

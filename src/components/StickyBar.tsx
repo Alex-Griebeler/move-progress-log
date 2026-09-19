@@ -60,7 +60,7 @@ export const StickyBar = ({
         "transition-all duration-200",
         isSticky && [
           "sticky z-40 bg-background/95 backdrop-blur-sm",
-          "border-b border-border shadow-subtle",
+          "border-b border-border shadow-xs",
           "py-3 -mx-4 px-4 md:-mx-6 md:px-6"
         ],
         className

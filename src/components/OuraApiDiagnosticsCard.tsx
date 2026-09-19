@@ -256,7 +256,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
             </div>
 
             {sleepPeriodsStatus?.status === "empty" && (
-              <div className="p-md rounded-radius-lg bg-muted">
+              <div className="p-md rounded-lg bg-muted">
                 <p className="text-xs text-muted-foreground">
                   <strong>📌 Sem períodos detalhados de sono na última linha.</strong> Até 09/09/2026 o sync pedia{" "}
                   <code className="bg-background px-1 py-0.5 rounded">start_date=end_date=D</code> e a API do Oura

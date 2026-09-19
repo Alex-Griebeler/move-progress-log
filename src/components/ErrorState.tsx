@@ -42,7 +42,7 @@ export function ErrorState({
       aria-live="polite"
     >
       {/* Ícone com background premium */}
-      <div className="rounded-radius-xl bg-destructive/10 p-lg shadow-subtle">
+      <div className="rounded-xl bg-destructive/10 p-lg shadow-xs">
         <AlertCircle className="h-8 w-8 text-destructive" aria-hidden="true" />
       </div>
       
