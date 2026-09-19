@@ -18,7 +18,7 @@ export interface GroupSessionKey {
 }
 
 interface QueryResult {
-  data: Array<{ id: string }> | null;
+  data: Array<{ id: string; exercises?: Array<{ count: number }> | null }> | null;
   error: unknown;
 }
 
@@ -31,7 +31,7 @@ interface SessionsQuery extends PromiseLike<QueryResult> {
 }
 
 export interface SessionsClient {
-  from(table: "workout_sessions"): { select(columns: "id"): SessionsQuery };
+  from(table: "workout_sessions"): { select(columns: string): SessionsQuery };
 }
 
 export async function hasRecentGroupSession(
@@ -42,7 +42,9 @@ export async function hasRecentGroupSession(
   const since = new Date(nowMs - GROUP_IDEMPOTENCY_WINDOW_MS).toISOString();
   let query = client
     .from("workout_sessions")
-    .select("id")
+    // Só conta sessão COM exercícios: uma sessão vazia (rollback que falhou)
+    // não pode esconder a pessoa como "já registrada" (revisão da #369).
+    .select("id, exercises(count)")
     .eq("student_id", key.studentId)
     .eq("date", key.date)
     .eq("time", key.time)
@@ -54,5 +56,66 @@ export async function hasRecentGroupSession(
     : query.is("prescription_id", null);
   const { data, error } = await query;
   if (error) throw error;
-  return (data?.length ?? 0) > 0;
+  return (data ?? []).some((row) => (row.exercises?.[0]?.count ?? 0) > 0);
+}
+
+/**
+ * Registro local de quem já entrou num salvamento em grupo, por prescrição e
+ * data (sessionStorage, 12 h). Sobrevive a fechar/reabrir o diálogo e a trocar
+ * de página na mesma aba — o horário NÃO entra na chave, porque ao reabrir o
+ * diálogo o horário volta para "agora" (revisão da #369).
+ */
+const LOCAL_KEY_PREFIX = "fabrik:group-manual-saved:";
+
+const localKey = (prescriptionId: string | null, date: string) =>
+  `${LOCAL_KEY_PREFIX}${prescriptionId ?? "none"}:${date}`;
+
+interface LocalRecord {
+  ids: string[];
+  at: number;
+}
+
+export function readLocallySaved(
+  prescriptionId: string | null,
+  date: string,
+  nowMs: number = Date.now(),
+  storage: Pick<Storage, "getItem"> | undefined = globalThis.sessionStorage,
+): string[] {
+  try {
+    const raw = storage?.getItem(localKey(prescriptionId, date));
+    if (!raw) return [];
+    const rec = JSON.parse(raw) as LocalRecord;
+    if (!Array.isArray(rec.ids) || typeof rec.at !== "number") return [];
+    if (nowMs - rec.at > GROUP_IDEMPOTENCY_WINDOW_MS) return [];
+    return rec.ids.filter((id) => typeof id === "string");
+  } catch {
+    return [];
+  }
+}
+
+export function rememberLocallySaved(
+  prescriptionId: string | null,
+  date: string,
+  ids: string[],
+  nowMs: number = Date.now(),
+  storage: Pick<Storage, "getItem" | "setItem"> | undefined = globalThis.sessionStorage,
+): void {
+  try {
+    const merged = Array.from(new Set([...readLocallySaved(prescriptionId, date, nowMs, storage), ...ids]));
+    storage?.setItem(localKey(prescriptionId, date), JSON.stringify({ ids: merged, at: nowMs } satisfies LocalRecord));
+  } catch {
+    /* armazenamento indisponível: a checagem no banco continua valendo */
+  }
+}
+
+export function forgetLocallySaved(
+  prescriptionId: string | null,
+  date: string,
+  storage: Pick<Storage, "removeItem"> | undefined = globalThis.sessionStorage,
+): void {
+  try {
+    storage?.removeItem(localKey(prescriptionId, date));
+  } catch {
+    /* ignore */
+  }
 }

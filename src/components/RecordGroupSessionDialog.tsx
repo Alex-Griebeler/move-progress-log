@@ -56,7 +56,13 @@ import { PrescriptionSidebar } from "@/components/session/PrescriptionSidebar";
 import { DiscardSessionConfirm } from "@/components/session/DiscardSessionConfirm";
 import { STICKY_FOOTER_CLASS } from "@/components/session/dialogLayout";
 import { describePartialGroupSave, type GroupSaveOutcome } from "@/components/session/groupSaveOutcome";
-import { hasRecentGroupSession, type SessionsClient } from "@/components/session/groupSessionIdempotency";
+import {
+  forgetLocallySaved,
+  hasRecentGroupSession,
+  readLocallySaved,
+  rememberLocallySaved,
+  type SessionsClient,
+} from "@/components/session/groupSessionIdempotency";
 
 // ─── Local Types ────────────────────────────────────────
 
@@ -683,11 +689,11 @@ export function RecordGroupSessionDialog({
     // Reabertura: captura os IDs antigos ANTES, mas só deleta DEPOIS do create
     // novo ter sucesso — a ordem antiga (delete→create) perdia o histórico se
     // qualquer criação falhasse no meio (achado CRÍTICO da auditoria R3).
-    let staleSessionIds: string[] = [];
+    let staleSessions: Array<{ id: string; student_id: string }> = [];
     if (isReopening && reopenDate && normalizedReopenTime) {
       const { data: existingSessions, error: existingSessionsError } = await supabase
         .from('workout_sessions')
-        .select('id')
+        .select('id, student_id')
         .eq('prescription_id', effectivePrescriptionId)
         .eq('date', reopenDate)
         .eq('time', normalizedReopenTime);
@@ -696,7 +702,7 @@ export function RecordGroupSessionDialog({
         notify.error("Erro ao consolidar dados", { description: "Não foi possível localizar as sessões existentes." });
         return;
       }
-      staleSessionIds = (existingSessions || []).map(s => s.id);
+      staleSessions = existingSessions || [];
     }
 
     const sessionsToSave: GroupSessionToSave[] = mergedStudents.map(merged => {
@@ -705,10 +711,19 @@ export function RecordGroupSessionDialog({
       return { student_id: student.id, student_name: student.name, exercises: merged.exercises, clinical_observations: merged.clinical_observations || [] };
     }).filter((s): s is GroupSessionToSave => s !== null);
 
-    await createGroupSessions.mutateAsync({ prescriptionId: effectivePrescriptionId, date, time, sessions: sessionsToSave });
+    const results = await createGroupSessions.mutateAsync({ prescriptionId: effectivePrescriptionId, date, time, sessions: sessionsToSave });
+    // O hook já avisa quem salvou e quem falhou (toasts próprios). Aqui só
+    // decidimos o que fazer com cada pessoa (revisão da #369).
+    const succeededNames = new Set(results.filter(r => r.success).map(r => r.student.toLowerCase()));
+    const failedNames = new Set(results.filter(r => !r.success).map(r => r.student.toLowerCase()));
+    const succeededStudentIds = new Set(
+      sessionsToSave.filter(s => succeededNames.has(s.student_name.toLowerCase())).map(s => s.student_id),
+    );
 
-    // Sessões novas criadas com sucesso — agora sim remover as antigas (por ID
-    // capturado; se a limpeza falhar, sobra duplicata recuperável, nunca perda).
+    // Reabertura: remove as sessões antigas SÓ de quem gravou a nova — quem
+    // falhou mantém o histórico (antes, uma falha parcial apagava as antigas
+    // de todos). Se a limpeza falhar, sobra duplicata recuperável, nunca perda.
+    const staleSessionIds = staleSessions.filter(s => succeededStudentIds.has(s.student_id)).map(s => s.id);
     if (staleSessionIds.length > 0) {
       const { error: deleteExercisesError } = await supabase
         .from('exercises')
@@ -752,7 +767,7 @@ export function RecordGroupSessionDialog({
     let hasAudioSegmentsInsertError = false;
     for (const merged of mergedStudents) {
       const student = selectedStudents.find(s => s.name.toLowerCase() === merged.student_name.toLowerCase());
-      if (!student) continue;
+      if (!student || !succeededStudentIds.has(student.id)) continue;
 
       const sessionData = latestSessionByStudent.get(student.id);
       if (!sessionData) continue;
@@ -793,11 +808,13 @@ export function RecordGroupSessionDialog({
       notify.warning("Sessão salva com pendências", {
         description: "Algumas transcrições não foram salvas. Os exercícios da sessão foram preservados.",
       });
-    } else {
-      notify.success(
-        sessionsToSave.length === 1 ? "1 sessão salva" : `${sessionsToSave.length} sessões salvas`,
-        { description: sessionsToSave.map((s) => s.student_name).join(", ") },
-      );
+    }
+
+    // Falha parcial: o diálogo continua aberto só com quem falhou — "Salvar"
+    // de novo não regrava quem já entrou e ninguém perde a gravação.
+    if (failedNames.size > 0) {
+      setMergedStudents(prev => prev.filter(m => failedNames.has(m.student_name.toLowerCase())));
+      return;
     }
 
     setVoiceSegmentCount(0);
@@ -845,7 +862,11 @@ export function RecordGroupSessionDialog({
 
       // Quem já foi salvo numa tentativa anterior desta abertura NÃO é
       // reenviado — evita sessão duplicada no "tentar de novo".
-      const alreadySaved = new Set(manualSavedStudentIds);
+      // Memória do diálogo + registro local da aba (sobrevive a fechar/reabrir).
+      const alreadySaved = new Set([
+        ...manualSavedStudentIds,
+        ...readLocallySaved(effectivePrescriptionId ?? null, date),
+      ]);
       const sessionsToCreate = data.studentExercises
         .filter(se => !alreadySaved.has(se.studentId))
         .map(se => {
@@ -899,6 +920,7 @@ export function RecordGroupSessionDialog({
       if (outcome.failed.length > 0) {
         if (newlySavedIds.length > 0) {
           setManualSavedStudentIds(prev => [...prev, ...newlySavedIds]);
+          rememberLocallySaved(effectivePrescriptionId ?? null, date, newlySavedIds);
         }
         setLastPartialSave(outcome);
         notify.error(
@@ -912,6 +934,7 @@ export function RecordGroupSessionDialog({
       const total = outcome.saved.length;
       notify.success(total === 1 ? "1 sessão salva" : `${total} sessões salvas`, { description: outcome.saved.join(", ") });
       setManualSavedStudentIds([]);
+      forgetLocallySaved(effectivePrescriptionId ?? null, date);
       setLastPartialSave(null);
       setDialogState('context-setup');
       setSelectedStudents([]);

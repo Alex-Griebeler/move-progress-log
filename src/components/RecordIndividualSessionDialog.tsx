@@ -240,7 +240,7 @@ export function RecordIndividualSessionDialog({
       if (sessionError) throw sessionError;
       const { data: exercises, error: exercisesError } = await supabase
         .from('exercises')
-        .select('id, session_id, exercise_library_id, exercise_name, sets, reps, load_kg, load_breakdown, observations, is_best_set')
+        .select('id, session_id, exercise_library_id, exercise_name, sets, reps, reserve_reps, load_kg, load_breakdown, observations, is_best_set')
         .eq('session_id', existingSessionId);
       if (exercisesError) throw exercisesError;
       return { session, exercises };
@@ -263,6 +263,7 @@ export function RecordIndividualSessionDialog({
         const convertedExercises: SessionExercise[] = exercises.map(ex => ({
           exercise_library_id: ex.exercise_library_id ?? null,
           executed_exercise_name: ex.exercise_name, sets: ex.sets, reps: ex.reps || 0,
+          reserve_reps: ex.reserve_reps ?? null,
           load_kg: ex.load_kg, load_breakdown: ex.load_breakdown || '', observations: ex.observations, is_best_set: ex.is_best_set || false,
         }));
         logger.debug('Carregando exercícios existentes:', convertedExercises.length);
@@ -586,7 +587,7 @@ export function RecordIndividualSessionDialog({
         exercise_name: ex.executed_exercise_name,
         sets: ex.sets,
         reps: ex.reps,
-        // PSE digitada na entrada manual; a voz individual não extrai (null).
+        // PSE: digitada na entrada manual ou extraída pela voz (quando houver).
         reserve_reps: ex.reserve_reps ?? null,
         load_kg: ex.load_kg,
         load_breakdown: ex.load_breakdown,
