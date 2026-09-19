@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { spToday } from "@/hooks/useOuraMetrics";
 import { buildRecoverySnapshot, type RecoverySnapshot } from "@/utils/recoverySnapshot";
@@ -28,6 +28,8 @@ export const useStudentsRecoveryToday = (studentIds: string[]) => {
   return useQuery({
     queryKey: ["students-recovery-today", ids.join(","), today],
     enabled: ids.length > 0,
+    // Criar/excluir aluna muda a chave: mantém a leitura anterior até chegar a nova.
+    placeholderData: keepPreviousData,
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,

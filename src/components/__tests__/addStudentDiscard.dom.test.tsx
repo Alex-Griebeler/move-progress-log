@@ -54,4 +54,25 @@ describe("AddStudentDialog — guarda de saída", () => {
     await user.click(await screen.findByRole("button", { name: "Descartar" }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
+
+  it("Descartar limpa formulário E foto: ao reabrir não sobra nada do cadastro descartado", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    const { rerender, container } = render(<AddStudentDialog open onOpenChange={onOpenChange} />);
+    await user.type(screen.getAllByRole("textbox")[0], "Maria Silva");
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).toBeTruthy();
+    await user.upload(fileInput, new File(["x"], "foto.png", { type: "image/png" }));
+    expect(await screen.findByText(/Alterar Foto/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    await user.click(await screen.findByRole("button", { name: "Descartar" }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+
+    rerender(<AddStudentDialog open={false} onOpenChange={onOpenChange} />);
+    rerender(<AddStudentDialog open onOpenChange={onOpenChange} />);
+    expect(screen.queryByDisplayValue("Maria Silva")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Alterar Foto/i)).not.toBeInTheDocument();
+    void container;
+  });
 });

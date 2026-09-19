@@ -324,7 +324,11 @@ const StudentsPage = () => {
 
   // Batch hook - busca dados de todos os alunos em 3 queries em vez de N*3
   const studentIds = useMemo(() => students?.map(s => s.id) ?? [], [students]);
-  const { data: studentsCardData } = useStudentsCardData(studentIds);
+  const {
+    data: studentsCardData,
+    isLoading: isCardDataLoading,
+    isError: isCardDataError,
+  } = useStudentsCardData(studentIds);
   const {
     data: recoveryToday,
     isLoading: isRecoveryLoading,
@@ -336,7 +340,19 @@ const StudentsPage = () => {
       ? "loading"
       : "ready";
   // Mesma RPC do KPI "Sem treinar há 7+ dias" da home.
-  const { data: inactive7dSet } = useStudentsActivityFilter(INACTIVE_7D_FILTER);
+  const {
+    data: inactive7dSet,
+    isLoading: isInactive7dLoading,
+    isError: isInactive7dError,
+  } = useStudentsActivityFilter(INACTIVE_7D_FILTER);
+  // A ordem "Atenção primeiro" depende de três sinais: espera todos (sem
+  // embaralhar a lista quando cada um chega) e diz qual faltou se algum falhar.
+  const attentionSignalsLoading = isRecoveryLoading || isCardDataLoading || isInactive7dLoading;
+  const attentionSignalsMissing = [
+    isRecoveryError && "leituras de hoje",
+    isInactive7dError && "dias sem treino",
+    isCardDataError && "observações",
+  ].filter((x): x is string => Boolean(x));
 
   // Drill-down filter from dashboard KPIs (?inactive=N | ?dropping=true)
   const activityFilter = useMemo<StudentsActivityFilter>(() => {
@@ -513,9 +529,9 @@ const StudentsPage = () => {
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
-          {sortMode === "attention" && recoveryStatus === "error" && (
+          {sortMode === "attention" && attentionSignalsMissing.length > 0 && (
             <p className="text-caption text-muted-foreground" role="status">
-              Leituras de hoje indisponíveis. A ordem por atenção considera só treinos e observações.
+              Não foi possível carregar {attentionSignalsMissing.join(", ")}. A ordem por atenção usa só o que carregou.
             </p>
           )}
         </div>
@@ -560,7 +576,7 @@ const StudentsPage = () => {
             description="Verifique a conexão e tente de novo. Nenhum cadastro foi alterado."
             onRetry={() => refetch()}
           />
-        ) : isLoading || isApplyingActivityFilter || (sortMode === "attention" && recoveryStatus === "loading") ? (
+        ) : isLoading || isApplyingActivityFilter || (sortMode === "attention" && attentionSignalsLoading) ? (
           <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <StudentCardSkeleton key={i} />

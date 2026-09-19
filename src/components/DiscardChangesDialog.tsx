@@ -36,7 +36,7 @@ export function DiscardChangesDialog({ open, onKeepEditing, onDiscard }: Discard
           <AlertDialogCancel onClick={onKeepEditing}>Continuar editando</AlertDialogCancel>
           <AlertDialogAction
             onClick={onDiscard}
-            className={buttonVariants({ variant: "destructive" })}
+            className={`${buttonVariants({ variant: "destructive" })} hover:bg-destructive`}
           >
             Descartar
           </AlertDialogAction>

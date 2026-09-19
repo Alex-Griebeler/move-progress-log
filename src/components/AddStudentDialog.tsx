@@ -534,8 +534,11 @@ export const AddStudentDialog = ({ open, onOpenChange, onStudentCreated }: AddSt
       onKeepEditing={() => setConfirmDiscard(false)}
       onDiscard={() => {
         setConfirmDiscard(false);
-        // "Descartar" descarta de fato: ao reabrir, o formulário vem limpo.
+        // "Descartar" descarta de fato: ao reabrir, formulário E foto vêm limpos
+        // (a foto guardada iria para o próximo cadastro).
         form.reset();
+        setAvatarFile(null);
+        setAvatarPreview(null);
         onOpenChange(false);
       }}
     />
