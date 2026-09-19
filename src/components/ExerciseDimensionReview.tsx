@@ -17,6 +17,7 @@ import { useClassifyExercises } from "@/hooks/useClassifyExercises";
 import { EXERCISE_DIMENSIONS, EXERCISE_CATEGORIES } from "@/constants/backToBasics";
 import { Brain, Save, RefreshCw, CheckCircle2, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { ErrorState } from "@/components/ErrorState";
 
 const DIMENSION_KEYS = ["axial_load", "lumbar_demand", "technical_complexity", "metabolic_potential", "knee_dominance", "hip_dominance"] as const;
 
@@ -29,7 +30,12 @@ interface DimensionEdit {
   [key: string]: string | number | null | undefined;
 }
 
-export const ExerciseDimensionReview = () => {
+interface ExerciseDimensionReviewProps {
+  /** Informa a página quantas linhas têm edição não salva (guarda de saída). */
+  onEditCountChange?: (count: number) => void;
+}
+
+export const ExerciseDimensionReview = ({ onEditCountChange }: ExerciseDimensionReviewProps = {}) => {
   const queryClient = useQueryClient();
   const { progress, runBatchClassification } = useClassifyExercises();
   const [edits, setEdits] = useState<Record<string, DimensionEdit>>({});
@@ -38,7 +44,7 @@ export const ExerciseDimensionReview = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   // Fetch exercises with dimension data
-  const { data: exercises, isLoading } = useQuery({
+  const { data: exercises, isLoading, isError, refetch } = useQuery({
     queryKey: ["exercises-dimensions", filter, categoryFilter],
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
@@ -173,7 +179,7 @@ export const ExerciseDimensionReview = () => {
       queryClient.invalidateQueries({ queryKey: ["exercises-dimension-stats"] });
       queryClient.invalidateQueries({ queryKey: ["exercises-library"] });
       setEdits({});
-      notify.success("Dimensões atualizadas!");
+      notify.success("Dimensões atualizadas");
     },
     onError: (err) => {
       notify.error("Erro ao salvar", { description: buildErrorDescription(err, "Tente novamente.") });
@@ -195,6 +201,10 @@ export const ExerciseDimensionReview = () => {
 
   const editCount = Object.keys(edits).length;
 
+  useEffect(() => {
+    onEditCountChange?.(editCount);
+  }, [editCount, onEditCountChange]);
+
   const getValue = (exerciseId: string, dimension: DimensionKey, originalValue: number | null): number | null => {
     const edit = edits[exerciseId];
     if (edit && edit[dimension] !== undefined) return edit[dimension] as number;
@@ -207,7 +217,7 @@ export const ExerciseDimensionReview = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Total de Exercícios</CardDescription>
+            <CardDescription>Total de exercícios</CardDescription>
             <CardTitle className="text-2xl">{totalStats?.total || 0}</CardTitle>
           </CardHeader>
         </Card>
@@ -255,12 +265,12 @@ export const ExerciseDimensionReview = () => {
             {progress.isRunning ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Classificando... Lote {progress.currentBatch} ({progress.totalClassified} feitos, {progress.totalRemaining} restantes)
+                Classificando… lote {progress.currentBatch} ({progress.totalClassified} feitos, {progress.totalRemaining} restantes)
               </>
             ) : (totalStats?.unclassified || 0) === 0 ? (
               <>
                 <CheckCircle2 className="h-4 w-4 mr-2" />
-                Todos os exercícios estão classificados!
+                Todos os exercícios estão classificados
               </>
             ) : (
               <>
@@ -281,7 +291,7 @@ export const ExerciseDimensionReview = () => {
             <div className="text-sm text-destructive space-y-1">
               <div className="flex items-center gap-1">
                 <AlertTriangle className="h-4 w-4" />
-                {progress.errors.length} erro(s):
+                {progress.errors.length === 1 ? "1 erro:" : `${progress.errors.length} erros:`}
               </div>
               {progress.errors.slice(0, 5).map((err, i) => (
                 <p key={i} className="pl-5 text-xs">{err}</p>
@@ -294,7 +304,7 @@ export const ExerciseDimensionReview = () => {
       {/* Filters + Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Revisão Manual</CardTitle>
+          <CardTitle>Revisão manual</CardTitle>
           <CardDescription>Revise e corrija as dimensões atribuídas pela IA.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -330,8 +340,14 @@ export const ExerciseDimensionReview = () => {
             )}
           </div>
 
-          {isLoading ? (
-            <p className="text-muted-foreground">Carregando...</p>
+          {isError ? (
+            <ErrorState
+              title="Não foi possível carregar os exercícios"
+              description="Verifique a conexão e tente de novo."
+              onRetry={() => refetch()}
+            />
+          ) : isLoading ? (
+            <p className="text-muted-foreground" role="status">Carregando…</p>
           ) : (
             <>
             <div className="border rounded-lg overflow-x-auto">
@@ -354,7 +370,7 @@ export const ExerciseDimensionReview = () => {
                         {ex.name}
                       </TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="outline" className="text-[10px]">
+                        <Badge variant="outline" className="text-xs">
                           {EXERCISE_CATEGORIES[ex.category as keyof typeof EXERCISE_CATEGORIES]?.slice(0, 8) || "—"}
                         </Badge>
                       </TableCell>
@@ -383,7 +399,7 @@ export const ExerciseDimensionReview = () => {
                   {allExercises.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
-                        {filter === "unclassified" ? "Todos classificados! 🎉" : "Nenhum exercício encontrado."}
+                        {filter === "unclassified" ? "Nenhum exercício pendente de classificação." : "Nenhum exercício encontrado."}
                       </TableCell>
                     </TableRow>
                   )}
@@ -397,12 +413,12 @@ export const ExerciseDimensionReview = () => {
                 </span>
                 {totalPages > 1 && (
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(safePage - 1)} disabled={safePage <= 1}>
+                    <Button variant="outline" onClick={() => setCurrentPage(safePage - 1)} disabled={safePage <= 1}>
                       <ChevronLeft className="h-4 w-4" />
                       Anterior
                     </Button>
                     <span>Página {safePage} de {totalPages}</span>
-                    <Button variant="outline" size="sm" onClick={() => setCurrentPage(safePage + 1)} disabled={safePage >= totalPages}>
+                    <Button variant="outline" onClick={() => setCurrentPage(safePage + 1)} disabled={safePage >= totalPages}>
                       Próxima
                       <ChevronRight className="h-4 w-4" />
                     </Button>
