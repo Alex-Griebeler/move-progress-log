@@ -69,8 +69,14 @@ for function_name in "${verify_jwt_false_functions[@]}"; do
   fi
 
   # For verify_jwt=false operational endpoints, require at least one
-  # explicit authentication/authorization control in code.
-  if ! grep -qE "authenticateServiceRoleOrUserRole|auth\.getUser\(|x-admin-key|service_role required|SUPABASE_SERVICE_ROLE_KEY|role.*admin|role.*trainer" "$file_path"; then
+  # explicit authentication/authorization control in code. Funções que
+  # delegam o handler para outros arquivos (ex.: wearable-mirror-control →
+  # handler.ts) são varridas por inteiro, exceto testes. Requisição
+  # assinada (verifyMirrorRequest → 401 sem assinatura válida) conta
+  # como guard.
+  function_sources=$(find "$FUNCTIONS_DIR/$function_name" -name "*.ts" ! -name "*_test.ts" ! -name "*.test.ts")
+  # shellcheck disable=SC2086
+  if ! grep -qE "authenticateServiceRoleOrUserRole|auth\.getUser\(|x-admin-key|service_role required|SUPABASE_SERVICE_ROLE_KEY|role.*admin|role.*trainer|verifyMirrorRequest" $function_sources; then
     guarded_missing+=("$function_name")
   fi
 done
