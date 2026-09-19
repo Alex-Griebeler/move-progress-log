@@ -5,7 +5,7 @@ import { Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useWhoopConnection } from "@/hooks/useWhoopConnection";
 import { useWhoopMetrics } from "@/hooks/useWhoopMetrics";
-import { formatStrain } from "@/components/WhoopActivityCard";
+import { formatDateSP, formatNumberBR, formatTimeSP } from "@/utils/displayFormat";
 import { ROUTES } from "@/constants/navigation";
 
 interface WhoopStudentDiagnosticsCardProps {
@@ -26,17 +26,21 @@ export const WhoopStudentDiagnosticsCard = ({ studentId, studentName }: WhoopStu
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-primary" />
             <span className="font-semibold">{studentName}</span>
-            {connection ? <Badge variant="default">Conectado</Badge> : <Badge variant="outline">Não conectado</Badge>}
+            {connection ? (
+              <Badge variant="outline" className="border-success/40 font-normal text-success">Conectado</Badge>
+            ) : (
+              <Badge variant="outline" className="font-normal text-muted-foreground">Não conectado</Badge>
+            )}
           </div>
-          <Button variant="outline" size="sm" onClick={() => navigate(ROUTES.studentDetail(studentId))}>
-            Ver Detalhes
+          <Button variant="outline" onClick={() => navigate(ROUTES.studentDetail(studentId))}>
+            Ver detalhes
           </Button>
         </div>
 
         {connection && (
           <p className="text-xs text-muted-foreground">
             {connection.last_sync_at
-              ? `Última sincronização: ${new Date(connection.last_sync_at).toLocaleDateString("pt-BR")}`
+              ? `Última sincronização: ${formatDateSP(connection.last_sync_at, true)} às ${formatTimeSP(connection.last_sync_at)}`
               : "Aguardando primeira sincronização"}
           </p>
         )}
@@ -44,21 +48,23 @@ export const WhoopStudentDiagnosticsCard = ({ studentId, studentName }: WhoopStu
         {latest ? (
           <div className="grid grid-cols-3 gap-2 text-sm">
             <div>
-              <span className="text-muted-foreground">Recovery</span>
+              <span className="text-muted-foreground">Recuperação</span>
               <br />
               <span className="font-medium">
                 {latest.recovery_score !== null ? `${latest.recovery_score}%` : "—"}
               </span>
             </div>
             <div>
-              <span className="text-muted-foreground">Strain</span>
+              <span className="text-muted-foreground">Strain (0 a 21)</span>
               <br />
-              <span className="font-medium">{formatStrain(latest.day_strain)}</span>
+              <span className="font-medium">{formatNumberBR(latest.day_strain, 1)}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Sono</span>
               <br />
-              <span className="font-medium">{latest.sleep_performance ?? "—"}%</span>
+              <span className="font-medium">
+                {latest.sleep_performance !== null ? `${latest.sleep_performance}%` : "—"}
+              </span>
             </div>
           </div>
         ) : connection ? (

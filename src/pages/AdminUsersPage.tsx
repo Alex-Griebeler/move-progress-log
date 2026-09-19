@@ -18,7 +18,6 @@ import {
   UserCog, 
   Search,
   Filter,
-  RefreshCw,
   UserPlus
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -38,6 +37,8 @@ import { AddUserDialog } from "@/components/AddUserDialog";
 import { EditUserDialog } from "@/components/EditUserDialog";
 import { logger } from "@/utils/logger";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { ErrorState } from "@/components/ErrorState";
+import { formatDateSP } from "@/utils/displayFormat";
 
 interface UserWithRole {
   id: string;
@@ -79,6 +80,7 @@ export default function AdminUsersPage() {
   const { isAdmin, isLoading: roleLoading } = useIsAdmin();
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [sortField, setSortField] = useState<SortField>('name');
@@ -112,6 +114,7 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
+      setLoadError(false);
 
       // Buscar papéis de todos os usuários
       const { data: roles, error: rolesError } = await supabase
@@ -140,7 +143,9 @@ export default function AdminUsersPage() {
 
         return {
           id: profile.id,
-          email: 'admin@fabrikbrasil.com', // Placeholder até ter auth.admin
+          // Sem acesso a auth.admin no front: e-mail desconhecido vira "—"
+          // na tela (antes mostrava um endereço fictício igual para todos).
+          email: '',
           full_name: profile.full_name || 'Sem nome',
           role: (roleData?.role || 'moderator') as 'admin' | 'moderator' | 'user',
           created_at: profile.created_at,
@@ -151,7 +156,7 @@ export default function AdminUsersPage() {
       // Adicionar alunos como usuários com role 'user'
       const studentsData: UserWithRole[] = (students || []).map((student) => ({
         id: student.id,
-        email: 'aluno@fabrikbrasil.com', // Placeholder - alunos não têm email no sistema
+        email: '', // alunos não têm e-mail no sistema
         full_name: student.name,
         role: 'user' as const,
         created_at: student.created_at,
@@ -161,6 +166,7 @@ export default function AdminUsersPage() {
       setUsers([...trainersData, ...studentsData]);
     } catch (error: unknown) {
       logger.error("Error fetching users:", error);
+      setLoadError(true);
       toast({
         title: "Erro ao carregar usuários",
         description: buildErrorDescription(error) || "Erro desconhecido",
@@ -230,7 +236,7 @@ export default function AdminUsersPage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto" />
-          <p className="text-sm text-muted-foreground">Verificando permissões...</p>
+          <p className="text-sm text-muted-foreground">Verificando permissões…</p>
         </div>
       </div>
     );
@@ -281,7 +287,7 @@ export default function AdminUsersPage() {
     >
       <PageHeader
         title={NAV_LABELS.adminUsers}
-        description={`${stats.total} usuários • ${stats.admins} admins • ${stats.moderators} treinadores • ${stats.users} alunos`}
+        description={`${stats.total} usuários · ${stats.admins} administradores · ${stats.moderators} treinadores · ${stats.users} alunos`}
       />
 
       {/* Filters in StickyBar */}
@@ -291,7 +297,8 @@ export default function AdminUsersPage() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nome ou email..."
+                placeholder="Buscar por nome ou e-mail…"
+                aria-label="Buscar usuários por nome ou e-mail"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -325,12 +332,7 @@ export default function AdminUsersPage() {
             variant="default"
           >
             <UserPlus className="h-4 w-4 mr-2" />
-            Adicionar Usuário
-          </Button>
-
-          <Button onClick={fetchUsers} variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar
+            Adicionar usuário
           </Button>
         </div>
       </StickyBar>
@@ -345,10 +347,16 @@ export default function AdminUsersPage() {
         </CardHeader>
 
         <CardContent>
-          {loading ? (
+          {loadError && !loading ? (
+            <ErrorState
+              title="Não foi possível carregar os usuários"
+              description="Verifique a conexão e tente de novo."
+              onRetry={fetchUsers}
+            />
+          ) : loading ? (
             <div className="space-y-4">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-4 p-4 border rounded-lg animate-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
+                <div key={i} className="flex items-center gap-4 p-4 border rounded-lg">
                   <Skeleton className="h-12 w-12 rounded-full shrink-0" />
                   <div className="space-y-2 flex-1">
                     <Skeleton className="h-4 w-48" />
@@ -365,9 +373,9 @@ export default function AdminUsersPage() {
 	                  <thead className="bg-muted">
 	                    <tr>
 	                      {renderSortHeader("name", "Nome")}
-	                      {renderSortHeader("email", "Email")}
+	                      {renderSortHeader("email", "E-mail")}
 	                      {renderSortHeader("role", "Perfil")}
-	                      {renderSortHeader("last_sign_in", "Último Acesso")}
+	                      {renderSortHeader("last_sign_in", "Última atualização")}
 	                      <th scope="col" className="text-left p-4 font-medium">Ações</th>
 	                    </tr>
 	                  </thead>
@@ -388,21 +396,21 @@ export default function AdminUsersPage() {
                             <span className="font-medium">{user.full_name || 'Sem nome'}</span>
                           </div>
                         </td>
-                        <td className="p-4 text-sm text-muted-foreground">{user.email}</td>
+                        <td className="p-4 text-sm text-muted-foreground">{user.email || "—"}</td>
                         <td className="p-4">
                           <Badge variant={roleVariants[user.role]}>
                             {roleLabels[user.role]}
                           </Badge>
                         </td>
                         <td className="p-4 text-sm text-muted-foreground">
-                          {user.last_sign_in_at 
-                            ? new Date(user.last_sign_in_at).toLocaleDateString('pt-BR')
-                            : 'Nunca'}
+                          {user.last_sign_in_at
+                            ? formatDateSP(user.last_sign_in_at, true)
+                            : '—'}
                         </td>
                         <td className="p-4">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
+                          <Button
+                            variant="ghost"
+                            aria-label={`Editar ${user.full_name || "usuário"}`}
                             onClick={() => {
                               setSelectedUser(user);
                               setShowEditDialog(true);
@@ -424,40 +432,6 @@ export default function AdminUsersPage() {
               )}
               </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Info Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sistema de Gestão de Contas - Fase 1</CardTitle>
-          <CardDescription>
-            Fundação implementada com sucesso
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            <p className="flex items-center gap-2">
-              <span className="text-green-500">✓</span>
-              <span>Sistema de permissões granulares (35 permissões)</span>
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="text-green-500">✓</span>
-              <span>Auditoria completa (histórico de mudanças)</span>
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="text-green-500">✓</span>
-              <span>Rate limiting anti-brute force</span>
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="text-green-500">✓</span>
-              <span>Sistema de reset de senha</span>
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="text-yellow-500">⊙</span>
-              <span>Painel de gestão (em desenvolvimento)</span>
-            </p>
-          </div>
         </CardContent>
       </Card>
 

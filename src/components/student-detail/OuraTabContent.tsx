@@ -32,6 +32,24 @@ import ManualProtocolRecommendationDialog from "@/components/ManualProtocolRecom
 import { ScoreRing, MetricTile, TrendChart, StaleBadge, DataErrorState } from "@/components/metrics";
 import type { TrendPoint } from "@/components/metrics";
 import { LazyChart } from "@/components/LazyChart";
+import { formatNumberBR } from "@/utils/displayFormat";
+
+/** Rótulo de seção/gráfico — 12px, menor token da escala (era 10,5px). */
+const SECTION_LABEL = "mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground";
+
+/** Nível de resiliência da API Oura → rótulo humano (nunca o enum cru). */
+const RESILIENCE_LABEL: Record<string, string> = {
+  limited: "Limitada",
+  adequate: "Adequada",
+  solid: "Sólida",
+  strong: "Forte",
+  exceptional: "Excepcional",
+};
+
+const resilienceLabel = (raw: string | null | undefined): string | null => {
+  if (!raw) return null;
+  return RESILIENCE_LABEL[raw.toLowerCase()] ?? "—";
+};
 
 type Period = 7 | 30 | 90;
 
@@ -108,10 +126,11 @@ const DayTable = ({ rows, columns }: { rows: OuraMetrics[]; columns: DayColumn[]
       <div className="max-h-80 overflow-y-auto overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-card">
-            <tr className="border-b text-left text-[10.5px] uppercase tracking-widest text-muted-foreground">
-              <th className="px-4 py-2 font-medium">Dia</th>
+            <tr className="border-b text-left text-xs uppercase tracking-wide text-muted-foreground">
+              {/* Coluna "Dia" fixa na rolagem horizontal (UX-23). */}
+              <th scope="col" className="sticky left-0 z-10 bg-card px-4 py-2 font-medium">Dia</th>
               {columns.map((c) => (
-                <th key={c.label} className="px-4 py-2 font-medium">
+                <th key={c.label} scope="col" className="whitespace-nowrap px-4 py-2 font-medium">
                   {c.label}
                 </th>
               ))}
@@ -120,7 +139,7 @@ const DayTable = ({ rows, columns }: { rows: OuraMetrics[]; columns: DayColumn[]
           <tbody>
             {rows.map((m) => (
               <tr key={m.id} className="border-b last:border-b-0">
-                <td className="whitespace-nowrap px-4 py-2 text-muted-foreground">{shortDay(m.date)}</td>
+                <th scope="row" className="sticky left-0 bg-card whitespace-nowrap px-4 py-2 text-left font-normal text-muted-foreground">{shortDay(m.date)}</th>
                 {columns.map((c) => (
                   <td key={c.label} className="whitespace-nowrap px-4 py-2">
                     {c.render(m)}
@@ -226,6 +245,7 @@ export const OuraTabContent = ({
           key={p}
           variant={period === p ? "secondary" : "outline"}
           size="sm"
+          className="h-10 min-w-10"
           aria-pressed={period === p}
           onClick={() => setPeriod(p)}
         >
@@ -251,7 +271,12 @@ export const OuraTabContent = ({
         <AccordionTrigger className="text-sm font-semibold">
           Recomendações de recuperação
         </AccordionTrigger>
-        <AccordionContent>
+        <AccordionContent className="space-y-3">
+          {/* Entrada manual mora junto das recomendações (UX-24): o topo
+              da aba fica só com o período. */}
+          <div className="flex justify-end">
+            <ManualProtocolRecommendationDialog studentId={studentId} />
+          </div>
           <ProtocolRecommendationsCard studentId={studentId} />
         </AccordionContent>
       </AccordionItem>
@@ -280,8 +305,8 @@ export const OuraTabContent = ({
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                Oura conectado, sem dados no período selecionado. Os dados são
-                processados após o aluno acordar e sincronizar o anel — use o
+                Oura conectado, sem dados no período selecionado. Os dados chegam
+                depois que o anel sincroniza pela manhã; para buscar agora, use
                 Sincronizar em "Conexão e diagnóstico" abaixo.
               </AlertDescription>
             </Alert>
@@ -289,7 +314,7 @@ export const OuraTabContent = ({
             <>
               <p className="text-muted-foreground">Nenhuma métrica do Oura disponível</p>
               <p className="mt-2 text-sm text-muted-foreground">
-                Conecte o Oura do aluno em "Conexão e diagnóstico" abaixo.
+                Conecte o Oura em "Conexão e diagnóstico" abaixo.
               </p>
             </>
           )}
@@ -304,20 +329,22 @@ export const OuraTabContent = ({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {periodToggle}
-        <ManualProtocolRecommendationDialog studentId={studentId} />
       </div>
 
       {body}
 
       {body === null && (
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="overview">Resumo</TabsTrigger>
-          <TabsTrigger value="activity">Atividade</TabsTrigger>
-          <TabsTrigger value="sleep">Sono</TabsTrigger>
-          <TabsTrigger value="stress">Estresse</TabsTrigger>
-          <TabsTrigger value="workouts">Treinos</TabsTrigger>
-          <TabsTrigger value="advanced">Avançado</TabsTrigger>
+        {/* Seis sub-abas não cabem em 375px: no celular a lista rola na
+            horizontal (setas do teclado seguem do Radix); a partir de sm,
+            grade de 6 colunas (UX-18). */}
+        <TabsList className="flex h-auto w-full justify-start overflow-x-auto sm:grid sm:grid-cols-6">
+          <TabsTrigger value="overview" className="min-h-10 shrink-0">Resumo</TabsTrigger>
+          <TabsTrigger value="activity" className="min-h-10 shrink-0">Atividade</TabsTrigger>
+          <TabsTrigger value="sleep" className="min-h-10 shrink-0">Sono</TabsTrigger>
+          <TabsTrigger value="stress" className="min-h-10 shrink-0">Estresse</TabsTrigger>
+          <TabsTrigger value="workouts" className="min-h-10 shrink-0">Treinos</TabsTrigger>
+          <TabsTrigger value="advanced" className="min-h-10 shrink-0">Avançado</TabsTrigger>
         </TabsList>
 
         {/* RESUMO — prontidão como herói + tendência */}
@@ -355,7 +382,7 @@ export const OuraTabContent = ({
           )}
           <Card>
             <CardContent className="p-4">
-              <p className="mb-2 text-[10.5px] uppercase tracking-widest text-muted-foreground">
+              <p className={SECTION_LABEL}>
                 Prontidão · últimos {period} dias
               </p>
               <LazyChart height={180}>
@@ -402,7 +429,7 @@ export const OuraTabContent = ({
                 />
                 <MetricTile
                   label="Passos"
-                  value={latest.steps !== null ? latest.steps.toLocaleString("pt-BR") : null}
+                  value={latest.steps !== null ? formatNumberBR(latest.steps) : null}
                 />
                 <MetricTile
                   label="Calorias ativas"
@@ -415,7 +442,7 @@ export const OuraTabContent = ({
           })()}
           <Card>
             <CardContent className="p-4">
-              <p className="mb-2 text-[10.5px] uppercase tracking-widest text-muted-foreground">
+              <p className={SECTION_LABEL}>
                 Score de atividade · últimos {period} dias
               </p>
               <LazyChart height={180}>
@@ -435,8 +462,8 @@ export const OuraTabContent = ({
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertDescription>
-                  Tempo sedentário elevado em {shortDay(latest.date)}:{" "}
-                  {fmtDuration(latest.sedentary_time)}. Considerar pausas ativas a cada hora.
+                  Tempo sedentário acima de 8 h em {shortDay(latest.date)}:{" "}
+                  {fmtDuration(latest.sedentary_time)}.
                 </AlertDescription>
               </Alert>
             ) : null;
@@ -447,7 +474,7 @@ export const OuraTabContent = ({
               { label: "Score", render: (m) => m.activity_score ?? "—" },
               {
                 label: "Passos",
-                render: (m) => (m.steps !== null ? m.steps.toLocaleString("pt-BR") : "—"),
+                render: (m) => formatNumberBR(m.steps),
               },
               {
                 label: "Cal. ativas",
@@ -496,7 +523,7 @@ export const OuraTabContent = ({
           {hasSleepPhases && (
             <Card>
               <CardContent className="p-4">
-                <p className="mb-2 text-[10.5px] uppercase tracking-widest text-muted-foreground">
+                <p className={SECTION_LABEL}>
                   Fases do sono (horas) · últimos {period} dias
                 </p>
                 <LazyChart height={200}>
@@ -523,7 +550,7 @@ export const OuraTabContent = ({
               { label: "Duração", render: (m) => fmtDuration(m.total_sleep_duration) },
               { label: "Profundo", render: (m) => fmtDuration(m.deep_sleep_duration) },
               { label: "REM", render: (m) => fmtDuration(m.rem_sleep_duration) },
-              { label: "Acordada", render: (m) => fmtMin(m.awake_time) },
+              { label: "Vigília", render: (m) => fmtMin(m.awake_time) },
               { label: "Latência", render: (m) => fmtMin(m.sleep_latency) },
               {
                 label: "Efic.",
@@ -532,7 +559,7 @@ export const OuraTabContent = ({
               {
                 label: "Resp. média",
                 render: (m) =>
-                  m.average_breath !== null ? `${m.average_breath.toFixed(1)}/min` : "—",
+                  m.average_breath !== null ? `${formatNumberBR(m.average_breath, 1)}/min` : "—",
               },
             ]}
           />
@@ -543,7 +570,7 @@ export const OuraTabContent = ({
           {hasStressData ? (
             <Card>
               <CardContent className="p-4">
-                <p className="mb-2 text-[10.5px] uppercase tracking-widest text-muted-foreground">
+                <p className={SECTION_LABEL}>
                   Estresse × recuperação (minutos) · últimos {period} dias
                 </p>
                 <LazyChart height={200}>
@@ -596,7 +623,7 @@ export const OuraTabContent = ({
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <MetricTile
                   label="SpO2 médio (sono)"
-                  value={latestSpo2?.spo2_average != null ? `${latestSpo2.spo2_average.toFixed(1)}%` : null}
+                  value={latestSpo2?.spo2_average != null ? `${formatNumberBR(latestSpo2.spo2_average, 1)}%` : null}
                   tone={
                     latestSpo2?.spo2_average != null && latestSpo2.spo2_average < 95
                       ? "warning"
@@ -605,16 +632,16 @@ export const OuraTabContent = ({
                   footnote={latestSpo2 ? shortDay(latestSpo2.date) : undefined}
                 />
                 <MetricTile
-                  label="Dist. respiratório"
+                  label="Distúrbio respiratório"
                   value={latestWith(rows, (m) => m.breathing_disturbance_index)?.breathing_disturbance_index ?? null}
-                  footnote="abaixo = melhor"
+                  footnote="menor é melhor"
                 />
                 <MetricTile
                   label="Resiliência"
-                  value={latestRes?.resilience_level ?? null}
+                  value={resilienceLabel(latestRes?.resilience_level)}
                 />
                 <MetricTile
-                  label="VO2 máx (Oura)"
+                  label="VO₂ máx (Oura)"
                   value={latestVo2?.vo2_max ?? null}
                   footnote={
                     latestVo2
@@ -627,7 +654,7 @@ export const OuraTabContent = ({
           })()}
           <Card>
             <CardContent className="p-4">
-              <p className="mb-2 text-[10.5px] uppercase tracking-widest text-muted-foreground">
+              <p className={SECTION_LABEL}>
                 SpO2 médio · últimos {period} dias
               </p>
               <LazyChart height={180}>
@@ -645,10 +672,10 @@ export const OuraTabContent = ({
             columns={[
               {
                 label: "SpO2",
-                render: (m) => (m.spo2_average !== null ? `${m.spo2_average.toFixed(1)}%` : "—"),
+                render: (m) => (m.spo2_average !== null ? `${formatNumberBR(m.spo2_average, 1)}%` : "—"),
               },
-              { label: "BDI", render: (m) => m.breathing_disturbance_index ?? "—" },
-              { label: "Resiliência", render: (m) => m.resilience_level ?? "—" },
+              { label: "Dist. resp.", render: (m) => m.breathing_disturbance_index ?? "—" },
+              { label: "Resiliência", render: (m) => resilienceLabel(m.resilience_level) ?? "—" },
             ]}
           />
         </TabsContent>

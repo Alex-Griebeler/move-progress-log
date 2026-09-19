@@ -93,7 +93,7 @@ export const AssessmentResultCard = ({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-semibold">{typeLabel}</span>
-            <Badge variant="outline" className="text-[10px]">
+            <Badge variant="outline" className="text-xs">
               {category}
             </Badge>
 
@@ -112,7 +112,7 @@ export const AssessmentResultCard = ({
             <div className="text-right">
               <div className="text-lg font-semibold leading-none tabular-nums">
                 {formatAssessmentValue(value!, decimals)}
-                <span className="ml-0.5 text-[11px] font-normal text-muted-foreground">
+                <span className="ml-0.5 text-xs font-normal text-muted-foreground">
                   {unit}
                 </span>
               </div>
@@ -120,7 +120,7 @@ export const AssessmentResultCard = ({
                 {classification && (
                   <span
                     className={cn(
-                      "text-[11px] font-medium",
+                      "text-xs font-medium",
                       TONE_TEXT[toneForClassification(classification)],
                     )}
                   >
@@ -141,7 +141,7 @@ export const AssessmentResultCard = ({
                 {delta !== null && (
                   <span
                     className={cn(
-                      "text-[11px] tabular-nums",
+                      "text-xs tabular-nums",
                       deltaIsGood === null
                         ? "text-muted-foreground"
                         : deltaIsGood

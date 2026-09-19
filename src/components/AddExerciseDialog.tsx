@@ -316,20 +316,20 @@ export const AddExerciseDialog = ({
         <DialogTrigger asChild>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
-            Adicionar Exercício
+            Adicionar exercício
           </Button>
         </DialogTrigger>
       )}
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>Novo Exercício</DialogTitle>
+          <DialogTitle>Novo exercício</DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 min-h-0 overflow-y-auto pr-2 scrollbar-none">
           <form onSubmit={handleSubmit} className="space-y-4" id="add-exercise-form">
             {/* Basic Info Section */}
             <div className="space-y-4">
-              <h3 className="text-sm font-medium text-muted-foreground">Informações Básicas</h3>
+              <h3 className="text-sm font-medium text-muted-foreground">Informações básicas</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2 col-span-2">
@@ -342,8 +342,8 @@ export const AddExerciseDialog = ({
                     required
                   />
                   {duplicates && duplicates.length > 0 && (
-                    <Alert variant="default" className="border-accent/50 bg-accent/10">
-                      <AlertTriangle className="h-4 w-4 text-accent-foreground" />
+                    <Alert variant="default" className="border-warning/40 bg-warning/10">
+                      <AlertTriangle className="h-4 w-4 text-warning" aria-hidden />
                       <AlertDescription className="text-sm">
                         Exercício(s) similar(es) encontrado(s):
                         <ul className="mt-1 list-disc list-inside">
@@ -501,7 +501,7 @@ export const AddExerciseDialog = ({
               <CollapsibleContent className="space-y-4">
                 {/* Classification Section */}
                 <div className="space-y-4 pt-4 border-t border-border">
-                  <h3 className="text-sm font-medium text-muted-foreground">Classificação Biomecânica</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">Classificação biomecânica</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -604,7 +604,7 @@ export const AddExerciseDialog = ({
 
                 {/* Dimension Scores Section */}
                 <div className="space-y-4 pt-4 border-t border-border">
-                  <h3 className="text-sm font-medium text-muted-foreground">Scores de Classificação (0-5)</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">Scores de classificação (0–5)</h3>
               
               <div className="grid grid-cols-3 gap-4">
                 {Object.entries(EXERCISE_DIMENSIONS).map(([key, dim]) => {
@@ -646,7 +646,7 @@ export const AddExerciseDialog = ({
 
                 {/* Defaults Section */}
                 <div className="space-y-4 pt-4 border-t border-border">
-                  <h3 className="text-sm font-medium text-muted-foreground">Prescrição Padrão</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">Prescrição padrão</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -765,7 +765,7 @@ export const AddExerciseDialog = ({
 
                 {/* Video and Description */}
                 <div className="space-y-4 pt-4 border-t border-border">
-                  <h3 className="text-sm font-medium text-muted-foreground">Mídia e Descrição</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">Mídia e descrição</h3>
               
               <div className="space-y-2">
                 <Label htmlFor="video-url">URL do Vídeo</Label>
@@ -792,7 +792,7 @@ export const AddExerciseDialog = ({
 
                 {/* Equipment Section */}
                 <div className="space-y-4 pt-4 border-t border-border">
-                  <h3 className="text-sm font-medium text-muted-foreground">Equipamentos Necessários</h3>
+                  <h3 className="text-sm font-medium text-muted-foreground">Equipamentos necessários</h3>
               
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-2 border rounded-md">
                 {ALL_EQUIPMENT.map((equipment) => (
@@ -834,7 +834,7 @@ export const AddExerciseDialog = ({
             className="w-full" 
             disabled={createExercise.isPending}
           >
-            {createExercise.isPending ? "Criando..." : "Criar Exercício"}
+            {createExercise.isPending ? "Criando…" : "Criar exercício"}
           </Button>
         </div>
       </DialogContent>

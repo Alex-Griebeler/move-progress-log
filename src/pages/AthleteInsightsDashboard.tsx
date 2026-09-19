@@ -9,6 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Trophy, Target, Calendar } from 'lucide-react';
 import { logger } from '@/utils/logger';
+import { formatDateSP, formatDecimalBR, formatKg, formatNumberBR } from '@/utils/displayFormat';
+
+/** "2026-09-01" → "01/09/2026" sem passar por Date (evita virar o dia em UTC). */
+const formatDay = (value: string | null | undefined): string => {
+  if (!value) return '—';
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : formatDateSP(value, true);
+};
 
 interface MetricTrend {
   date: string;
@@ -291,16 +299,16 @@ export default function AthleteInsightsDashboard() {
         {studentId ? (
           <>
             <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-              <StatCard title='Volume Total'  value={`${totalVolume.toFixed(0)} kg`}  icon={TrendingUp} />
+              <StatCard title='Volume total'  value={`${formatNumberBR(totalVolume, 0)} kg`}  icon={TrendingUp} />
               <StatCard title='Sessões'       value={String(totalSessions)}            icon={Calendar} />
-              <StatCard title='Carga Média'   value={`${avgLoad.toFixed(1)} kg`}       icon={TrendingUp} />
+              <StatCard title='Carga média'   value={formatKg(avgLoad)}       icon={TrendingUp} />
               <StatCard title='Recordes'      value={String(records?.length ?? 0)}     icon={Trophy} />
             </div>
 
             <Card>
               <CardHeader>
                 <CardTitle className='flex items-center gap-2'>
-                  <Trophy className='h-5 w-5 text-yellow-500' /> Recordes Pessoais
+                  <Trophy className='h-5 w-5 text-primary' aria-hidden /> Recordes pessoais
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -311,12 +319,12 @@ export default function AthleteInsightsDashboard() {
                         <div>
                           <span className='font-medium'>{r.exercise_name}</span>
                           <Badge variant='secondary' className='ml-2 text-xs'>
-                            {r.record_type === 'max_load' ? 'Carga Máx' : 'Volume Máx'}
+                            {r.record_type === 'max_load' ? 'Carga máx.' : 'Volume máx.'}
                           </Badge>
                         </div>
                         <div className='text-right text-sm'>
-                          <div className='font-semibold'>{r.value} {r.record_type === 'max_load' ? 'kg' : 'kg·reps'}</div>
-                          <div className='text-muted-foreground text-xs'>{r.achieved_at}</div>
+                          <div className='font-semibold'>{formatDecimalBR(r.value, 1)} {r.record_type === 'max_load' ? 'kg' : 'kg·reps'}</div>
+                          <div className='text-muted-foreground text-xs'>{formatDay(r.achieved_at)}</div>
                         </div>
                       </div>
                     ))}
@@ -328,7 +336,7 @@ export default function AthleteInsightsDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle className='flex items-center gap-2'>
-                  <Target className='h-5 w-5 text-blue-500' /> Metas Ativas
+                  <Target className='h-5 w-5 text-primary' aria-hidden /> Metas ativas
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -342,7 +350,7 @@ export default function AthleteInsightsDashboard() {
                         </div>
                         <div className='text-right text-sm'>
                           {g.target_value && <div className='font-semibold'>{g.target_value} {g.target_unit}</div>}
-                          {g.target_date  && <div className='text-muted-foreground text-xs'>{g.target_date}</div>}
+                          {g.target_date  && <div className='text-muted-foreground text-xs'>{formatDay(g.target_date)}</div>}
                         </div>
                       </div>
                     ))}

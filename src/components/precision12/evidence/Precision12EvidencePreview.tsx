@@ -117,7 +117,7 @@ export function Precision12EvidencePreview({
           <span className="text-xs font-medium text-muted-foreground">
             Triagem operacional
           </span>
-          <Badge variant="outline" className="text-[10px]">
+          <Badge variant="outline" className="text-xs">
             {totalClaims} claim{totalClaims === 1 ? "" : "s"}
           </Badge>
         </div>
@@ -167,7 +167,7 @@ export function Precision12EvidencePreview({
           </summary>
           <div className="mt-2 space-y-3">
             <div>
-              <p className="font-semibold uppercase tracking-wide text-[10px]">
+              <p className="font-semibold uppercase tracking-wide text-xs">
                 Domínios sem dados ou ref ranges
               </p>
               <ul
@@ -183,7 +183,7 @@ export function Precision12EvidencePreview({
               </ul>
             </div>
             <div>
-              <p className="font-semibold uppercase tracking-wide text-[10px]">
+              <p className="font-semibold uppercase tracking-wide text-xs">
                 Campos do questionário sem claim individual
               </p>
               <ul

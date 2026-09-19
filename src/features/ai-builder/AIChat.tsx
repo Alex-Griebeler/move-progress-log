@@ -94,7 +94,7 @@ export function AIChat({ conversationId }: AIChaChatProps) {
       await addMessage.mutateAsync({
         conversation_id: conversationId,
         role: "assistant",
-        content: `⚠️ ${errorMsg}`,
+        content: `Erro: ${errorMsg}`,
       });
     } finally {
       setIsLoading(false);

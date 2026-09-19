@@ -19,7 +19,7 @@
  * em tempo real; coach pode sobrescrever se houver razão clínica.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2 } from "lucide-react";
@@ -53,6 +53,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 import { useCreateAssessment } from "@/hooks/useAssessments";
+import { formatDecimalBR, formatNumberBR } from "@/utils/displayFormat";
+import { useDiscardGuard } from "./useDiscardGuard";
 import {
   assessmentBaseSchema,
   localTodayIso,
@@ -61,6 +63,7 @@ import {
 } from "@/utils/assessmentValidation";
 import { calcFcMaxPredicted, calcPercentFcMax, calcVo2Bike } from "@/utils/vo2";
 import type { AssessmentType } from "@/types/assessment";
+import { STICKY_FORM_FOOTER } from "./formDialogLayout";
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -263,15 +266,33 @@ export const Vo2BikeForm = ({
     }
   };
 
+  // Guarda de saída (UX-01): fechar com dados digitados pede confirmação.
+  const { isDirty } = form.formState;
+  const closeForReal = useCallback(() => onOpenChange(false), [onOpenChange]);
+  const { requestClose: requestDiscard, dialog: discardDialog } = useDiscardGuard({
+    isDirty,
+    onDiscard: closeForReal,
+    title: "Descartar teste de VO₂ não salvo?",
+    description: "Os estágios e as métricas digitados serão perdidos.",
+  });
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      onOpenChange(true);
+      return;
+    }
+    if (isSaving) return;
+    requestDiscard();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{MODALITY_LABELS[modality]}</DialogTitle>
           <DialogDescription>
-            Registre os estágios do protocolo + métricas finais. VO₂ é
-            estimado por ACSM (10.8 × W/kg + 7) usando carga da última
-            etapa válida. FCmáx prevista é Tanaka 2001.
+            Registre os estágios e as métricas finais. O VO₂ é estimado pela
+            fórmula ACSM (10,8 × W/kg + 7) a partir dos últimos watts válidos;
+            a FCmáx prevista usa Tanaka (2001).
           </DialogDescription>
         </DialogHeader>
 
@@ -301,6 +322,7 @@ export const Vo2BikeForm = ({
                     <FormControl>
                       <Input
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         max={120}
                         {...field}
@@ -321,6 +343,7 @@ export const Vo2BikeForm = ({
                     <FormControl>
                       <Input
                         type="number"
+                        inputMode="decimal"
                         step="0.1"
                         min={0}
                         max={500}
@@ -341,11 +364,12 @@ export const Vo2BikeForm = ({
                 <h3 className="text-sm font-semibold">Estágios do protocolo</h3>
                 <Button
                   type="button"
-                  size="sm"
                   variant="outline"
                   onClick={() => stagesArray.append(blankStage(stagesArray.fields.length + 1))}
+                  disabled={stagesArray.fields.length >= 20}
+                  title={stagesArray.fields.length >= 20 ? "Limite de 20 estágios" : undefined}
                 >
-                  <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar
+                  <Plus className="mr-1 h-4 w-4" aria-hidden /> Adicionar estágio
                 </Button>
               </header>
 
@@ -355,30 +379,17 @@ export const Vo2BikeForm = ({
                     key={stageField.id}
                     className="grid grid-cols-2 gap-2 rounded-md border bg-muted/30 p-2 sm:grid-cols-9"
                   >
-                    <FormField
-                      control={form.control}
-                      name={`stages.${index}.stage_order` as const}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-[10px]">#</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              min={0}
-                              max={20}
-                              {...field}
-                              onChange={(e) => field.onChange(Number(e.target.value))}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
+                    {/* O número do estágio é a posição na lista (é o que o
+                        submit grava); não é editável (UX-06). */}
+                    <div className="col-span-2 flex items-end pb-2 text-sm font-semibold sm:col-span-1">
+                      Estágio {index + 1}
+                    </div>
                     <FormField
                       control={form.control}
                       name={`stages.${index}.time_label` as const}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px]">Tempo</FormLabel>
+                          <FormLabel className="text-xs">Tempo</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -394,7 +405,7 @@ export const Vo2BikeForm = ({
                       name={`stages.${index}.phase` as const}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px]">Fase</FormLabel>
+                          <FormLabel className="text-xs">Fase</FormLabel>
                           <Select
                             value={field.value ?? undefined}
                             onValueChange={(v) => field.onChange(v as StageInput["phase"])}
@@ -418,10 +429,11 @@ export const Vo2BikeForm = ({
                       name={`stages.${index}.load_value` as const}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px]">Carga</FormLabel>
+                          <FormLabel className="text-xs">Carga</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
+                              inputMode="decimal"
                               step="0.5"
                               min={0}
                               max={1000}
@@ -438,7 +450,7 @@ export const Vo2BikeForm = ({
                       name={`stages.${index}.rpm_target` as const}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px]">RPM</FormLabel>
+                          <FormLabel className="text-xs">RPM</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -454,10 +466,11 @@ export const Vo2BikeForm = ({
                       name={`stages.${index}.watts_observed` as const}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px]">Watts</FormLabel>
+                          <FormLabel className="text-xs">Watts</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
+                              inputMode="numeric"
                               min={0}
                               max={1000}
                               {...field}
@@ -473,10 +486,11 @@ export const Vo2BikeForm = ({
                       name={`stages.${index}.hr_final` as const}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px]">FC</FormLabel>
+                          <FormLabel className="text-xs">FC</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
+                              inputMode="numeric"
                               min={30}
                               max={250}
                               {...field}
@@ -492,10 +506,11 @@ export const Vo2BikeForm = ({
                       name={`stages.${index}.pse` as const}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px]">PSE</FormLabel>
+                          <FormLabel className="text-xs">PSE</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
+                              inputMode="numeric"
                               min={6}
                               max={10}
                               {...field}
@@ -515,7 +530,7 @@ export const Vo2BikeForm = ({
                           onClick={() => stagesArray.remove(index)}
                           aria-label={`Remover estágio ${index + 1}`}
                         >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          <Trash2 className="h-4 w-4 text-destructive" aria-hidden />
                         </Button>
                       )}
                     </div>
@@ -531,32 +546,42 @@ export const Vo2BikeForm = ({
 
             {/* FC + VO2 finais */}
             <section className="space-y-3 rounded-md border p-4">
-              <header className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold">Métricas finais</h3>
-                <div className="flex gap-3 text-xs text-muted-foreground">
-                  {percentFcMax !== null && (
-                    <span
-                      role="status"
-                      aria-live="polite"
-                      aria-label={`Atingiu ${percentFcMax.toFixed(0)} por cento da FC máxima prevista`}
-                    >
-                      %FCmáx: <span className="font-mono font-semibold">{percentFcMax.toFixed(0)}%</span>
-                    </span>
-                  )}
-                  {vo2EstimatedPreview !== null && (
-                    <span
-                      role="status"
-                      aria-live="polite"
-                      aria-label={`VO2 estimado ACSM: ${vo2EstimatedPreview.toFixed(1)} ml por quilograma por minuto`}
-                    >
-                      VO₂ ACSM:{" "}
-                      <span className="font-mono font-semibold">
-                        {vo2EstimatedPreview.toFixed(1)} ml/kg/min
+              <h3 className="text-sm font-semibold">Métricas finais</h3>
+              {/* Resultado do teste em destaque (UX-07): é o número que o
+                  treinador está produzindo, não um rodapé cinza. */}
+              <div
+                role="status"
+                aria-live="polite"
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+              >
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">VO₂ estimado (ACSM)</p>
+                  <p className="text-2xl font-semibold tabular-nums">
+                    {vo2EstimatedPreview !== null ? (
+                      <>
+                        {formatDecimalBR(vo2EstimatedPreview, 1)}{" "}
+                        <span className="text-sm font-normal text-muted-foreground">ml/kg/min</span>
+                      </>
+                    ) : (
+                      <span className="text-base font-normal text-muted-foreground">
+                        Preencha peso e últimos watts válidos
                       </span>
-                    </span>
-                  )}
+                    )}
+                  </p>
                 </div>
-              </header>
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">FC pico / FCmáx prevista</p>
+                  <p className="text-2xl font-semibold tabular-nums">
+                    {percentFcMax !== null ? (
+                      `${formatNumberBR(percentFcMax, 0)}%`
+                    ) : (
+                      <span className="text-base font-normal text-muted-foreground">
+                        Preencha FC pico e FCmáx prevista
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <FormField
                   control={form.control}
@@ -567,6 +592,7 @@ export const Vo2BikeForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="numeric"
                           min={30}
                           max={250}
                           {...field}
@@ -587,6 +613,7 @@ export const Vo2BikeForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="numeric"
                           min={30}
                           max={250}
                           {...field}
@@ -627,6 +654,7 @@ export const Vo2BikeForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.5"
                           min={0}
                           max={1000}
@@ -648,6 +676,7 @@ export const Vo2BikeForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="numeric"
                           min={0}
                           max={1000}
                           {...field}
@@ -664,16 +693,17 @@ export const Vo2BikeForm = ({
                   name="vo2_final"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>VO₂ final (sobrescreve preview)</FormLabel>
+                      <FormLabel>VO₂ final (opcional, substitui o estimado)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.1"
                           min={0}
                           max={120}
                           {...field}
                           value={field.value ?? ""}
-                          placeholder={vo2EstimatedPreview?.toFixed(1) ?? "—"}
+                          placeholder={vo2EstimatedPreview !== null ? formatDecimalBR(vo2EstimatedPreview, 1) : "—"}
                           onChange={(e) => field.onChange(parseNumber(e.target.value) ?? null)}
                         />
                       </FormControl>
@@ -722,7 +752,7 @@ export const Vo2BikeForm = ({
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações do coach</FormLabel>
+                  <FormLabel>Observações do treinador</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
@@ -736,11 +766,11 @@ export const Vo2BikeForm = ({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className={STICKY_FORM_FOOTER}>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={requestDiscard}
                 disabled={isSaving}
               >
                 Cancelar
@@ -752,6 +782,7 @@ export const Vo2BikeForm = ({
             </DialogFooter>
           </form>
         </Form>
+        {discardDialog}
       </DialogContent>
     </Dialog>
   );

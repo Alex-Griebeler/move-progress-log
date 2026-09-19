@@ -11,7 +11,7 @@
  * tabela `handgrip_reference_ranges` (Mathiowetz). Aqui só coleta.
  */
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -45,11 +45,14 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 import { useCreateAssessment } from "@/hooks/useAssessments";
+import { formatDecimalBR } from "@/utils/displayFormat";
+import { useDiscardGuard } from "./useDiscardGuard";
 import {
   assessmentBaseSchema,
   handgripSchema,
   localTodayIso,
 } from "@/utils/assessmentValidation";
+import { STICKY_FORM_FOOTER } from "./formDialogLayout";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Schema do form (base + handgrip)
@@ -168,8 +171,26 @@ export const HandgripForm = ({
     }
   };
 
+  // Guarda de saída (UX-01): fechar com dados digitados pede confirmação.
+  const { isDirty } = form.formState;
+  const closeForReal = useCallback(() => onOpenChange(false), [onOpenChange]);
+  const { requestClose: requestDiscard, dialog: discardDialog } = useDiscardGuard({
+    isDirty,
+    onDiscard: closeForReal,
+    title: "Descartar teste de preensão não salvo?",
+    description: "As tentativas digitadas serão perdidas.",
+  });
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      onOpenChange(true);
+      return;
+    }
+    if (isSaving) return;
+    requestDiscard();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Preensão palmar (Mathiowetz 1985)</DialogTitle>
@@ -206,6 +227,7 @@ export const HandgripForm = ({
                     <FormControl>
                       <Input
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         max={120}
                         {...field}
@@ -251,9 +273,9 @@ export const HandgripForm = ({
                   className="text-xs text-muted-foreground"
                   role="status"
                   aria-live="polite"
-                  aria-label={`Melhor da direita: ${bestRight.toFixed(1)} kg`}
+                  aria-label={`Melhor da direita: ${formatDecimalBR(bestRight, 1)} kg`}
                 >
-                  Melhor: <span className="font-mono font-semibold">{bestRight.toFixed(1)} kg</span>
+                  Melhor: <span className="font-mono font-semibold">{formatDecimalBR(bestRight, 1)} kg</span>
                 </span>
               </header>
               <div className="grid grid-cols-3 gap-2">
@@ -268,6 +290,7 @@ export const HandgripForm = ({
                         <FormControl>
                           <Input
                             type="number"
+                            inputMode="decimal"
                             step="0.1"
                             min={0}
                             max={150}
@@ -292,9 +315,9 @@ export const HandgripForm = ({
                   className="text-xs text-muted-foreground"
                   role="status"
                   aria-live="polite"
-                  aria-label={`Melhor da esquerda: ${bestLeft.toFixed(1)} kg`}
+                  aria-label={`Melhor da esquerda: ${formatDecimalBR(bestLeft, 1)} kg`}
                 >
-                  Melhor: <span className="font-mono font-semibold">{bestLeft.toFixed(1)} kg</span>
+                  Melhor: <span className="font-mono font-semibold">{formatDecimalBR(bestLeft, 1)} kg</span>
                 </span>
               </header>
               <div className="grid grid-cols-3 gap-2">
@@ -309,6 +332,7 @@ export const HandgripForm = ({
                         <FormControl>
                           <Input
                             type="number"
+                            inputMode="decimal"
                             step="0.1"
                             min={0}
                             max={150}
@@ -331,9 +355,9 @@ export const HandgripForm = ({
               aria-live="polite"
             >
               <strong>Melhor geral:</strong>{" "}
-              <span className="font-mono">{bestOverall.toFixed(1)} kg</span>{" "}
-              <span className="text-muted-foreground text-xs">
-                (= best_kg armazenado no banco; a classificação Mathiowetz usa a
+              <span className="font-mono">{formatDecimalBR(bestOverall, 1)} kg</span>{" "}
+             <span className="text-muted-foreground text-xs">
+                (maior valor entre as duas mãos; a classificação Mathiowetz usa a
                 média das 3 tentativas da mão direita)
               </span>
             </div>
@@ -343,7 +367,7 @@ export const HandgripForm = ({
               name="handgrip_notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações do coach</FormLabel>
+                  <FormLabel>Observações do treinador</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
@@ -356,11 +380,11 @@ export const HandgripForm = ({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className={STICKY_FORM_FOOTER}>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={requestDiscard}
                 disabled={isSaving}
               >
                 Cancelar
@@ -372,6 +396,7 @@ export const HandgripForm = ({
             </DialogFooter>
           </form>
         </Form>
+        {discardDialog}
       </DialogContent>
     </Dialog>
   );

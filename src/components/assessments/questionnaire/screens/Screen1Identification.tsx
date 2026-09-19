@@ -12,17 +12,9 @@ import {
 export function Screen1Identification() {
   return (
     <section className="space-y-5">
-      <header>
-        <h2
-          tabIndex={-1}
-          className="text-sm font-semibold text-muted-foreground focus-visible:outline-none"
-        >
-          Identificação básica
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Esses dados servem pra confirmar seu cadastro e personalizar seu plano.
-        </p>
-      </header>
+      <p className="text-xs text-muted-foreground">
+        Esses dados servem para confirmar seu cadastro e personalizar seu plano.
+      </p>
 
       <TextField
         name="full_name"

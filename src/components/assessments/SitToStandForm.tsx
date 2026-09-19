@@ -16,7 +16,7 @@
  *   5. Submit → useCreateAssessment cria parent + filha
  */
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -44,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { SitToStandScorePreview } from "./SitToStandScorePreview";
 import { useCreateAssessment } from "@/hooks/useAssessments";
+import { useDiscardGuard } from "./useDiscardGuard";
 import {
   assessmentBaseSchema,
   emptySupports,
@@ -51,6 +52,7 @@ import {
   sitToStandSchema,
   sitToStandSupportsSchema,
 } from "@/utils/assessmentValidation";
+import { STICKY_FORM_FOOTER } from "./formDialogLayout";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Schema do form (combina base + sit-to-stand)
@@ -170,16 +172,32 @@ export const SitToStandForm = ({
     }
   };
 
+  // Guarda de saída (UX-01): fechar com dados digitados pede confirmação.
+  const { isDirty } = form.formState;
+  const closeForReal = useCallback(() => onOpenChange(false), [onOpenChange]);
+  const { requestClose: requestDiscard, dialog: discardDialog } = useDiscardGuard({
+    isDirty,
+    onDiscard: closeForReal,
+    title: "Descartar teste de sentar e levantar não salvo?",
+    description: "Os valores digitados serão perdidos.",
+  });
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      onOpenChange(true);
+      return;
+    }
+    if (isSaving) return;
+    requestDiscard();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Sit-to-Stand (Araújo 2012)</DialogTitle>
           <DialogDescription>
-            Registre os hemitestes de sentar e levantar. O coach digita o
-            score final de cada fase (0–5). Contagem de apoios e
-            instabilidades fica como audit trail e ajusta o preview
-            sugerido ao lado.
+            Registre a nota final de cada fase (0–5). Apoios e instabilidades
+            ficam registrados e ajustam a nota sugerida ao lado.
           </DialogDescription>
         </DialogHeader>
 
@@ -209,6 +227,7 @@ export const SitToStandForm = ({
                     <FormControl>
                       <Input
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         max={120}
                         {...field}
@@ -248,6 +267,7 @@ export const SitToStandForm = ({
                         <FormControl>
                           <Input
                             type="number"
+                            inputMode="numeric"
                             min={0}
                             max={10}
                             {...field}
@@ -274,6 +294,7 @@ export const SitToStandForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="numeric"
                           min={0}
                           max={20}
                           {...field}
@@ -296,6 +317,7 @@ export const SitToStandForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.5"
                           min={0}
                           max={5}
@@ -335,6 +357,7 @@ export const SitToStandForm = ({
                         <FormControl>
                           <Input
                             type="number"
+                            inputMode="numeric"
                             min={0}
                             max={10}
                             {...field}
@@ -361,6 +384,7 @@ export const SitToStandForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="numeric"
                           min={0}
                           max={20}
                           {...field}
@@ -383,6 +407,7 @@ export const SitToStandForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.5"
                           min={0}
                           max={5}
@@ -405,7 +430,7 @@ export const SitToStandForm = ({
               name="sit_to_stand_notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações do coach</FormLabel>
+                  <FormLabel>Observações do treinador</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
@@ -418,11 +443,11 @@ export const SitToStandForm = ({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className={STICKY_FORM_FOOTER}>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={requestDiscard}
                 disabled={isSaving}
               >
                 Cancelar
@@ -434,6 +459,7 @@ export const SitToStandForm = ({
             </DialogFooter>
           </form>
         </Form>
+        {discardDialog}
       </DialogContent>
     </Dialog>
   );

@@ -227,12 +227,11 @@ function RadioOption({
 }) {
   const id = useId();
   return (
-    <div className="flex items-center gap-2 rounded-md border bg-background p-2">
+    // A moldura inteira é o alvo (≥44px): <label> nativo aponta pro item.
+    <label htmlFor={`${fieldName}-${id}`} className="flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted/50">
       <RadioGroupItem value={code} id={`${fieldName}-${id}`} />
-      <Label htmlFor={`${fieldName}-${id}`} className="cursor-pointer text-sm">
-        {label}
-      </Label>
-    </div>
+      <span>{label}</span>
+    </label>
   );
 }
 
@@ -302,12 +301,13 @@ function BooleanOption({
 }) {
   const id = useId();
   return (
-    <div className="flex flex-1 items-center gap-2 rounded-md border bg-background p-2">
+    <label
+      htmlFor={`${fieldName}-${value}-${id}`}
+      className="flex-1 flex min-h-11 cursor-pointer items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted/50"
+    >
       <RadioGroupItem value={value} id={`${fieldName}-${value}-${id}`} />
-      <Label htmlFor={`${fieldName}-${value}-${id}`} className="cursor-pointer text-sm">
-        {label}
-      </Label>
-    </div>
+      <span>{label}</span>
+    </label>
   );
 }
 
@@ -497,17 +497,18 @@ function CheckboxOption({
 }) {
   const id = useId();
   return (
-    <div className="flex items-center gap-2 rounded-md border bg-background p-2">
+    <label
+      htmlFor={`${fieldName}-${id}`}
+      className="flex min-h-11 w-full cursor-pointer items-center gap-3 rounded-md border bg-background px-3 py-2 text-sm hover:bg-muted/50 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
+    >
       <Checkbox
         id={`${fieldName}-${id}`}
         checked={isOn}
         disabled={isDisabled}
         onCheckedChange={() => onToggle(code)}
       />
-      <Label htmlFor={`${fieldName}-${id}`} className="cursor-pointer text-sm">
-        {label}
-      </Label>
-    </div>
+      <span>{label}</span>
+    </label>
   );
 }
 
@@ -530,20 +531,18 @@ export function ConsentField<TFieldValues extends FieldValues>({
       name={name}
       render={({ field }) => (
         <FormItem className="rounded-md border bg-background p-3">
-          <div className="flex items-start gap-2">
+          <label
+            htmlFor={`consent-${id}`}
+            className="flex min-h-10 cursor-pointer items-start gap-3 text-sm leading-snug"
+          >
             <Checkbox
               id={`consent-${id}`}
               checked={field.value === true}
               onCheckedChange={(v) => field.onChange(v === true ? true : false)}
               className="mt-0.5"
             />
-            <Label
-              htmlFor={`consent-${id}`}
-              className="cursor-pointer text-sm leading-snug"
-            >
-              {label}
-            </Label>
-          </div>
+            <span>{label}</span>
+          </label>
           <FormMessage />
         </FormItem>
       )}

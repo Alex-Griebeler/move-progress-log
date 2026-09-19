@@ -19,7 +19,7 @@
  *     / safety_*); submáximo aceita "pse_9_submax".
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -53,6 +53,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 import { useCreateAssessment } from "@/hooks/useAssessments";
+import { formatNumberBR } from "@/utils/displayFormat";
+import { useDiscardGuard } from "./useDiscardGuard";
 import {
   assessmentBaseSchema,
   localTodayIso,
@@ -60,6 +62,7 @@ import {
 } from "@/utils/assessmentValidation";
 import { calcFcMaxPredicted, calcPercentFcMax } from "@/utils/vo2";
 import type { AssessmentType } from "@/types/assessment";
+import { STICKY_FORM_FOOTER } from "./formDialogLayout";
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -224,15 +227,33 @@ export const Vo2TreadmillForm = ({
     }
   };
 
+  // Guarda de saída (UX-01): fechar com dados digitados pede confirmação.
+  const { isDirty } = form.formState;
+  const closeForReal = useCallback(() => onOpenChange(false), [onOpenChange]);
+  const { requestClose: requestDiscard, dialog: discardDialog } = useDiscardGuard({
+    isDirty,
+    onDiscard: closeForReal,
+    title: "Descartar teste de VO₂ não salvo?",
+    description: "As métricas digitadas serão perdidas.",
+  });
+  const handleDialogOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) {
+      onOpenChange(true);
+      return;
+    }
+    if (isSaving) return;
+    requestDiscard();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{MODALITY_LABELS[modality]}</DialogTitle>
           <DialogDescription>
-            Registre métricas finais do teste em esteira. FCmáx prevista é
-            calculada por Tanaka 2001 (208 − 0.7 × idade) e pré-preenchida.
-            Coach pode sobrescrever se houver dado clínico específico.
+            Registre as métricas finais do teste em esteira. A FCmáx prevista
+            vem pré-preenchida por Tanaka (2001): 208 − 0,7 × idade; ajuste se
+            houver dado clínico específico.
           </DialogDescription>
         </DialogHeader>
 
@@ -262,6 +283,7 @@ export const Vo2TreadmillForm = ({
                     <FormControl>
                       <Input
                         type="number"
+                        inputMode="numeric"
                         min={0}
                         max={120}
                         {...field}
@@ -282,6 +304,7 @@ export const Vo2TreadmillForm = ({
                     <FormControl>
                       <Input
                         type="number"
+                        inputMode="decimal"
                         step="0.1"
                         min={0}
                         max={500}
@@ -305,9 +328,9 @@ export const Vo2TreadmillForm = ({
                     className="text-xs text-muted-foreground"
                     role="status"
                     aria-live="polite"
-                    aria-label={`Atingiu ${percentFcMax.toFixed(0)} por cento da FC máxima prevista`}
+                    aria-label={`Atingiu ${formatNumberBR(percentFcMax, 0)} por cento da FC máxima prevista`}
                   >
-                    %FCmáx: <span className="font-mono font-semibold">{percentFcMax.toFixed(0)}%</span>
+                    %FCmáx: <span className="font-mono font-semibold">{formatNumberBR(percentFcMax, 0)}%</span>
                   </span>
                 )}
               </header>
@@ -321,6 +344,7 @@ export const Vo2TreadmillForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="numeric"
                           min={30}
                           max={250}
                           {...field}
@@ -341,6 +365,7 @@ export const Vo2TreadmillForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="numeric"
                           min={30}
                           max={250}
                           {...field}
@@ -388,6 +413,7 @@ export const Vo2TreadmillForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.1"
                           min={0}
                           max={120}
@@ -409,6 +435,7 @@ export const Vo2TreadmillForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.1"
                           min={0}
                           max={300}
@@ -430,6 +457,7 @@ export const Vo2TreadmillForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.1"
                           min={0}
                           max={30}
@@ -451,6 +479,7 @@ export const Vo2TreadmillForm = ({
                       <FormControl>
                         <Input
                           type="number"
+                          inputMode="decimal"
                           step="0.1"
                           min={0}
                           max={30}
@@ -521,7 +550,7 @@ export const Vo2TreadmillForm = ({
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações do coach</FormLabel>
+                  <FormLabel>Observações do treinador</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
@@ -535,11 +564,11 @@ export const Vo2TreadmillForm = ({
               )}
             />
 
-            <DialogFooter>
+            <DialogFooter className={STICKY_FORM_FOOTER}>
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => onOpenChange(false)}
+                onClick={requestDiscard}
                 disabled={isSaving}
               >
                 Cancelar
@@ -551,6 +580,7 @@ export const Vo2TreadmillForm = ({
             </DialogFooter>
           </form>
         </Form>
+        {discardDialog}
       </DialogContent>
     </Dialog>
   );

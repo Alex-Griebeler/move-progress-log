@@ -112,7 +112,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
         throw new Error(data.error);
       }
 
-      notify.success("Usuário criado com sucesso!");
+      notify.success("Usuário criado");
       form.reset();
       onOpenChange(false);
       onSuccess();
@@ -132,7 +132,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5" />
-            Adicionar Novo Usuário
+            Adicionar usuário
           </DialogTitle>
           <DialogDescription>
             Preencha os dados para criar um novo usuário no sistema.
@@ -146,7 +146,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
               name="fullName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nome Completo *</FormLabel>
+                  <FormLabel>Nome completo *</FormLabel>
                   <FormControl>
                     <Input placeholder="João Silva" {...field} />
                   </FormControl>
@@ -160,9 +160,9 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email *</FormLabel>
+                  <FormLabel>E-mail *</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="joao@fabrikbrasil.com" {...field} />
+                    <Input type="email" inputMode="email" autoComplete="off" placeholder="nome@fabrikbrasil.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -200,7 +200,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Senha Temporária *</FormLabel>
+                  <FormLabel>Senha temporária *</FormLabel>
                   <FormControl>
                     <Input type="password" placeholder="Mínimo 8 caracteres" {...field} />
                   </FormControl>
@@ -217,7 +217,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Confirmar Senha *</FormLabel>
+                  <FormLabel>Confirmar senha *</FormLabel>
                   <FormControl>
                     <Input type="password" placeholder="Digite a senha novamente" {...field} />
                   </FormControl>
@@ -237,7 +237,7 @@ export function AddUserDialog({ open, onOpenChange, onSuccess }: AddUserDialogPr
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Criar Usuário
+                Criar usuário
               </Button>
             </DialogFooter>
           </form>

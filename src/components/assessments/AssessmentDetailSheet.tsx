@@ -6,6 +6,7 @@
  */
 
 import { format, parseISO } from "date-fns";
+import { formatDecimalBR } from "@/utils/displayFormat";
 import { ptBR } from "date-fns/locale";
 import { Activity, ClipboardList, FileText } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
@@ -76,7 +77,7 @@ const STOP_REASON_LABELS: Record<string, string> = {
 };
 
 const APPLICATION_LABELS: Record<string, string> = {
-  coach_administered: "Aplicada pelo coach",
+  coach_administered: "Aplicada pelo treinador",
   external_lab: "Laudo externo",
   self_administered: "Autoaplicada",
 };
@@ -94,7 +95,7 @@ const formatValue = (value: unknown, suffix = "") => {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value === "boolean") return value ? "Sim" : "Não";
   if (typeof value === "number") {
-    return `${Number.isInteger(value) ? value : value.toFixed(1)}${suffix}`;
+    return `${formatDecimalBR(value, 1)}${suffix}`;
   }
   if (Array.isArray(value)) return value.length ? value.join(", ") : "—";
   return String(value);

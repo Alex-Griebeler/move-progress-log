@@ -61,7 +61,7 @@ function CategoryCell({
   if (status === "done") {
     return (
       <CheckCircle2
-        className="h-4 w-4 text-emerald-600 mx-auto"
+        className="h-4 w-4 text-success mx-auto"
         aria-label={ariaLabel}
       />
     );
@@ -69,14 +69,14 @@ function CategoryCell({
   if (status === "blocked") {
     return (
       <AlertTriangle
-        className="h-4 w-4 text-amber-600 mx-auto"
+        className="h-4 w-4 text-warning mx-auto"
         aria-label={ariaLabel}
       />
     );
   }
   if (status === "pending") {
     return (
-      <Clock className="h-4 w-4 text-blue-600 mx-auto" aria-label={ariaLabel} />
+      <Clock className="h-4 w-4 text-info mx-auto" aria-label={ariaLabel} />
     );
   }
   return (

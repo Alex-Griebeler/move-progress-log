@@ -15,6 +15,7 @@
  */
 
 import { Badge } from "@/components/ui/badge";
+import { formatNumberBR } from "@/utils/displayFormat";
 import { computeSitToStandHemiScore } from "@/utils/assessmentValidation";
 import type { SitToStandSupportsInput } from "@/utils/assessmentValidation";
 
@@ -30,10 +31,11 @@ interface SitToStandScorePreviewProps {
 }
 
 const colorForScore = (score: number): string => {
-  if (score >= 4.5) return "bg-emerald-500/15 text-emerald-700 border-emerald-300";
-  if (score >= 3.5) return "bg-emerald-500/10 text-emerald-600 border-emerald-200";
-  if (score >= 2.5) return "bg-amber-500/10 text-amber-700 border-amber-300";
-  return "bg-rose-500/10 text-rose-700 border-rose-300";
+  // Tom na borda/fundo; o número fica em foreground (texto sobre fundo
+  // translúcido nunca usa a cor do tom — contraste).
+  if (score >= 3.5) return "bg-success/10 text-foreground border-success/40";
+  if (score >= 2.5) return "bg-warning/10 text-foreground border-warning/40";
+  return "bg-destructive/10 text-foreground border-destructive/40";
 };
 
 /**
@@ -63,14 +65,14 @@ export const SitToStandScorePreview = ({
       data-testid="sit-to-stand-preview"
       role="status"
       aria-live="polite"
-      aria-label={`${label}: ${score.toFixed(1)} de 5 pontos`}
+      aria-label={`${label}: ${formatNumberBR(score, 1)} de 5 pontos`}
     >
       <span className="text-muted-foreground">{label}:</span>
       <Badge variant="outline" className={`font-mono ${colorClasses}`}>
-        {score.toFixed(1)}
+        {formatNumberBR(score, 1)}
       </Badge>
-      <span className="text-muted-foreground/70 text-[10px]">
-        (5 − apoios − 0.5 × instab.)
+      <span className="text-muted-foreground text-xs">
+        (5 − apoios − 0,5 × instab.)
       </span>
     </div>
   );

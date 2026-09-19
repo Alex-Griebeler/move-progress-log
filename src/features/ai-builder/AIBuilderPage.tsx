@@ -4,15 +4,25 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { AIChat } from "./AIChat";
 import { ShieldAlert, Bot, Plus, MessageSquare, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   useAIBuilderConversations,
   useCreateConversation,
   useDeleteConversation,
 } from "./useAIBuilderChat";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+import { formatDateSP, formatTimeSP } from "@/utils/displayFormat";
 import { notify } from "@/lib/notify";
 import { buildErrorDescription } from "@/utils/errorParsing";
 
@@ -20,13 +30,19 @@ export default function AIBuilderPage() {
   usePageTitle("AI Builder");
   const { isAdmin, isLoading: roleLoading } = useIsAdmin();
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
 
-  const { data: conversations = [], isLoading: convsLoading } = useAIBuilderConversations();
+  const {
+    data: conversations = [],
+    isLoading: convsLoading,
+    isError: convsError,
+    refetch: refetchConversations,
+  } = useAIBuilderConversations();
   const createConversation = useCreateConversation();
   const deleteConversation = useDeleteConversation();
 
   if (roleLoading) {
-    return <LoadingSpinner size="lg" text="Verificando permissões..." />;
+    return <LoadingSpinner size="lg" text="Verificando permissões…" />;
   }
 
   if (!isAdmin) {
@@ -50,12 +66,21 @@ export default function AIBuilderPage() {
     }
   };
 
-  const handleDeleteConversation = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (activeConversationId === id) {
-      setActiveConversationId(null);
+  // Excluir pede confirmação (UX-26): a conversa não tem "desfazer".
+  const confirmDeleteConversation = async () => {
+    if (!pendingDelete) return;
+    const { id } = pendingDelete;
+    setPendingDelete(null);
+    try {
+      await deleteConversation.mutateAsync(id);
+      if (activeConversationId === id) {
+        setActiveConversationId(null);
+      }
+    } catch (error: unknown) {
+      notify.error("Erro ao excluir conversa", {
+        description: buildErrorDescription(error),
+      });
     }
-    await deleteConversation.mutateAsync(id);
   };
 
   return (
@@ -67,7 +92,6 @@ export default function AIBuilderPage() {
             onClick={handleNewConversation}
             disabled={createConversation.isPending}
             className="w-full"
-            size="sm"
           >
             <Plus className="h-4 w-4 mr-2" />
             Nova conversa
@@ -76,7 +100,14 @@ export default function AIBuilderPage() {
 
         <ScrollArea className="flex-1">
           {convsLoading ? (
-            <div className="p-4 text-xs text-muted-foreground text-center">Carregando...</div>
+            <div className="p-4 text-xs text-muted-foreground text-center" role="status">Carregando…</div>
+          ) : convsError ? (
+            <div className="space-y-2 p-4 text-center text-xs text-muted-foreground" role="alert">
+              <p>Não foi possível carregar as conversas.</p>
+              <Button variant="outline" onClick={() => refetchConversations()}>
+                Tentar novamente
+              </Button>
+            </div>
           ) : conversations.length === 0 ? (
             <div className="p-4 text-xs text-muted-foreground text-center">
               Nenhuma conversa ainda
@@ -99,24 +130,53 @@ export default function AIBuilderPage() {
                     <div className="flex-1 min-w-0">
                       <p className="truncate font-medium text-foreground">{conv.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(conv.updated_at), "dd MMM, HH:mm", { locale: ptBR })}
+                        {formatDateSP(conv.updated_at)} às {formatTimeSP(conv.updated_at)}
                       </p>
                     </div>
                   </button>
-                  <button
+                  {/* Sempre visível (no toque não há hover) e com alvo de 40px. */}
+                  <Button
                     type="button"
-                    onClick={(e) => handleDeleteConversation(conv.id, e)}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-all"
-                    aria-label="Excluir conversa"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setPendingDelete({ id: conv.id, title: conv.title })}
+                    className="-my-1.5 shrink-0 text-muted-foreground hover:text-destructive"
+                    aria-label={`Excluir conversa ${conv.title}`}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  </Button>
                 </div>
               ))}
             </div>
           )}
         </ScrollArea>
       </div>
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir esta conversa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.title ? `"${pendingDelete.title}" e ` : "A conversa e "}
+              todas as mensagens serão apagadas. Não é possível desfazer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
+              onClick={() => void confirmDeleteConversation()}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">

@@ -189,7 +189,7 @@ export function Precision12RevokeLinkDialog({
 
           {state.kind === "revoked" && !mutation.isPending && (
             <Alert>
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <CheckCircle2 className="h-4 w-4 text-success" />
               <AlertDescription>
                 <strong>Link revogado.</strong> O aluno não consegue mais
                 responder pelo link anterior.

@@ -202,18 +202,16 @@ export const QuestionnaireLinkPanel = ({
         <DialogHeader>
           <DialogTitle>Questionário Precision 12</DialogTitle>
           <DialogDescription>
-            Gere um link para o aluno responder o questionário de anamnese e
-            prontidão. O link é de uso único e expira em 7 dias.
+            Gere o link do questionário de anamnese e prontidão. O link é de
+            uso único e expira em 7 dias.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {state.kind === "idle" && (
             <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-              Ao gerar, o assessment é criado com status{" "}
-              <code className="rounded bg-muted px-1 text-xs">in_progress</code>{" "}
-              e aparece na aba Avaliações. Você copia o link e envia ao aluno
-              (WhatsApp, e-mail, etc).
+              Ao gerar, a avaliação aparece na aba Avaliações como em
+              andamento. Copie o link e envie por WhatsApp ou e-mail.
             </div>
           )}
 
@@ -309,7 +307,7 @@ const GeneratedLinkView = ({
     <div className="space-y-3" role="region" aria-label="Link gerado">
       <Alert>
         <AlertDescription className="text-sm">
-          <strong>Envie este link ao aluno.</strong> O link é de uso único e expira em{" "}
+          <strong>Envie este link.</strong> Ele é de uso único e expira em{" "}
           <span className="font-semibold">{expiresLabel}</span>.
         </AlertDescription>
       </Alert>
@@ -339,7 +337,7 @@ const GeneratedLinkView = ({
             aria-label="Copiar link"
           >
             {copied ? (
-              <Check className="h-4 w-4 text-emerald-600" aria-hidden />
+              <Check className="h-4 w-4 text-success" aria-hidden />
             ) : (
               <ClipboardCopy className="h-4 w-4" aria-hidden />
             )}
@@ -351,7 +349,6 @@ const GeneratedLinkView = ({
         <Button
           type="button"
           variant="outline"
-          size="sm"
           onClick={onCopy}
           className="flex-1"
         >
@@ -361,7 +358,6 @@ const GeneratedLinkView = ({
         <Button
           type="button"
           variant="outline"
-          size="sm"
           onClick={onOpen}
           className="flex-1"
         >

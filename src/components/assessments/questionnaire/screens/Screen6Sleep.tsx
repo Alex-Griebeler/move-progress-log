@@ -12,15 +12,6 @@ import {
 export function Screen6Sleep() {
   return (
     <section className="space-y-5">
-      <header>
-        <h2
-          tabIndex={-1}
-          className="text-sm font-semibold text-muted-foreground focus-visible:outline-none"
-        >
-          Sono, recuperação e estresse
-        </h2>
-      </header>
-
       <RadioField
         name="sleep_hours"
         label="Quantas horas você dorme por noite, em média?"

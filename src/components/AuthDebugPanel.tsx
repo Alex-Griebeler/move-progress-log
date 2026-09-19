@@ -68,12 +68,12 @@ export const AuthDebugPanel = () => {
       
       setSession(data.session);
       toast({
-        title: "✅ Token renovado",
+        title: "Token renovado",
         description: "Session atualizada com sucesso",
       });
     } catch (err) {
       toast({
-        title: "❌ Erro ao renovar token",
+        title: "Erro ao renovar token",
         description: buildErrorDescription(err) || "Erro desconhecido",
         variant: "destructive",
       });
@@ -96,12 +96,12 @@ export const AuthDebugPanel = () => {
     try {
       // This would require a new edge function to clear rate limits
       toast({
-        title: "🔧 Funcionalidade futura",
+        title: "Funcionalidade futura",
         description: "Endpoint de reset ainda não implementado",
       });
     } catch (err) {
       toast({
-        title: "❌ Erro",
+        title: "Erro",
         description: "Não foi possível limpar rate limiting",
         variant: "destructive",
       });
@@ -120,7 +120,7 @@ export const AuthDebugPanel = () => {
     
     navigator.clipboard.writeText(JSON.stringify(sessionData, null, 2));
     toast({
-      title: "📋 Copiado",
+      title: "Copiado",
       description: "Dados da session copiados para clipboard",
     });
   };
@@ -128,7 +128,7 @@ export const AuthDebugPanel = () => {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast({
-      title: "👋 Logout",
+      title: "Logout",
       description: "Session encerrada",
     });
   };
@@ -150,7 +150,7 @@ export const AuthDebugPanel = () => {
   return (
     <Card className="fixed bottom-lg right-lg z-50 w-80 p-lg shadow-premium bg-background/95 backdrop-blur-sm border-primary/20">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold">🔧 Auth Debug Panel</h3>
+        <h3 className="text-sm font-semibold">Auth debug panel</h3>
         <Button
           onClick={() => setIsExpanded(false)}
           variant="ghost"
@@ -169,15 +169,15 @@ export const AuthDebugPanel = () => {
             <>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">User ID:</span>
-                <span className="font-mono text-[10px]">{session.user.id.slice(0, 8)}...</span>
+                <span className="font-mono text-xs">{session.user.id.slice(0, 8)}...</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Email:</span>
-                <span className="font-mono text-[10px]">{session.user.email}</span>
+                <span className="font-mono text-xs">{session.user.email}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Token:</span>
-                <span className="font-mono text-[10px]">...{session.access_token.slice(-20)}</span>
+                <span className="font-mono text-xs">...{session.access_token.slice(-20)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Expira em:</span>
@@ -192,12 +192,12 @@ export const AuthDebugPanel = () => {
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status:</span>
                 <Badge variant={timeUntilExpiry > 0 ? "default" : "destructive"}>
-                  {timeUntilExpiry > 0 ? "✅ Ativo" : "❌ Expirado"}
+                  {timeUntilExpiry > 0 ? "Ativo" : "Expirado"}
                 </Badge>
               </div>
             </>
           ) : (
-            <div className="text-muted-foreground">❌ Não autenticado</div>
+            <div className="text-muted-foreground">Não autenticado</div>
           )}
         </div>
 
@@ -206,11 +206,11 @@ export const AuthDebugPanel = () => {
           <div className="font-semibold text-primary">Rate Limiting:</div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">IP atual:</span>
-            <span className="font-mono text-[10px]">{clientIP}</span>
+            <span className="font-mono text-xs">{clientIP}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Status:</span>
-            <Badge variant="outline">✅ Permitido</Badge>
+            <Badge variant="outline">Permitido</Badge>
           </div>
         </div>
 
@@ -273,7 +273,7 @@ export const AuthDebugPanel = () => {
           </Button>
         </div>
 
-        <div className="pt-2 border-t text-[10px] text-muted-foreground text-center">
+        <div className="pt-2 border-t text-xs text-muted-foreground text-center">
           Apenas em development
         </div>
       </div>

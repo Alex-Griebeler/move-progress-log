@@ -6,6 +6,7 @@ import { CheckCircle2, XCircle, AlertCircle, Clock, ChevronDown, ChevronUp } fro
 import { useLatestOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraWorkouts } from "@/hooks/useOuraWorkouts";
 import { useOuraSyncLogs } from "@/hooks/useOuraSyncLogs";
+import { formatDateSP, formatNumberBR, formatTimeSP } from "@/utils/displayFormat";
 import { OuraApiProbe } from "@/components/OuraApiProbe";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -55,7 +56,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
         status: metrics.total_sleep_duration !== null ? "success" : "empty",
         details: metrics.total_sleep_duration !== null
           ? `Total: ${Math.round(metrics.total_sleep_duration / 3600)}h, Deep: ${Math.round((metrics.deep_sleep_duration ?? 0) / 3600)}h, REM: ${Math.round((metrics.rem_sleep_duration ?? 0) / 3600)}h`
-          : "⚠️ API retorna 200 mas count: 0 (SEM PERÍODOS DE SONO)",
+          : "API retorna 200 mas count: 0 (sem períodos de sono)",
       },
       {
         name: "Daily Activity",
@@ -94,7 +95,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
         description: "/v2/usercollection/daily_spo2",
         status: metrics.spo2_average !== null ? "success" : "empty",
         details: metrics.spo2_average !== null
-          ? `Avg: ${metrics.spo2_average.toFixed(1)}%, BDI: ${metrics.breathing_disturbance_index ?? 'N/A'}`
+          ? `Avg: ${formatNumberBR(metrics.spo2_average, 1)}%, BDI: ${metrics.breathing_disturbance_index ?? 'N/A'}`
           : "API retorna 200 mas sem dados",
       },
       {
@@ -124,20 +125,20 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
   const getStatusIcon = (status: EndpointStatus["status"]) => {
     switch (status) {
       case "success":
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+        return <CheckCircle2 className="h-5 w-5 text-success" aria-hidden />;
       case "empty":
-        return <AlertCircle className="h-5 w-5 text-yellow-500" />;
+        return <AlertCircle className="h-5 w-5 text-warning" aria-hidden />;
       case "missing":
-        return <XCircle className="h-5 w-5 text-red-500" />;
+        return <XCircle className="h-5 w-5 text-destructive" aria-hidden />;
     }
   };
 
   const getStatusBadge = (status: EndpointStatus["status"]) => {
     switch (status) {
       case "success":
-        return <Badge className="bg-green-500">Dados OK</Badge>;
+        return <Badge variant="outline" className="border-success/40 font-normal text-success">Dados OK</Badge>;
       case "empty":
-        return <Badge className="bg-yellow-500">Vazio</Badge>;
+        return <Badge variant="outline" className="border-warning/40 font-normal text-warning">Vazio</Badge>;
       case "missing":
         return <Badge variant="destructive">Erro</Badge>;
     }
@@ -175,7 +176,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
             body: (
               <div className="space-y-4 text-sm">
                 <p className="text-muted-foreground leading-relaxed">
-                  Nenhuma linha em <code className="bg-background px-1 py-0.5 rounded">oura_metrics</code> para esta aluna.
+                  Nenhuma linha em <code className="bg-background px-1 py-0.5 rounded">oura_metrics</code> para esta pessoa.
                   Isso acontece quando o Oura Ring ainda não foi conectado no perfil, quando ainda não houve sincronização,
                   ou quando todas as sincronizações voltaram vazias.
                 </p>
@@ -202,14 +203,16 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
         ) : (
           <>
         <CardTitle className="flex items-center justify-between">
-          <span>🔍 Diagnóstico API Oura</span>
+          <span>Diagnóstico API Oura</span>
           <div className="flex items-center gap-2">
-            <Badge className="bg-green-500">{successCount} OK</Badge>
-            <Badge className="bg-yellow-500">{emptyCount} Vazios</Badge>
+            <Badge variant="outline" className="border-success/40 font-normal text-success">{successCount} OK</Badge>
+            <Badge variant="outline" className="border-warning/40 font-normal text-warning">{emptyCount} vazios</Badge>
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={() => setShowDetails(!showDetails)}
+              aria-expanded={showDetails}
+              aria-label={showDetails ? "Ocultar detalhes do diagnóstico" : "Mostrar detalhes do diagnóstico"}
             >
               {showDetails ? (
                 <ChevronUp className="h-4 w-4" />
@@ -258,7 +261,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
             {sleepPeriodsStatus?.status === "empty" && (
               <div className="p-md rounded-lg bg-muted">
                 <p className="text-xs text-muted-foreground">
-                  <strong>📌 Sem períodos detalhados de sono na última linha.</strong> Até 09/09/2026 o sync pedia{" "}
+                  <strong>Sem períodos detalhados de sono na última linha.</strong> Até 09/09/2026 o sync pedia{" "}
                   <code className="bg-background px-1 py-0.5 rounded">start_date=end_date=D</code> e a API do Oura
                   (end_date exclusivo) devolvia vazio para <code className="bg-background px-1 py-0.5 rounded">sleep</code> e{" "}
                   <code className="bg-background px-1 py-0.5 rounded">daily_activity</code>. A janela agora é D..D+1;
@@ -270,7 +273,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
             {/* Histórico de Sincronizações */}
             {syncLogs && syncLogs.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-sm font-semibold">📋 Histórico de Sincronizações</h4>
+                <h4 className="text-sm font-semibold">Histórico de sincronizações</h4>
                 <div className="space-y-2">
                   {syncLogs.map((log) => (
                     <div
@@ -278,19 +281,20 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
                       className="flex items-start gap-2 p-2 rounded-lg border bg-card text-xs"
                     >
                       <div className="mt-0.5">
-                        {log.status === 'success' && <CheckCircle2 className="h-4 w-4 text-green-500" />}
-                        {log.status === 'failed' && <XCircle className="h-4 w-4 text-red-500" />}
-                        {log.status === 'retrying' && <Clock className="h-4 w-4 text-yellow-500" />}
+                        {log.status === 'success' && <CheckCircle2 className="h-4 w-4 text-success" aria-hidden />}
+                        {log.status === 'failed' && <XCircle className="h-4 w-4 text-destructive" aria-hidden />}
+                        {log.status === 'retrying' && <Clock className="h-4 w-4 text-warning" aria-hidden />}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">
-                            {format(new Date(log.sync_time), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                            {formatDateSP(log.sync_time, true)} às {formatTimeSP(log.sync_time)}
                           </span>
-                          <Badge 
+                          <Badge
+                            variant="outline"
                             className={
-                              log.status === 'success' ? 'bg-green-500' :
-                              log.status === 'failed' ? 'bg-red-500' : 'bg-yellow-500'
+                              log.status === 'success' ? 'border-success/40 font-normal text-success' :
+                              log.status === 'failed' ? 'border-destructive/40 font-normal text-destructive' : 'border-warning/40 font-normal text-warning'
                             }
                           >
                             {log.status === 'success' ? 'Sucesso' :
@@ -303,7 +307,7 @@ export const OuraApiDiagnosticsCard = ({ studentId }: OuraApiDiagnosticsCardProp
                           )}
                         </div>
                         {log.error_message && (
-                          <p className="text-red-500 mt-1">{log.error_message}</p>
+                          <p className="text-destructive mt-1">{log.error_message}</p>
                         )}
                       </div>
                     </div>

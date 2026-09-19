@@ -65,7 +65,10 @@ describe("DexaForm — cleanup de PDF temporário", () => {
   it("remove upload temporário ao cancelar/fechar modal sem salvar", () => {
     const code = stripComments(dexaFormSource);
     expect(code).toMatch(/<Dialog\s+open=\{open\}\s+onOpenChange=\{handleDialogOpenChange\}/);
-    expect(code).toMatch(/onClick=\{discardDraftAndClose\}/);
+    // Cancelar/fechar passa pela guarda de saída (UX-01), cujo descarte
+    // confirmado é `discardDraftAndClose` — o cleanup do PDF continua no caminho.
+    expect(code).toMatch(/onDiscard:\s*discardDraftAndClose/);
+    expect(code).toMatch(/onClick=\{requestDiscard\}/);
     expect(code).toMatch(/const\s+discardDraftAndClose\s*=\s*useCallback\(\(\)\s*=>\s*\{[\s\S]*?deleteTemporaryUploadedPdf\(pathToDelete/);
   });
 

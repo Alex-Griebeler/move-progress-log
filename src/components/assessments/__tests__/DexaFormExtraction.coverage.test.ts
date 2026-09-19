@@ -799,7 +799,9 @@ describe("extract-dexa-pdf edge — upstream_* sanitizado (code/type/param/messa
 
 describe("DexaForm — Data do exame (não default-hoje, scan_date extraído)", () => {
   it("label do campo de data é 'Data do exame' (não 'Data do scan')", () => {
-    expect(dexaFormSource).toMatch(/<FormLabel>Data do exame<\/FormLabel>/);
+    // Rótulo segue "Data do exame", agora com marcador de obrigatório (UX-04).
+    expect(dexaFormSource).toMatch(/<FormLabel>\s*Data do exame\{" "\}/);
+    expect(dexaFormSource).toContain("(obrigatório)");
     expect(dexaFormSource).not.toMatch(/<FormLabel>Data do scan<\/FormLabel>/);
   });
 

@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PageLayout } from "@/components/PageLayout";
@@ -15,6 +16,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { InlineExerciseNameEditor } from "@/components/InlineExerciseNameEditor";
 import { ExerciseDimensionReview } from "@/components/ExerciseDimensionReview";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { ErrorState } from "@/components/ErrorState";
+import { DiscardDraftDialog } from "@/components/assessments/DiscardDraftDialog";
+import { LEAVE_GUARD_HISTORY, useLeavePageGuard } from "@/hooks/useLeavePageGuard";
 import {
   EXERCISE_CATEGORIES,
   MOVEMENT_PATTERNS,
@@ -77,8 +81,13 @@ const ExerciseReviewPage = () => {
   const [legacyPriorityOnly, setLegacyPriorityOnly] = useState(false);
   const [legacyPage, setLegacyPage] = useState(1);
   const [edits, setEdits] = useState<Record<string, EditedExercise>>({});
+  const [dimensionEditCount, setDimensionEditCount] = useState(0);
+  const [activeTab, setActiveTab] = useState("dimensions");
+  const [pendingTab, setPendingTab] = useState<string | null>(null);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  const { data: exercises, isLoading, error: queryError } = useQuery({
+  const { data: exercises, isLoading, error: queryError, refetch: refetchExercises } = useQuery({
     queryKey: ["exercises-review"],
     staleTime: 2 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
@@ -145,7 +154,7 @@ const ExerciseReviewPage = () => {
       queryClient.invalidateQueries({ queryKey: ["exercises-review"] });
       queryClient.invalidateQueries({ queryKey: ["exercises-library"] });
       setEdits({});
-      notify.success("Alterações salvas com sucesso!");
+      notify.success("Alterações salvas");
     },
     onError: (err) => {
       notify.error("Erro ao salvar", { description: buildErrorDescription(err, "Tente novamente.") });
@@ -312,28 +321,75 @@ const ExerciseReviewPage = () => {
   }, [legacyFilteredGroups]);
 
   const editCount = Object.keys(edits).length;
+  const pendingCount = editCount + dimensionEditCount;
+  const leaveGuard = useLeavePageGuard(pendingCount > 0, setPendingHref);
+
+  // Trocar de aba desmonta a revisão de dimensões (edições ficam no
+  // componente); as edições de "Campos incompletos" ficam na página.
+  const handleTabChange = (next: string) => {
+    if (activeTab === "dimensions" && next !== "dimensions" && dimensionEditCount > 0) {
+      setPendingTab(next);
+      return;
+    }
+    setActiveTab(next);
+  };
+
+  const pluralAlteracoes = (n: number) => (n === 1 ? "1 alteração" : `${n} alterações`);
 
   return (
     <PageLayout>
       <PageHeader
-        title="Revisão de Exercícios"
+        title="Revisão de exercícios"
         description="Gestão de campos e dimensões da biblioteca"
       />
-      <Tabs defaultValue="dimensions" className="space-y-4">
+      <DiscardDraftDialog
+        open={pendingHref !== null}
+        onOpenChange={(open) => {
+          // Continuar editando: a sentinela já foi recolocada pela guarda.
+          if (!open) setPendingHref(null);
+        }}
+        title={`Sair com ${pluralAlteracoes(pendingCount)} não salva${pendingCount === 1 ? "" : "s"}?`}
+        description="As edições desta revisão serão perdidas."
+        confirmLabel="Sair sem salvar"
+        onConfirm={() => {
+          const href = pendingHref;
+          setPendingHref(null);
+          setEdits({});
+          setDimensionEditCount(0);
+          if (href === LEAVE_GUARD_HISTORY) leaveGuard.leaveViaHistory();
+          // replace: o destino substitui a sentinela (sem Voltar "morto" depois).
+          else if (href) navigate(href, { replace: true });
+        }}
+      />
+      <DiscardDraftDialog
+        open={pendingTab !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingTab(null);
+        }}
+        title={`Descartar ${pluralAlteracoes(dimensionEditCount)} de dimensões?`}
+        description="Trocar de aba descarta as dimensões editadas e não salvas."
+        onConfirm={() => {
+          const next = pendingTab;
+          setPendingTab(null);
+          setDimensionEditCount(0);
+          if (next) setActiveTab(next);
+        }}
+      />
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
         <TabsList>
           <TabsTrigger value="dimensions">Dimensões (v14.5)</TabsTrigger>
           <TabsTrigger value="legacy">Legados sem vínculo ({legacyTotalRows})</TabsTrigger>
-          <TabsTrigger value="fields">Campos Incompletos ({incompleteExercises.length})</TabsTrigger>
+          <TabsTrigger value="fields">Campos incompletos ({incompleteExercises.length})</TabsTrigger>
         </TabsList>
         <TabsContent value="dimensions">
-          <ExerciseDimensionReview />
+          <ExerciseDimensionReview onEditCountChange={setDimensionEditCount} />
         </TabsContent>
         <TabsContent value="legacy">
           <div className="space-y-4">
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-950">
+            <div className="rounded-lg border border-warning/40 bg-warning/10 p-4 text-foreground">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div className="flex gap-3">
-                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden />
                   <div>
                     <h2 className="font-semibold">Fila de curadoria manual</h2>
                     <p className="mt-1 text-sm leading-relaxed">
@@ -348,7 +404,6 @@ const ExerciseReviewPage = () => {
                   variant="outline"
                   onClick={downloadLegacyReviewCsv}
                   disabled={legacyFilteredGroups.length === 0}
-                  className="border-amber-300 bg-white/80 text-amber-950 hover:bg-white"
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Exportar CSV
@@ -401,7 +456,7 @@ const ExerciseReviewPage = () => {
               </div>
             ) : legacyLoading ? (
               <div className="rounded-lg border p-8 text-center text-muted-foreground">
-                Carregando legados sem vínculo...
+                Carregando legados sem vínculo…
               </div>
             ) : legacyGroups.length === 0 ? (
               <div className="rounded-lg border p-8 text-center text-muted-foreground">
@@ -467,7 +522,6 @@ const ExerciseReviewPage = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
                       onClick={() => setLegacyPage((page) => Math.max(1, page - 1))}
                       disabled={safeLegacyPage <= 1}
                     >
@@ -476,7 +530,6 @@ const ExerciseReviewPage = () => {
                     <Button
                       type="button"
                       variant="outline"
-                      size="sm"
                       onClick={() => setLegacyPage((page) => Math.min(legacyTotalPages, page + 1))}
                       disabled={safeLegacyPage >= legacyTotalPages}
                     >
@@ -528,19 +581,17 @@ const ExerciseReviewPage = () => {
             </SelectContent>
           </Select>
 
-          {editCount > 0 && (
-            <Button onClick={handleSave} disabled={saveMutation.isPending} className="ml-auto">
-              <Save className="h-4 w-4 mr-2" />
-              Salvar {editCount} alterações
-            </Button>
-          )}
         </div>
 
         {/* Table */}
         {queryError ? (
-          <p className="text-destructive">Erro ao carregar exercícios: {queryError.message}</p>
+          <ErrorState
+            title="Não foi possível carregar os exercícios"
+            description="Verifique a conexão e tente de novo."
+            onRetry={() => refetchExercises()}
+          />
         ) : isLoading ? (
-          <p className="text-muted-foreground">Carregando...</p>
+          <p className="text-muted-foreground" role="status">Carregando…</p>
         ) : (
           <div className="border rounded-lg">
             <TooltipProvider>
@@ -744,7 +795,7 @@ const ExerciseReviewPage = () => {
                 {incompleteExercises.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
-                      Todos os exercícios estão completos para os filtros selecionados! 🎉
+                      Nenhum exercício com campo faltante nos filtros selecionados.
                     </TableCell>
                   </TableRow>
                 )}
@@ -753,7 +804,20 @@ const ExerciseReviewPage = () => {
             </TooltipProvider>
           </div>
         )}
-        
+
+        {/* Barra fixa de salvar (UX-29): o trabalho pendente fica visível
+            mesmo com a tabela rolada. */}
+        {editCount > 0 && (
+          <div className="sticky bottom-0 z-10 -mx-1 flex items-center justify-end gap-3 border-t bg-background/95 px-1 py-3 backdrop-blur">
+            <span className="text-sm text-muted-foreground" role="status">
+              {pluralAlteracoes(editCount)} não salva{editCount === 1 ? "" : "s"}
+            </span>
+            <Button onClick={handleSave} disabled={saveMutation.isPending}>
+              <Save className="h-4 w-4 mr-2" aria-hidden />
+              Salvar {pluralAlteracoes(editCount)}
+            </Button>
+          </div>
+        )}
       </div>
         </TabsContent>
       </Tabs>

@@ -6,11 +6,12 @@
  * Estados:
  *   1. loading     — chamando validate-precision12-questionnaire-link
  *   2. invalid     — token inválido/expirado/usado/revogado
- *   3. form        — aluno preenchendo (delega pro QuestionnaireFlow)
- *   4. submitting  — POST pra submit-precision12-questionnaire em curso
- *   5. completed   — submit OK e PAR-Q negativo
- *   6. blocked     — submit OK mas PAR-Q positivo (precisa revisão coach)
- *   7. error       — erro de rede / 500 / submit duplicado
+ *   3. form        — preenchendo (delega pro QuestionnaireFlow). O envio
+ *                    acontece DENTRO deste estado: erro de rede / 500 /
+ *                    submit duplicado vira `submitError` e o formulário
+ *                    segue montado com as respostas (UX-10).
+ *   4. completed   — submit OK e PAR-Q negativo
+ *   5. blocked     — submit OK mas PAR-Q positivo (precisa revisão)
  *
  * Segurança:
  *   - Token NUNCA salvo em localStorage/sessionStorage. Vive só na URL e
@@ -25,7 +26,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, ClipboardList, Loader2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -51,10 +51,13 @@ interface SubmitResponse {
 type PageState =
   | { kind: "loading" }
   | { kind: "invalid"; message: string }
-  | { kind: "form"; requireBirthdate: boolean }
-  | { kind: "submitting" }
-  | { kind: "done"; status: "completed" | "blocked" }
-  | { kind: "error"; message: string };
+  | { kind: "form"; requireBirthdate: boolean; submitError: string | null }
+  | { kind: "done"; status: "completed" | "blocked" };
+
+const SUBMIT_ERROR_LINK =
+  "Não foi possível registrar suas respostas. Verifique se o link ainda é válido ou peça um novo ao seu treinador.";
+const SUBMIT_ERROR_GENERIC =
+  "Não foi possível enviar agora. Verifique a conexão e tente novamente.";
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -87,7 +90,11 @@ export default function PrecisionQuestionnairePage() {
           return;
         }
 
-        setState({ kind: "form", requireBirthdate: data.require_birthdate });
+        setState({
+          kind: "form",
+          requireBirthdate: data.require_birthdate,
+          submitError: null,
+        });
       } catch {
         if (cancelled) return;
         setState({ kind: "invalid", message: "Link inválido ou expirado" });
@@ -100,10 +107,14 @@ export default function PrecisionQuestionnairePage() {
     };
   }, [token]);
 
+  const setSubmitError = (message: string) =>
+    setState((prev) =>
+      prev.kind === "form" ? { ...prev, submitError: message } : prev,
+    );
+
   const handleSubmit = async (payload: Record<string, unknown>) => {
     if (!token) return;
 
-    setState({ kind: "submitting" });
     try {
       const { data, error } = await supabase.functions.invoke<SubmitResponse>(
         "submit-precision12-questionnaire",
@@ -111,30 +122,20 @@ export default function PrecisionQuestionnairePage() {
       );
 
       if (error || !data) {
-        // Não vazar detalhes do erro pro aluno
-        const msg = error?.message ?? "Falha ao enviar respostas";
-        // Se for 409 já submetido / link inválido, usa mensagem genérica
+        // Não vazar detalhes do erro. 409 (já enviado) / 400 (link
+        // inválido) orientam a pedir novo link; o resto é "tente de novo".
+        const msg = error?.message ?? "";
         if (/already_submitted|409/i.test(msg) || /400|invalid/i.test(msg)) {
-          setState({
-            kind: "error",
-            message:
-              "Não foi possível registrar suas respostas. Verifique se o link ainda é válido ou solicite um novo ao seu coach.",
-          });
+          setSubmitError(SUBMIT_ERROR_LINK);
           return;
         }
-        setState({
-          kind: "error",
-          message: "Erro inesperado ao enviar. Tente novamente em alguns minutos.",
-        });
+        setSubmitError(SUBMIT_ERROR_GENERIC);
         return;
       }
 
       setState({ kind: "done", status: data.status });
     } catch {
-      setState({
-        kind: "error",
-        message: "Erro inesperado ao enviar. Tente novamente em alguns minutos.",
-      });
+      setSubmitError(SUBMIT_ERROR_GENERIC);
     }
   };
 
@@ -163,35 +164,8 @@ export default function PrecisionQuestionnairePage() {
         description={state.message}
       >
         <p className="text-sm text-muted-foreground">
-          Solicite um novo link ao seu coach Fabrik.
+          Peça um novo link ao seu treinador na Fabrik.
         </p>
-      </CenteredCard>
-    );
-  }
-
-  if (state.kind === "error") {
-    return (
-      <CenteredCard
-        icon={<AlertTriangle className="h-10 w-10 text-destructive" />}
-        title="Algo deu errado"
-        description={state.message}
-      >
-        <Button onClick={() => window.location.reload()}>Recarregar</Button>
-      </CenteredCard>
-    );
-  }
-
-  if (state.kind === "submitting") {
-    return (
-      <CenteredCard>
-        <div
-          className="flex flex-col items-center gap-3 py-8"
-          role="status"
-          aria-live="polite"
-        >
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">Enviando suas respostas…</p>
-        </div>
       </CenteredCard>
     );
   }
@@ -200,9 +174,9 @@ export default function PrecisionQuestionnairePage() {
     if (state.status === "blocked") {
       return (
         <CenteredCard
-          icon={<AlertTriangle className="h-10 w-10 text-amber-500" />}
+          icon={<AlertTriangle className="h-10 w-10 text-warning" aria-hidden />}
           title="Respostas registradas"
-          description="Algumas respostas indicam necessidade de revisão do coach antes de prosseguir."
+          description="Algumas respostas pedem uma revisão do treinador antes de seguir."
         >
           <p className="text-sm text-muted-foreground">
             A equipe Fabrik vai avaliar suas respostas e orientar o próximo passo.
@@ -213,9 +187,9 @@ export default function PrecisionQuestionnairePage() {
     }
     return (
       <CenteredCard
-        icon={<CheckCircle2 className="h-10 w-10 text-emerald-500" />}
-        title="Respostas registradas com sucesso"
-        description="O coach Fabrik vai conferir e dar próximos passos."
+        icon={<CheckCircle2 className="h-10 w-10 text-success" aria-hidden />}
+        title="Respostas registradas"
+        description="Seu treinador na Fabrik vai conferir e combinar os próximos passos."
       />
     );
   }
@@ -225,6 +199,7 @@ export default function PrecisionQuestionnairePage() {
     <QuestionnaireFlow
       requireBirthdate={state.requireBirthdate}
       onSubmit={handleSubmit}
+      submitError={state.submitError}
     />
   );
 }

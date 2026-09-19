@@ -4,6 +4,8 @@ import { Dumbbell, Heart, Flame, MapPin } from "lucide-react";
 import { useOuraWorkouts } from "@/hooks/useOuraWorkouts";
 import { translateActivity, translateIntensity } from "@/utils/ouraTranslations";
 import { formatLocalDateTime } from "@/utils/dateUtils";
+import { formatNumberBR } from "@/utils/displayFormat";
+import { DataErrorState } from "@/components/metrics";
 
 interface OuraWorkoutsCardProps {
   studentId: string;
@@ -36,29 +38,34 @@ const formatDuration = (start: string, end: string) => {
 
 const formatDistance = (meters: number | null) => {
   if (!meters) return null;
-  if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`;
+  if (meters >= 1000) return `${formatNumberBR(meters / 1000, 2)} km`;
   return `${meters} m`;
 };
 
 export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProps) => {
-  const { data: workouts, isLoading } = useOuraWorkouts(studentId, limit);
+  const { data: workouts, isLoading, isError, refetch } = useOuraWorkouts(studentId, limit);
 
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Treinos Registrados</CardTitle>
-          <CardDescription>Carregando treinos...</CardDescription>
+          <CardTitle>Treinos registrados</CardTitle>
+          <CardDescription>Carregando treinos…</CardDescription>
         </CardHeader>
       </Card>
     );
+  }
+
+  // Falha na consulta ≠ "nenhum treino" (erro nunca vira vazio).
+  if (isError) {
+    return <DataErrorState what="os treinos do Oura" onRetry={() => refetch()} />;
   }
 
   if (!workouts || workouts.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Treinos Registrados</CardTitle>
+          <CardTitle>Treinos registrados</CardTitle>
           <CardDescription>Nenhum treino registrado pelo Oura Ring</CardDescription>
         </CardHeader>
       </Card>
@@ -70,10 +77,12 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
       <CardHeader>
         <div className="flex items-center gap-2">
           <Dumbbell className="h-5 w-5 text-primary" />
-          <CardTitle>Treinos Registrados</CardTitle>
+          <CardTitle>Treinos registrados</CardTitle>
         </div>
         <CardDescription>
-          {workouts.length} treino(s) detectado(s) pelo Oura Ring
+          {workouts.length === 1
+            ? "1 treino detectado pelo Oura Ring"
+            : `${workouts.length} treinos detectados pelo Oura Ring`}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -130,7 +139,7 @@ export const OuraWorkoutsCard = ({ studentId, limit = 10 }: OuraWorkoutsCardProp
                     <Heart className="h-4 w-4 text-destructive" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">FC Média</p>
+                    <p className="text-xs text-muted-foreground">FC média</p>
                     <p className="text-sm font-semibold">
                       {workout.average_heart_rate} bpm
                       {workout.max_heart_rate && (

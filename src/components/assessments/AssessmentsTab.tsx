@@ -250,7 +250,7 @@ export const AssessmentsTab = ({
             Verifique a conexão e tente de novo.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
+        <Button variant="outline" onClick={() => refetch()}>
           Tentar novamente
         </Button>
       </Card>
@@ -262,7 +262,7 @@ export const AssessmentsTab = ({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-semibold">Avaliações Precision 12</h2>
-          <Button size="sm" onClick={() => setWizardOpen(true)}>
+          <Button onClick={() => setWizardOpen(true)}>
             <Plus className="mr-1 h-4 w-4" /> Nova avaliação
           </Button>
         </div>
@@ -272,8 +272,8 @@ export const AssessmentsTab = ({
           <div>
             <p className="font-semibold">Nenhuma avaliação ainda</p>
             <p className="text-sm text-muted-foreground">
-              Registre a primeira avaliação clínica deste aluno pra
-              começar o programa Precision 12.
+              Registre a primeira avaliação clínica para começar o
+              programa Precision 12.
             </p>
           </div>
           <Button onClick={() => setWizardOpen(true)}>
@@ -295,7 +295,7 @@ export const AssessmentsTab = ({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-base font-semibold">Avaliações Precision 12</h2>
-        <Button size="sm" onClick={() => setWizardOpen(true)}>
+        <Button onClick={() => setWizardOpen(true)}>
           <Plus className="mr-1 h-4 w-4" /> Nova avaliação
         </Button>
       </div>
@@ -313,12 +313,12 @@ export const AssessmentsTab = ({
             variant={filter === cat ? "default" : "outline"}
             onClick={() => setFilter(cat)}
             aria-pressed={filter === cat}
-            className="h-8 text-xs"
+            className="h-10 text-xs"
           >
             {cat === "all" ? "Todas" : cat}
             <Badge
               variant={filter === cat ? "secondary" : "outline"}
-              className="ml-1.5 text-[10px]"
+              className="ml-1.5 text-xs"
             >
               {cat === "all" ? assessments.length : (categoryCounts.get(cat) ?? 0)}
             </Badge>
@@ -327,7 +327,7 @@ export const AssessmentsTab = ({
       </div>
 
       {rangesFailed && (
-        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
           Não foi possível carregar parte das tabelas de referência. Os
           resultados abaixo estão corretos; algumas classificações podem
           ficar indisponíveis.

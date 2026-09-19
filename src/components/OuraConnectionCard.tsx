@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { RefreshCw, Unlink, Link2, Info, CheckCircle2, AlertCircle, WifiOff, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
@@ -29,13 +29,14 @@ import { SendOuraConnectDialog } from "@/components/SendOuraConnectDialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { buildErrorDescription } from "@/utils/errorParsing";
+import { formatDateSP, formatTimeSP } from "@/utils/displayFormat";
 
 interface OuraConnectionCardProps {
   studentId: string;
   studentName?: string;
 }
 
-export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraConnectionCardProps) => {
+export const OuraConnectionCard = ({ studentId, studentName }: OuraConnectionCardProps) => {
   const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
   const [showOuraConnectDialog, setShowOuraConnectDialog] = useState(false);
   const [syncProgress, setSyncProgress] = useState(0);
@@ -58,10 +59,10 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
 
   const handleSync = () => {
     setSyncProgress(0);
-    setSyncStatus("Iniciando sincronização...");
+    setSyncStatus("Iniciando sincronização…");
     setSyncError(null); // Limpar erro anterior
     
-    const syncToastId = toast.loading("Iniciando sincronização do Oura Ring...", {
+    const syncToastId = toast.loading("Iniciando sincronização do Oura Ring…", {
       description: "Conectando com a API do Oura"
     });
     
@@ -71,7 +72,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
         days: 7,
         onProgress: (current, total) => {
           setSyncProgress((current / total) * 100);
-          const statusMsg = `Sincronizando dia ${current} de ${total}...`;
+          const statusMsg = `Sincronizando dia ${current} de ${total}…`;
           setSyncStatus(statusMsg);
           
           toast.loading(statusMsg, {
@@ -83,7 +84,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
       {
         onSuccess: () => {
           setSyncProgress(100);
-          setSyncStatus("Sincronização concluída!");
+          setSyncStatus("Sincronização concluída");
           setSyncError(null);
           
           // O feedback consolidado (dias com dados / sem dados) vem do hook useSyncOura.
@@ -113,7 +114,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
   };
 
   const handleDisconnect = () => {
-    const disconnectToastId = toast.loading("Desconectando Oura Ring...", {
+    const disconnectToastId = toast.loading("Desconectando Oura Ring…", {
       description: "Removendo conexão"
     });
     
@@ -145,7 +146,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
           <CardTitle>Conexão Oura Ring</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Carregando...</p>
+          <p className="text-sm text-muted-foreground">Carregando…</p>
         </CardContent>
       </Card>
     );
@@ -157,14 +158,18 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Conexão Oura Ring</span>
-            {connection && <Badge className="bg-green-500">Conectado</Badge>}
+            {connection && (
+              <Badge variant="outline" className="border-success/40 font-normal text-success">
+                Conectado
+              </Badge>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {!connection ? (
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                {isFetching ? "Verificando aceite do convite Oura..." : "Oura Ring não conectado"}
+                {isFetching ? "Verificando aceite do convite Oura…" : "Oura Ring não conectado"}
               </p>
               <Button
                 variant="outline"
@@ -172,7 +177,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
                 className="w-full"
               >
                 <Link2 className="h-4 w-4 mr-2" />
-                Conectar via Convite
+                Conectar via convite
               </Button>
             </div>
           ) : (
@@ -199,7 +204,6 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
                     <p className="font-semibold">Erro na sincronização</p>
                     <p className="text-sm mb-2">{syncError}</p>
                     <Button
-                      size="sm"
                       variant="outline"
                       onClick={handleSync}
                       disabled={syncOura.isPending}
@@ -216,16 +220,11 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    <p className="font-semibold mb-1">Oura Ring conectado com sucesso!</p>
+                    <p className="font-semibold mb-1">Oura Ring conectado</p>
                     <p className="text-sm">
-                      Aguardando dados disponíveis. O Oura Ring processa suas métricas após:
-                    </p>
-                    <ul className="text-sm mt-2 space-y-1 ml-4">
-                      <li>• Você acordar e sincronizar seu anel</li>
-                      <li>• O processamento completo dos dados (pode levar algumas horas)</li>
-                    </ul>
-                    <p className="text-sm mt-2">
-                      💡 Tente sincronizar novamente após o meio-dia ou ao final do dia.
+                      Ainda sem dados. O Oura processa as métricas depois que o anel
+                      sincroniza pela manhã, o que pode levar algumas horas; se nada
+                      aparecer, sincronize de novo à tarde.
                     </p>
                   </AlertDescription>
                 </Alert>
@@ -234,11 +233,8 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">
                     Última tentativa de sincronização:{" "}
-                    {format(
-                      new Date(connection.last_sync_at),
-                      "dd/MM/yyyy 'às' HH:mm",
-                      { locale: ptBR }
-                    )}
+                    {formatDateSP(connection.last_sync_at, true)} às{" "}
+                    {formatTimeSP(connection.last_sync_at)}
                   </p>
                   <p className="text-xs text-muted-foreground" data-testid="oura-last-real-data">
                     Último dado real (sono/prontidão):{" "}
@@ -251,7 +247,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
                           : "nenhum ainda"}
                   </p>
                   {connectionStatus?.summary && connectionStatus.hasIssues && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">{connectionStatus.summary}</p>
+                    <p className="text-xs text-warning">{connectionStatus.summary}</p>
                   )}
                   {latestMetrics && (
                     <p className="text-xs text-muted-foreground">
@@ -282,7 +278,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
                   {syncOura.isPending ? (
                     <>
                       <RefreshCw className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
-                      Sincronizando...
+                      Sincronizando…
                     </>
                   ) : (
                     <>
@@ -296,7 +292,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
                   onClick={() => setShowDisconnectDialog(true)}
                   disabled={disconnectOura.isPending || syncOura.isPending}
                   aria-label="Desconectar Oura Ring"
-                  title="Desconectar Oura Ring deste aluno"
+                  title="Desconectar Oura Ring"
                 >
                   <Unlink className="h-4 w-4 mr-2" aria-hidden="true" />
                   Desconectar
@@ -313,28 +309,27 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Desconectar Oura Ring?</AlertDialogTitle>
+            <AlertDialogTitle>Desconectar o Oura Ring{studentName ? ` de ${studentName}` : ""}?</AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
-              <p>Ao desconectar o Oura Ring:</p>
-              <ul className="text-sm space-y-1 ml-4">
-                <li>✓ Seus dados já sincronizados serão preservados</li>
-                <li>✗ Novos dados não serão mais sincronizados automaticamente</li>
-                <li>↻ Você pode reconectar a qualquer momento através de um novo convite</li>
-              </ul>
+              <span className="block">
+                Os dados já sincronizados ficam preservados, mas novos dados deixam
+                de chegar. Para reconectar será preciso enviar um novo convite.
+              </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={disconnectOura.isPending}>
               Cancelar
             </AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
+              className={buttonVariants({ variant: "destructive" })}
               onClick={handleDisconnect}
               disabled={disconnectOura.isPending}
             >
               {disconnectOura.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Desconectando...
+                  Desconectando…
                 </>
               ) : (
                 "Desconectar"
@@ -348,7 +343,7 @@ export const OuraConnectionCard = ({ studentId, studentName = "Aluno" }: OuraCon
         open={showOuraConnectDialog}
         onOpenChange={setShowOuraConnectDialog}
         studentId={studentId}
-        studentName={studentName}
+        studentName={studentName ?? "a pessoa"}
       />
     </>
   );

@@ -28,15 +28,6 @@ export function Screen7Wearable() {
 
   return (
     <section className="space-y-5">
-      <header>
-        <h2
-          tabIndex={-1}
-          className="text-sm font-semibold text-muted-foreground focus-visible:outline-none"
-        >
-          Wearable e perfil comportamental
-        </h2>
-      </header>
-
       <BooleanField
         name="uses_wearable"
         label="Você utiliza algum dispositivo de monitoramento hoje?"
@@ -52,7 +43,7 @@ export function Screen7Wearable() {
           />
           <BooleanField
             name="share_data"
-            label="Você está disposto(a) a compartilhar esses dados com a Fabrik?"
+            label="Você aceita compartilhar esses dados com a Fabrik?"
           />
         </>
       )}
