@@ -7,7 +7,6 @@ import { useAssignPrescription } from "@/hooks/usePrescriptions";
 import { useStudents } from "@/hooks/useStudents";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -211,19 +210,26 @@ export function AssignPrescriptionDialog({
           <div className="space-y-sm">
             <Label className="flex items-center gap-sm">
               <CalendarIcon className="h-4 w-4" />
-              Dias da Semana
+              Dias da semana
             </Label>
-            <div className="flex flex-wrap gap-sm">
-              {weekdays.map((day) => (
-                <Badge
-                  key={day.value}
-                  variant={selectedWeekdays.includes(day.value) ? "default" : "outline"}
-                  className="cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => toggleWeekday(day.value)}
-                >
-                  {day.label}
-                </Badge>
-              ))}
+            {/* Botões de alternância reais: foco por Tab, aria-pressed, 40px. */}
+            <div className="flex flex-wrap gap-sm" role="group" aria-label="Dias da semana">
+              {weekdays.map((day) => {
+                const isSelected = selectedWeekdays.includes(day.value);
+                return (
+                  <Button
+                    key={day.value}
+                    type="button"
+                    size="sm"
+                    variant={isSelected ? "default" : "outline"}
+                    aria-pressed={isSelected}
+                    className="min-h-10 min-w-12"
+                    onClick={() => toggleWeekday(day.value)}
+                  >
+                    {day.label}
+                  </Button>
+                );
+              })}
             </div>
             <p className="text-xs text-muted-foreground">
               Selecione os dias em que o treino será realizado

@@ -241,7 +241,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
         })),
       });
 
-      notify.success(`Prescrição "${prescription.name}" criada com sucesso!`);
+      notify.success(`Prescrição "${prescription.name}" criada`);
 
       // Marca a aba como salva e, se houver pendente, avança para ela.
       const newSaved = new Set(savedIndexes);
@@ -383,7 +383,7 @@ export function ImportPrescriptionFromWordDialog({ open, onOpenChange }: Props) 
                   <SelectValue placeholder="Raiz (sem pasta)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="root">📁 Raiz (sem pasta)</SelectItem>
+                  <SelectItem value="root">Raiz (sem pasta)</SelectItem>
                   {flatFolders.map((f) => (
                     <SelectItem key={f.id} value={f.id}>
                       <span style={{ paddingLeft: `${f.level * 12}px` }}>

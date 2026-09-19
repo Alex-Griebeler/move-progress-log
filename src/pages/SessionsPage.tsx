@@ -52,6 +52,7 @@ import {
   Users as UsersIcon,
   User as UserIcon,
   Dumbbell,
+  Upload,
 } from "lucide-react";
 import { endOfWeek, format, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -62,6 +63,7 @@ import { useReopenWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { SessionDetailDialog } from "@/components/SessionDetailDialog";
 import { RecordGroupSessionDialog } from "@/components/RecordGroupSessionDialog";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
+import { ImportSessionsDialog } from "@/components/ImportSessionsDialog";
 import EmptyState from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -128,6 +130,7 @@ export default function SessionsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [studentSelectionOpen, setStudentSelectionOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   // Data queries
   const { data: students } = useStudents();
@@ -260,6 +263,12 @@ export default function SessionsPage() {
           { label: NAV_LABELS.sessions },
         ]}
         actions={
+          <div className="flex flex-wrap items-center gap-xs">
+          {/* Importação por planilha: ação secundária (texto), sempre visível. */}
+          <Button variant="ghost" className="gap-xs" onClick={() => setImportDialogOpen(true)}>
+            <Upload className="h-4 w-4" aria-hidden="true" />
+            Importar Excel
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button className="gap-xs">
@@ -278,6 +287,7 @@ export default function SessionsPage() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         }
       />
 
@@ -798,6 +808,14 @@ export default function SessionsPage() {
       <RecordGroupSessionDialog
         open={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
+      />
+
+      <ImportSessionsDialog
+        open={importDialogOpen}
+        onOpenChange={(next) => {
+          setImportDialogOpen(next);
+          if (!next) void refetch();
+        }}
       />
     </PageLayout>
   );

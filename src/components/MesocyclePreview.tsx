@@ -319,8 +319,8 @@ function PhaseDetail({ phase }: { phase: SessionPhase }) {
                         </div>
                       </div>
                       {exercise.executionCues && (
-                        <p className="text-[10px] text-muted-foreground italic leading-relaxed">
-                          💡 {exercise.executionCues}
+                        <p className="text-xs text-muted-foreground italic leading-relaxed">
+                          {exercise.executionCues}
                         </p>
                       )}
                     </div>

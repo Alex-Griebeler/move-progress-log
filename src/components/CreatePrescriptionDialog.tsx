@@ -139,8 +139,10 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
     return () => window.removeEventListener('beforeunload', handler);
   }, [open, name, objective, exercises]);
 
+  // Toque: só arrasta após segurar 150 ms (o diálogo rola com o dedo sem
+  // disparar arrasto acidental). Teclado: Espaço + setas reordenam.
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -299,7 +301,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
 
       sonnerToast.dismiss(loadingToastId);
       toast({
-        title: "Regressões sugeridas com sucesso!",
+        title: "Regressões sugeridas",
         description: "A IA sugeriu 3 exercícios de regressão baseados no padrão de movimento.",
       });
     } catch (error: unknown) {
@@ -535,7 +537,7 @@ export function CreatePrescriptionDialog({ open, onOpenChange }: CreatePrescript
                       <SelectValue placeholder="Raiz (sem pasta)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="root">📁 Raiz (sem pasta)</SelectItem>
+                      <SelectItem value="root">Raiz (sem pasta)</SelectItem>
                       {flatFolders.map((f) => (
                         <SelectItem key={f.id} value={f.id}>
                           <span style={{ paddingLeft: `${f.level * 12}px` }}>
