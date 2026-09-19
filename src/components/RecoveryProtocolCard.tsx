@@ -62,7 +62,7 @@ const RecoveryProtocolCard = ({ protocol }: RecoveryProtocolCardProps) => {
       key:
         BENEFIT_LABELS_PT[key] ??
         key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-      value: value === 'increase' ? '↑' : value === 'decrease' ? '↓' : value === 'improve' ? '⚡' : '✓'
+      value: value === 'increase' ? '↑' : value === 'decrease' ? '↓' : value === 'improve' ? '↗' : '·'
     }));
   };
 

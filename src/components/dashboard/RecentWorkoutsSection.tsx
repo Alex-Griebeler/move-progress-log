@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Calendar, Users, User, Filter, Dumbbell, Upload, Info } from "lucide-react";
+import { Calendar, Users, User, Dumbbell, Upload } from "lucide-react";
 import WorkoutCard from "@/components/WorkoutCard";
 import { WorkoutCardSkeleton } from "@/components/skeletons/WorkoutCardSkeleton";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import EmptyState from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { Badge } from "@/components/ui/badge";
 import { useWorkouts } from "@/hooks/useWorkouts";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,7 +23,7 @@ interface RecentWorkoutsSectionProps {
 
 export const RecentWorkoutsSection = ({ onSessionSelect, onImportOpen, onWorkoutAdded }: RecentWorkoutsSectionProps) => {
   const [sessionTypeFilter, setSessionTypeFilter] = useState<'all' | 'individual' | 'group'>('all');
-  const { data: recentWorkouts, isLoading } = useWorkouts();
+  const { data: recentWorkouts, isLoading, isError, refetch } = useWorkouts();
   const queryClient = useQueryClient();
 
   const handleReopenSession = async (sessionId: string) => {
@@ -51,34 +52,28 @@ export const RecentWorkoutsSection = ({ onSessionSelect, onImportOpen, onWorkout
     <section>
       <div className="flex items-center gap-3 mb-6">
         <div className="h-1 w-12 bg-primary rounded-full" />
-        <h2 className="text-xl font-bold text-foreground">{NAV_LABELS.sectionRecentSessions}</h2>
+        <h2 className="text-xl font-semibold text-foreground">{NAV_LABELS.sectionRecentSessions}</h2>
       </div>
 
-      {recentWorkouts && recentWorkouts.length > 0 && (
-        <Card className="p-4 mb-4">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Filtrar por tipo:</span>
-            </div>
-            <div className="flex gap-2">
-              <Button variant={sessionTypeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setSessionTypeFilter('all')} className="gap-1.5" aria-label="Mostrar todas as sessões">
-                Todas
-                <Badge variant={sessionTypeFilter === 'all' ? 'secondary' : 'outline'} className="ml-1">{recentWorkouts.length}</Badge>
-              </Button>
-              <Button variant={sessionTypeFilter === 'individual' ? 'default' : 'outline'} size="sm" onClick={() => setSessionTypeFilter('individual')} className="gap-1.5" aria-label="Filtrar apenas sessões individuais">
-                <User className="h-3.5 w-3.5" />
-                Individual
-                <Badge variant={sessionTypeFilter === 'individual' ? 'secondary' : 'outline'} className="ml-1">{recentWorkouts.filter(w => w.session_type === 'individual').length}</Badge>
-              </Button>
-              <Button variant={sessionTypeFilter === 'group' ? 'default' : 'outline'} size="sm" onClick={() => setSessionTypeFilter('group')} className="gap-1.5" aria-label="Filtrar apenas sessões em grupo">
-                <Users className="h-3.5 w-3.5" />
-                Grupo
-                <Badge variant={sessionTypeFilter === 'group' ? 'secondary' : 'outline'} className="ml-1">{recentWorkouts.filter(w => w.session_type === 'group').length}</Badge>
-              </Button>
-            </div>
-          </div>
-        </Card>
+      {/* UX 18/09 (ux_03 UX-17): filtro que quebra linha a 375px, alvos de
+          40px, sem rótulo "Filtrar por tipo:" (os próprios botões dizem). */}
+      {!isError && recentWorkouts && recentWorkouts.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filtrar sessões por tipo">
+          <Button variant={sessionTypeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setSessionTypeFilter('all')} className="min-h-10 gap-1.5" aria-pressed={sessionTypeFilter === 'all'}>
+            Todas
+            <Badge variant={sessionTypeFilter === 'all' ? 'secondary' : 'outline'} className="ml-1">{recentWorkouts.length}</Badge>
+          </Button>
+          <Button variant={sessionTypeFilter === 'individual' ? 'default' : 'outline'} size="sm" onClick={() => setSessionTypeFilter('individual')} className="min-h-10 gap-1.5" aria-pressed={sessionTypeFilter === 'individual'}>
+            <User className="h-3.5 w-3.5" aria-hidden="true" />
+            Individual
+            <Badge variant={sessionTypeFilter === 'individual' ? 'secondary' : 'outline'} className="ml-1">{recentWorkouts.filter(w => w.session_type === 'individual').length}</Badge>
+          </Button>
+          <Button variant={sessionTypeFilter === 'group' ? 'default' : 'outline'} size="sm" onClick={() => setSessionTypeFilter('group')} className="min-h-10 gap-1.5" aria-pressed={sessionTypeFilter === 'group'}>
+            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+            Grupo
+            <Badge variant={sessionTypeFilter === 'group' ? 'secondary' : 'outline'} className="ml-1">{recentWorkouts.filter(w => w.session_type === 'group').length}</Badge>
+          </Button>
+        </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -88,6 +83,15 @@ export const RecentWorkoutsSection = ({ onSessionSelect, onImportOpen, onWorkout
             <WorkoutCardSkeleton />
             <WorkoutCardSkeleton />
           </>
+        ) : isError ? (
+          // Erro de rede nunca vira "nenhuma sessão".
+          <Card className="col-span-full">
+            <ErrorState
+              title="Não foi possível carregar as sessões recentes"
+              description="Verifique a conexão e tente novamente."
+              onRetry={() => void refetch()}
+            />
+          </Card>
         ) : recentWorkouts && recentWorkouts.length > 0 ? (
           filteredWorkouts && filteredWorkouts.length > 0 ? (
             filteredWorkouts.map((workout) => (
@@ -110,54 +114,28 @@ export const RecentWorkoutsSection = ({ onSessionSelect, onImportOpen, onWorkout
             ))
           ) : (
             <Card className="border-dashed col-span-full">
-              <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
-                <div className="rounded-md bg-muted p-4">
-                  <Calendar className="h-12 w-12 text-muted-foreground" />
-                </div>
-                <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold">
-                    Nenhuma sessão {sessionTypeFilter === 'individual' ? 'individual' : 'em grupo'} encontrada
-                  </h3>
-                  <p className="text-muted-foreground text-sm max-w-md">
-                    Não há sessões {sessionTypeFilter === 'individual' ? 'individuais' : 'em grupo'} registradas
-                  </p>
-                </div>
-                <Button variant="outline" onClick={() => setSessionTypeFilter('all')} className="gap-2 mt-4">
-                  Ver todas as sessões
-                </Button>
-              </CardContent>
+              <EmptyState
+                icon={<Calendar className="h-8 w-8 text-muted-foreground" aria-hidden="true" />}
+                title={`Nenhuma sessão ${sessionTypeFilter === 'individual' ? 'individual' : 'em grupo'} recente`}
+                description=""
+                primaryAction={{ label: "Ver todas as sessões", onClick: () => setSessionTypeFilter('all') }}
+              />
             </Card>
           )
         ) : (
           <Card className="border-dashed col-span-full">
-            <CardContent className="flex flex-col items-center justify-center py-16 space-y-6">
-              <div className="rounded-md bg-primary/10 p-6">
-                <Dumbbell className="h-16 w-16 text-primary" />
-              </div>
-              <div className="text-center space-y-3 max-w-md">
-                <h3 className="text-2xl font-bold">Comece a Registrar Sessões</h3>
-                <p className="text-muted-foreground">
-                  Ainda não há sessões registradas. Escolha uma das opções abaixo para começar a acompanhar o progresso dos seus alunos.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3 justify-center">
-                <AddWorkoutDialog onWorkoutAdded={onWorkoutAdded} />
-                <Button variant="outline" onClick={onImportOpen} className="gap-2" aria-label={NAV_LABELS.importExcel}>
-                  <Upload className="h-4 w-4" />
-                  {NAV_LABELS.importExcel}
-                </Button>
-                <Link to="/alunos">
-                  <Button variant="outline" className="gap-2" aria-label={NAV_LABELS.students}>
-                    <Users className="h-4 w-4" />
-                    {NAV_LABELS.students}
-                  </Button>
-                </Link>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-4">
-                <Info className="h-4 w-4" />
-                <span>Dica: Você pode registrar sessões por voz direto na página de cada aluno</span>
-              </div>
-            </CardContent>
+            <EmptyState
+              icon={<Dumbbell className="h-8 w-8 text-muted-foreground" aria-hidden="true" />}
+              title="Nenhuma sessão registrada"
+              description="Registre a primeira sessão ou importe o histórico."
+            />
+            <div className="flex flex-wrap justify-center gap-3 pb-8">
+              <AddWorkoutDialog onWorkoutAdded={onWorkoutAdded} />
+              <Button variant="outline" onClick={onImportOpen} className="gap-2">
+                <Upload className="h-4 w-4" aria-hidden="true" />
+                {NAV_LABELS.importExcel}
+              </Button>
+            </div>
           </Card>
         )}
       </div>

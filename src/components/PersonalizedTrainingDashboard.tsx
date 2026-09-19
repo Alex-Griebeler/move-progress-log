@@ -1758,7 +1758,7 @@ const PersonalizedTrainingDashboard = ({
               {[...alertPartition.attention]
                 .sort((a, b) => (a.level === "CRITICAL" ? -1 : 0) - (b.level === "CRITICAL" ? -1 : 0))
                 .map((alert, idx) => (
-                  <li key={idx} className="flex gap-2 text-muted-foreground">
+                  <li key={idx} className="flex gap-2">
                     <span
                       aria-hidden="true"
                       className={
@@ -1782,7 +1782,7 @@ const PersonalizedTrainingDashboard = ({
               </p>
               <p className="mt-1 flex flex-wrap items-baseline gap-2">
                 <span aria-hidden="true" className="h-2 w-2 shrink-0 self-center rounded-full bg-destructive" />
-                <span className="text-xl font-semibold tracking-tight text-destructive">
+                <span className="text-xl font-semibold tracking-tight text-foreground">
                   {VERDICT_BY_ZONE[conduct.effectiveZone]}
                 </span>
                 <span className="text-sm text-muted-foreground">· carga bloqueada hoje</span>
@@ -1874,7 +1874,7 @@ const PersonalizedTrainingDashboard = ({
             />
             Atenção hoje
           </h3>
-          <ul className="space-y-1.5 text-sm text-muted-foreground">
+          <ul className="space-y-1.5 text-sm">
             {alertPartition.attention.map((alert, idx) => (
               <li key={idx} className="flex gap-2">
                 <span

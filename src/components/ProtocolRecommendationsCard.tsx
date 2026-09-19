@@ -185,7 +185,7 @@ const ProtocolRecommendationsCard = ({ studentId }: ProtocolRecommendationsCardP
                       {recommendation.applied ? (
                         <>
                           <CheckCircle2 className="h-4 w-4" />
-                          Seguiu ✓
+                          Seguiu
                         </>
                       ) : (
                         "Seguiu?"

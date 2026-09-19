@@ -68,14 +68,14 @@ const ManualProtocolRecommendationDialog = ({ studentId }: ManualProtocolRecomme
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Recomendar Protocolo
+        <Button variant="outline" className="gap-2">
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Recomendar protocolo
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Recomendar Protocolo de Recuperação</DialogTitle>
+          <DialogTitle>Recomendar protocolo de recuperação</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -96,7 +96,7 @@ const ManualProtocolRecommendationDialog = ({ studentId }: ManualProtocolRecomme
           </div>
 
           <div className="space-y-2">
-            <Label>Data da Recomendação</Label>
+            <Label>Data da recomendação</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -136,7 +136,7 @@ const ManualProtocolRecommendationDialog = ({ studentId }: ManualProtocolRecomme
           </div>
 
           <div className="space-y-2">
-            <Label>Motivo da Recomendação *</Label>
+            <Label>Motivo da recomendação *</Label>
             <Textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
