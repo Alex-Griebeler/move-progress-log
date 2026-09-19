@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PublicPageShell } from "@/components/PublicPageShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const type = searchParams.get("type");
-  
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,7 +30,7 @@ export default function ResetPasswordPage() {
   const [emailSent, setEmailSent] = useState(false);
   const [passwordSecurity, setPasswordSecurity] = useState<{ isSecure: boolean; strength: "weak" | "medium" | "strong"; message: string; checks: Record<string, boolean | null> } | null>(null);
   const [rateLimitWarning, setRateLimitWarning] = useState<string | null>(null);
-  
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const { checkPasswordSecurity, checking } = usePasswordSecurity();
@@ -96,8 +97,8 @@ export default function ResetPasswordPage() {
       setEmailSent(true);
       setRateLimitWarning(null);
       toast({
-        title: "✅ Email enviado!",
-        description: "Verifique sua caixa de entrada e clique no link para resetar sua senha.",
+        title: "Email enviado",
+        description: "Abra o link recebido para criar uma nova senha.",
       });
     } catch (error: unknown) {
       logger.error("Erro ao solicitar reset:", error);
@@ -164,8 +165,8 @@ export default function ResetPasswordPage() {
       if (error) throw error;
 
       toast({
-        title: "✅ Senha resetada com sucesso!",
-        description: "Você já pode fazer login com sua nova senha.",
+        title: "Senha atualizada",
+        description: "Entre com a nova senha.",
       });
 
       // Redirecionar para login após 2 segundos
@@ -178,7 +179,7 @@ export default function ResetPasswordPage() {
       if (errMsg.includes("token")) {
         toast({
           title: "Link expirado",
-          description: "Este link de reset expirou. Solicite um novo reset de senha.",
+          description: "Este link expirou. Peça um novo link de recuperação.",
           variant: "destructive",
         });
       } else {
@@ -194,27 +195,26 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <PublicPageShell centered>
+      <Card>
         <CardHeader>
-          <div className="flex items-center gap-2 mb-2">
+          <div className="mb-2">
             <Button
               variant="ghost"
-              size="sm"
               onClick={() => navigate(ROUTES.auth)}
-              className="p-0 h-auto"
+              className="-ml-3 px-3"
             >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Voltar para login
+              <ArrowLeft className="h-4 w-4 mr-1" aria-hidden="true" />
+              Voltar para o login
             </Button>
           </div>
-          <CardTitle>
-            {isUpdatePasswordStep ? "Nova Senha" : "Resetar Senha"}
+          <CardTitle className="text-h2">
+            {isUpdatePasswordStep ? "Nova senha" : "Recuperar senha"}
           </CardTitle>
           <CardDescription>
             {isUpdatePasswordStep
-              ? "Crie uma senha forte e segura para sua conta"
-              : "Enviaremos um link de recuperação para seu email"}
+              ? "Crie uma senha forte para a sua conta."
+              : "Enviamos um link de recuperação para o seu email."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -222,12 +222,12 @@ export default function ResetPasswordPage() {
             // ETAPA 1: Solicitar reset
             emailSent ? (
               <div className="space-y-4">
-                <Alert className="border-green-500 bg-green-50 text-green-900">
-                  <Check className="h-4 w-4 text-green-600" />
+                <Alert variant="success" role="status">
+                  <Check className="h-4 w-4" aria-hidden="true" />
                   <AlertDescription>
-                    <strong>Email enviado com sucesso!</strong>
+                    <strong>Email enviado</strong>
                     <p className="mt-2 text-sm">
-                      Verifique sua caixa de entrada e clique no link para resetar sua senha.
+                      Abra o link recebido para criar uma nova senha.
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       O link expira em 1 hora.
@@ -245,9 +245,9 @@ export default function ResetPasswordPage() {
             ) : (
               <form onSubmit={handleRequestReset} className="space-y-4">
                 {rateLimitWarning && (
-                  <Alert variant="default" className="border-yellow-500 bg-yellow-50">
-                    <Shield className="h-4 w-4 text-yellow-600" />
-                    <AlertDescription className="text-sm text-yellow-900">
+                  <Alert variant="warning">
+                    <Shield className="h-4 w-4" aria-hidden="true" />
+                    <AlertDescription className="text-sm">
                       {rateLimitWarning}
                     </AlertDescription>
                   </Alert>
@@ -257,7 +257,8 @@ export default function ResetPasswordPage() {
                   <Input
                     id="email"
                     type="email"
-                    placeholder="seu@email.com"
+                    autoComplete="email"
+                    placeholder="nome@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -279,10 +280,11 @@ export default function ResetPasswordPage() {
             // ETAPA 2: Atualizar senha
             <form onSubmit={handleUpdatePassword} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="password">Nova Senha (mínimo 12 caracteres)</Label>
+                <Label htmlFor="password">Nova senha (mínimo 12 caracteres)</Label>
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="new-password"
                   placeholder="Crie uma senha forte"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -291,8 +293,8 @@ export default function ResetPasswordPage() {
                   className={
                     passwordSecurity
                       ? passwordSecurity.isSecure
-                        ? "border-green-500 focus-visible:ring-green-500"
-                        : "border-red-500 focus-visible:ring-red-500"
+                        ? "border-success focus-visible:ring-success"
+                        : "border-destructive focus-visible:ring-destructive"
                       : ""
                   }
                 />
@@ -308,15 +310,10 @@ export default function ResetPasswordPage() {
                     ) : passwordSecurity ? (
                       <>
                         <Alert
-                          variant={passwordSecurity.isSecure ? "default" : "destructive"}
-                          className={
-                            passwordSecurity.isSecure
-                              ? "border-green-500 bg-green-50 text-green-900"
-                              : ""
-                          }
+                          variant={passwordSecurity.isSecure ? "success" : "destructive"}
                         >
                           {passwordSecurity.isSecure ? (
-                            <Check className="h-4 w-4 text-green-600" />
+                            <Check className="h-4 w-4" aria-hidden="true" />
                           ) : (
                             <AlertCircle className="h-4 w-4" />
                           )}
@@ -330,50 +327,50 @@ export default function ResetPasswordPage() {
                           <p className="font-medium mb-2">Requisitos de segurança:</p>
                           <div className="flex items-center gap-2">
                             {passwordSecurity.checks.length ? (
-                              <Check className="h-3 w-3 text-green-600" />
+                              <Check className="h-3 w-3 text-success" />
                             ) : (
-                              <X className="h-3 w-3 text-red-500" />
+                              <X className="h-3 w-3 text-destructive" />
                             )}
                             <span>Mínimo 12 caracteres</span>
                           </div>
                           <div className="flex items-center gap-2">
                             {passwordSecurity.checks.uppercase ? (
-                              <Check className="h-3 w-3 text-green-600" />
+                              <Check className="h-3 w-3 text-success" />
                             ) : (
-                              <X className="h-3 w-3 text-red-500" />
+                              <X className="h-3 w-3 text-destructive" />
                             )}
                             <span>Letra maiúscula (A-Z)</span>
                           </div>
                           <div className="flex items-center gap-2">
                             {passwordSecurity.checks.lowercase ? (
-                              <Check className="h-3 w-3 text-green-600" />
+                              <Check className="h-3 w-3 text-success" />
                             ) : (
-                              <X className="h-3 w-3 text-red-500" />
+                              <X className="h-3 w-3 text-destructive" />
                             )}
                             <span>Letra minúscula (a-z)</span>
                           </div>
                           <div className="flex items-center gap-2">
                             {passwordSecurity.checks.number ? (
-                              <Check className="h-3 w-3 text-green-600" />
+                              <Check className="h-3 w-3 text-success" />
                             ) : (
-                              <X className="h-3 w-3 text-red-500" />
+                              <X className="h-3 w-3 text-destructive" />
                             )}
                             <span>Número (0-9)</span>
                           </div>
                           <div className="flex items-center gap-2">
                             {passwordSecurity.checks.special ? (
-                              <Check className="h-3 w-3 text-green-600" />
+                              <Check className="h-3 w-3 text-success" />
                             ) : (
-                              <X className="h-3 w-3 text-red-500" />
+                              <X className="h-3 w-3 text-destructive" />
                             )}
                             <span>Caractere especial (!@#$%...)</span>
                           </div>
                           {passwordSecurity.checks.leaked !== null && (
                             <div className="flex items-center gap-2">
                               {passwordSecurity.checks.leaked ? (
-                                <Check className="h-3 w-3 text-green-600" />
+                                <Check className="h-3 w-3 text-success" />
                               ) : (
-                                <X className="h-3 w-3 text-red-500" />
+                                <X className="h-3 w-3 text-destructive" />
                               )}
                               <span>Não está em vazamentos de dados</span>
                             </div>
@@ -386,10 +383,11 @@ export default function ResetPasswordPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirmar Nova Senha</Label>
+                <Label htmlFor="confirm-password">Confirmar nova senha</Label>
                 <Input
                   id="confirm-password"
                   type="password"
+                  autoComplete="new-password"
                   placeholder="Digite a senha novamente"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
@@ -397,14 +395,14 @@ export default function ResetPasswordPage() {
                   minLength={12}
                   className={
                     confirmPassword && password !== confirmPassword
-                      ? "border-red-500 focus-visible:ring-red-500"
+                      ? "border-destructive focus-visible:ring-destructive"
                       : confirmPassword && password === confirmPassword
-                      ? "border-green-500 focus-visible:ring-green-500"
+                      ? "border-success focus-visible:ring-success"
                       : ""
                   }
                 />
                 {confirmPassword && password !== confirmPassword && (
-                  <p className="text-xs text-red-500">As senhas não coincidem</p>
+                  <p className="text-xs text-destructive">As senhas não coincidem</p>
                 )}
               </div>
 
@@ -438,6 +436,6 @@ export default function ResetPasswordPage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PublicPageShell>
   );
 }

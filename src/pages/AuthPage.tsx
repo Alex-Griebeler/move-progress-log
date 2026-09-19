@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePasswordSecurity, type PasswordSecurityResult } from "@/hooks/usePasswordSecurity";
-import { AlertCircle, Check, X, Loader2, Shield } from "lucide-react";
+import { AlertCircle, Check, X, Loader2, Shield, Eye, EyeOff } from "lucide-react";
+import { PublicPageShell } from "@/components/PublicPageShell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { checkRateLimit, recordFailedAttempt, type RateLimitAction } from "@/lib/rateLimiter";
 import { logger } from "@/utils/logger";
@@ -17,6 +18,25 @@ import { Verify2FADialog } from "@/components/Verify2FADialog";
 import { NAV_LABELS, ROUTES, POST_LOGIN_ROUTE } from "@/constants/navigation";
 import i18n from "@/i18n/pt-BR.json";
 import { buildErrorDescription, parseErrorInfo } from "@/utils/errorParsing";
+
+/** Campo de senha com "mostrar/ocultar" (alvo de 40px) e autocomplete correto. */
+function PasswordField(props: React.ComponentProps<typeof Input>) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <Input {...props} type={visible ? "text" : "password"} className={`pr-11 ${props.className ?? ""}`} />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+        aria-pressed={visible}
+        className="absolute right-0 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+      >
+        {visible ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+      </button>
+    </div>
+  );
+}
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -30,6 +50,8 @@ export default function AuthPage() {
   const [show2FASetup, setShow2FASetup] = useState(false);
   const [show2FAVerify, setShow2FAVerify] = useState(false);
   const [mfaFactorId, setMfaFactorId] = useState<string>('');
+  // Erro de login também inline, ligado aos campos (não só toast no canto).
+  const [signInError, setSignInError] = useState<string | null>(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const nextParam = searchParams.get("next");
@@ -59,7 +81,7 @@ export default function AuthPage() {
   const getErrorMessage = (error: unknown): string => {
     const baseMessage = parseErrorInfo(error).message;
     const message = baseMessage.toLowerCase();
-    
+
     if (message.includes('email') && message.includes('already')) {
       return i18n.errors.emailAlreadyRegistered;
     }
@@ -78,7 +100,7 @@ export default function AuthPage() {
     if (message.includes('too many requests')) {
       return i18n.errors.tooManyRequests;
     }
-    
+
     return buildErrorDescription(error) || baseMessage;
   };
 
@@ -113,7 +135,7 @@ export default function AuthPage() {
       if (error) {
         logger.error('Google OAuth error:', error);
         await recordFailedAttempt('login');
-        
+
         // Mensagem específica para erro 403
         if (error.message.includes('403') || error.message.includes('access_denied')) {
           toast({
@@ -133,7 +155,7 @@ export default function AuthPage() {
       }
 
       logger.log('Redirecting to Google OAuth...');
-      
+
     } catch (err: unknown) {
       logger.error('Unexpected Google OAuth error:', err);
       setLoading(false);
@@ -235,7 +257,7 @@ export default function AuthPage() {
       });
     } else {
       toast({
-        title: "✅ Cadastro realizado com sucesso!",
+        title: "Cadastro realizado",
         description: "Você já pode fazer login e começar a usar o sistema.",
       });
       setEmail("");
@@ -287,13 +309,10 @@ export default function AuthPage() {
 
     if (error) {
       await recordFailedAttempt('login');
-      toast({
-        title: "Erro no login",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
+      setSignInError(getErrorMessage(error));
       return;
     }
+    setSignInError(null);
 
     // Verificar se o usuário tem 2FA ativado
     const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors();
@@ -314,21 +333,17 @@ export default function AuthPage() {
     } else {
       // Login sem 2FA
       setRateLimitWarning(null);
-      toast({
-        title: "Login realizado com sucesso",
-        description: "Redirecionando para o sistema...",
-      });
       navigate(postLoginTarget);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <PublicPageShell centered>
+      <Card>
         <CardHeader>
-          <CardTitle className="text-xl">Fabrik Performance</CardTitle>
+          <CardTitle className="text-h2">Entrar</CardTitle>
           <CardDescription>
-            Entrar na sua conta
+            Acesso da equipe da Fabrik.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -337,7 +352,7 @@ export default function AuthPage() {
               <TabsTrigger value="signin">{NAV_LABELS.signIn}</TabsTrigger>
               <TabsTrigger value="signup">{NAV_LABELS.signUp}</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 {rateLimitWarning && (
@@ -353,30 +368,41 @@ export default function AuthPage() {
                   <Input
                     id="signin-email"
                     type="email"
-                    placeholder="seu@email.com"
+                    autoComplete="email"
+                    inputMode="email"
+                    placeholder="nome@email.com"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); setSignInError(null); }}
+                    aria-invalid={signInError ? true : undefined}
+                    aria-describedby={signInError ? "signin-error" : undefined}
                     required
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signin-password">Senha</Label>
-                  <Input
+                  <PasswordField
                     id="signin-password"
-                    type="password"
-                    placeholder="••••••••"
+                    autoComplete="current-password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => { setPassword(e.target.value); setSignInError(null); }}
+                    aria-invalid={signInError ? true : undefined}
+                    aria-describedby={signInError ? "signin-error" : undefined}
                     required
                   />
                 </div>
+                {signInError && (
+                  <p id="signin-error" role="alert" className="flex items-start gap-2 text-sm text-destructive">
+                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                    {signInError}
+                  </p>
+                )}
                 <div className="flex items-center justify-end">
-                  <a href="/reset-password" className="text-sm text-primary hover:underline">
+                  <Link to={ROUTES.resetPassword} className="inline-flex min-h-10 items-center text-sm text-primary hover:underline">
                     {NAV_LABELS.forgotPassword}
-                  </a>
+                  </Link>
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Entrando..." : NAV_LABELS.signIn}
+                  {loading ? "Entrando…" : NAV_LABELS.signIn}
                 </Button>
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -399,14 +425,15 @@ export default function AuthPage() {
                 </Button>
               </form>
             </TabsContent>
-            
+
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-name">Nome Completo</Label>
+                  <Label htmlFor="signup-name">Nome completo</Label>
                   <Input
                     id="signup-name"
                     type="text"
+                    autoComplete="name"
                     placeholder="Seu nome"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
@@ -418,6 +445,8 @@ export default function AuthPage() {
                   <Input
                     id="signup-email"
                     type="email"
+                    autoComplete="email"
+                    inputMode="email"
                     placeholder="seu@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -428,9 +457,9 @@ export default function AuthPage() {
                   <Label htmlFor="signup-password">
                     Senha (mínimo 12 caracteres)
                   </Label>
-                  <Input
+                  <PasswordField
                     id="signup-password"
-                    type="password"
+                    autoComplete="new-password"
                     placeholder="Crie uma senha forte"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -444,7 +473,7 @@ export default function AuthPage() {
                         : ""
                     }
                   />
-                  
+
                   {/* Indicador de força em tempo real */}
                   {password && (
                     <div className="space-y-2 mt-3">
@@ -526,12 +555,13 @@ export default function AuthPage() {
                     </div>
                   )}
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Confirmar Senha</Label>
+                  <Label htmlFor="confirm-password">Confirmar senha</Label>
                   <Input
                     id="confirm-password"
                     type="password"
+                    autoComplete="new-password"
                     placeholder="Digite a senha novamente"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -582,20 +612,20 @@ export default function AuthPage() {
                     </Link>
                   </div>
                 </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full" 
+
+                <Button
+                  type="submit"
+                  className="w-full"
                   disabled={
-                    loading || 
-                    checking || 
-                    !passwordSecurity || 
+                    loading ||
+                    checking ||
+                    !passwordSecurity ||
                     !passwordSecurity.isSecure ||
                     password !== confirmPassword ||
                     !acceptTerms
                   }
                 >
-                  {loading ? "Criando conta..." : 
+                  {loading ? "Criando conta..." :
                    checking ? "Verificando senha..." :
                    !passwordSecurity?.isSecure ? "Senha não segura" :
                    password !== confirmPassword ? "Senhas não coincidem" :
@@ -628,7 +658,7 @@ export default function AuthPage() {
         </CardContent>
       </Card>
 
-      {/* Dialogs de 2FA */}
+      {/* Diálogos de 2FA */}
       <Enable2FADialog
         open={show2FASetup}
         onOpenChange={setShow2FASetup}
@@ -639,6 +669,6 @@ export default function AuthPage() {
         factorId={mfaFactorId}
         redirectTo={postLoginTarget}
       />
-    </div>
+    </PublicPageShell>
   );
 }

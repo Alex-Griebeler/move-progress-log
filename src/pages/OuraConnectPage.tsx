@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { PublicPageShell } from "@/components/PublicPageShell";
+import { LoadingState } from "@/components/LoadingState";
 import { useParams } from "react-router-dom";
 import { Loader2, Shield, Activity, Moon, Heart, Thermometer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -103,121 +105,115 @@ export default function OuraConnectPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <PublicPageShell centered>
+        <LoadingState text="Validando o link" />
+      </PublicPageShell>
     );
   }
 
   if (error || !inviteData) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="max-w-md w-full">
+      <PublicPageShell centered>
+        <Card>
           <CardHeader>
-            <CardTitle>Link Inválido</CardTitle>
+            <CardTitle className="text-h2">Link inválido</CardTitle>
             <CardDescription>
-              {error || "Este link é inválido, expirado ou já foi utilizado."}
+              {error || "Este link é inválido, expirou ou já foi usado."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Entre em contato com seu treinador para solicitar um novo link.
+            <p className="text-body-sm text-muted-foreground">
+              Peça um novo link à equipe da Fabrik.
             </p>
           </CardContent>
         </Card>
-      </div>
+      </PublicPageShell>
     );
   }
 
   if (inviteData.already_connected) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <Card className="max-w-md w-full">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <Activity className="h-8 w-8 text-primary" />
+      <PublicPageShell centered>
+        <Card>
+          <CardHeader className="text-center space-y-sm">
+            <div className="mx-auto rounded-xl bg-success/10 p-md" aria-hidden="true">
+              <Activity className="h-6 w-6 text-success" />
             </div>
-            <CardTitle>Oura Ring já conectado</CardTitle>
+            <CardTitle className="text-h2">Oura Ring já conectado</CardTitle>
             <CardDescription>
-              A autorização foi recebida com sucesso. Seu treinador já pode acompanhar seus dados do Oura Ring.
+              A autorização foi recebida. A equipe da Fabrik já acompanha os dados do Oura Ring.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-center text-muted-foreground">
-              Você pode fechar esta aba agora.
-            </p>
+            <p className="text-caption text-center text-muted-foreground">Você pode fechar esta aba.</p>
           </CardContent>
         </Card>
-      </div>
+      </PublicPageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 py-8">
-      <div className="max-w-lg mx-auto space-y-6">
-        <Card>
-          <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <Activity className="h-8 w-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">Conectar Oura Ring</CardTitle>
-            <CardDescription className="text-base">
-              {inviteData.trainer_name} solicitou acesso aos dados do seu Oura Ring para personalizar seus treinos.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="bg-muted/50 p-4 rounded-lg space-y-3">
-              <p className="font-medium text-sm">Dados que serão compartilhados:</p>
-              <div className="grid grid-cols-1 gap-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Moon className="h-4 w-4 text-primary" />
-                  <span>Qualidade do sono (duração, fases, eficiência)</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Heart className="h-4 w-4 text-primary" />
-                  <span>Prontidão (recuperação, HRV, FC em repouso)</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Activity className="h-4 w-4 text-primary" />
-                  <span>Atividade (passos, calorias, treinos)</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Thermometer className="h-4 w-4 text-primary" />
-                  <span>SpO2, VO2 Max e temperatura corporal</span>
-                </div>
-              </div>
-            </div>
+    <PublicPageShell>
+      <Card>
+        <CardHeader className="text-center space-y-sm">
+          <div className="mx-auto rounded-xl bg-primary/10 p-md" aria-hidden="true">
+            <Activity className="h-6 w-6 text-primary" />
+          </div>
+          <CardTitle className="text-h2">Conectar Oura Ring</CardTitle>
+          <CardDescription className="text-body-sm">
+            {inviteData.trainer_name}, da Fabrik, pediu acesso aos dados do seu Oura Ring para ajustar os treinos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="bg-muted/50 p-4 rounded-lg space-y-3">
+            <p className="font-medium text-sm">Dados compartilhados</p>
+            <ul className="grid grid-cols-1 gap-2">
+              <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Moon className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span>Sono (duração, fases, eficiência)</span>
+              </li>
+              <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Heart className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span>Prontidão (recuperação, VFC, FC em repouso)</span>
+              </li>
+              <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Activity className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span>Atividade (passos, calorias, treinos)</span>
+              </li>
+              <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Thermometer className="h-4 w-4 text-primary" aria-hidden="true" />
+                <span>SpO₂, VO₂ máx. e temperatura corporal</span>
+              </li>
+            </ul>
+          </div>
 
-            <div className="flex items-start gap-2 text-xs text-muted-foreground border-t pt-4">
-              <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" />
-              <p>
-                <strong>Privacidade garantida:</strong> Seus dados serão usados{" "}
-                <strong>exclusivamente</strong> por {inviteData.trainer_name} para
-                personalizar seus treinos. Não compartilharemos com terceiros.
-              </p>
-            </div>
+          <div className="flex items-start gap-2 text-caption text-muted-foreground border-t pt-4">
+            <Shield className="h-4 w-4 mt-0.5 flex-shrink-0 text-primary" aria-hidden="true" />
+            <p>
+              Os dados são usados exclusivamente por {inviteData.trainer_name}, da Fabrik, para ajustar os treinos, e não são compartilhados com terceiros.
+            </p>
+          </div>
 
-            <Button
-              size="lg"
-              className="w-full"
-              onClick={handleConnect}
-              disabled={isConnecting}
-            >
-              {isConnecting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Redirecionando...
-                </>
-              ) : (
-                <>
-                  <Activity className="h-4 w-4 mr-2" />
-                  Conectar Oura Ring
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={handleConnect}
+            disabled={isConnecting}
+          >
+            {isConnecting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                Abrindo o Oura
+              </>
+            ) : (
+              <>
+                <Activity className="h-4 w-4 mr-2" aria-hidden="true" />
+                Conectar Oura Ring
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+    </PublicPageShell>
   );
 }

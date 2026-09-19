@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { PublicPageShell } from "@/components/PublicPageShell";
+import { LoadingState } from "@/components/LoadingState";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,35 +79,35 @@ export default function OAuthConsentPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
+      <PublicPageShell centered>
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><AlertCircle className="h-5 w-5" /> Erro de autorização</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-h2"><AlertCircle className="h-5 w-5" aria-hidden="true" /> Erro de autorização</CardTitle>
           </CardHeader>
           <CardContent>
             <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>
           </CardContent>
         </Card>
-      </div>
+      </PublicPageShell>
     );
   }
 
   if (!details) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
+      <PublicPageShell centered>
+        <LoadingState text="Carregando autorização" />
+      </PublicPageShell>
     );
   }
 
   const clientName = details.client?.name ?? details.client?.client_name ?? "Aplicativo externo";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <PublicPageShell centered>
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-primary" />
+          <CardTitle className="flex items-center gap-2 text-h2">
+            <ShieldCheck className="h-5 w-5 text-primary" aria-hidden="true" />
             Conectar {clientName}
           </CardTitle>
           <CardDescription>
@@ -122,7 +124,7 @@ export default function OAuthConsentPage() {
           </div>
           <div className="flex gap-2 pt-2">
             <Button onClick={() => decide(true)} disabled={busy} className="flex-1">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Aprovar"}
+              {busy ? <><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /><span className="sr-only">Enviando</span></> : "Aprovar"}
             </Button>
             <Button onClick={() => decide(false)} disabled={busy} variant="outline" className="flex-1">
               Cancelar
@@ -130,6 +132,6 @@ export default function OAuthConsentPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PublicPageShell>
   );
 }
