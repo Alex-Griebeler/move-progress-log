@@ -1,13 +1,14 @@
 import { Card } from "@/components/ui/card";
+import { formatKg as formatKgBR, formatNumberBR } from "@/utils/displayFormat";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { format, parseISO, isValid } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { 
-  Calendar, 
-  TrendingUp, 
-  Activity, 
+import {
+  Calendar,
+  TrendingUp,
+  Activity,
   Target,
   BarChart3,
   FileText,
@@ -38,19 +39,15 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
   const { data: report, isLoading: reportLoading } = useReportById(reportId);
   const { data: trackedExercises, isLoading: exercisesLoading } = useReportTrackedExercises(reportId);
   const [isExporting, setIsExporting] = useState(false);
+  // Ausência sempre "—"; números em pt-BR (vírgula) via formatador único.
   const formatMetric = (value: number | null | undefined, digits = 0, suffix = "") => {
-    if (value === null || value === undefined) {
-      return "--";
-    }
-    return `${value.toFixed(digits)}${suffix}`;
+    if (value === null || value === undefined) return "—";
+    return `${formatNumberBR(value, digits)}${suffix}`;
   };
-  const formatKg = (value: number | null | undefined): string => {
-    if (value === null || value === undefined) return "--";
-    return `${value.toFixed(1)} kg`;
-  };
+  const formatKg = (value: number | null | undefined): string => formatKgBR(value);
   const formatPercentage = (value: number | null | undefined): string => {
-    if (value === null || value === undefined) return "N/A";
-    return `${value > 0 ? "+" : ""}${value.toFixed(1)}%`;
+    if (value === null || value === undefined) return "—";
+    return `${value > 0 ? "+" : ""}${formatNumberBR(value, 1)}%`;
   };
   const parseReportDate = (value: string): Date => {
     const parsed = parseISO(value);
@@ -61,13 +58,13 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
 
   const handleExportPDF = async () => {
     if (!report) return;
-    
+
     setIsExporting(true);
     try {
       // Get trainer name
       const { data: { user } } = await supabase.auth.getUser();
       let trainerName = undefined;
-      
+
       if (user) {
         const { data: profile, error: profileError } = await supabase
           .from('trainer_profiles')
@@ -99,7 +96,7 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
 
       const periodStart = parseReportDate(report.period_start);
       const periodEnd = parseReportDate(report.period_end);
-      
+
       // Create download link
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -202,7 +199,7 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
           {report.adherence_percentage !== null && report.adherence_percentage !== undefined && (
             <Card className="p-4 bg-muted/50">
               <div className="text-sm text-muted-foreground mb-1">Adesão</div>
-              <div className="text-3xl font-bold">{report.adherence_percentage.toFixed(0)}%</div>
+              <div className="text-3xl font-bold">{formatNumberBR(report.adherence_percentage, 0)}%</div>
               <div className="text-xs text-muted-foreground mt-1">
                 {report.total_sessions} de {report.sessions_proposed} sessões
               </div>
@@ -241,13 +238,13 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Variação de Carga</div>
-                    <div className={`text-xl font-bold ${(exercise.load_variation_percentage || 0) > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    <div className={`text-xl font-bold ${(exercise.load_variation_percentage || 0) > 0 ? 'text-success' : 'text-muted-foreground'}`}>
                       {formatPercentage(exercise.load_variation_percentage)}
                     </div>
                   </div>
                   <div>
                     <div className="text-xs text-muted-foreground">Variação de Volume</div>
-                    <div className={`text-xl font-bold ${(exercise.work_variation_percentage || 0) > 0 ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    <div className={`text-xl font-bold ${(exercise.work_variation_percentage || 0) > 0 ? 'text-success' : 'text-muted-foreground'}`}>
                       {formatPercentage(exercise.work_variation_percentage)}
                     </div>
                   </div>
@@ -321,7 +318,7 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
                 {report.oura_data.vo2VariationPercentage !== null && report.oura_data.vo2VariationPercentage !== undefined && (
                   <div className="text-xs text-muted-foreground mt-1">
                     {report.oura_data.vo2VariationPercentage > 0 ? "+" : ""}
-                    {report.oura_data.vo2VariationPercentage.toFixed(1)}% no período
+                    {formatNumberBR(report.oura_data.vo2VariationPercentage, 1)}% no período
                   </div>
                 )}
               </Card>
@@ -346,7 +343,7 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
             {report.trainer_highlights && (
               <div>
                 <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                  <Target className="w-4 h-4 text-green-600" />
+                  <Target className="w-4 h-4 text-success" />
                   Destaques Positivos
                 </h3>
                 <p className="text-sm text-muted-foreground">{report.trainer_highlights}</p>
@@ -358,7 +355,7 @@ export function StudentReportView({ reportId, studentName }: StudentReportViewPr
                 <Separator />
                 <div>
                   <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-amber-600" />
+                    <Activity className="w-4 h-4 text-warning" />
                     Pontos de Atenção
                   </h3>
                   <p className="text-sm text-muted-foreground">{report.attention_points}</p>

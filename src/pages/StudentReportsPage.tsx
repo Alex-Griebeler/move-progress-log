@@ -1,6 +1,9 @@
 import { useState, lazy, Suspense } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ROUTES } from "@/constants/navigation";
+import EmptyState from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { formatDateSP, formatDecimalBR, formatNumberBR } from "@/utils/displayFormat";
+import { useParams } from "react-router-dom";
+import { NAV_LABELS, ROUTES } from "@/constants/navigation";
 import { PageLayout } from "@/components/PageLayout";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -9,9 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useStudentReports } from "@/hooks/useStudentReports";
 import { useStudentById } from "@/hooks/useStudents";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { Plus, FileText, Calendar, TrendingUp, BarChart3, ArrowLeft } from "lucide-react";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { Plus, FileText, Calendar, TrendingUp, BarChart3, ArrowLeft, Users } from "lucide-react";
 import { formatSessionDate } from "@/utils/sessionDate";
 
 const GenerateReportDialog = lazy(() =>
@@ -23,21 +24,25 @@ const StudentReportView = lazy(() =>
 
 export default function StudentReportsPage() {
   const { studentId } = useParams<{ studentId: string }>();
-  const navigate = useNavigate();
   const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
 
   const { data: student } = useStudentById(studentId || null);
-  const { data: reports, isLoading } = useStudentReports(studentId || "");
-
-  const formatMetric = (value: number | null | undefined, digits = 1): string => {
-    if (value === null || value === undefined) return "--";
-    return value.toFixed(digits);
-  };
+  const { data: reports, isLoading, isError, refetch } = useStudentReports(studentId || "");
 
   if (!studentId) {
-    return <div>Aluno não encontrado</div>;
+    return (
+      <PageLayout>
+        <ErrorState title="Cadastro não encontrado" description="O endereço não aponta para um cadastro válido." />
+      </PageLayout>
+    );
   }
+
+  const breadcrumbs = [
+    { label: NAV_LABELS.students, href: ROUTES.students, icon: Users },
+    { label: student?.name ?? "Cadastro", href: ROUTES.studentDetail(studentId) },
+    { label: "Relatórios" },
+  ];
 
   if (isLoading) {
     return (
@@ -50,14 +55,14 @@ export default function StudentReportsPage() {
   if (selectedReportId && student) {
     return (
       <PageLayout>
-        <div className="mb-6">
+        <div>
           <Button
             variant="ghost"
             onClick={() => setSelectedReportId(null)}
-            className="mb-4"
+            className="-ml-3 px-3"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar para lista de relatórios
+            <ArrowLeft className="w-4 h-4 mr-2" aria-hidden="true" />
+            Voltar para a lista de relatórios
           </Button>
         </div>
         <Suspense fallback={<LoadingSpinner />}>
@@ -69,87 +74,81 @@ export default function StudentReportsPage() {
 
   return (
     <PageLayout>
-      <div className="mb-6">
-        <Button
-          variant="ghost"
-          onClick={() => navigate(ROUTES.studentDetail(studentId!))}
-          className="mb-4"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Voltar para perfil do aluno
-        </Button>
-      </div>
-      
+      {/* A trilha leva de volta à ficha; sem botão "Voltar" duplicado. */}
       <PageHeader
-        title={`Relatórios - ${student?.name || ''}`}
-        description="Visualize e gere relatórios periódicos de evolução"
+        title="Relatórios"
+        breadcrumbs={breadcrumbs}
         actions={
           <Button onClick={() => setGenerateDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Gerar Novo Relatório
+            <Plus className="w-4 h-4 mr-2" aria-hidden="true" />
+            Gerar relatório
           </Button>
         }
       />
 
-      {!reports || reports.length === 0 ? (
-        <Card className="p-12 text-center">
-          <FileText className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">Nenhum relatório gerado</h3>
-          <p className="text-muted-foreground mb-4">
-            Comece gerando seu primeiro relatório periódico para acompanhar a evolução do aluno
-          </p>
-          <Button onClick={() => setGenerateDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Gerar Primeiro Relatório
-          </Button>
-        </Card>
+      {isError ? (
+        <ErrorState
+          title="Não foi possível carregar os relatórios"
+          description="Verifique a conexão e tente de novo."
+          onRetry={() => refetch()}
+        />
+      ) : !reports || reports.length === 0 ? (
+        <EmptyState
+          icon={<FileText className="h-6 w-6" />}
+          title="Nenhum relatório gerado"
+          description="Gere um relatório do período para acompanhar a evolução."
+          primaryAction={{ label: "Gerar relatório", onClick: () => setGenerateDialogOpen(true) }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {reports.map((report) => (
-            <Card
-              key={report.id}
-              className="p-6 cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setSelectedReportId(report.id)}
-            >
+            <Card key={report.id} className="card-interactive relative p-6">
               <div className="flex items-start justify-between mb-4">
-                <FileText className="w-8 h-8 text-primary" />
+                <FileText className="w-6 h-6 text-primary" aria-hidden="true" />
                 <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
-                  {report.status === 'completed' ? 'Concluído' : report.status === 'generating' ? 'Gerando...' : 'Falhou'}
+                  {report.status === 'completed' ? 'Concluído' : report.status === 'generating' ? 'Gerando' : 'Falhou'}
                 </Badge>
               </div>
 
-              <h3 className="font-semibold mb-2">
-                Relatório {report.report_type === 'mensal' ? 'Mensal' : report.report_type === 'bimestral' ? 'Bimestral' : report.report_type === 'trimestral' ? 'Trimestral' : 'Personalizado'}
+              {/* Card inteiro abre o relatório (botão esticado; teclado e leitor de tela). */}
+              <h3 className="text-h3 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedReportId(report.id)}
+                  className="text-left after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                >
+                  Relatório {report.report_type === 'mensal' ? 'mensal' : report.report_type === 'bimestral' ? 'bimestral' : report.report_type === 'trimestral' ? 'trimestral' : 'personalizado'}
+                </button>
               </h3>
 
               <div className="space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
+                  <Calendar className="w-4 h-4" aria-hidden="true" />
                   <span>
                     {formatSessionDate(report.period_start)} até {formatSessionDate(report.period_end)}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4" />
+                  <BarChart3 className="w-4 h-4" aria-hidden="true" />
                   <span>{report.total_sessions} treinos</span>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  <span>{formatMetric(report.weekly_average, 1)} treinos/semana</span>
+                  <TrendingUp className="w-4 h-4" aria-hidden="true" />
+                  <span>{formatDecimalBR(report.weekly_average, 1)} treinos por semana</span>
                 </div>
 
                 {report.adherence_percentage !== null && report.adherence_percentage !== undefined && (
                   <div className="mt-2 pt-2 border-t">
-                    <span className="font-semibold">Adesão: {report.adherence_percentage.toFixed(0)}%</span>
+                    <span className="font-semibold">Adesão: {formatNumberBR(report.adherence_percentage, 0)}%</span>
                   </div>
                 )}
               </div>
 
               {report.generated_at && (
-                <div className="text-xs text-muted-foreground mt-4">
-                  Gerado em {format(new Date(report.generated_at), "dd/MM/yyyy", { locale: ptBR })}
+                <div className="text-caption text-muted-foreground mt-4">
+                  Gerado em {formatDateSP(report.generated_at, true)}
                 </div>
               )}
             </Card>

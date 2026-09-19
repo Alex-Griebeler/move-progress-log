@@ -46,7 +46,7 @@ export const SendWhoopConnectDialog = ({ open, onOpenChange, studentId, studentN
     if (!inviteUrl) return;
     await navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
-    toast.success("Link copiado!");
+    toast.success("Link copiado");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -87,7 +87,7 @@ export const SendWhoopConnectDialog = ({ open, onOpenChange, studentId, studentN
             <div className="space-y-3">
               <div className="flex gap-2">
                 <Input value={inviteUrl} readOnly className="text-xs" />
-                <Button variant="outline" size="icon" onClick={handleCopy} className="flex-shrink-0">
+                <Button variant="outline" size="icon" onClick={handleCopy} className="flex-shrink-0" aria-label="Copiar link">
                   {copied ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                 </Button>
               </div>

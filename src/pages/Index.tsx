@@ -20,7 +20,7 @@ const Index = () => {
   useSEOHead(SEO_PRESETS.private);
   useOpenGraph({
     ...FABRIK_OG_DEFAULTS,
-    title: 'Dashboard · Fabrik Performance',
+    title: 'Início · Fabrik Performance',
     type: 'website',
     url: true,
   });
@@ -34,18 +34,18 @@ const Index = () => {
   return (
     <PageLayout
       structuredData={[
-        { data: getWebPageSchema(NAV_LABELS.dashboard, "Dashboard principal com visão geral de sessões, estatísticas e atividades recentes"), id: "webpage-schema" },
+        { data: getWebPageSchema(NAV_LABELS.dashboard, "Visão do dia: indicadores de atenção e sessões recentes"), id: "webpage-schema" },
         { data: getBreadcrumbSchema([{ label: "Home", href: "/" }]), id: "breadcrumb-schema" },
       ]}
     >
+      {/* Home: sem trilha (apontaria para si mesma) e sem slogan; uma ação
+          primária (registrar sessão) e a importação como ação de texto. */}
       <PageHeader
         title={NAV_LABELS.dashboard}
-        description={NAV_LABELS.subtitleDefault}
-        breadcrumbs={[{ label: NAV_LABELS.dashboard }]}
         actions={
           <div className="flex items-center gap-xs">
-            <Button variant="outline" onClick={() => setImportDialogOpen(true)} className="gap-xs">
-              <Upload className="h-4 w-4" />
+            <Button variant="ghost" onClick={() => setImportDialogOpen(true)} className="gap-xs">
+              <Upload className="h-4 w-4" aria-hidden="true" />
               {NAV_LABELS.importExcel}
             </Button>
             <AddWorkoutDialog onWorkoutAdded={handleWorkoutAdded} />

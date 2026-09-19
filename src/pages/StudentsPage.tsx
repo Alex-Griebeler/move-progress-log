@@ -1,18 +1,22 @@
 import { useState, memo, useMemo } from "react";
 import { useStudents, useDeleteStudent } from "@/hooks/useStudents";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import i18n from "@/i18n/pt-BR.json";
 import EmptyState from "@/components/EmptyState";
 import { StudentCardSkeleton } from "@/components/skeletons/StudentCardSkeleton";
-import { Users, Edit, Trash2, Eye, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw, Activity, X, UserX, TrendingDown } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Users, Edit, Trash2, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, AlertTriangle, CheckCircle2, MinusCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw, Activity, X, UserX, TrendingDown } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ErrorState } from "@/components/ErrorState";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useStudentsRecoveryToday, type StudentRecoveryToday } from "@/hooks/useStudentsRecoveryToday";
+import type { RecoverySnapshot } from "@/utils/recoverySnapshot";
+import { sortStudents, type StudentsSortMode } from "@/utils/studentsAttention";
+
+import { Link, useSearchParams } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StudentAvatarImage } from "@/components/StudentAvatarImage";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { EditStudentDialog } from "@/components/EditStudentDialog";
 import { AddStudentDialog } from "@/components/AddStudentDialog";
 import { GenerateInviteLinkDialog } from "@/components/GenerateInviteLinkDialog";
@@ -54,29 +58,25 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-// Funções auxiliares movidas para fora do componente (otimização)
-const getReadinessColor = (score: number | null | undefined) => {
-  if (!score) return 'text-muted-foreground';
-  if (score >= 85) return 'text-success';
-  if (score >= 70) return 'text-warning';
-  return 'text-destructive';
-};
+// Link "esticado": o nome cobre o card inteiro como área de clique.
+const STRETCHED_LINK =
+  "after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:rounded-lg focus-visible:after:ring-2 focus-visible:after:ring-ring";
 
-const getReadinessLabel = (score: number | null | undefined) => {
-  if (!score) return 'Sem dados';
-  if (score >= 85) return 'Ótimo';
-  if (score >= 70) return 'Bom';
-  if (score >= 55) return 'Regular';
-  return 'Crítico';
+// Faixa → rótulo + tom + ícone. Mesmas faixas por aparelho do hero da ficha
+// (Oura 85/70, Whoop 67/34). A cor nunca vai sozinha: sempre rótulo + ícone.
+const ZONE_PRESENTATION: Record<RecoverySnapshot["zone"], { label: string; className: string; icon: typeof CheckCircle2 }> = {
+  alta: { label: "Alta", className: "text-success", icon: CheckCircle2 },
+  media: { label: "Média", className: "text-warning", icon: MinusCircle },
+  baixa: { label: "Baixa", className: "text-destructive", icon: AlertTriangle },
 };
 
 const getMissingFields = (student: Student) => {
   const missing: string[] = [];
   if (!student.birth_date) missing.push('Data de nascimento');
-  if (!student.fitness_level) missing.push('Nível de fitness');
+  if (!student.fitness_level) missing.push('Nível de condicionamento');
   if (!student.objectives) missing.push('Objetivos');
-  if (!student.weight_kg || !student.height_cm) missing.push('Peso/Altura');
-  if (!student.max_heart_rate) missing.push('FC Máxima');
+  if (!student.weight_kg || !student.height_cm) missing.push('Peso e altura');
+  if (!student.max_heart_rate) missing.push('FC máxima');
   return missing;
 };
 
@@ -84,6 +84,10 @@ const getMissingFields = (student: Student) => {
 interface StudentCardProps {
   student: Student;
   cardData: StudentCardData | undefined;
+  recovery: StudentRecoveryToday | undefined;
+  /** Estado da consulta da leitura de hoje: erro nunca vira "sem leitura". */
+  recoveryStatus: "loading" | "error" | "ready";
+  inactive7d: boolean;
   onEdit: (student: Student) => void;
   onDelete: (id: string) => void;
   onRecordSession: (id: string, name: string) => void;
@@ -91,178 +95,180 @@ interface StudentCardProps {
   onOuraConnect: (id: string, name: string) => void;
 }
 
-// Componente StudentCard otimizado - recebe dados via props em vez de fazer queries
-const StudentCard = memo(({ 
-  student, 
-  cardData, 
-  onEdit, 
-  onDelete, 
+// Card inteiro navega para a ficha (link "esticado" no nome); os controles
+// secundários ficam acima dele (relative z-10) e continuam operáveis.
+const StudentCard = memo(({
+  student,
+  cardData,
+  recovery,
+  recoveryStatus,
+  inactive7d,
+  onEdit,
+  onDelete,
   onRecordSession,
   onOpenGroupSession,
-  onOuraConnect 
+  onOuraConnect
 }: StudentCardProps) => {
-  const navigate = useNavigate();
   const [showObservationsDialog, setShowObservationsDialog] = useState(false);
-  
-  // Dados vindos do batch hook (sem queries individuais)
-  const readinessScore = cardData?.ouraMetrics?.readiness_score ?? null;
+
+  const snapshot = recovery?.snapshot ?? null;
   const importantObservations = cardData?.importantObservations ?? [];
   const ouraStatus = cardData?.ouraStatus ?? { isConnected: false, hasIssues: false };
+  const hasWhoop = recovery?.hasWhoop ?? false;
+  const hasDevice = ouraStatus.isConnected || hasWhoop;
   const hasImportantObservations = importantObservations.length > 0;
-  
+
   const missingFields = getMissingFields(student);
   const hasIncompleteData = missingFields.length > 0;
+  const zone = snapshot ? ZONE_PRESENTATION[snapshot.zone] : null;
+  const ZoneIcon = zone?.icon;
 
   return (
     <>
-      <Card className="card-interactive overflow-hidden">
-        <CardHeader className="space-y-md pb-sm">
-          <CardTitle className="flex items-center justify-between gap-sm">
-            <div className="flex items-center gap-sm">
-              <Avatar className="h-16 w-16">
+      <Card className="card-interactive relative overflow-hidden">
+        <CardHeader className="space-y-md pb-md">
+          <div className="flex items-start justify-between gap-sm">
+            <div className="flex min-w-0 items-center gap-sm">
+              <Avatar className="h-12 w-12 shrink-0">
                 <StudentAvatarImage avatarUrl={student.avatar_url} />
-                <AvatarFallback className="bg-primary/10 text-foreground text-lg font-semibold">
+                <AvatarFallback className="bg-primary/10 text-foreground text-base font-semibold">
                   {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex flex-col">
-                <span className="text-lg font-semibold">{student.name}</span>
+              <div className="flex min-w-0 flex-col">
+                <CardTitle className="text-h3 truncate">
+                  <Link
+                    to={ROUTES.studentDetail(student.id)}
+                    className={STRETCHED_LINK}
+                  >
+                    {student.name}
+                  </Link>
+                </CardTitle>
                 {student.fitness_level && (
-                  <Badge variant="outline" className="text-xs w-fit mt-1 opacity-70">
+                  <span className="text-caption text-muted-foreground">
                     {formatFitnessLevel(student.fitness_level)}
-                  </Badge>
+                  </span>
                 )}
               </div>
             </div>
-            
-            {hasIncompleteData && (
-              <TooltipProvider>
+
+            <div className="relative z-10 flex shrink-0 items-center gap-1">
+              {hasIncompleteData && (
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button
+                      type="button"
                       onClick={() => onEdit(student)}
-                      className="inline-flex items-center justify-center rounded-full p-2 hover:bg-warning/10 transition-colors border border-warning/20"
-                      aria-label="Dados incompletos - clique para completar"
+                      className="inline-flex h-10 w-10 items-center justify-center rounded-md text-warning hover:bg-warning/10 transition-colors"
+                      aria-label={`Cadastro incompleto: ${missingFields.join(", ")}. Completar cadastro`}
                     >
-                      <AlertCircle className="h-4 w-4 text-warning" />
+                      <AlertCircle className="h-4 w-4" aria-hidden="true" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="left" className="max-w-xs">
-                    <div className="space-y-2">
-                      <p className="font-semibold text-xs">Campos a preencher:</p>
-                      <ul className="text-xs space-y-1">
-                        {missingFields.map((field) => (
-                          <li key={field} className="flex items-start gap-1">
-                            <span className="text-warning">•</span>
-                            <span>{field}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <p className="text-xs text-muted-foreground italic pt-1">
-                        Clique para editar o perfil
-                      </p>
-                    </div>
+                    <p className="font-semibold text-xs">Cadastro incompleto</p>
+                    <p className="text-xs">{missingFields.join(", ")}</p>
                   </TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
-            )}
-          </CardTitle>
-          
+              )}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label={`Mais ações para ${student.name}`}>
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => onRecordSession(student.id, student.name)}>
+                    <Mic className="h-4 w-4 mr-2" />
+                    Registro por voz
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onOpenGroupSession}>
+                    <NotebookPen className="h-4 w-4 mr-2" />
+                    Registro manual
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onEdit(student)}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar cadastro
+                  </DropdownMenuItem>
+                  {!hasDevice && (
+                    <DropdownMenuItem onClick={() => onOuraConnect(student.id, student.name)}>
+                      <Activity className="h-4 w-4 mr-2" />
+                      Enviar link do Oura
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onDelete(student.id)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Excluir cadastro
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+
           <div className="space-y-sm">
-            {readinessScore ? (
-              <div className="flex items-center justify-between py-sm border-b border-border/50">
-                <div className="flex flex-col gap-xs">
-                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Prontidão</span>
-                  <span className={`text-2xl font-semibold tabular-nums ${getReadinessColor(readinessScore)}`}>
-                    {readinessScore}%
+            {snapshot && zone && ZoneIcon ? (
+              <div className="flex items-end justify-between border-t border-border/50 pt-sm">
+                <div className="flex flex-col">
+                  <span className="text-caption text-muted-foreground">
+                    {snapshot.source === "oura" ? "Prontidão hoje · Oura" : "Recuperação hoje · Whoop"}
+                  </span>
+                  {/* Score 0–100 do aparelho, não porcentagem. */}
+                  <span className={`text-2xl font-semibold tabular-nums ${zone.className}`}>
+                    {snapshot.score}
                   </span>
                 </div>
-                <Badge variant="outline" className="text-xs">
-                  {getReadinessLabel(readinessScore)}
-                </Badge>
+                <span className={`inline-flex items-center gap-1 text-caption font-medium ${zone.className}`}>
+                  <ZoneIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {zone.label}
+                </span>
               </div>
             ) : ouraStatus.isConnected && ouraStatus.hasIssues ? (
-              <Alert className="border-muted bg-transparent py-xs px-sm">
-                <AlertCircle className="h-3 w-3 text-muted-foreground" />
-                <AlertDescription className="text-xs text-muted-foreground">
-                  Dados Oura indisponíveis
-                </AlertDescription>
-              </Alert>
-            ) : ouraStatus.isConnected ? (
-              <div className="flex items-center justify-between py-xs px-sm rounded-md border border-dashed">
-                <span className="text-xs text-muted-foreground">Aguardando dados Oura</span>
-              </div>
+              <p className="flex items-center gap-1 border-t border-border/50 pt-sm text-caption text-muted-foreground">
+                <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                Oura sem sincronizar
+              </p>
+            ) : hasDevice || recoveryStatus !== "ready" ? (
+              <p className="border-t border-border/50 pt-sm text-caption text-muted-foreground">
+                {recoveryStatus === "loading"
+                  ? "Carregando leitura de hoje"
+                  : recoveryStatus === "error"
+                    ? "Leitura de hoje indisponível"
+                    : "Sem leitura de hoje"}
+              </p>
             ) : null}
-            
-            {hasImportantObservations && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full h-9 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                onClick={() => setShowObservationsDialog(true)}
-                aria-label={`Ver ${importantObservations.length} observações importantes`}
-              >
-                <Info className="h-3 w-3 mr-2" />
-                <span className="text-xs">
-                  {importantObservations.length} observação{importantObservations.length !== 1 ? 'ões' : ''}
-                </span>
-              </Button>
+
+            {(inactive7d || hasImportantObservations) && (
+              <div className="relative z-10 flex flex-wrap items-center gap-x-sm gap-y-1">
+                {inactive7d && (
+                  <span className="inline-flex items-center gap-1 text-caption font-medium text-warning">
+                    <UserX className="h-3.5 w-3.5" aria-hidden="true" />
+                    Sem treinar há 7+ dias
+                  </span>
+                )}
+                {hasImportantObservations && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 px-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowObservationsDialog(true)}
+                  >
+                    <Info className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+                    <span className="text-caption">
+                      {importantObservations.length} {importantObservations.length === 1 ? 'observação' : 'observações'}
+                    </span>
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </CardHeader>
-        
-        <CardContent className="pt-sm pb-md">
-          <div className="flex gap-xs">
-            <Button
-              variant="default"
-              size="default"
-              className="flex-1 shadow-sm hover:shadow-md transition-shadow"
-              onClick={() => navigate(ROUTES.studentDetail(student.id))}
-              aria-label={`Ver detalhes de ${student.name}`}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              Detalhes
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" aria-label="Mais ações">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={() => onRecordSession(student.id, student.name)}>
-                  <Mic className="h-4 w-4 mr-2" />
-                  Registro por Voz
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onOpenGroupSession}>
-                  <NotebookPen className="h-4 w-4 mr-2" />
-                  Registro Manual
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onEdit(student)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar Aluno
-                </DropdownMenuItem>
-                {!ouraStatus.isConnected && (
-                  <DropdownMenuItem onClick={() => onOuraConnect(student.id, student.name)}>
-                    <Activity className="h-4 w-4 mr-2" />
-                    Conectar Oura Ring
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem
-                  onClick={() => onDelete(student.id)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Excluir Aluno
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </CardContent>
       </Card>
-      
+
       <StudentObservationsDialog
         open={showObservationsDialog}
         onOpenChange={setShowObservationsDialog}
@@ -275,10 +281,15 @@ const StudentCard = memo(({
   return prevProps.student.id === nextProps.student.id &&
     prevProps.student.name === nextProps.student.name &&
     prevProps.student.updated_at === nextProps.student.updated_at &&
-    prevProps.cardData === nextProps.cardData;
+    prevProps.cardData === nextProps.cardData &&
+    prevProps.recovery === nextProps.recovery &&
+    prevProps.recoveryStatus === nextProps.recoveryStatus &&
+    prevProps.inactive7d === nextProps.inactive7d;
 });
 
 StudentCard.displayName = 'StudentCard';
+
+const INACTIVE_7D_FILTER: StudentsActivityFilter = { kind: "inactive", days: 7 };
 
 // Componente principal da página
 const StudentsPage = () => {
@@ -292,9 +303,8 @@ const StudentsPage = () => {
     url: true,
   });
   
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: students, isLoading } = useStudents();
+  const { data: students, isLoading, isError, refetch } = useStudents();
   const { isAdmin } = useIsAdmin();
   const { mutate: syncAll, isPending: isSyncing } = useOuraSyncAll();
   const deleteStudent = useDeleteStudent();
@@ -309,10 +319,40 @@ const StudentsPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [ouraConnectStudentId, setOuraConnectStudentId] = useState<string | null>(null);
   const [ouraConnectStudentName, setOuraConnectStudentName] = useState<string>("");
+  // Padrão: quem precisa de atenção primeiro; A–Z como alternativa.
+  const [sortMode, setSortMode] = useState<StudentsSortMode>("attention");
 
   // Batch hook - busca dados de todos os alunos em 3 queries em vez de N*3
   const studentIds = useMemo(() => students?.map(s => s.id) ?? [], [students]);
-  const { data: studentsCardData } = useStudentsCardData(studentIds);
+  const {
+    data: studentsCardData,
+    isLoading: isCardDataLoading,
+    isError: isCardDataError,
+  } = useStudentsCardData(studentIds);
+  const {
+    data: recoveryToday,
+    isLoading: isRecoveryLoading,
+    isError: isRecoveryError,
+  } = useStudentsRecoveryToday(studentIds);
+  const recoveryStatus: "loading" | "error" | "ready" = isRecoveryError
+    ? "error"
+    : isRecoveryLoading
+      ? "loading"
+      : "ready";
+  // Mesma RPC do KPI "Sem treinar há 7+ dias" da home.
+  const {
+    data: inactive7dSet,
+    isLoading: isInactive7dLoading,
+    isError: isInactive7dError,
+  } = useStudentsActivityFilter(INACTIVE_7D_FILTER);
+  // A ordem "Atenção primeiro" depende de três sinais: espera todos (sem
+  // embaralhar a lista quando cada um chega) e diz qual faltou se algum falhar.
+  const attentionSignalsLoading = isRecoveryLoading || isCardDataLoading || isInactive7dLoading;
+  const attentionSignalsMissing = [
+    isRecoveryError && "leituras de hoje",
+    isInactive7dError && "dias sem treino",
+    isCardDataError && "observações",
+  ].filter((x): x is string => Boolean(x));
 
   // Drill-down filter from dashboard KPIs (?inactive=N | ?dropping=true)
   const activityFilter = useMemo<StudentsActivityFilter>(() => {
@@ -358,11 +398,23 @@ const StudentsPage = () => {
   const isApplyingActivityFilter =
     activityFilter.kind !== "none" && isActivityFilterLoading;
 
-  const filteredStudents = students?.filter(student => {
-    const matchesName = matchesSearch(student.name, searchTerm);
-    const matchesActivity = activityFilterSet ? activityFilterSet.has(student.id) : true;
-    return matchesName && matchesActivity;
-  });
+  const filteredStudents = useMemo(() => {
+    const matching = (students ?? []).filter(student => {
+      const matchesName = matchesSearch(student.name, searchTerm);
+      const matchesActivity = activityFilterSet ? activityFilterSet.has(student.id) : true;
+      return matchesName && matchesActivity;
+    });
+    return sortStudents(matching, sortMode, (student) => {
+      const observations = studentsCardData?.[student.id]?.importantObservations ?? [];
+      return {
+        zone: recoveryToday?.[student.id]?.snapshot?.zone ?? null,
+        inactive7d: inactive7dSet?.has(student.id) ?? false,
+        highSeverityObservations: observations.filter((o) => o.severity === "alta").length,
+        openObservations: observations.length,
+      };
+    });
+  }, [students, searchTerm, activityFilterSet, sortMode, studentsCardData, recoveryToday, inactive7dSet]);
+  const totalStudents = students?.length ?? 0;
 
   const activityFilterCount = activityFilterSet?.size ?? null;
   const activityFilterLabel =
@@ -380,7 +432,6 @@ const StudentsPage = () => {
 
   return (
     <PageLayout
-      className="animate-fade-in"
       structuredData={[
         { data: getWebPageSchema(NAV_LABELS.students, "Gerencie os dados dos seus alunos, acompanhe métricas Oura Ring e registre sessões de treino"), id: "webpage-schema" },
         { data: getBreadcrumbSchema([{ label: "Home", href: "/" }, { label: NAV_LABELS.students, href: "/alunos" }]), id: "breadcrumb-schema" },
@@ -392,14 +443,14 @@ const StudentsPage = () => {
           breadcrumbs={[{ label: NAV_LABELS.students, href: "/alunos", icon: Users }]}
           actions={
             <>
-              <Button variant="default" onClick={() => setIsAddDialogOpen(true)} aria-label={NAV_LABELS.addStudent}>
-                <Plus className="h-4 w-4 mr-2" />
+              <Button variant="default" onClick={() => setIsAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                 {NAV_LABELS.addStudent}
               </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" aria-label="Mais ações">
+                  <Button variant="outline" size="icon" aria-label="Mais ações da lista">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -409,7 +460,7 @@ const StudentsPage = () => {
                     disabled={isSyncing}
                   >
                     <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Sincronizando...' : 'Sincronizar Todos Agora'}
+                    {isSyncing ? 'Sincronizando…' : 'Sincronizar Oura de todos'}
                   </DropdownMenuItem>
                   
                   {isAdmin && (
@@ -443,15 +494,46 @@ const StudentsPage = () => {
           }
         />
 
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Buscar aluno por nome..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+        <div className="flex flex-col gap-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            <Input
+              type="search"
+              placeholder="Buscar por nome"
+              aria-label="Buscar por nome"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <div className="flex items-center gap-sm">
+            {!isLoading && !isError && totalStudents > 0 && (
+              <span className="text-caption text-muted-foreground tabular-nums" aria-live="polite">
+                {filteredStudents.length === totalStudents
+                  ? `${totalStudents} ${totalStudents === 1 ? "cadastro" : "cadastros"}`
+                  : `${filteredStudents.length} de ${totalStudents}`}
+              </span>
+            )}
+            <ToggleGroup
+              type="single"
+              value={sortMode}
+              onValueChange={(value) => value && setSortMode(value as StudentsSortMode)}
+              aria-label="Ordenar lista"
+              className="rounded-md border p-0.5"
+            >
+              <ToggleGroupItem value="attention" className="h-10 px-3 text-sm">
+                Atenção primeiro
+              </ToggleGroupItem>
+              <ToggleGroupItem value="alpha" className="h-10 px-3 text-sm">
+                A–Z
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+          {sortMode === "attention" && attentionSignalsMissing.length > 0 && (
+            <p className="text-caption text-muted-foreground" role="status">
+              Não foi possível carregar {attentionSignalsMissing.join(", ")}. A ordem por atenção usa só o que carregou.
+            </p>
+          )}
         </div>
 
         {activityFilterLabel && ActivityFilterIcon && (
@@ -468,7 +550,7 @@ const StudentsPage = () => {
             />
             <span className="font-medium">
               {isActivityFilterError
-                ? "Erro ao aplicar filtro do dashboard"
+                ? "Não foi possível aplicar o filtro da página inicial"
                 : isApplyingActivityFilter
                   ? `Aplicando filtro: ${activityFilterLabel.toLowerCase()}…`
                   : activityFilterCount !== null
@@ -479,16 +561,22 @@ const StudentsPage = () => {
               variant="ghost"
               size="sm"
               onClick={clearActivityFilter}
-              className="ml-auto h-7 px-sm"
-              aria-label="Limpar filtro de atividade"
+              className="ml-auto h-10 px-sm"
             >
-              <X className="h-3 w-3 mr-1" />
+              <X className="h-3 w-3 mr-1" aria-hidden="true" />
               Limpar filtro
             </Button>
           </div>
         )}
 
-        {isLoading || isApplyingActivityFilter ? (
+        {isError ? (
+          // Erro de rede/permissão nunca vira "adicione o primeiro".
+          <ErrorState
+            title={i18n.modules.students.errorLoad}
+            description="Verifique a conexão e tente de novo. Nenhum cadastro foi alterado."
+            onRetry={() => refetch()}
+          />
+        ) : isLoading || isApplyingActivityFilter || (sortMode === "attention" && attentionSignalsLoading) ? (
           <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <StudentCardSkeleton key={i} />
@@ -501,6 +589,9 @@ const StudentsPage = () => {
                 key={student.id} 
                 student={student}
                 cardData={studentsCardData?.[student.id]}
+                recovery={recoveryToday?.[student.id]}
+                recoveryStatus={recoveryStatus}
+                inactive7d={inactive7dSet?.has(student.id) ?? false}
                 onEdit={setEditingStudent}
                 onDelete={setDeletingStudentId}
                 onRecordSession={handleRecordSession}
@@ -516,7 +607,7 @@ const StudentsPage = () => {
           <EmptyState
             icon={<Search className="h-6 w-6" />}
             title="Nenhum aluno encontrado"
-            description="Nenhum aluno corresponde aos termos de busca. Verifique a ortografia ou limpe a busca para ver todos os alunos cadastrados."
+            description="Confira a grafia ou limpe a busca para ver todos os cadastros."
             primaryAction={{
               label: "Limpar busca",
               onClick: () => setSearchTerm(""),
@@ -525,11 +616,11 @@ const StudentsPage = () => {
         ) : activityFilter.kind !== "none" ? (
           <EmptyState
             icon={<Users className="h-6 w-6" />}
-            title="Nenhum aluno corresponde ao filtro"
+            title="Nenhum cadastro neste filtro"
             description={
               activityFilter.kind === "inactive"
-                ? `Não há alunos sem treinar há ${activityFilter.days}+ dias. Tudo certo por aqui!`
-                : "Não há alunos com frequência em queda nas últimas 4 semanas."
+                ? `Todos registraram sessão nos últimos ${activityFilter.days} dias.`
+                : "Nenhuma frequência em queda nas últimas 4 semanas."
             }
             primaryAction={{
               label: "Limpar filtro",
@@ -539,14 +630,14 @@ const StudentsPage = () => {
         ) : (
           <EmptyState
             icon={<Users className="h-6 w-6" />}
-            title="Adicione seu primeiro aluno"
-            description="Cadastre alunos para começar a criar prescrições personalizadas, registrar sessões de treino e acompanhar a evolução com dados do Oura Ring. Seu hub completo de gestão de alunos."
+            title="Nenhum cadastro ainda"
+            description="Cadastre diretamente ou envie um link de convite para a pessoa preencher."
             primaryAction={{
-              label: i18n.actions.create,
+              label: NAV_LABELS.addStudent,
               onClick: () => setIsAddDialogOpen(true)
             }}
             secondaryAction={{
-              label: i18n.actions.import,
+              label: NAV_LABELS.generateInvite,
               onClick: () => setIsInviteDialogOpen(true)
             }}
           />

@@ -103,6 +103,8 @@ export default {
         'xl': 'var(--spacing-xl)',
         '2xl': 'var(--spacing-2xl)',
         '3xl': 'var(--spacing-3xl)',
+        /* Alvo de toque mínimo (régua 6): h-touch, w-touch, size-touch = 40px. */
+        'touch': '2.5rem',
       },
       /* Premium Typography System */
       fontSize: {
@@ -114,15 +116,38 @@ export default {
         '2xl': ['var(--font-size-2xl)', { lineHeight: 'var(--leading-tight)' }],
         '3xl': ['var(--font-size-3xl)', { lineHeight: 'var(--leading-tight)' }],
         '4xl': ['var(--font-size-4xl)', { lineHeight: 'var(--leading-tight)' }],
-        /* Premium hierarchy tokens */
+        /* Escala tipográfica por PAPEL (revisão UX 18/09 — use estes, não text-[Npx]).
+           display  → número-herói (score, veredito numérico)       40px/700
+           h1       → título da página (PageHeader)                  26–32px/600 (fluido)
+           h2       → título de seção dentro da página               20px/600
+           h3       → título de card / estado vazio-erro-sucesso     18px/600
+           body-lg  → frase de decisão / lead                        18px/400
+           body     → texto corrido                                  16px/400
+           body-sm  → texto de apoio, rótulos de campo               14px/400
+           caption  → metadado, legenda de gráfico                   12px/400
+           2xs      → selo/badge denso, eixo de gráfico (piso)       11px/500
+           Nada abaixo de 11px na tela. */
+        '2xs': ['var(--font-size-2xs)', { lineHeight: '1.4', fontWeight: 'var(--font-weight-medium)' }],
         'display': ['var(--font-size-4xl)', { lineHeight: 'var(--leading-tight)', fontWeight: 'var(--font-weight-bold)' }],
-        'h1': ['var(--font-size-3xl)', { lineHeight: 'var(--leading-tight)', fontWeight: 'var(--font-weight-semibold)' }],
-        'h2': ['var(--font-size-2xl)', { lineHeight: 'var(--leading-tight)', fontWeight: 'var(--font-weight-semibold)' }],
-        'h3': ['var(--font-size-xl)', { lineHeight: 'var(--leading-normal)', fontWeight: 'var(--font-weight-medium)' }],
+        'h1': ['var(--font-size-h1)', { lineHeight: 'var(--leading-tight)', fontWeight: 'var(--font-weight-semibold)', letterSpacing: '-0.015em' }],
+        'h2': ['var(--font-size-xl)', { lineHeight: 'var(--leading-tight)', fontWeight: 'var(--font-weight-semibold)' }],
+        'h3': ['var(--font-size-lg)', { lineHeight: 'var(--leading-tight)', fontWeight: 'var(--font-weight-semibold)' }],
         'body-lg': ['var(--font-size-lg)', { lineHeight: 'var(--leading-relaxed)' }],
         'body': ['var(--font-size-base)', { lineHeight: 'var(--leading-normal)' }],
         'body-sm': ['var(--font-size-sm)', { lineHeight: 'var(--leading-normal)' }],
         'caption': ['var(--font-size-xs)', { lineHeight: 'var(--leading-normal)' }],
+      },
+      /* min-h-touch / min-w-touch = 40px (declarado explícito para não depender da versão). */
+      minHeight: {
+        'touch': '2.5rem',
+      },
+      minWidth: {
+        'touch': '2.5rem',
+      },
+      /* Durações de motion (régua 8): duration-fast 150ms, duration-base 200ms. */
+      transitionDuration: {
+        'fast': '150ms',
+        'base': '200ms',
       },
       /* Premium Shadow System */
       boxShadow: {
@@ -166,7 +191,7 @@ export default {
         "fade-in": {
           from: {
             opacity: "0",
-            transform: "translateY(10px)",
+            transform: "translateY(4px)",
           },
           to: {
             opacity: "1",
@@ -206,9 +231,9 @@ export default {
         "accordion-up": "accordion-up 0.2s ease-out",
         /* Premium Shimmer Effect - 2.5s smooth loop */
         "shimmer": "shimmer 2.5s ease-in-out infinite",
-        "fade-in": "fade-in 0.3s ease-out",
+        "fade-in": "fade-in 0.2s ease-out",
         "scale-in": "scale-in 0.2s ease-out",
-        "slide-in-from-right": "slide-in-from-right 0.3s ease-out",
+        "slide-in-from-right": "slide-in-from-right 0.2s ease-out",
       },
     },
   },

@@ -63,7 +63,7 @@ export const SendOuraConnectDialog = ({
     if (!inviteUrl) return;
     await navigator.clipboard.writeText(inviteUrl);
     setCopied(true);
-    toast.success("Link copiado!");
+    toast.success("Link copiado");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -117,6 +117,7 @@ export const SendOuraConnectDialog = ({
                   size="icon"
                   onClick={handleCopy}
                   className="flex-shrink-0"
+                  aria-label={copied ? "Link copiado" : "Copiar link"}
                 >
                   {copied ? (
                     <Check className="h-4 w-4 text-success" />

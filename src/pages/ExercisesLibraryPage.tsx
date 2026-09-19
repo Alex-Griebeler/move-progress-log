@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,11 +52,23 @@ import { toast } from "sonner";
 import { logger } from "@/utils/logger";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
 import { useOpenGraph, FABRIK_OG_DEFAULTS } from "@/hooks/useOpenGraph";
 import { getWebPageSchema, getBreadcrumbSchema, getItemListSchema } from "@/utils/structuredData";
+
+// Rótulos em sentence case para os escores do card.
+const DIMENSION_LABELS: Record<keyof typeof EXERCISE_DIMENSIONS, string> = {
+  axial_load: "Carga axial",
+  lumbar_demand: "Exigência lombar",
+  technical_complexity: "Complexidade técnica",
+  metabolic_potential: "Potencial metabólico",
+  knee_dominance: "Dominância de joelho",
+  hip_dominance: "Dominância de quadril",
+};
+const DIMENSION_KEYS = Object.keys(DIMENSION_LABELS) as Array<keyof typeof EXERCISE_DIMENSIONS>;
 
 export default function ExercisesLibraryPage() {
   usePageTitle(NAV_LABELS.exercises);
@@ -64,7 +76,7 @@ export default function ExercisesLibraryPage() {
   useOpenGraph({
     ...FABRIK_OG_DEFAULTS,
     title: `${NAV_LABELS.exercises} · Fabrik Performance`,
-    description: 'Biblioteca completa de exercícios funcionais, HIIT, yoga e mindfulness do método Body & Mind Fitness.',
+    description: 'Biblioteca de exercícios da Fabrik Performance.',
     type: 'website',
     url: true,
   });
@@ -75,7 +87,7 @@ export default function ExercisesLibraryPage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [deletingExerciseId, setDeletingExerciseId] = useState<string | null>(null);
 
-  const { data: exercises, isLoading, refetch } = useExercisesLibrary({
+  const { data: exercises, isLoading, isError, refetch } = useExercisesLibrary({
     ...filters,
     search: searchTerm.trim() || undefined,
   });
@@ -114,8 +126,8 @@ export default function ExercisesLibraryPage() {
         actions={
           <div className="flex gap-xs">
             <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Adicionar Exercício
+              <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
+              Adicionar exercício
             </Button>
             <AddExerciseDialog externalOpen={addDialogOpen} onExternalOpenChange={setAddDialogOpen} />
           </div>
@@ -131,9 +143,9 @@ export default function ExercisesLibraryPage() {
               <CardTitle>{NAV_LABELS.sectionFilters}</CardTitle>
             </div>
             {hasActiveFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                <X className="h-4 w-4 mr-2" />
-                Limpar Filtros
+              <Button variant="ghost" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-2" aria-hidden="true" />
+                Limpar filtros
               </Button>
             )}
           </div>
@@ -364,10 +376,18 @@ export default function ExercisesLibraryPage() {
       </Card>
 
       {/* Exercise List */}
-      {isLoading ? (
-        <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
+      {isError ? (
+        // Falha de carregamento nunca vira "biblioteca vazia".
+        <ErrorState
+          title="Não foi possível carregar a biblioteca"
+          description="Verifique a conexão e tente de novo. Nenhum exercício foi alterado."
+          onRetry={() => refetch()}
+        />
+      ) : isLoading ? (
+        <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3" role="status" aria-busy="true">
+          <span className="sr-only">Carregando exercícios</span>
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="animate-fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
+            <Card key={i} aria-hidden="true">
               <CardContent className="pt-6 space-y-3">
                 <Skeleton className="h-5 w-3/4" />
                 <Skeleton className="h-16 w-full" />
@@ -384,9 +404,9 @@ export default function ExercisesLibraryPage() {
           <EmptyState
             icon={<Search className="h-6 w-6" />}
             title="Nenhum exercício encontrado"
-            description="Ajuste seus filtros ou limpe-os para ver todos os exercícios disponíveis. Você também pode adicionar novos exercícios à biblioteca."
+            description="Ajuste ou limpe os filtros para ver toda a biblioteca."
             primaryAction={{
-              label: "Limpar Filtros",
+              label: "Limpar filtros",
               onClick: clearFilters
             }}
             secondaryAction={{
@@ -397,10 +417,10 @@ export default function ExercisesLibraryPage() {
         ) : (
           <EmptyState
             icon={<Database className="h-6 w-6" />}
-            title="Biblioteca de exercícios vazia"
-            description="Adicione seus exercícios personalizados — o seed automático foi removido por usar taxonomia legada. Uma biblioteca bem organizada facilita a criação de prescrições eficazes."
+            title="Nenhum exercício cadastrado"
+            description="Adicione o primeiro exercício para usá-lo nas prescrições."
             primaryAction={{
-              label: "Adicionar Exercício",
+              label: "Adicionar exercício",
               onClick: () => setAddDialogOpen(true)
             }}
           />
@@ -441,8 +461,8 @@ export default function ExercisesLibraryPage() {
                 
                 {/* Detalhes técnicos — visíveis sob demanda */}
                 <details className="group">
-                  <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                    <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
+                  <summary className="cursor-pointer min-h-10 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                    <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" aria-hidden="true" />
                     Detalhes técnicos
                   </summary>
                   <div className="mt-2 space-y-2">
@@ -451,7 +471,7 @@ export default function ExercisesLibraryPage() {
                         <Badge variant="outline" className="text-xs">
                           {getMovementPatternLabel(exercise.movement_pattern)}
                           {isLegacyMovementPattern(exercise.movement_pattern) && (
-                            <span className="ml-1 text-[10px] opacity-60">(legado)</span>
+                            <span className="ml-1 text-2xs text-muted-foreground">(legado)</span>
                           )}
                         </Badge>
                       )}
@@ -497,16 +517,20 @@ export default function ExercisesLibraryPage() {
                       )}
                     </div>
                     {/* Scores */}
+                    {/* Escores por extenso (antes: F3 AX2 LOM1… sem legenda). */}
                     {exercise.boyle_score != null && (
-                      <div className="flex flex-wrap gap-1">
-                        <Badge variant="outline" className="text-xs font-mono" title={`Nível Fabrik ${exercise.boyle_score}`}>F{exercise.boyle_score}</Badge>
-                        {exercise.axial_load != null && <Badge variant="outline" className="text-xs font-mono">AX{exercise.axial_load}</Badge>}
-                        {exercise.lumbar_demand != null && <Badge variant="outline" className="text-xs font-mono">LOM{exercise.lumbar_demand}</Badge>}
-                        {exercise.technical_complexity != null && <Badge variant="outline" className="text-xs font-mono">TEC{exercise.technical_complexity}</Badge>}
-                        {exercise.metabolic_potential != null && <Badge variant="outline" className="text-xs font-mono">MET{exercise.metabolic_potential}</Badge>}
-                        {exercise.knee_dominance != null && <Badge variant="outline" className="text-xs font-mono">JOE{exercise.knee_dominance}</Badge>}
-                        {exercise.hip_dominance != null && <Badge variant="outline" className="text-xs font-mono">QUA{exercise.hip_dominance}</Badge>}
-                      </div>
+                      <dl className="grid grid-cols-[1fr_auto] gap-x-sm gap-y-0.5 text-caption">
+                        <dt className="text-muted-foreground">Nível Fabrik</dt>
+                        <dd className="tabular-nums text-right">{exercise.boyle_score}</dd>
+                        {DIMENSION_KEYS.map((dim) =>
+                          exercise[dim] != null ? (
+                            <Fragment key={dim}>
+                              <dt className="text-muted-foreground">{DIMENSION_LABELS[dim]}</dt>
+                              <dd className="tabular-nums text-right">{exercise[dim]}</dd>
+                            </Fragment>
+                          ) : null,
+                        )}
+                      </dl>
                     )}
                     {exercise.description && (
                       <p className="text-xs text-muted-foreground">{exercise.description}</p>
@@ -522,20 +546,18 @@ export default function ExercisesLibraryPage() {
                 <div className="flex gap-xs items-center">
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => setEditingExercise(exercise)}
                     className="flex-1"
                   >
-                    <Pencil className="h-4 w-4 mr-2" />
+                    <Pencil className="h-4 w-4 mr-2" aria-hidden="true" />
                     Editar
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => setDeletingExerciseId(exercise.id)}
-                    className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-                    aria-label="Excluir exercício"
-                    title="Excluir exercício"
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                    aria-label={`Excluir ${exercise.name}`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -559,14 +581,14 @@ export default function ExercisesLibraryPage() {
       <AlertDialog open={!!deletingExerciseId} onOpenChange={() => setDeletingExerciseId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogTitle>Excluir exercício</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir este exercício? Esta ação não pode ser desfeita.
+              O exercício sai da biblioteca. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

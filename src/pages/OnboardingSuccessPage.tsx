@@ -1,15 +1,21 @@
 import { useSearchParams } from "react-router-dom";
-import { CheckCircle2, Activity, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useOuraMetrics } from "@/hooks/useOuraMetrics";
 import { useOuraConnection } from "@/hooks/useOuraConnection";
-import { toast } from "sonner";
+import { PublicPageShell } from "@/components/PublicPageShell";
 
+/**
+ * Fim do onboarding público da aluna.
+ *
+ * `?oura=pulado` chega de "Concluir sem o Oura" (OuraErrorPage): cadastro
+ * concluído, sem verificar sincronização. Sem botão "Fechar janela": uma aba
+ * aberta por link não pode ser fechada por script — a tela só orienta.
+ */
 export default function OnboardingSuccessPage() {
   const [searchParams] = useSearchParams();
-  const studentId = searchParams.get("student_id");
+  const ouraSkipped = searchParams.get("oura") === "pulado";
+  const studentId = ouraSkipped ? null : searchParams.get("student_id");
 
   const { data: ouraMetrics, isLoading: metricsLoading } = useOuraMetrics(studentId || "", 7);
   const { data: ouraConnection, isLoading: connectionLoading } = useOuraConnection(studentId || "", {
@@ -17,54 +23,27 @@ export default function OnboardingSuccessPage() {
     refetchIntervalMs: 3000,
   });
 
-  const handleClose = () => {
-    // Tentar fechar a janela (funciona se foi aberta via window.open)
-    window.close();
-    
-    // Fallback: se não conseguir fechar (navegação normal)
-    // Verificar após 100ms se a janela ainda está aberta
-    setTimeout(() => {
-      if (!window.closed) {
-        // Mostrar mensagem de que pode fechar manualmente
-        toast.info("Você pode fechar esta aba agora", {
-          description: "Seu cadastro foi concluído com sucesso!",
-          duration: 10000,
-        });
-      }
-    }, 100);
-  };
-
   const renderOuraStatus = () => {
     if (!studentId) return null;
 
     if (connectionLoading || metricsLoading) {
       return (
-        <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50">
-          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-          <span className="text-sm text-muted-foreground">
-            Verificando sincronização do Oura Ring...
-          </span>
+        <div className="flex items-center gap-2 rounded-md bg-muted/50 p-3" role="status">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
+          <span className="text-body-sm text-muted-foreground">Verificando a sincronização do Oura Ring</span>
         </div>
       );
     }
 
     if (ouraConnection && ouraMetrics && ouraMetrics.length > 0) {
       return (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">
-                Oura Ring conectado com sucesso!
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {ouraMetrics.length} {ouraMetrics.length === 1 ? 'dia sincronizado' : 'dias sincronizados'}
-              </p>
-            </div>
-            <Badge variant="outline" className="text-xs">
-              <Activity className="h-3 w-3 mr-1" />
-              Ativo
-            </Badge>
+        <div className="flex items-center gap-2 rounded-md bg-muted/50 p-3" role="status">
+          <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+          <div className="flex-1">
+            <p className="text-body-sm font-medium">Oura Ring conectado</p>
+            <p className="text-caption text-muted-foreground">
+              {ouraMetrics.length} {ouraMetrics.length === 1 ? "dia sincronizado" : "dias sincronizados"}
+            </p>
           </div>
         </div>
       );
@@ -72,15 +51,11 @@ export default function OnboardingSuccessPage() {
 
     if (ouraConnection && (!ouraMetrics || ouraMetrics.length === 0)) {
       return (
-        <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50">
-          <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+        <div className="flex items-center gap-2 rounded-md bg-muted/50 p-3" role="status">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden="true" />
           <div>
-            <p className="text-sm font-medium">
-              Sincronização em andamento...
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Seus dados do Oura Ring estão sendo carregados
-            </p>
+            <p className="text-body-sm font-medium">Sincronização em andamento</p>
+            <p className="text-caption text-muted-foreground">Os dados do Oura Ring estão chegando.</p>
           </div>
         </div>
       );
@@ -89,48 +64,34 @@ export default function OnboardingSuccessPage() {
     return null;
   };
 
+  const summary = ouraSkipped
+    ? "A equipe da Fabrik já tem seus dados. O Oura pode ser conectado depois, com um novo link."
+    : ouraConnection
+      ? "Os dados do Oura Ring estão sincronizando e a equipe da Fabrik já pode acompanhar."
+      : "A equipe da Fabrik já tem seus dados para planejar os treinos.";
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 animate-fade-in bg-background">
-      <Card className="max-w-md w-full">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 animate-scale-in">
-            <CheckCircle2 className="h-16 w-16 text-green-500" />
+    <PublicPageShell centered>
+      <Card>
+        <CardHeader className="text-center space-y-sm">
+          <div className="mx-auto rounded-xl bg-success/10 p-md" aria-hidden="true">
+            <CheckCircle2 className="h-6 w-6 text-success" />
           </div>
-          <CardTitle className="text-2xl">
-            Cadastro Realizado com Sucesso! 🎉
-          </CardTitle>
+          <CardTitle className="text-h2">Cadastro concluído</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-center text-muted-foreground">
-            Seu cadastro foi concluído com sucesso! 
-            {ouraConnection 
-              ? " Seus dados do Oura Ring estão sendo sincronizados e seu treinador já pode acompanhar seu progresso."
-              : " Seu treinador já pode acessar suas informações e iniciar seu planejamento."
-            }
-          </p>
-          
+        <CardContent className="space-y-md">
+          <p className="text-center text-body-sm text-muted-foreground">{summary}</p>
+
           {renderOuraStatus()}
 
-          <div className="pt-4">
-            <Button
-              variant="outline"
-              onClick={handleClose}
-              className="w-full"
-            >
-              Fechar Janela
-            </Button>
-          </div>
-
-          <div className="border-t pt-4 mt-4">
-            <p className="text-sm text-center text-muted-foreground">
-              <strong className="text-foreground">Próximos passos:</strong> Aguarde contato do seu treinador para agendar sua primeira sessão.
+          <div className="border-t pt-md text-center">
+            <p className="text-body-sm text-muted-foreground">
+              Próximo passo: a equipe entra em contato para agendar a primeira sessão.
             </p>
-            <p className="text-xs text-center text-muted-foreground mt-2">
-              Você pode fechar esta janela agora.
-            </p>
+            <p className="text-caption text-muted-foreground mt-2">Você pode fechar esta aba.</p>
           </div>
         </CardContent>
       </Card>
-    </div>
+    </PublicPageShell>
   );
 }

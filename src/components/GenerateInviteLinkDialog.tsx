@@ -42,19 +42,15 @@ export const GenerateInviteLinkDialog = ({
   const handleCopy = () => {
     if (generatedUrl) {
       navigator.clipboard.writeText(generatedUrl);
-      toast.success("Link copiado!");
+      toast.success("Link copiado");
     }
   };
 
-  const handleWhatsApp = () => {
-    if (generatedUrl) {
-      const message = `Olá! Complete seu cadastro através deste link: ${generatedUrl}`;
-      navigator.clipboard.writeText(message);
-      toast.success("Mensagem copiada! Cole no WhatsApp do aluno.", {
-        description: "A mensagem com o link já está na sua área de transferência"
-      });
-    }
-  };
+  // Abre o WhatsApp com a mensagem pronta (o app pede o contato); antes só
+  // copiava o texto e a treinadora precisava sair, abrir o WhatsApp e colar.
+  const whatsAppHref = generatedUrl
+    ? `https://wa.me/?text=${encodeURIComponent(`Olá. Para concluir seu cadastro na Fabrik, use este link: ${generatedUrl}`)}`
+    : undefined;
 
   const handleClose = () => {
     setEmail("");
@@ -67,20 +63,20 @@ export const GenerateInviteLinkDialog = ({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Gerar Link de Convite</DialogTitle>
+          <DialogTitle>Gerar convite</DialogTitle>
           <DialogDescription>
-            Crie um link único para que o aluno complete seu cadastro
+            Link único para a pessoa preencher o próprio cadastro.
           </DialogDescription>
         </DialogHeader>
 
         {!generatedUrl ? (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email do Aluno (opcional)</Label>
+              <Label htmlFor="email">Email (opcional)</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="aluno@exemplo.com"
+                placeholder="nome@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -91,6 +87,7 @@ export const GenerateInviteLinkDialog = ({
               <Input
                 id="expires"
                 type="number"
+                inputMode="numeric"
                 min={1}
                 max={30}
                 value={expiresInDays}
@@ -104,26 +101,28 @@ export const GenerateInviteLinkDialog = ({
               className="w-full"
             >
               <Link2 className="h-4 w-4 mr-2" />
-              {generateInvite.isPending ? "Gerando..." : "Gerar Link"}
+              {generateInvite.isPending ? "Gerando…" : "Gerar link"}
             </Button>
           </div>
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Link de Convite</Label>
+              <Label htmlFor="invite-url">Link do convite</Label>
               <div className="flex gap-2">
-                <Input value={generatedUrl} readOnly className="flex-1" />
-                <Button variant="outline" size="icon" onClick={handleCopy}>
-                  <Copy className="h-4 w-4" />
+                <Input id="invite-url" value={generatedUrl} readOnly className="flex-1" />
+                <Button variant="outline" size="icon" onClick={handleCopy} aria-label="Copiar link">
+                  <Copy className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button onClick={handleWhatsApp} variant="outline" className="flex-1">
-                Copiar Mensagem WhatsApp
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button asChild className="flex-1">
+                <a href={whatsAppHref} target="_blank" rel="noreferrer">
+                  Enviar pelo WhatsApp
+                </a>
               </Button>
-              <Button onClick={handleClose} className="flex-1">
+              <Button onClick={handleClose} variant="ghost" className="flex-1">
                 Fechar
               </Button>
             </div>

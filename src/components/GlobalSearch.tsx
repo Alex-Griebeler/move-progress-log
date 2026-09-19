@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Search, Users, FileText, Dumbbell, Loader2, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { ROUTES } from "@/constants/navigation";
+import { ROUTES, SEARCH_GROUP_HEADINGS } from "@/constants/navigation";
 import { useDebounce } from "@/hooks/useDebounce";
 import { logger } from "@/utils/logger";
+import { getMovementPatternLabel } from "@/constants/backToBasics";
+import { getObjectiveLabel } from "@/constants/objectives";
 
 interface SearchResult {
   id: string;
@@ -14,8 +16,26 @@ interface SearchResult {
   subtitle?: string;
 }
 
-export const GlobalSearch = () => {
-  const [open, setOpen] = useState(false);
+const TYPE_ORDER: SearchResult["type"][] = ["student", "prescription", "exercise"];
+
+
+interface GlobalSearchProps {
+  /** Estado controlado pela casca (botão "Buscar" no cabeçalho). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export const GlobalSearch = ({ open: openProp, onOpenChange }: GlobalSearchProps = {}) => {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      const next = typeof value === "function" ? value(open) : value;
+      if (onOpenChange) onOpenChange(next);
+      if (openProp === undefined) setInternalOpen(next);
+    },
+    [open, onOpenChange, openProp],
+  );
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -33,7 +53,7 @@ export const GlobalSearch = () => {
 
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
-  }, []);
+  }, [setOpen]);
 
   const performSearch = useCallback(async (searchQuery: string) => {
     if (!searchQuery || searchQuery.length < 2) {
@@ -91,7 +111,7 @@ export const GlobalSearch = () => {
             id: prescription.id,
             name: prescription.name,
             type: "prescription",
-            subtitle: prescription.objective || undefined,
+            subtitle: prescription.objective ? getObjectiveLabel(prescription.objective) : undefined,
           });
         });
       }
@@ -102,7 +122,7 @@ export const GlobalSearch = () => {
             id: exercise.id,
             name: exercise.name,
             type: "exercise",
-            subtitle: exercise.movement_pattern,
+            subtitle: getMovementPatternLabel(exercise.movement_pattern) ?? undefined,
           });
         });
       }
@@ -149,17 +169,6 @@ export const GlobalSearch = () => {
     }
   };
 
-  const getTypeLabel = (type: SearchResult["type"]) => {
-    switch (type) {
-      case "student":
-        return "Aluno";
-      case "prescription":
-        return "Prescrição";
-      case "exercise":
-        return "Exercício";
-    }
-  };
-
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput 
@@ -170,7 +179,8 @@ export const GlobalSearch = () => {
         <CommandList>
           {isSearching && (
             <div className="flex items-center justify-center py-6">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+              <span className="sr-only" role="status">Buscando</span>
             </div>
           )}
           
@@ -182,7 +192,7 @@ export const GlobalSearch = () => {
                 <p className="text-sm text-muted-foreground mt-1">{searchError}</p>
                 <button
                   type="button"
-                  className="mt-4 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="mt-4 min-h-10 rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => performSearch(query)}
                 >
                   Tentar novamente
@@ -204,12 +214,12 @@ export const GlobalSearch = () => {
 
           {!isSearching && results.length > 0 && (
             <>
-              {["student", "prescription", "exercise"].map((type) => {
+              {TYPE_ORDER.map((type) => {
                 const typeResults = results.filter((r) => r.type === type);
                 if (typeResults.length === 0) return null;
 
                 return (
-                  <CommandGroup key={type} heading={getTypeLabel(type as SearchResult["type"]) + "s"}>
+                  <CommandGroup key={type} heading={SEARCH_GROUP_HEADINGS[type]}>
                     {typeResults.map((result) => (
                       <CommandItem
                         key={`${result.type}-${result.id}`}
@@ -236,8 +246,8 @@ export const GlobalSearch = () => {
             <div className="py-6 text-center text-sm text-muted-foreground">
               <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>Digite pelo menos 2 caracteres para buscar</p>
-              <p className="text-xs mt-2">
-                Use <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">⌘K</kbd> para abrir rapidamente
+              <p className="text-caption mt-2 hidden md:block">
+                Atalho: <kbd className="px-1.5 py-0.5 bg-muted rounded text-2xs">⌘K</kbd>
               </p>
             </div>
           )}

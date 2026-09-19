@@ -1,12 +1,11 @@
-import { useState } from "react";
 import { useRecoveryProtocols } from "@/hooks/useRecoveryProtocols";
 import RecoveryProtocolCard from "@/components/RecoveryProtocolCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Heart } from "lucide-react";
-import { LoadingSpinner } from "@/components/LoadingSpinner";
 import EmptyState from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
 import { NAV_LABELS } from "@/constants/navigation";
 import { usePageTitle } from "@/hooks/usePageTitle";
 import { useSEOHead, SEO_PRESETS } from "@/hooks/useSEOHead";
@@ -25,8 +24,9 @@ const RecoveryProtocolsPage = () => {
     url: true,
   });
 
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined);
-  const { data: protocols, isLoading, isError, refetch } = useRecoveryProtocols(selectedCategory);
+  // Busca tudo uma vez e filtra em memória: antes cada aba refazia a consulta
+  // por categoria e as contagens das outras abas zeravam.
+  const { data: protocols, isLoading, isError, refetch } = useRecoveryProtocols(undefined);
 
   const categories = ["Termoterapia", "Respiração", "Mindfulness", "Atividade Leve"];
 
@@ -48,9 +48,10 @@ const RecoveryProtocolsPage = () => {
       />
 
       {isLoading ? (
-        <div className="space-y-4">
+        <div className="space-y-4" role="status" aria-busy="true">
+          <span className="sr-only">Carregando protocolos</span>
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-fade-in">
+            <Card key={i} aria-hidden="true">
               <CardContent className="pt-6">
                 <Skeleton className="h-20 w-full" />
               </CardContent>
@@ -58,11 +59,10 @@ const RecoveryProtocolsPage = () => {
           ))}
         </div>
       ) : isError ? (
-        <EmptyState
-          icon={<Heart className="h-6 w-6" />}
-          title="Erro ao carregar protocolos"
-          description="Não foi possível buscar os protocolos de recuperação. Verifique a conexão e tente novamente."
-          primaryAction={{ label: "Tentar novamente", onClick: () => refetch() }}
+        <ErrorState
+          title="Não foi possível carregar os protocolos"
+          description="Verifique a conexão e tente de novo."
+          onRetry={() => refetch()}
         />
       ) : !protocols || protocols.length === 0 ? (
         <EmptyState
@@ -72,11 +72,11 @@ const RecoveryProtocolsPage = () => {
         />
       ) : (
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-primary/5">
-            <TabsTrigger 
-              value="all" 
-              onClick={() => setSelectedCategory(undefined)}
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+          {/* Rola na horizontal no celular em vez de espremer 5 colunas. */}
+          <TabsList className="flex h-auto w-full justify-start overflow-x-auto bg-primary/5">
+            <TabsTrigger
+              value="all"
+              className="min-h-touch shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               Todos ({protocols?.length || 0})
             </TabsTrigger>
@@ -84,8 +84,7 @@ const RecoveryProtocolsPage = () => {
               <TabsTrigger
                 key={category}
                 value={category}
-                onClick={() => setSelectedCategory(category)}
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                className="min-h-touch shrink-0 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 {category} ({getProtocolsByCategory(category).length})
               </TabsTrigger>
@@ -99,7 +98,7 @@ const RecoveryProtocolsPage = () => {
 
               return (
                 <div key={category} className="space-y-4">
-                  <h2 className="text-2xl font-semibold">{category}</h2>
+                  <h2 className="text-h2">{category}</h2>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {categoryProtocols.map((protocol) => (
                       <RecoveryProtocolCard key={protocol.id} protocol={protocol} />

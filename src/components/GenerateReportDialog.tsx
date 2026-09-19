@@ -340,7 +340,7 @@ export function GenerateReportDialog({
               </div>
             </ScrollArea>
             {!isLoadingPeriodExercises && selectableExercises.length === 0 && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-warning">
                 Nenhum exercício de força/hipertrofia executado no período selecionado.
               </p>
             )}

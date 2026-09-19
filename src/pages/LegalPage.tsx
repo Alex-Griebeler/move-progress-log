@@ -1,7 +1,9 @@
-import { Link } from "react-router-dom";
-import { FileText, ShieldCheck, Activity } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { PublicPageShell } from "@/components/PublicPageShell";
+import { Button } from "@/components/ui/button";
+
+import { ArrowLeft, FileText, ShieldCheck, Activity } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ROUTES } from "@/constants/navigation";
 
 type LegalVariant = "terms" | "privacy" | "ouraConsent";
 
@@ -105,30 +107,37 @@ const LEGAL_CONTENT: Record<
 };
 
 export default function LegalPage({ variant }: LegalPageProps) {
+  const navigate = useNavigate();
   const content = LEGAL_CONTENT[variant];
   const Icon = content.icon;
 
-  return (
-    <main className="min-h-screen bg-background px-4 py-8 text-foreground">
-      <div className="mx-auto max-w-3xl">
-        <Link to={ROUTES.auth} className="text-sm text-muted-foreground hover:text-primary">
-          Voltar
-        </Link>
+  // Aberta em nova aba pelo onboarding: não há para onde voltar, e o antigo
+  // "Voltar" levava ao login da equipe. Só mostra quando existe histórico.
+  const canGoBack = typeof window !== "undefined" && window.history.length > 1;
 
-        <Card className="mt-4">
+  return (
+    <PublicPageShell width="prose">
+        {canGoBack && (
+          <Button variant="ghost" onClick={() => navigate(-1)} className="-ml-3 px-3">
+            <ArrowLeft className="mr-1 h-4 w-4" aria-hidden="true" />
+            Voltar
+          </Button>
+        )}
+
+        <Card className="mt-2">
           <CardHeader>
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden="true">
               <Icon className="h-6 w-6" />
             </div>
-            <CardTitle className="text-2xl">{content.title}</CardTitle>
-            <p className="text-sm text-muted-foreground">{content.subtitle}</p>
-            <p className="text-xs text-muted-foreground">Versão operacional: 30/04/2026</p>
+            <CardTitle className="text-h1">{content.title}</CardTitle>
+            <p className="text-body-sm text-muted-foreground">{content.subtitle}</p>
+            <p className="text-caption text-muted-foreground">Versão operacional: 30/04/2026</p>
           </CardHeader>
 
           <CardContent className="space-y-6">
             {content.sections.map((section) => (
               <section key={section.title} className="space-y-2">
-                <h2 className="text-lg font-semibold">{section.title}</h2>
+                <h2 className="text-h3">{section.title}</h2>
                 {section.body.map((paragraph) => (
                   <p key={paragraph} className="text-sm leading-6 text-muted-foreground">
                     {paragraph}
@@ -138,7 +147,6 @@ export default function LegalPage({ variant }: LegalPageProps) {
             ))}
           </CardContent>
         </Card>
-      </div>
-    </main>
+    </PublicPageShell>
   );
 }

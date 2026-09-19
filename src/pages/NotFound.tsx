@@ -13,12 +13,12 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
+    <div className="flex items-center justify-center py-3xl">
       <ErrorState
         title="Página não encontrada"
-        description="A página que você está procurando não existe ou foi movida."
+        description="O endereço não existe ou mudou."
         onRetry={() => navigate(ROUTES.dashboard)}
-        retryLabel="Ir para Home"
+        retryLabel="Ir para o início"
       />
     </div>
   );

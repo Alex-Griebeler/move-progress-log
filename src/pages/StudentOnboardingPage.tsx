@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { PublicPageShell } from "@/components/PublicPageShell";
+import { LoadingState } from "@/components/LoadingState";
 import { useParams, useNavigate } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
 import { useForm } from "react-hook-form";
@@ -137,16 +139,16 @@ export default function StudentOnboardingPage() {
 
       if (result.redirect_to_oura && result.oura_auth_url) {
         toast.info("Conectando ao Oura Ring", {
-          description: "Você será redirecionado para autorizar o acesso aos seus dados",
+          description: "A página de autorização do Oura vai abrir em seguida",
           duration: 2000,
         });
-        
+
         setTimeout(() => {
           window.location.href = result.oura_auth_url;
         }, 2000);
       } else if (values.has_oura_ring && values.accepts_oura_sharing && !result.oura_auth_url) {
         toast.warning("Oura Ring não conectado agora", {
-          description: result.oura_error || "Você pode conectar o Oura Ring mais tarde.",
+          description: result.oura_error || "A equipe da Fabrik pode enviar um novo link depois.",
           duration: 4000,
         });
         navigate(ROUTES.onboardingSuccess);
@@ -160,40 +162,39 @@ export default function StudentOnboardingPage() {
 
   if (isValidating) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+      <PublicPageShell centered>
+        <LoadingState text="Validando o convite" />
+      </PublicPageShell>
     );
   }
 
   if (validationError || !validationData?.valid) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
+      <PublicPageShell centered>
+        <Card>
           <CardHeader>
-            <CardTitle>Link Inválido</CardTitle>
+            <CardTitle className="text-h2">Link inválido</CardTitle>
             <CardDescription>
-              Este link de convite é inválido, expirado ou já foi utilizado.
+              Este convite é inválido, expirou ou já foi usado.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Entre em contato com seu treinador para solicitar um novo link.
+            <p className="text-body-sm text-muted-foreground">
+              Peça um novo link à equipe da Fabrik.
             </p>
           </CardContent>
         </Card>
-      </div>
+      </PublicPageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-4 py-8">
-      <div className="max-w-2xl mx-auto">
+    <PublicPageShell width="lg">
         <Card>
           <CardHeader>
-            <CardTitle>Complete seu Cadastro</CardTitle>
+            <CardTitle className="text-h2">Cadastro</CardTitle>
             <CardDescription>
-              Bem-vindo! Você foi convidado por {validationData.trainer_name}. Complete seus dados para começar.
+              Convite de {validationData.trainer_name}. Preencha seus dados para a equipe planejar os treinos. Só o nome é obrigatório.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -205,9 +206,9 @@ export default function StudentOnboardingPage() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nome Completo *</FormLabel>
+                        <FormLabel>Nome completo *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Digite seu nome completo" {...field} />
+                          <Input placeholder="Nome e sobrenome" autoComplete="name" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -215,7 +216,7 @@ export default function StudentOnboardingPage() {
                   />
 
                   <div className="space-y-2">
-                    <Label htmlFor="avatar">Foto de Perfil (opcional)</Label>
+                    <Label htmlFor="avatar">Foto de perfil (opcional)</Label>
                     <div className="flex items-center gap-4">
                       {avatarPreview && (
                         <img
@@ -239,9 +240,9 @@ export default function StudentOnboardingPage() {
                     name="birth_date"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Data de Nascimento</FormLabel>
+                        <FormLabel>Data de nascimento</FormLabel>
                         <FormControl>
-                          <Input type="date" {...field} />
+                          <Input type="date" autoComplete="bday" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -259,6 +260,7 @@ export default function StudentOnboardingPage() {
                             <Input
                               type="number"
                               step="0.1"
+                              inputMode="decimal"
                               placeholder="70"
                               {...field}
                               onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : "")}
@@ -278,6 +280,7 @@ export default function StudentOnboardingPage() {
                           <FormControl>
                             <Input
                               type="number"
+                              inputMode="numeric"
                               placeholder="170"
                               {...field}
                               onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : "")}
@@ -294,7 +297,7 @@ export default function StudentOnboardingPage() {
                     name="fitness_level"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nível de Condicionamento</FormLabel>
+                        <FormLabel>Nível de condicionamento</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
                             <SelectTrigger>
@@ -320,7 +323,7 @@ export default function StudentOnboardingPage() {
                         <FormLabel>Objetivos</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Quais são seus objetivos com o treinamento?"
+                            placeholder="O que você quer alcançar com o treino"
                             {...field}
                           />
                         </FormControl>
@@ -337,7 +340,7 @@ export default function StudentOnboardingPage() {
                         <FormLabel>Limitações</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Possui alguma limitação física?"
+                            placeholder="Alguma limitação física ou recomendação médica"
                             {...field}
                           />
                         </FormControl>
@@ -351,7 +354,7 @@ export default function StudentOnboardingPage() {
                     name="injury_history"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Histórico de Lesões</FormLabel>
+                        <FormLabel>Histórico de lesões</FormLabel>
                         <FormControl>
                           <Textarea
                             placeholder="Descreva lesões anteriores, se houver"
@@ -368,10 +371,10 @@ export default function StudentOnboardingPage() {
                     name="preferences"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Preferências de Treino</FormLabel>
+                        <FormLabel>Preferências de treino</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Horários preferidos, tipo de treino, etc."
+                            placeholder="Horários, tipo de treino"
                             {...field}
                           />
                         </FormControl>
@@ -385,10 +388,11 @@ export default function StudentOnboardingPage() {
                     name="weekly_sessions_proposed"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Sessões por Semana</FormLabel>
+                        <FormLabel>Sessões por semana</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
+                            inputMode="numeric"
                             min={1}
                             max={7}
                             {...field}
@@ -438,17 +442,17 @@ export default function StudentOnboardingPage() {
                                 </FormLabel>
                               </div>
                               <div className="text-sm text-muted-foreground space-y-2 bg-muted/50 p-3 rounded-lg">
-                                <p className="font-medium">Dados que serão compartilhados:</p>
-                                <ul className="space-y-1 ml-4">
-                                  <li>• Qualidade do sono (duração, fases, eficiência)</li>
-                                  <li>• Prontidão física (recuperação, HRV, FC em repouso)</li>
-                                  <li>• Atividade física (passos, calorias, treinos)</li>
-                                  <li>• Métricas de stress e recuperação</li>
-                                  <li>• SpO2, VO2 Max e temperatura corporal</li>
+                                <p className="font-medium">Dados compartilhados</p>
+                                <ul className="list-disc space-y-1 pl-5">
+                                  <li>Sono (duração, fases, eficiência)</li>
+                                  <li>Prontidão (recuperação, VFC, FC em repouso)</li>
+                                  <li>Atividade (passos, calorias, treinos)</li>
+                                  <li>Estresse e recuperação</li>
+                                  <li>SpO₂, VO₂ máx. e temperatura corporal</li>
                                 </ul>
                                 <div className="mt-3 pt-2 border-t border-border">
                                   <p className="text-xs">
-                                    🔒 <strong>Privacidade garantida:</strong> Seus dados serão usados <strong>exclusivamente</strong> por {validationData?.trainer_name || "seu treinador"} para personalizar seus treinos. Não compartilharemos com terceiros.{" "}
+                                    Os dados são usados exclusivamente por {validationData?.trainer_name || "a equipe da Fabrik"} para ajustar os treinos, e não são compartilhados com terceiros.{" "}
                                     <a
                                       href={ROUTES.ouraConsent}
                                       target="_blank"
@@ -470,30 +474,30 @@ export default function StudentOnboardingPage() {
 
                 <div className="text-center text-sm text-muted-foreground space-y-2">
                   <p>
-                    Ao finalizar o cadastro, você concorda com nossos{" "}
-                    <a 
+                    Ao concluir o cadastro, você concorda com os{" "}
+                    <a
                       href={ROUTES.terms}
                       target="_blank"
                       rel="noreferrer"
                       className="text-primary hover:underline"
                     >
-                      Termos de Uso
+                      Termos de uso
                     </a>
                     {" "}e{" "}
-                    <a 
+                    <a
                       href={ROUTES.privacy}
                       target="_blank"
                       rel="noreferrer"
                       className="text-primary hover:underline"
                     >
-                      Política de Privacidade
+                      Política de privacidade
                     </a>
                     .
                   </p>
-                  
+
                   {hasOuraRing && form.watch("accepts_oura_sharing") && (
                     <p className="text-xs bg-primary/10 p-2 rounded">
-                      ✓ Após o cadastro, você será redirecionado para autorizar o acesso seguro aos seus dados do Oura Ring.
+                      Depois do cadastro, abre a tela do Oura para autorizar o acesso aos dados.
                     </p>
                   )}
                 </div>
@@ -501,20 +505,19 @@ export default function StudentOnboardingPage() {
                 <Button type="submit" className="w-full" disabled={createStudent.isPending}>
                   {createStudent.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {hasOuraRing && form.watch("accepts_oura_sharing") 
-                        ? "Redirecionando para Oura..." 
-                        : "Finalizando cadastro..."}
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                      {hasOuraRing && form.watch("accepts_oura_sharing")
+                        ? "Abrindo o Oura"
+                        : "Concluindo cadastro"}
                     </>
                   ) : (
-                    "Finalizar Cadastro"
+                    "Concluir cadastro"
                   )}
                 </Button>
               </form>
             </Form>
           </CardContent>
         </Card>
-      </div>
-    </div>
+    </PublicPageShell>
   );
 }

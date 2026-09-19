@@ -95,6 +95,7 @@ All colors MUST be HSL.
 
     /* Typography System */
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-size-2xs: 0.6875rem; /* 11px — piso: selos/badges densos, eixos */
     --font-size-xs: 0.75rem;   /* 12px */
     --font-size-sm: 0.875rem;  /* 14px */
     --font-size-base: 1rem;    /* 16px */
@@ -103,6 +104,13 @@ All colors MUST be HSL.
     --font-size-2xl: 1.5rem;   /* 24px */
     --font-size-3xl: 2rem;     /* 32px */
     --font-size-4xl: 2.5rem;   /* 40px */
+    /* Título de página fluido: 26px no celular → 32px no desktop (substitui o
+       antigo override !important de ≤375px). */
+    --font-size-h1: clamp(1.625rem, 1.35rem + 1vw, 2rem);
+
+    /* Motion (régua 8): só onde orienta; nada acima de 200ms. */
+    --motion-fast: 150ms;
+    --motion-base: 200ms;
 
     --font-weight-normal: 400;
     --font-weight-medium: 500;
@@ -177,10 +185,15 @@ All colors MUST be HSL.
      INTERACTIVE STATES - Premium Utilities
      ======================================== */
   
+  /* Card clicável: resposta curta de sombra/borda, sem escala (régua 8).
+     Só use em elemento que de fato navega/abre algo. */
   .card-interactive {
-    @apply cursor-pointer transition-smooth;
-    @apply hover:shadow-premium hover:scale-[1.01];
-    @apply active:scale-[0.99];
+    @apply cursor-pointer;
+    transition: box-shadow var(--motion-fast) ease-out, border-color var(--motion-fast) ease-out;
+  }
+  .card-interactive:hover {
+    box-shadow: var(--shadow-md);
+    border-color: hsl(var(--primary) / 0.35);
   }
 
 
@@ -298,7 +311,9 @@ All colors MUST be HSL.
      ======================================== */
   
   .transition-smooth {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+    transition-duration: var(--motion-base);
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .shadow-premium {
@@ -316,13 +331,16 @@ All colors MUST be HSL.
   }
 
   /* Melhorias de Acessibilidade - Focus States MAIS PROEMINENTES */
+  /* Um único peso de anel de foco no app inteiro (2px + offset 2px). */
   *:focus-visible {
-    @apply outline-none ring-4 ring-ring ring-offset-2 ring-offset-background;
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 
-  /* Smooth scrolling para navegação */
-  html {
-    scroll-behavior: smooth;
+  /* Smooth scrolling só para quem não pediu movimento reduzido */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
 
   /* Skip to main content link (oculto até focus) */
@@ -341,17 +359,6 @@ All colors MUST be HSL.
 
   /* AUD-012: Melhorias de responsividade mobile */
   @media (max-width: 375px) {
-    /* Ajustes para viewports pequenos (320-375px) */
-    body {
-      font-size: 14px;
-    }
-    
-    
-    /* Cards com padding reduzido */
-    .card {
-      padding: 12px;
-    }
-    
     /* Botões ocupam largura total em mobile muito pequeno */
     .mobile-full-width {
       width: 100%;
@@ -568,21 +575,7 @@ All colors MUST be HSL.
     color: hsl(48 96% 70%);
   }
 
-  /* Card Interactive - Premium hover state */
-  .card-interactive {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .card-interactive:hover {
-    box-shadow: var(--shadow-lg);
-    transform: scale(1.01);
-  }
-
-  .card-interactive:active {
-    transform: scale(0.99);
-  }
-
-  /* ✅ NOVA: Classe global para estados de foco acessíveis (WCAG AA) */
+  /* Classe de foco explícita (mesmo peso do global) */
   .focus-visible-ring {
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
   }

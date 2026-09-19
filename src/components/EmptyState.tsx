@@ -61,44 +61,48 @@ const EmptyState = ({
       aria-live="polite"
     >
       {/* Ícone com background premium */}
-      <div className={cn(
-        "rounded-xl p-lg shadow-xs",
-        variantStyles[variant]
-      )}>
-        {icon || <FileText className="h-8 w-8 text-muted-foreground" aria-hidden="true" />}
+      <div
+        className={cn(
+          "rounded-xl p-md text-muted-foreground [&_svg]:h-6 [&_svg]:w-6",
+          variantStyles[variant]
+        )}
+        aria-hidden="true"
+      >
+        {icon || <FileText className="h-6 w-6" />}
       </div>
       
       {/* Título e descrição com typography premium */}
-      <div className="space-y-sm">
-        <h3 className="text-lg font-semibold text-foreground">
+      <div className="space-y-1">
+        <h3 className="text-h3 text-foreground">
           {title}
         </h3>
         
         {description && (
-          <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
+          <p className="text-body-sm text-muted-foreground max-w-md">
             {description}
           </p>
         )}
       </div>
 
       {/* Actions com spacing premium */}
-      <div className="flex flex-wrap gap-sm justify-center mt-sm">
+      {(primaryAction || secondaryAction) && (
+      <div className="flex flex-wrap gap-sm justify-center mt-xs">
         {primaryAction && (
-          <Button onClick={primaryAction.onClick} size="sm">
+          <Button onClick={primaryAction.onClick}>
             {primaryAction.label}
           </Button>
         )}
         
         {secondaryAction && (
           <Button 
-            variant="outline" 
+            variant="ghost" 
             onClick={secondaryAction.onClick}
-            size="sm"
           >
             {secondaryAction.label}
           </Button>
         )}
       </div>
+      )}
     </div>
   );
 };
