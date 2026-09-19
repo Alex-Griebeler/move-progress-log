@@ -17,14 +17,14 @@ export const Breadcrumbs = ({ items, className }: BreadcrumbsProps) => {
   return (
     <nav 
       aria-label="Breadcrumb" 
-      className={cn("flex items-center gap-2 text-sm text-muted-foreground mb-4", className)}
+      className={cn("flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground", className)}
     >
       <Link 
         to="/" 
         className="flex items-center gap-1 hover:text-foreground transition-colors"
-        aria-label="Voltar para página inicial"
+        aria-label="Início"
       >
-        <Home className="h-4 w-4" />
+        <Home className="h-4 w-4" aria-hidden="true" />
         <span className="sr-only">Início</span>
       </Link>
       

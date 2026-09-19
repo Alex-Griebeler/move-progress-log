@@ -68,7 +68,7 @@ export interface RouteDefinition {
  * Sincroniza automaticamente com sidebar e breadcrumbs
  */
 export const ROUTE_CONFIG: RouteDefinition[] = [
-  { path: ROUTES.dashboard, label: "Dashboard", icon: Home, navGroup: "operations" },
+  { path: ROUTES.dashboard, label: "Início", icon: Home, navGroup: "operations" },
   { path: ROUTES.students, label: "Alunos", icon: Users, navGroup: "operations" },
   { path: ROUTES.sessions, label: "Sessões", icon: ClipboardList, navGroup: "operations" },
   { path: ROUTES.prescriptions, label: "Prescrições", icon: FileText, navGroup: "operations" },
@@ -85,7 +85,7 @@ export const ROUTE_CONFIG: RouteDefinition[] = [
 
 export const NAV_LABELS = {
   // Navegação principal
-  dashboard: "Dashboard",
+  dashboard: "Início",
   students: "Alunos",
   sessions: "Sessões",
   exercises: "Exercícios",

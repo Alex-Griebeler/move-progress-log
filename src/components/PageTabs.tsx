@@ -1,11 +1,8 @@
 /**
- * PageTabs - Tabs acessíveis para navegação secundária
- * 
- * Features:
- * - role="tablist" e aria-selected
- * - Navegação por teclado (Arrow keys)
- * - Indicador visual do tab ativo
- * - Responsivo
+ * PageTabs - Navegação secundária entre rotas (links, não abas ARIA)
+ *
+ * São links de rota: <nav aria-label> + aria-current="page" no ativo.
+ * Não usar role="tab" aqui — o leitor de tela esperaria um tabpanel.
  */
 
 import { Link, useLocation } from "react-router-dom";
@@ -39,7 +36,6 @@ export const PageTabs = ({ tabs, className }: PageTabsProps) => {
   
   return (
     <nav
-      role="tablist"
       aria-label="Navegação de seção"
       className={cn(
         "flex items-center gap-1 border-b border-border overflow-x-auto",
@@ -54,11 +50,9 @@ export const PageTabs = ({ tabs, className }: PageTabsProps) => {
           <Link
             key={tab.href}
             to={tab.href}
-            role="tab"
-            aria-selected={active}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2 px-4 py-3 text-sm font-medium",
+              "flex min-h-touch items-center gap-2 px-4 py-3 text-sm font-medium",
               "border-b-2 transition-colors whitespace-nowrap",
               "focus:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               active
@@ -66,7 +60,7 @@ export const PageTabs = ({ tabs, className }: PageTabsProps) => {
                 : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
             )}
           >
-            {Icon && <Icon className="h-4 w-4" />}
+            {Icon && <Icon className="h-4 w-4" aria-hidden="true" />}
             {tab.label}
           </Link>
         );

@@ -39,44 +39,43 @@ export function ErrorState({
         className
       )}
       role="alert"
-      aria-live="polite"
     >
-      {/* Ícone com background premium */}
-      <div className="rounded-xl bg-destructive/10 p-lg shadow-xs">
-        <AlertCircle className="h-8 w-8 text-destructive" aria-hidden="true" />
+      <div className="rounded-xl bg-destructive/10 p-md">
+        <AlertCircle className="h-6 w-6 text-destructive" aria-hidden="true" />
       </div>
       
-      {/* Título e descrição com typography premium */}
-      <div className="space-y-sm">
-        <h3 className="text-lg font-semibold text-foreground">
+      <div className="space-y-1">
+        <h3 className="text-h3 text-foreground">
           {title}
         </h3>
         
         {description && (
-          <p className="text-sm text-muted-foreground max-w-md leading-relaxed">
+          <p className="text-body-sm text-muted-foreground max-w-md">
             {description}
           </p>
         )}
       </div>
 
       {/* Actions com spacing premium */}
-      <div className="flex flex-wrap gap-sm justify-center mt-sm">
+      {(onRetry || onDetails) && (
+      <div className="flex flex-wrap gap-sm justify-center mt-xs">
+        {/* Tentar de novo não é destrutivo: botão neutro. */}
         {onRetry && (
-          <Button onClick={onRetry} size="sm" variant="destructive">
+          <Button onClick={onRetry} variant="outline">
             {retryLabel}
           </Button>
         )}
         
         {onDetails && (
           <Button 
-            variant="outline" 
+            variant="ghost" 
             onClick={onDetails}
-            size="sm"
           >
             {detailsLabel}
           </Button>
         )}
       </div>
+      )}
     </div>
   );
 }

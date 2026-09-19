@@ -48,20 +48,21 @@ export const SuccessState = ({
         "flex flex-col items-center justify-center text-center p-xl",
         className
       )}
+      role="status"
     >
       {/* Ícone */}
-      <div className="mb-lg rounded-xl bg-success/10 p-lg">
-        <Icon className="h-12 w-12 text-success" aria-hidden="true" />
+      <div className="mb-md rounded-xl bg-success/10 p-md">
+        <Icon className="h-6 w-6 text-success" aria-hidden="true" />
       </div>
 
       {/* Título */}
-      <h3 className="text-lg font-semibold text-foreground mb-sm">
+      <h3 className="text-h3 text-foreground mb-1">
         {title}
       </h3>
 
       {/* Mensagem */}
       {message && (
-        <p className="text-muted-foreground text-sm max-w-md mb-lg leading-relaxed">
+        <p className="text-muted-foreground text-body-sm max-w-md mb-md">
           {message}
         </p>
       )}
@@ -70,7 +71,7 @@ export const SuccessState = ({
       {action && (
         <Button
           onClick={action.onClick}
-          variant={action.variant || "success"}
+          variant={action.variant || "default"}
           className="mt-sm"
         >
           {action.label}

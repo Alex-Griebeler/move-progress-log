@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
+import { LucideIcon, TrendingUp, TrendingDown, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type StatCardTone = "default" | "success" | "warning" | "danger";
@@ -26,21 +26,31 @@ interface StatCardProps {
   tone?: StatCardTone;
 }
 
-// Neutral, theme-adaptive tokens: no color, but readable in both dark and light.
-// (`text-foreground` inverts with theme; `text-white` broke light mode.)
+// Tom aplicado de verdade (antes os quatro tons viravam a mesma classe).
+// Tokens recalibrados na Onda 1: ≥4,5:1 como texto nos dois temas.
+// A cor nunca é o único portador: warning/danger levam ícone + rótulo.
 const TONE_VALUE_CLASS: Record<StatCardTone, string> = {
   default: "text-foreground",
   success: "text-foreground",
-  warning: "text-foreground",
-  danger: "text-foreground",
+  warning: "text-warning",
+  danger: "text-destructive",
 };
 
 const TONE_ICON_CLASS: Record<StatCardTone, string> = {
   default: "bg-secondary text-foreground",
-  success: "bg-secondary text-foreground",
-  warning: "bg-secondary text-foreground",
-  danger: "bg-secondary text-foreground",
+  success: "bg-success/10 text-success",
+  warning: "bg-warning/10 text-warning",
+  danger: "bg-destructive/10 text-destructive",
 };
+
+const TONE_STATUS: Record<StatCardTone, { label: string; icon: LucideIcon; className: string } | null> = {
+  default: null,
+  success: { label: "Em dia", icon: CheckCircle2, className: "text-success" },
+  warning: { label: "Atenção", icon: AlertTriangle, className: "text-warning" },
+  danger: { label: "Prioridade", icon: AlertCircle, className: "text-destructive" },
+};
+
+const NO_DATA_VALUES = new Set(["—", "-", "--", ""]);
 
 const StatCard = ({
   title,
@@ -52,11 +62,17 @@ const StatCard = ({
   progress,
   badge,
   trend,
-  tone = "default"
+  tone: toneProp = "default"
 }: StatCardProps) => {
+  // Sem número, sem tom: um "—" vermelho diria "prioridade" sobre um dado ausente.
+  const tone: StatCardTone =
+    typeof value === "string" && NO_DATA_VALUES.has(value.trim()) ? "default" : toneProp;
+  const status = TONE_STATUS[tone];
+  const StatusIcon = status?.icon;
+
   return (
     <Card
-      className={`animate-fade-in ${onClick ? 'card-interactive' : ''}`}
+      className={onClick ? "card-interactive" : undefined}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -69,17 +85,23 @@ const StatCard = ({
     >
       <CardHeader className="pb-sm p-lg">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-medium text-muted-foreground leading-normal">{title}</CardTitle>
-          <div className={cn("p-sm rounded-md", TONE_ICON_CLASS[tone])}>
+          <CardTitle className="text-body-sm font-medium text-muted-foreground">{title}</CardTitle>
+          <div className={cn("p-sm rounded-md", TONE_ICON_CLASS[tone])} aria-hidden="true">
             <Icon className="h-4 w-4" />
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-md p-lg pt-0">
         <div className="flex items-baseline gap-xs">
-          <div className={cn("text-4xl font-bold leading-tight", TONE_VALUE_CLASS[tone])}>
+          <div className={cn("text-display tabular-nums", TONE_VALUE_CLASS[tone])}>
             {value}
           </div>
+          {status && tone !== "success" && StatusIcon && (
+            <span className={cn("inline-flex items-center gap-1 text-caption font-medium", status.className)}>
+              <StatusIcon className="h-3.5 w-3.5" aria-hidden="true" />
+              {status.label}
+            </span>
+          )}
           {trend && (
             <div className={`flex items-center gap-xs text-xs font-semibold ${
               trend.value > 0 ? 'text-success' : trend.value < 0 ? 'text-destructive' : 'text-muted-foreground'
@@ -94,12 +116,12 @@ const StatCard = ({
           )}
         </div>
 
-        {subtitle && <p className="text-sm text-muted-foreground leading-relaxed">{subtitle}</p>}
+        {subtitle && <p className="text-body-sm text-muted-foreground">{subtitle}</p>}
         
         {progress !== undefined && (
           <div className="space-y-xs">
             <Progress value={progress} className="h-1.5" />
-            <p className="text-sm text-muted-foreground">{progress.toFixed(0)}% da meta</p>
+            <p className="text-body-sm text-muted-foreground">{Math.round(progress)}% da meta</p>
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { LogOut } from "lucide-react";
+import { LogOut, X } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -26,19 +26,27 @@ import {
 } from "@/components/ui/sidebar";
 
 export function AppSidebar() {
-  const { open, setOpen, isMobile } = useSidebar();
+  const { open, isMobile, setOpenMobile } = useSidebar();
+  // No celular o menu é uma folha (Sheet) de largura cheia: rótulos sempre
+  // visíveis. `open` é o estado do DESKTOP (expandido/ícones) e não vale aqui.
+  const showLabels = isMobile || open;
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const { isAdmin } = useIsAdmin();
   const showExperimentalNav = isExperimentalNavigationEnabled();
 
-  // Fechar sidebar automaticamente no mobile após navegação
+  // Fechar a folha do menu no celular após navegação. Usa o estado MÓVEL
+  // (openMobile); o `setOpen` do desktop gravava cookie e colapsava o desktop.
   useEffect(() => {
     if (isMobile) {
-      setOpen(false);
+      setOpenMobile(false);
     }
-  }, [location.pathname, isMobile, setOpen]);
+  }, [location.pathname, isMobile, setOpenMobile]);
+
+  const closeMobileMenu = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   // Filtrar rotas baseado em permissões e manter módulos piloto fora do menu padrão.
   const items = ROUTE_CONFIG.filter(item =>
@@ -68,7 +76,7 @@ export function AppSidebar() {
     const active = isRouteActive(location.pathname, item.path, { exact: true });
     
     const button = (
-      <SidebarMenuButton asChild>
+      <SidebarMenuButton asChild className="max-md:h-10">
         <NavLink 
           to={item.path} 
           end={item.path === ROUTES.dashboard}
@@ -79,14 +87,15 @@ export function AppSidebar() {
           }
           aria-label={item.label}
           aria-current={active ? "page" : undefined}
+          onClick={closeMobileMenu}
         >
           {item.icon && <item.icon className="h-4 w-4" aria-hidden="true" />}
-          {open && <span className="truncate">{item.label}</span>}
+          {showLabels && <span className="truncate">{item.label}</span>}
         </NavLink>
       </SidebarMenuButton>
     );
 
-    if (!open) {
+    if (!showLabels) {
       return (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -106,9 +115,10 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent>
         {/* Logo - sem border para alinhamento */}
-        <div className="h-14 flex items-center px-md">
+        <div className="h-14 flex items-center justify-between gap-2 px-md">
           <NavLink 
             to={ROUTES.dashboard} 
+            onClick={closeMobileMenu}
             className="flex items-center gap-sm hover:opacity-80 transition-opacity"
             aria-label="Página inicial - Fabrik Performance"
           >
@@ -117,12 +127,22 @@ export function AppSidebar() {
               alt="Fabrik Performance" 
               className="h-8 w-auto object-contain"
             />
-            {open && (
+            {showLabels && (
               <span className="font-bold text-primary text-sm">
                 Fabrik Performance
               </span>
             )}
           </NavLink>
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => setOpenMobile(false)}
+              aria-label="Fechar menu"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          )}
         </div>
 
         {/* Navegação centralizada via ROUTE_CONFIG */}
@@ -135,7 +155,7 @@ export function AppSidebar() {
 
           return (
             <SidebarGroup key={group.id} className="py-xs">
-              {open && <SidebarGroupLabel>{group.label}</SidebarGroupLabel>}
+              {showLabels && <SidebarGroupLabel>{group.label}</SidebarGroupLabel>}
               <SidebarGroupContent>
                 <SidebarMenu>
                   {groupItems.map((item) => (
@@ -154,7 +174,7 @@ export function AppSidebar() {
       <SidebarFooter className="border-t border-border">
         <SidebarMenu>
           <SidebarMenuItem>
-            {!open ? (
+            {!showLabels ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <SidebarMenuButton 
@@ -173,7 +193,7 @@ export function AppSidebar() {
               <SidebarMenuButton 
                 onClick={handleSignOut}
                 aria-label={NAV_LABELS.signOut}
-                className="hover:bg-destructive/10 hover:text-destructive"
+                className="max-md:h-10 hover:bg-destructive/10 hover:text-destructive"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
                 <span>{NAV_LABELS.signOut}</span>
