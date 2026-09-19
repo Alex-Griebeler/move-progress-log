@@ -44,7 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { SitToStandScorePreview } from "./SitToStandScorePreview";
 import { useCreateAssessment } from "@/hooks/useAssessments";
-import { useDiscardGuard } from "./DiscardChangesDialog";
+import { useDiscardGuard } from "./useDiscardGuard";
 import {
   assessmentBaseSchema,
   emptySupports,

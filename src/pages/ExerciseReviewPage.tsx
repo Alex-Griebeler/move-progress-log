@@ -17,7 +17,7 @@ import { InlineExerciseNameEditor } from "@/components/InlineExerciseNameEditor"
 import { ExerciseDimensionReview } from "@/components/ExerciseDimensionReview";
 import { buildErrorDescription } from "@/utils/errorParsing";
 import { ErrorState } from "@/components/ErrorState";
-import { DiscardChangesDialog } from "@/components/assessments/DiscardChangesDialog";
+import { DiscardDraftDialog } from "@/components/assessments/DiscardDraftDialog";
 import {
   EXERCISE_CATEGORIES,
   MOVEMENT_PATTERNS,
@@ -377,7 +377,7 @@ const ExerciseReviewPage = () => {
         title="Revisão de exercícios"
         description="Gestão de campos e dimensões da biblioteca"
       />
-      <DiscardChangesDialog
+      <DiscardDraftDialog
         open={pendingHref !== null}
         onOpenChange={(open) => {
           if (!open) setPendingHref(null);
@@ -393,7 +393,7 @@ const ExerciseReviewPage = () => {
           if (href) navigate(href);
         }}
       />
-      <DiscardChangesDialog
+      <DiscardDraftDialog
         open={pendingTab !== null}
         onOpenChange={(open) => {
           if (!open) setPendingTab(null);

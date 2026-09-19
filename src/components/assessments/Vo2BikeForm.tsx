@@ -54,7 +54,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 import { useCreateAssessment } from "@/hooks/useAssessments";
 import { formatDecimalBR, formatNumberBR } from "@/utils/displayFormat";
-import { useDiscardGuard } from "./DiscardChangesDialog";
+import { useDiscardGuard } from "./useDiscardGuard";
 import {
   assessmentBaseSchema,
   localTodayIso,

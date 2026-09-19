@@ -69,7 +69,7 @@ import { notify } from "@/lib/notify";
 import { supabase } from "@/integrations/supabase/client";
 
 import { useCreateAssessment } from "@/hooks/useAssessments";
-import { useDiscardGuard } from "./DiscardChangesDialog";
+import { useDiscardGuard } from "./useDiscardGuard";
 import {
   assessmentBaseSchema,
   dexaRegionalDistributionSchema,
