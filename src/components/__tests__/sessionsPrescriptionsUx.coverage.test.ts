@@ -66,7 +66,7 @@ describe("grupo manual: tentar de novo não duplica", () => {
   });
 
   it("uma falha por pessoa não aborta as demais e o erro é descrito", () => {
-    expect(group).toMatch(/for \(const session of sessionsToCreate\) \{\s*try \{\s*await saveOneStudent\(session\)/);
+    expect(group).toMatch(/for \(const session of sessionsToCreate\) \{\s*try \{\s*const result = await saveOneStudent\(session\)/);
     expect(group).toContain("describePartialGroupSave(outcome)");
     expect(group).toContain("throw new PartialGroupSaveError()");
   });

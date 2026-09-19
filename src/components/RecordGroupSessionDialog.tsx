@@ -56,6 +56,7 @@ import { PrescriptionSidebar } from "@/components/session/PrescriptionSidebar";
 import { DiscardSessionConfirm } from "@/components/session/DiscardSessionConfirm";
 import { STICKY_FOOTER_CLASS } from "@/components/session/dialogLayout";
 import { describePartialGroupSave, type GroupSaveOutcome } from "@/components/session/groupSaveOutcome";
+import { hasRecentGroupSession, type SessionsClient } from "@/components/session/groupSessionIdempotency";
 
 // ─── Local Types ────────────────────────────────────────
 
@@ -855,7 +856,14 @@ export function RecordGroupSessionDialog({
           };
         });
 
-      const saveOneStudent = async (session: (typeof sessionsToCreate)[number]) => {
+      const saveOneStudent = async (session: (typeof sessionsToCreate)[number]): Promise<"created" | "existing"> => {
+        // Idempotência: não regrava quem já entrou (fechar/reabrir após falha
+        // parcial, ou outro aparelho com o mesmo rascunho).
+        const alreadyInDb = await hasRecentGroupSession(
+          supabase as unknown as SessionsClient,
+          { studentId: session.student_id, date, time, prescriptionId: effectivePrescriptionId ?? null },
+        );
+        if (alreadyInDb) return "existing";
         const { data: workoutSession, error: sessionError } = await supabase.from("workout_sessions").insert({ student_id: session.student_id, prescription_id: effectivePrescriptionId, date, time, session_type: 'group', trainer_name: trainer, is_finalized: true, can_reopen: true }).select("id").single();
         if (sessionError) throw sessionError;
         const exercisesToInsert = session.exercises.map((ex) => ({ session_id: workoutSession.id, exercise_library_id: ex.exercise_library_id ?? null, exercise_name: ex.executed_exercise_name, sets: ex.sets, reps: ex.reps, reserve_reps: ex.reserve_reps || null, load_kg: ex.load_kg, load_breakdown: ex.load_breakdown, observations: ex.observations || null }));
@@ -867,6 +875,7 @@ export function RecordGroupSessionDialog({
           if (rollbackError) logger.error("Falha ao reverter sessão órfã (grupo manual):", rollbackError);
           throw exercisesError;
         }
+        return "created";
       };
 
       // Cada pessoa é salva e contabilizada separadamente; uma falha não
@@ -878,9 +887,9 @@ export function RecordGroupSessionDialog({
       const newlySavedIds: string[] = [];
       for (const session of sessionsToCreate) {
         try {
-          await saveOneStudent(session);
+          const result = await saveOneStudent(session);
           newlySavedIds.push(session.student_id);
-          outcome.saved.push(session.student_name);
+          outcome.saved.push(result === "existing" ? `${session.student_name} (já registrada)` : session.student_name);
         } catch (studentError) {
           logger.error(`Erro ao salvar a sessão de ${session.student_name}:`, studentError);
           outcome.failed.push({ name: session.student_name, reason: buildErrorDescription(studentError) || 'erro desconhecido' });
