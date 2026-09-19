@@ -50,61 +50,82 @@ const TRAINING_ZONES: TrainingZone[] = [
 
 interface TrainingZonesCardProps {
   maxHeartRate?: number | null;
+  /**
+   * UX-14: dentro de um accordion que já diz "Zonas de frequência cardíaca
+   * (FCmáx N bpm)", a lista entra sem card, sem título e sem a frase da
+   * FCmáx — a mesma informação não aparece três vezes, caixa dentro de caixa.
+   */
+  embedded?: boolean;
 }
 
-const TrainingZonesCard = ({ maxHeartRate }: TrainingZonesCardProps) => {
+const ZoneList = ({ maxHeartRate }: { maxHeartRate: number }) => (
+  <div className="space-y-3">
+    {TRAINING_ZONES.map((zone) => {
+      const minBpm = Math.round((zone.minPercent / 100) * maxHeartRate);
+      const maxBpm = Math.round((zone.maxPercent / 100) * maxHeartRate);
+
+      return (
+        <div key={zone.name} className="space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <div aria-hidden="true" className={`w-3 h-3 rounded-full ${zone.color}`} />
+              <span className="font-semibold text-sm">{zone.name}</span>
+            </div>
+            <Badge variant="outline" className="tabular-nums">
+              {minBpm}–{maxBpm} bpm
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between text-sm text-muted-foreground pl-5">
+            <span>{zone.description}</span>
+            <span className="tabular-nums">{zone.minPercent}–{zone.maxPercent}%</span>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+);
+
+const TrainingZonesCard = ({ maxHeartRate, embedded = false }: TrainingZonesCardProps) => {
   if (!maxHeartRate) {
+    if (embedded) {
+      return (
+        <p className="text-muted-foreground text-sm">
+          Cadastre a FC máxima para ver as zonas de treinamento.
+        </p>
+      );
+    }
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Heart className="h-5 w-5" />
-            Zonas de Treinamento
+            <Heart className="h-5 w-5" aria-hidden="true" />
+            Zonas de treinamento
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
-            Configure a FC máxima do aluno para visualizar as zonas de treinamento.
+            Cadastre a FC máxima para ver as zonas de treinamento.
           </p>
         </CardContent>
       </Card>
     );
   }
 
+  if (embedded) return <ZoneList maxHeartRate={maxHeartRate} />;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Heart className="h-5 w-5" />
-          Zonas de Treinamento
+          <Heart className="h-5 w-5" aria-hidden="true" />
+          Zonas de treinamento
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Baseado em FC máxima de {maxHeartRate} bpm
         </p>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {TRAINING_ZONES.map((zone) => {
-          const minBpm = Math.round((zone.minPercent / 100) * maxHeartRate);
-          const maxBpm = Math.round((zone.maxPercent / 100) * maxHeartRate);
-
-          return (
-            <div key={zone.name} className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 rounded-full ${zone.color}`} />
-                  <span className="font-semibold text-sm">{zone.name}</span>
-                </div>
-                <Badge variant="outline">
-                  {minBpm}-{maxBpm} bpm
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between text-xs text-muted-foreground pl-5">
-                <span>{zone.description}</span>
-                <span>{zone.minPercent}-{zone.maxPercent}%</span>
-              </div>
-            </div>
-          );
-        })}
+      <CardContent>
+        <ZoneList maxHeartRate={maxHeartRate} />
       </CardContent>
     </Card>
   );
