@@ -200,7 +200,7 @@ export function StudentObservationsCard({
             {observations.map(obs => (
               <div 
                 key={obs.id} 
-                className={`p-sm rounded-radius-md border ${getSeverityColor(obs.severity)}`}
+                className={`p-sm rounded-md border ${getSeverityColor(obs.severity)}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">

@@ -142,7 +142,7 @@ export const Enable2FADialog = ({ open, onOpenChange }: Enable2FADialogProps) =>
         {step === 'verify' && (
           <div className="space-y-4">
             <div className="space-y-3">
-              <div className="flex justify-center p-lg bg-background rounded-radius-lg border border-border">
+              <div className="flex justify-center p-lg bg-background rounded-lg border border-border">
                 <img 
                   src={qrCode} 
                   alt="QR Code 2FA" 

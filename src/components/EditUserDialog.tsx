@@ -285,7 +285,7 @@ export function EditUserDialog({ open, onOpenChange, user, currentUserId, onSucc
                 )}
               />
 
-              <div className="flex items-center gap-sm p-md bg-muted rounded-radius-lg">
+              <div className="flex items-center gap-sm p-md bg-muted rounded-lg">
                 <KeyRound className="h-4 w-4 text-muted-foreground" />
                 <div className="flex-1 text-sm">
                   Ou envie um email de redefinição de senha

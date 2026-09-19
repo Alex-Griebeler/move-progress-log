@@ -41,10 +41,10 @@ export const OuraRingsSkeleton = () => {
           </div>
           
           {/* Label */}
-          <Skeleton className="h-4 w-20 mb-xs rounded-radius-sm" />
+          <Skeleton className="h-4 w-20 mb-xs rounded-sm" />
           
           {/* Status */}
-          <Skeleton className="h-3 w-24 rounded-radius-sm" />
+          <Skeleton className="h-3 w-24 rounded-sm" />
           
           {/* Badge */}
           <Skeleton className="h-5 w-16 mt-xs rounded-full" />

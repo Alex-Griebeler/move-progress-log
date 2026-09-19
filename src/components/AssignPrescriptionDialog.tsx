@@ -149,7 +149,7 @@ export function AssignPrescriptionDialog({
         <div className="space-y-lg">
           <div className="space-y-md">
             <Label>Selecione os Alunos</Label>
-            <ScrollArea className="h-[200px] border rounded-radius-md p-lg">
+            <ScrollArea className="h-[200px] border rounded-md p-lg">
               <div className="space-y-md">
                 {students?.map((student) => (
                   <div key={student.id} className="flex items-center space-x-2">

@@ -70,12 +70,14 @@ All colors MUST be HSL.
        ======================================== */
 
     /* Success/Info/Warning Tokens */
-    --success: 142 71% 45%;
+    /* Tons recalibrados (revisão UX 18/09): ≥4,5:1 como texto sobre
+       --background e ≥4,6:1 com texto branco quando usados como fundo. */
+    --success: 142 64% 30%;
     --success-foreground: 0 0% 100%;
-    --info: 199 89% 48%;
+    --info: 199 90% 34%;
     --info-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 10%;
+    --warning: 30 85% 35%;
+    --warning-foreground: 0 0% 100%;
 
     /* Estado Tokens */
     --hover-opacity: 0.9;
@@ -211,20 +213,22 @@ All colors MUST be HSL.
     --accent: 15 6% 22%;
     --accent-foreground: 30 10% 95%;
 
-    --destructive: 0 55% 40%;
-    --destructive-foreground: 0 0% 98%;
+    /* ≥4,5:1 como texto sobre o fundo escuro (antes 2,47:1). */
+    --destructive: 0 70% 62%;
+    --destructive-foreground: 0 0% 8%;
 
     --border: 20 5% 22%;
     --input: 20 5% 17%;
     --ring: 7 50% 55%;
 
     /* Success/Info/Warning Tokens - Dark Mode */
+    /* No escuro os tons são claros: texto sobre eles é quase preto. */
     --success: 142 60% 42%;
-    --success-foreground: 0 0% 100%;
+    --success-foreground: 0 0% 8%;
     --info: 199 80% 50%;
-    --info-foreground: 0 0% 100%;
+    --info-foreground: 0 0% 8%;
     --warning: 38 85% 52%;
-    --warning-foreground: 0 0% 10%;
+    --warning-foreground: 0 0% 8%;
 
     /* Shadow System - Dark Mode */
     --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
@@ -308,7 +312,7 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
   }
 
   /* Melhorias de Acessibilidade - Focus States MAIS PROEMINENTES */
@@ -342,17 +346,6 @@ All colors MUST be HSL.
       font-size: 14px;
     }
     
-    h1 {
-      font-size: 1.75rem !important; /* ~28px */
-    }
-    
-    h2 {
-      font-size: 1.5rem !important; /* ~24px */
-    }
-    
-    h3 {
-      font-size: 1.25rem !important; /* ~20px */
-    }
     
     /* Cards com padding reduzido */
     .card {
@@ -367,8 +360,8 @@ All colors MUST be HSL.
 
   /* Garantir que modais sejam fluidos */
   @media (max-width: 640px) {
-    [role="dialog"], 
-    [data-radix-dialog-content] {
+    [role="dialog"]:not([data-mobile="true"]):not(.inset-y-0),
+    [data-radix-dialog-content]:not([data-mobile="true"]):not(.inset-y-0) {
       max-width: 95vw !important;
       max-height: 90vh !important;
       margin: 0 !important;

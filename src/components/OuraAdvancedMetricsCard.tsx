@@ -91,7 +91,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
       <CardContent className="space-y-6">
         {/* VO2 Max */}
         {metrics.vo2_max !== null ? (
-          <div className="flex items-center gap-md p-lg rounded-radius-lg border bg-card">
+          <div className="flex items-center gap-md p-lg rounded-lg border bg-card">
             <div className="p-3 rounded-full bg-primary/10">
               <TrendingUp className="h-6 w-6 text-primary" />
             </div>
@@ -107,7 +107,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
             </div>
           </div>
         ) : (
-          <div className="p-lg rounded-radius-lg border border-dashed bg-muted/30">
+          <div className="p-lg rounded-lg border border-dashed bg-muted/30">
             <div className="flex items-center gap-3">
               <TrendingUp className="h-5 w-5 text-muted-foreground" />
               <div>
@@ -122,7 +122,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
 
         {/* SpO2 Average */}
         {metrics.spo2_average !== null && (
-          <div className="flex items-center gap-md p-lg rounded-radius-lg border bg-card">
+          <div className="flex items-center gap-md p-lg rounded-lg border bg-card">
             <div className="p-3 rounded-full bg-primary/10">
               <Wind className="h-6 w-6 text-primary" />
             </div>
@@ -167,7 +167,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
 
         {/* Resilience Level */}
         {metrics.resilience_level && (
-          <div className="flex items-center gap-md p-lg rounded-radius-lg border bg-card">
+          <div className="flex items-center gap-md p-lg rounded-lg border bg-card">
             <div className="p-3 rounded-full bg-chart-4/10">
               <Shield className="h-6 w-6 text-chart-4" />
             </div>
@@ -187,7 +187,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
 
         {/* Recommendations */}
         {metrics.vo2_max !== null && metrics.vo2_max < 35 && (
-          <div className="p-md bg-secondary border rounded-radius-lg">
+          <div className="p-md bg-secondary border rounded-lg">
             <p className="text-sm text-secondary-foreground font-medium mb-1">
               💡 Dica: VO2 Max abaixo do ideal
             </p>
@@ -198,7 +198,7 @@ export const OuraAdvancedMetricsCard = ({ metrics }: OuraAdvancedMetricsCardProp
         )}
 
         {metrics.breathing_disturbance_index !== null && metrics.breathing_disturbance_index >= 15 && (
-          <div className="p-md bg-destructive/10 border border-destructive/20 rounded-radius-lg">
+          <div className="p-md bg-destructive/10 border border-destructive/20 rounded-lg">
             <p className="text-sm text-destructive font-medium mb-1">
               ⚠️ Alerta: Distúrbio respiratório elevado
             </p>
