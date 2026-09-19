@@ -69,6 +69,7 @@ import { notify } from "@/lib/notify";
 import { supabase } from "@/integrations/supabase/client";
 
 import { useCreateAssessment } from "@/hooks/useAssessments";
+import { useDiscardGuard } from "./DiscardChangesDialog";
 import {
   assessmentBaseSchema,
   dexaRegionalDistributionSchema,
@@ -160,9 +161,35 @@ const REGIONS = [
   { key: "arms_left", label: "Braço esquerdo" },
   { key: "legs_right", label: "Perna direita" },
   { key: "legs_left", label: "Perna esquerda" },
-  { key: "android", label: "Android" },
-  { key: "gynoid", label: "Gynoid" },
+  { key: "android", label: "Região androide" },
+  { key: "gynoid", label: "Região ginoide" },
 ] as const;
+
+/**
+ * Rótulos humanos dos campos que a leitura automática devolve — a revisão
+ * pós-extração nunca mostra o nome interno da coluna (UX-03).
+ */
+const DEXA_FIELD_LABELS: Record<string, string> = {
+  total_mass_kg: "Massa total",
+  fat_mass_kg: "Gordura",
+  fat_pct: "% gordura",
+  lean_mass_kg: "Massa magra",
+  bone_mass_kg: "Massa óssea",
+  bone_density_z_score: "Z-score ósseo",
+  visceral_fat_g: "Gordura visceral",
+  android_gynoid_ratio: "Razão androide/ginoide",
+  appendicular_lean_mass_kg: "Massa magra apendicular",
+  imma_baumgartner: "IMMA (Baumgartner)",
+  fmi: "Índice de massa gorda",
+  fat_percentile: "Percentil de gordura",
+  bmr_harris_benedict_kcal: "TMB Harris-Benedict",
+  bmr_mifflin_stjeor_kcal: "TMB Mifflin-St. Jeor",
+  conclusion_text: "Conclusão do laudo",
+  regional_distribution: "Distribuição regional",
+  scan_date: "Data do exame",
+};
+
+const dexaFieldLabel = (field: string): string => DEXA_FIELD_LABELS[field] ?? "Outro campo";
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -358,16 +385,29 @@ export const DexaForm = ({
     uploadedPdfPath,
   ]);
 
+  // Guarda de saída (UX-01): com campo digitado ou PDF anexado, fechar pede
+  // confirmação antes de descartar. O descarte continua limpando o PDF
+  // temporário via `discardDraftAndClose`.
+  const { isDirty } = form.formState;
+  const { requestClose: requestDiscard, dialog: discardDialog } = useDiscardGuard({
+    isDirty: isDirty || pdfFile !== null,
+    onDiscard: discardDraftAndClose,
+    title: "Descartar avaliação DEXA não salva?",
+    description:
+      "Os campos preenchidos e o PDF anexado serão perdidos.",
+  });
+
   const handleDialogOpenChange = useCallback(
     (nextOpen: boolean) => {
       if (!nextOpen) {
-        discardDraftAndClose();
+        if (isSaving) return;
+        requestDiscard();
         return;
       }
       skipTemporaryPdfCleanupRef.current = false;
       onOpenChange(true);
     },
-    [discardDraftAndClose, onOpenChange],
+    [requestDiscard, isSaving, onOpenChange],
   );
 
   /**
@@ -554,7 +594,17 @@ export const DexaForm = ({
     name: keyof FormData,
     label: string,
     opts?: { min?: number; max?: number; step?: string; suffix?: string },
-  ) => (
+  ) => {
+    // Teclado certo no celular: inteiro → numérico; decimal → decimal.
+    // Campo que aceita negativo (z-score) fica sem inputMode: o teclado
+    // decimal do iOS não tem sinal de menos.
+    const allowsNegative = opts?.min !== undefined && opts.min < 0;
+    const inputMode = allowsNegative
+      ? undefined
+      : opts?.step === "1"
+        ? ("numeric" as const)
+        : ("decimal" as const);
+    return (
     <FormField
       control={form.control}
       name={name as never}
@@ -569,6 +619,7 @@ export const DexaForm = ({
           <FormControl>
             <Input
               type="number"
+              inputMode={inputMode}
               step={opts?.step ?? "0.1"}
               min={opts?.min}
               max={opts?.max}
@@ -585,7 +636,8 @@ export const DexaForm = ({
         </FormItem>
       )}
     />
-  );
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
@@ -593,10 +645,7 @@ export const DexaForm = ({
         <DialogHeader>
           <DialogTitle>DEXA — composição corporal</DialogTitle>
           <DialogDescription>
-            Faça upload do PDF do laudo DEXA. Você pode preencher os campos
-            manualmente OU clicar &quot;Ler PDF e preencher campos&quot; pra
-            que a IA gere um rascunho — revisão humana e clique em &quot;Salvar
-            avaliação&quot; continuam obrigatórios.
+            Anexe o PDF do laudo e revise os campos antes de salvar.
           </DialogDescription>
         </DialogHeader>
 
@@ -609,10 +658,18 @@ export const DexaForm = ({
                 name="assessment_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data do exame</FormLabel>
+                    <FormLabel>
+                      Data do exame{" "}
+                      <span className="text-destructive" aria-hidden>
+                        *
+                      </span>
+                      <span className="sr-only">(obrigatório)</span>
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type="date"
+                        required
+                        aria-required="true"
                         data-testid="dexa-exam-date"
                         {...field}
                       />
@@ -667,7 +724,7 @@ export const DexaForm = ({
                   <span className="truncate">{pdfFile.name}</span>
                   <Button
                     type="button"
-                    size="sm"
+                    size="icon"
                     variant="ghost"
                     onClick={removePdf}
                     disabled={isUploading || isSaving}
@@ -697,11 +754,6 @@ export const DexaForm = ({
                   />
                 </label>
               )}
-              <p className="text-xs text-muted-foreground">
-                Quando você clica em &quot;Ler PDF&quot;, o upload acontece
-                imediatamente para a leitura automática rodar. Se preferir
-                preencher manualmente, o upload acontece só ao salvar.
-              </p>
 
               {/*
                 PR-IA: botão de extração assistida. Só aparece com PDF
@@ -755,14 +807,17 @@ export const DexaForm = ({
                     </p>
                     {extractionState.skipped.length > 0 && (
                       <p>
-                        Não sobrescritos (já preenchidos manualmente):{" "}
-                        {extractionState.skipped.join(", ")}.
+                        Mantidos como você digitou:{" "}
+                        {extractionState.skipped.map(dexaFieldLabel).join(", ")}.
                       </p>
                     )}
                     {extractionState.extraction.missing_fields.length > 0 && (
                       <p>
-                        Campos não encontrados no laudo:{" "}
-                        {extractionState.extraction.missing_fields.join(", ")}.
+                        Não encontrados no laudo:{" "}
+                        {extractionState.extraction.missing_fields
+                          .map(dexaFieldLabel)
+                          .join(", ")}
+                        .
                       </p>
                     )}
                     {extractionState.extraction.warnings.length > 0 && (
@@ -793,7 +848,7 @@ export const DexaForm = ({
                 {renderNumber("bone_mass_kg", "Massa óssea", { max: 20, suffix: "kg" })}
                 {renderNumber("bone_density_z_score", "Z-score ósseo", { min: -10, max: 10 })}
                 {renderNumber("visceral_fat_g", "Gordura visceral", { max: 20000, suffix: "g" })}
-                {renderNumber("android_gynoid_ratio", "Android/Gynoid", { max: 5 })}
+                {renderNumber("android_gynoid_ratio", "Razão androide/ginoide", { max: 5 })}
               </div>
             </section>
 
@@ -801,9 +856,9 @@ export const DexaForm = ({
             <section className="space-y-3 rounded-md border p-4">
               <h3 className="text-sm font-semibold">Índices derivados</h3>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {renderNumber("appendicular_lean_mass_kg", "ALM apendicular", { max: 100, suffix: "kg" })}
+                {renderNumber("appendicular_lean_mass_kg", "Massa magra apendicular", { max: 100, suffix: "kg" })}
                 {renderNumber("imma_baumgartner", "IMMA (Baumgartner)", { max: 30 })}
-                {renderNumber("fmi", "FMI", { max: 80 })}
+                {renderNumber("fmi", "Índice de massa gorda", { max: 80 })}
                 {renderNumber("fat_percentile", "Percentil gordura", {
                   min: 0,
                   max: 100,
@@ -826,7 +881,7 @@ export const DexaForm = ({
             <Collapsible className="rounded-md border">
               <CollapsibleTrigger className="flex w-full items-center justify-between p-3 text-sm font-semibold hover:bg-muted/50">
                 Distribuição regional (opcional)
-                <span className="text-xs text-muted-foreground">expandir →</span>
+                <span className="text-xs font-normal text-muted-foreground">Mostrar</span>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-3 border-t p-3">
                 {REGIONS.map((region) => (
@@ -839,10 +894,11 @@ export const DexaForm = ({
                       name={`regional_distribution.${region.key}.fat_pct` as never}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px]">% gordura</FormLabel>
+                          <FormLabel className="text-xs">% gordura</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
+                              inputMode="decimal"
                               step="0.1"
                               min={0}
                               max={100}
@@ -863,10 +919,11 @@ export const DexaForm = ({
                       name={`regional_distribution.${region.key}.lean_mass_g` as never}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px]">Massa magra (g)</FormLabel>
+                          <FormLabel className="text-xs">Massa magra (g)</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
+                              inputMode="numeric"
                               step="1"
                               min={0}
                               max={100_000}
@@ -887,10 +944,11 @@ export const DexaForm = ({
                       name={`regional_distribution.${region.key}.fat_mass_g` as never}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-[10px]">Gordura (g)</FormLabel>
+                          <FormLabel className="text-xs">Gordura (g)</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
+                              inputMode="numeric"
                               step="1"
                               min={0}
                               max={100_000}
@@ -935,7 +993,7 @@ export const DexaForm = ({
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Observações do coach</FormLabel>
+                  <FormLabel>Observações do treinador</FormLabel>
                   <FormControl>
                     <Textarea
                       {...field}
@@ -953,7 +1011,7 @@ export const DexaForm = ({
               <Button
                 type="button"
                 variant="outline"
-                onClick={discardDraftAndClose}
+                onClick={requestDiscard}
                 disabled={isSaving || isUploading}
               >
                 Cancelar
@@ -965,6 +1023,7 @@ export const DexaForm = ({
             </DialogFooter>
           </form>
         </Form>
+        {discardDialog}
       </DialogContent>
     </Dialog>
   );
