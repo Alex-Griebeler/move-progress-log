@@ -60,18 +60,21 @@ export async function hasRecentGroupSession(
 }
 
 /**
- * Registro local de quem já entrou num salvamento em grupo, por prescrição e
- * data (sessionStorage, 12 h). Sobrevive a fechar/reabrir o diálogo e a trocar
- * de página na mesma aba — o horário NÃO entra na chave, porque ao reabrir o
- * diálogo o horário volta para "agora" (revisão da #369).
+ * Registro local de quem já entrou num salvamento em grupo INCOMPLETO
+ * (sessionStorage, 12 h), por prescrição e data, guardando o HORÁRIO da aula.
+ * Sobrevive a fechar/reabrir o diálogo e a trocar de página na mesma aba.
+ * Só vale para a MESMA aula: o chamador compara o horário e ainda confirma no
+ * banco antes de pular alguém (revisões da #369 — nunca perder gravação de
+ * outra aula da mesma pessoa no mesmo dia).
  */
 const LOCAL_KEY_PREFIX = "fabrik:group-manual-saved:";
 
 const localKey = (prescriptionId: string | null, date: string) =>
   `${LOCAL_KEY_PREFIX}${prescriptionId ?? "none"}:${date}`;
 
-interface LocalRecord {
+export interface LocalSavedRecord {
   ids: string[];
+  time: string;
   at: number;
 }
 
@@ -80,29 +83,36 @@ export function readLocallySaved(
   date: string,
   nowMs: number = Date.now(),
   storage: Pick<Storage, "getItem"> | undefined = globalThis.sessionStorage,
-): string[] {
+): LocalSavedRecord | null {
   try {
     const raw = storage?.getItem(localKey(prescriptionId, date));
-    if (!raw) return [];
-    const rec = JSON.parse(raw) as LocalRecord;
-    if (!Array.isArray(rec.ids) || typeof rec.at !== "number") return [];
-    if (nowMs - rec.at > GROUP_IDEMPOTENCY_WINDOW_MS) return [];
-    return rec.ids.filter((id) => typeof id === "string");
+    if (!raw) return null;
+    const rec = JSON.parse(raw) as LocalSavedRecord;
+    if (!Array.isArray(rec.ids) || typeof rec.at !== "number" || typeof rec.time !== "string") return null;
+    if (nowMs - rec.at > GROUP_IDEMPOTENCY_WINDOW_MS) return null;
+    return { ids: rec.ids.filter((id) => typeof id === "string"), time: rec.time, at: rec.at };
   } catch {
-    return [];
+    return null;
   }
 }
 
 export function rememberLocallySaved(
   prescriptionId: string | null,
   date: string,
+  time: string,
   ids: string[],
   nowMs: number = Date.now(),
   storage: Pick<Storage, "getItem" | "setItem"> | undefined = globalThis.sessionStorage,
 ): void {
   try {
-    const merged = Array.from(new Set([...readLocallySaved(prescriptionId, date, nowMs, storage), ...ids]));
-    storage?.setItem(localKey(prescriptionId, date), JSON.stringify({ ids: merged, at: nowMs } satisfies LocalRecord));
+    const prev = readLocallySaved(prescriptionId, date, nowMs, storage);
+    // Outra aula (horário diferente) substitui o registro anterior.
+    const base = prev && prev.time === time ? prev.ids : [];
+    const merged = Array.from(new Set([...base, ...ids]));
+    storage?.setItem(
+      localKey(prescriptionId, date),
+      JSON.stringify({ ids: merged, time, at: nowMs } satisfies LocalSavedRecord),
+    );
   } catch {
     /* armazenamento indisponível: a checagem no banco continua valendo */
   }

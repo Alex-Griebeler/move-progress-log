@@ -309,6 +309,9 @@ export function RecordGroupSessionDialog({
   // foi salvo nesta abertura para o "tentar de novo" enviar só as que faltam
   // (sem duplicar) e para dizer isso na tela.
   const [manualSavedStudentIds, setManualSavedStudentIds] = useState<string[]>([]);
+  // Registro incompleto de outra hora (mesma prescrição e data) — só informa;
+  // o horário nunca é trocado sozinho (revisão da #369).
+  const [pendingLocalRecord, setPendingLocalRecord] = useState<{ time: string; names: string[] } | null>(null);
   const [lastPartialSave, setLastPartialSave] = useState<GroupSaveOutcome | null>(null);
   // Guarda de saída: trechos de voz já transcritos e confirmação pendente.
   const [voiceSegmentCount, setVoiceSegmentCount] = useState(0);
@@ -317,6 +320,25 @@ export function RecordGroupSessionDialog({
   // When prop is provided (e.g. opened from /prescricoes), use it.
   // Otherwise, the user must pick a prescription explicitly in the context-setup step.
   const effectivePrescriptionId = prescriptionId ?? selectedPrescriptionId;
+
+  // Ao entrar no registro manual, lê se há aula incompleta desta prescrição e
+  // data em outro horário (registro local da aba) para avisar — sem trocar o
+  // horário sozinho.
+  useEffect(() => {
+    if (!open || dialogState !== 'manual-entry' || isReopening) {
+      setPendingLocalRecord(null);
+      return;
+    }
+    const rec = readLocallySaved(effectivePrescriptionId ?? null, date);
+    if (!rec || rec.ids.length === 0) {
+      setPendingLocalRecord(null);
+      return;
+    }
+    const names = rec.ids
+      .map((id) => selectedStudents.find((st) => st.id === id)?.name)
+      .filter((n): n is string => Boolean(n));
+    setPendingLocalRecord({ time: rec.time, names });
+  }, [open, dialogState, isReopening, effectivePrescriptionId, date, selectedStudents]);
   const requiresPrescriptionSelection = !prescriptionId;
 
   // Shared hook for exercise replacement
@@ -860,13 +882,25 @@ export function RecordGroupSessionDialog({
         throw new Error("Dados incompletos");
       }
 
-      // Quem já foi salvo numa tentativa anterior desta abertura NÃO é
-      // reenviado — evita sessão duplicada no "tentar de novo".
-      // Memória do diálogo + registro local da aba (sobrevive a fechar/reabrir).
-      const alreadySaved = new Set([
-        ...manualSavedStudentIds,
-        ...readLocallySaved(effectivePrescriptionId ?? null, date),
-      ]);
+      // Quem já foi salvo numa tentativa anterior NÃO é reenviado — evita
+      // sessão duplicada no "tentar de novo". Duas fontes:
+      // - memória desta abertura do diálogo (confiável: mesma aula);
+      // - registro local da aba, SÓ se for a mesma aula (mesmo horário) E o
+      //   banco confirmar a sessão com exercícios — nunca pula gravação de
+      //   outra aula da mesma pessoa no mesmo dia.
+      const localRecord = readLocallySaved(effectivePrescriptionId ?? null, date);
+      const confirmedFromLocal: string[] = [];
+      if (localRecord && localRecord.time === time) {
+        for (const id of localRecord.ids) {
+          if (manualSavedStudentIds.includes(id)) continue;
+          const inDb = await hasRecentGroupSession(
+            supabase as unknown as SessionsClient,
+            { studentId: id, date, time, prescriptionId: effectivePrescriptionId ?? null },
+          );
+          if (inDb) confirmedFromLocal.push(id);
+        }
+      }
+      const alreadySaved = new Set([...manualSavedStudentIds, ...confirmedFromLocal]);
       const sessionsToCreate = data.studentExercises
         .filter(se => !alreadySaved.has(se.studentId))
         .map(se => {
@@ -902,7 +936,9 @@ export function RecordGroupSessionDialog({
       // Cada pessoa é salva e contabilizada separadamente; uma falha não
       // esconde as que já entraram.
       const outcome: GroupSaveOutcome = {
-        saved: selectedStudents.filter(s => alreadySaved.has(s.id)).map(s => s.name),
+        saved: selectedStudents
+          .filter(s => alreadySaved.has(s.id))
+          .map(s => (confirmedFromLocal.includes(s.id) ? `${s.name} (já registrada)` : s.name)),
         failed: [],
       };
       const newlySavedIds: string[] = [];
@@ -920,7 +956,7 @@ export function RecordGroupSessionDialog({
       if (outcome.failed.length > 0) {
         if (newlySavedIds.length > 0) {
           setManualSavedStudentIds(prev => [...prev, ...newlySavedIds]);
-          rememberLocallySaved(effectivePrescriptionId ?? null, date, newlySavedIds);
+          rememberLocallySaved(effectivePrescriptionId ?? null, date, time, newlySavedIds);
         }
         setLastPartialSave(outcome);
         notify.error(
@@ -1314,6 +1350,21 @@ export function RecordGroupSessionDialog({
               </div>
             </div>
           </div>
+        )}
+
+        {dialogState === 'manual-entry' && !lastPartialSave && pendingLocalRecord && pendingLocalRecord.time !== time && (
+          <Alert variant="info" className="mb-4" aria-live="polite">
+            <AlertDescription className="flex flex-wrap items-center gap-2">
+              <span>
+                Há um registro não concluído desta prescrição às {pendingLocalRecord.time}
+                {pendingLocalRecord.names.length > 0 ? ` (${pendingLocalRecord.names.join(", ")} já salvas)` : ""}.
+                Para retomar essa aula, use o mesmo horário.
+              </span>
+              <Button type="button" size="sm" variant="outline" className="min-h-10" onClick={() => setTime(pendingLocalRecord.time)}>
+                Usar {pendingLocalRecord.time}
+              </Button>
+            </AlertDescription>
+          </Alert>
         )}
 
         {dialogState === 'manual-entry' && lastPartialSave && (

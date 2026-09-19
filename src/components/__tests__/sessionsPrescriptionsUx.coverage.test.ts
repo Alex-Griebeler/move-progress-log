@@ -62,7 +62,7 @@ describe("detalhe da sessão sem 'Intensidade' derivada do volume", () => {
 describe("grupo manual: tentar de novo não duplica", () => {
   it("filtra quem já foi salvo nesta abertura antes de inserir", () => {
     // memória do diálogo + registro local da aba (revisão da #369)
-    expect(group).toMatch(/const alreadySaved = new Set\(\[\s*\.\.\.manualSavedStudentIds,\s*\.\.\.readLocallySaved\(/);
+    expect(group).toMatch(/const alreadySaved = new Set\(\[\.\.\.manualSavedStudentIds, \.\.\.confirmedFromLocal\]\)/);
     expect(group).toMatch(/\.filter\(se => !alreadySaved\.has\(se\.studentId\)\)/);
   });
 

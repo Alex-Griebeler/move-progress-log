@@ -101,41 +101,64 @@ describe("registro local de quem já entrou (fechar/reabrir o diálogo)", () => 
     };
   };
 
-  it("lembra por prescrição e data — o horário não entra (ele volta para 'agora' ao reabrir)", () => {
+  it("guarda quem entrou COM o horário da aula, por prescrição e data", () => {
     const st = memory();
-    rememberLocallySaved("p1", "2026-09-19", ["s1", "s2"], NOW, st);
-    expect(readLocallySaved("p1", "2026-09-19", NOW + 3 * 60 * 1000, st).sort()).toEqual(["s1", "s2"]);
-    expect(readLocallySaved("p2", "2026-09-19", NOW, st)).toEqual([]);
-    expect(readLocallySaved("p1", "2026-09-20", NOW, st)).toEqual([]);
+    rememberLocallySaved("p1", "2026-09-19", "07:40", ["s1", "s2"], NOW, st);
+    const rec = readLocallySaved("p1", "2026-09-19", NOW + 3 * 60 * 1000, st);
+    expect(rec?.time).toBe("07:40");
+    expect(rec?.ids.sort()).toEqual(["s1", "s2"]);
+    expect(readLocallySaved("p2", "2026-09-19", NOW, st)).toBeNull();
+    expect(readLocallySaved("p1", "2026-09-20", NOW, st)).toBeNull();
   });
 
-  it("acumula tentativas e expira em 12 h", () => {
+  it("acumula tentativas da MESMA aula; outra aula (outro horário) substitui", () => {
     const st = memory();
-    rememberLocallySaved(null, "2026-09-19", ["s1"], NOW, st);
-    rememberLocallySaved(null, "2026-09-19", ["s2"], NOW, st);
-    expect(readLocallySaved(null, "2026-09-19", NOW, st).sort()).toEqual(["s1", "s2"]);
-    expect(readLocallySaved(null, "2026-09-19", NOW + GROUP_IDEMPOTENCY_WINDOW_MS + 1, st)).toEqual([]);
+    rememberLocallySaved(null, "2026-09-19", "07:40", ["s1"], NOW, st);
+    rememberLocallySaved(null, "2026-09-19", "07:40", ["s2"], NOW, st);
+    expect(readLocallySaved(null, "2026-09-19", NOW, st)?.ids.sort()).toEqual(["s1", "s2"]);
+    rememberLocallySaved(null, "2026-09-19", "18:00", ["s3"], NOW, st);
+    expect(readLocallySaved(null, "2026-09-19", NOW, st)).toMatchObject({ time: "18:00", ids: ["s3"] });
   });
 
-  it("esquece após sucesso completo; armazenamento corrompido ou ausente não quebra", () => {
+  it("expira em 12 h; esquece após sucesso; armazenamento corrompido ou ausente não quebra", () => {
     const st = memory();
-    rememberLocallySaved("p1", "2026-09-19", ["s1"], NOW, st);
+    rememberLocallySaved("p1", "2026-09-19", "07:40", ["s1"], NOW, st);
+    expect(readLocallySaved("p1", "2026-09-19", NOW + GROUP_IDEMPOTENCY_WINDOW_MS + 1, st)).toBeNull();
     forgetLocallySaved("p1", "2026-09-19", st);
-    expect(readLocallySaved("p1", "2026-09-19", NOW, st)).toEqual([]);
+    expect(readLocallySaved("p1", "2026-09-19", NOW, st)).toBeNull();
     st.setItem("fabrik:group-manual-saved:p1:2026-09-19", "{lixo");
-    expect(readLocallySaved("p1", "2026-09-19", NOW, st)).toEqual([]);
-    expect(readLocallySaved("p1", "2026-09-19", NOW, undefined)).toEqual([]);
+    expect(readLocallySaved("p1", "2026-09-19", NOW, st)).toBeNull();
+    st.setItem("fabrik:group-manual-saved:p1:2026-09-19", JSON.stringify({ ids: ["s1"], at: NOW })); // formato antigo, sem horário
+    expect(readLocallySaved("p1", "2026-09-19", NOW, st)).toBeNull();
+    expect(readLocallySaved("p1", "2026-09-19", NOW, undefined)).toBeNull();
   });
 
-  it("o salvamento manual em grupo usa o registro local e o limpa só no sucesso completo", () => {
+  it("o diálogo só pula quem está no registro se for a MESMA aula E o banco confirmar", () => {
     const src = readFileSync(
       resolve(dirname(fileURLToPath(import.meta.url)), "../RecordGroupSessionDialog.tsx"),
       "utf-8",
     );
-    expect(src).toContain("...readLocallySaved(effectivePrescriptionId ?? null, date),");
-    expect(src).toContain("rememberLocallySaved(effectivePrescriptionId ?? null, date, newlySavedIds);");
-    const success = src.slice(src.indexOf('notify.success(total === 1'));
+    const save = src.slice(src.indexOf("const handleSaveManual"));
+    expect(save).toContain("if (localRecord && localRecord.time === time) {");
+    const loop = save.slice(save.indexOf("for (const id of localRecord.ids)"));
+    expect(loop.indexOf("await hasRecentGroupSession(")).toBeGreaterThan(-1);
+    expect(loop.indexOf("if (inDb) confirmedFromLocal.push(id);")).toBeGreaterThan(loop.indexOf("await hasRecentGroupSession("));
+    expect(save).toContain("const alreadySaved = new Set([...manualSavedStudentIds, ...confirmedFromLocal]);");
+    expect(save).toContain("rememberLocallySaved(effectivePrescriptionId ?? null, date, time, newlySavedIds);");
+    expect(save).toContain("(já registrada)");
+    const success = src.slice(src.indexOf("notify.success(total === 1"));
     expect(success.indexOf("forgetLocallySaved(")).toBeGreaterThan(-1);
+  });
+
+  it("aula incompleta em outro horário: avisa e oferece o horário, sem trocar sozinho", () => {
+    const src = readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), "../RecordGroupSessionDialog.tsx"),
+      "utf-8",
+    );
+    expect(src).toContain("pendingLocalRecord.time !== time");
+    expect(src).toContain("onClick={() => setTime(pendingLocalRecord.time)}");
+    const effect = src.slice(src.indexOf("const rec = readLocallySaved(effectivePrescriptionId ?? null, date);"));
+    expect(effect.slice(0, 400)).not.toContain("setTime(");
   });
 });
 
