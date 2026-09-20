@@ -31,7 +31,9 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 vi.mock("@tanstack/react-query", async (orig) => {
   const actual = await orig<typeof import("@tanstack/react-query")>();
-  return { ...actual, useQuery: vi.fn(() => ({ data: undefined })) };
+  // Sem Provider no render: o diálogo usa useQueryClient para invalidar as
+  // queries de sessão depois de gravar.
+  return { ...actual, useQuery: vi.fn(() => ({ data: undefined })), useQueryClient: vi.fn(() => ({})) };
 });
 
 const prescriptionDetails = {
@@ -44,7 +46,6 @@ const prescriptionDetails = {
 vi.mock("@/hooks/usePrescriptions", () => ({
   usePrescriptionDetails: vi.fn((id: string | null) => ({ data: id ? prescriptionDetails : null })),
 }));
-vi.mock("@/hooks/useWorkoutSessions", () => ({ useCreateWorkoutSession: () => ({ mutateAsync: vi.fn() }) }));
 vi.mock("@/hooks/useExercisesLibrary", () => ({ useExercisesLibrary: () => ({ data: [] }) }));
 vi.mock("@/hooks/useExerciseReplacement", () => ({
   useExerciseReplacement: () => ({

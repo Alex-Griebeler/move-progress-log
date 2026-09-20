@@ -116,3 +116,20 @@ describe("WorkoutCard acessível por teclado (achado UX-01 do Codex)", () => {
     expect(workoutCard).not.toMatch(/<Card[^>]*onClick=/);
   });
 });
+
+describe("gravação manual invalida as queries de sessão (auditoria 20/09, fase 4)", () => {
+  it("o lote em grupo invalida tanto no sucesso total quanto no parcial", () => {
+    // Sucesso total: todas as pessoas selecionadas.
+    expect(group).toMatch(
+      /await invalidateSessionQueries\(queryClient, \{\s*includeStudentsData: true,\s*studentIds: selectedStudents\.map\(s => s\.id\),\s*\}\);/
+    );
+    // Parcial: quem entrou aparece mesmo com o resto falhando.
+    expect(group).toMatch(
+      /await invalidateSessionQueries\(queryClient, \{ includeStudentsData: true, studentIds: newlySavedIds \}\);/
+    );
+  });
+
+  it("o diálogo individual não carrega mais o hook de mutação que não usa", () => {
+    expect(individual).not.toMatch(/useCreateWorkoutSession/);
+  });
+});
