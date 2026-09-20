@@ -43,6 +43,14 @@ const resolveFrontendUrl = (
 Deno.serve(async (req) => {
   const console = mirrorLogger;
   let mirrorSync: ReturnType<typeof syncContext> | undefined;
+  // Depois que o convite é reivindicado (is_used = true, atômico) e ANTES de
+  // os tokens serem gravados, qualquer erro inesperado deixava o convite
+  // queimado: a aluna não conseguia tentar de novo e via "Internal server
+  // error" cru. Estes dois ganchos deixam o catch externo devolver o convite
+  // e mandar para a página de erro com opção de repetir. Viram null no ponto
+  // sem volta (tokens gravados).
+  let releaseInviteOnUnexpectedFailure: (() => Promise<void>) | null = null;
+  let redirectToOuraError: ((reason: string) => Response) | null = null;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -195,6 +203,10 @@ Deno.serve(async (req) => {
       }
     };
 
+    releaseInviteOnUnexpectedFailure = () => releaseInviteForRetry('unexpected_error');
+    redirectToOuraError = (reason: string) =>
+      Response.redirect(buildOuraErrorUrl(reason, validatedInvite.invite_token), 302);
+
     console.log('Token exchange attempt:', {
       redirectUri,
       frontendUrl,
@@ -254,9 +266,19 @@ Deno.serve(async (req) => {
     const tokenData = await tokenResponse.json();
     console.log('Oura tokens received successfully');
 
+    // expires_in fora do formato esperado fazia `expiresAt.toISOString()`
+    // lançar DEPOIS do claim do convite (o caminho do refresh, no oura-sync,
+    // já validava). Trata como falha de troca: convite volta a valer.
+    const expiresInSeconds = Number(tokenData.expires_in);
+    if (!Number.isFinite(expiresInSeconds) || expiresInSeconds <= 0) {
+      console.error('Oura token response without a usable expires_in');
+      await releaseInviteForRetry('token_expiry');
+      return Response.redirect(buildOuraErrorUrl('token_exchange', validatedInvite.invite_token), 302);
+    }
+
     // Calculate token expiration
     const expiresAt = new Date();
-    expiresAt.setSeconds(expiresAt.getSeconds() + tokenData.expires_in);
+    expiresAt.setSeconds(expiresAt.getSeconds() + expiresInSeconds);
 
     // Reuse validation client for token storage
 
@@ -275,6 +297,10 @@ Deno.serve(async (req) => {
       await releaseInviteForRetry('database');
       return Response.redirect(buildOuraErrorUrl('database', validatedInvite.invite_token), 302);
     }
+
+    // Ponto sem volta: os tokens estão no Vault e a conexão existe. A partir
+    // daqui um erro não pode devolver o convite (a conexão já foi criada).
+    releaseInviteOnUnexpectedFailure = null;
 
     // Tokens já gravados: falha momentânea ao soltar a trava não vira erro para o cliente nem pula o backfill.
     try {
@@ -345,6 +371,14 @@ Deno.serve(async (req) => {
     return Response.redirect(`${frontendUrl}/onboarding/success?student_id=${student_id}`, 302);
   } catch (error) {
     console.error('Error in oura-callback:', error);
+    if (releaseInviteOnUnexpectedFailure) {
+      try {
+        await releaseInviteOnUnexpectedFailure();
+      } catch (releaseError) {
+        console.error('Failed to release Oura invite after unexpected error:', releaseError);
+      }
+    }
+    if (redirectToOuraError) return redirectToOuraError('token_exchange');
     return new Response('Internal server error', { status: 500 });
   } finally { await mirrorSync?.close(); }
 });
