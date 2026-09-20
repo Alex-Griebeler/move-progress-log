@@ -116,7 +116,7 @@ describe("ExerciseFirstSessionEntry — UX overhaul", () => {
         /import\s*\{\s*useSessionDraft\s*\}\s*from\s*"@\/hooks\/useSessionDraft"/,
       );
       expect(componentSrc).toMatch(
-        /\{\s*draft,\s*saveDraft,\s*clearDraft,\s*restoreDraft,\s*isSaving,\s*lastSaved\s*\}\s*=\s*useSessionDraft\(/,
+        /\{\s*storedDraft,\s*saveDraft,\s*clearDraft,\s*restoreDraft,\s*isSaving,\s*lastSaved\s*\}\s*=\s*useSessionDraft\(/,
       );
     });
 

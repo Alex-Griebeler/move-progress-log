@@ -45,6 +45,14 @@ export function useSessionDraft(entityId: string = 'default') {
   const draftKey = scopedDraftKey(`${DRAFT_KEY_PREFIX}${entityId}`, userId);
   const { saveDraftToHistory } = useSessionDraftHistory();
   const [draft, setDraft] = useState<SessionDraft | null>(null);
+  /**
+   * Só o rascunho que veio do NAVEGADOR ao montar (ou de uma restauração
+   * explícita). `draft` também muda a cada salvamento automático, e quem usa
+   * `draft` para repovoar a tela acabava restaurando o rascunho que o próprio
+   * autosave tinha acabado de gravar — um round-trip que desfazia o que
+   * estava sendo digitado (correção de 20/09).
+   */
+  const [storedDraft, setStoredDraft] = useState<SessionDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [lastHistorySave, setLastHistorySave] = useState<Date | null>(null);
@@ -59,6 +67,7 @@ export function useSessionDraft(entityId: string = 'default') {
       try {
         const parsed = JSON.parse(stored) as SessionDraft;
         setDraft(parsed);
+        setStoredDraft(parsed);
         setLastSaved(new Date(parsed.timestamp));
         
         notify.info("Rascunho encontrado", {
@@ -141,6 +150,7 @@ export function useSessionDraft(entityId: string = 'default') {
     if (!draftKey) return;
     localStorage.setItem(draftKey, JSON.stringify(draftData));
     setDraft(draftData);
+    setStoredDraft(draftData);
     setLastSaved(new Date(draftData.timestamp));
     notify.success("Rascunho restaurado", {
       description: "Os dados foram carregados do histórico",
@@ -164,6 +174,7 @@ export function useSessionDraft(entityId: string = 'default') {
 
   return {
     draft,
+    storedDraft,
     saveDraft,
     clearDraft,
     restoreDraft,
