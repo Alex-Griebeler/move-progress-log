@@ -19,6 +19,8 @@ const SESSION_QUERY_ROOTS = [
 type InvalidateSessionQueriesOptions = {
   includeStudentsData?: boolean;
   studentId?: string;
+  /** Várias pessoas de uma vez (salvamento em grupo): mesmas chaves por aluna. */
+  studentIds?: string[];
   refetchActive?: boolean;
 };
 
@@ -27,8 +29,10 @@ export const invalidateSessionQueries = async (
   options?: InvalidateSessionQueriesOptions
 ): Promise<void> => {
   const includeStudentsData = options?.includeStudentsData ?? false;
-  const studentId = options?.studentId;
   const refetchActive = options?.refetchActive ?? true;
+  const studentIds = Array.from(
+    new Set([options?.studentId, ...(options?.studentIds ?? [])].filter((id): id is string => !!id)),
+  );
 
   const queryKeys: Array<readonly unknown[]> = SESSION_QUERY_ROOTS.map((root) => [root]);
 
@@ -36,7 +40,7 @@ export const invalidateSessionQueries = async (
     queryKeys.push(["students"], ["students-card-data"]);
   }
 
-  if (studentId) {
+  for (const studentId of studentIds) {
     queryKeys.push(
       ["student", studentId],
       ["student-prescriptions", studentId],

@@ -9,13 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MultiSegmentRecorder } from "./MultiSegmentRecorder";
 import { SessionContextForm } from "./SessionContextForm";
 import { usePrescriptionDetails } from "@/hooks/usePrescriptions";
-import { useCreateWorkoutSession } from "@/hooks/useWorkoutSessions";
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesInsert } from "@/integrations/supabase/types";
 import { Mic, Save, BookOpen, AlertTriangle, Pencil, Plus } from "lucide-react";
 import { notify } from "@/lib/notify";
 import i18n from "@/i18n/pt-BR.json";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateSessionQueries } from "@/hooks/sessionQueryInvalidation";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { NAV_LABELS } from "@/constants/navigation";
 import { calculateLoadFromBreakdown } from "@/utils/loadCalculation";
@@ -173,7 +173,7 @@ export function RecordIndividualSessionDialog({
     handleExerciseSelected,
   } = useExerciseReplacement(editableExercises, setEditableExercises);
 
-  const createSession = useCreateWorkoutSession();
+  const queryClient = useQueryClient();
   const isReopening = !!existingSessionId;
 
   // Fetch student weight for bodyweight calculations
@@ -631,6 +631,13 @@ export function RecordIndividualSessionDialog({
         const { error: observationsError } = await supabase.from('student_observations').insert(observations);
         if (observationsError) throw observationsError;
       }
+
+      // A sessão gravada tem de aparecer na aba Sessões, na carga sugerida e
+      // nos indicadores SEM recarregar a página: estas queries têm
+      // refetchOnMount/OnWindowFocus desligados, então quem escreve invalida.
+      // O caminho por voz em grupo já fazia isso pelo hook de mutação; os
+      // caminhos manuais gravam direto no banco e não invalidavam nada.
+      await invalidateSessionQueries(queryClient, { includeStudentsData: true, studentId });
 
       const count = exercisesToSave.length;
       notify.success(isReopening ? `Sessão de ${studentName} atualizada` : `Sessão de ${studentName} salva`, {
