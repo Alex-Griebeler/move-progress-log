@@ -42,10 +42,14 @@ jobs:
             core.setOutput('skip', 'false');
             core.setOutput('number', String(prNumber));
 
+      # Sem `ref`, num evento de pull_request o checkout traz o merge do PR —
+      # ou seja, o classificador que decide o merge viria do próprio PR, que
+      # poderia se carimbar safe-auto. Fixado no branch base.
       - name: Checkout
         if: steps.pr.outputs.skip == 'false'
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.base.ref || github.event.repository.default_branch }}
           fetch-depth: 0
 
       - name: Setup Node

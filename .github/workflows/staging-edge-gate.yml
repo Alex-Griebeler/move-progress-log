@@ -23,10 +23,18 @@ concurrency:
 
 jobs:
   smoke-only:
+    # `head_branch == 'main'` NÃO identifica este repositório: num PR vindo de
+    # um fork cujo branch se chama `main`, a execução do CI dispara este
+    # workflow_run com head_branch == 'main' e head_sha do COMMIT DO FORK.
+    # Como o passo de checkout usa esse sha e o job roda um script do próprio
+    # commit, o segredo do job iria para código de terceiro. Só push no
+    # repositório de origem passa.
     if: >
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main') ||
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository) ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
@@ -34,7 +42,6 @@ jobs:
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
       RUN_SERVICE_ROLE_TESTS: ${{ github.event_name == 'workflow_dispatch' && inputs.run_service_role_tests || 'false' }}
 
     steps:
@@ -50,7 +57,11 @@ jobs:
         with:
           ref: ${{ inputs.git_ref != '' && inputs.git_ref || github.sha }}
 
+      # A chave de serviço só entra no ambiente dos passos que a usam, e só
+      # quando os testes de service_role foram pedidos à mão.
       - name: Validate required secrets
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_service_role_tests) && secrets.SUPABASE_SERVICE_ROLE_KEY || '' }}
         run: |
           missing=0
           for v in SUPABASE_URL SUPABASE_ANON_KEY; do
@@ -66,6 +77,8 @@ jobs:
           exit "${missing}"
 
       - name: Run edge auth smoke tests
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ (github.event_name == 'workflow_dispatch' && inputs.run_service_role_tests) && secrets.SUPABASE_SERVICE_ROLE_KEY || '' }}
         run: bash ./scripts/ci-smoke-edge-auth.sh
 
       - name: Upload smoke report
