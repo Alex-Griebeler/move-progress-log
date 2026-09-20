@@ -4,7 +4,7 @@ import { logger } from "@/utils/logger";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
-import { AlertCircle, Target } from "lucide-react";
+import { Activity, AlertCircle, Target } from "lucide-react";
 import { OuraMetrics, spToday } from "@/hooks/useOuraMetrics";
 import { WhoopMetrics } from "@/hooks/useWhoopMetrics";
 import { useTrainingRecommendation } from "@/hooks/useTrainingRecommendation";
@@ -966,38 +966,12 @@ const PersonalizedTrainingDashboard = ({
     return <DataErrorState what="os dados de recuperação" onRetry={onRetry} />;
   }
   if (!snapshot) {
-    // UX-01 (decisão do Alex 15/09: só score de HOJE, sem modo PSR): a frase
-    // curta fica, e o estado ganha CAMINHO — iniciar a sessão pelo mesmo
-    // fluxo do hero (sem conduta, sem prescrição escopada) e, quando nenhum
-    // aparelho está conectado, ir à aba do aparelho para conectar.
-    const noDeviceConnected =
-      hasOuraConnection === false && whoopConnection === null && !whoopConnectionError;
+    // Sem score fechado de HOJE (decisão do Alex 15/09: o hero só usa hoje).
     return (
-      <Card className="border-l-2 border-l-primary p-6">
-        <div className="flex flex-col items-start gap-3">
-          <p className="text-base font-medium">Sem dados recentes de recuperação</p>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <Button onClick={() => onStartTraining?.(null)}>Iniciar treino</Button>
-            {noDeviceConnected && onConnectDevice && (
-              <span className="flex flex-wrap items-center gap-x-3 text-sm">
-                <button
-                  type="button"
-                  className="inline-flex min-h-10 items-center text-primary underline-offset-4 hover:underline"
-                  onClick={() => onConnectDevice("oura")}
-                >
-                  Conectar Oura
-                </button>
-                <span aria-hidden="true" className="text-muted-foreground">·</span>
-                <button
-                  type="button"
-                  className="inline-flex min-h-10 items-center text-primary underline-offset-4 hover:underline"
-                  onClick={() => onConnectDevice("whoop")}
-                >
-                  Conectar Whoop
-                </button>
-              </span>
-            )}
-          </div>
+      <Card className="p-6">
+        <div className="text-center text-muted-foreground">
+          <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>Sem dados recentes de recuperação</p>
         </div>
       </Card>
     );

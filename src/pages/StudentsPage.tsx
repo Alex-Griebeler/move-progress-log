@@ -8,10 +8,7 @@ import { StudentCardSkeleton } from "@/components/skeletons/StudentCardSkeleton"
 import { Users, Edit, Trash2, GitCompare, Plus, Link2, Mic, UserPlus, Info, AlertCircle, AlertTriangle, CheckCircle2, MinusCircle, Search, Shield, NotebookPen, MoreVertical, RefreshCw, Activity, X, UserX, TrendingDown } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ErrorState } from "@/components/ErrorState";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { useStudentsRecoveryToday, type StudentRecoveryToday } from "@/hooks/useStudentsRecoveryToday";
 import type { RecoverySnapshot } from "@/utils/recoverySnapshot";
-import { sortStudents, type StudentsSortMode } from "@/utils/studentsAttention";
 
 import { Link, useSearchParams } from "react-router-dom";
 import { ROUTES } from "@/constants/navigation";
@@ -84,9 +81,6 @@ const getMissingFields = (student: Student) => {
 interface StudentCardProps {
   student: Student;
   cardData: StudentCardData | undefined;
-  recovery: StudentRecoveryToday | undefined;
-  /** Estado da consulta da leitura de hoje: erro nunca vira "sem leitura". */
-  recoveryStatus: "loading" | "error" | "ready";
   inactive7d: boolean;
   onEdit: (student: Student) => void;
   onDelete: (id: string) => void;
@@ -100,8 +94,6 @@ interface StudentCardProps {
 const StudentCard = memo(({
   student,
   cardData,
-  recovery,
-  recoveryStatus,
   inactive7d,
   onEdit,
   onDelete,
@@ -111,17 +103,14 @@ const StudentCard = memo(({
 }: StudentCardProps) => {
   const [showObservationsDialog, setShowObservationsDialog] = useState(false);
 
-  const snapshot = recovery?.snapshot ?? null;
   const importantObservations = cardData?.importantObservations ?? [];
   const ouraStatus = cardData?.ouraStatus ?? { isConnected: false, hasIssues: false };
-  const hasWhoop = recovery?.hasWhoop ?? false;
+  const hasWhoop = false;
   const hasDevice = ouraStatus.isConnected || hasWhoop;
   const hasImportantObservations = importantObservations.length > 0;
 
   const missingFields = getMissingFields(student);
   const hasIncompleteData = missingFields.length > 0;
-  const zone = snapshot ? ZONE_PRESENTATION[snapshot.zone] : null;
-  const ZoneIcon = zone?.icon;
 
   return (
     <>
@@ -211,37 +200,6 @@ const StudentCard = memo(({
           </div>
 
           <div className="space-y-sm">
-            {snapshot && zone && ZoneIcon ? (
-              <div className="flex items-end justify-between border-t border-border/50 pt-sm">
-                <div className="flex flex-col">
-                  <span className="text-caption text-muted-foreground">
-                    {snapshot.source === "oura" ? "Prontidão hoje · Oura" : "Recuperação hoje · Whoop"}
-                  </span>
-                  {/* Score 0–100 do aparelho, não porcentagem. */}
-                  <span className={`text-2xl font-semibold tabular-nums ${zone.className}`}>
-                    {snapshot.score}
-                  </span>
-                </div>
-                <span className={`inline-flex items-center gap-1 text-caption font-medium ${zone.className}`}>
-                  <ZoneIcon className="h-3.5 w-3.5" aria-hidden="true" />
-                  {zone.label}
-                </span>
-              </div>
-            ) : ouraStatus.isConnected && ouraStatus.hasIssues ? (
-              <p className="flex items-center gap-1 border-t border-border/50 pt-sm text-caption text-muted-foreground">
-                <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
-                Oura sem sincronizar
-              </p>
-            ) : hasDevice || recoveryStatus !== "ready" ? (
-              <p className="border-t border-border/50 pt-sm text-caption text-muted-foreground">
-                {recoveryStatus === "loading"
-                  ? "Carregando leitura de hoje"
-                  : recoveryStatus === "error"
-                    ? "Leitura de hoje indisponível"
-                    : "Sem leitura de hoje"}
-              </p>
-            ) : null}
-
             {(inactive7d || hasImportantObservations) && (
               <div className="relative z-10 flex flex-wrap items-center gap-x-sm gap-y-1">
                 {inactive7d && (
@@ -282,8 +240,6 @@ const StudentCard = memo(({
     prevProps.student.name === nextProps.student.name &&
     prevProps.student.updated_at === nextProps.student.updated_at &&
     prevProps.cardData === nextProps.cardData &&
-    prevProps.recovery === nextProps.recovery &&
-    prevProps.recoveryStatus === nextProps.recoveryStatus &&
     prevProps.inactive7d === nextProps.inactive7d;
 });
 
@@ -320,7 +276,6 @@ const StudentsPage = () => {
   const [ouraConnectStudentId, setOuraConnectStudentId] = useState<string | null>(null);
   const [ouraConnectStudentName, setOuraConnectStudentName] = useState<string>("");
   // Padrão: quem precisa de atenção primeiro; A–Z como alternativa.
-  const [sortMode, setSortMode] = useState<StudentsSortMode>("attention");
 
   // Batch hook - busca dados de todos os alunos em 3 queries em vez de N*3
   const studentIds = useMemo(() => students?.map(s => s.id) ?? [], [students]);
@@ -329,16 +284,6 @@ const StudentsPage = () => {
     isLoading: isCardDataLoading,
     isError: isCardDataError,
   } = useStudentsCardData(studentIds);
-  const {
-    data: recoveryToday,
-    isLoading: isRecoveryLoading,
-    isError: isRecoveryError,
-  } = useStudentsRecoveryToday(studentIds);
-  const recoveryStatus: "loading" | "error" | "ready" = isRecoveryError
-    ? "error"
-    : isRecoveryLoading
-      ? "loading"
-      : "ready";
   // Mesma RPC do KPI "Sem treinar há 7+ dias" da home.
   const {
     data: inactive7dSet,
@@ -347,12 +292,6 @@ const StudentsPage = () => {
   } = useStudentsActivityFilter(INACTIVE_7D_FILTER);
   // A ordem "Atenção primeiro" depende de três sinais: espera todos (sem
   // embaralhar a lista quando cada um chega) e diz qual faltou se algum falhar.
-  const attentionSignalsLoading = isRecoveryLoading || isCardDataLoading || isInactive7dLoading;
-  const attentionSignalsMissing = [
-    isRecoveryError && "leituras de hoje",
-    isInactive7dError && "dias sem treino",
-    isCardDataError && "observações",
-  ].filter((x): x is string => Boolean(x));
 
   // Drill-down filter from dashboard KPIs (?inactive=N | ?dropping=true)
   const activityFilter = useMemo<StudentsActivityFilter>(() => {
@@ -404,16 +343,8 @@ const StudentsPage = () => {
       const matchesActivity = activityFilterSet ? activityFilterSet.has(student.id) : true;
       return matchesName && matchesActivity;
     });
-    return sortStudents(matching, sortMode, (student) => {
-      const observations = studentsCardData?.[student.id]?.importantObservations ?? [];
-      return {
-        zone: recoveryToday?.[student.id]?.snapshot?.zone ?? null,
-        inactive7d: inactive7dSet?.has(student.id) ?? false,
-        highSeverityObservations: observations.filter((o) => o.severity === "alta").length,
-        openObservations: observations.length,
-      };
-    });
-  }, [students, searchTerm, activityFilterSet, sortMode, studentsCardData, recoveryToday, inactive7dSet]);
+    return matching;
+  }, [students, searchTerm, activityFilterSet]);
   const totalStudents = students?.length ?? 0;
 
   const activityFilterCount = activityFilterSet?.size ?? null;
@@ -514,26 +445,7 @@ const StudentsPage = () => {
                   : `${filteredStudents.length} de ${totalStudents}`}
               </span>
             )}
-            <ToggleGroup
-              type="single"
-              value={sortMode}
-              onValueChange={(value) => value && setSortMode(value as StudentsSortMode)}
-              aria-label="Ordenar lista"
-              className="rounded-md border p-0.5"
-            >
-              <ToggleGroupItem value="attention" className="h-10 px-3 text-sm">
-                Atenção primeiro
-              </ToggleGroupItem>
-              <ToggleGroupItem value="alpha" className="h-10 px-3 text-sm">
-                A–Z
-              </ToggleGroupItem>
-            </ToggleGroup>
           </div>
-          {sortMode === "attention" && attentionSignalsMissing.length > 0 && (
-            <p className="text-caption text-muted-foreground" role="status">
-              Não foi possível carregar {attentionSignalsMissing.join(", ")}. A ordem por atenção usa só o que carregou.
-            </p>
-          )}
         </div>
 
         {activityFilterLabel && ActivityFilterIcon && (
@@ -576,7 +488,7 @@ const StudentsPage = () => {
             description="Verifique a conexão e tente de novo. Nenhum cadastro foi alterado."
             onRetry={() => refetch()}
           />
-        ) : isLoading || isApplyingActivityFilter || (sortMode === "attention" && attentionSignalsLoading) ? (
+        ) : isLoading || isApplyingActivityFilter ? (
           <div className="grid gap-md md:grid-cols-2 lg:grid-cols-3">
             {[...Array(6)].map((_, i) => (
               <StudentCardSkeleton key={i} />
@@ -589,8 +501,6 @@ const StudentsPage = () => {
                 key={student.id} 
                 student={student}
                 cardData={studentsCardData?.[student.id]}
-                recovery={recoveryToday?.[student.id]}
-                recoveryStatus={recoveryStatus}
                 inactive7d={inactive7dSet?.has(student.id) ?? false}
                 onEdit={setEditingStudent}
                 onDelete={setDeletingStudentId}

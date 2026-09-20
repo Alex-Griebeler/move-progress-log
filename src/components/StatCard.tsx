@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { LucideIcon, TrendingUp, TrendingDown, AlertTriangle, AlertCircle, CheckCircle2 } from "lucide-react";
+import { LucideIcon, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type StatCardTone = "default" | "success" | "warning" | "danger";
@@ -43,13 +43,6 @@ const TONE_ICON_CLASS: Record<StatCardTone, string> = {
   danger: "bg-destructive/10 text-destructive",
 };
 
-const TONE_STATUS: Record<StatCardTone, { label: string; icon: LucideIcon; className: string } | null> = {
-  default: null,
-  success: { label: "Em dia", icon: CheckCircle2, className: "text-success" },
-  warning: { label: "Atenção", icon: AlertTriangle, className: "text-warning" },
-  danger: { label: "Prioridade", icon: AlertCircle, className: "text-destructive" },
-};
-
 const NO_DATA_VALUES = new Set(["—", "-", "--", ""]);
 
 const StatCard = ({
@@ -67,8 +60,6 @@ const StatCard = ({
   // Sem número, sem tom: um "—" vermelho diria "prioridade" sobre um dado ausente.
   const tone: StatCardTone =
     typeof value === "string" && NO_DATA_VALUES.has(value.trim()) ? "default" : toneProp;
-  const status = TONE_STATUS[tone];
-  const StatusIcon = status?.icon;
 
   return (
     <Card
@@ -96,12 +87,6 @@ const StatCard = ({
           <div className={cn("text-display tabular-nums", TONE_VALUE_CLASS[tone])}>
             {value}
           </div>
-          {status && tone !== "success" && StatusIcon && (
-            <span className={cn("inline-flex items-center gap-1 text-caption font-medium", status.className)}>
-              <StatusIcon className="h-3.5 w-3.5" aria-hidden="true" />
-              {status.label}
-            </span>
-          )}
           {trend && (
             <div className={`flex items-center gap-xs text-xs font-semibold ${
               trend.value > 0 ? 'text-success' : trend.value < 0 ? 'text-destructive' : 'text-muted-foreground'
