@@ -119,10 +119,12 @@ export function createAppQueryClient(): QueryClient {
 // getOrCreateStudent) ou fluxos imperativos (serialQueue do dashboard) — não
 // passam por aqui e sairiam com o token da identidade nova; no padrão
 // `getUser()` → `insert({ trainer_id: user.id })`, a linha de A pode ser
-// gravada com o user.id de B. Rascunhos em localStorage (usePrescriptionDraft,
-// useSessionDraft, *DraftHistory) também não têm identidade na chave. Fechar
-// isso exige cliente de dados por época e chaves por userId (migração dos
-// consumidores), fora deste patch.
+// gravada com o user.id de B. Fechar isso exige cliente de dados por época e
+// migração dos consumidores, fora daquele patch.
+// (A parte dos rascunhos em localStorage — usePrescriptionDraft,
+// useSessionDraft, *DraftHistory — foi fechada depois: as chaves carregam o
+// userId e a troca de identidade varre o que é de outra pessoa. Ver
+// src/lib/draftStorage.ts.)
 // ---------------------------------------------------------------------------
 const neverSettle = (): Promise<never> => new Promise<never>(() => {});
 
