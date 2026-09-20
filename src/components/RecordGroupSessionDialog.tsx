@@ -55,6 +55,8 @@ import { ValidationAlerts } from "@/components/session/ValidationAlerts";
 import { PrescriptionSidebar } from "@/components/session/PrescriptionSidebar";
 import { DiscardSessionConfirm } from "@/components/session/DiscardSessionConfirm";
 import { STICKY_FOOTER_CLASS } from "@/components/session/dialogLayout";
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateSessionQueries } from "@/hooks/sessionQueryInvalidation";
 import { describePartialGroupSave, type GroupSaveOutcome } from "@/components/session/groupSaveOutcome";
 import {
   forgetLocallySaved,
@@ -355,6 +357,7 @@ export function RecordGroupSessionDialog({
   const { data: assignments } = usePrescriptionAssignments(effectivePrescriptionId);
   const { data: prescriptionDetails } = usePrescriptionDetails(effectivePrescriptionId);
   const createGroupSessions = useCreateGroupWorkoutSessions();
+  const queryClient = useQueryClient();
   
   useEffect(() => { logger.debug("Dialog State mudou para:", dialogState); }, [dialogState]);
   useEffect(() => { logger.debug("Merged Students atualizado:", mergedStudents.length, "alunos"); }, [mergedStudents]);
@@ -957,6 +960,8 @@ export function RecordGroupSessionDialog({
         if (newlySavedIds.length > 0) {
           setManualSavedStudentIds(prev => [...prev, ...newlySavedIds]);
           rememberLocallySaved(effectivePrescriptionId ?? null, date, time, newlySavedIds);
+          // Quem entrou aparece na tela mesmo com o lote incompleto.
+          await invalidateSessionQueries(queryClient, { includeStudentsData: true, studentIds: newlySavedIds });
         }
         setLastPartialSave(outcome);
         notify.error(
@@ -966,6 +971,13 @@ export function RecordGroupSessionDialog({
         // Mantém o rascunho (ExerciseFirstSessionEntry só limpa em sucesso).
         throw new PartialGroupSaveError();
       }
+
+      // Gravação direta no banco (sem hook de mutação): quem escreve invalida,
+      // senão a aba Sessões e os indicadores seguem mostrando o estado velho.
+      await invalidateSessionQueries(queryClient, {
+        includeStudentsData: true,
+        studentIds: selectedStudents.map(s => s.id),
+      });
 
       const total = outcome.saved.length;
       notify.success(total === 1 ? "1 sessão salva" : `${total} sessões salvas`, { description: outcome.saved.join(", ") });
