@@ -31,6 +31,7 @@ import { buildErrorDescription } from "@/utils/errorParsing";
 import { invalidateSessionQueries } from "@/hooks/sessionQueryInvalidation";
 import { ExerciseSelectionDialog } from "./ExerciseSelectionDialog";
 import { LoadingState } from "./LoadingState";
+import { ErrorState } from "@/components/ErrorState";
 
 interface EditSessionDialogProps {
   open: boolean;
@@ -82,6 +83,7 @@ export function EditSessionDialog({
   const [loading, setLoading] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
   const [exerciseSelectionTarget, setExerciseSelectionTarget] = useState<{
     index: number;
@@ -91,6 +93,12 @@ export function EditSessionDialog({
   const loadSessionData = useCallback(async () => {
     if (!sessionId) return;
 
+    // Sem esta limpeza, uma leitura que falha deixa na tela a sessão ANTERIOR:
+    // "Salvar" então rodaria o DELETE … NOT IN (ids da outra sessão) contra a
+    // sessão de agora e apagaria os exercícios dela (auditoria 20/09, fase 4).
+    setSessionData(null);
+    setExercises([]);
+    setLoadFailed(false);
     setLoading(true);
     try {
       const { data: session, error: sessionError } = await supabase
@@ -126,6 +134,7 @@ export function EditSessionDialog({
       setSessionData(session);
       setExercises(exercisesData || []);
     } catch (error: unknown) {
+      setLoadFailed(true);
       notify.error("Erro ao carregar sessão", {
         description: buildErrorDescription(error) || "Erro desconhecido",
       });
@@ -232,7 +241,9 @@ export function EditSessionDialog({
   };
 
   const handleSave = async (finalize: boolean = false) => {
-    if (!sessionId) return;
+    // Só grava com a sessão CARREGADA em mãos: `exercises` vazio por falha de
+    // leitura significaria apagar todos os exercícios da sessão.
+    if (!sessionId || !sessionData) return;
 
     const unlinkedExercise = exercises.find(exercise => !exercise.exercise_library_id);
     if (unlinkedExercise) {
@@ -486,9 +497,18 @@ export function EditSessionDialog({
               </div>
             </>
           ) : (
-            <DialogHeader>
-              <DialogTitle>Editar sessão</DialogTitle>
-            </DialogHeader>
+            <>
+              <DialogHeader>
+                <DialogTitle>Editar sessão</DialogTitle>
+              </DialogHeader>
+              {loadFailed && (
+                <ErrorState
+                  title="Não foi possível carregar a sessão"
+                  description="Nada foi alterado. Tente de novo ou feche e abra a sessão."
+                  onRetry={() => { void loadSessionData(); }}
+                />
+              )}
+            </>
           )}
 
           <DialogFooter className="gap-2 flex-wrap">
@@ -508,16 +528,18 @@ export function EditSessionDialog({
                 Adicionar gravações
               </Button>
             )}
-            <Button variant="outline" onClick={() => handleSave(false)} disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                "Salvar rascunho"
-              )}
-            </Button>
+            {sessionData && (
+              <Button variant="outline" onClick={() => handleSave(false)} disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  "Salvar rascunho"
+                )}
+              </Button>
+            )}
             {sessionData && !sessionData.is_finalized && (
               <Button onClick={handleFinalizeClick} disabled={loading}>
                 {loading ? (
