@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from '@/lib/notify';
+import { useAuth } from '@/hooks/useAuth';
+import { scopedDraftKey } from '@/lib/draftStorage';
 import { logger } from '@/utils/logger';
 import { useSessionDraftHistory } from './useSessionDraftHistory';
 
@@ -37,7 +39,10 @@ const DEBOUNCE_MS = 1000;
 const SAVE_TO_HISTORY_INTERVAL = 60000; // Salvar no histórico a cada 60 segundos
 
 export function useSessionDraft(entityId: string = 'default') {
-  const draftKey = `${DRAFT_KEY_PREFIX}${entityId}`;
+  // A chave carrega o id de quem está logado: no tablet do estúdio o rascunho
+  // de um treinador não pode reaparecer para o próximo (ver lib/draftStorage).
+  const { userId } = useAuth();
+  const draftKey = scopedDraftKey(`${DRAFT_KEY_PREFIX}${entityId}`, userId);
   const { saveDraftToHistory } = useSessionDraftHistory();
   const [draft, setDraft] = useState<SessionDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -48,6 +53,7 @@ export function useSessionDraft(entityId: string = 'default') {
 
   // Carregar rascunho ao montar
   useEffect(() => {
+    if (!draftKey) return;
     const stored = localStorage.getItem(draftKey);
     if (stored) {
       try {
@@ -67,6 +73,7 @@ export function useSessionDraft(entityId: string = 'default') {
 
   // Salvar rascunho com debounce
   const saveDraft = useCallback((data: Partial<SessionDraft>) => {
+    if (!draftKey) return;
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
@@ -103,7 +110,7 @@ export function useSessionDraft(entityId: string = 'default') {
 
   // Limpar rascunho
   const clearDraft = useCallback(() => {
-    localStorage.removeItem(draftKey);
+    if (draftKey) localStorage.removeItem(draftKey);
     setDraft(null);
     setLastSaved(null);
     setLastHistorySave(null);
@@ -131,6 +138,7 @@ export function useSessionDraft(entityId: string = 'default') {
 
   // Restaurar de um rascunho do histórico
   const restoreDraft = useCallback((draftData: SessionDraft) => {
+    if (!draftKey) return;
     localStorage.setItem(draftKey, JSON.stringify(draftData));
     setDraft(draftData);
     setLastSaved(new Date(draftData.timestamp));

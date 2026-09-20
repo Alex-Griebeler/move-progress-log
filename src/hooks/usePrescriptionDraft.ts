@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from '@/lib/notify';
 import { logger } from '@/utils/logger';
 import { usePrescriptionDraftHistory } from './usePrescriptionDraftHistory';
+import { useAuth } from '@/hooks/useAuth';
+import { scopedDraftKey } from '@/lib/draftStorage';
 
 export type PrescriptionType = 'group' | 'individual';
 
@@ -40,7 +42,12 @@ const DEBOUNCE_MS = 1000;
 const SAVE_TO_HISTORY_INTERVAL = 60000; // 60 segundos
 
 export function usePrescriptionDraft(entityId?: string) {
-  const draftKey = entityId ? `prescription-draft-${entityId}` : 'prescription-draft';
+  // Chave por treinador (ver lib/draftStorage).
+  const { userId } = useAuth();
+  const draftKey = scopedDraftKey(
+    entityId ? `prescription-draft-${entityId}` : 'prescription-draft',
+    userId,
+  );
   const { saveDraftToHistory } = usePrescriptionDraftHistory();
   const [draft, setDraft] = useState<PrescriptionDraft | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -50,6 +57,7 @@ export function usePrescriptionDraft(entityId?: string) {
 
   // Carregar rascunho ao montar
   useEffect(() => {
+    if (!draftKey) return;
     const stored = localStorage.getItem(draftKey);
     if (stored) {
       try {
@@ -58,7 +66,8 @@ export function usePrescriptionDraft(entityId?: string) {
         setLastSaved(new Date(parsed.timestamp));
       } catch (error) {
         logger.error('Erro ao carregar rascunho:', error);
-        localStorage.removeItem(draftKey);
+        if (!draftKey) return;
+    localStorage.removeItem(draftKey);
       }
     }
   }, [draftKey]);
@@ -80,6 +89,7 @@ export function usePrescriptionDraft(entityId?: string) {
         exercises: data.exercises || [],
       };
 
+      if (!draftKey) return;
       localStorage.setItem(draftKey, JSON.stringify(draftData));
       setDraft(draftData);
       setLastSaved(new Date());
@@ -146,6 +156,7 @@ export function usePrescriptionDraft(entityId?: string) {
 
   // Restaurar de um rascunho do histórico
   const restoreDraft = useCallback((draftData: PrescriptionDraft) => {
+    if (!draftKey) return;
     localStorage.setItem(draftKey, JSON.stringify(draftData));
     setDraft(draftData);
     setLastSaved(new Date(draftData.timestamp));

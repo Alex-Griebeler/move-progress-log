@@ -21,6 +21,7 @@ import {
   type AuthSessionLike,
 } from "@/lib/authIdentity";
 import { notify } from "@/lib/notify";
+import { purgeDraftsOutsideIdentity, purgeSessionScopedPrivateData } from "@/lib/draftStorage";
 import { logger } from "@/utils/logger";
 
 interface ProviderProps {
@@ -88,6 +89,11 @@ export function AuthProvider({ children }: ProviderProps) {
         disposeIdentityQueryClient(prev.queryClient);
         dismissPrivateNotifications();
       }
+      // Rascunhos e marcações de sessão guardam nome, peso, carga e observação
+      // de aluna. Na troca de identidade, o que não é da pessoa que entrou sai
+      // do navegador (fecha o residual de chaves sem userId da A-001).
+      purgeDraftsOutsideIdentity(identity.userId);
+      purgeSessionScopedPrivateData();
       const next: AuthContextValue = {
         identity,
         queryClient: identity.status === "signed-in" ? createIdentityQueryClient() : null,
