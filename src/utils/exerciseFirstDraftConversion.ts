@@ -46,6 +46,11 @@ export interface DraftExerciseRow {
   exercise_name: string;
   sets: number;
   reps: number;
+  /**
+   * PSE executada (campo livre). Opcional porque rascunhos gravados antes
+   * desta versão não têm o campo — nesses, a leitura cai na PSE prescrita.
+   */
+  reserve_reps?: string;
   load_kg: number | null;
   load_breakdown: string;
   observations: string;
@@ -60,8 +65,9 @@ export type DraftStudentExercises = Record<string, DraftExerciseRow[]>;
 /**
  * Converte o estado por-exercício para a forma canônica do rascunho.
  * Itera `prescriptionExercises` em ordem; campos ausentes recebem defaults
- * da prescrição. `reserve_reps` (PSE) NÃO trafega no rascunho — a forma
- * canônica não tem esse campo (escopo: não alterar o schema do rascunho).
+ * da prescrição. `reserve_reps` (PSE) trafega no rascunho desde a correção de
+ * 20/09: sem ele, uma restauração devolvia a PSE PRESCRITA no lugar da
+ * executada e o valor errado ia para o banco.
  */
 export const exerciseFirstDataToDraftStudentExercises = (
   data: ExerciseFirstData,
@@ -77,6 +83,7 @@ export const exerciseFirstDataToDraftStudentExercises = (
         exercise_name: entry?.exercise_name ?? px.exercise_name,
         sets: entry?.sets ?? 0,
         reps: entry?.reps ?? 0,
+        reserve_reps: entry?.reserve_reps ?? "",
         load_kg: entry?.load_kg ?? null,
         load_breakdown: entry?.load_breakdown ?? "",
         observations: entry?.observations ?? "",
@@ -89,8 +96,8 @@ export const exerciseFirstDataToDraftStudentExercises = (
 /**
  * Inverso da função acima: rebuild do mapa por-exercício a partir do
  * rascunho. Quando o rascunho não tem entry para um (aluno, índice), cai
- * para os defaults da prescrição. `reserve_reps` (PSE) volta do
- * `pse` prescrito porque não está no rascunho.
+ * para os defaults da prescrição — inclusive a PSE, que em rascunho antigo
+ * (sem o campo) volta da prescrição.
  */
 export const draftStudentExercisesToExerciseFirstData = (
   studentExercises: DraftStudentExercises,
@@ -108,8 +115,9 @@ export const draftStudentExercisesToExerciseFirstData = (
         exercise_name: entry?.exercise_name ?? px.exercise_name,
         sets: entry?.sets ?? (parseInt(px.sets) || 0),
         reps: entry?.reps ?? (parseInt(px.reps) || 0),
-        // reserve_reps (PSE) não está no rascunho — volta da prescrição.
-        reserve_reps: px.pse || "",
+        // PSE executada do rascunho; rascunho antigo não tem o campo e cai
+        // na prescrita.
+        reserve_reps: entry?.reserve_reps ?? (px.pse || ""),
         load_kg: entry?.load_kg ?? null,
         load_breakdown: entry?.load_breakdown ?? "",
         observations: entry?.observations ?? "",

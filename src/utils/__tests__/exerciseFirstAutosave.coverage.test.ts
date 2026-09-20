@@ -42,9 +42,11 @@ describe("ExerciseFirstSessionEntry — autosave de rascunho", () => {
       );
     });
 
-    it("consome draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved", () => {
+    // `storedDraft` (e não `draft`) é o que repovoa a tela: `draft` muda a
+    // cada autosave e restaurar a partir dele desfazia a digitação (20/09).
+    it("consome storedDraft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved", () => {
       expect(componentSrc).toMatch(
-        /\{\s*draft,\s*saveDraft,\s*clearDraft,\s*restoreDraft,\s*isSaving,\s*lastSaved\s*\}\s*=\s*useSessionDraft\(/,
+        /\{\s*storedDraft,\s*saveDraft,\s*clearDraft,\s*restoreDraft,\s*isSaving,\s*lastSaved\s*\}\s*=\s*useSessionDraft\(/,
       );
     });
 
@@ -67,10 +69,10 @@ describe("ExerciseFirstSessionEntry — autosave de rascunho", () => {
       expect(componentSrc).toMatch(/if\s*\(Object\.keys\(data\)\.length\s*===\s*0\)\s*return;/);
     });
 
-    it("restaura draft do localStorage em useEffect protegido por ref", () => {
+    it("restaura o rascunho DO NAVEGADOR em useEffect protegido por ref", () => {
       expect(componentSrc).toMatch(/draftRestoredRef\s*=\s*useRef\(false\)/);
       expect(componentSrc).toMatch(
-        /setData\(\s*draftStudentExercisesToExerciseFirstData\(\s*draft\.studentExercises/,
+        /setData\(\s*draftStudentExercisesToExerciseFirstData\(\s*storedDraft\.studentExercises/,
       );
       expect(componentSrc).toContain("draftRestoredRef.current = true");
     });

@@ -127,7 +127,7 @@ export function ExerciseFirstSessionEntry({
   const draftEntityId = `exercise-first-${draftScope ? `${draftScope}-` : ""}${prescriptionId ?? "no-prescription"}`;
   // Com uma pessoa só (sessão individual) somem os controles de grupo.
   const isSingleStudent = selectedStudents.length === 1;
-  const { draft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } =
+  const { storedDraft, saveDraft, clearDraft, restoreDraft, isSaving, lastSaved } =
     useSessionDraft(draftEntityId);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const draftRestoredRef = useRef(false);
@@ -193,11 +193,16 @@ export function ExerciseFirstSessionEntry({
   // Restore draft once per mount when one exists in localStorage. Walks
   // the draft's studentExercises and merges into `data`; prescription
   // defaults fill any gap (e.g. when students/prescription changed).
+  //
+  // Usa `storedDraft` (o que estava no navegador), NÃO `draft`: `draft` também
+  // muda a cada salvamento automático, e restaurar a partir dele desfazia o
+  // que estava sendo digitado — a PSE voltava à prescrita e a tela pulava para
+  // o primeiro exercício cerca de um segundo depois (correção de 20/09).
   useEffect(() => {
     if (
       draftRestoredRef.current ||
-      !draft?.studentExercises ||
-      Object.keys(draft.studentExercises).length === 0 ||
+      !storedDraft?.studentExercises ||
+      Object.keys(storedDraft.studentExercises).length === 0 ||
       selectedStudents.length === 0 ||
       prescriptionExercises.length === 0
     ) {
@@ -205,14 +210,14 @@ export function ExerciseFirstSessionEntry({
     }
     setData(
       draftStudentExercisesToExerciseFirstData(
-        draft.studentExercises,
+        storedDraft.studentExercises,
         selectedStudents,
         prescriptionExercises,
       ),
     );
     setExerciseIndex(0);
     draftRestoredRef.current = true;
-  }, [draft, selectedStudents, prescriptionExercises]);
+  }, [storedDraft, selectedStudents, prescriptionExercises]);
 
   // Auto-save on any meaningful change. Mirrors ManualSessionEntry's guard
   // (skip until `data` has been initialized).
