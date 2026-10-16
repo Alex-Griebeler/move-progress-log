@@ -84,9 +84,10 @@ const whoopRow = (date = spToday()): WhoopMetrics =>
 interface HarnessProps {
   whoopMetrics?: WhoopMetrics[];
   isError?: boolean;
+  maxHeartRate?: number | null;
 }
 
-const Harness = ({ whoopMetrics = [whoopRow()], isError = false }: HarnessProps) => {
+const Harness = ({ whoopMetrics = [whoopRow()], isError = false, maxHeartRate = null }: HarnessProps) => {
   const [client] = [new QueryClient({ defaultOptions: { queries: { retry: false } } })];
   return (
     <QueryClientProvider client={client}>
@@ -101,6 +102,7 @@ const Harness = ({ whoopMetrics = [whoopRow()], isError = false }: HarnessProps)
             isLoading={false}
             isError={isError}
             latestOuraError={false}
+            maxHeartRate={maxHeartRate}
           />
         </TrainingProvider>
       </MemoryRouter>
@@ -121,6 +123,12 @@ describe("dashboard — regra de concordância na árvore renderizada (v9.2)", (
     expect(screen.getByText("Sem dados recentes de recuperação")).toBeVisible();
     expect(screen.queryByLabelText("Conduta do dia")).not.toBeInTheDocument();
     expect(screen.queryByText("Sugestões de carga")).not.toBeInTheDocument();
+  });
+
+  it("sem score de hoje mantém as zonas de FC visíveis", () => {
+    render(<Harness whoopMetrics={[]} maxHeartRate={180} />);
+    expect(screen.getByText("Sem dados recentes de recuperação")).toBeVisible();
+    expect(screen.getByText(/Zonas de frequência cardíaca \(FCmáx 180 bpm\)/)).toBeInTheDocument();
   });
 
   it("score fechado somente ontem não vira conduta", () => {
