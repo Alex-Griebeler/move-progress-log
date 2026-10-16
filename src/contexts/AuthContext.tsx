@@ -93,7 +93,10 @@ export function AuthProvider({ children }: ProviderProps) {
       // de aluna. Na troca de identidade, o que não é da pessoa que entrou sai
       // do navegador (fecha o residual de chaves sem userId da A-001).
       purgeDraftsOutsideIdentity(identity.userId);
-      purgeSessionScopedPrivateData();
+      // Só limpa o sessionStorage em troca real de pessoa (ou logout); a
+      // carga inicial da página (prev sem userId) preserva os registros.
+      const prevUserId = prev.identity.userId;
+      if (prevUserId && prevUserId !== identity.userId) purgeSessionScopedPrivateData();
       const next: AuthContextValue = {
         identity,
         queryClient: identity.status === "signed-in" ? createIdentityQueryClient() : null,
