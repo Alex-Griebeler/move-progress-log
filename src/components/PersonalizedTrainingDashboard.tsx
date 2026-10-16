@@ -965,15 +965,36 @@ const PersonalizedTrainingDashboard = ({
   if (isError && !snapshot) {
     return <DataErrorState what="os dados de recuperação" onRetry={onRetry} />;
   }
+  // Zonas de FC independem do score do dia: aparecem com ou sem snapshot.
+  const zonesSection = maxHeartRate ? (
+    <Accordion type="single" collapsible>
+      <AccordionItem value="zonas" className="rounded-lg border px-4">
+        <AccordionTrigger className="text-sm font-semibold">
+          <span className="flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary" />
+            Zonas de frequência cardíaca (FCmáx {maxHeartRate} bpm)
+          </span>
+        </AccordionTrigger>
+        <AccordionContent>
+          <TrainingZonesCard maxHeartRate={maxHeartRate} embedded />
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  ) : null;
+
   if (!snapshot) {
     // Sem score fechado de HOJE (decisão do Alex 15/09: o hero só usa hoje).
+    // A frase ocupa só o lugar da conduta; o que não depende do score segue.
     return (
-      <Card className="p-6">
-        <div className="text-center text-muted-foreground">
-          <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <p>Sem dados recentes de recuperação</p>
-        </div>
-      </Card>
+      <div className="space-y-6">
+        <Card className="p-6">
+          <div className="text-center text-muted-foreground">
+            <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p>Sem dados recentes de recuperação</p>
+          </div>
+        </Card>
+        {zonesSection}
+      </div>
     );
   }
 
@@ -1913,21 +1934,7 @@ const PersonalizedTrainingDashboard = ({
       )}
 
       {/* Zonas de FC — referência estática, colapsada */}
-      {maxHeartRate ? (
-        <Accordion type="single" collapsible>
-          <AccordionItem value="zonas" className="rounded-lg border px-4">
-            <AccordionTrigger className="text-sm font-semibold">
-              <span className="flex items-center gap-2">
-                <Target className="h-4 w-4 text-primary" />
-                Zonas de frequência cardíaca (FCmáx {maxHeartRate} bpm)
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <TrainingZonesCard maxHeartRate={maxHeartRate} embedded />
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      ) : null}
+      {zonesSection}
 
       {/* Live region curta (U15): a conduta é lida pela REGIÃO focada. */}
       <span aria-live="polite" className="sr-only">{liveAnnouncement}</span>
