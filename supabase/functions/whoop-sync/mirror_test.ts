@@ -8,7 +8,7 @@ Deno.test('janela cancelada não inicia paginação',async()=>{
 });
 Deno.test('paginação repetida falha sem upsert parcial e cada HTTP recebe timeout',async()=>{
  const original=fetch;let writes=0;const logs:unknown[]=[];
- globalThis.fetch=((_url,init)=>{assert(init?.signal);return Promise.resolve(Response.json({records:[],next_token:'repetido'}));}) as typeof fetch;
+ globalThis.fetch=((_url: RequestInfo | URL,init?: RequestInit)=>{assert(init?.signal);return Promise.resolve(Response.json({records:[],next_token:'repetido'}));}) as typeof fetch;
  const supa={from:()=>({upsert:()=>{writes++;return Promise.resolve({error:null});},insert:(row:unknown)=>{logs.push(row);return Promise.resolve({error:null});}})};
  try{
   await assertRejects(()=>syncStudent({supa,fetchCollections:fetchCollectionsReal},{student_id:'teste',accessToken:'teste',start:'2026-09-01',end:'2026-09-02'}));
