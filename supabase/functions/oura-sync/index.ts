@@ -15,6 +15,7 @@ import {
   workoutsForDay,
   type LooseDoc,
   pruneAbsentAcuteGroups,
+  classifyUnauthorizedEndpoints,
 } from '../_shared/ouraSyncLib.ts';
 
 const corsHeaders = {
@@ -74,9 +75,6 @@ const computeStats = (values: number[]) => {
 
 const jsonResponse = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: jsonHeaders });
-
-const isUnauthorizedStatus = (status: number): boolean =>
-  status === 401 || status === 403;
 
 Deno.serve(async (req) => {
   const console = mirrorLogger;
@@ -524,16 +522,23 @@ Deno.serve(async (req) => {
       { name: 'resilience', response: resilienceRes },
     ];
 
-    const unauthorizedEndpoints = endpointStatuses
-      .filter((item) => item.response && isUnauthorizedStatus(item.response.status))
-      .map((item) => item.name);
+    const unauthorized = classifyUnauthorizedEndpoints(
+      endpointStatuses.map((item) => ({
+        name: item.name,
+        status: item.response?.status ?? null,
+        ok: Boolean(item.response?.ok),
+      })),
+    );
 
-    if (unauthorizedEndpoints.length > 0) {
+    if (unauthorized.fatal.length > 0) {
       return jsonResponse(401, {
         error: 'Falha de autenticação com a API do Oura Ring',
-        details: `Endpoints com 401/403: ${unauthorizedEndpoints.join(', ')}`,
+        details: `Endpoints com 401/403: ${unauthorized.fatal.join(', ')}`,
         suggestion: 'Reconecte o Oura Ring do aluno para renovar as credenciais.',
       });
+    }
+    if (unauthorized.optional.length > 0) {
+      warnings.push(`Sem permissão no Oura para: ${unauthorized.optional.join(', ')} (demais dados gravados).`);
     }
 
     const successfulEndpoints = endpointStatuses.filter(

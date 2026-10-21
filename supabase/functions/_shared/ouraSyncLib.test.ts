@@ -5,6 +5,7 @@ import {
   hasBudgetFor,
   isValidCalendarDate,
   classifyOutcome,
+  classifyUnauthorizedEndpoints,
   documentForDay,
   documentsForDay,
   hasAnyMetricValue,
@@ -160,4 +161,34 @@ Deno.test("pruneAbsentAcuteGroups: com todas as séries presentes, payload fica 
     day_hr_series: { samples: [{ bpm: 70 }] }, hr_day_min: 70, hr_day_max: 70, hr_day_avg: 70, samples_count_hr_day: 1,
   };
   assertEquals(pruneAbsentAcuteGroups(full), full);
+});
+
+const endpoint = (name: string, status: number | null) => ({ name, status, ok: status !== null && status >= 200 && status < 300 });
+const ALL = ["readiness", "daily_sleep", "sleep_periods", "heartrate", "activity", "workouts", "stress", "spo2", "vo2", "resilience"];
+
+Deno.test("classifyUnauthorizedEndpoints: 401/403 só em SpO2 e resiliência não bloqueia o dia (caso Bárbara, 21/10)", () => {
+  const statuses = ALL.map((name) => endpoint(name, name === "spo2" ? 401 : name === "resilience" ? 403 : 200));
+  assertEquals(classifyUnauthorizedEndpoints(statuses), { fatal: [], optional: ["spo2", "resilience"] });
+});
+
+Deno.test("classifyUnauthorizedEndpoints: 401 em prontidão ou sono é credencial inválida", () => {
+  for (const core of ["readiness", "daily_sleep", "sleep_periods"]) {
+    const statuses = ALL.map((name) => endpoint(name, name === core || name === "spo2" ? 401 : 200));
+    assertEquals(classifyUnauthorizedEndpoints(statuses), { fatal: [core, "spo2"].sort((a, b) => ALL.indexOf(a) - ALL.indexOf(b)), optional: [] });
+  }
+});
+
+Deno.test("classifyUnauthorizedEndpoints: token revogado (tudo 401) continua fatal", () => {
+  const statuses = ALL.map((name) => endpoint(name, 401));
+  assertEquals(classifyUnauthorizedEndpoints(statuses).fatal, ALL);
+});
+
+Deno.test("classifyUnauthorizedEndpoints: só opcionais 401 e nenhum OK (resto caiu na rede) é fatal", () => {
+  const statuses = ALL.map((name) => endpoint(name, name === "spo2" ? 401 : null));
+  assertEquals(classifyUnauthorizedEndpoints(statuses), { fatal: ["spo2"], optional: [] });
+});
+
+Deno.test("classifyUnauthorizedEndpoints: 404 do vo2 e 429 não contam como falta de permissão", () => {
+  const statuses = ALL.map((name) => endpoint(name, name === "vo2" ? 404 : name === "stress" ? 429 : 200));
+  assertEquals(classifyUnauthorizedEndpoints(statuses), { fatal: [], optional: [] });
 });

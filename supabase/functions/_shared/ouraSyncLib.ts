@@ -152,6 +152,31 @@ export const classifyOutcome = (
   return "no_data";
 };
 
+/**
+ * Endpoints sem os quais a sincronização não tem valor (prontidão e sono):
+ * 401/403 em um deles é credencial inválida e pede reconexão.
+ */
+export const OURA_CORE_ENDPOINTS: readonly string[] = ["readiness", "daily_sleep", "sleep_periods"];
+
+const isUnauthorized = (status: number | null): boolean => status === 401 || status === 403;
+
+/**
+ * Separa 401/403 em fatal × opcional. Nos endpoints opcionais (SpO2,
+ * resiliência, estresse…) o 401/403 vem de permissão desmarcada no
+ * consentimento do Oura ou de recurso que o anel/plano não tem: o resto do
+ * dia continua sendo gravado e a falta vira aviso. Vira fatal quando atinge
+ * um endpoint essencial ou quando nenhum endpoint respondeu OK.
+ */
+export const classifyUnauthorizedEndpoints = (
+  endpoints: ReadonlyArray<{ name: string; status: number | null; ok: boolean }>,
+): { fatal: string[]; optional: string[] } => {
+  const unauthorized = endpoints.filter((e) => isUnauthorized(e.status)).map((e) => e.name);
+  if (unauthorized.length === 0) return { fatal: [], optional: [] };
+  const anyOk = endpoints.some((e) => e.ok);
+  const coreHit = unauthorized.some((name) => OURA_CORE_ENDPOINTS.includes(name));
+  return coreHit || !anyOk ? { fatal: unauthorized, optional: [] } : { fatal: [], optional: unauthorized };
+};
+
 /** Desvio de temperatura: campo de TOPO do daily_readiness (não de contributors). */
 export const temperatureDeviationFrom = (readiness: Doc | null): number | null =>
   readiness && typeof readiness.temperature_deviation === "number"
