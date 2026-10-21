@@ -356,7 +356,7 @@ function sanitizeAvatarPayload(rawValue: unknown): AvatarUploadPayload | null {
   };
 }
 
-type SupabaseClient = ReturnType<typeof createClient<Record<string, unknown>>>;
+type SupabaseClient = ReturnType<typeof createClient>;
 
 async function claimInvite(
   supabaseClient: SupabaseClient,

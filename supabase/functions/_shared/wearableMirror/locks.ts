@@ -6,7 +6,7 @@ export function syncContext(url: string, key: string) {
   const db = createClient(url, key, {
     global: {
       headers: { "x-wearable-sync-owner": owner },
-      fetch: (input, init) => {
+      fetch: (input: RequestInfo | URL, init?: RequestInit) => {
         const releasing = String(input).endsWith("/rpc/wearable_sync_release");
         const timeout = AbortSignal.timeout(
           releasing ? 5000 : Math.max(1, deadline - Date.now()),
