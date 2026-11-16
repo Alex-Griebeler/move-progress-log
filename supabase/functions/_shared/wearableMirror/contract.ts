@@ -1,4 +1,4 @@
-// Contrato v1 do espelho Oura/Whoop (docs/ESPELHO_WEARABLES.md). O MESMO arquivo vai para a
+// Contrato v1 (com a extensão ADITIVA dos treinos do Oura, decisão 25) do espelho Oura/Whoop (docs/ESPELHO_WEARABLES.md). O MESMO arquivo vai para a
 // função exportadora da Fabrik e para o importador do app pessoal: os dois lados validam a mesma
 // forma. Campo desconhecido é erro (deriva de contrato não passa em silêncio) e qualquer chave com
 // "token"/"secret" é recusada em qualquer profundidade.
@@ -12,6 +12,20 @@ export type MirrorProvider = "oura" | "whoop";
 export const MIRROR_PROVIDERS: readonly MirrorProvider[] = ["oura", "whoop"];
 
 export type MirrorProjection = "oura_metrics" | "oura_acute_metrics" | "whoop_metrics";
+
+/**
+ * Projeção OPCIONAL (aditiva): treinos do Oura. Exportador antigo não manda a chave; ausente = nada a fazer no destino
+ * (nunca apaga treino por causa disso). Linhas não têm `date`: o dia do treino é o dia de São Paulo do início.
+ */
+export type MirrorWorkoutProjection = "oura_workouts";
+export const MIRROR_MAX_WORKOUTS = 500;
+const WORKOUT_COLUMNS = [
+  "oura_workout_id", "activity", "start_datetime", "end_datetime", "calories", "distance", "intensity",
+  "average_heart_rate", "max_heart_rate", "source",
+] as const;
+const WORKOUT_INT_COLUMNS = ["calories", "distance", "average_heart_rate", "max_heart_rate"] as const;
+const WORKOUT_TEXT_COLUMNS = ["intensity", "source"] as const;
+const WORKOUT_TEXT_MAX = 64;
 
 /** Colunas transportadas por projeção (além de `date`). Nada fora daqui cruza entre os apps. */
 export const MIRROR_COLUMNS: Record<MirrorProjection, readonly string[]> = {
@@ -59,6 +73,25 @@ export interface MirrorProjectionPayload {
   rows: MirrorRow[];
 }
 
+export interface MirrorWorkoutRow {
+  oura_workout_id: string;
+  activity: string;
+  start_datetime: string;
+  end_datetime: string;
+  calories: number | null;
+  distance: number | null;
+  intensity: string | null;
+  average_heart_rate: number | null;
+  max_heart_rate: number | null;
+  source: string | null;
+}
+
+export interface MirrorWorkoutsPayload {
+  complete: boolean;
+  count: number;
+  rows: MirrorWorkoutRow[];
+}
+
 export interface MirrorGrant {
   grant_id: string;
   revision: number;
@@ -69,7 +102,7 @@ export interface MirrorGrant {
   revoked_at: string | null;
   period: { from: string; to: string } | null;
   connections: Partial<Record<MirrorProvider, MirrorConnection>>;
-  projections: Partial<Record<MirrorProjection, MirrorProjectionPayload>>;
+  projections: Partial<Record<MirrorProjection, MirrorProjectionPayload>> & { oura_workouts?: MirrorWorkoutsPayload };
 }
 
 export interface MirrorSnapshot {
@@ -187,6 +220,60 @@ function parseProjection(
   return { complete: obj.complete as boolean, count: rows.length, rows: parsed };
 }
 
+/** Dia de São Paulo (UTC-3 fixo: o Brasil não tem horário de verão desde 2019) de um instante ISO. */
+function saoPauloDay(iso: string): string {
+  return new Date(Date.parse(iso) - 3 * 3_600_000).toISOString().slice(0, 10);
+}
+
+function parseWorkouts(
+  raw: unknown,
+  period: { from: string; to: string },
+  historyFrom: string | null,
+  where: string,
+): MirrorWorkoutsPayload {
+  if (!isObject(raw)) fail(`${where}: projeção inválida`);
+  const obj = raw as Record<string, unknown>;
+  assertOnlyKeys(obj, ["complete", "count", "rows"], where);
+  if (typeof obj.complete !== "boolean") fail(`${where}.complete deve ser booleano`);
+  if (!Array.isArray(obj.rows)) fail(`${where}.rows deve ser lista`);
+  const rows = obj.rows as unknown[];
+  if (obj.count !== rows.length) fail(`${where}.count (${String(obj.count)}) difere de rows (${rows.length})`);
+  if (rows.length > MIRROR_MAX_WORKOUTS) fail(`${where}: mais de ${MIRROR_MAX_WORKOUTS} treinos`);
+  const seen = new Set<string>();
+  const parsed = rows.map((row, i) => {
+    const w = `${where}.rows[${i}]`;
+    if (!isObject(row)) fail(`${w}: linha inválida`);
+    const r = row as Record<string, unknown>;
+    assertOnlyKeys(r, WORKOUT_COLUMNS, w);
+    for (const col of WORKOUT_COLUMNS) if (!(col in r)) fail(`${w}.${col} ausente`);
+    for (const col of ["oura_workout_id", "activity"] as const) {
+      if (typeof r[col] !== "string" || (r[col] as string).length < 1 || (r[col] as string).length > WORKOUT_TEXT_MAX) {
+        fail(`${w}.${col} deve ser texto de 1 a ${WORKOUT_TEXT_MAX} caracteres`);
+      }
+    }
+    if (!isIsoDateTime(r.start_datetime)) fail(`${w}.start_datetime inválido`);
+    if (!isIsoDateTime(r.end_datetime)) fail(`${w}.end_datetime inválido`);
+    if (Date.parse(r.end_datetime as string) < Date.parse(r.start_datetime as string)) fail(`${w}: termina antes de começar`);
+    const day = saoPauloDay(r.start_datetime as string);
+    if (day < period.from || day > period.to || (historyFrom && day < historyFrom)) fail(`${w}: dia fora do período`);
+    const id = r.oura_workout_id as string;
+    if (seen.has(id)) fail(`${w}.oura_workout_id repetido`);
+    seen.add(id);
+    for (const col of WORKOUT_INT_COLUMNS) {
+      const v = r[col];
+      if (v === null) continue;
+      if (typeof v !== "number" || !Number.isFinite(v)) fail(`${w}.${col} deve ser número`);
+      if (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 2_000_000_000) fail(`${w}.${col} deve ser inteiro não negativo`);
+    }
+    for (const col of WORKOUT_TEXT_COLUMNS) {
+      const v = r[col];
+      if (v !== null && (typeof v !== "string" || v.length > WORKOUT_TEXT_MAX)) fail(`${w}.${col} deve ser texto curto`);
+    }
+    return r as unknown as MirrorWorkoutRow;
+  });
+  return { complete: obj.complete as boolean, count: parsed.length, rows: parsed };
+}
+
 function parseGrant(raw: unknown, where: string): MirrorGrant {
   if (!isObject(raw)) fail(`${where}: autorização inválida`);
   const obj = raw as Record<string, unknown>;
@@ -245,7 +332,10 @@ function parseGrant(raw: unknown, where: string): MirrorGrant {
   const projectionsRaw = obj.projections ?? {};
   if (!isObject(projectionsRaw)) fail(`${where}.projections inválido`);
   const expected = providers.flatMap((p) => PROJECTIONS_BY_PROVIDER[p]);
-  assertOnlyKeys(projectionsRaw as Record<string, unknown>, expected, `${where}.projections`);
+  // Treinos do Oura: chave opcional (só com Oura autorizado). Ausente ou nula = nada a fazer.
+  const workoutsRaw = (projectionsRaw as Record<string, unknown>).oura_workouts;
+  const withWorkouts = providers.includes("oura") ? [...expected, "oura_workouts"] : expected;
+  assertOnlyKeys(projectionsRaw as Record<string, unknown>, withWorkouts, `${where}.projections`);
   const projections: MirrorGrant["projections"] = {};
   for (const projection of expected) {
     projections[projection] = parseProjection(
@@ -254,6 +344,10 @@ function parseGrant(raw: unknown, where: string): MirrorGrant {
       period,
       `${where}.projections.${projection}`,
     );
+  }
+
+  if (workoutsRaw !== undefined && workoutsRaw !== null) {
+    projections.oura_workouts = parseWorkouts(workoutsRaw, period, base.history_from, `${where}.projections.oura_workouts`);
   }
 
   return { ...base, period, connections, projections };
